@@ -15,6 +15,7 @@ import { db } from "@/lib/db"
 import { getUserContext } from "@/lib/rbac"
 import { QuickLinks } from "@/components/QuickLinks"
 import { seatKeysForRole, type SeatKey } from "@/lib/resources"
+import { listResources, resourceInstitutionFor } from "@/lib/resources-data"
 import { Card } from "@/components/ui/Card"
 import { StatGrid, StatTile, type StatDelta } from "@/components/ui/Bento"
 import { Meter } from "@/components/charts"
@@ -256,6 +257,13 @@ export default async function DashboardPage() {
     ]),
   ]
 
+  // Live from the institution's resource board, so anything OSE publishes shows
+  // up here without a deploy.
+  const resourceInstitutionId = await resourceInstitutionFor(ctx)
+  const quickLinkResources = resourceInstitutionId
+    ? await listResources(resourceInstitutionId)
+    : []
+
   // Shared list renderers — the same markup drives the capped preview and the
   // full "See all" overlay, so nothing overflows a panel to a different height.
   const activityList = (items: typeof recentAudit) => (
@@ -456,7 +464,7 @@ export default async function DashboardPage() {
               </ul>
             </Card>
           )}
-          <QuickLinks seats={quickLinkSeats} />
+          <QuickLinks resources={quickLinkResources} seats={quickLinkSeats} />
           {mySeats.length > 0 && (
             <Card>
               <SeeAllSection

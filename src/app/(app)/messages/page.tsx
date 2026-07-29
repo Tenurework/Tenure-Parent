@@ -139,7 +139,7 @@ export default async function MessagesPage() {
                       {dm ? (
                         <Avatar name={dm.name ?? "?"} imageUrl={dm.image} size="md" />
                       ) : (
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-subtle text-text-3">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border text-text-3">
                           <Icon size={18} />
                         </span>
                       )}

@@ -89,7 +89,10 @@ test.describe("scheduled reminder job", () => {
   })
 
   test("runs with the secret and is idempotent across invocations", async ({ request }) => {
-    const headers = { Authorization: "Bearer e2e-job-secret" }
+    // Read the same value the server was started with (playwright.config mirrors
+    // .env into the runner) rather than hardcoding CI's, so a local run does not
+    // fail with a 401 that says nothing about the job itself.
+    const headers = { Authorization: `Bearer ${process.env.JOB_SECRET ?? "e2e-job-secret"}` }
 
     const first = await request.post("/api/jobs/reminders", { headers })
     expect(first.status()).toBe(200)

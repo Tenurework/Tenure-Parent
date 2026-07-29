@@ -136,8 +136,9 @@ export function TenureAIPanel() {
         <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
           {messages.length === 0 && (
             <div className="pt-4">
-              <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[--primary-light]">
-                <Sparkles size={22} weight="duotone" className="text-[--primary]" />
+              {/* Outline-only: a hairline ring, not a tinted plate. */}
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-border">
+                <Sparkles size={22} weight="regular" className="text-[--primary]" />
               </div>
               <p className="mt-4 text-center text-sm text-text-2">
                 Ask about your clubs, seats, deadlines, approvals, documents and institutional memory.

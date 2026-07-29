@@ -21,8 +21,10 @@ export function EmptyState({
 }) {
   return (
     <div className={`flex flex-col items-center justify-center px-6 py-12 text-center ${className ?? ""}`}>
-      <div className="grid h-14 w-14 place-items-center rounded-full bg-subtle text-text-3">
-        <Icon size={26} strokeWidth={1.75} />
+      {/* Outline-only: a hairline ring rather than a filled plate, and a
+          light-weight glyph, so the state reads quiet instead of stamped. */}
+      <div className="grid h-14 w-14 place-items-center rounded-full border border-border text-text-3">
+        <Icon size={26} weight="light" aria-hidden />
       </div>
       <p className="mt-4 text-lead font-semibold text-text-1">{title}</p>
       {description && (

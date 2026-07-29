@@ -15,11 +15,9 @@ export function ComingSoon({
   return (
     <div className="max-w-2xl">
       <Card padding="lg" className="text-center py-14">
-        <div
-          className="mx-auto w-12 h-12 rounded-xl flex items-center justify-center"
-          style={{ background: "var(--primary-light)" }}
-        >
-          <Icon size={24} style={{ color: "var(--primary)" }} />
+        {/* Outline-only: a hairline ring, never a tinted plate. */}
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-border">
+          <Icon size={24} weight="regular" style={{ color: "var(--primary)" }} aria-hidden />
         </div>
         <h1 className="mt-4 text-lg font-semibold text-text-1">{title}</h1>
         <p className="mt-2 text-sm text-text-2 max-w-md mx-auto">{description}</p>

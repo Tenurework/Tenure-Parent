@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter, Plus_Jakarta_Sans } from "next/font/google"
 import "./globals.css"
 
@@ -24,6 +24,18 @@ export const metadata: Metadata = {
     default: "Tenure",
   },
   description: "Institutional knowledge that survives every leadership transition.",
+  applicationName: "Tenure",
+  appleWebApp: { capable: true, title: "Tenure", statusBarStyle: "default" },
+}
+
+// The browser chrome follows the app's own surfaces rather than defaulting to
+// white — matched to --bg-base in each theme so there is no bright seam above
+// the header on mobile.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f0efe9" },
+    { media: "(prefers-color-scheme: dark)", color: "#08090a" },
+  ],
 }
 
 // Applied before hydration so the page never flashes the wrong theme or the

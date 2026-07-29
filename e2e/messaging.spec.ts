@@ -121,6 +121,9 @@ test.describe("messaging", () => {
     await expect(page.getByText(q)).toBeVisible()
   })
 
+  // Broadcast bodies are identical from run to run, so assertions on the body
+  // text are scoped with `.first()` — a bare getByText matches every prior
+  // run's copy on a database that is not reset between runs.
   test("OSE broadcast reaches members read-only", async ({ page }) => {
     const subject = `Fall deadlines ${stamp}`
     await signIn(page, "Dana Whitfield")
@@ -130,13 +133,13 @@ test.describe("messaging", () => {
     await page.getByRole("button", { name: "Send broadcast" }).click()
     await page.getByRole("dialog").getByRole("button", { name: "Send broadcast" }).click()
     await page.waitForURL(/\/messages\/[a-z0-9]+/)
-    await expect(page.getByText("Budget submissions close Oct 15.")).toBeVisible()
+    await expect(page.getByText("Budget submissions close Oct 15.").first()).toBeVisible()
 
     // A member sees it but cannot reply
     await signIn(page, "Maya Johnson")
     await page.goto("/messages")
     await page.getByText(subject).first().click()
-    await expect(page.getByText("Budget submissions close Oct 15.")).toBeVisible()
+    await expect(page.getByText("Budget submissions close Oct 15.").first()).toBeVisible()
     await expect(page.getByPlaceholder("Write a message…")).not.toBeVisible()
     await expect(page.getByText("Broadcasts are read-only.")).toBeVisible()
   })

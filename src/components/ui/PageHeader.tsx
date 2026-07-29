@@ -54,7 +54,17 @@ export function PageHeader({
             <p className="mt-1.5 max-w-2xl text-lead text-text-2">{subtitle}</p>
           )}
         </div>
-        {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5">{actions}</div>}
+        {/* The action row wraps instead of pushing the page wide.
+            `shrink-0` here used to defeat the `flex-wrap` beside it: the row
+            refused to narrow, so it never had a reason to wrap and instead
+            forced horizontal scroll on every page with several actions (the
+            calendar's filter + subscribe + propose row overflowed a 768px
+            tablet by ~120px). `min-w-0` lets it take the space it has. */}
+        {actions && (
+          <div className="flex min-w-0 flex-wrap items-center gap-2.5 sm:justify-end">
+            {actions}
+          </div>
+        )}
       </div>
     </header>
   )

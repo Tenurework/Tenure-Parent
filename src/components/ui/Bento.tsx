@@ -110,7 +110,6 @@ export function StatTile({
   hint,
   icon: Icon,
   color = "var(--primary)",
-  bg = "var(--primary-light)",
   href,
   delta,
   spark,
@@ -120,7 +119,6 @@ export function StatTile({
   hint?: string
   icon: IconType
   color?: string
-  bg?: string
   href?: string
   /** Optional signed trend chip beside the value. */
   delta?: StatDelta
@@ -129,15 +127,12 @@ export function StatTile({
 }) {
   const inner = (
     <div className="tile-float flex h-full flex-col rounded-[10px] border border-border bg-surface p-4">
-      {/* Label leads (ERP KPI convention); the icon recedes to the top-right. */}
+      {/* Label leads (ERP KPI convention); the icon recedes to the top-right.
+          Bare outline glyph — no tinted plate behind it, so the colour lives on
+          the stroke alone (see ICONOGRAPHY in globals.css). */}
       <div className="flex items-start justify-between gap-2">
         <p className="micro-label pt-0.5">{label}</p>
-        <div
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-md"
-          style={{ background: bg }}
-        >
-          <Icon size={16} style={{ color }} weight="duotone" />
-        </div>
+        <Icon size={18} style={{ color }} weight="regular" className="shrink-0" aria-hidden />
       </div>
       <div className="mt-2.5 flex items-baseline gap-2">
         <p

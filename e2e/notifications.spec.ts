@@ -70,18 +70,21 @@ test.describe("notification system", () => {
 })
 
 test.describe("interactive calendar + back navigation", () => {
-  test("clicking a day opens the inspector panel", async ({ page }) => {
+  test("the week grid orients the viewer without any clicking", async ({ page }) => {
+    // The month grid's click-a-day inspector panel is gone: the week view shows
+    // the schedule directly, so there is nothing to expand. What has to hold is
+    // that a viewer lands already oriented — named weekdays, an hour axis, and
+    // the timezone the times are in.
     await signIn(page, "Maya Johnson")
     await page.goto("/calendar")
-    await expect(page.getByText("Click a day to see its schedule.")).toBeVisible()
-    await page.getByRole("button", { name: /^Day 15,/ }).click()
-    await expect(page.getByRole("button", { name: /^Day 15,/ })).toBeVisible()
-    // Panel now shows either events or the free-day message
-    await expect(
-      page.getByText(/Nothing scheduled|hard conflict|am|pm/).first()
-    ).toBeVisible()
-    await page.getByRole("button", { name: "Close day panel" }).click()
-    await expect(page.getByText("Click a day to see its schedule.")).toBeVisible()
+
+    await expect(page.getByText("7am").first()).toBeVisible()
+    await expect(page.getByText("11pm").first()).toBeVisible()
+    for (const d of ["Sun", "Mon", "Fri", "Sat"]) {
+      await expect(page.getByText(d, { exact: true }).first()).toBeVisible()
+    }
+    // Times are never printed without saying which clock they are on.
+    await expect(page.getByText(/E[SD]T/).first()).toBeVisible()
   })
 
   test("back button returns from a detail page", async ({ page }) => {

@@ -342,6 +342,44 @@
     display: none;
   }
 
+  /* ─── Calendar event chip ─────────────────────────────────────────────────
+     The per-club colour arrives as custom properties from lib/calendar-color
+     (both themes at once) and the theme picks a pair here, so a club chip is
+     legible on the paper card and on the near-black dark card alike. */
+  .cal-chip {
+    background: var(--chip-bg);
+    border-color: var(--chip-border);
+    color: var(--chip-text);
+  }
+  html.dark .cal-chip {
+    background: var(--chip-bg-dark);
+    border-color: var(--chip-border-dark);
+    color: var(--chip-text-dark);
+  }
+
+  /* ─── Iconography rule ────────────────────────────────────────────────────
+     System rule: an icon's colour lives on its OUTLINE only. Icons are never
+     set on a tinted plate (no bg-[--primary-light] / --accent / --*-light
+     square behind a glyph) and never use Phosphor's "duotone" or "fill"
+     weights, which paint a coloured field inside the glyph itself. Where an
+     icon needs a visual anchor — an empty state, a callout, a brand moment —
+     use `.icon-frame` below: a hairline ring on the page surface.
+
+     This is deliberately narrow. It does NOT apply to:
+       · buttons (a primary button is a filled control, not an icon),
+       · count/status badges and chips (the fill IS the signal),
+       · date markers such as the calendar "today" pill.
+
+     Use <IconFrame> from @/components/ui/IconFrame rather than hand-rolling. */
+  .icon-frame {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    color: var(--text-3);
+    background: transparent;
+  }
+
   /* Instrument panels — flat, border-defined tiles (depth from hairlines, not
      shadow). On hover the border firms up and a faint shadow lifts it a hair —
      a professional, ERP-grade response, not a playful bounce. */
