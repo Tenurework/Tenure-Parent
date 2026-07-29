@@ -14,6 +14,7 @@ import { PrismaClient } from "@prisma/client"
 
 import { ROSTER, ADVISORS, CURRENT_TERM, PRIOR_TERM } from "./roster-data.mjs"
 import { deliverablesWithTerms } from "./deliverables-data.mjs"
+import { RESOURCES } from "./resources-data.mjs"
 
 const db = new PrismaClient()
 
@@ -226,6 +227,38 @@ async function main() {
     })
   }
 
+  // ── Board resources ────────────────────────────────────────────────────────
+  // Bootstrap-only, like the demo BudgetLines below: `update: {}` so re-seeding
+  // adds any newly shipped resource without touching rows that already exist.
+  //
+  // This MUST NOT write on update. entrypoint.sh runs this seed on every
+  // container start — every deploy, every ECS task replacement, every
+  // health-check restart — not just first boot. Passing the launch content as
+  // the update payload therefore reverted anything OSE had edited through
+  // /resources, silently and with no audit record of the reversion, usually
+  // hours or days after the edit was made. Resource is operator-writable
+  // (src/lib/resources-data.ts updateResource), which is the whole point of
+  // moving these out of a hardcoded array; Deliverable can safely use
+  // `update: data` above only because nothing in the app writes to it.
+  for (const r of RESOURCES) {
+    const data = {
+      title: r.title,
+      description: r.description,
+      href: r.href,
+      external: r.external,
+      ready: r.ready,
+      kind: r.kind,
+      seats: r.seats,
+      rule: r.rule ?? null,
+      sortOrder: r.sortOrder,
+    }
+    await db.resource.upsert({
+      where: { institutionId_key: { institutionId: institution.id, key: r.key } },
+      update: {},
+      create: { ...data, key: r.key, institutionId: institution.id },
+    })
+  }
+
   // Clubs from earlier scaffolds that the 2026-2027 roster does not list
   const currentSlugs = new Set(ROSTER.map((c) => c.slug))
   await db.organization.updateMany({
@@ -430,11 +463,13 @@ async function main() {
     seats: await db.role.count(),
     people: await db.directoryPerson.count(),
     deliverables: await db.deliverable.count(),
+    resources: await db.resource.count(),
     holdings: await db.seatHolding.count(),
   }
   console.log(
     `✅ Seed complete — ${counts.clubs} clubs, ${counts.seats} seats, ` +
-      `${counts.people} directory people, ${counts.holdings} seat holdings, ${counts.deliverables} deliverables`
+      `${counts.people} directory people, ${counts.holdings} seat holdings, ` +
+      `${counts.deliverables} deliverables, ${counts.resources} board resources`
   )
 }
 

@@ -1,6 +1,7 @@
 import {
   canContribute,
   canListAllOrgs,
+  canManageResources,
   canManageRoster,
   canViewOrg,
   isOse,
@@ -103,5 +104,32 @@ describe("canContribute", () => {
     expect(canContribute(member("ACTIVE"), ORG)).toBe(true)
     expect(canContribute(member("SHADOW"), ORG)).toBe(false)
     expect(canContribute(member("ALUMNI"), ORG)).toBe(false)
+  })
+})
+
+describe("canManageResources", () => {
+  const director = ctx({ institutionRoles: [{ institutionId: INST, role: "OSE_DIRECTOR" }] })
+  const staff = ctx({ institutionRoles: [{ institutionId: INST, role: "OSE_STAFF" }] })
+  const advisor = ctx({ institutionRoles: [{ institutionId: INST, role: "OSE_ADVISOR" }] })
+
+  it("lets the OSE Director publish resources", () => {
+    // The gap this closes: the Director owns the board-resource programme and
+    // previously had no way to add one, because resources were hardcoded.
+    expect(canManageResources(director, INST)).toBe(true)
+  })
+
+  it("lets OSE Staff maintain them day to day", () => {
+    expect(canManageResources(staff, INST)).toBe(true)
+  })
+
+  it("keeps advisors and club officers read-only", () => {
+    expect(canManageResources(advisor, INST)).toBe(false)
+    expect(canManageResources(president("ACTIVE"), INST)).toBe(false)
+    expect(canManageResources(member("ACTIVE"), INST)).toBe(false)
+    expect(canManageResources(ctx(), INST)).toBe(false)
+  })
+
+  it("does not leak across institutions", () => {
+    expect(canManageResources(director, "inst_other")).toBe(false)
   })
 })

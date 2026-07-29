@@ -131,6 +131,26 @@ export function canContribute(
   return orgRolesFor(ctx, org.id).some((r) => r.status === "ACTIVE")
 }
 
+/**
+ * Publish, edit and retire board resources for the institution.
+ *
+ * The board-resource programme is OSE's: the Director owns it and staff
+ * maintain it day to day. Advisors are read-only, matching their standing
+ * everywhere else (they advise clubs, they do not set institution policy).
+ *
+ * This check exists because the resource board previously had no author at all
+ * — resources were a hardcoded array, so the OSE Director, the very person
+ * accountable for them, had no way to add one without a code change and a
+ * deploy.
+ */
+export function canManageResources(ctx: UserContext, institutionId: string): boolean {
+  return ctx.institutionRoles.some(
+    (m) =>
+      m.institutionId === institutionId &&
+      (m.role === "OSE_DIRECTOR" || m.role === "OSE_STAFF")
+  )
+}
+
 /** True if a seat name is a finance role (VP of Finance, treasurer, CFO/COO). */
 export function isFinanceRole(roleName: string): boolean {
   return /financ|treasur|\bcfo\b|chief financ|chief operating|\bcoo\b/i.test(roleName)
