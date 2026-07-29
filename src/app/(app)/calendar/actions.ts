@@ -5,6 +5,8 @@ import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { detectConflicts } from "@/lib/calendar"
+import { institutionTimeZone } from "@/lib/institution-time"
+import { formatInZone, parseDateTimeLocal } from "@/lib/time"
 import { nextStatus } from "@/lib/approvals"
 import { notifyUsers, orgPresidentIds, oseMemberIds } from "@/lib/notify"
 
@@ -27,11 +29,6 @@ export async function createEvent(formData: FormData) {
   const endRaw = String(formData.get("endAt") ?? "")
 
   if (!title) throw new Error("Title is required")
-  const startAt = new Date(startRaw)
-  const endAt = new Date(endRaw)
-  if (isNaN(startAt.getTime()) || isNaN(endAt.getTime()))
-    throw new Error("Valid start and end times are required")
-  if (endAt <= startAt) throw new Error("End must be after start")
 
   // Requester needs an ACTIVE seat in the club
   const membership = await db.roleAssignment.findFirst({
@@ -40,6 +37,17 @@ export async function createEvent(formData: FormData) {
   })
   if (!membership) throw new Error("You need an active role in this club")
   const org = membership.role.organization
+
+  // A `datetime-local` field carries no zone. `new Date("2026-09-05T18:00")`
+  // resolves it against the SERVER's zone — UTC in production — so an officer
+  // who typed 6:00 PM had 6:00 PM UTC stored, and the calendar showed their
+  // event four hours out from the ICS feed Tenure publishes for it. Parse the
+  // field as institution-local wall-clock time instead. See src/lib/time.ts.
+  const timeZone = await institutionTimeZone(org.institutionId)
+  const startAt = parseDateTimeLocal(startRaw, timeZone)
+  const endAt = parseDateTimeLocal(endRaw, timeZone)
+  if (!startAt || !endAt) throw new Error("Valid start and end times are required")
+  if (endAt <= startAt) throw new Error("End must be after start")
 
   // Conflict detection against all live events at the institution
   const existing = await db.event.findMany({
@@ -75,7 +83,7 @@ export async function createEvent(formData: FormData) {
         type: "EVENT",
         title,
         description:
-          `Proposed for ${startAt.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}` +
+          `Proposed for ${formatInZone(startAt, timeZone, { dateStyle: "medium", timeStyle: "short" })}` +
           (venue ? ` at ${venue}` : "") +
           (description ? `\n\n${description}` : ""),
         submittedById: userId,

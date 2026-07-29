@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { canViewOrg, getUserContext, isOse } from "@/lib/rbac"
+import { institutionTimeZone } from "@/lib/institution-time"
+import { formatInZone, zoneAbbreviation } from "@/lib/time"
 import { Card, CardHeader, Attribute } from "@/components/ui/Card"
 import { BackButton } from "@/components/BackButton"
 import { EventBadge, SeverityBadge } from "@/components/ui/Badge"
@@ -27,6 +29,13 @@ export default async function EventDetailPage({
     },
   })
   if (!event) notFound()
+
+  // Render in the institution's zone, never the server's. Production runs in
+  // UTC, so a bare toLocaleString here reported evening events 4–5 hours late —
+  // and on the wrong day past 8pm — while the grid that links here, the event
+  // inspector and the ICS feed all agreed on local time. See src/lib/time.ts.
+  const tz = await institutionTimeZone(event.institutionId)
+  const zoneLabel = zoneAbbreviation(tz, event.startAt)
 
   const ctx = await getUserContext(session.user.id)
   const canView =
@@ -65,21 +74,21 @@ export default async function EventDetailPage({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Attribute
               label="Starts"
-              value={event.startAt.toLocaleString("en-US", {
+              value={`${formatInZone(event.startAt, tz, {
                 month: "short",
                 day: "numeric",
                 hour: "numeric",
                 minute: "2-digit",
-              })}
+              })} ${zoneLabel}`}
             />
             <Attribute
               label="Ends"
-              value={event.endAt.toLocaleString("en-US", {
+              value={`${formatInZone(event.endAt, tz, {
                 month: "short",
                 day: "numeric",
                 hour: "numeric",
                 minute: "2-digit",
-              })}
+              })} ${zoneLabel}`}
             />
             <Attribute label="Venue" value={event.venue ?? "—"} />
             <Attribute

@@ -9,7 +9,9 @@ async function signIn(page: Page, userName: string) {
   await page.waitForURL(/\/dashboard/)
 }
 
-test("a member can filter the calendar by club and own events, sticky across views", async ({ page }) => {
+test("a member can filter the calendar by club and own events, sticky across weeks", async ({
+  page,
+}) => {
   await signIn(page, "Victor Chen") // VP Finance, consulting club
   await page.goto("/calendar")
 
@@ -20,12 +22,19 @@ test("a member can filter the calendar by club and own events, sticky across vie
   await page.getByRole("button", { name: "My events" }).click()
   await expect(page).toHaveURL(/mine=1/)
 
-  // …and survives a view switch (the view links carry the filter).
-  await page.getByRole("link", { name: "Week", exact: true }).click()
-  await expect(page).toHaveURL(/view=week/)
+  // …and survives week navigation, which is the only navigation the calendar
+  // has now that Month/Day/Agenda are gone.
+  await page.getByRole("link", { name: "Next week" }).click()
+  await expect(page).toHaveURL(/d=\d{4}-\d{2}-\d{2}/)
   await expect(page).toHaveURL(/mine=1/)
 
   // Filter to a club too.
   await clubSelect.selectOption({ label: "Simon Consulting Club" })
+  await expect(page).toHaveURL(/club=/)
+
+  // Both filters ride the mini-month links as well, so jumping to a date does
+  // not silently reset the view to "everything".
+  await page.getByRole("link", { name: "This week" }).click()
+  await expect(page).toHaveURL(/mine=1/)
   await expect(page).toHaveURL(/club=/)
 })

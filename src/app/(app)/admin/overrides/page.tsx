@@ -5,6 +5,8 @@ import type { EventStatus } from "@prisma/client"
 import { CheckCircle, X, Archive, ArchiveRestore, CalendarDays, BookOpen, FileText } from "@/components/ui/icons"
 import { db } from "@/lib/db"
 import { requireAdminContext } from "@/lib/admin/guard"
+import { institutionTimeZone } from "@/lib/institution-time"
+import { formatInZone } from "@/lib/time"
 import { hasCapability } from "@/lib/admin/capabilities"
 import { Card, CardHeader } from "@/components/ui/Card"
 import { EventBadge, Badge } from "@/components/ui/Badge"
@@ -21,6 +23,9 @@ export const dynamic = "force-dynamic"
 
 export default async function AdminOverridesPage() {
   const { ctx, institutionId } = await requireAdminContext()
+  // Pinning to UTC here dated evening events a day ahead of the calendar an
+  // admin cross-checks them against. src/lib/time.ts is the one authority.
+  const tz = await institutionTimeZone(institutionId)
   const canEvent = hasCapability(ctx, "event.override", institutionId)
   const canContent = hasCapability(ctx, "content.override", institutionId)
   if (!canEvent && !canContent) notFound()
@@ -77,7 +82,7 @@ export default async function AdminOverridesPage() {
                     </Link>
                     <p className="text-[13px] text-text-3">
                       {e.organization.name} ·{" "}
-                      {e.startAt.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+                      {formatInZone(e.startAt, tz, { month: "short", day: "numeric" })}
                     </p>
                   </div>
                   <EventBadge status={e.status as EventStatus} />

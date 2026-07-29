@@ -4,6 +4,8 @@ import { CalendarDays, Handshake, MessageCircle, Newspaper } from "@/components/
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getUserContext, isOseDirector } from "@/lib/rbac"
+import { viewerTimeZone } from "@/lib/institution-time"
+import { formatInZone } from "@/lib/time"
 import { Card, CardHeader } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { ConfirmInlineSubmit } from "@/components/ui/ConfirmInlineSubmit"
@@ -30,6 +32,11 @@ export default async function FeedPage() {
   const userId = session.user.id
 
   const ctx = await getUserContext(userId)
+  // Event dates render in the institution's zone, matching the calendar. An
+  // unzoned format resolves against the server clock (UTC in production), which
+  // pushes any event after ~8pm local onto the following day's date here while
+  // the calendar shows the correct one.
+  const tz = await viewerTimeZone(userId)
   const oseInstitutionIds = ctx.institutionRoles.map((m) => m.institutionId)
   const activeOrgIds = ctx.orgRoles
     .filter((r) => r.status === "ACTIVE")
@@ -248,7 +255,7 @@ export default async function FeedPage() {
                       >
                         <CalendarDays size={12} />
                         {post.event.title} ·{" "}
-                        {post.event.startAt.toLocaleDateString("en-US", {
+                        {formatInZone(post.event.startAt, tz, {
                           month: "short",
                           day: "numeric",
                         })}

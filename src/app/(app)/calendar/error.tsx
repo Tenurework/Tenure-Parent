@@ -23,7 +23,7 @@ export default function CalendarError({
   return (
     <div className="max-w-xl py-12">
       <div className="rounded-lg border border-border bg-surface p-8 shadow-sm">
-        <span className="grid h-11 w-11 place-items-center rounded-full bg-subtle text-text-3">
+        <span className="grid h-11 w-11 place-items-center rounded-full border border-border text-text-3">
           <CalendarDays size={22} />
         </span>
 

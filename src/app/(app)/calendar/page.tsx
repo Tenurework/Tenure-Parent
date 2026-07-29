@@ -1,42 +1,59 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Plus, ChevronLeft, ChevronRight, CalendarDays, MapPin } from "@/components/ui/icons"
+import { Plus, ChevronLeft, ChevronRight } from "@/components/ui/icons"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
-import { getUserContext } from "@/lib/rbac"
+import { getUserContext, isOse } from "@/lib/rbac"
 import { loadScopedEvents } from "@/lib/calendar-data"
 import { calendarToken } from "@/lib/calendar-sync"
-import { CalendarGrid, type GridEvent } from "@/components/CalendarGrid"
-import { CalendarTimeGrid } from "@/components/CalendarTimeGrid"
+import { canEditEvent } from "@/lib/calendar-write"
+import { viewerTimeZone } from "@/lib/institution-time"
+import {
+  addDaysToKey,
+  dateKeyInZone,
+  formatDateKey,
+  startOfDayInZone,
+  startOfWeekKey,
+  todayKeyInZone,
+  zoneAbbreviation,
+} from "@/lib/time"
+import {
+  CalendarTimeGrid,
+  type AllDayItem,
+  type TimeGridEvent,
+} from "@/components/CalendarTimeGrid"
 import { CalendarMiniMonth } from "@/components/CalendarMiniMonth"
 import { CalendarSubscribe } from "@/components/CalendarSubscribe"
 import { CalendarFilters } from "@/components/CalendarFilters"
 import { clubSwatch } from "@/lib/calendar-color"
-import { Card } from "@/components/ui/Card"
-import { EmptyState } from "@/components/ui/EmptyState"
-import { EventBadge } from "@/components/ui/Badge"
-import type { EventStatus } from "@prisma/client"
+import { PageHeader } from "@/components/ui/PageHeader"
 
 export const dynamic = "force-dynamic"
 
-function monthParam(d: Date) {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
-}
-
-const DAY = 86_400_000
-
+/**
+ * The Tenure calendar — one view: the week.
+ *
+ * Month, Day and Agenda were removed deliberately. A student board runs on a
+ * weekly rhythm (meetings, room bookings, the 3-week event lead time), and four
+ * competing views meant four layouts to keep correct, four sets of URL state,
+ * and an officer landing on whichever one they last used. One view is one
+ * contract: the week grid is the calendar, everywhere, for every role.
+ *
+ * Legacy `?view=` and `?m=` links are still honoured — they resolve to the week
+ * containing the date they asked for rather than 404ing.
+ */
 export default async function CalendarPage({
   searchParams,
 }: {
   searchParams: Promise<{ m?: string; view?: string; d?: string; club?: string; mine?: string }>
 }) {
-  const { m, view, d, club, mine } = await searchParams
+  const { m, d, club, mine } = await searchParams
   const session = await auth()
   if (!session?.user?.id) redirect("/signin")
   const userId = session.user.id
 
-  const currentView = (["week", "day", "agenda"] as const).find((v) => v === view) ?? "month"
   const ctx = await getUserContext(userId)
+  const timeZone = await viewerTimeZone(userId)
   const canCreate = ctx.orgRoles.some((r) => r.status === "ACTIVE")
   const feedPath = `/api/calendar/ics/${calendarToken(userId)}`
 
@@ -59,7 +76,7 @@ export default async function CalendarPage({
   const clubFilter = club && clubOptions.some((c) => c.id === club) ? club : undefined
   const eventOpts = { organizationId: clubFilter, mineOnly }
 
-  // Keep the active filters on every internal calendar link (view switch, nav).
+  // Keep the active filters on every internal calendar link.
   const filterQs = (() => {
     const p = new URLSearchParams()
     if (clubFilter) p.set("club", clubFilter)
@@ -69,265 +86,97 @@ export default async function CalendarPage({
   const withFilters = (base: string) =>
     filterQs ? `${base}${base.includes("?") ? "&" : "?"}${filterQs}` : base
 
-  const VIEWS: { key: string; label: string; href: string }[] = [
-    { key: "month", label: "Month", href: withFilters("/calendar") },
-    { key: "week", label: "Week", href: withFilters("/calendar?view=week") },
-    { key: "day", label: "Day", href: withFilters("/calendar?view=day") },
-    { key: "agenda", label: "Agenda", href: withFilters("/calendar?view=agenda") },
-  ]
+  // ── Which week? ───────────────────────────────────────────────────────────
+  // `d` may be absent, repeated (string[]), or well-formed but impossible
+  // (2026-13-40). `startOfDayInZone` returns null for anything it cannot
+  // resolve, so a crafted or shared URL falls back to this week instead of
+  // rendering an Invalid Date. `?m=YYYY-MM` from an old month link lands on the
+  // first week of that month.
+  const todayKey = todayKeyInZone(timeZone)
+  const requestedKey =
+    typeof d === "string" && startOfDayInZone(d, timeZone)
+      ? d
+      : typeof m === "string" && /^\d{4}-\d{2}$/.test(m)
+        ? `${m}-01`
+        : todayKey
 
-  const header = (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <h1 className="text-text-1">Calendar</h1>
-        <p className="mt-1 text-lead text-text-2">
-          One shared schedule across your clubs — subscribe to keep Outlook in sync.
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-md border border-border p-0.5">
-          {VIEWS.map((v) => (
-            <Link
-              key={v.key}
-              href={v.href}
-              className={`rounded px-3 py-1.5 text-[13px] font-medium no-underline ${
-                currentView === v.key ? "bg-[--primary] text-white" : "text-text-2 hover:text-text-1"
-              }`}
-            >
-              {v.label}
-            </Link>
-          ))}
-        </div>
-        {clubOptions.length > 0 && <CalendarFilters clubs={clubOptions} />}
-        <CalendarSubscribe feedPath={feedPath} />
-        {canCreate && (
-          <Link
-            href="/calendar/new"
-            className="inline-flex h-10 items-center gap-1.5 rounded-md bg-[--primary] px-4 text-sm font-medium text-white no-underline hover:bg-[--primary-hover]"
-          >
-            <Plus size={16} /> Propose event
-          </Link>
-        )}
-      </div>
-    </div>
+  const weekStartKey = startOfWeekKey(requestedKey)
+  const weekEndKey = addDaysToKey(weekStartKey, 6)
+  const rangeStart = startOfDayInZone(weekStartKey, timeZone)!
+  const rangeEnd = startOfDayInZone(addDaysToKey(weekStartKey, 7), timeZone)!
+
+  const events = await loadScopedEvents(userId, rangeStart, rangeEnd, eventOpts)
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const key = addDaysToKey(weekStartKey, i)
+    return {
+      date: key,
+      weekday: formatDateKey(key, { weekday: "short" }),
+      dayNum: Number(key.slice(8, 10)),
+      isToday: key === todayKey,
+    }
+  })
+
+  // Edit rights are resolved server-side, per event, against the event's real
+  // institution — an OSE viewer's authority is institution-wide rather than
+  // tied to a club seat, so the owning institution has to be known first. The
+  // grid never decides for itself who may drag what, and the reschedule API
+  // re-checks the identical rule on every write.
+  const orgInstitutions = new Map(
+    (
+      await db.organization.findMany({
+        where: { id: { in: [...new Set(events.map((e) => e.organizationId))] } },
+        select: { id: true, institutionId: true },
+      })
+    ).map((o) => [o.id, o.institutionId])
   )
 
-  // ── Week / Day views — Outlook-style hourly grid ─────────────────────────────
-  if (currentView === "week" || currentView === "day") {
-    // `d` may be absent, a repeated param (string[]), or a well-formed-but-
-    // out-of-range date like 2026-13-40 that passes the regex yet yields an
-    // Invalid Date. Validate the parsed time and fall back to today so a
-    // crafted/shared URL can never crash the page.
-    const candidate =
-      typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)
-        ? new Date(`${d}T00:00:00.000Z`)
-        : new Date(NaN)
-    const base = isNaN(candidate.getTime())
-      ? new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`)
-      : candidate
-
-    const spanDays = currentView === "week" ? 7 : 1
-    const gridStart =
-      currentView === "week"
-        ? new Date(base.getTime() - base.getUTCDay() * DAY) // back to Sunday
-        : base
-    const gridEnd = new Date(gridStart.getTime() + spanDays * DAY)
-    const events = await loadScopedEvents(userId, gridStart, gridEnd, eventOpts)
-
-    const todayKey = new Date().toISOString().slice(0, 10)
-    const days = Array.from({ length: spanDays }, (_, i) => {
-      const dd = new Date(gridStart.getTime() + i * DAY)
-      const iso = dd.toISOString().slice(0, 10)
-      return {
-        date: iso,
-        weekday: dd.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
-        dayNum: dd.getUTCDate(),
-        isToday: iso === todayKey,
-      }
-    })
-    const gridEvents = events.map((e) => ({
-      id: e.id,
-      title: e.title,
-      startISO: e.startAt.toISOString(),
-      endISO: e.endAt.toISOString(),
-      org: e.organizationName,
-      venue: e.venue,
+  const gridEvents: TimeGridEvent[] = events.map((e) => ({
+    id: e.id,
+    title: e.title,
+    startISO: e.startAt.toISOString(),
+    endISO: e.endAt.toISOString(),
+    org: e.organizationName,
+    organizationId: e.organizationId,
+    venue: e.venue,
+    status: e.status,
+    editable: canEditEvent(ctx, {
+      organizationId: e.organizationId,
+      institutionId: orgInstitutions.get(e.organizationId) ?? "",
       status: e.status,
-    }))
+      ownerRoleId: e.ownerRoleId,
+    }),
+  }))
 
-    const baseISO = base.toISOString().slice(0, 10)
-    // Distinct clubs with events in view — the "My calendars" rail (colour follows the club).
-    const calendars = [...new Set(gridEvents.map((e) => e.org))]
-      .sort()
-      .map((org) => ({ org, sw: clubSwatch(org) }))
+  // Institution deliverables (audits, reports, board deadlines) are all-day
+  // markers, not timed blocks. The month grid used to be the only place they
+  // appeared; retiring it must not quietly drop a compliance deadline, so they
+  // ride an all-day band above the hours.
+  //
+  // The institution is resolved from who the VIEWER is, not from the events
+  // that happen to fall in this week. Deriving it from events meant a club
+  // officer looking at a quiet week saw no deadlines at all — precisely the
+  // week when a looming audit matters most.
+  const viewerOrgInstitutions = memberOrgIds.length
+    ? (
+        await db.organization.findMany({
+          where: { id: { in: memberOrgIds } },
+          select: { institutionId: true },
+        })
+      ).map((o) => o.institutionId)
+    : []
 
-    const prev = new Date(gridStart.getTime() - spanDays * DAY).toISOString().slice(0, 10)
-    const next = new Date(gridStart.getTime() + spanDays * DAY).toISOString().slice(0, 10)
-    const rangeLabel =
-      currentView === "week"
-        ? `${gridStart.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })} – ${new Date(gridEnd.getTime() - DAY).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`
-        : gridStart.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" })
+  const institutionIds = [
+    ...new Set([...ctx.institutionRoles.map((r) => r.institutionId), ...viewerOrgInstitutions]),
+  ].filter(Boolean)
 
-    return (
-      <div className="w-full">
-        {header}
-        <div className="flex flex-col gap-5 lg:flex-row">
-          {/* Left rail — mini-month navigator + "My calendars" (Outlook style). */}
-          <aside className="w-full shrink-0 space-y-4 lg:w-60">
-            <CalendarMiniMonth
-              baseISO={baseISO}
-              view={currentView}
-              rangeStartISO={days[0].date}
-              rangeEndISO={days[days.length - 1].date}
-            />
-            <div className="rounded-lg border border-border bg-surface p-3">
-              <p className="micro-label mb-2">My calendars</p>
-              {calendars.length === 0 ? (
-                <p className="text-[13px] text-text-3">No events in this range.</p>
-              ) : (
-                <ul className="space-y-1.5">
-                  {calendars.map(({ org, sw }) => (
-                    <li key={org} className="flex items-center gap-2 text-[13px] text-text-2">
-                      <span className="h-3 w-3 shrink-0 rounded-[3px]" style={{ background: sw.border }} />
-                      <span className="truncate">{org}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="mt-3 space-y-1.5 border-t border-border pt-2.5 text-[12px] text-text-3">
-                <p className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-[--primary]" /> Published
-                </p>
-                <p className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-[--warning]" /> Pending approval
-                </p>
-              </div>
-            </div>
-          </aside>
-
-          {/* Right — range controls + the hourly time grid. */}
-          <div className="min-w-0 flex-1">
-            <div className="mb-4 flex items-center gap-2">
-              <Link
-                href={withFilters(`/calendar?view=${currentView}&d=${prev}`)}
-                aria-label={currentView === "week" ? "Previous week" : "Previous day"}
-                className="grid h-9 w-9 place-items-center rounded-md border border-border text-text-2 no-underline hover:bg-surface"
-              >
-                <ChevronLeft size={16} />
-              </Link>
-              <span className="min-w-48 text-center text-sm font-semibold text-text-1">{rangeLabel}</span>
-              <Link
-                href={withFilters(`/calendar?view=${currentView}&d=${next}`)}
-                aria-label={currentView === "week" ? "Next week" : "Next day"}
-                className="grid h-9 w-9 place-items-center rounded-md border border-border text-text-2 no-underline hover:bg-surface"
-              >
-                <ChevronRight size={16} />
-              </Link>
-              <Link
-                href={withFilters(`/calendar?view=${currentView}`)}
-                className="flex h-9 items-center rounded-md border border-border px-3 text-sm text-text-2 no-underline hover:bg-surface"
-              >
-                Today
-              </Link>
-            </div>
-            <CalendarTimeGrid days={days} events={gridEvents} />
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Agenda view — upcoming events as a grouped list ──────────────────────────
-  if (currentView === "agenda") {
-    const now = new Date()
-    const events = await loadScopedEvents(userId, now, new Date(now.getTime() + 90 * DAY), eventOpts)
-    const byDay = new Map<string, typeof events>()
-    for (const e of events) {
-      const key = e.startAt.toISOString().slice(0, 10)
-      byDay.set(key, [...(byDay.get(key) ?? []), e])
-    }
-
-    return (
-      <div className="w-full">
-        {header}
-        {events.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={CalendarDays}
-              title="Nothing scheduled"
-              description="Upcoming events across your clubs will appear here."
-            />
-          </Card>
-        ) : (
-          <div className="space-y-6">
-            {[...byDay.entries()].map(([day, dayEvents]) => (
-              <section key={day}>
-                <h2 className="mb-3 text-meta font-semibold uppercase tracking-wide text-text-3">
-                  {new Date(day + "T00:00:00Z").toLocaleDateString("en-US", {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                    timeZone: "UTC",
-                  })}
-                </h2>
-                <div className="space-y-2">
-                  {dayEvents.map((e) => (
-                    <Link
-                      key={e.id}
-                      href={`/calendar/${e.id}`}
-                      className="tile-float flex items-center gap-4 rounded-lg border border-border bg-surface p-4 no-underline"
-                    >
-                      <div className="w-20 shrink-0 text-sm font-semibold tabular-nums text-text-1">
-                        {e.startAt.toLocaleTimeString("en-US", {
-                          hour: "numeric",
-                          minute: "2-digit",
-                          timeZone: "UTC",
-                        })}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-text-1">{e.title}</p>
-                        <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-text-3">
-                          <span>{e.organizationName}</span>
-                          {e.venue && (
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin size={13} /> {e.venue}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <EventBadge status={e.status as EventStatus} />
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // ── Month view — the interactive grid ────────────────────────────────────────
-  const now = new Date()
-  const [y, mo] = /^\d{4}-\d{2}$/.test(m ?? "")
-    ? m!.split("-").map(Number)
-    : [now.getUTCFullYear(), now.getUTCMonth() + 1]
-  const monthStart = new Date(Date.UTC(y, mo - 1, 1))
-  const monthEnd = new Date(Date.UTC(y, mo, 1))
-  const prev = monthParam(new Date(Date.UTC(y, mo - 2, 1)))
-  const next = monthParam(new Date(Date.UTC(y, mo, 1)))
-  const monthLabel = monthStart.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  })
-
-  const events = await loadScopedEvents(userId, monthStart, monthEnd, eventOpts)
-
-  const deliverables = await db.deliverable.findMany({
-    where: { dueAt: { gte: monthStart, lt: monthEnd } },
-    orderBy: { dueAt: "asc" },
-  })
+  const deliverables = institutionIds.length
+    ? await db.deliverable.findMany({
+        where: { institutionId: { in: institutionIds }, dueAt: { gte: rangeStart, lt: rangeEnd } },
+        orderBy: { dueAt: "asc" },
+        select: { id: true, title: true, dueAt: true, kind: true, term: true },
+      })
+    : []
 
   const TERM_LABELS: Record<string, string> = {
     FALL_A: "Fall A",
@@ -336,81 +185,125 @@ export default async function CalendarPage({
     SPRING_B: "Spring B",
   }
 
-  const deliverableEvents: GridEvent[] = deliverables.map((d) => ({
-    id: `deliverable-${d.id}`,
-    title: d.title,
-    day: d.dueAt.getUTCDate(),
-    time: d.kind === "DEADLINE" ? "Due" : d.kind.toLowerCase(),
-    org: d.term ? `Ainslie OSE · ${TERM_LABELS[d.term] ?? d.term}` : "Ainslie OSE",
-    venue: null,
-    status: d.kind,
-    hardConflicts: 0,
-    kind: "deliverable",
+  const allDay: AllDayItem[] = deliverables.map((x) => ({
+    id: x.id,
+    title: x.title,
+    date: dateKeyInZone(x.dueAt, timeZone),
+    kind: x.kind === "DEADLINE" ? "deadline" : "milestone",
+    hint: x.term ? `Ainslie OSE · ${TERM_LABELS[x.term] ?? x.term}` : "Ainslie OSE",
   }))
 
-  const gridEvents: GridEvent[] = events.map((e) => ({
-    id: e.id,
-    title: e.title,
-    day: e.startAt.getUTCDate(),
-    time: e.startAt
-      .toLocaleTimeString("en-US", { hour: "numeric", timeZone: "UTC" })
-      .replace(" ", "")
-      .toLowerCase(),
-    org: e.organizationName,
-    venue: e.venue,
-    status: e.status,
-    hardConflicts: e.hardConflicts,
-    kind: "event" as const,
-  }))
+  // Distinct clubs with events in view — the "My calendars" rail.
+  const calendars = [...new Set(gridEvents.map((e) => e.org))]
+    .sort()
+    .map((org) => ({ org, sw: clubSwatch(org) }))
 
-  const allGridEntries: GridEvent[] = [...gridEvents, ...deliverableEvents]
-  const firstWeekday = monthStart.getUTCDay()
-  const daysInMonth = new Date(Date.UTC(y, mo, 0)).getUTCDate()
-  const todayDay =
-    now.getUTCFullYear() === y && now.getUTCMonth() + 1 === mo ? now.getUTCDate() : null
+  const prevKey = addDaysToKey(weekStartKey, -7)
+  const nextKey = addDaysToKey(weekStartKey, 7)
+  const rangeLabel = `${formatDateKey(weekStartKey, { month: "short", day: "numeric" })} – ${formatDateKey(
+    weekEndKey,
+    { month: "short", day: "numeric", year: "numeric" }
+  )}`
 
   return (
     <div className="w-full">
-      {header}
-
-      <div className="mb-4 flex items-center gap-2">
-        <Link
-          href={withFilters(`/calendar?m=${prev}`)}
-          aria-label="Previous month"
-          className="grid h-9 w-9 place-items-center rounded-md border border-border text-text-2 no-underline hover:bg-surface"
-        >
-          <ChevronLeft size={16} />
-        </Link>
-        <span className="min-w-36 text-center text-sm font-semibold text-text-1">{monthLabel}</span>
-        <Link
-          href={withFilters(`/calendar?m=${next}`)}
-          aria-label="Next month"
-          className="grid h-9 w-9 place-items-center rounded-md border border-border text-text-2 no-underline hover:bg-surface"
-        >
-          <ChevronRight size={16} />
-        </Link>
-        <Link
-          href={withFilters("/calendar")}
-          className="flex h-9 items-center rounded-md border border-border px-3 text-sm text-text-2 no-underline hover:bg-surface"
-        >
-          Today
-        </Link>
-      </div>
-
-      <CalendarGrid
-        events={allGridEntries}
-        firstWeekday={firstWeekday}
-        daysInMonth={daysInMonth}
-        todayDay={todayDay}
-        monthLabel={monthLabel}
+      <PageHeader
+        title="Calendar"
+        // Zone abbreviation for the week on screen, not for today — browsing to
+        // a winter week in summer must not claim EDT over EST times.
+        subtitle={`One shared week across your clubs, in ${zoneAbbreviation(
+          timeZone,
+          startOfDayInZone(addDaysToKey(weekStartKey, 3), timeZone) ?? undefined
+        )} — subscribe to keep Outlook in sync.`}
+        actions={
+          <>
+            {clubOptions.length > 0 && <CalendarFilters clubs={clubOptions} />}
+            <CalendarSubscribe feedPath={feedPath} />
+            {canCreate && (
+              <Link
+                href="/calendar/new"
+                className="inline-flex h-10 items-center gap-1.5 rounded-md bg-[--primary] px-4 text-sm font-medium text-[--primary-text] no-underline transition-colors hover:bg-[--primary-hover]"
+              >
+                <Plus size={16} aria-hidden /> Propose event
+              </Link>
+            )}
+          </>
+        }
       />
 
-      <p className="mt-3 text-[13px] text-text-3">
-        <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-[--primary-light] align-middle" />
-        Published
-        <span className="ml-4 mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-[--warning-light] align-middle" />
-        Pending approval
-      </p>
+      <div className="flex flex-col gap-5 lg:flex-row">
+        {/* Left rail — mini-month navigator + "My calendars". */}
+        <aside className="w-full shrink-0 space-y-4 lg:w-60">
+          <CalendarMiniMonth
+            baseKey={weekStartKey}
+            rangeStartKey={weekStartKey}
+            rangeEndKey={weekEndKey}
+            todayKey={todayKey}
+            filterQs={filterQs}
+          />
+          <div className="rounded-[10px] border border-border bg-surface p-3">
+            <p className="micro-label mb-2">My calendars</p>
+            {calendars.length === 0 ? (
+              <p className="text-[13px] text-text-3">No events this week.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {calendars.map(({ org, sw }) => (
+                  <li key={org} className="flex items-center gap-2 text-[13px] text-text-2">
+                    <span
+                      className="h-3 w-3 shrink-0 rounded-[3px]"
+                      style={{ background: sw.border }}
+                      aria-hidden
+                    />
+                    <span className="truncate">{org}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </aside>
+
+        {/* Right — week controls + the hourly time grid. */}
+        <div className="min-w-0 flex-1">
+          <div className="mb-4 flex items-center gap-2">
+            <Link
+              href={withFilters(`/calendar?d=${prevKey}`)}
+              aria-label="Previous week"
+              className="grid h-9 w-9 place-items-center rounded-md border border-border text-text-2 no-underline transition-colors hover:bg-surface"
+            >
+              <ChevronLeft size={16} aria-hidden />
+            </Link>
+            <span className="min-w-48 text-center text-sm font-semibold text-text-1">{rangeLabel}</span>
+            <Link
+              href={withFilters(`/calendar?d=${nextKey}`)}
+              aria-label="Next week"
+              className="grid h-9 w-9 place-items-center rounded-md border border-border text-text-2 no-underline transition-colors hover:bg-surface"
+            >
+              <ChevronRight size={16} aria-hidden />
+            </Link>
+            <Link
+              href={withFilters("/calendar")}
+              className="flex h-9 items-center rounded-md border border-border px-3 text-sm text-text-2 no-underline transition-colors hover:bg-surface"
+            >
+              This week
+            </Link>
+          </div>
+
+          <CalendarTimeGrid
+            days={days}
+            events={gridEvents}
+            allDay={allDay}
+            timeZone={timeZone}
+            canCreate={canCreate}
+            onCreateHref="/calendar/new"
+          />
+
+          <p className="mt-3 text-[13px] text-text-3">
+            {canCreate
+              ? "Click an empty slot to propose an event. Drag an event you own to reschedule it, or select it and use the arrow keys."
+              : "Select an event to see its details."}
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

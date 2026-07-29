@@ -12,6 +12,8 @@ export interface ScopedEvent {
   status: string
   organizationId: string
   organizationName: string
+  /** The seat that proposed it — drives edit rights (see canEditEvent). */
+  ownerRoleId: string | null
   hardConflicts: number
 }
 
@@ -71,6 +73,7 @@ export async function loadScopedEvents(
     status: e.status,
     organizationId: e.organizationId,
     organizationName: e.organization.name,
+    ownerRoleId: e.ownerRoleId,
     hardConflicts: e.conflicts.length,
   }))
 }
