@@ -1,0 +1,162 @@
+name: Custom Domain Status
+
+# Read-only report on the custom-domain wiring: the CloudFront distribution's
+# current aliases and viewer certificate, and the ACM certificate's status and
+# DNS validation record.
+#
+# This workflow never writes. It makes no terraform call (so it cannot touch
+# state or take the state lock) and only issues AWS describe/list/get requests.
+# The actual change is made by Terraform through deploy.yml, driven by
+# var.custom_domain and var.attach_custom_domain — this is the instrument panel
+# for that change, not another way to make it.
+#
+# Run it to answer three questions:
+#   1. Which ACM certificate exists for the domain, and has it been ISSUED?
+#   2. What CNAME does ACM want in DNS to validate it?
+#   3. Does CloudFront actually carry the alias and the certificate yet?
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: "Custom domain to report on"
+        required: false
+        default: "platform.tenurework.com"
+      distribution_domain:
+        description: "CloudFront distribution hostname to match exactly"
+        required: false
+        default: "d1n6mdis7bs02g.cloudfront.net"
+
+jobs:
+  status:
+    name: Report custom-domain status
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      # CloudFront viewer certificates must live in us-east-1, always.
+      ACM_REGION: us-east-1
+      DOMAIN: ${{ inputs.domain }}
+      CF_DOMAIN: ${{ inputs.distribution_domain }}
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region:            ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Identity
+        run: |
+          # Account and principal only — never any credential material.
+          aws sts get-caller-identity \
+            --query '{Account:Account,Arn:Arn}' --output table
+
+      # ── Distribution: find it by exact hostname, never by assumed ID ──────
+      - name: Locate the CloudFront distribution
+        id: dist
+        run: |
+          set -euo pipefail
+
+          MATCHES=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?DomainName=='${CF_DOMAIN}'].Id" \
+            --output text | tr '\t' '\n' | grep -c . || true)
+
+          if [ "$MATCHES" -eq 0 ]; then
+            echo "::error::No distribution has DomainName ${CF_DOMAIN}"
+            exit 1
+          fi
+          if [ "$MATCHES" -gt 1 ]; then
+            echo "::error::${MATCHES} distributions match ${CF_DOMAIN} — refusing to guess"
+            exit 1
+          fi
+
+          ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?DomainName=='${CF_DOMAIN}'].Id | [0]" \
+            --output text)
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+          echo "Distribution: $ID"
+
+      - name: Distribution configuration
+        id: cfg
+        run: |
+          set -euo pipefail
+          ID="${{ steps.dist.outputs.id }}"
+
+          aws cloudfront get-distribution --id "$ID" \
+            --query 'Distribution.{Id:Id,ARN:ARN,Status:Status,Domain:DomainName,LastModified:LastModifiedTime,Enabled:DistributionConfig.Enabled}' \
+            --output table
+
+          ALIASES=$(aws cloudfront get-distribution --id "$ID" \
+            --query 'Distribution.DistributionConfig.Aliases.Items' --output json)
+          CERT=$(aws cloudfront get-distribution --id "$ID" \
+            --query 'Distribution.DistributionConfig.ViewerCertificate' --output json)
+
+          echo "aliases=$(echo "$ALIASES" | jq -c '. // []')" >> "$GITHUB_OUTPUT"
+          {
+            echo "### CloudFront"
+            echo
+            echo "- Distribution: \`$ID\`"
+            echo "- Aliases: \`$(echo "$ALIASES" | jq -c '. // []')\`"
+            echo
+            echo '```json'
+            echo "$CERT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Certificate: status and the DNS record ACM is waiting for ─────────
+      - name: ACM certificate
+        run: |
+          set -euo pipefail
+
+          ARN=$(aws acm list-certificates --region "$ACM_REGION" \
+            --includes keyTypes=RSA_1024,RSA_2048,RSA_3072,RSA_4096,EC_prime256v1,EC_secp384r1 \
+            --query "CertificateSummaryList[?DomainName=='${DOMAIN}'].CertificateArn | [0]" \
+            --output text)
+
+          if [ -z "$ARN" ] || [ "$ARN" = "None" ]; then
+            echo "::warning::No ACM certificate for ${DOMAIN} in ${ACM_REGION} yet."
+            echo "Terraform creates it from var.custom_domain — run Deploy first."
+            echo "### ACM" >> "$GITHUB_STEP_SUMMARY"
+            echo "No certificate for \`${DOMAIN}\` in \`${ACM_REGION}\` yet." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          CERT=$(aws acm describe-certificate --region "$ACM_REGION" --certificate-arn "$ARN")
+
+          echo "$CERT" | jq -r '.Certificate | {
+            Arn: .CertificateArn, Status: .Status, Domain: .DomainName,
+            SANs: .SubjectAlternativeNames, Issuer: .Issuer,
+            NotAfter: .NotAfter, Type: .Type, KeyAlgorithm: .KeyAlgorithm
+          }'
+
+          # The record that must exist in Vercel DNS for validation to complete.
+          VALIDATION=$(echo "$CERT" | jq -r '
+            .Certificate.DomainValidationOptions[]
+            | select(.ResourceRecord != null)
+            | "| \(.ResourceRecord.Type) | \(.ResourceRecord.Name) | \(.ResourceRecord.Value) | \(.ValidationStatus) |"')
+
+          STATUS=$(echo "$CERT" | jq -r '.Certificate.Status')
+
+          {
+            echo "### ACM certificate"
+            echo
+            echo "- ARN: \`$ARN\`"
+            echo "- Status: **$STATUS**"
+            echo "- Expires: $(echo "$CERT" | jq -r '.Certificate.NotAfter // "n/a"')"
+            echo
+            echo "#### DNS validation record"
+            echo
+            if [ -n "$VALIDATION" ]; then
+              echo "| Type | Name | Value | Validation |"
+              echo "|---|---|---|---|"
+              echo "$VALIDATION"
+            else
+              echo "ACM has not published a validation record yet — re-run in a minute."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$STATUS" != "ISSUED" ]; then
+            echo "::notice::Certificate is $STATUS — it must reach ISSUED before attach_custom_domain=true."
+          fi

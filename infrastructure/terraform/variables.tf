@@ -128,7 +128,14 @@ variable "anthropic_api_key" {
 variable "custom_domain" {
   description = "Custom domain for the app (empty disables)"
   type        = string
-  default     = "app.tenurework.com"
+  # `platform` rather than `app`: tenurework.com and www.tenurework.com serve the
+  # marketing site from Vercel, and the product needed a subdomain that reads as
+  # the place where the work happens. Changing this forces replacement of
+  # aws_acm_certificate.custom — a certificate's domain_name cannot be edited in
+  # place — so the previously requested, never-validated app.tenurework.com cert
+  # is destroyed and a new one requested. create_before_destroy keeps the swap
+  # safe if the domain is ever changed again while attached.
+  default = "platform.tenurework.com"
 }
 
 variable "attach_custom_domain" {
