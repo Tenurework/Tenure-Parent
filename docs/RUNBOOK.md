@@ -2,6 +2,19 @@
 
 Live URL: https://d1n6mdis7bs02g.cloudfront.net · AWS account `154932391697` (us-east-1)
 
+## Repository layout
+
+This is an npm-workspaces monorepo. The application is the `apps/web` workspace;
+`infrastructure/`, `docs/` and `.github/workflows/` stay at the root.
+
+Unqualified paths below (`prisma/schema.prisma`, `scripts/seed.mjs`,
+`src/lib/env.ts`, …) are **relative to `apps/web/`**, which is also the
+directory the container runs from once `prisma/` and `scripts/` are flattened
+into its `/app` workdir. Anything run against the app — prisma, jest,
+playwright, next — either runs from `apps/web` or goes through a root
+delegating script (`npm run build`, `npm test`, `npm run e2e`), never from the
+monorepo root directly.
+
 ## Onboarding a real institution
 
 1. **Institution + OSE staff.** Adapt `scripts/seed.mjs` (or run the same Prisma calls
@@ -55,8 +68,9 @@ Schema changes are versioned. Editing `prisma/schema.prisma` is half the change;
 the migration is the other half, and CI fails without it.
 
 ```sh
-npx prisma migrate dev --name what-you-changed   # writes prisma/migrations/<ts>_<name>/
-npm test                                          # planner + env contract
+cd apps/web                                       # prisma resolves ./prisma from cwd
+npx prisma migrate dev --name what-you-changed    # writes prisma/migrations/<ts>_<name>/
+npm test --workspace apps/web                     # planner + env contract (from anywhere)
 ```
 
 At container start `scripts/db-bootstrap.mjs` runs `prisma migrate deploy` and
