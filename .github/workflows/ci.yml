@@ -327,13 +327,23 @@ jobs:
 
       # The entrypoint is fail-closed on migrations, so booting it without a
       # database proves it refuses rather than serving an unverified schema.
+      # Bounded twice over: a step timeout so a hang cannot consume a six-hour
+      # runner, and `timeout` on the container so the step reports the hang as a
+      # failure with output rather than being killed silently. The bootstrap
+      # retries a connection ~10 times with backoff, so this takes ~2 minutes.
       - name: The entrypoint must fail closed without a database
+        timeout-minutes: 8
         run: |
           set +e
-          OUT=$(docker run --rm -e DATABASE_URL="postgresql://nobody:nobody@127.0.0.1:1/none" \
+          OUT=$(timeout 300 docker run --rm \
+                  -e DATABASE_URL="postgresql://nobody:nobody@127.0.0.1:1/none" \
                   -e SKIP_DB_BOOTSTRAP=false tenure:ci 2>&1)
           CODE=$?
           set -e
-          echo "$OUT" | tail -20
+          echo "$OUT" | tail -25
+          if [ "$CODE" -eq 124 ]; then
+            echo "::error::The bootstrap hung against an unreachable database instead of giving up."
+            exit 1
+          fi
           [ "$CODE" -ne 0 ] || { echo "::error::Container started despite an unreachable database."; exit 1; }
           echo "✅ Refused to serve without a verified schema (exit $CODE)."
