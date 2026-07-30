@@ -116,3 +116,28 @@ export function trendDelta(series: number[]): { direction: "up" | "down" | "flat
   const pct = Math.round(((last - prev) / prev) * 100)
   return { direction: pct > 0 ? "up" : pct < 0 ? "down" : "flat", pct: Math.abs(pct) }
 }
+
+/**
+ * Bucket dates FORWARD from today into `weeks` weekly buckets.
+ *
+ * `bucketByWeek` looks backwards and treats end-of-today as an exclusive upper
+ * bound, so it silently discards every future timestamp. That makes it the
+ * wrong tool for a forward-looking tile: the dashboard's "Upcoming Events"
+ * counted events with startAt >= now, then charted them with the backward
+ * bucketer, so the sparkline was structurally all zeros underneath a non-zero
+ * count — and the trend chip read "0%" no matter what was scheduled.
+ *
+ * Bucket 0 is the next seven days, bucket 1 the seven after that, and so on.
+ */
+export function bucketByWeekForward(dates: Date[], weeks: number, now: Date = new Date()): number[] {
+  const start = startOfDay(now).getTime()
+  const end = start + weeks * WEEK
+  const buckets = new Array(weeks).fill(0)
+  for (const d of dates) {
+    const t = d.getTime()
+    if (t < start || t >= end) continue
+    const idx = Math.floor((t - start) / WEEK)
+    if (idx >= 0 && idx < weeks) buckets[idx]++
+  }
+  return buckets
+}

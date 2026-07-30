@@ -20,7 +20,7 @@ import { Card } from "@/components/ui/Card"
 import { StatGrid, StatTile, type StatDelta } from "@/components/ui/Bento"
 import { Meter } from "@/components/charts"
 import { ActivityChart } from "@/components/charts/panels/ActivityChart"
-import { bucketByWeek, trendDelta } from "@/components/charts/timeseries"
+import { bucketByWeek, bucketByWeekForward, trendDelta } from "@/components/charts/timeseries"
 import { SeeAllSection } from "@/components/ui/SeeAllSection"
 import { Avatar } from "@/components/ui/Avatar"
 import { isFinanceRole } from "@/lib/rbac"
@@ -98,6 +98,8 @@ export default async function DashboardPage() {
   const now = new Date()
   const TREND_WEEKS = 12
   const trendSince = new Date(now.getTime() - TREND_WEEKS * 7 * 86_400_000)
+  // "Upcoming Events" is a forward-looking tile, so its series looks forward too.
+  const trendUntil = new Date(now.getTime() + TREND_WEEKS * 7 * 86_400_000)
   const activitySince = new Date(now.getTime() - 30 * 86_400_000)
 
   const [
@@ -142,7 +144,7 @@ export default async function DashboardPage() {
         select: { createdAt: true },
       }),
       db.event.findMany({
-        where: { organizationId: { in: orgIds }, startAt: { gte: trendSince } },
+        where: { organizationId: { in: orgIds }, startAt: { gte: now, lt: trendUntil } },
         select: { startAt: true },
       }),
       db.auditEvent.findMany({
@@ -153,7 +155,7 @@ export default async function DashboardPage() {
 
   // Weekly buckets → sparkline series, plus a week-over-week delta chip.
   const approvalSpark = bucketByWeek(approvalTrend.map((a) => a.createdAt), TREND_WEEKS, now)
-  const eventSpark = bucketByWeek(eventTrend.map((e) => e.startAt), TREND_WEEKS, now)
+  const eventSpark = bucketByWeekForward(eventTrend.map((e) => e.startAt), TREND_WEEKS, now)
   const fmtDelta = (d: { direction: "up" | "down" | "flat"; pct: number }) =>
     d.direction === "up" ? `+${d.pct}%` : d.direction === "down" ? `−${d.pct}%` : "0%"
   const approvalTrendDelta = trendDelta(approvalSpark)
