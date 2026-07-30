@@ -40,6 +40,14 @@ resource "aws_cloudfront_distribution" "main" {
       cookies { forward = "none" }
     }
 
+    # Gated too: the build's JavaScript describes every route, action and field
+    # in the product. "Private" that serves the whole client bundle to anyone
+    # is not private. See edge-access.tf.
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.edge_access.arn
+    }
+
     viewer_protocol_policy = "redirect-to-https"
     min_ttl                = 0
     default_ttl            = 86400    # 1 day
@@ -57,6 +65,11 @@ resource "aws_cloudfront_distribution" "main" {
     forwarded_values {
       query_string = false
       cookies { forward = "none" }
+    }
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.edge_access.arn
     }
 
     viewer_protocol_policy = "redirect-to-https"
@@ -79,6 +92,13 @@ resource "aws_cloudfront_distribution" "main" {
       # stripping them breaks every link click and form submit (blank pages).
       headers = ["*"]
       cookies { forward = "all" }
+    }
+
+    # Closed-pilot gate — runs before the cache, so a blocked viewer never
+    # reaches the ALB. See edge-access.tf.
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.edge_access.arn
     }
 
     viewer_protocol_policy = "redirect-to-https"

@@ -40,3 +40,13 @@ next-env.d.ts
 
 # local e2e/dev server log
 .server.log
+
+# terraform — provider plugins (700MB+) and local state, from running
+# `terraform validate` outside CI. The lock file is ignored on purpose too:
+# CI pins terraform 1.9 and resolves providers itself, so a lock written by a
+# newer local CLI would silently change what production deploys.
+infrastructure/terraform/.terraform/
+infrastructure/terraform/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan

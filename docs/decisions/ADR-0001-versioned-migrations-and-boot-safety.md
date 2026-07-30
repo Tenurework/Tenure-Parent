@@ -97,10 +97,12 @@ The `Migrations · Drift + Apply` job fails the build when `prisma/migrations`
 stops reproducing `prisma/schema.prisma`, and separately proves that a
 `db push`-shaped database with rows in it survives the baseline.
 
-**The pilot keeps working, with both remaining risks now explicit.**
-`ALLOW_DEV_LOGIN_IN_PRODUCTION=true` and `SEED_ON_BOOT=true` are set in
-`ecs.tf`, each with an inline note on how to remove it. Neither is a new
-exposure; both were previously unconditional and unstated.
+**The pilot keeps working, with the remaining risk now explicit.**
+`ALLOW_DEV_LOGIN_IN_PRODUCTION=true` is set in `ecs.tf`, with an inline note on
+how to remove it. It is not a new exposure; it was previously unconditional and
+unstated. `SEED_ON_BOOT` is deliberately *not* set there — boot-time seeding is
+what this ADR removed, and reference data is now published by the "Seed
+reference data" workflow as a one-off ECS task.
 
 **Migrations still run at container boot, not as a separate deploy stage.** RDS
 is reachable only inside the VPC, so a GitHub Actions runner cannot reach it.

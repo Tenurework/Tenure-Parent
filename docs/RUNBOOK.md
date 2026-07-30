@@ -124,12 +124,62 @@ the provider it guards and there is nothing left behind. Also delete the seeded
   passphrase now stands in front of it (below). That is a stopgap, not the fix:
   every pilot user holds the same secret, so it does not identify anyone and it
   still blocks real institutional data. Okta closes it properly.
-- Reference data is still delivered by `scripts/seed.mjs` at container start via
-  `SEED_ON_BOOT=true`. It no longer creates demo accounts there
-  (`SEED_DEMO_ACCOUNTS` defaults off when `NODE_ENV=production`). Moving it to a
-  one-off ECS `RunTask` stage is the follow-up; it is also what a long backfill
-  will need, since a migration that outlives the ALB health-check grace period
-  cannot run at boot.
+- Reference data is published by the "Seed reference data" workflow, which runs
+  `scripts/seed.mjs` once as a one-off ECS task. It is **not** run at container
+  start: `SEED_ON_BOOT` is deliberately unset in `ecs.tf`, because the script is
+  an e2e fixture that issues unscoped deletes. Migrations still run at boot; a
+  backfill longer than the ALB health-check grace period will need its own
+  `RunTask` stage.
 - Single ECS task (no HA); scale `ecs_desired_count` for production.
 - Free-tier account caps RDS backups at 1 day — raise to 7 after upgrading.
-- No WAF/rate limiting at the edge yet (add `aws_wafv2_web_acl` when public).
+- **No rate limiting.** The edge gate below blocks unknown viewers outright, so
+  the pilot is not exposed, but nothing throttles an allowlisted one. Anything
+  expensive and authenticated — AI synthesis in particular, which calls a paid
+  API per question with no per-user quota — is unprotected against a tester
+  holding the access token. Attach `aws_wafv2_web_acl` with rate-based rules
+  before the gate comes off.
+- The app runs as the RDS master user (`entrypoint.sh` composes `DATABASE_URL`
+  from the AWS-managed master secret), so a server-side compromise gets
+  database-owner rights rather than the CRUD its queries need.
+
+## The closed-pilot access gate
+
+The pilot is not reachable from an arbitrary address. A CloudFront Function
+(`infrastructure/terraform/edge-access.tf`) runs on viewer request, before the
+cache and before the origin, and answers 403 to anyone it does not recognise.
+
+This exists because the interim sign-in passphrase above is one control, and
+one control in front of a real 172-person directory and a one-click
+`OSE_DIRECTOR` account is not enough. Two independent things now have to be
+wrong before a stranger sees institutional data.
+
+**Getting in.** Terraform prints a one-time entry link:
+
+```sh
+cd infrastructure/terraform && terraform output -raw edge_access_url
+```
+
+Opening it sets a 30-day `HttpOnly` cookie on that browser and redirects to the
+page with the token stripped from the URL. That link plus the sign-in passphrase
+is what a pilot tester needs. The operator's own addresses are also allowlisted
+in `var.edge_allowed_ips`, so a normal working session needs neither — but the
+link is the recovery path when an ISP renumbers, a phone is on cellular, or
+CloudFront serves the same laptop over IPv6.
+
+**Adding someone's network.** Append to `edge_allowed_ips` in `edge-access.tf`
+and deploy. Prefer handing out the link; an address list goes stale silently.
+
+**Two paths stay open, deliberately** — `/api/health`, which `deploy.yml` curls
+from a GitHub Actions runner whose address cannot be allowlisted, and
+`/api/jobs/reminders`, which EventBridge POSTs daily and which already requires
+`JOB_SECRET`. Both are exact-match, so no path walks out of the exemption.
+
+**The origin is closed too.** The ALB security group accepts port 80 only from
+the `com.amazonaws.global.cloudfront.origin-facing` managed prefix list. It was
+previously open to `0.0.0.0/0` under a comment claiming otherwise, which meant
+the ALB's DNS name served the whole application in clear text and would have
+walked straight around this gate.
+
+**Removing it** when Okta is live and real people can authenticate: delete
+`edge-access.tf` and the three `function_association` blocks in `cloudfront.tf`.
+Leave the security-group rule alone — the origin should stay closed permanently.

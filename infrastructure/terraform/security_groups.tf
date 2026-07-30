@@ -1,15 +1,30 @@
-# ── ALB: accepts HTTPS from anywhere (CloudFront only via managed prefix list)
+# AWS publishes the address ranges its CloudFront edge locations use to reach
+# origins. Referencing the managed list keeps the ALB reachable as AWS adds and
+# retires edge capacity, without ever opening it to the internet.
+data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
+  name = "com.amazonaws.global.cloudfront.origin-facing"
+}
+
+# ── ALB: reachable only from CloudFront ──────────────────────────────────────
+#
+# This rule used to be cidr_blocks = ["0.0.0.0/0"] under a comment claiming
+# CloudFront-only access via a managed prefix list. The comment described a
+# control that was not implemented: the listener is plain HTTP on port 80, so
+# anyone who learned the ALB's DNS name could read and post session cookies in
+# clear text, skip the edge entirely, and — once edge-access.tf existed — walk
+# straight around the closed-pilot gate. An origin that answers the internet
+# makes every edge control advisory.
 resource "aws_security_group" "alb" {
   name        = "${local.name_prefix}-alb"
   description = "Application Load Balancer"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "HTTP from internet (redirected to HTTPS by CloudFront)"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "HTTP from CloudFront edge locations only"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id]
   }
 
   egress {
