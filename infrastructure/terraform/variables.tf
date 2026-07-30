@@ -141,5 +141,15 @@ variable "custom_domain" {
 variable "attach_custom_domain" {
   description = "Bind the custom domain to CloudFront — only after the ACM cert is ISSUED"
   type        = bool
-  default     = false
+  # Enabled 2026-07-30: the certificate for platform.tenurework.com reached
+  # ISSUED (validation SUCCESS, SAN platform.tenurework.com, expires
+  # 2027-02-12) once a CAA record authorising amazon.com was published. The two
+  # earlier requests ended in CAA_ERROR because tenurework.com permitted only
+  # letsencrypt.org, pki.goog and sectigo.com.
+  #
+  # This flips three things at once, by design: the CloudFront alias and viewer
+  # certificate (cloudfront.tf), NEXTAUTH_URL (ecs.tf) and the EventBridge
+  # reminder destination (scheduler.tf). Auth would break on the branded host if
+  # the first moved without the second, so they must not be split.
+  default = true
 }
