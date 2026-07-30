@@ -44,23 +44,41 @@ async function main() {
     })
   }
 
-  const director = await user("director@tenure.demo", "Dana Whitfield")
-  const staff = await user("staff@tenure.demo", "Sam Ortiz")
-  const president = await user("president@tenure.demo", "Priya Raman")
-  const vpFinance = await user("vp.finance@tenure.demo", "Victor Chen")
-  const memberUser = await user("member@tenure.demo", "Maya Johnson")
-  const incoming = await user("incoming.president@tenure.demo", "Isaiah Brooks")
-  const pastPresident = await user("alumni@tenure.demo", "Alex Kim")
+  // Demo login accounts are a development affordance, not reference data: the
+  // `dev-login` provider (src/lib/auth.ts) signs in any of these emails with no
+  // password, and director@tenure.demo holds OSE_DIRECTOR — the highest role in
+  // the system. Creating them in a production database is only defensible while
+  // AUTH_DEV_LOGIN is deliberately on, so they are off by default there.
+  const seedDemoLogins =
+    process.env.SEED_DEMO_ACCOUNTS !== undefined
+      ? process.env.SEED_DEMO_ACCOUNTS === "true"
+      : process.env.NODE_ENV !== "production"
 
-  for (const [u, role] of [
-    [director, "OSE_DIRECTOR"],
-    [staff, "OSE_STAFF"],
-  ]) {
-    await db.institutionMembership.upsert({
-      where: { userId_institutionId: { userId: u.id, institutionId: institution.id } },
-      update: { role },
-      create: { userId: u.id, institutionId: institution.id, role },
-    })
+  let director, staff, president, vpFinance, memberUser, incoming, pastPresident
+
+  if (seedDemoLogins) {
+    director = await user("director@tenure.demo", "Dana Whitfield")
+    staff = await user("staff@tenure.demo", "Sam Ortiz")
+    president = await user("president@tenure.demo", "Priya Raman")
+    vpFinance = await user("vp.finance@tenure.demo", "Victor Chen")
+    memberUser = await user("member@tenure.demo", "Maya Johnson")
+    incoming = await user("incoming.president@tenure.demo", "Isaiah Brooks")
+    pastPresident = await user("alumni@tenure.demo", "Alex Kim")
+
+    for (const [u, role] of [
+      [director, "OSE_DIRECTOR"],
+      [staff, "OSE_STAFF"],
+    ]) {
+      await db.institutionMembership.upsert({
+        where: { userId_institutionId: { userId: u.id, institutionId: institution.id } },
+        update: { role },
+        create: { userId: u.id, institutionId: institution.id, role },
+      })
+    }
+  } else {
+    console.log(
+      "🔒 Skipping demo login accounts (NODE_ENV=production and SEED_DEMO_ACCOUNTS is not \"true\").",
+    )
   }
 
   // ── Directory people (board members + advisors) ────────────────────────────
@@ -289,19 +307,21 @@ async function main() {
     return db.roleAssignment.create({ data: { userId, roleId, status, ...extra } })
   }
 
-  await assign(president.id, cPresident.id, "ACTIVE")
-  await assign(vpFinance.id, cVpFinance.id, "ACTIVE")
-  await assign(memberUser.id, cMember.id, "ACTIVE")
-  await assign(incoming.id, cPresident.id, "SHADOW")
-  await assign(pastPresident.id, cPresident.id, "ALUMNI", {
-    startDate: new Date("2024-08-01"),
-    endDate: new Date("2025-05-15"),
-  })
-  // Priya also chairs Simon Women in Business (real multi-club leadership)
-  const swib = await db.organization.findUniqueOrThrow({
-    where: { slug: "simon-women-in-business" },
-  })
-  await assign(president.id, (await findRole(swib.id, "President")).id, "ACTIVE")
+  if (seedDemoLogins) {
+    await assign(president.id, cPresident.id, "ACTIVE")
+    await assign(vpFinance.id, cVpFinance.id, "ACTIVE")
+    await assign(memberUser.id, cMember.id, "ACTIVE")
+    await assign(incoming.id, cPresident.id, "SHADOW")
+    await assign(pastPresident.id, cPresident.id, "ALUMNI", {
+      startDate: new Date("2024-08-01"),
+      endDate: new Date("2025-05-15"),
+    })
+    // Priya also chairs Simon Women in Business (real multi-club leadership)
+    const swib = await db.organization.findUniqueOrThrow({
+      where: { slug: "simon-women-in-business" },
+    })
+    await assign(president.id, (await findRole(swib.id, "President")).id, "ACTIVE")
+  }
 
   // ── Demo budget lines for the consulting club finance dashboard ────────────
   const demoBudget = [
