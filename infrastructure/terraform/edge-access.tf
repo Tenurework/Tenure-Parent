@@ -36,7 +36,7 @@
 variable "edge_gate_enabled" {
   description = "Attach the closed-pilot gate to CloudFront. false = open to the internet."
   type        = bool
-  default     = false # OPEN — client demo 2026-07-30. Re-close after.
+  default     = true # CLOSED. Open 2026-07-30 17:57Z–19:59Z for a client demo.
 }
 
 resource "random_password" "edge_access_token" {
