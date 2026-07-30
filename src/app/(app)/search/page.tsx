@@ -49,7 +49,7 @@ export default async function SearchPage({
           className="h-10 flex-1 rounded border border-border px-3 text-sm text-text-1"
           autoFocus
         />
-        <button className="h-10 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90">
+        <button className="h-10 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90">
           Search
         </button>
       </form>

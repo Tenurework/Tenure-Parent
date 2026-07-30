@@ -164,7 +164,7 @@ export function TenureAIPanel() {
               <div
                 className={
                   m.role === "user"
-                    ? "max-w-[85%] rounded-2xl rounded-br-sm bg-[--primary] px-4 py-2.5 text-sm text-white"
+                    ? "max-w-[85%] rounded-2xl rounded-br-sm bg-[--primary] px-4 py-2.5 text-sm text-[--primary-text]"
                     : "max-w-full rounded-2xl rounded-bl-sm bg-base px-4 py-3 text-sm text-text-1"
                 }
               >
@@ -225,7 +225,7 @@ export function TenureAIPanel() {
               type="submit"
               disabled={!input.trim() || loading}
               aria-label="Send to Tenure AI"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-[--primary] text-white transition-colors hover:bg-[--primary-hover] disabled:opacity-40"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-[--primary] text-[--primary-text] transition-colors hover:bg-[--primary-hover] disabled:opacity-40"
             >
               <ArrowRight size={18} />
             </button>

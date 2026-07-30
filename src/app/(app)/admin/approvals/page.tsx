@@ -52,7 +52,7 @@ export default async function AdminApprovalsPage() {
             description={`This approves “${r.title}” right now, bypassing the President and OSE gates. The requester is notified, any linked event is published, and the override is written to the audit trail. It can't be reopened.`}
             confirmLabel="Force approve"
             variant="primary"
-            triggerClassName="inline-flex items-center gap-1.5 rounded-md bg-[--primary] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[--primary-hover]"
+            triggerClassName="inline-flex items-center gap-1.5 rounded-md bg-[--primary] px-3 py-1.5 text-[13px] font-medium text-[--primary-text] hover:bg-[--primary-hover]"
           >
             <CheckCircle size={14} /> Force approve
           </ConfirmSubmit>

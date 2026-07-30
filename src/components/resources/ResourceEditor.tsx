@@ -38,9 +38,14 @@ export function ResourceEditor({
   )
   const [seats, setSeats] = useState<string[]>(resource?.seats ?? ["ALL"])
 
+  // Only act on a success that belongs to *this* opening of the dialog.
+  // Without the isOpen guard, a retained `state.ok` from the previous publish
+  // closes the dialog in the same commit it opens in — so the second "Add
+  // resource" click appeared to do nothing at all, and the OSE Director could
+  // author exactly one resource per page load.
   useEffect(() => {
-    if (state.ok) onClose()
-  }, [state.ok, onClose])
+    if (isOpen && state.ok) onClose()
+  }, [isOpen, state.ok, onClose])
 
   useEffect(() => {
     if (isOpen) setSeats(resource?.seats ?? ["ALL"])

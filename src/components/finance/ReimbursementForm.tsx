@@ -108,7 +108,7 @@ export function ReimbursementForm({ slug, lines }: { slug: string; lines: Line[]
         <div className="sm:col-span-2">
           <button
             type="submit"
-            className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:bg-[--primary-hover]"
+            className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:bg-[--primary-hover]"
           >
             Submit request
           </button>

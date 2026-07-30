@@ -250,7 +250,7 @@ export default async function ApprovalDetailPage({
                 {actions.map((a) => {
                   const cls =
                     a === "approve" || a === "submit" || a === "resubmit"
-                      ? "h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90"
+                      ? "h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90"
                       : a === "reject"
                         ? "h-9 rounded bg-[--error] px-4 text-sm font-medium text-white hover:opacity-90"
                         : "h-9 rounded border border-border px-4 text-sm font-medium text-text-2 hover:bg-base"

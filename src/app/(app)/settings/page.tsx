@@ -109,7 +109,7 @@ export default async function SettingsPage() {
                 className="h-9 w-full rounded border border-border px-3 text-sm text-text-1 bg-surface"
               />
             </label>
-            <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90">
+            <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90">
               Save
             </button>
           </form>
@@ -214,7 +214,7 @@ export default async function SettingsPage() {
                     className="h-9 w-full rounded border border-border bg-surface px-3 text-sm text-text-1"
                   />
                 </label>
-                <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90">
+                <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90">
                   Set backup
                 </button>
               </form>

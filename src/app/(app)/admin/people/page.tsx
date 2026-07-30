@@ -176,7 +176,7 @@ export default async function AdminPeoplePage() {
               Affiliation (optional)
               <input name="affiliation" placeholder="Ainslie OSE" className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]" />
             </label>
-            <button className="inline-flex h-10 items-center gap-2 rounded-md bg-[--primary] px-5 text-sm font-medium text-white hover:bg-[--primary-hover]">
+            <button className="inline-flex h-10 items-center gap-2 rounded-md bg-[--primary] px-5 text-sm font-medium text-[--primary-text] hover:bg-[--primary-hover]">
               <UserPlus size={16} /> Add person
             </button>
           </form>

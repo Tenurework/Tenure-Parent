@@ -120,7 +120,7 @@ export default async function NewApprovalPage() {
               type="submit"
               name="intent"
               value="submit"
-              className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90"
+              className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90"
             >
               Submit for approval
             </button>

@@ -22,7 +22,7 @@ export default function AppNotFound() {
         <div className="mt-6">
           <Link
             href="/dashboard"
-            className="inline-flex items-center rounded-md bg-[--primary] px-4 py-2 text-sm font-medium text-white no-underline hover:bg-[--primary-hover]"
+            className="inline-flex items-center rounded-md bg-[--primary] px-4 py-2 text-sm font-medium text-[--primary-text] no-underline hover:bg-[--primary-hover]"
           >
             Back to dashboard
           </Link>

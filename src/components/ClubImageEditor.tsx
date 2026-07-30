@@ -59,7 +59,7 @@ export function ClubImageEditor({
               defaultValue={logoUrl && !logoUrl.startsWith("/api/") ? logoUrl : ""}
               className="h-10 flex-1 rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
             />
-            <button className="h-10 shrink-0 rounded-md bg-[--primary] px-4 text-sm font-medium text-white hover:bg-[--primary-hover]">
+            <button className="h-10 shrink-0 rounded-md bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:bg-[--primary-hover]">
               Use URL
             </button>
           </div>
@@ -79,7 +79,7 @@ export function ClubImageEditor({
                 required
                 className="h-10 flex-1 rounded-md border border-border px-3 py-1.5 text-[13px] text-text-2 file:mr-3 file:rounded file:border-0 file:bg-base file:px-3 file:py-1.5 file:text-[13px] file:font-medium file:text-text-1"
               />
-              <button className="h-10 shrink-0 rounded-md bg-[--primary] px-4 text-sm font-medium text-white hover:bg-[--primary-hover]">
+              <button className="h-10 shrink-0 rounded-md bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:bg-[--primary-hover]">
                 Upload
               </button>
             </div>

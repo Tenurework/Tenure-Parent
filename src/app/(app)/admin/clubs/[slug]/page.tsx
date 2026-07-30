@@ -241,7 +241,7 @@ export default async function AdminClubDetailPage({
                     {can.assign && (
                       <button
                         formAction={adminAssignSeat}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[--primary] px-3.5 text-[13px] font-medium text-white hover:bg-[--primary-hover]"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[--primary] px-3.5 text-[13px] font-medium text-[--primary-text] hover:bg-[--primary-hover]"
                       >
                         <UserPlus size={15} /> Assign
                       </button>

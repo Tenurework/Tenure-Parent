@@ -103,7 +103,7 @@ export default async function MessagesPage() {
           </div>
           <Link
             href="/messages/compose"
-            className="inline-flex items-center gap-1.5 h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90 no-underline shrink-0"
+            className="inline-flex items-center gap-1.5 h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90 no-underline shrink-0"
           >
             <PenSquare size={15} /> Compose
           </Link>
@@ -158,7 +158,7 @@ export default async function MessagesPage() {
                         )}
                       </div>
                       {unreadCount > 0 && (
-                        <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-[--primary] px-1 text-[11px] font-bold text-white">
+                        <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-[--primary] px-1 text-[11px] font-bold text-[--primary-text]">
                           {unreadCount}
                         </span>
                       )}
@@ -210,7 +210,7 @@ export default async function MessagesPage() {
                 description="Every current member and OSE staff member at the institution receives this as an announcement. It's delivered immediately and can't be unsent."
                 confirmLabel="Send broadcast"
                 variant="primary"
-                triggerClassName="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90"
+                triggerClassName="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90"
               >
                 Send broadcast
               </ConfirmInlineSubmit>

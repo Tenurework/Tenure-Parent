@@ -1,20 +1,28 @@
-import { TenureWordmark } from "@/components/brand/TenureLogo"
+import { TenureLogo, TenureWordmark } from "@/components/brand/TenureLogo"
 
 /**
  * Hardened footer: a fixed slim bar pinned to the very bottom, spanning the
  * full width so its top border runs edge-to-edge and connects cleanly with the
  * side nav's right border into one continuous app frame. Deliberately quiet.
  *
- * The two marks are pinned to the frame's outer edges — the brand lockup flush
- * left (over the side-nav rail, so it reads as the product signature on the
- * whole frame rather than a caption on the content column) and the copyright
- * flush right. They balance each other at the extremes of the bar.
+ * The two marks are pinned to the frame's outer edges — the rosette plus
+ * wordmark flush left (over the side-nav rail, so it reads as the product
+ * signature on the whole frame rather than a caption on the content column) and
+ * the copyright flush right. They balance each other at the extremes of the bar.
+ *
+ * The left gutter matches ShellHeader's `px-3 sm:px-4` so the footer rosette
+ * sits on the same vertical axis as the header rosette: the two brand marks are
+ * the top and bottom corners of one continuous frame, and any other gutter here
+ * made the frame look subtly misaligned at every viewport.
  */
 export function Footer() {
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-30 h-footer border-t border-border bg-surface">
-      <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6">
-        <TenureWordmark size={12} textClassName="text-text-3" />
+      <div className="flex h-full items-center justify-between gap-3 px-3 sm:px-4">
+        <span className="flex items-center gap-2 text-text-3">
+          <TenureLogo size={14} color="currentColor" />
+          <TenureWordmark size={12} textClassName="text-text-3" />
+        </span>
         <p className="text-[11px] text-text-3">
           © {new Date().getFullYear()} Tenure. All rights reserved.
         </p>

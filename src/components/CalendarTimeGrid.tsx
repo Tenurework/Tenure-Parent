@@ -265,8 +265,17 @@ export function CalendarTimeGrid({
   // Open on the working day rather than at 7am — scroll to just above "now"
   // when today is in view, otherwise to the first event of the range.
   const didScroll = useRef(false)
+  // Re-anchor when the visible week changes, so paging to another week does not
+  // inherit the previous week's scroll position.
+  const weekStartKey = days[0]?.date
   useEffect(() => {
-    if (didScroll.current || !scrollRef.current) return
+    didScroll.current = false
+  }, [weekStartKey])
+  useEffect(() => {
+    // Wait for the client clock. `now` is null on the first commit, so latching
+    // here meant the "open near now" branch was never reachable — the grid
+    // always opened at the earliest event of the week instead.
+    if (now == null || didScroll.current || !scrollRef.current) return
     const target =
       showNow && nowY != null
         ? nowY - 120
@@ -279,7 +288,7 @@ export function CalendarTimeGrid({
           : 2 * HOUR_PX
     scrollRef.current.scrollTop = Math.max(0, target)
     didScroll.current = true
-  }, [showNow, nowY, effective, timeZone])
+  }, [now, showNow, nowY, effective, timeZone])
 
   // ── Layout: cluster, then column within each cluster ──────────────────────
   const layoutByDay = useMemo(() => {
@@ -572,7 +581,7 @@ export function CalendarTimeGrid({
             <span className="block text-meta uppercase tracking-wide text-text-3">{d.weekday}</span>
             <span
               className={`mx-auto mt-0.5 grid h-7 w-7 place-items-center rounded-full text-sm font-semibold ${
-                d.isToday ? "bg-[--primary] text-white" : "text-text-1"
+                d.isToday ? "bg-[--primary] text-[--primary-text]" : "text-text-1"
               }`}
             >
               {d.dayNum}
@@ -806,10 +815,16 @@ export function CalendarTimeGrid({
           {showNow && (
             <div
               className="pointer-events-none absolute z-20 flex items-center"
-              style={{ top: nowY!, left: 0, right: 0 }}
+              // translateY(-50%) is load-bearing: `top` positions the top edge
+              // of this flex row, but the hairline is centred inside it, so
+              // without the shift the line drew ~7.5px — about nine minutes —
+              // later than the time it claims to mark.
+              style={{ top: nowY!, left: 0, right: 0, transform: "translateY(-50%)" }}
             >
               <span
-                className="shrink-0 rounded px-1 text-[10px] font-semibold tabular-nums text-[--error]"
+                // Opaque plate: the label sits in the gutter directly over an
+                // hour label for roughly half of every hour.
+                className="shrink-0 rounded bg-surface px-1 text-[10px] font-semibold tabular-nums text-[--error]"
                 style={{ width: GUTTER_PX, textAlign: "right" }}
               >
                 {formatInZone(now!, timeZone, { hour: "numeric", minute: "2-digit" })}

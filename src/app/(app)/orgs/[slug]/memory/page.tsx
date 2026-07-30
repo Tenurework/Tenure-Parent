@@ -135,7 +135,7 @@ export default async function MemoryPage({
                 className="w-full rounded border border-border px-3 py-2 text-sm text-text-1"
               />
               {aiConfigured() && <DraftAssist kind="memory" targetName="body" />}
-              <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90">
+              <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90">
                 Save card
               </button>
             </form>

@@ -97,6 +97,45 @@ test.describe("resource authoring", () => {
     await expect(page.getByRole("heading", { name: title })).toHaveCount(2)
   })
 
+  test("the Director can publish twice in a row without reloading", async ({ page }) => {
+    // The regression this pins: the create dialog was never remounted, so
+    // useActionState kept `ok: true` from the previous publish and the close
+    // effect fired in the same commit the dialog opened in. The second click
+    // appeared to do nothing, which reads to an OSE Director as "the board has
+    // no Add option". Every other spec here reloads between publishes, which is
+    // exactly what hid it — so this one must not reload.
+    await signIn(page, "Dana Whitfield")
+    await page.goto("/resources")
+
+    const second = `E2E Second ${Date.now()}`
+    await page.getByRole("button", { name: "Add resource" }).click()
+    let dialog = page.getByRole("dialog")
+    await dialog.getByLabel("Title").fill(second)
+    await dialog.getByLabel("Description").fill("Published without an intervening reload.")
+    await dialog.getByRole("textbox", { name: "Link", exact: true }).fill("https://rochester.edu/a")
+    await dialog.getByLabel("Type").selectOption("GUIDE")
+    await dialog.getByRole("button", { name: "President" }).click()
+    await dialog.getByRole("button", { name: "Publish resource" }).click()
+    await expect(dialog).toBeHidden({ timeout: 10_000 })
+
+    // Straight back in — no reload, no navigation.
+    const third = `E2E Third ${Date.now()}`
+    await page.getByRole("button", { name: "Add resource" }).click()
+    dialog = page.getByRole("dialog")
+    await expect(dialog).toBeVisible()
+    await dialog.getByLabel("Title").fill(third)
+    await dialog.getByLabel("Description").fill("Proves the dialog reopens.")
+    await dialog.getByRole("textbox", { name: "Link", exact: true }).fill("https://rochester.edu/b")
+    await dialog.getByLabel("Type").selectOption("GUIDE")
+    await dialog.getByRole("button", { name: "President" }).click()
+    await dialog.getByRole("button", { name: "Publish resource" }).click()
+    await expect(dialog).toBeHidden({ timeout: 10_000 })
+
+    await page.reload()
+    await expect(page.getByRole("heading", { name: second }).first()).toBeVisible()
+    await expect(page.getByRole("heading", { name: third }).first()).toBeVisible()
+  })
+
   test("a published resource reaches officers who hold that seat", async ({ page }) => {
     await signIn(page, "Priya Raman") // president — inherits "Every board member"
     await page.goto("/resources")

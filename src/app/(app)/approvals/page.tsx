@@ -68,7 +68,7 @@ export default async function ApprovalsPage() {
         {canCreate && (
           <Link
             href="/approvals/new"
-            className="inline-flex items-center gap-1.5 h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90 no-underline shrink-0"
+            className="inline-flex items-center gap-1.5 h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90 no-underline shrink-0"
           >
             <Plus size={15} /> New request
           </Link>

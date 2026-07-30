@@ -225,7 +225,11 @@ export function ResourcesBrowser({
 
   const retired = useMemo(() => archived.filter(matches), [archived, q, kind])
   const total = groups.reduce((n, g) => n + g.resources.length, 0)
-  const showing = tab === "live" ? total : retired.length
+  // The Retired tab only exists while something is retired. Restoring the last
+  // one used to leave the tab selected but its toggle unrendered, stranding OSE
+  // on an empty panel with no control to get back to the board.
+  const activeTab = archived.length > 0 ? tab : "live"
+  const showing = activeTab === "live" ? total : retired.length
 
   return (
     <div>
@@ -271,7 +275,7 @@ export function ResourcesBrowser({
             <div className="ml-auto">
               <Segmented
                 aria-label="Resource status"
-                value={tab}
+                value={activeTab}
                 onChange={(v) => setTab(v as "live" | "retired")}
                 items={[
                   { key: "live", label: "Live" },
@@ -286,16 +290,16 @@ export function ResourcesBrowser({
       {showing === 0 ? (
         <EmptyState
           icon={Search}
-          title={tab === "retired" ? "Nothing retired" : "No matching resources"}
+          title={activeTab === "retired" ? "Nothing retired" : "No matching resources"}
           description={
-            tab === "retired"
+            activeTab === "retired"
               ? "Resources you retire are kept here and can be restored."
               : canManage
                 ? "Try a different search, or publish the resource your officers keep asking for."
                 : "Try a different search or clear the filters."
           }
         />
-      ) : tab === "retired" ? (
+      ) : activeTab === "retired" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {retired.map((r) => (
             <ResourceCard
@@ -340,7 +344,13 @@ export function ResourcesBrowser({
 
       {canManage && (
         <>
-          <ResourceEditor isOpen={creating} onClose={() => setCreating(false)} />
+          {/* Remount per opening so useActionState starts clean, exactly as the
+              edit dialog already does via its id key. */}
+          <ResourceEditor
+            key={creating ? "new-open" : "new-closed"}
+            isOpen={creating}
+            onClose={() => setCreating(false)}
+          />
           <ResourceEditor
             key={editing?.id ?? "none"}
             resource={editing ?? undefined}

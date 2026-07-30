@@ -231,7 +231,7 @@ export function LedgerDrawer({
                 <button
                   type="submit"
                   disabled={pending}
-                  className="inline-flex h-9 items-center gap-1.5 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:bg-[--primary-hover] disabled:opacity-50"
+                  className="inline-flex h-9 items-center gap-1.5 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:bg-[--primary-hover] disabled:opacity-50"
                 >
                   Post entry
                 </button>

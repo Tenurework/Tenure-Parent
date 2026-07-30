@@ -147,7 +147,7 @@ export default async function OrgsPage({
                 aria-current={selected ? "page" : undefined}
                 className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium no-underline transition-colors ${
                   selected
-                    ? "border-[--primary] bg-[--primary] text-white"
+                    ? "border-[--primary] bg-[--primary] text-[--primary-text]"
                     : "border-border text-text-2 hover:border-[--border-strong] hover:text-text-1"
                 }`}
               >

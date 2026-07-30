@@ -54,7 +54,7 @@ export function CalendarSubscribe({ feedPath }: { feedPath: string }) {
             />
             <button
               onClick={copy}
-              className="h-10 shrink-0 rounded-md bg-[--primary] px-4 text-sm font-medium text-white hover:bg-[--primary-hover]"
+              className="h-10 shrink-0 rounded-md bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:bg-[--primary-hover]"
             >
               {copied ? "Copied" : "Copy"}
             </button>

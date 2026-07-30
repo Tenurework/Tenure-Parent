@@ -185,7 +185,7 @@ export default async function ConversationPage({
                       <div
                         className={`w-fit break-words rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed ${
                           isOwn
-                            ? "rounded-br-md bg-[--primary] text-white"
+                            ? "rounded-br-md bg-[--primary] text-[--primary-text]"
                             : "rounded-bl-md bg-subtle text-text-1"
                         }`}
                       >
@@ -236,7 +236,7 @@ export default async function ConversationPage({
             />
             <button
               aria-label="Send"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[--primary] text-white transition-colors hover:bg-[--primary-hover]"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[--primary] text-[--primary-text] transition-colors hover:bg-[--primary-hover]"
             >
               <ArrowRight size={18} />
             </button>

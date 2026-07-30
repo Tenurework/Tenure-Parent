@@ -102,7 +102,7 @@ export default async function DocumentsPage({
                   className="h-9 w-full rounded border border-border px-3 text-sm text-text-1"
                 />
               </label>
-              <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90">
+              <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90">
                 Upload
               </button>
             </form>

@@ -192,7 +192,7 @@ export default async function FeedPage() {
                   placeholder="What are you planning, what kind of partner are you looking for, and what's in it for them?"
                   className="w-full rounded border border-border px-3 py-2 text-sm text-text-1"
                 />
-                <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-white hover:opacity-90">
+                <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90">
                   Post to feed
                 </button>
               </form>
@@ -298,7 +298,7 @@ export default async function FeedPage() {
                           placeholder="Add a note (optional)"
                           className="h-8 flex-1 min-w-40 rounded border border-border px-2 text-xs text-text-1"
                         />
-                        <button className="inline-flex items-center gap-1.5 h-8 rounded bg-[--primary] px-3 text-xs font-medium text-white hover:opacity-90">
+                        <button className="inline-flex items-center gap-1.5 h-8 rounded bg-[--primary] px-3 text-xs font-medium text-[--primary-text] hover:opacity-90">
                           <Handshake size={13} /> Request to collaborate
                         </button>
                       </form>
@@ -379,7 +379,7 @@ export default async function FeedPage() {
                           <button
                             name="decision"
                             value="APPROVED"
-                            className="h-8 rounded bg-[--primary] px-3 text-xs font-medium text-white hover:opacity-90"
+                            className="h-8 rounded bg-[--primary] px-3 text-xs font-medium text-[--primary-text] hover:opacity-90"
                           >
                             Approve
                           </button>

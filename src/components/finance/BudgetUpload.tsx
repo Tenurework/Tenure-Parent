@@ -177,7 +177,7 @@ export function BudgetUpload({ slug }: { slug: string }) {
               type="button"
               onClick={() => setConfirmReplace(true)}
               disabled={pending}
-              className="rounded bg-[--primary] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="rounded bg-[--primary] px-3 py-1.5 text-xs font-medium text-[--primary-text] hover:opacity-90 disabled:opacity-50"
             >
               {pending ? "Importing…" : "Replace imported lines"}
             </button>

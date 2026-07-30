@@ -121,7 +121,7 @@ export default async function AdminAuditPage({
                   key={t.val || "all"}
                   href={tabHref(t.val)}
                   className={`rounded px-3 py-1 text-[13px] font-medium no-underline ${
-                    active ? "bg-[--primary] text-white" : "text-text-2 hover:text-text-1"
+                    active ? "bg-[--primary] text-[--primary-text]" : "text-text-2 hover:text-text-1"
                   }`}
                 >
                   {t.label}

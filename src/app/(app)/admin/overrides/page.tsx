@@ -90,7 +90,7 @@ export default async function AdminOverridesPage() {
                     <form action={adminSetEventStatus}>
                       <input type="hidden" name="eventId" value={e.id} />
                       <input type="hidden" name="status" value="PUBLISHED" />
-                      <button className="inline-flex items-center gap-1.5 rounded-md bg-[--primary] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[--primary-hover]">
+                      <button className="inline-flex items-center gap-1.5 rounded-md bg-[--primary] px-3 py-1.5 text-[13px] font-medium text-[--primary-text] hover:bg-[--primary-hover]">
                         <CheckCircle size={14} /> Publish
                       </button>
                     </form>

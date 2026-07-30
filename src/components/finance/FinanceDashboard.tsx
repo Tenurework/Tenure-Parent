@@ -296,7 +296,7 @@ export function FinanceDashboard({
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-1.5 rounded bg-[--primary] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                  className="inline-flex items-center gap-1.5 rounded bg-[--primary] px-3 py-1.5 text-xs font-medium text-[--primary-text] hover:opacity-90"
                 >
                   <CheckCircle size={13} /> Save forecast
                 </button>
@@ -339,7 +339,7 @@ export function FinanceDashboard({
                   />
                 </label>
               </div>
-              <button className="h-9 w-full rounded bg-[--primary] text-sm font-medium text-white hover:opacity-90">
+              <button className="h-9 w-full rounded bg-[--primary] text-sm font-medium text-[--primary-text] hover:opacity-90">
                 Add line
               </button>
             </form>

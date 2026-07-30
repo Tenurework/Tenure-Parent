@@ -44,7 +44,7 @@ export default function DocumentsError({
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             onClick={reset}
-            className="inline-flex items-center gap-2 rounded-md bg-[--primary] px-4 py-2 text-sm font-medium text-white hover:bg-[--primary-hover]"
+            className="inline-flex items-center gap-2 rounded-md bg-[--primary] px-4 py-2 text-sm font-medium text-[--primary-text] hover:bg-[--primary-hover]"
           >
             <RotateCw size={15} />
             Try again

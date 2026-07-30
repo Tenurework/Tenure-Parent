@@ -90,7 +90,7 @@ export default async function ComposePage() {
               />
             </label>
             {aiConfigured() && <DraftAssist kind="message" targetName="body" />}
-            <button className="h-9 rounded bg-[--primary] px-5 text-sm font-medium text-white hover:opacity-90">
+            <button className="h-9 rounded bg-[--primary] px-5 text-sm font-medium text-[--primary-text] hover:opacity-90">
               Send
             </button>
           </form>
