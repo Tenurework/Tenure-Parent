@@ -20,7 +20,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const institutionId = ctx.institutionRoles[0].institutionId
   const role = adminRoleAt(ctx, institutionId)!
-  const capCount = capabilitiesForRole(role).length
+  const capabilities = capabilitiesForRole(role)
+  const capCount = capabilities.length
 
   return (
     <div className="w-full">
@@ -55,7 +56,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
 
       <div className="mb-6">
-        <AdminNav />
+        <AdminNav capabilities={capabilities} />
       </div>
 
       {children}

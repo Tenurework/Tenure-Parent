@@ -98,3 +98,58 @@ test.describe("admin console", () => {
     await expect(row.getByText("archived")).toBeVisible()
   })
 })
+
+test.describe("console navigation matches capability", () => {
+  /**
+   * The console used to link to its own 404s: AdminNav rendered all six tabs
+   * for every admin, while each page calls notFound() when the capability is
+   * missing. OSE_STAFF clicking "Approvals" landed on a not-found page inside
+   * the console they had just been admitted to.
+   */
+  test("OSE staff are not offered tabs whose pages would 404", async ({ page }) => {
+    await signIn(page, "Sam Ortiz") // OSE_STAFF
+    await page.goto("/admin")
+
+    const nav = page.getByRole("navigation", { name: "Admin sections" })
+    await expect(nav).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Overview" })).toBeVisible()
+
+    // Every tab the staff member IS offered must resolve to a real page.
+    const labels = await nav.getByRole("link").allInnerTexts()
+    for (const label of labels) {
+      await nav.getByRole("link", { name: label.trim(), exact: true }).click()
+      await expect(page.getByText(/could not be found|404/i)).toHaveCount(0)
+      await page.goto("/admin")
+    }
+  })
+
+  test("the director still gets the full console", async ({ page }) => {
+    await signIn(page, "Dana Whitfield") // OSE_DIRECTOR
+    await page.goto("/admin")
+    const nav = page.getByRole("navigation", { name: "Admin sections" })
+    for (const label of ["Overview", "Clubs", "Approvals", "Overrides", "Audit log"]) {
+      await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible()
+    }
+  })
+})
+
+test.describe("reimbursement filing is offered only to those who can file", () => {
+  /**
+   * submitReimbursement requires an ACTIVE seat in the club, so that a
+   * requester never sits on their own approval gate. The form was rendered to
+   * every finance viewer regardless, so OSE and alumni discovered they were
+   * ineligible only via an unhandled server error on submit.
+   */
+  test("an active officer sees the form", async ({ page }) => {
+    await signIn(page, "Victor Chen") // VP Finance, ACTIVE seat
+    await page.goto("/orgs/simon-consulting-club/finance")
+    await expect(page.getByRole("heading", { name: /reimbursement/i }).first()).toBeVisible()
+  })
+
+  test("the OSE director sees finance but is not offered the form", async ({ page }) => {
+    await signIn(page, "Dana Whitfield") // OSE — oversight, no club seat
+    await page.goto("/orgs/simon-consulting-club/finance")
+    await expect(page.getByText(/budget/i).first()).toBeVisible()
+    await expect(page.getByRole("heading", { name: /reimbursement/i })).toHaveCount(0)
+  })
+})
