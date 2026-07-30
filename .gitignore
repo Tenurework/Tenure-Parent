@@ -1,19 +1,28 @@
+# Monorepo root .gitignore.
+#
+# The app-level entries below deliberately have NO leading slash. A leading
+# slash anchors a pattern to the directory holding the .gitignore, so a leading-
+# slash "node_modules" here would no longer match apps/web/node_modules and the first
+# `git add -A` after the move would stage the entire installed dependency tree.
+# The terraform entries at the bottom keep their path prefix on purpose:
+# infrastructure/ lives here, at the root.
+
 # dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp/
 .pnp.js
 
 # testing
-/coverage
-/test-results
-/playwright-report
+coverage/
+test-results/
+playwright-report/
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # production
-/build
+build/
 
 # misc
 .DS_Store
@@ -25,8 +34,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*.local
 .env
+.env*.local
 
 # vercel
 .vercel
@@ -36,10 +45,13 @@ yarn-error.log*
 next-env.d.ts
 
 # prisma
-/prisma/*.db
+**/prisma/*.db
 
 # local e2e/dev server log
 .server.log
+
+# ad-hoc local debugging scripts (smoke.local.mjs, probe.local.mjs, ...)
+*.local.mjs
 
 # terraform — provider plugins (700MB+) and local state, from running
 # `terraform validate` outside CI. The lock file is ignored on purpose too:

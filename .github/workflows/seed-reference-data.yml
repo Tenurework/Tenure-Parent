@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "seed" to confirm. The seed archives clubs absent from scripts/roster-data.mjs and clears rows it treats as test state.'
+        description: 'Type "seed" to confirm. The seed archives clubs absent from apps/web/scripts/roster-data.mjs and clears rows it treats as test state.'
         required: true
         default: ""
 

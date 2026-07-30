@@ -31,18 +31,30 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          # setup-node's findLockFile reads only the top level of
+          # GITHUB_WORKSPACE and does not recurse. The single workspaces
+          # lockfile lives at the root; naming it states which lockfile is
+          # authoritative instead of leaving it to discovery.
+          cache-dependency-path: package-lock.json
 
+      # Root install — npm workspaces installs apps/web from the root lockfile.
       - name: Install dependencies
         run: npm ci
 
+      # lint / type-check / build go through the root delegating scripts in
+      # package.json, which run them with cwd = apps/web.
       - name: Lint
         run: npm run lint
 
       - name: Type check
         run: npm run type-check
 
+      # NOT `npm test -- --ci ...`: the root `test` script is itself an
+      # `npm run test --workspace apps/web`, so npm would swallow --ci and
+      # --passWithNoTests as its own CLI flags and never forward them to jest.
+      # The step would still pass, silently running jest without --ci.
       - name: Test
-        run: npm test -- --ci --passWithNoTests
+        run: npm run test --workspace apps/web -- --ci --passWithNoTests
 
       - name: Build
         run: npm run build
@@ -79,6 +91,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -90,11 +103,11 @@ jobs:
         run: |
           psql "$DATABASE_URL" -c 'CREATE DATABASE tenure_shadow;'
           npx prisma migrate diff \
-            --from-migrations ./prisma/migrations \
-            --to-schema-datamodel ./prisma/schema.prisma \
+            --from-migrations ./apps/web/prisma/migrations \
+            --to-schema-datamodel ./apps/web/prisma/schema.prisma \
             --shadow-database-url "$SHADOW_DATABASE_URL" \
             --exit-code --script > /tmp/drift.sql || {
-              echo "::error::prisma/migrations does not reproduce prisma/schema.prisma."
+              echo "::error::apps/web/prisma/migrations does not reproduce apps/web/prisma/schema.prisma."
               echo "Generate a migration for your schema change:"
               echo "  npx prisma migrate dev --name <describe-your-change>"
               echo ""
@@ -106,12 +119,23 @@ jobs:
 
       # Proves migrate deploy works from empty, which is the path a new cell,
       # a new tenant database and every preview environment takes.
+      #
+      # working-directory, not a --schema flag: the Prisma CLI's implicit
+      # ./prisma/schema.prisma lookup is exactly what production relies on, so
+      # CI keeps exercising it. (npx walks up to the hoisted root node_modules
+      # for the binary.)
       - name: Apply migrations to an empty database
+        working-directory: apps/web
         run: npx prisma migrate deploy
 
       # Proves the bootstrap correctly baselines a `db push`-shaped database
       # with no migration ledger — the shape the live pilot is in today.
+      #
+      # Also runs from apps/web, which mirrors the container (cwd=/app with
+      # prisma/ and scripts/ flattened under it) rather than approximating it.
+      # The psql lines are cwd-independent.
       - name: Bootstrap must baseline a legacy pre-migrations database
+        working-directory: apps/web
         run: |
           psql "$DATABASE_URL" -c 'CREATE DATABASE tenure_legacy;'
           LEGACY="postgresql://tenure:tenure@localhost:5432/tenure_legacy"
@@ -131,7 +155,13 @@ jobs:
       # principle. Runs against the enforcing client on a real database: a
       # filter that is never applied looks identical to one that works in any
       # test that does not touch PostgreSQL.
+      #
+      # From apps/web: `prisma generate` resolves ./prisma/schema.prisma from
+      # cwd, and test:isolation is a workspace script. Run from the monorepo
+      # root both halves fail — the first on a missing schema, the second on a
+      # missing script.
       - name: Tenant isolation must hold against a real database
+        working-directory: apps/web
         run: npx prisma generate && npm run test:isolation
 
   # ── Headless e2e: real Postgres, seeded data, production build ─────────────
@@ -185,17 +215,23 @@ jobs:
         with:
           node-version: 20
           cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       # Same path production takes, so the 27 e2e specs also test the migrations.
       - name: Apply migrations + seed
+        working-directory: apps/web
         run: |
           npx prisma migrate deploy
           node scripts/seed.mjs
 
+      # From apps/web so npx resolves the pinned @playwright/test rather than
+      # downloading whatever `playwright` is current — a browser/driver version
+      # mismatch is the failure mode otherwise.
       - name: Install Playwright browsers
+        working-directory: apps/web
         run: npx playwright install --with-deps chromium
 
       - name: Build
@@ -209,5 +245,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-traces
-          path: test-results/
+          # upload-artifact is a `uses:` step, so it never honours
+          # working-directory — this path is always workspace-relative, and
+          # Playwright writes traces beside its config, at apps/web/.
+          path: apps/web/test-results/
           retention-days: 7

@@ -1,3 +1,4 @@
+import path from "node:path"
 import type { NextConfig } from "next"
 
 const securityHeaders = [
@@ -14,6 +15,16 @@ const nextConfig: NextConfig = {
   // Only enabled there (NEXT_STANDALONE=1) — `next start` (used by the
   // Playwright e2e suite) does not support standalone output.
   ...(process.env.NEXT_STANDALONE === "1" ? { output: "standalone" as const } : {}),
+
+  // Pin the file-tracing root to the monorepo root instead of letting Next
+  // infer it by walking up for lockfiles. The inference is a warning, not an
+  // error, and getting it wrong relocates the standalone output: with the root
+  // at apps/web the bundle is .next/standalone/server.js, with the root here it
+  // is .next/standalone/apps/web/server.js. The Dockerfile COPY paths and
+  // scripts/entrypoint.sh both assume the latter, so this is pinned rather than
+  // discovered. Set unconditionally (not only under NEXT_STANDALONE) so dev,
+  // build and turbopack all agree on the same root.
+  outputFileTracingRoot: path.join(__dirname, "../../"),
 
   poweredByHeader: false,
 

@@ -1,6 +1,9 @@
 const nextJest = require("next/jest.js")
 
-const createJestConfig = nextJest({ dir: "./" })
+// `dir` is resolved against process.cwd(), not against this file. Anchoring it
+// on __dirname keeps next/jest loading THIS app's next.config.ts even when jest
+// is launched from the monorepo root (a root `projects` config, an IDE runner).
+const createJestConfig = nextJest({ dir: __dirname })
 
 /** @type {import('jest').Config} */
 const config = {

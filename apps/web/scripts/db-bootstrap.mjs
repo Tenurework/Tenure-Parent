@@ -27,6 +27,7 @@
 
 import { spawnSync } from "node:child_process"
 import { existsSync } from "node:fs"
+import { createRequire } from "node:module"
 
 /** Recorded as applied — never replayed — on a pre-migrations pilot database. */
 export const BASELINE_MIGRATION = "20260730000000_baseline"
@@ -111,12 +112,26 @@ function prismaCommand() {
   // Invoke the CLI's entrypoint with node directly rather than going through
   // npx: Node 20+ refuses to spawn `npx.cmd` without a shell (CVE-2024-27980),
   // which fails in a way that looks exactly like "the table is not there".
+  // These two are cwd-relative and MUST stay in this order: the container path
+  // first, so the runtime image keeps using its own dedicated CLI tree.
   const candidates = [
     "prisma-cli/node_modules/prisma/build/index.js", // runtime image (see Dockerfile)
-    "node_modules/prisma/build/index.js", // local + CI
+    "node_modules/prisma/build/index.js", // local + CI, un-hoisted
   ]
   for (const entry of candidates) {
     if (existsSync(entry)) return { cmd: process.execPath, base: [entry] }
+  }
+  // npm workspaces hoist `prisma` to <monorepo-root>/node_modules, so neither
+  // cwd-relative candidate matches when this runs from apps/web. Resolving
+  // through Node's own algorithm from this module is hoisting-agnostic and
+  // location-agnostic (prisma's package.json exports ./build/index.js).
+  try {
+    return {
+      cmd: process.execPath,
+      base: [createRequire(import.meta.url).resolve("prisma/build/index.js")],
+    }
+  } catch {
+    // fall through to npx
   }
   return { cmd: "npx", base: ["prisma"], shell: process.platform === "win32" }
 }

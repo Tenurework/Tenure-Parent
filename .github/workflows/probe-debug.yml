@@ -12,7 +12,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build image
-        run: docker build -t tenure-probe .
+        # Same context/file split as deploy.yml, so this diagnostic keeps
+        # reproducing the real production image rather than a different one.
+        run: docker build -t tenure-probe -f apps/web/Dockerfile .
 
       - name: Run container (bootstrap skipped)
         run: |

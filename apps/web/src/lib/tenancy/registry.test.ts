@@ -20,7 +20,14 @@ import {
 type ParsedModel = { name: string; hasInstitutionId: boolean }
 
 function parseSchemaModels(): ParsedModel[] {
-  const schema = readFileSync(join(process.cwd(), "prisma", "schema.prisma"), "utf8")
+  // Anchored on this file, not on process.cwd(). This is the only filesystem
+  // read in src/, and it is the guard that a new Prisma model cannot be added
+  // without being classified here — so it must not quietly ENOENT the first
+  // time jest is invoked from the monorepo root instead of from apps/web.
+  const schema = readFileSync(
+    join(__dirname, "..", "..", "..", "prisma", "schema.prisma"),
+    "utf8",
+  )
   const models: ParsedModel[] = []
 
   for (const match of schema.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)) {

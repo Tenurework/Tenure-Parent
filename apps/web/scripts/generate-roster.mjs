@@ -3,19 +3,30 @@
  *
  *   node scripts/generate-roster.mjs
  *
- * Sources (Tier1/):
+ * Sources (<monorepo-root>/Tier1/):
  *   2026.2027 Club Org Student Leadership 7.17.xlsx  — current boards
  *   2025.2026 Club Org Student Leadership.xlsx       — predecessors
+ *
+ * Tier1/ is institutional source data and stays at the monorepo root, not
+ * inside apps/web. Both the reads and the write below are resolved against this
+ * module's own URL rather than process.cwd(), so the generator works from any
+ * directory — a cwd-relative write in particular would silently create a stray
+ * <root>/scripts/roster-data.mjs and report success while the real file went
+ * untouched.
  *
  * The generated file is committed so the container seed never needs the
  * spreadsheets. Re-run this whenever OSE publishes an updated roster.
  */
 import XLSX from "xlsx"
 import { writeFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 import { CLUBS as LEGACY_CLUBS, slugify as legacySlugify } from "./clubs-data.mjs"
 
-const CURRENT_FILE = "Tier1/2026.2027 Club Org Student Leadership 7.17.xlsx"
-const PRIOR_FILE = "Tier1/2025.2026 Club Org Student Leadership.xlsx"
+// apps/web/scripts/ -> ../../../ is the monorepo root
+const tier1 = (name) => fileURLToPath(new URL(`../../../Tier1/${name}`, import.meta.url))
+
+const CURRENT_FILE = tier1("2026.2027 Club Org Student Leadership 7.17.xlsx")
+const PRIOR_FILE = tier1("2025.2026 Club Org Student Leadership.xlsx")
 const CURRENT_TERM = "2026-2027"
 const PRIOR_TERM = "2025-2026"
 
@@ -437,9 +448,9 @@ export const ADVISORS = ${JSON.stringify([...advisors.values()], null, 2)}
 export const ROSTER = ${JSON.stringify(clubs, null, 2)}
 `
 
-writeFileSync("scripts/roster-data.mjs", banner)
+writeFileSync(new URL("./roster-data.mjs", import.meta.url), banner)
 
-console.log("Wrote scripts/roster-data.mjs")
+console.log("Wrote apps/web/scripts/roster-data.mjs")
 console.table(totals)
 
 const legacySlugSet = new Set(Object.keys(LEGACY_CLUBS).map((n) => legacySlugify(n)))

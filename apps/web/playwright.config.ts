@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs"
+import path from "node:path"
 import { defineConfig, devices } from "@playwright/test"
 
 /**
@@ -14,8 +15,18 @@ import { defineConfig, devices } from "@playwright/test"
  * was sending `undefined` locally while the server expected the real value, and
  * only CI (which sets the vars explicitly) agreed with itself. Mirror `.env`
  * into the runner, without overriding anything already set.
+ *
+ * Resolved against this file, not against process.cwd(): `.env` lives at
+ * apps/web/.env, and a run started from the monorepo root would otherwise hit
+ * the silent `catch { return }` below and leave JOB_SECRET and
+ * DEV_LOGIN_PASSPHRASE undefined — which surfaces as auth failures in the
+ * specs, not as a missing file.
+ *
+ * __dirname, not import.meta.url: Playwright transpiles this config to CJS
+ * (apps/web/package.json is not "type": "module"), so import.meta is a hard
+ * SyntaxError here — the whole suite fails to load before a single spec runs.
  */
-function loadDotenv(file = ".env") {
+function loadDotenv(file = path.join(__dirname, ".env")) {
   let raw: string
   try {
     raw = readFileSync(file, "utf8")

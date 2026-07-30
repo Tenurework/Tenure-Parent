@@ -24,9 +24,16 @@ on:
         default: "false"
   # Also runs when this file changes, which is the only way to trigger it from
   # an environment that cannot dispatch a workflow.
-  push:
-    paths:
-      - ".github/workflows/replace-acm-cert.yml"
+  #
+  # ⚠ DISARMED FOR THE MONOREPO MOVE — RESTORE AFTER THE FIRST GREEN DEPLOY.
+  # The move commits this file into Tenure-Parent for the first time, which
+  # under this trigger would immediately fire a `terraform apply -replace` on
+  # the production ACM certificate as a side effect of reorganising directories.
+  # Uncomment the three lines below once the relocation has landed and the
+  # pilot has deployed successfully from the new layout.
+  # push:
+  #   paths:
+  #     - ".github/workflows/replace-acm-cert.yml"
 
 concurrency:
   group: terraform-state
@@ -41,6 +48,8 @@ jobs:
 
     env:
       AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      # Must stay byte-identical to deploy.yml's TF_DIR. infrastructure/ stays
+      # at the monorepo root, so the apps/web move does not touch this.
       TF_DIR: infrastructure/terraform
       DOMAIN: platform.tenurework.com
 

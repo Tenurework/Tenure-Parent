@@ -1,10 +1,18 @@
+import path from "node:path"
 import type { Config } from "tailwindcss"
 
 const config: Config = {
+  // Anchored on this file, not on process.cwd(). Tailwind resolves relative
+  // content globs against the cwd of whatever launched the build; from the
+  // monorepo root they would match zero files and Tailwind would emit base +
+  // preflight only. Nothing errors in that case — the image builds, the health
+  // check passes, and production renders unstyled. path.join(__dirname, ...)
+  // removes the failure mode. (Tailwind 3.4 loads .ts configs via jiti, which
+  // provides __dirname.)
   content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    path.join(__dirname, "src/pages/**/*.{js,ts,jsx,tsx,mdx}"),
+    path.join(__dirname, "src/components/**/*.{js,ts,jsx,tsx,mdx}"),
+    path.join(__dirname, "src/app/**/*.{js,ts,jsx,tsx,mdx}"),
   ],
   theme: {
     extend: {

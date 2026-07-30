@@ -47,4 +47,10 @@ if [ "$MODE" = "seed" ] || [ "$SEED_ON_BOOT" = "true" ]; then
   fi
 fi
 
-exec node server.js
+# In an npm workspace, Next's standalone output is laid out relative to the
+# file-tracing root (the monorepo root), so server.js is emitted at
+# apps/web/server.js with the traced node_modules hoisted beside it. Do NOT
+# `cd apps/web` first: everything above this line — the Prisma CLI probe in
+# db-bootstrap.mjs and the CLI's implicit ./prisma/schema.prisma lookup —
+# depends on cwd staying /app. server.js does its own process.chdir(__dirname).
+exec node apps/web/server.js

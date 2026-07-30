@@ -25,6 +25,9 @@ jobs:
 
     env:
       AWS_REGION:      ${{ secrets.AWS_REGION || 'us-east-1' }}
+      # Workspace-relative. infrastructure/ stays at the monorepo root (it
+      # provisions account-level shared resources), so this is unchanged by the
+      # apps/web move. Must stay in lockstep with replace-acm-cert.yml's TF_DIR.
       TF_DIR:          infrastructure/terraform
       IMAGE_TAG:       sha-${{ github.sha }}
 
@@ -127,7 +130,11 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
+          # Context stays the monorepo root: the Dockerfile needs the single
+          # workspaces lockfile at the root plus apps/web/. `file:` is explicit
+          # because build-push-action would otherwise look for <context>/Dockerfile.
           context: .
+          file: apps/web/Dockerfile
           push: true
           tags: |
             ${{ env.ECR_URL }}:${{ env.IMAGE_TAG }}
