@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /**
  * OSE club deliverables seeded onto the shared calendar.
@@ -8,13 +9,6 @@ import { test, expect, type Page } from "@playwright/test"
  * hour. Retiring the month view must not have quietly dropped a compliance
  * deadline, which is what these tests are really guarding.
  */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 test.describe("club deliverables", () => {
   test("monthly audit deadline appears on the calendar with its term", async ({ page }) => {

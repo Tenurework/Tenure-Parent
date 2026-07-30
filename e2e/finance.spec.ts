@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /** VP of Finance dashboard: actual-vs-budget chart, live forecasting, Excel upload.
  *
@@ -7,13 +8,6 @@ import { test, expect, type Page } from "@playwright/test"
  * an aria-label — and role="img" makes an element's entire subtree
  * presentational, which silenced all of those. The accessible name being
  * checked is unchanged; only the role it hangs on is corrected. */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 const FINANCE_URL = "/orgs/simon-consulting-club/finance"
 

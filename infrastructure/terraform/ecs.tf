@@ -177,6 +177,7 @@ resource "aws_ecs_task_definition" "app" {
         # Reference data already lives in the database. To publish an update,
         # run the "Seed reference data" workflow, which executes it once as a
         # one-off ECS task instead of on every boot.
+
         # Surfaced by /api/health so CI can verify which build is serving
         { name = "IMAGE_TAG", value = var.image_tag },
         # Optional: enables AI answer synthesis on /search when non-empty
@@ -204,6 +205,12 @@ resource "aws_ecs_task_definition" "app" {
           # Bearer token the scheduler presents to /api/jobs/*
           name      = "JOB_SECRET"
           valueFrom = "${aws_secretsmanager_secret.job.arn}:JOB_SECRET::"
+        },
+        {
+          # Interim gate in front of passwordless sign-in. Remove together with
+          # AUTH_DEV_LOGIN when Okta is live. See dev-login-gate.tf.
+          name      = "DEV_LOGIN_PASSPHRASE"
+          valueFrom = "${aws_secretsmanager_secret.dev_login.arn}:DEV_LOGIN_PASSPHRASE::"
         },
         {
           # RDS-managed secret value is JSON {"username","password"} — the

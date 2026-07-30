@@ -158,6 +158,10 @@ jobs:
       AUTH_TRUST_HOST: "true"
       AUTH_DEV_LOGIN: "true"
       ALLOW_DEV_LOGIN_IN_PRODUCTION: "true"
+      # Set so the suite signs in through the real interim gate rather than the
+      # ungated path — e2e/support/auth.ts fills it and fails loudly if the
+      # server under test isn't asking for it.
+      DEV_LOGIN_PASSPHRASE: e2e-shared-pilot-passphrase
       NEXTAUTH_URL: http://localhost:3000
       OKTA_CLIENT_ID: ""
       OKTA_CLIENT_SECRET: ""

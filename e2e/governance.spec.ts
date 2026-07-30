@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /**
  * OSE Director transfer pipeline — the atomic, two-party handoff.
@@ -9,13 +10,6 @@ import { test, expect, type Page } from "@playwright/test"
  * pipeline in both directions: initiate → notify → accept (with confirm) → atomic
  * role swap, with the outgoing Director keeping power until the successor accepts.
  */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 /** Only the current Director sees the "Transfer Director role" initiate control. */
 const initiateControl = (page: Page) =>

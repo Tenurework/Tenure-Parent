@@ -1,13 +1,9 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /** Board resources: quick links on the dashboard, full board under /resources. */
 
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
+
 
 test.describe("board resources", () => {
   test("dashboard surfaces a compact rotating quick-links card", async ({ page }) => {

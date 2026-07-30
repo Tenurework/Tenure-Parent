@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /**
  * Week 4: shared calendar, conflict detection, approval-linked publishing.
@@ -9,13 +10,6 @@ import { test, expect, type Page } from "@playwright/test"
  * paths (drag to reschedule, inspector to edit) that replaced the read-only
  * month tiles.
  */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 /**
  * Wait for the event detail page after a proposal.

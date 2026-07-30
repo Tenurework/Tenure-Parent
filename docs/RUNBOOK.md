@@ -87,14 +87,43 @@ production it refuses:
 
 `.env.example` documents every variable for local setup.
 
+## The interim sign-in gate
+
+Until Okta is live, passwordless sign-in sits behind a shared passphrase.
+Terraform generates it and stores it; nothing needs setting up by hand.
+
+```sh
+aws secretsmanager get-secret-value --secret-id tenure-pilot/dev-login \
+  --query SecretString --output text
+```
+
+Give that to pilot users. It is enforced server-side in
+`src/lib/auth.ts` before the account lookup, so a wrong passphrase cannot even
+be used to probe which emails exist, and `src/lib/env.ts` refuses to boot if dev
+login is on in production without one.
+
+**Removing it when Okta lands** — one step, in this order:
+
+1. Put `OKTA_ISSUER`, `OKTA_CLIENT_ID`, `OKTA_CLIENT_SECRET` into Secrets
+   Manager (`tenure-pilot/app`). Okta registers itself once `OKTA_ISSUER`
+   is an `https://` URL (`src/lib/auth.ts`).
+2. In `ecs.tf`, set `AUTH_DEV_LOGIN` to `"false"` and delete both
+   `ALLOW_DEV_LOGIN_IN_PRODUCTION` and the `DEV_LOGIN_PASSPHRASE` secret entry.
+3. Delete `infrastructure/terraform/dev-login-gate.tf` and its ARN from the
+   `ecs_secrets` policy in `secrets.tf`.
+
+The gate adds no sign-in path of its own, so removing `AUTH_DEV_LOGIN` removes
+the provider it guards and there is nothing left behind. Also delete the seeded
+`@tenure.demo` users at that point — they are accounts with no credential.
+
 ## Known pilot limitations
 
-- **Passwordless dev sign-in is on in production.** `AUTH_DEV_LOGIN=true` plus
-  the seeded `@tenure.demo` accounts means anyone who can reach the site can
-  sign in as the OSE Director. It is now acknowledged explicitly in `ecs.tf`
-  (`ALLOW_DEV_LOGIN_IN_PRODUCTION`) rather than being an unstated default, but
-  the exposure is unchanged and it blocks real institutional data. Closing it
-  needs Okta credentials from the institution.
+- **Passwordless dev sign-in is on in production, behind an interim gate.**
+  `AUTH_DEV_LOGIN=true` plus the seeded `@tenure.demo` accounts would otherwise
+  mean anyone who can reach the site signs in as OSE Director. A shared
+  passphrase now stands in front of it (below). That is a stopgap, not the fix:
+  every pilot user holds the same secret, so it does not identify anyone and it
+  still blocks real institutional data. Okta closes it properly.
 - Reference data is still delivered by `scripts/seed.mjs` at container start via
   `SEED_ON_BOOT=true`. It no longer creates demo accounts there
   (`SEED_DEMO_ACCOUNTS` defaults off when `NODE_ENV=production`). Moving it to a

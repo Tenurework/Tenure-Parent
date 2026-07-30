@@ -1,13 +1,7 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /** Institutional policy pages + the scheduled reminder job. */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 test.describe("policy pages", () => {
   test("event guide states its lead times as hard rules", async ({ page }) => {

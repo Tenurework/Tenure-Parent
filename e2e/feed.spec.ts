@@ -1,16 +1,10 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /**
  * Community Feed: clubs post collaboration calls, others comment and
  * request to collaborate, the OSE Director approves in the middle.
  */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 const stamp = Date.now()
 const postTitle = `Co-host wanted ${stamp}`

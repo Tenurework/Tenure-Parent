@@ -44,6 +44,8 @@ const schema = z.object({
   // Pilot sign-in with no password. See src/lib/auth.ts.
   AUTH_DEV_LOGIN: flag,
   ALLOW_DEV_LOGIN_IN_PRODUCTION: flag,
+  // Interim shared secret in front of it. See src/lib/dev-login.ts.
+  DEV_LOGIN_PASSPHRASE: z.string().optional(),
 
   OKTA_ISSUER: z.string().optional(),
   OKTA_CLIENT_ID: z.string().optional(),
@@ -126,11 +128,29 @@ export function validateEnv(raw: RawEnv): EnvValidation {
     }
 
     if (env.AUTH_DEV_LOGIN && env.ALLOW_DEV_LOGIN_IN_PRODUCTION) {
-      warn(
-        "AUTH_DEV_LOGIN",
-        "Passwordless dev sign-in is enabled in production by explicit acknowledgement. " +
-          "This must not outlive the pilot.",
-      )
+      // Acknowledged is not the same as defended. While passwordless sign-in is
+      // reachable from a public URL, the interim gate is mandatory, not optional
+      // — otherwise "acknowledged" just means the door is open on purpose.
+      if (!env.DEV_LOGIN_PASSPHRASE) {
+        fatal(
+          "DEV_LOGIN_PASSPHRASE",
+          "Passwordless dev sign-in is enabled in production with no access passphrase. " +
+            "Set DEV_LOGIN_PASSPHRASE (Terraform provisions one into Secrets Manager as " +
+            "tenure-pilot/dev-login), or turn AUTH_DEV_LOGIN off.",
+        )
+      } else if (env.DEV_LOGIN_PASSPHRASE.length < 12) {
+        fatal(
+          "DEV_LOGIN_PASSPHRASE",
+          `The access passphrase is ${env.DEV_LOGIN_PASSPHRASE.length} characters; it is the only ` +
+            `thing standing in front of a passwordless OSE_DIRECTOR login. Use at least 12.`,
+        )
+      } else {
+        warn(
+          "AUTH_DEV_LOGIN",
+          "Passwordless dev sign-in is enabled in production behind an interim passphrase. " +
+            "This must not outlive the pilot — Okta is the fix.",
+        )
+      }
     }
 
     // Neither sign-in path configured is not a security hole, but it is a site

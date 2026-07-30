@@ -1,13 +1,7 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /** Per-viewer calendar filters: by club, and by your own events; sticky across views. */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 test("a member can filter the calendar by club and own events, sticky across weeks", async ({
   page,

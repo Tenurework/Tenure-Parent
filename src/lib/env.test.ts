@@ -78,12 +78,45 @@ describe("validateEnv — passwordless dev sign-in", () => {
     expect(result.problems.some((p) => p.variable === "AUTH_DEV_LOGIN" && p.level === "fatal")).toBe(true)
   })
 
-  it("allows the pilot to keep dev login, but only when stated explicitly", () => {
-    const result = validateEnv(productionEnv({ AUTH_DEV_LOGIN: "true", ALLOW_DEV_LOGIN_IN_PRODUCTION: "true" }))
+  it("allows the pilot to keep dev login when acknowledged AND gated", () => {
+    const result = validateEnv(
+      productionEnv({
+        AUTH_DEV_LOGIN: "true",
+        ALLOW_DEV_LOGIN_IN_PRODUCTION: "true",
+        DEV_LOGIN_PASSPHRASE: "a-real-shared-pilot-passphrase",
+      }),
+    )
 
     expect(result.ok).toBe(true)
     // Explicit does not mean silent.
     expect(result.problems.some((p) => p.variable === "AUTH_DEV_LOGIN" && p.level === "warning")).toBe(true)
+  })
+
+  // Acknowledging the exposure must not be a way to opt out of defending it.
+  it("refuses acknowledged dev login with no access passphrase", () => {
+    const result = validateEnv(
+      productionEnv({ AUTH_DEV_LOGIN: "true", ALLOW_DEV_LOGIN_IN_PRODUCTION: "true" }),
+    )
+
+    expect(result.ok).toBe(false)
+    expect(fatalVars(productionEnv({ AUTH_DEV_LOGIN: "true", ALLOW_DEV_LOGIN_IN_PRODUCTION: "true" }))).toContain(
+      "DEV_LOGIN_PASSPHRASE",
+    )
+  })
+
+  it("refuses a trivially short access passphrase", () => {
+    const short = productionEnv({
+      AUTH_DEV_LOGIN: "true",
+      ALLOW_DEV_LOGIN_IN_PRODUCTION: "true",
+      DEV_LOGIN_PASSPHRASE: "tenure2026",
+    })
+
+    expect(fatalVars(short)).toContain("DEV_LOGIN_PASSPHRASE")
+  })
+
+  it("does not require a passphrase when dev login is off", () => {
+    // Okta-only production has nothing for the gate to stand in front of.
+    expect(fatalVars(productionEnv())).not.toContain("DEV_LOGIN_PASSPHRASE")
   })
 
   it("does not let the acknowledgement enable anything on its own", () => {
@@ -192,6 +225,7 @@ describe("the CI e2e environment", () => {
       AUTH_TRUST_HOST: "true",
       AUTH_DEV_LOGIN: "true",
       ALLOW_DEV_LOGIN_IN_PRODUCTION: "true",
+      DEV_LOGIN_PASSPHRASE: "e2e-shared-pilot-passphrase",
       NEXTAUTH_URL: "http://localhost:3000",
       OKTA_CLIENT_ID: "",
       OKTA_CLIENT_SECRET: "",

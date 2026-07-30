@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /**
  * Three-way-match reimbursements: a member files → the request rides the normal
@@ -6,13 +7,6 @@ import { test, expect, type Page } from "@playwright/test"
  * linked to the approval. Uses the Venue line (untouched by other specs) so the
  * post-approval actual is deterministic: seeded $1,350 + $50 = $1,400.
  */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 test.describe("reimbursements (three-way match)", () => {
   test("member files → both gates approve → auto-posts a spend to the ledger", async ({ page }) => {

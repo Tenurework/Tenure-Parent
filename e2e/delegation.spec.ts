@@ -1,17 +1,11 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /**
  * Approval delegation ("acted on behalf of") — a president names a backup, who
  * can then act on the president's gate while the president can't, with the trail
  * recording on whose behalf. Turnover-proof governance.
  */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 test.describe("approval delegation", () => {
   test("a president's backup approves on their behalf, recorded in the trail", async ({ page }) => {

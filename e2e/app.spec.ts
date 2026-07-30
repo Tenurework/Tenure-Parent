@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /**
  * End-to-end coverage of every user-facing endpoint:
@@ -12,12 +13,7 @@ import { test, expect, type Page } from "@playwright/test"
  * so the suite is safe to re-run against the same database.
  */
 
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
+
 
 test.describe("public endpoints", () => {
   test("health endpoint reports ok with a version", async ({ request }) => {

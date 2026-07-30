@@ -36,6 +36,8 @@ resource "aws_iam_policy" "ecs_secrets" {
           aws_secretsmanager_secret.app.arn,
           # Bearer token for scheduled job endpoints
           aws_secretsmanager_secret.job.arn,
+          # Interim gate in front of passwordless sign-in (dev-login-gate.tf)
+          aws_secretsmanager_secret.dev_login.arn,
           # RDS managed password secret
           "${aws_db_instance.postgres.master_user_secret[0].secret_arn}",
         ]

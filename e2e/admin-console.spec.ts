@@ -1,14 +1,10 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /** The dedicated admin console: gating, and assign / transfer / remove roles
  *  through the University directory picker. */
 
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
+
 
 const stamp = Date.now()
 const SEARCH = "Search the directory by name or email…"

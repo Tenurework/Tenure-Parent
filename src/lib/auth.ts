@@ -4,6 +4,8 @@ import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { db } from "@/lib/db"
 
+import { checkDevLoginGate } from "@/lib/dev-login"
+
 // Pilot-only sign-in: pick a seeded demo user by email, no password.
 // Enabled via AUTH_DEV_LOGIN=true — remove once Okta is configured.
 const devLoginEnabled = process.env.AUTH_DEV_LOGIN === "true"
@@ -34,8 +36,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           Credentials({
             id: "dev-login",
             name: "Pilot demo user",
-            credentials: { email: { label: "Email", type: "email" } },
+            credentials: {
+              email: { label: "Email", type: "email" },
+              passphrase: { label: "Access passphrase", type: "password" },
+            },
             async authorize(credentials) {
+              // The gate is checked before the lookup, so a wrong passphrase
+              // cannot be used to probe which emails exist.
+              const gate = checkDevLoginGate({
+                provided: typeof credentials?.passphrase === "string" ? credentials.passphrase : undefined,
+                expected: process.env.DEV_LOGIN_PASSPHRASE,
+                isProduction: process.env.NODE_ENV === "production",
+              })
+              if (!gate.allowed) {
+                console.warn(`dev-login refused: ${gate.reason}`)
+                return null
+              }
+
               const email = credentials?.email
               if (typeof email !== "string") return null
               const user = await db.user.findUnique({ where: { email } })

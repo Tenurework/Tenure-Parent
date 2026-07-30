@@ -1,16 +1,12 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /**
  * Layout must adapt to any resolution: no dead half-screen on wide monitors,
  * no horizontal scrolling on small ones.
  */
 
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
+
 
 const PAGES = ["/dashboard", "/orgs", "/resources", "/calendar", "/feed"]
 

@@ -1,13 +1,9 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /** Proceed 2 batch D: brand shell, footer, nav layout, notifications page. */
 
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
+
 
 test.describe("shell + brand", () => {
   test("the Tenure AI entry opens the right-side assistant panel", async ({ page }) => {

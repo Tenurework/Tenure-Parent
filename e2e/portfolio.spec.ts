@@ -1,13 +1,7 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /** OSE finance portfolio roll-up — two-tier ERP consolidation, OSE-only. */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 test.describe("finance portfolio (OSE)", () => {
   test("OSE rolls up every club's budget and drills into one", async ({ page }) => {

@@ -12,16 +12,24 @@ const DEMO_USERS = [
   { email: "alumni@tenure.demo", name: "Alex Kim", role: "Past President (Alumni)" },
 ]
 
-export default async function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const session = await auth()
   if (session?.user) redirect("/dashboard")
 
   const devLoginEnabled = process.env.AUTH_DEV_LOGIN === "true"
+  // Only ask for what is actually enforced, so the field never looks decorative.
+  const passphraseRequired = Boolean(process.env.DEV_LOGIN_PASSPHRASE)
+  const failed = Boolean((await searchParams).error)
 
   async function devSignIn(formData: FormData) {
     "use server"
     await signIn("dev-login", {
       email: formData.get("email"),
+      passphrase: formData.get("passphrase"),
       redirectTo: "/dashboard",
     })
   }
@@ -38,25 +46,56 @@ export default async function SignInPage() {
         </p>
 
         {devLoginEnabled ? (
-          <div className="mt-6">
+          // One form for every account: the passphrase is asked for once, and
+          // each button carries its own email as the submitted value.
+          <form action={devSignIn} className="mt-6">
+            {passphraseRequired ? (
+              <div className="mb-5">
+                <label htmlFor="passphrase" className="micro-label mb-1.5 block">
+                  Access passphrase
+                </label>
+                <input
+                  id="passphrase"
+                  name="passphrase"
+                  type="password"
+                  autoComplete="off"
+                  required
+                  aria-describedby="passphrase-help"
+                  className="w-full rounded-md border border-border bg-base px-3 py-2 text-sm text-text-1 focus:border-[--primary] focus:outline-none"
+                />
+                <p id="passphrase-help" className="mt-1.5 text-xs text-text-3">
+                  This pilot is not yet behind your university&apos;s SSO. Ask the OSE team for the
+                  passphrase.
+                </p>
+              </div>
+            ) : null}
+
+            {failed ? (
+              <p
+                role="alert"
+                className="mb-4 rounded-md border border-[--danger] px-3 py-2 text-sm text-[--danger]"
+              >
+                That passphrase is not correct.
+              </p>
+            ) : null}
+
             <p className="micro-label mb-3">Pilot demo — sign in as</p>
             <ul className="space-y-2">
               {DEMO_USERS.map((u) => (
                 <li key={u.email}>
-                  <form action={devSignIn}>
-                    <input type="hidden" name="email" value={u.email} />
-                    <button
-                      type="submit"
-                      className="w-full rounded-md border border-border px-4 py-2.5 text-left transition-colors hover:border-[--primary] hover:bg-[--primary-light]"
-                    >
-                      <span className="block text-sm font-medium text-text-1">{u.name}</span>
-                      <span className="block text-xs text-text-2">{u.role}</span>
-                    </button>
-                  </form>
+                  <button
+                    type="submit"
+                    name="email"
+                    value={u.email}
+                    className="w-full rounded-md border border-border px-4 py-2.5 text-left transition-colors hover:border-[--primary] hover:bg-[--primary-light]"
+                  >
+                    <span className="block text-sm font-medium text-text-1">{u.name}</span>
+                    <span className="block text-xs text-text-2">{u.role}</span>
+                  </button>
                 </li>
               ))}
             </ul>
-          </div>
+          </form>
         ) : (
           <p className="mt-6 text-sm text-text-2">
             Sign in with your university account via your institution&apos;s SSO portal.

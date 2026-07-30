@@ -1,13 +1,7 @@
-import { test, expect, type Page } from "@playwright/test"
+import { test, expect } from "@playwright/test"
+import { signIn } from "./support/auth"
 
 /** 2026-2027 OSE roster: real board members, advisors, vacancies, predecessors. */
-
-async function signIn(page: Page, userName: string) {
-  await page.context().clearCookies()
-  await page.goto("/signin")
-  await page.getByRole("button", { name: new RegExp(userName) }).click()
-  await page.waitForURL(/\/dashboard/)
-}
 
 test.describe("club roster", () => {
   test("clubs are renamed to their official roster names", async ({ page }) => {
