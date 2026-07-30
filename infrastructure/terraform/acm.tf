@@ -7,11 +7,23 @@ resource "aws_acm_certificate" "custom" {
   domain_name       = var.custom_domain
   validation_method = "DNS"
 
+  # Certificate Transparency logging is left at ACM's default, which is ENABLED.
+  # Declaring it explicitly would mean adding an `options` block, and in some
+  # provider versions that is ForceNew — destroying a validated certificate to
+  # assert a value it already has is not a trade worth making. If it ever needs
+  # to be pinned, do it while no certificate is attached to CloudFront.
+
   lifecycle {
     create_before_destroy = true
   }
 
-  tags = { Name = "${local.name_prefix}-custom-domain" }
+  tags = {
+    Name        = "${local.name_prefix}-custom-domain"
+    Project     = "Tenure"
+    Environment = "Production"
+    Purpose     = "CloudFrontCustomDomain"
+    ManagedBy   = "Terraform"
+  }
 }
 
 output "acm_validation_records" {

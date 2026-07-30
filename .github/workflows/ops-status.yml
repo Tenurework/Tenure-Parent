@@ -122,13 +122,52 @@ jobs:
             }')
           fi
 
+          # ── Alias conflict scan across the whole account ───────────────────
+          # Safeguard: if platform.tenurework.com is already an alias on a
+          # DIFFERENT distribution, attaching it here would fail (CloudFront
+          # refuses duplicate aliases) and would mean someone else owns the
+          # hostname. Checked across every distribution, not just the target.
+          CONFLICT=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?contains(Aliases.Items || \`[]\`, '${DOMAIN}')].{id:Id,domain:DomainName}" \
+            --output json 2>/dev/null || echo '[]')
+
+          # ── Pre-change backup (Phase 3) ────────────────────────────────────
+          # Taken BEFORE any alias/certificate change, which is the only time a
+          # backup is worth anything. ETag is captured separately because it is
+          # what an imperative rollback would need for --if-match.
+          if [ "$DIST_ID" != "None" ] && [ -n "$DIST_ID" ]; then
+            aws cloudfront get-distribution --id "$DIST_ID" | mask > /tmp/distribution-before.json
+            aws cloudfront get-distribution-config --id "$DIST_ID" | mask > /tmp/distribution-config-before.json
+            jq -r '.ETag' /tmp/distribution-config-before.json > /tmp/etag-before.txt
+            jq '.DistributionConfig' /tmp/distribution-config-before.json > /tmp/distribution-config-original.json
+            DIST_ARN=$(jq -r '.Distribution.ARN' /tmp/distribution-before.json)
+          else
+            echo '{}' > /tmp/distribution-before.json
+            echo '{}' > /tmp/distribution-config-before.json
+            echo "none" > /tmp/etag-before.txt
+            echo '{}' > /tmp/distribution-config-original.json
+            DIST_ARN="unknown"
+          fi
+
+          HASHES=$(cd /tmp && sha256sum distribution-before.json distribution-config-before.json \
+                     distribution-config-original.json etag-before.txt \
+                   | jq -Rn '[inputs | split("  ") | {file: .[1], sha256: .[0]}]')
+
           jq -n \
             --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg sha "$GITHUB_SHA" \
             --arg acct "$ACCOUNT" \
+            --arg arn "$DIST_ARN" \
+            --arg etag "$(cat /tmp/etag-before.txt)" \
             --argjson cert "$CERT_JSON" \
             --argjson cf "$CF_JSON" \
-            '{observedAt:$ts, fromCommit:$sha, accountKnown:($acct!="unknown"), certificate:$cert, cloudfront:$cf}' \
+            --argjson conflict "$CONFLICT" \
+            --argjson hashes "$HASHES" \
+            '{observedAt:$ts, fromCommit:$sha, accountKnown:($acct!="unknown"),
+              certificate:$cert,
+              cloudfront:($cf + {arn:$arn, etag:$etag}),
+              aliasConflict:{otherDistributions:$conflict, count:($conflict|length)},
+              backupHashes:$hashes}' \
             | mask > /tmp/status.json
 
           echo "----- snapshot -----"
@@ -146,7 +185,13 @@ jobs:
           git rm -rf . -q || true
           mkdir -p ops
           cp /tmp/status.json ops/status.json
-          git add -f ops/status.json
+          # The pre-change configuration backup travels with the snapshot, so a
+          # rollback does not depend on anyone having kept a local copy.
+          cp /tmp/distribution-before.json         ops/distribution-before.json
+          cp /tmp/distribution-config-before.json  ops/distribution-config-before.json
+          cp /tmp/distribution-config-original.json ops/distribution-config-original.json
+          cp /tmp/etag-before.txt                  ops/etag-before.txt
+          git add -f ops/
           git commit -q -m "ops: AWS custom-domain snapshot [skip ci]"
           git push -f origin ops-status
           echo "published to ops-status"
