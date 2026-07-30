@@ -1,0 +1,29 @@
+# Line endings must not vary by platform for files that are executed in the
+# Linux runtime image.
+#
+# scripts/*.sh is the sharp one: a CRLF shell script fails to execute under
+# Alpine's busybox sh, and the error names an interpreter that does not exist
+# rather than the line endings. This repository is developed on Windows and
+# runs on Linux, so `text=auto` alone would let that through.
+#
+# (Prisma normalises line endings when checksumming migrations, so migration.sql
+# does not have this failure mode — it is pinned here for reviewable diffs, not
+# for correctness.)
+
+* text=auto eol=lf
+
+*.sh            text eol=lf
+*.mjs           text eol=lf
+*.sql           text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+
+# Binary assets git should never touch
+*.png           binary
+*.jpg           binary
+*.pdf           binary
+*.mp4           binary
+*.xlsx          binary
+*.pptx          binary
+*.docx          binary
+*.ico           binary

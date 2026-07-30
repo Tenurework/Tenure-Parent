@@ -153,8 +153,30 @@ resource "aws_ecs_task_definition" "app" {
         { name = "DB_HOST", value = aws_db_instance.postgres.address },
         { name = "DB_PORT", value = "5432" },
         { name = "DB_NAME", value = var.rds_db_name },
-        # Pilot sign-in without Okta (seeded users, email-based)
+        # Pilot sign-in without Okta (seeded users, email-based).
+        #
+        # PILOT ONLY. `dev-login` signs in any seeded email with no password,
+        # and the seeded set includes an OSE_DIRECTOR — so while this is on,
+        # anyone who can reach the site is one click from the highest role in
+        # the system. src/lib/env.ts refuses to boot with this enabled in
+        # production unless the line below says so explicitly, so that a copied
+        # task definition cannot inherit the posture silently.
+        #
+        # To close it: configure Okta in Secrets Manager (tenure-pilot/app),
+        # set AUTH_DEV_LOGIN to "false" and delete the acknowledgement.
         { name = "AUTH_DEV_LOGIN", value = "true" },
+        { name = "ALLOW_DEV_LOGIN_IN_PRODUCTION", value = "true" },
+
+        # SEED_ON_BOOT is deliberately NOT set. scripts/seed.mjs is a
+        # development and e2e fixture, not a data pipeline: it issues unscoped
+        # deletes to reset test state (e.g. `approvalDelegation.deleteMany({})`
+        # at seed.mjs:361, whose own comment says it clears prior e2e runs).
+        # Running that on every task start, scale-out and health-check restart
+        # was destroying live rows on a schedule.
+        #
+        # Reference data already lives in the database. To publish an update,
+        # run the "Seed reference data" workflow, which executes it once as a
+        # one-off ECS task instead of on every boot.
         # Surfaced by /api/health so CI can verify which build is serving
         { name = "IMAGE_TAG", value = var.image_tag },
         # Optional: enables AI answer synthesis on /search when non-empty
