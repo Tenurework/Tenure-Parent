@@ -146,3 +146,5 @@ jobs:
             cat /tmp/cert.json
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+# Re-run trigger: CAA at tenurework.com now authorises amazon.com (verified 2026-07-30T12:50Z).
