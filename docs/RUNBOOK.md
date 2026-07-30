@@ -123,7 +123,16 @@ login is on in production without one.
    is an `https://` URL (`src/lib/auth.ts`).
 2. In `ecs.tf`, set `AUTH_DEV_LOGIN` to `"false"` and delete both
    `ALLOW_DEV_LOGIN_IN_PRODUCTION` and the `DEV_LOGIN_PASSPHRASE` secret entry.
-3. Delete `infrastructure/terraform/dev-login-gate.tf` and its ARN from the
+3. **Rotate `AUTH_SECRET`** — Actions → *Rotate Auth Secret*. This step is not
+   optional and is easy to miss: turning `AUTH_DEV_LOGIN` off only removes the
+   provider, it does **not** invalidate sessions that were already issued
+   through it. Sessions are JWTs (`src/lib/auth.ts`, `session: { strategy: "jwt" }`),
+   so they are validated by signature alone — nothing is looked up server-side
+   that could revoke them. Anyone holding a cookie minted while dev login was on
+   stays signed in as whoever they picked, for the life of that token, after the
+   door is closed behind them. Rotating the signing secret is what actually
+   ends those sessions.
+4. Delete `infrastructure/terraform/dev-login-gate.tf` and its ARN from the
    `ecs_secrets` policy in `secrets.tf`.
 
 The gate adds no sign-in path of its own, so removing `AUTH_DEV_LOGIN` removes
