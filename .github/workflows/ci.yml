@@ -49,10 +49,11 @@ jobs:
       - name: Type check
         run: npm run type-check
 
-      # NOT `npm test -- --ci ...`: the root `test` script is itself an
-      # `npm run test --workspace apps/web`, so npm would swallow --ci and
-      # --passWithNoTests as its own CLI flags and never forward them to jest.
-      # The step would still pass, silently running jest without --ci.
+      # Addressed to the workspace directly, so the flags reach jest no matter
+      # what the root script looks like. The root `test` script delegates with a
+      # trailing `--` (see package.json) precisely so `npm test -- --ci` also
+      # forwards; without it npm swallows --ci and --passWithNoTests as its own
+      # CLI flags and the step still exits 0, having run jest without them.
       - name: Test
         run: npm run test --workspace apps/web -- --ci --passWithNoTests
 
