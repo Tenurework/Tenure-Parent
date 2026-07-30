@@ -43,9 +43,12 @@ resource "aws_cloudfront_distribution" "main" {
     # Gated too: the build's JavaScript describes every route, action and field
     # in the product. "Private" that serves the whole client bundle to anyone
     # is not private. See edge-access.tf.
-    function_association {
-      event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.edge_access.arn
+    dynamic "function_association" {
+      for_each = var.edge_gate_enabled ? [1] : []
+      content {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.edge_access.arn
+      }
     }
 
     viewer_protocol_policy = "redirect-to-https"
@@ -67,9 +70,12 @@ resource "aws_cloudfront_distribution" "main" {
       cookies { forward = "none" }
     }
 
-    function_association {
-      event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.edge_access.arn
+    dynamic "function_association" {
+      for_each = var.edge_gate_enabled ? [1] : []
+      content {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.edge_access.arn
+      }
     }
 
     viewer_protocol_policy = "redirect-to-https"
@@ -96,9 +102,12 @@ resource "aws_cloudfront_distribution" "main" {
 
     # Closed-pilot gate — runs before the cache, so a blocked viewer never
     # reaches the ALB. See edge-access.tf.
-    function_association {
-      event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.edge_access.arn
+    dynamic "function_association" {
+      for_each = var.edge_gate_enabled ? [1] : []
+      content {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.edge_access.arn
+      }
     }
 
     viewer_protocol_policy = "redirect-to-https"

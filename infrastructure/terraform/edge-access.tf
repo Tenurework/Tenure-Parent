@@ -28,6 +28,17 @@
 #      makes this recoverable without a Terraform apply, and is what gets shared
 #      with pilot testers.
 
+# Master switch. `false` leaves the function built and published but attached to
+# nothing, so the pilot is reachable by anyone again — a client demo, where the
+# people being shown the product are not on an allowlist and cannot be handed a
+# token mid-call. Flip back to `true` the moment the demo is over: while this is
+# off, the only control in front of the directory is the sign-in passphrase.
+variable "edge_gate_enabled" {
+  description = "Attach the closed-pilot gate to CloudFront. false = open to the internet."
+  type        = bool
+  default     = false # OPEN — client demo 2026-07-30. Re-close after.
+}
+
 resource "random_password" "edge_access_token" {
   length  = 32
   special = false
