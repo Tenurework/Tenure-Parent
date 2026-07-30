@@ -49,7 +49,7 @@ jobs:
 
   # ── Migration integrity: the schema and the migrations must not diverge ────
   migrations:
-    name: Migrations · Drift + Apply
+    name: Migrations · Drift + Apply + Isolation
     runs-on: ubuntu-latest
 
     services:
@@ -126,6 +126,13 @@ jobs:
           ROWS=$(psql "$LEGACY" -tAc $'SELECT count(*) FROM "Institution" WHERE id = \'ci_live\';')
           [ "$ROWS" = "1" ] || { echo "::error::Bootstrap destroyed pre-existing data."; exit 1; }
           echo "✅ Live data survived the migration baseline."
+
+      # Proves tenant isolation is actually reached, not merely correct in
+      # principle. Runs against the enforcing client on a real database: a
+      # filter that is never applied looks identical to one that works in any
+      # test that does not touch PostgreSQL.
+      - name: Tenant isolation must hold against a real database
+        run: npx prisma generate && npm run test:isolation
 
   # ── Headless e2e: real Postgres, seeded data, production build ─────────────
   e2e:

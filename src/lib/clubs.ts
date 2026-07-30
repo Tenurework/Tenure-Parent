@@ -1,6 +1,6 @@
 import "server-only"
-import type { OrgCategory, Prisma } from "@prisma/client"
-import { db } from "@/lib/db"
+import type { OrgCategory } from "@prisma/client"
+import { db, type TxClient } from "@/lib/db"
 
 export const ORG_CATEGORIES: OrgCategory[] = [
   "COMMUNITY",
@@ -47,7 +47,7 @@ function seatCode(clubName: string, seatName: string): string {
  * free. Runs inside the charter transaction so it sees every committed code.
  */
 export async function uniquePositionCode(
-  tx: Prisma.TransactionClient,
+  tx: TxClient,
   base: string
 ): Promise<string> {
   let code = base
@@ -85,7 +85,7 @@ export async function chartClub(
   const existing = await db.organization.findUnique({ where: { slug } })
   if (existing) throw new Error("A club with that name already exists")
 
-  return db.$transaction(async (tx: Prisma.TransactionClient) => {
+  return db.$transaction(async (tx: TxClient) => {
     const club = await tx.organization.create({
       data: {
         institutionId,

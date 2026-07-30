@@ -9,6 +9,7 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "jest",
+    "test:isolation": "jest --testMatch \"**/*.itest.ts\" --testPathIgnorePatterns \"/node_modules/\" --runInBand",
     "e2e": "playwright test",
     "postinstall": "prisma generate"
   },
