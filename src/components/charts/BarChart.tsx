@@ -97,7 +97,7 @@ export function BarChart({
         ) : (
           width > 0 && (
             <>
-              <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img"
+              <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group"
                 aria-label={`Bar chart across ${n} categories`}>
                 {ticks.map((t) => {
                   const gy = baseline - hAt(t)
@@ -159,7 +159,7 @@ export function BarChart({
                               onPointerLeave={() => setActive(null)}
                               onFocus={() => setActive({ c: ci, s: si })}
                               onBlur={() => setActive(null)}
-                              style={{ outline: "none", cursor: "default" }} />
+                              className="chart-hit" style={{ cursor: "default" }} />
                           </g>
                         )
                       })}

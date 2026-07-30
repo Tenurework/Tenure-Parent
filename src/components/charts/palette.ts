@@ -44,5 +44,21 @@ export const STATUS = {
   info: "var(--info)",
 } as const
 
-/** A muted reference fill (target / baseline bars, unfilled meter track). */
+/**
+ * A muted reference fill for NON-DATA marks only: a target line, a baseline
+ * bar, the unfilled remainder of a meter track.
+ *
+ * Do not use it for a data series. `--border-strong` is a hairline token at
+ * roughly 1.4:1 against the card, which is legible as a 1px rule and invisible
+ * as a filled area — and "Vacant seats" is precisely the series a roster chart
+ * exists to draw attention to. Use `MUTED_SERIES` for a real series that should
+ * read as secondary.
+ */
 export const REFERENCE = "var(--border-strong)"
+
+/**
+ * For a data series that is genuinely secondary — vacant, remaining, in flight
+ * — but still has to be seen and compared. Carries enough weight to read as a
+ * filled area in both themes without competing with the primary series.
+ */
+export const MUTED_SERIES = "var(--text-3)"

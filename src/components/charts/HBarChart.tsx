@@ -91,7 +91,7 @@ export function HBarChart({
         ) : (
           width > 0 && (
             <>
-              <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img"
+              <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group"
                 aria-label={ariaLabel ?? `Horizontal bar chart of ${n} rows`}>
                 {/* vertical gridlines + axis ticks */}
                 {ticks.map((t) => {
@@ -148,7 +148,7 @@ export function HBarChart({
                               onPointerLeave={() => setActive(null)}
                               onFocus={() => setActive({ r: ri, s: si })}
                               onBlur={() => setActive(null)}
-                              style={{ outline: "none", cursor: "default" }} />
+                              className="chart-hit" style={{ cursor: "default" }} />
                           </g>
                         )
                       })}

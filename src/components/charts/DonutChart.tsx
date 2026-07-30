@@ -71,7 +71,7 @@ export function DonutChart({
       ) : (
         <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
           <div className="relative shrink-0" style={{ width: size, height: size }}>
-            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img"
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="group"
               aria-label={`Donut chart: ${data.map((d) => `${d.label} ${formatValue(d.value)}`).join(", ")}`}>
               {segs.map((s) => {
                 const isActive = active === s.i

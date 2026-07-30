@@ -85,7 +85,7 @@ export function LineAreaChart({
         ) : (
           width > 0 && (
             <>
-              <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img"
+              <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group"
                 aria-label={`Line chart of ${series.map((s) => s.name).join(", ")}`}>
                 {/* Per-series vertical gradient — rich near the line, fading to the
                     surface at the baseline (the Monarch-style area wash). */}

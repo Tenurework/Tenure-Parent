@@ -8,7 +8,7 @@ import { HBarChart } from "../HBarChart"
 import { DonutChart } from "../DonutChart"
 import { SankeyChart } from "../SankeyChart"
 import { RangeFilter, type RangeOption } from "../RangeFilter"
-import { REFERENCE, slotColor } from "../palette"
+import { MUTED_SERIES, slotColor } from "../palette"
 import { formatNumber } from "../format"
 import { bucketByMonth, startOfTerm } from "../timeseries"
 
@@ -120,7 +120,7 @@ export function ReportsAnalytics({
     const nodes = [
       ...roster.map((r) => ({ id: `cat:${r.category}`, label: r.category })),
       { id: "filled", label: "Filled", color: slotColor(0) },
-      { id: "vacant", label: "Vacant", color: REFERENCE },
+      { id: "vacant", label: "Vacant", color: MUTED_SERIES },
     ]
     const links = roster.flatMap((r) => [
       ...(r.filled > 0 ? [{ source: `cat:${r.category}`, target: "filled", value: r.filled }] : []),
@@ -186,7 +186,7 @@ export function ReportsAnalytics({
             categories={roster.map((r) => r.category)}
             series={[
               { name: "Filled", values: roster.map((r) => r.filled), color: slotColor(0) },
-              { name: "Vacant", values: roster.map((r) => r.vacant), color: REFERENCE },
+              { name: "Vacant", values: roster.map((r) => r.vacant), color: MUTED_SERIES },
             ]}
             formatValue={formatNumber}
             formatAxis={formatNumber}

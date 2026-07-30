@@ -1,6 +1,12 @@
 import { test, expect, type Page } from "@playwright/test"
 
-/** VP of Finance dashboard: actual-vs-budget chart, live forecasting, Excel upload. */
+/** VP of Finance dashboard: actual-vs-budget chart, live forecasting, Excel upload.
+ *
+ * The chart asserts as role="group", not role="img". Charts here are
+ * interactive — every bar is a focusable hit target carrying its own value in
+ * an aria-label — and role="img" makes an element's entire subtree
+ * presentational, which silenced all of those. The accessible name being
+ * checked is unchanged; only the role it hangs on is corrected. */
 
 async function signIn(page: Page, userName: string) {
   await page.context().clearCookies()
@@ -27,7 +33,7 @@ test.describe("finance dashboard", () => {
       .click()
     await expect(page).toHaveURL(/\/orgs\/simon-consulting-club\/finance/)
     await expect(
-      page.getByRole("img", { name: /Budget versus actual spending/ })
+      page.getByRole("group", { name: /Budget versus actual spending/ })
     ).toBeVisible()
   })
 
@@ -38,7 +44,7 @@ test.describe("finance dashboard", () => {
     await expect(page.getByText("Total budget")).toBeVisible()
     await expect(page.getByText("Spent to date")).toBeVisible()
     await expect(
-      page.getByRole("img", { name: /Budget versus actual spending/ })
+      page.getByRole("group", { name: /Budget versus actual spending/ })
     ).toBeVisible()
     // Rendered in both the chart and the table
     await expect(page.getByText("Catering & Food").first()).toBeVisible()
