@@ -251,3 +251,89 @@ jobs:
           # Playwright writes traces beside its config, at apps/web/.
           path: apps/web/test-results/
           retention-days: 7
+
+  # ── The container image, built and inspected before anything deploys ───────
+  #
+  # Nothing used to build this image except a deploy. The Dockerfile was
+  # therefore only ever validated by shipping it, and a mistake in it surfaced
+  # as a failed production rollout. That was tolerable while the Dockerfile was
+  # stable; it stopped being tolerable when the monorepo move rewrote it.
+  #
+  # Build only — no push. deploy.yml still builds and pushes the image it ships.
+  container:
+    name: Container · Build + Inspect
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Context is the repo root, matching deploy.yml, because the Dockerfile
+      # needs the root lockfile and .npmrc as well as apps/web.
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          load: true
+          tags: tenure:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # A build that succeeds can still produce an image that cannot serve. Each
+      # of these is a failure that would otherwise only appear as an ECS task
+      # dying in a rollback loop.
+      - name: The image must contain what the entrypoint expects
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+
+          echo "--- server bundle at the path entrypoint.sh execs ---"
+          docker run --rm --entrypoint sh tenure:ci -c 'test -f /app/apps/web/server.js' \
+            || fail "No server.js at /app/apps/web/server.js — entrypoint.sh would exit 'Cannot find module'."
+
+          echo "--- static assets and public/ ---"
+          docker run --rm --entrypoint sh tenure:ci -c 'test -d /app/apps/web/.next/static' \
+            || fail "Missing .next/static — every page would load unstyled."
+          docker run --rm --entrypoint sh tenure:ci -c 'test -d /app/apps/web/public' \
+            || fail "Missing public/."
+
+          echo "--- prisma schema + migrations, flattened to /app ---"
+          docker run --rm --entrypoint sh tenure:ci -c 'test -f /app/prisma/schema.prisma' \
+            || fail "Missing /app/prisma/schema.prisma — db-bootstrap.mjs resolves it from cwd."
+          docker run --rm --entrypoint sh tenure:ci -c 'test -d /app/prisma/migrations' \
+            || fail "Missing /app/prisma/migrations — migrate deploy would find nothing to apply."
+          docker run --rm --entrypoint sh tenure:ci -c 'test -f /app/scripts/db-bootstrap.mjs' \
+            || fail "Missing /app/scripts/db-bootstrap.mjs."
+          docker run --rm --entrypoint sh tenure:ci -c 'test -f /app/prisma-cli/node_modules/prisma/build/index.js' \
+            || fail "Missing the bundled Prisma CLI — the bootstrap falls back to npx, which is absent."
+
+          # The one a Windows checkout silently breaks: if apps/web/node_modules
+          # leaks into the build context, it overwrites the musl engine with a
+          # Windows .dll.node and the container cannot reach the database.
+          echo "--- Prisma query engine must be the musl build ---"
+          docker run --rm --entrypoint sh tenure:ci \
+            -c 'ls node_modules/.prisma/client/ 2>/dev/null | grep -q "libquery_engine-linux-musl" || ls apps/web/node_modules/.prisma/client/ 2>/dev/null | grep -q "libquery_engine-linux-musl"' \
+            || fail "No linux-musl query engine in the image — Windows/glibc engine leaked in via the build context."
+
+          echo "--- no Windows artefacts anywhere ---"
+          docker run --rm --entrypoint sh tenure:ci -c '! find / -name "*.dll.node" -not -path "*/proc/*" 2>/dev/null | grep -q .' \
+            || fail "A Windows native module is present in the image."
+
+          echo "✅ Image contains everything the entrypoint needs."
+
+      # The entrypoint is fail-closed on migrations, so booting it without a
+      # database proves it refuses rather than serving an unverified schema.
+      - name: The entrypoint must fail closed without a database
+        run: |
+          set +e
+          OUT=$(docker run --rm -e DATABASE_URL="postgresql://nobody:nobody@127.0.0.1:1/none" \
+                  -e SKIP_DB_BOOTSTRAP=false tenure:ci 2>&1)
+          CODE=$?
+          set -e
+          echo "$OUT" | tail -20
+          [ "$CODE" -ne 0 ] || { echo "::error::Container started despite an unreachable database."; exit 1; }
+          echo "✅ Refused to serve without a verified schema (exit $CODE)."
