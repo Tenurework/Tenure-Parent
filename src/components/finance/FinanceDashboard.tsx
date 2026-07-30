@@ -240,7 +240,7 @@ export function FinanceDashboard({
                               onChange={(e) =>
                                 setProjected((p) => ({ ...p, [l.id]: e.target.value }))
                               }
-                              className="h-8 w-24 rounded border border-border px-2 text-right text-text-1"
+                              className="h-8 w-24 rounded border border-border px-2 text-right text-text-1 bg-surface placeholder:text-text-3"
                               aria-label={`Projected spend for ${l.category}`}
                             />
                           </span>
@@ -317,7 +317,7 @@ export function FinanceDashboard({
                 required
                 maxLength={80}
                 placeholder="Category, e.g. Catering"
-                className="h-9 w-full rounded border border-border px-3 text-sm text-text-1"
+                className="h-9 w-full rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
               />
               <div className="flex gap-3">
                 <label className="flex flex-1 flex-col gap-1 text-xs text-text-2">
@@ -326,7 +326,7 @@ export function FinanceDashboard({
                     name="budgeted"
                     inputMode="decimal"
                     placeholder="0.00"
-                    className="h-9 w-full rounded border border-border px-3 text-sm text-text-1"
+                    className="h-9 w-full rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
                   />
                 </label>
                 <label className="flex flex-1 flex-col gap-1 text-xs text-text-2">
@@ -335,7 +335,7 @@ export function FinanceDashboard({
                     name="actual"
                     inputMode="decimal"
                     placeholder="0.00"
-                    className="h-9 w-full rounded border border-border px-3 text-sm text-text-1"
+                    className="h-9 w-full rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
                   />
                 </label>
               </div>

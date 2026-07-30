@@ -357,6 +357,19 @@
     color: var(--chip-text-dark);
   }
 
+  /* Avatar monograms, same contract as .cal-chip: the component emits both
+     theme pairs and this resolves them. Hue is derived from the name, so the
+     colour is decorative — every avatar is aria-hidden with the real name
+     adjacent, and none of these pairs is the sole carrier of meaning. */
+  .avatar-monogram {
+    background: var(--avatar-bg);
+    color: var(--avatar-text);
+  }
+  html.dark .avatar-monogram {
+    background: var(--avatar-bg-dark);
+    color: var(--avatar-text-dark);
+  }
+
   /* ─── Iconography rule ────────────────────────────────────────────────────
      System rule: an icon's colour lives on its OUTLINE only. Icons are never
      set on a tinted plate (no bg-[--primary-light] / --accent / --*-light

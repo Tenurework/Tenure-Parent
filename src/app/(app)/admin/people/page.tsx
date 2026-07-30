@@ -119,7 +119,7 @@ export default async function AdminPeoplePage() {
                 name="email"
                 required
                 placeholder="staff@rochester.edu"
-                className="h-10 w-full rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
+                className="h-10 w-full rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3"
               />
             </label>
             <Select
@@ -156,11 +156,11 @@ export default async function AdminPeoplePage() {
           <form action={adminAddDirectoryPerson} className="flex flex-wrap items-end gap-3 border-b border-border p-5">
             <label className="flex min-w-40 flex-1 flex-col gap-1.5 text-[13px] font-semibold text-text-2">
               Name
-              <input name="name" required placeholder="Jordan Lee" className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]" />
+              <input name="name" required placeholder="Jordan Lee" className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3" />
             </label>
             <label className="flex min-w-40 flex-1 flex-col gap-1.5 text-[13px] font-semibold text-text-2">
               Email
-              <input type="email" name="email" required placeholder="jlee@rochester.edu" className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]" />
+              <input type="email" name="email" required placeholder="jlee@rochester.edu" className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3" />
             </label>
             <Select
               label="Kind"
@@ -174,7 +174,7 @@ export default async function AdminPeoplePage() {
             />
             <label className="flex min-w-40 flex-1 flex-col gap-1.5 text-[13px] font-semibold text-text-2">
               Affiliation (optional)
-              <input name="affiliation" placeholder="Ainslie OSE" className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]" />
+              <input name="affiliation" placeholder="Ainslie OSE" className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3" />
             </label>
             <button className="inline-flex h-10 items-center gap-2 rounded-md bg-[--primary] px-5 text-sm font-medium text-[--primary-text] hover:bg-[--primary-hover]">
               <UserPlus size={16} /> Add person

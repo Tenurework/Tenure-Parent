@@ -244,7 +244,7 @@ export default async function ApprovalDetailPage({
                 name="reason"
                 rows={2}
                 placeholder="Optional note — required context for changes or rejection."
-                className="w-full rounded border border-border px-3 py-2 text-sm text-text-1"
+                className="w-full rounded border border-border px-3 py-2 text-sm text-text-1 bg-surface placeholder:text-text-3"
               />
               <div className="flex flex-wrap gap-2">
                 {actions.map((a) => {

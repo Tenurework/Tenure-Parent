@@ -91,7 +91,7 @@ export default async function NewApprovalPage() {
               required
               maxLength={200}
               placeholder="Spring case competition budget"
-              className="mt-1 h-9 w-full rounded border border-border px-3 text-sm text-text-1"
+              className="mt-1 h-9 w-full rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
             />
           </label>
 
@@ -101,7 +101,7 @@ export default async function NewApprovalPage() {
               name="description"
               rows={4}
               placeholder="What, why, and any context the approvers need."
-              className="mt-1 w-full rounded border border-border px-3 py-2 text-sm text-text-1"
+              className="mt-1 w-full rounded border border-border px-3 py-2 text-sm text-text-1 bg-surface placeholder:text-text-3"
             />
           </label>
 
@@ -111,7 +111,7 @@ export default async function NewApprovalPage() {
               name="amount"
               inputMode="decimal"
               placeholder="1500.00"
-              className="mt-1 h-9 w-48 rounded border border-border px-3 text-sm text-text-1"
+              className="mt-1 h-9 w-48 rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
             />
           </label>
 

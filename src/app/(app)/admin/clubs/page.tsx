@@ -124,7 +124,7 @@ export default async function AdminClubsPage() {
                 required
                 maxLength={120}
                 placeholder="Simon Real Estate Club"
-                className="h-10 w-full rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
+                className="h-10 w-full rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3"
               />
             </label>
             <Select
@@ -139,7 +139,7 @@ export default async function AdminClubsPage() {
               <input
                 name="description"
                 placeholder="What the club does"
-                className="h-10 w-full rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
+                className="h-10 w-full rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3"
               />
             </label>
             <button className="inline-flex h-10 items-center gap-2 rounded-md bg-[--accent] px-5 text-sm font-medium text-[--accent-text] hover:bg-[--accent-hover]">

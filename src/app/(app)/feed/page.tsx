@@ -167,7 +167,7 @@ export default async function FeedPage() {
                       required
                       maxLength={200}
                       placeholder="Co-host wanted: Spring Case Competition"
-                      className="h-9 w-full rounded border border-border px-3 text-sm text-text-1"
+                      className="h-9 w-full rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
                     />
                   </label>
                   <label className="flex flex-col gap-1 text-xs text-text-2">
@@ -190,7 +190,7 @@ export default async function FeedPage() {
                   required
                   rows={3}
                   placeholder="What are you planning, what kind of partner are you looking for, and what's in it for them?"
-                  className="w-full rounded border border-border px-3 py-2 text-sm text-text-1"
+                  className="w-full rounded border border-border px-3 py-2 text-sm text-text-1 bg-surface placeholder:text-text-3"
                 />
                 <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90">
                   Post to feed
@@ -296,7 +296,7 @@ export default async function FeedPage() {
                         <input
                           name="note"
                           placeholder="Add a note (optional)"
-                          className="h-8 flex-1 min-w-40 rounded border border-border px-2 text-xs text-text-1"
+                          className="h-8 flex-1 min-w-40 rounded border border-border px-2 text-xs text-text-1 bg-surface placeholder:text-text-3"
                         />
                         <button className="inline-flex items-center gap-1.5 h-8 rounded bg-[--primary] px-3 text-xs font-medium text-[--primary-text] hover:opacity-90">
                           <Handshake size={13} /> Request to collaborate
@@ -326,7 +326,7 @@ export default async function FeedPage() {
                           required
                           autoComplete="off"
                           placeholder="Write a comment…"
-                          className="h-8 flex-1 rounded-full border border-border px-3 text-xs text-text-1"
+                          className="h-8 flex-1 rounded-full border border-border px-3 text-xs text-text-1 bg-surface placeholder:text-text-3"
                         />
                         <button
                           className="inline-flex items-center gap-1 h-8 rounded-full border border-border px-3 text-xs font-medium text-text-2 hover:bg-base"
@@ -373,7 +373,7 @@ export default async function FeedPage() {
                         <input
                           name="decisionNote"
                           placeholder="Note (optional)"
-                          className="h-8 w-full rounded border border-border px-2 text-xs text-text-1"
+                          className="h-8 w-full rounded border border-border px-2 text-xs text-text-1 bg-surface placeholder:text-text-3"
                         />
                         <div className="flex gap-2">
                           <button

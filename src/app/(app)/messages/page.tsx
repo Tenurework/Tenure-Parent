@@ -196,14 +196,14 @@ export default async function MessagesPage() {
                 name="subject"
                 required
                 placeholder="Subject"
-                className="h-9 w-full rounded border border-border px-3 text-sm text-text-1"
+                className="h-9 w-full rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
               />
               <textarea
                 name="body"
                 required
                 rows={3}
                 placeholder="Message to all clubs…"
-                className="w-full rounded border border-border px-3 py-2 text-sm text-text-1"
+                className="w-full rounded border border-border px-3 py-2 text-sm text-text-1 bg-surface placeholder:text-text-3"
               />
               <ConfirmInlineSubmit
                 title="Send this to everyone?"

@@ -99,7 +99,7 @@ export default async function DocumentsPage({
                   name="title"
                   maxLength={200}
                   placeholder="Defaults to the file name"
-                  className="h-9 w-full rounded border border-border px-3 text-sm text-text-1"
+                  className="h-9 w-full rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
                 />
               </label>
               <button className="h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90">

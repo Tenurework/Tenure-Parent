@@ -183,7 +183,7 @@ export function RoleTransferPanel({
                   name="email"
                   required
                   placeholder="successor@rochester.edu"
-                  className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
+                  className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3"
                 />
               </label>
               <fieldset className="flex flex-col gap-2 text-[13px] text-text-2">
@@ -203,7 +203,7 @@ export function RoleTransferPanel({
                   name="note"
                   rows={2}
                   placeholder="A quick word on where things stand…"
-                  className="rounded-md border border-border px-3.5 py-2 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
+                  className="rounded-md border border-border px-3.5 py-2 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3"
                 />
               </label>
               <div className="flex items-center gap-2">

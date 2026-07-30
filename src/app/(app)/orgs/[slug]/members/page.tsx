@@ -271,7 +271,7 @@ export default async function MembersPage({
                   name="email"
                   required
                   placeholder="student@rochester.edu"
-                  className="h-9 w-64 rounded border border-border px-3 text-sm text-text-1"
+                  className="h-9 w-64 rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs text-text-2">

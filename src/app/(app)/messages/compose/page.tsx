@@ -76,7 +76,7 @@ export default async function ComposePage() {
                 required
                 maxLength={200}
                 placeholder="Spring gala budget question"
-                className="mt-1 h-9 w-full rounded border border-border px-3 text-sm text-text-1"
+                className="mt-1 h-9 w-full rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
               />
             </label>
             <label className="block text-xs text-text-2">
@@ -86,7 +86,7 @@ export default async function ComposePage() {
                 required
                 rows={6}
                 placeholder="Write your message…"
-                className="mt-1 w-full rounded border border-border px-3 py-2 text-sm text-text-1"
+                className="mt-1 w-full rounded border border-border px-3 py-2 text-sm text-text-1 bg-surface placeholder:text-text-3"
               />
             </label>
             {aiConfigured() && <DraftAssist kind="message" targetName="body" />}

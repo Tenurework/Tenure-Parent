@@ -96,7 +96,7 @@ export default async function AdminClubDetailPage({
                 name="name"
                 required
                 defaultValue={org.name}
-                className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
+                className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3"
               />
             </label>
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-text-2">
@@ -104,7 +104,7 @@ export default async function AdminClubDetailPage({
               <input
                 name="shortName"
                 defaultValue={org.shortName ?? ""}
-                className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
+                className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3"
               />
             </label>
             <Select
@@ -123,7 +123,7 @@ export default async function AdminClubDetailPage({
               <input
                 name="description"
                 defaultValue={org.description ?? ""}
-                className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
+                className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3"
               />
             </label>
             <div className="sm:col-span-2">
@@ -280,7 +280,7 @@ export default async function AdminClubDetailPage({
                 name="name"
                 required
                 placeholder="VP Technology"
-                className="h-10 w-full rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
+                className="h-10 w-full rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3"
               />
             </label>
             <Select

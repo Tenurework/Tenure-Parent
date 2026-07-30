@@ -24,12 +24,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="w-full">
-      {/* Accent banner — the console announces itself as a distinct system */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[--accent] bg-[--accent-light] px-5 py-4 sm:px-6">
+      {/* The console announces itself with a hairline accent frame rather than
+          a filled slab. It is still unmistakably its own plane, but it is built
+          from the same primitives as every other Tenure surface — the previous
+          version was a tinted card carrying a solid accent icon plate, which is
+          why the console read as a different product. Icon colour rides the
+          outline only; see the iconography rule in globals.css. */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-surface px-5 py-4 sm:px-6">
         <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-lg bg-[--accent] text-[--accent-text]">
-            <ShieldCheck size={22} />
-          </div>
+          <span className="icon-frame h-11 w-11 rounded-lg" style={{ color: "var(--accent)" }}>
+            <ShieldCheck size={22} weight="regular" aria-hidden />
+          </span>
           <div>
             <h1 className="font-display text-lead font-bold text-text-1">Administration Console</h1>
             <p className="text-[13px] text-text-2">
@@ -38,10 +43,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* The role chip keeps its fill — a status chip's fill IS the signal,
+              which the iconography rule exempts by name. */}
           <span className="rounded-full bg-[--accent] px-3 py-1 text-[13px] font-semibold text-[--accent-text]">
             OSE {roleLabel(role)}
           </span>
-          <span className="hidden rounded-full border border-[--accent] px-3 py-1 text-[13px] font-medium text-[--accent-strong] sm:inline">
+          <span className="hidden rounded-full border border-border-strong px-3 py-1 text-[13px] font-medium text-[--accent-strong] sm:inline">
             {capCount} capabilities
           </span>
         </div>

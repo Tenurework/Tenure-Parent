@@ -53,11 +53,20 @@ export function Avatar({
   return (
     <span
       aria-hidden
-      className={`${SIZES[size]} grid shrink-0 place-items-center rounded-full font-semibold ${className ?? ""}`}
-      style={{
-        background: `hsl(${h} 20% 90%)`,
-        color: `hsl(${h} 24% 34%)`,
-      }}
+      // Both theme pairs are emitted as custom properties and resolved by
+      // `.avatar-monogram` in globals.css. A single light-mode hsl() here — a
+      // 90%-lightness disc — rendered as a glaring near-white puck on the
+      // #0f1113 dark card, on every roster in the product. This is the same fix
+      // lib/calendar-color.ts already documents making for event chips.
+      className={`avatar-monogram ${SIZES[size]} grid shrink-0 place-items-center rounded-full font-semibold ${className ?? ""}`}
+      style={
+        {
+          "--avatar-bg": `hsl(${h} 20% 90%)`,
+          "--avatar-text": `hsl(${h} 24% 34%)`,
+          "--avatar-bg-dark": `hsl(${h} 26% 16%)`,
+          "--avatar-text-dark": `hsl(${h} 40% 82%)`,
+        } as React.CSSProperties
+      }
     >
       {initials(name)}
     </span>

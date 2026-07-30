@@ -1,0 +1,120 @@
+name: Replace ACM Certificate
+
+# Re-requests the custom-domain certificate after a validation failure.
+#
+# ACM cannot retry a certificate whose validation has FAILED — the state is
+# terminal, and `terraform apply` will not replace the resource on its own
+# because the resource still exists and its configuration has not changed. The
+# only way forward is an explicit replacement.
+#
+# The first request failed with CAA_ERROR: tenurework.com published CAA records
+# authorising sectigo.com, letsencrypt.org and pki.goog (Vercel's defaults), and
+# under RFC 8659 the presence of any `issue` property means only those CAs may
+# issue. Amazon was refused by policy, so the DNS validation record was never
+# even consulted.
+#
+# THIS WORKFLOW REFUSES TO RUN UNTIL A CAA RECORD AUTHORISES AMAZON. Replacing
+# the certificate before then just burns another request on the same failure.
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Skip the CAA precondition (not recommended)"
+        required: false
+        default: "false"
+
+concurrency:
+  group: terraform-state
+  cancel-in-progress: false
+
+jobs:
+  replace:
+    name: Re-request the certificate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      TF_DIR: infrastructure/terraform
+      DOMAIN: platform.tenurework.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Precondition: Amazon must be authorised to issue ──────────────────
+      - name: Verify CAA authorises Amazon
+        if: ${{ inputs.force != 'true' }}
+        run: |
+          set -euo pipefail
+          CAA=$(dig +short CAA tenurework.com | tr -d '"' || true)
+          echo "CAA records on tenurework.com:"
+          echo "${CAA:-  (none)}"
+
+          if [ -z "$CAA" ]; then
+            echo "::notice::No CAA records — any CA may issue. Proceeding."
+            exit 0
+          fi
+          if echo "$CAA" | grep -Eq 'amazon\.com|amazontrust\.com|awstrust\.com|amazonaws\.com'; then
+            echo "::notice::Amazon is authorised. Proceeding."
+            exit 0
+          fi
+          echo "::error::CAA does not authorise Amazon — a replacement would fail with CAA_ERROR again."
+          echo "Add: CAA  @  0 issue \"amazon.com\"   (keep the existing records)"
+          exit 1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9"
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          terraform init \
+            -backend-config="bucket=tenure-tfstate-${ACCOUNT_ID}-${AWS_REGION}" \
+            -backend-config="key=pilot/terraform.tfstate" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="dynamodb_table=tenure-terraform-locks" \
+            -backend-config="encrypt=true"
+
+      # -target keeps this to the certificate alone. The distribution is not in
+      # scope: attach_custom_domain is still false, so CloudFront does not
+      # reference the certificate and cannot be disturbed by replacing it.
+      - name: Replace the certificate
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          set -euo pipefail
+          terraform apply \
+            -replace='aws_acm_certificate.custom[0]' \
+            -target='aws_acm_certificate.custom[0]' \
+            -var="image_tag=latest" \
+            -auto-approve -input=false
+
+      - name: Report the new certificate and its validation record
+        run: |
+          set -euo pipefail
+          ARN=$(aws acm list-certificates --region us-east-1 \
+            --query "CertificateSummaryList[?DomainName=='${DOMAIN}'].CertificateArn | [0]" --output text)
+          aws acm describe-certificate --region us-east-1 --certificate-arn "$ARN" \
+            | jq '{status: .Certificate.Status,
+                   validation: [.Certificate.DomainValidationOptions[]
+                     | {name: .ResourceRecord.Name, value: .ResourceRecord.Value, status: .ValidationStatus}]}' \
+            | sed -E 's/[0-9]{12}/************/g' | tee /tmp/cert.json
+
+          {
+            echo "### New certificate"
+            echo '```json'
+            cat /tmp/cert.json
+            echo '```'
+            echo "If the validation record below differs from the one already in Vercel, add the new one."
+          } >> "$GITHUB_STEP_SUMMARY"

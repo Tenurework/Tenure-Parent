@@ -125,7 +125,7 @@ export function ConfirmDialog({
               autoFocus
               autoComplete="off"
               spellCheck={false}
-              className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 outline-none focus:border-[--border-focus]"
+              className="h-10 rounded-md border border-border px-3.5 text-[15px] text-text-1 bg-surface outline-none focus:border-[--border-focus] placeholder:text-text-3"
             />
           </label>
         )}

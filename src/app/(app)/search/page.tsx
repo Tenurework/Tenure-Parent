@@ -46,7 +46,7 @@ export default async function SearchPage({
           name="q"
           defaultValue={query}
           placeholder="Who is our catering contact? What's pending approval?"
-          className="h-10 flex-1 rounded border border-border px-3 text-sm text-text-1"
+          className="h-10 flex-1 rounded border border-border px-3 text-sm text-text-1 bg-surface placeholder:text-text-3"
           autoFocus
         />
         <button className="h-10 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90">
