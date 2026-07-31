@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const now = new Date()
   const horizon = new Date(now.getTime() + WINDOW_HOURS * 60 * 60 * 1000)
 
-  const perInstitution = await forEachInstitution("deliverable-reminders", async () => {
+  const perInstitution = await forEachInstitution("deliverable-reminders", async (scope) => {
     const due = await db.deliverable.findMany({
       where: { dueAt: { gt: now, lte: horizon } },
       include: { reminders: { select: { userId: true } } },
@@ -49,10 +49,20 @@ export async function POST(request: Request) {
       return { checked: 0, notified: 0, deliverables: [] as { key: string; notified: number }[] }
     }
 
-    // Everyone currently holding a board seat, with the seat names needed to
-    // decide who a given deliverable is actually for.
+    // Everyone at THIS institution currently holding a board seat, with the
+    // seat names needed to decide who a given deliverable is actually for.
+    //
+    // The tenant predicate is written out by hand because RoleAssignment has no
+    // institutionId for the query layer to filter on — it reaches its tenant
+    // only through Role -> Organization, a join the extension cannot add
+    // (registry.ts records exactly this under UNENFORCEABLE.reachableVia).
+    // Without it the open scope filters the deliverables and not the people,
+    // so one institution's deadlines would be mailed to another's officers.
     const assignments = await db.roleAssignment.findMany({
-      where: { status: { in: ["ACTIVE", "SHADOW"] } },
+      where: {
+        status: { in: ["ACTIVE", "SHADOW"] },
+        role: { organization: { institutionId: scope.institutionId } },
+      },
       select: { userId: true, role: { select: { name: true } } },
     })
 

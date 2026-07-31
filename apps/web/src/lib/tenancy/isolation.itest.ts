@@ -90,16 +90,20 @@ describe("a write is stamped with the acting tenant", () => {
     })
   })
 
-  it("refuses to create into another tenant", async () => {
+  it("refuses a create that names another tenant, rather than redirecting it", async () => {
+    // Landing it in the acting tenant would be the quiet option and the wrong
+    // one: the caller passed that institutionId for a reason, so overriding it
+    // writes a row whose institutionId and relations point at different
+    // tenants — and institutionId has no foreign key behind it to catch that.
     await runInTenantScope(scopeA, async () => {
-      await createOrg({ name: "Trojan", slug: `trojan-${SUFFIX}`, institutionId: INST_B })
+      await expect(
+        createOrg({ name: "Trojan", slug: `trojan-${SUFFIX}`, institutionId: INST_B }),
+      ).rejects.toThrow(TenantContextError)
     })
 
     await runUnscoped("migration", "assert", async () => {
-      const row = await db.organization.findFirst({ where: { slug: `trojan-${SUFFIX}` } })
-      // The caller asked for B. The acting tenant was A. A wins.
-      expect(row?.institutionId).toBe(INST_A)
-      await db.organization.deleteMany({ where: { slug: `trojan-${SUFFIX}` } })
+      // Nothing was written to either tenant.
+      expect(await db.organization.findFirst({ where: { slug: `trojan-${SUFFIX}` } })).toBeNull()
     })
   })
 })

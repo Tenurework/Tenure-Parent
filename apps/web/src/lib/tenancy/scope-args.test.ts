@@ -99,15 +99,39 @@ describe("writes are stamped with the active tenant", () => {
     ])
   })
 
-  it("overwrites an attempt to create into another tenant", () => {
+  // Refused, not quietly corrected. Overriding looks safe — the row lands in
+  // the acting tenant either way — but every create site here passes
+  // `institutionId: org.institutionId`, so overriding would write
+  // institutionId=<acting> beside organizationId -> <other tenant's org>. Eight
+  // models carry institutionId with no foreign key behind it, so nothing
+  // downstream would ever catch a row whose two halves disagree.
+  it("refuses a create that names another tenant", () => {
+    expect(() =>
+      decide({ operation: "create", args: { data: { name: "Trojan", institutionId: "inst_b" } } }),
+    ).toThrow(TenantContextError)
+    expect(() =>
+      decide({ operation: "create", args: { data: { name: "Trojan", institutionId: "inst_b" } } }),
+    ).toThrow(/named institution inst_b while acting in inst_a/)
+  })
+
+  it("accepts a create that names the acting tenant redundantly", () => {
     const decision = decide({
       operation: "create",
-      args: { data: { name: "Trojan", institutionId: "inst_b" } },
+      args: { data: { name: "Fine", institutionId: "inst_a" } },
     })
 
     expect(decision.action).toBe("scoped")
     if (decision.action !== "scoped") return
     expect((decision.args.data as Record<string, unknown>).institutionId).toBe("inst_a")
+  })
+
+  it("refuses a batch where any one row names another tenant", () => {
+    expect(() =>
+      decide({
+        operation: "createMany",
+        args: { data: [{ name: "A" }, { name: "B", institutionId: "inst_b" }] },
+      }),
+    ).toThrow(TenantContextError)
   })
 
   it.each(["update", "updateMany", "delete", "deleteMany"])("filters %s by tenant", (operation) => {

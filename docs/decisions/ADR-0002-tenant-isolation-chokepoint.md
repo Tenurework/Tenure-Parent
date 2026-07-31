@@ -1,6 +1,6 @@
 # ADR-0002 — Tenant isolation belongs in the query layer, not in every caller
 
-- **Status:** Accepted (observe mode; enforcement pending call-site coverage)
+- **Status:** Accepted — **enforcing since 2026-07-31** (`TENANCY_ENFORCE=true`)
 - **Date:** 2026-07-30
 - **Related:** ADR-0001 (the migration vehicle this depends on)
 
@@ -117,13 +117,38 @@ leaves the property that made them possible.
 check would be stronger than an ambient one — but 24 of 39 models have no such
 field, and the ones that do are exactly the ones already being filtered wrongly.
 
+## Enforcement (2026-07-31)
+
+Steps 1 and 2 below are done. 50 files across server actions, RSC pages and
+route handlers now open a scope; the observe-mode recording reached zero and
+`TENANCY_ENFORCE=true` is set in `ecs.tf` and in CI's e2e job.
+
+Two things were corrected on the way, both found by adversarial review of this
+document's own implementation:
+
+**A create naming another tenant is refused, not redirected.** The stamp
+originally placed the acting tenant last, overriding whatever the caller
+supplied. That looks safe — the row lands in the acting tenant either way — but
+every create site here passes `institutionId: org.institutionId`, so overriding
+writes `institutionId = <acting>` beside `organizationId -> <other tenant's
+org>`. Eight models carry `institutionId` with no foreign key behind it, so
+nothing downstream would catch a row whose halves disagree.
+
+**The extension only inspects the top-level model.** A nested `include` is not
+rewritten. `/api/attachment/[id]` reaches `Conversation` through
+`include: { message: { conversation } }`, so `canReadConversation` remains the
+only guard there. This is a real limit of the mechanism, not an oversight in a
+call site, and it is closed by the same denormalisation as the rest.
+
 ## Remaining work
 
-1. Open a tenant scope at the application's entry points; drive the observe-mode
-   recording to empty.
-2. Switch `TENANCY_ENFORCE=true`.
+1. ~~Open a tenant scope at every entry point.~~ Done.
+2. ~~Switch `TENANCY_ENFORCE=true`.~~ Done.
 3. Denormalise `institutionId` onto the `UNENFORCEABLE` models, shrinking that
    list. `DirectoryPerson` first — it holds real personal data and has no parent.
+   Until then, a caller reaching one of those models inside a scope must filter
+   it by hand through the relation `registry.ts` records; the reminders cron is
+   the worked example, and `isolation.itest.ts` pins the boundary.
 4. Tenant-scoped composite uniques (`Organization.slug` and the rest), without
-   which a second tenant cannot be created at all.
+   which a second tenant cannot be created at all. Designed; see ADR-0004.
 5. Then RLS, as defence behind this rather than instead of it.

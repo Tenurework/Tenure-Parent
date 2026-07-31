@@ -125,7 +125,7 @@ export function decideScope(input: ScopeInput): ScopeDecision {
   }
 
   if (CREATE_OPERATIONS.has(operation)) {
-    return { action: "scoped", args: { ...args, data: stampTenant(args.data, institutionId) } }
+    return { action: "scoped", args: { ...args, data: stampTenant(args.data, institutionId, model) } }
   }
 
   // An operation the map does not know (a future Prisma addition). Refuse
@@ -153,13 +153,39 @@ function mergeTenantFilter(where: unknown, institutionId: string): Record<string
   return { ...where, AND: [...existing, { institutionId }] }
 }
 
-/** Stamp the tenant onto created rows, single or batched. */
-function stampTenant(data: unknown, institutionId: string): unknown {
-  if (Array.isArray(data)) {
-    return data.map((row) => (isPlainObject(row) ? { ...row, institutionId } : row))
+/**
+ * Stamp the tenant onto created rows, single or batched.
+ *
+ * A row that names a *different* tenant is refused rather than quietly
+ * corrected. Silently overriding looks safe — the row lands in the acting
+ * tenant either way — but it is not, because the caller supplied that value for
+ * a reason: every create site in this application passes
+ * `institutionId: org.institutionId`. Overriding it writes
+ * `institutionId = <acting>` beside `organizationId -> <other tenant's org>`,
+ * which is a row whose two halves disagree. Eight models carry `institutionId`
+ * with no foreign key behind it, so nothing downstream would ever catch that.
+ *
+ * Refusing turns a silently corrupt write into a loud bug at the call site,
+ * and turns a caller naming someone else's tenant into a denial rather than a
+ * write nobody asked for.
+ */
+function stampTenant(data: unknown, institutionId: string, model: string): unknown {
+  const stampRow = (row: unknown): unknown => {
+    if (!isPlainObject(row)) return row
+
+    const declared = row.institutionId
+    if (typeof declared === "string" && declared !== institutionId) {
+      throw new TenantContextError(
+        `A create on ${model} named institution ${declared} while acting in ${institutionId}. ` +
+          `Refusing: writing it into the acting tenant would leave institutionId and the row's ` +
+          `own relations pointing at different tenants. Open a scope for ${declared} if that is ` +
+          `the intent.`,
+      )
+    }
+    return { ...row, institutionId }
   }
-  if (isPlainObject(data)) return { ...data, institutionId }
-  return data
+
+  return Array.isArray(data) ? data.map(stampRow) : stampRow(data)
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

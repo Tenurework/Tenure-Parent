@@ -200,6 +200,10 @@ jobs:
       # ungated path — e2e/support/auth.ts fills it and fails loudly if the
       # server under test isn't asking for it.
       DEV_LOGIN_PASSPHRASE: e2e-shared-pilot-passphrase
+      # Same as production. Under enforcement a tenant-scoped query with no open
+      # scope throws rather than logging, so an entry point that loses its
+      # wrapper fails a spec here instead of leaking in production.
+      TENANCY_ENFORCE: "true"
       NEXTAUTH_URL: http://localhost:3000
       OKTA_CLIENT_ID: ""
       OKTA_CLIENT_SECRET: ""

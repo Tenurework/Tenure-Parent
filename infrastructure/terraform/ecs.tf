@@ -178,6 +178,18 @@ resource "aws_ecs_task_definition" "app" {
         # run the "Seed reference data" workflow, which executes it once as a
         # one-off ECS task instead of on every boot.
 
+        # Tenant isolation is enforced, not observed. With this unset the query
+        # layer applies the tenant filter wherever a scope is open and merely
+        # records where none is; with it set, a tenant-scoped query without a
+        # scope throws instead. See ADR-0002.
+        #
+        # Switched on once the recording reached zero and stayed there: 132/132
+        # e2e with enforcement on, no TenantContextError, plus a manual sweep of
+        # every page, parameterised route and API handler the suite does not
+        # reach by URL. Removing this line silently downgrades isolation to a
+        # log line, so it is a deliberate value rather than a default.
+        { name = "TENANCY_ENFORCE", value = "true" },
+
         # Surfaced by /api/health so CI can verify which build is serving
         { name = "IMAGE_TAG", value = var.image_tag },
         # Optional: enables AI answer synthesis on /search when non-empty
