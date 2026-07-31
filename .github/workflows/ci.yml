@@ -57,6 +57,15 @@ jobs:
       - name: Test
         run: npm run test --workspace apps/web -- --ci --passWithNoTests
 
+      # Monorepo-level tests. These assert properties of the repository rather
+      # than of the application — first among them that the production-operations
+      # workflows cannot fire from a repository that is not the one owning the
+      # production deployment. This repository holds the same AWS credentials as
+      # the one that deploys, so that guard is the only thing between a merge to
+      # main here and a live ECS rollout. It is asserted, not assumed.
+      - name: Platform tests
+        run: npm run test:platform
+
       - name: Build
         run: npm run build
 
