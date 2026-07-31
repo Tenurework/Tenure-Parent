@@ -24,6 +24,7 @@ const config = {
     "^@tenure/authorization$": "<rootDir>/../../packages/authorization/src/index.ts",
     "^@tenure/releases$": "<rootDir>/../../packages/releases/src/index.ts",
     "^@tenure/workflow$": "<rootDir>/../../packages/workflow/src/index.ts",
+    "^@tenure/audit$": "<rootDir>/../../packages/audit/src/index.ts",
   },
   // scripts/ ships as ESM .mjs into the runtime image; its logic is testable too
   moduleFileExtensions: ["js", "jsx", "ts", "tsx", "mjs", "json", "node"],

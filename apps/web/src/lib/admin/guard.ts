@@ -1,4 +1,5 @@
 import "server-only"
+import { buildAuditRecord } from "@tenure/audit"
 import type { InstitutionRole, Prisma } from "@prisma/client"
 import { notFound, redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
@@ -60,18 +61,39 @@ export async function requireCapability(
 
   const allowed = hasCapability(ctx, capId, institutionId)
 
+  // Built rather than assembled inline. Every privileged action in the product
+  // passes through here, so this is the one audit write worth making impossible
+  // to get wrong: the builder requires a tenant, an actor, an action, a resource
+  // type and an outcome, refuses a DENY that does not say why, and redacts
+  // anything that looks like a credential out of `metadata` before it reaches
+  // an append-only table that ON DELETE RESTRICT makes it impossible to clean.
+  const record = buildAuditRecord({
+    tenantId: institutionId,
+    organizationId: opts?.organizationId,
+    actor: { principalId: userId, role: adminRoleAt(ctx, institutionId) ?? undefined },
+    action: `Admin.${capId}`,
+    resourceType: opts?.resourceType ?? "Admin",
+    resourceId: opts?.resourceId,
+    outcome: allowed ? "ALLOW" : "DENY",
+    // A denial here is always the same denial, and saying so beats a null that
+    // makes the row unreadable six months later.
+    reason: opts?.reason ?? (allowed ? undefined : `Capability "${capId}" not held.`),
+    metadata: (opts?.metadata ?? {}) as Record<string, unknown>,
+    occurredAt: new Date().toISOString(),
+  })
+
   await db.auditEvent.create({
     data: {
-      institutionId,
-      actorId: userId,
-      actorRole: adminRoleAt(ctx, institutionId) ?? undefined,
-      action: `Admin.${capId}`,
-      resourceType: opts?.resourceType ?? "Admin",
-      resourceId: opts?.resourceId,
-      organizationId: opts?.organizationId,
-      outcome: allowed ? "ALLOW" : "DENY",
-      reason: opts?.reason,
-      ...(opts?.metadata !== undefined ? { metadata: opts.metadata } : {}),
+      institutionId: record.tenantId,
+      actorId: record.actorId,
+      actorRole: record.actorRole ?? undefined,
+      action: record.action,
+      resourceType: record.resourceType,
+      resourceId: record.resourceId ?? undefined,
+      organizationId: record.organizationId ?? undefined,
+      outcome: record.outcome,
+      reason: record.reason ?? undefined,
+      metadata: record.metadata as Prisma.InputJsonValue,
     },
   })
 
