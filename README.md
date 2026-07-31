@@ -81,11 +81,11 @@ Every AWS-touching workflow here is disarmed with
 `if: github.repository == 'satvikOS/Tenure'`, because this repository holds the
 same deploy credentials and `deploy.yml` fires on a push to `main`. That guard is
 asserted by `npm run test:platform` in CI. See
-`docs/decisions/ADR-0004-CANONICAL-MONOREPO.md`.
+`docs/decisions/ADR-0005-CANONICAL-MONOREPO.md`.
 
 ## Documents, in the order they are worth reading
 
-1. `docs/decisions/ADR-0004-CANONICAL-MONOREPO.md` — why this repository is canonical.
+1. `docs/decisions/ADR-0005-CANONICAL-MONOREPO.md` — why this repository is canonical.
 2. `docs/migrations/LIVE-APP-IMPORT-PLAN.md` — how the application got here, with the history proof.
 3. `docs/migrations/BASELINE-VALIDATION.md` — every check, its exit code, and the pre-existing failures.
 4. `docs/architecture/REVIEW-FINDINGS.md` — an adversarial review of the platform spec against the real code. **Read before the spec itself.**

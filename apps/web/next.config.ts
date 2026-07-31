@@ -26,6 +26,12 @@ const nextConfig: NextConfig = {
   // build and turbopack all agree on the same root.
   outputFileTracingRoot: path.join(__dirname, "../../"),
 
+  // Platform packages ship TypeScript source with no build step (see
+  // packages/configuration/package.json). Next has to compile them itself;
+  // without this the app fails at build with "Unexpected token 'export'"
+  // reading the package's index.ts.
+  transpilePackages: ["@tenure/configuration", "@tenure/blueprints"],
+
   poweredByHeader: false,
 
   experimental: {

@@ -49,7 +49,7 @@ const GUARD_BLOCK = [
   '    # Disarmed outside the repository that owns the production deployment, so',
   '    # that importing this file cannot deploy as a side effect. Flipping the',
   '    # repository name is the cutover, and is a reviewed change — see',
-  '    # docs/decisions/ADR-0004-CANONICAL-MONOREPO.md and the cutover plan.',
+  '    # docs/decisions/ADR-0005-CANONICAL-MONOREPO.md and the cutover plan.',
   GUARD_LINE,
   '',
 ].join('\n')

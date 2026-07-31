@@ -8,8 +8,16 @@ const createJestConfig = nextJest({ dir: __dirname })
 /** @type {import('jest').Config} */
 const config = {
   testEnvironment: "node",
+  // Platform packages are TypeScript source consumed without a build step, so
+  // their tests run through this app's next/jest transform rather than needing
+  // a second toolchain per package. Listing the roots explicitly (rather than
+  // leaving rootDir to imply one) is what lets a file outside apps/web be
+  // collected at all.
+  roots: ["<rootDir>/src", "<rootDir>/scripts", "<rootDir>/../../packages"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^@tenure/configuration$": "<rootDir>/../../packages/configuration/src/index.ts",
+    "^@tenure/blueprints$": "<rootDir>/../../blueprints/index.ts",
   },
   // scripts/ ships as ESM .mjs into the runtime image; its logic is testable too
   moduleFileExtensions: ["js", "jsx", "ts", "tsx", "mjs", "json", "node"],

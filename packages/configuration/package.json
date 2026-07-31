@@ -1,0 +1,16 @@
+{
+  "name": "@tenure/configuration",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Layered, governed configuration resolution. Organization-specific behaviour without organization-specific code.",
+  "type": "module",
+  "//": "Source is consumed directly — no build step. apps/web lists this in next.config.ts transpilePackages, and its tsconfig maps the package name to src/index.ts. A dist/ would mean a build ordering problem and a stale-artifact failure mode for no benefit at this size.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "^3.24.0"
+  }
+}

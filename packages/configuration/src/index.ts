@@ -1,0 +1,62 @@
+/**
+ * @tenure/configuration — layered, governed configuration.
+ *
+ * The premise the whole platform rests on: organization-specific behaviour is
+ * delivered by configuration, not by organization-specific code. There is no
+ * `if (tenant.slug === "rochester")` anywhere, because there is somewhere else
+ * for that difference to live.
+ *
+ * A value is declared once (`defineConfig`), collected into a registry, and
+ * resolved by folding ordered layers over the default. Resolution is
+ * fail-closed, attributable, and content-hashed, so a system can cite the exact
+ * configuration it ran under.
+ *
+ *   const registry = ConfigRegistry.of([...PLATFORM_TERMINOLOGY])
+ *   const config = resolveConfigOrThrow(registry, [
+ *     { scope: "tenant", id: "rochester", values: { "platform.terminology.staffOffice": "Ainslie OSE" } },
+ *   ])
+ *   config.get<string>("platform.terminology.staffOffice")   // "Ainslie OSE"
+ *   config.explain("platform.terminology.staffOffice")       // which layer set it
+ *   config.checksum                                          // "sha256:…"
+ */
+
+export { CONFIG_SCOPES, isConfigScope, scopeRank } from "./scopes"
+export type { ConfigScope } from "./scopes"
+
+export {
+  MERGE_STRATEGIES,
+  RESTRICTIVE_STRATEGIES,
+  MergeError,
+  isRestrictive,
+  mergeValues,
+  stableStringify,
+} from "./merge"
+export type { MergeStrategy } from "./merge"
+
+export {
+  ConfigDefinitionError,
+  ConfigRegistry,
+  SENSITIVITIES,
+  defineConfig,
+  validateDefinition,
+} from "./definition"
+export type { ConfigDefinition, Sensitivity } from "./definition"
+
+export {
+  ConfigResolutionError,
+  checksumOf,
+  redact,
+  resolveConfig,
+  resolveConfigOrThrow,
+} from "./resolve"
+export type {
+  ConfigLayer,
+  Provenance,
+  ResolutionProblem,
+  ResolveOptions,
+  ResolveResult,
+  ResolvedConfig,
+} from "./resolve"
+
+export { ConfigVersionError, diffVersions, publish, supersede } from "./version"
+export type { ConfigDiffEntry, ConfigVersion, PublicationState, PublishInput } from "./version"

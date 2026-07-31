@@ -19,9 +19,18 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@tenure/configuration": ["../../packages/configuration/src/index.ts"],
+      "@tenure/blueprints": ["../../blueprints/index.ts"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "../../packages/*/src/**/*.ts",
+    "../../blueprints/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

@@ -1,4 +1,4 @@
-# ADR-0004 — Tenure-Parent is the canonical monorepo, by merging Tenure into it
+# ADR-0005 — Tenure-Parent is the canonical monorepo, by merging Tenure into it
 
 - **Status:** Accepted
 - **Date:** 2026-07-31
@@ -6,9 +6,14 @@
 - **Completes:** ADR-0003, whose status reads *"structure done; repo-identity step outstanding"*
 
 > **On the number.** The build directive names this file `ADR-0001-CANONICAL-MONOREPO.md`.
-> `docs/decisions/ADR-0001-versioned-migrations-and-boot-safety.md` already exists and was
-> imported with the application. Two ADR-0001s in one directory is a defect, and the
-> directive permits justified variation, so this is ADR-0004. The deviation is deliberate.
+> `ADR-0001-versioned-migrations-and-boot-safety.md` already existed and was imported with
+> the application, so this was first written as ADR-0004. `satvikOS/Tenure` then added its
+> own ADR-0004 — the tenant-scoped schema programme — while the import was in flight. That
+> one is upstream and deployed, so this one moved to 0005 rather than asking it to.
+>
+> Two repositories numbering ADRs independently, and colliding within a day, is precisely
+> the overlap cost recorded under Consequences below. It is left visible rather than tidied
+> away, because it is evidence about how long the overlap can safely run.
 
 ## Context
 

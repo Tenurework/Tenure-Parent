@@ -2,6 +2,7 @@ import "server-only"
 import type { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
 import { canManageResources, getUserContext, type UserContext } from "@/lib/rbac"
+import { terminologyForInstitution } from "@/lib/config/server"
 import {
   isSeatKey,
   type Resource,
@@ -190,7 +191,7 @@ export async function createResource(
 ): Promise<WriteResult> {
   const ctx = await getUserContext(userId)
   if (!canManageResources(ctx, institutionId)) {
-    return { error: "Only Ainslie OSE can publish board resources." }
+    return { error: `Only ${(await terminologyForInstitution(institutionId)).staffOffice} can publish board resources.` }
   }
   const invalid = validate(input)
   if (invalid) return { error: invalid }
@@ -243,7 +244,9 @@ export async function updateResource(
 
   const ctx = await getUserContext(userId)
   if (!canManageResources(ctx, existing.institutionId)) {
-    return { error: "Only Ainslie OSE can edit board resources." }
+    return {
+      error: `Only ${(await terminologyForInstitution(existing.institutionId)).staffOffice} can edit board resources.`,
+    }
   }
   const invalid = validate(input)
   if (invalid) return { error: invalid }
@@ -289,7 +292,9 @@ export async function setResourceArchived(
 
   const ctx = await getUserContext(userId)
   if (!canManageResources(ctx, existing.institutionId)) {
-    return { error: "Only Ainslie OSE can retire board resources." }
+    return {
+      error: `Only ${(await terminologyForInstitution(existing.institutionId)).staffOffice} can retire board resources.`,
+    }
   }
 
   await db.resource.update({

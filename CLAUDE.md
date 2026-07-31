@@ -4,7 +4,7 @@
 
 As of 2026-07-31 this repository contains the working product, not just documents
 about it. `satvikOS/Tenure` was merged in whole, with history
-(`docs/decisions/ADR-0004-CANONICAL-MONOREPO.md`).
+(`docs/decisions/ADR-0005-CANONICAL-MONOREPO.md`).
 
 ```
 apps/web/                 the application — Next.js 15, React 19, Prisma 6, NextAuth 5
