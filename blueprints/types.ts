@@ -8,6 +8,8 @@
  * engines do, so that a blueprint never declares something nothing reads.
  */
 
+import type { OrgTopology } from "@tenure/organization-model"
+
 export interface SystemBlueprint {
   id: string
   /** Semantic version. A published blueprint is immutable; a change is a new version. */
@@ -16,6 +18,15 @@ export interface SystemBlueprint {
   description: string
   /** Configuration set at the `blueprint` scope. Keys must be defined. */
   values: Readonly<Record<string, unknown>>
+  /**
+   * The shape this kind of system may take: node types and what may contain what.
+   *
+   * This is what makes two blueprints *structurally* different rather than
+   * differently worded. Terminology alone is a weak claim — a system that calls
+   * clubs "programs" is still a system with clubs. A different topology is a
+   * different organization.
+   */
+  topology: OrgTopology
 }
 
 export interface TenantBinding {

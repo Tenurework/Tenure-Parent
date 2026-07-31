@@ -22,4 +22,42 @@ export const universityStudentOrganizations: SystemBlueprint = {
     "platform.terminology.leadershipBody": "executive board",
     "platform.terminology.seatSingular": "seat",
   },
+  topology: {
+    id: "university-student-organizations",
+    version: "1.0.0",
+    rootType: "institution",
+    maxDepth: 3,
+    types: [
+      { id: "institution", label: "Institution", pluralLabel: "Institutions" },
+      {
+        id: "school",
+        label: "School",
+        pluralLabel: "Schools",
+        description:
+          "A school or college within the institution. Optional: the pilot has no school layer yet, which is why a club may sit directly under an institution.",
+      },
+      { id: "club", label: "Club", pluralLabel: "Clubs" },
+      { id: "board", label: "Executive board", pluralLabel: "Executive boards" },
+    ],
+    containment: [
+      { parent: "institution", child: "school" },
+      // Both are allowed on purpose. The live data is flat — Institution holds
+      // Organizations directly — and a school layer is what Simon would gain
+      // when a second school onboards. Allowing both means introducing that
+      // layer is a data change, not a topology migration.
+      { parent: "institution", child: "club" },
+      { parent: "school", child: "club" },
+      { parent: "club", child: "board" },
+    ],
+    relationTypes: [
+      { id: "advises", label: "Advises", from: ["institution", "school"], to: ["club"] },
+      {
+        id: "partners-with",
+        label: "Partners with",
+        from: ["club"],
+        to: ["club"],
+        symmetric: true,
+      },
+    ],
+  },
 }

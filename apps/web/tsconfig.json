@@ -21,7 +21,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@tenure/configuration": ["../../packages/configuration/src/index.ts"],
-      "@tenure/blueprints": ["../../blueprints/index.ts"]
+      "@tenure/blueprints": ["../../blueprints/index.ts"],
+      "@tenure/organization-model": ["../../packages/organization-model/src/index.ts"]
     }
   },
   "include": [

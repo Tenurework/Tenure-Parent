@@ -28,4 +28,39 @@ export const nonprofitProgramOperations: SystemBlueprint = {
     "platform.terminology.leadershipBody": "steering committee",
     "platform.terminology.seatSingular": "post",
   },
+  topology: {
+    id: "nonprofit-program-operations",
+    version: "1.0.0",
+    rootType: "nonprofit",
+    maxDepth: 4,
+    types: [
+      { id: "nonprofit", label: "Nonprofit", pluralLabel: "Nonprofits" },
+      {
+        id: "portfolio",
+        label: "Portfolio",
+        pluralLabel: "Portfolios",
+        description: "A funded area of work holding several programs. No equivalent in the university shape.",
+      },
+      { id: "program", label: "Program", pluralLabel: "Programs" },
+      { id: "committee", label: "Steering committee", pluralLabel: "Steering committees" },
+      {
+        id: "site",
+        label: "Delivery site",
+        pluralLabel: "Delivery sites",
+        description: "Where a program is actually delivered. Programs run at several sites at once.",
+      },
+    ],
+    containment: [
+      { parent: "nonprofit", child: "portfolio" },
+      { parent: "portfolio", child: "program" },
+      { parent: "program", child: "committee" },
+      { parent: "program", child: "site" },
+    ],
+    relationTypes: [
+      // A funder relationship has no analogue in the university topology, which
+      // is the point: these are not the same organization with different words.
+      { id: "funds", label: "Funds", from: ["nonprofit"], to: ["portfolio", "program"] },
+      { id: "delivers-jointly-with", label: "Delivers jointly with", from: ["site"], to: ["site"], symmetric: true },
+    ],
+  },
 }

@@ -71,6 +71,27 @@ function coversAt(from: string, to: string | null | undefined, at: number): bool
   return ts(from) <= at && (to == null || ts(to) > at)
 }
 
+/**
+ * Each live unit's parent *as declared* at an instant.
+ *
+ * `null` means the unit genuinely has no parent — a root. A parent id that is
+ * not itself live means the unit is orphaned, which callers must distinguish
+ * from being a root: one is the top of the organization, the other is a
+ * dangling subtree, and treating them alike is how archiving a school promotes
+ * its clubs to institutions.
+ */
+function declaredParents(
+  live: ReadonlyMap<string, OrgUnitInput>,
+  instant: number,
+): Map<string, string | null> {
+  const out = new Map<string, string | null>()
+  for (const u of live.values()) {
+    const active = (u.parentage ?? []).find((p) => coversAt(p.effectiveFrom, p.effectiveTo, instant))
+    out.set(u.id, active ? active.parentId : null)
+  }
+  return out
+}
+
 export interface ResolvedUnit {
   id: string
   typeId: string
@@ -221,34 +242,48 @@ export class OrgGraph {
       live.set(u.id, u)
     }
 
-    const parentAt = new Map<string, string | null>()
-    for (const u of live.values()) {
-      const active = (u.parentage ?? []).find((p) => coversAt(p.effectiveFrom, p.effectiveTo, instant))
-      // A parent that is not itself live at this instant is not a parent. Without
-      // this the snapshot would contain an edge to a node it does not have.
-      parentAt.set(u.id, active && live.has(active.parentId) ? active.parentId : null)
-    }
+    const declared = declaredParents(live, instant)
 
-    // Drop anything whose chain does not terminate at a live root, so an orphaned
-    // subtree cannot present itself as a second root.
+    // Reachability, not just parenthood. A unit whose declared parent is not live
+    // at this instant — because the parent was archived, or ended — is *orphaned*,
+    // and an orphan is excluded along with everything beneath it.
+    //
+    // Promoting it to a root instead, which is the easy mistake, would show every
+    // club of an archived school sitting directly under nothing, as a second root
+    // beside the institution. Archiving a school would silently restructure the
+    // organization rather than hide it.
     const resolved = new Map<string, ResolvedUnit>()
+    const depths = new Map<string, number>()
+
     const depthOf = (id: string, seen: Set<string>): number | null => {
-      const parent = parentAt.get(id)
-      if (parent == null) return 0
-      if (seen.has(parent)) return null
+      const memo = depths.get(id)
+      if (memo !== undefined) return memo
+
+      const parent = declared.get(id)
+      if (parent === undefined) return null // not live
+      if (parent === null) {
+        depths.set(id, 0)
+        return 0
+      }
+      if (!live.has(parent)) return null // orphaned
+      if (seen.has(parent)) return null // cycle: refuse to spin
       seen.add(parent)
-      const d = depthOf(parent, seen)
-      return d == null ? null : d + 1
+
+      const parentDepth = depthOf(parent, seen)
+      if (parentDepth === null) return null // inherits the orphaning
+
+      depths.set(id, parentDepth + 1)
+      return parentDepth + 1
     }
 
     for (const u of live.values()) {
       const depth = depthOf(u.id, new Set([u.id]))
-      if (depth == null) continue
+      if (depth === null) continue
       resolved.set(u.id, {
         id: u.id,
         typeId: u.typeId,
         name: u.name,
-        parentId: parentAt.get(u.id) ?? null,
+        parentId: declared.get(u.id) ?? null,
         depth,
       })
     }
@@ -359,12 +394,7 @@ export function buildOrgGraph(
       (u) => coversAt(u.effectiveFrom, u.effectiveTo, instant) && !(u.archivedAt && ts(u.archivedAt) <= instant),
     )
     const liveIds = new Set(live.map((u) => u.id))
-    const parentAt = new Map<string, string | null>()
-
-    for (const u of live) {
-      const active = (u.parentage ?? []).find((p) => coversAt(p.effectiveFrom, p.effectiveTo, instant))
-      parentAt.set(u.id, active && liveIds.has(active.parentId) ? active.parentId : null)
-    }
+    const parentAt = declaredParents(new Map(live.map((u) => [u.id, u])), instant)
 
     // Cycles. Iterative three-colour DFS so a deep chain cannot blow the stack,
     // and so the reported problem names the cycle instead of "something is wrong".
@@ -395,6 +425,23 @@ export function buildOrgGraph(
         if (u.typeId !== topology.rootType) {
           problems.push(
             `At ${date} unit "${u.id}" of type "${u.typeId}" has no parent, but only "${topology.rootType}" may be a root.`,
+          )
+        }
+        continue
+      }
+
+      // Orphaned, not root: the parent exists in the data but is not live at this
+      // instant, because it was archived or ended. That is a normal operational
+      // state — archiving a school does not invalidate its clubs — and the
+      // snapshot excludes the subtree rather than rejecting the whole graph.
+      // Containment is still checked below against the parent's declared type,
+      // so an orphan cannot smuggle in an illegal shape for later.
+      if (!liveIds.has(parentId)) {
+        const parent = byId.get(parentId)!
+        if (!mayContain(topology, parent.typeId, u.typeId)) {
+          problems.push(
+            `At ${date} "${u.id}" (${u.typeId}) declares parent "${parentId}" (${parent.typeId}), ` +
+              `which the topology does not allow.`,
           )
         }
         continue

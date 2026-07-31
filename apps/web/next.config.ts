@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
   // packages/configuration/package.json). Next has to compile them itself;
   // without this the app fails at build with "Unexpected token 'export'"
   // reading the package's index.ts.
-  transpilePackages: ["@tenure/configuration", "@tenure/blueprints"],
+  transpilePackages: ["@tenure/configuration", "@tenure/blueprints", "@tenure/organization-model"],
 
   poweredByHeader: false,
 

@@ -18,6 +18,7 @@ const config = {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@tenure/configuration$": "<rootDir>/../../packages/configuration/src/index.ts",
     "^@tenure/blueprints$": "<rootDir>/../../blueprints/index.ts",
+    "^@tenure/organization-model$": "<rootDir>/../../packages/organization-model/src/index.ts",
   },
   // scripts/ ships as ESM .mjs into the runtime image; its logic is testable too
   moduleFileExtensions: ["js", "jsx", "ts", "tsx", "mjs", "json", "node"],

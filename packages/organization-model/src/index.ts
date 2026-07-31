@@ -1,0 +1,41 @@
+/**
+ * @tenure/organization-model — configurable organization hierarchies.
+ *
+ * The directive's list of things Tenure must be able to represent — universities,
+ * schools, student organizations, associations, nonprofits, corporations,
+ * holding companies, subsidiaries, franchises, government programs, committees,
+ * chapters, departments, operating units — is not a list of features. It is one
+ * feature: a hierarchy whose node types and containment rules are declared
+ * rather than compiled in.
+ *
+ * What the application has today is a fixed two-level model, Institution →
+ * Organization, with no representation at all for a holding company that owns
+ * subsidiaries that contain business units that contain teams.
+ *
+ *   const topology = { rootType: "institution", types: [...], containment: [...] }
+ *   const graph = buildOrgGraph(topology, units)
+ *   const now = graph.asOf("2026-07-31T00:00:00Z")
+ *   now.ancestors(clubId)      // school, institution
+ *   now.descendants(schoolId)  // every club and board beneath it
+ *
+ * Structure is always asked of a snapshot, never of the graph, because "the
+ * parent of this club" has no answer without a date — clubs move between
+ * schools, and an approval routed last March has to be explicable against the
+ * structure that existed in March.
+ */
+
+export {
+  TopologyError,
+  mayContain,
+  typeOf,
+  validateTopology,
+} from "./topology"
+export type {
+  ContainmentRule,
+  OrgRelationType,
+  OrgTopology,
+  OrgUnitType,
+} from "./topology"
+
+export { OrgGraph, OrgGraphError, OrgSnapshot, buildOrgGraph } from "./graph"
+export type { OrgRelationInput, OrgUnitInput, Parentage, ResolvedUnit } from "./graph"
