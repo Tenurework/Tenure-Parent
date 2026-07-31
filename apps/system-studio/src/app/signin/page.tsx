@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation"
 
+import { AuthError } from "next-auth"
+
 import { auth, signIn } from "@/lib/auth"
 import { isOperator, operatorConfigProblems } from "@/lib/operators"
 
@@ -58,10 +60,22 @@ export default async function SignInPage({
               redirectTo: "/",
             })
           } catch (err) {
-            // next-auth signals a successful redirect by throwing, so rethrow
-            // anything that is that and turn the rest into one generic failure.
-            if (err instanceof Error && err.message.includes("NEXT_REDIRECT")) throw err
-            redirect("/signin?error=1")
+            // Catch ONLY an authentication failure, and rethrow everything else.
+            //
+            // The previous version did the opposite — it tried to recognise the
+            // success case by looking for "NEXT_REDIRECT" in `err.message`. Next
+            // puts that marker on `err.digest`, not on the message, so the check
+            // never matched: `signIn` signals SUCCESS by throwing a redirect,
+            // that redirect fell through to the line below, and a correct email
+            // and secret were answered with "Those credentials were not
+            // accepted". The credentials were fine; the handler discarded them.
+            //
+            // Matching on the failure instead of guessing at the success removes
+            // the string-matching entirely. AuthError is what next-auth throws
+            // when `authorize` returns null; a redirect is not an AuthError, so
+            // it propagates and the browser follows it.
+            if (err instanceof AuthError) redirect("/signin?error=1")
+            throw err
           }
         }}
       >
