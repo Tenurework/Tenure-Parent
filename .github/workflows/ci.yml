@@ -69,6 +69,34 @@ jobs:
       - name: Build
         run: npm run build
 
+      # One-shot: writes the live pilot's front-end URLs into the run summary,
+      # and ONLY for a commit whose message carries [show-url].
+      #
+      # A step that printed this on every run would be noise within a day — the
+      # URLs do not change, and a summary that always says the same thing stops
+      # being read. Gating on the commit message makes it self-limiting: this run
+      # shows it because this commit asked for it, and the next one will not
+      # unless it asks too. No follow-up commit is needed to turn it back off,
+      # which is the failure mode of "add it now, remove it later".
+      #
+      # The values are read from the repository, not from AWS. This job holds no
+      # AWS credentials by design (ADR-0005), and granting some in order to print
+      # a hostname would arm the one job that is deliberately unarmed.
+      - name: Front-end URL
+        if: contains(github.event.head_commit.message, '[show-url]')
+        run: |
+          {
+            echo "## Tenure front end"
+            echo
+            echo "| | URL |"
+            echo "|---|---|"
+            echo "| CloudFront | https://d1n6mdis7bs02g.cloudfront.net |"
+            echo "| Custom domain | https://platform.tenurework.com |"
+            echo
+            echo "Served by the production pilot, which deploys from satvikOS/Tenure."
+            echo "This repository does not deploy — see docs/decisions/ADR-0005-CANONICAL-MONOREPO.md."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # ── Migration integrity: the schema and the migrations must not diverge ────
   migrations:
     name: Migrations · Drift + Apply + Isolation
