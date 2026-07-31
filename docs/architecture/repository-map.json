@@ -1,0 +1,345 @@
+{
+  "generatedFrom": "git ls-files",
+  "totalTrackedFiles": 470,
+  "workspaceGlobs": [
+    "apps/*",
+    "packages/*",
+    "blueprints",
+    "modules"
+  ],
+  "workspaces": [
+    {
+      "dir": "apps/system-studio",
+      "name": "@tenure/system-studio",
+      "private": true,
+      "description": "",
+      "scripts": [
+        "dev",
+        "build",
+        "start",
+        "lint",
+        "type-check",
+        "e2e"
+      ],
+      "dependsOnWorkspaces": [],
+      "fileCount": 14,
+      "testFiles": 2,
+      "hasDockerfile": true
+    },
+    {
+      "dir": "apps/web",
+      "name": "tenure",
+      "private": true,
+      "description": "",
+      "scripts": [
+        "dev",
+        "build",
+        "start",
+        "lint",
+        "type-check",
+        "test",
+        "test:isolation",
+        "e2e",
+        "postinstall"
+      ],
+      "dependsOnWorkspaces": [],
+      "fileCount": 294,
+      "testFiles": 56,
+      "hasDockerfile": true
+    },
+    {
+      "dir": "blueprints",
+      "name": "@tenure/blueprints",
+      "private": true,
+      "description": "Tenure-authored system definitions, and the binding from each institution to the one it runs.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 6,
+      "testFiles": 0,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "modules",
+      "name": "@tenure/modules",
+      "private": true,
+      "description": "The module catalog: what the platform can switch on for a system, declared as manifests.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 2,
+      "testFiles": 0,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/audit",
+      "name": "@tenure/audit",
+      "private": true,
+      "description": "The canonical audit record: required fields enforced at construction, sensitive values redacted by rule, and the release and policy versions a decision was made under.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 4,
+      "testFiles": 1,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/authorization",
+      "name": "@tenure/authorization",
+      "private": true,
+      "description": "Combined RBAC, ABAC and relationship-based authorization with hierarchical scope inheritance, delegation, separation of duties, and an explainable decision.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 6,
+      "testFiles": 1,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/configuration",
+      "name": "@tenure/configuration",
+      "private": true,
+      "description": "Layered, governed configuration resolution. Organization-specific behaviour without organization-specific code.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 8,
+      "testFiles": 1,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/metadata",
+      "name": "@tenure/metadata",
+      "private": true,
+      "description": "Typed field definitions and form definitions: a controlled type list, per-field validation, conditional visibility, and ordered error reporting.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 5,
+      "testFiles": 1,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/module-runtime",
+      "name": "@tenure/module-runtime",
+      "private": true,
+      "description": "Module manifests, dependency and incompatibility resolution, entitlement gating, and the navigation modules contribute.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 5,
+      "testFiles": 1,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/organization-model",
+      "name": "@tenure/organization-model",
+      "private": true,
+      "description": "Configurable organization hierarchies: declared node types, containment rules, cycle prevention, effective-dated reparenting, typed relationships.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 5,
+      "testFiles": 1,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/platform-config",
+      "name": "@tenure/platform-config",
+      "private": true,
+      "description": "What the platform makes configurable: the definitions, the registry, and resolution for one institution.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 12,
+      "testFiles": 4,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/releases",
+      "name": "@tenure/releases",
+      "private": true,
+      "description": "Immutable organization-system releases: validate a whole system definition, publish it as a checksummed artifact, diff two of them, roll back.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 5,
+      "testFiles": 1,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/workflow",
+      "name": "@tenure/workflow",
+      "private": true,
+      "description": "Versioned, immutable workflow definitions: states, gated transitions, available actions, and instances pinned to the version they started under.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 5,
+      "testFiles": 1,
+      "hasDockerfile": false
+    }
+  ],
+  "workflows": [
+    {
+      "file": ".github/workflows/ci.yml",
+      "name": "CI",
+      "triggers": [
+        "push",
+        "pull_request",
+        "workflow_call"
+      ],
+      "reachesAws": false,
+      "guardedTo": null
+    },
+    {
+      "file": ".github/workflows/custom-domain.yml",
+      "name": "Custom Domain Status",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure"
+    },
+    {
+      "file": ".github/workflows/db-recovery.yml",
+      "name": "Database recovery and census",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure"
+    },
+    {
+      "file": ".github/workflows/debug-logs.yml",
+      "name": "Debug Logs",
+      "triggers": [],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure"
+    },
+    {
+      "file": ".github/workflows/deploy-studio.yml",
+      "name": "Deploy Studio",
+      "triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure-Parent"
+    },
+    {
+      "file": ".github/workflows/deploy.yml",
+      "name": "Deploy",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure"
+    },
+    {
+      "file": ".github/workflows/force-redeploy.yml",
+      "name": "Force Redeploy",
+      "triggers": [],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure"
+    },
+    {
+      "file": ".github/workflows/ops-status.yml",
+      "name": "Ops Status",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure"
+    },
+    {
+      "file": ".github/workflows/platform-plan.yml",
+      "name": "Platform · Terraform plan (read-only)",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": true,
+      "guardedTo": null
+    },
+    {
+      "file": ".github/workflows/probe-debug.yml",
+      "name": "Probe Debug",
+      "triggers": [],
+      "reachesAws": false,
+      "guardedTo": "satvikOS/Tenure"
+    },
+    {
+      "file": ".github/workflows/replace-acm-cert.yml",
+      "name": "Replace ACM Certificate",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure"
+    },
+    {
+      "file": ".github/workflows/rotate-auth-secret.yml",
+      "name": "Rotate Auth Secret",
+      "triggers": [],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure"
+    },
+    {
+      "file": ".github/workflows/seed-reference-data.yml",
+      "name": "Seed reference data",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure"
+    },
+    {
+      "file": ".github/workflows/verify-reminders.yml",
+      "name": "Verify Reminders",
+      "triggers": [],
+      "reachesAws": true,
+      "guardedTo": "satvikOS/Tenure"
+    }
+  ],
+  "terraformStacks": [
+    {
+      "dir": "infrastructure/studio",
+      "files": 9,
+      "stateKey": "studio/terraform.tfstate"
+    },
+    {
+      "dir": "infrastructure/terraform",
+      "files": 20,
+      "stateKey": "pilot/terraform.tfstate"
+    }
+  ],
+  "prismaSchemas": [
+    {
+      "file": "apps/web/prisma/schema.prisma",
+      "models": 39,
+      "enums": 21,
+      "migrations": 1
+    }
+  ],
+  "testSuites": [
+    {
+      "name": "apps/web unit (jest)",
+      "files": 24
+    },
+    {
+      "name": "apps/web isolation (jest, needs Postgres)",
+      "files": 4
+    },
+    {
+      "name": "apps/web e2e (playwright)",
+      "files": 28
+    },
+    {
+      "name": "system-studio e2e (playwright)",
+      "files": 2
+    },
+    {
+      "name": "platform (node:test)",
+      "files": 1
+    },
+    {
+      "name": "packages (jest, via apps/web roots)",
+      "files": 12
+    }
+  ],
+  "docs": {
+    "architecture": 5,
+    "decisions": 7,
+    "migrations": 2,
+    "implementation": 1
+  }
+}

@@ -123,7 +123,15 @@ Okta lands, without leaving a second sign-in path behind.
 
 ---
 
-## PD-004 — `satvikOS/Tenure` keeps deploying production; Tenure-Parent stays disarmed
+## PD-009 — `satvikOS/Tenure` keeps deploying production; Tenure-Parent stays disarmed
+
+> **Renumbered from PD-004 on 2026-07-31.** It collided with an upstream PD-004
+> ("SSO will be AWS Cognito"), written in `satvikOS/Tenure` while this one was
+> written here — the same independent-numbering collision ADR-0005 hit with
+> ADR-0004, and for the same reason. The upstream one keeps the number because
+> `infrastructure/terraform/edge-access.tf` cites it in two places; this one had
+> no references outside the decisions file. The collision was found by the ADR
+> index generated for GE-000-007, which is what an index is for.
 
 **Date:** 2026-07-31 · **Status:** Accepted
 
