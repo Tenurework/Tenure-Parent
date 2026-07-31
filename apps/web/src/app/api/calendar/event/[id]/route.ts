@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { loadEditableEvent, updateEventDetails } from "@/lib/calendar-write"
+import { withTenantScope } from "@/lib/tenant-scope"
 import { toDateTimeLocalValue } from "@/lib/time"
 
 /**
@@ -25,23 +26,27 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 })
   }
-  const { id } = await params
-  const event = await loadEditableEvent(session.user.id, id)
-  if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  const userId = session.user.id
 
-  return NextResponse.json({
-    id: event.id,
-    title: event.title,
-    description: event.description,
-    venue: event.venue,
-    status: event.status,
-    organizationName: event.organizationName,
-    editable: event.editable,
-    timeZone: event.timeZone,
-    startISO: event.startAt.toISOString(),
-    endISO: event.endAt.toISOString(),
-    startLocal: toDateTimeLocalValue(event.startAt, event.timeZone),
-    endLocal: toDateTimeLocalValue(event.endAt, event.timeZone),
+  return withTenantScope(userId, async () => {
+    const { id } = await params
+    const event = await loadEditableEvent(userId, id)
+    if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+    return NextResponse.json({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      venue: event.venue,
+      status: event.status,
+      organizationName: event.organizationName,
+      editable: event.editable,
+      timeZone: event.timeZone,
+      startISO: event.startAt.toISOString(),
+      endISO: event.endAt.toISOString(),
+      startLocal: toDateTimeLocalValue(event.startAt, event.timeZone),
+      endLocal: toDateTimeLocalValue(event.endAt, event.timeZone),
+    })
   })
 }
 
@@ -50,20 +55,24 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 })
   }
-  const { id } = await params
+  const userId = session.user.id
 
-  const parsed = Patch.safeParse(await request.json().catch(() => null))
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Malformed request" }, { status: 400 })
-  }
+  return withTenantScope(userId, async () => {
+    const { id } = await params
 
-  const result = await updateEventDetails(session.user.id, id, {
-    title: parsed.data.title,
-    venue: parsed.data.venue ?? null,
-    description: parsed.data.description ?? null,
+    const parsed = Patch.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Malformed request" }, { status: 400 })
+    }
+
+    const result = await updateEventDetails(userId, id, {
+      title: parsed.data.title,
+      venue: parsed.data.venue ?? null,
+      description: parsed.data.description ?? null,
+    })
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 403 })
+    }
+    return NextResponse.json({ ok: true })
   })
-  if ("error" in result) {
-    return NextResponse.json({ error: result.error }, { status: 403 })
-  }
-  return NextResponse.json({ ok: true })
 }

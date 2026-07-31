@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getUserContext } from "@/lib/rbac"
+import { withTenantScope } from "@/lib/tenant-scope"
 import { storageConfigured, uploadDocument } from "@/lib/s3"
 
 async function requireUserId() {
@@ -103,62 +104,66 @@ function eligibleBackupWhere(scope: { isOse: boolean; presidentOrgIds: string[];
 
 export async function setDelegation(formData: FormData) {
   const userId = await requireUserId()
-  const toUserId = String(formData.get("toUserId") ?? "")
-  if (!toUserId || toUserId === userId) throw new Error("Pick a different person as your backup")
-  const note = String(formData.get("note") ?? "").trim() || null
+  await withTenantScope(userId, async () => {
+    const toUserId = String(formData.get("toUserId") ?? "")
+    if (!toUserId || toUserId === userId) throw new Error("Pick a different person as your backup")
+    const note = String(formData.get("note") ?? "").trim() || null
 
-  const scope = await delegationScope(userId)
-  if (!scope.canDelegate) throw new Error("Only a president or OSE member can name a backup approver")
-  if (!scope.institutionId) throw new Error("Could not resolve your institution")
-  const institutionId = scope.institutionId // narrowed to string before any await
+    const scope = await delegationScope(userId)
+    if (!scope.canDelegate) throw new Error("Only a president or OSE member can name a backup approver")
+    if (!scope.institutionId) throw new Error("Could not resolve your institution")
+    const institutionId = scope.institutionId // narrowed to string before any await
 
-  const eligible = await db.user.findFirst({
-    where: { id: toUserId, OR: eligibleBackupWhere(scope) },
-    select: { id: true },
+    const eligible = await db.user.findFirst({
+      where: { id: toUserId, OR: eligibleBackupWhere(scope) },
+      select: { id: true },
+    })
+    if (!eligible) throw new Error("That person isn't eligible to be your backup")
+
+    await db.$transaction([
+      // One active delegation at a time — retire any prior grant first.
+      db.approvalDelegation.updateMany({
+        where: { fromUserId: userId, revokedAt: null, institutionId },
+        data: { revokedAt: new Date() },
+      }),
+      db.approvalDelegation.create({ data: { institutionId, fromUserId: userId, toUserId, note } }),
+      db.auditEvent.create({
+        data: {
+          institutionId,
+          actorId: userId,
+          action: "Delegation.Set",
+          resourceType: "ApprovalDelegation",
+          outcome: "ALLOW",
+          metadata: { toUserId },
+        },
+      }),
+    ])
+    revalidatePath("/settings")
   })
-  if (!eligible) throw new Error("That person isn't eligible to be your backup")
-
-  await db.$transaction([
-    // One active delegation at a time — retire any prior grant first.
-    db.approvalDelegation.updateMany({
-      where: { fromUserId: userId, revokedAt: null, institutionId },
-      data: { revokedAt: new Date() },
-    }),
-    db.approvalDelegation.create({ data: { institutionId, fromUserId: userId, toUserId, note } }),
-    db.auditEvent.create({
-      data: {
-        institutionId,
-        actorId: userId,
-        action: "Delegation.Set",
-        resourceType: "ApprovalDelegation",
-        outcome: "ALLOW",
-        metadata: { toUserId },
-      },
-    }),
-  ])
-  revalidatePath("/settings")
 }
 
 export async function revokeDelegation(formData: FormData) {
   const userId = await requireUserId()
-  const id = String(formData.get("id") ?? "")
-  const del = await db.approvalDelegation.findFirst({
-    where: { id, fromUserId: userId, revokedAt: null },
-    select: { id: true, institutionId: true },
+  await withTenantScope(userId, async () => {
+    const id = String(formData.get("id") ?? "")
+    const del = await db.approvalDelegation.findFirst({
+      where: { id, fromUserId: userId, revokedAt: null },
+      select: { id: true, institutionId: true },
+    })
+    if (!del) return
+    await db.$transaction([
+      db.approvalDelegation.update({ where: { id: del.id }, data: { revokedAt: new Date() } }),
+      db.auditEvent.create({
+        data: {
+          institutionId: del.institutionId,
+          actorId: userId,
+          action: "Delegation.Revoked",
+          resourceType: "ApprovalDelegation",
+          resourceId: del.id,
+          outcome: "ALLOW",
+        },
+      }),
+    ])
+    revalidatePath("/settings")
   })
-  if (!del) return
-  await db.$transaction([
-    db.approvalDelegation.update({ where: { id: del.id }, data: { revokedAt: new Date() } }),
-    db.auditEvent.create({
-      data: {
-        institutionId: del.institutionId,
-        actorId: userId,
-        action: "Delegation.Revoked",
-        resourceType: "ApprovalDelegation",
-        resourceId: del.id,
-        outcome: "ALLOW",
-      },
-    }),
-  ])
-  revalidatePath("/settings")
 }

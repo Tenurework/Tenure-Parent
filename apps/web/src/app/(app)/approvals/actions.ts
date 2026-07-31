@@ -6,6 +6,7 @@ import type { ApprovalType, Prisma } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getUserContext } from "@/lib/rbac"
+import { withTenantScope } from "@/lib/tenant-scope"
 import { effectiveApprovalContext } from "@/lib/delegation"
 import { ledgerSignedCents } from "@/lib/finance"
 import {
@@ -72,247 +73,111 @@ async function isActivePresident(userId: string, organizationId: string) {
 
 export async function createApproval(formData: FormData) {
   const userId = await requireUser()
+  await withTenantScope(userId, async () => {
+    const organizationId = String(formData.get("organizationId") ?? "")
+    const type = String(formData.get("type") ?? "") as ApprovalType
+    const title = String(formData.get("title") ?? "").trim()
+    const description = String(formData.get("description") ?? "").trim()
+    const amount = String(formData.get("amount") ?? "").trim()
+    const asDraft = formData.get("intent") === "draft"
 
-  const organizationId = String(formData.get("organizationId") ?? "")
-  const type = String(formData.get("type") ?? "") as ApprovalType
-  const title = String(formData.get("title") ?? "").trim()
-  const description = String(formData.get("description") ?? "").trim()
-  const amount = String(formData.get("amount") ?? "").trim()
-  const asDraft = formData.get("intent") === "draft"
+    if (!title) throw new Error("Title is required")
+    if (!APPROVAL_TYPES.includes(type)) throw new Error("Invalid request type")
 
-  if (!title) throw new Error("Title is required")
-  if (!APPROVAL_TYPES.includes(type)) throw new Error("Invalid request type")
-
-  // Must hold an ACTIVE seat in the org to submit requests from it
-  const membership = await db.roleAssignment.findFirst({
-    where: { userId, status: "ACTIVE", role: { organizationId } },
-    include: { role: { include: { organization: true } } },
-  })
-  if (!membership) throw new Error("You need an active role in this club")
-
-  const org = membership.role.organization
-  const requesterIsPresident =
-    membership.role.scope === "PRESIDENT" ||
-    (await isActivePresident(userId, organizationId))
-
-  const target = asDraft
-    ? null
-    : nextStatus("submit", "DRAFT", { requesterIsPresident })
-
-  const approval = await db.$transaction(async (tx) => {
-    const a = await tx.approvalRequest.create({
-      data: {
-        institutionId: org.institutionId,
-        organizationId,
-        type,
-        title,
-        description: description || null,
-        submittedById: userId,
-        status: target ?? "DRAFT",
-        metadata: amount ? { amount } : {},
-      },
+    // Must hold an ACTIVE seat in the org to submit requests from it
+    const membership = await db.roleAssignment.findFirst({
+      where: { userId, status: "ACTIVE", role: { organizationId } },
+      include: { role: { include: { organization: true } } },
     })
-    if (target) {
-      await tx.approvalStep.create({
+    if (!membership) throw new Error("You need an active role in this club")
+
+    const org = membership.role.organization
+    const requesterIsPresident =
+      membership.role.scope === "PRESIDENT" ||
+      (await isActivePresident(userId, organizationId))
+
+    const target = asDraft
+      ? null
+      : nextStatus("submit", "DRAFT", { requesterIsPresident })
+
+    const approval = await db.$transaction(async (tx) => {
+      const a = await tx.approvalRequest.create({
         data: {
-          approvalId: a.id,
-          fromStatus: "DRAFT",
-          toStatus: target,
-          actorId: userId,
-          actorRoleContext: membership.role.name,
-          policySnapshot: { requesterIsPresident },
+          institutionId: org.institutionId,
+          organizationId,
+          type,
+          title,
+          description: description || null,
+          submittedById: userId,
+          status: target ?? "DRAFT",
+          metadata: amount ? { amount } : {},
         },
       })
-    }
-    await tx.auditEvent.create({
-      data: {
-        institutionId: org.institutionId,
-        organizationId,
-        actorId: userId,
-        actorRole: membership.role.name,
-        action: target ? "Approval.Submitted" : "Approval.DraftCreated",
-        resourceType: "ApprovalRequest",
-        resourceId: a.id,
-        outcome: "ALLOW",
-      },
+      if (target) {
+        await tx.approvalStep.create({
+          data: {
+            approvalId: a.id,
+            fromStatus: "DRAFT",
+            toStatus: target,
+            actorId: userId,
+            actorRoleContext: membership.role.name,
+            policySnapshot: { requesterIsPresident },
+          },
+        })
+      }
+      await tx.auditEvent.create({
+        data: {
+          institutionId: org.institutionId,
+          organizationId,
+          actorId: userId,
+          actorRole: membership.role.name,
+          action: target ? "Approval.Submitted" : "Approval.DraftCreated",
+          resourceType: "ApprovalRequest",
+          resourceId: a.id,
+          outcome: "ALLOW",
+        },
+      })
+      return a
     })
-    return a
+
+    if (target === "PENDING_PRESIDENT" || target === "PENDING_OSE") {
+      await notifyGate(approval, target, userId)
+    }
+
+    revalidatePath("/approvals")
+    redirect(`/approvals/${approval.id}`)
   })
-
-  if (target === "PENDING_PRESIDENT" || target === "PENDING_OSE") {
-    await notifyGate(approval, target, userId)
-  }
-
-  revalidatePath("/approvals")
-  redirect(`/approvals/${approval.id}`)
 }
 
 export async function actOnApproval(approvalId: string, formData: FormData) {
   const userId = await requireUser()
-  const action = String(formData.get("action") ?? "") as ApprovalActionName
-  const reason = String(formData.get("reason") ?? "").trim() || null
+  await withTenantScope(userId, async () => {
+    const action = String(formData.get("action") ?? "") as ApprovalActionName
+    const reason = String(formData.get("reason") ?? "").trim() || null
 
-  const approval = await db.approvalRequest.findUnique({ where: { id: approvalId } })
-  if (!approval) throw new Error("Request not found")
+    const approval = await db.approvalRequest.findUnique({ where: { id: approvalId } })
+    if (!approval) throw new Error("Request not found")
 
-  const ctx = await getUserContext(userId)
-  let allowed = availableActions(ctx, approval).includes(action)
-  let onBehalfOf: { id: string; name: string } | null = null
+    const ctx = await getUserContext(userId)
+    let allowed = availableActions(ctx, approval).includes(action)
+    let onBehalfOf: { id: string; name: string } | null = null
 
-  // Delegation: if the actor can't act directly, they may hold an active backup
-  // grant from someone who can — borrow that authority and record on whose behalf.
-  if (!allowed) {
-    const { ctx: effCtx, delegators } = await effectiveApprovalContext(
-      userId,
-      ctx,
-      approval.institutionId
-    )
-    if (delegators.length > 0 && availableActions(effCtx, approval).includes(action)) {
-      allowed = true
-      onBehalfOf = delegators[0]
+    // Delegation: if the actor can't act directly, they may hold an active backup
+    // grant from someone who can — borrow that authority and record on whose behalf.
+    if (!allowed) {
+      const { ctx: effCtx, delegators } = await effectiveApprovalContext(
+        userId,
+        ctx,
+        approval.institutionId
+      )
+      if (delegators.length > 0 && availableActions(effCtx, approval).includes(action)) {
+        allowed = true
+        onBehalfOf = delegators[0]
+      }
     }
-  }
 
-  if (!allowed) {
-    await db.auditEvent.create({
-      data: {
-        institutionId: approval.institutionId,
-        organizationId: approval.organizationId,
-        actorId: userId,
-        action: `Approval.${action}`,
-        resourceType: "ApprovalRequest",
-        resourceId: approval.id,
-        outcome: "DENY",
-        reason: `Not permitted from ${approval.status}`,
-      },
-    })
-    throw new Error("You cannot take this action on this request")
-  }
-
-  const requesterIsPresident = await isActivePresident(
-    approval.submittedById,
-    approval.organizationId
-  )
-  const target = nextStatus(action, approval.status, { requesterIsPresident })
-  if (!target) throw new Error(`Illegal transition: ${action} from ${approval.status}`)
-
-  // Actor's role label for the immutable step record
-  const actorSeat = await db.roleAssignment.findFirst({
-    where: {
-      userId,
-      status: "ACTIVE",
-      role: { organizationId: approval.organizationId },
-    },
-    include: { role: true },
-  })
-  const oseRole = ctx.institutionRoles.find(
-    (m) => m.institutionId === approval.institutionId
-  )?.role
-  const baseRole = actorSeat?.role.name ?? oseRole ?? "Requester"
-  const roleContext = onBehalfOf ? `${baseRole}, on behalf of ${onBehalfOf.name}` : baseRole
-
-  // Approval-linked publishing: an EVENT approval drives its event's lifecycle
-  const linkedEvent = await db.event.findUnique({ where: { approvalId: approval.id } })
-  const eventUpdates =
-    linkedEvent == null
-      ? []
-      : target === "APPROVED"
-        ? [db.event.update({ where: { id: linkedEvent.id }, data: { status: "PUBLISHED" } })]
-        : target === "REJECTED" || target === "CANCELLED"
-          ? [db.event.update({ where: { id: linkedEvent.id }, data: { status: "CANCELLED" } })]
-          : []
-
-  // Reimbursement auto-post: on FINAL approval, post the club spend to the ledger
-  // — linking this approval + the receipt document — and recompute the budget
-  // line's actual (three-way match: request ↔ approval ↔ receipt). A member
-  // reimbursement is real club outflow, so it posts as kind SPEND (+), NOT the
-  // REIMBURSEMENT kind (which is money the club RECOVERS). Idempotent: never
-  // post twice for one request. Authority is the approval gate, not finance
-  // manager rights — so the OSE approver can post without canManageFinance.
-  const reimb = (
-    approval.metadata as {
-      reimbursement?: { budgetLineId?: string; amountCents?: number; documentId?: string | null }
-    } | null
-  )?.reimbursement
-  let reimbursementOps: Prisma.PrismaPromise<unknown>[] = []
-  if (
-    target === "APPROVED" &&
-    reimb?.budgetLineId &&
-    typeof reimb.amountCents === "number" &&
-    reimb.amountCents > 0
-  ) {
-    const [already, line] = await Promise.all([
-      db.ledgerEntry.findFirst({ where: { approvalId: approval.id }, select: { id: true } }),
-      db.budgetLine.findFirst({
-        where: { id: reimb.budgetLineId, organizationId: approval.organizationId },
-        select: { id: true, academicYear: true },
-      }),
-    ])
-    if (!already && line) {
-      const signed = ledgerSignedCents("SPEND", reimb.amountCents)
-      reimbursementOps = [
-        db.ledgerEntry.create({
-          data: {
-            organizationId: approval.organizationId,
-            budgetLineId: line.id,
-            academicYear: line.academicYear,
-            kind: "SPEND",
-            amountCents: signed,
-            description: approval.title.replace(/^Reimbursement:\s*/i, "").slice(0, 140) || "Reimbursement",
-            approvalId: approval.id,
-            documentId: reimb.documentId ?? null,
-            postedById: userId,
-          },
-        }),
-        db.budgetLine.update({
-          where: { id: line.id },
-          // Relative, not a precomputed total. Reading the ledger sum first and
-          // writing back sum+signed loses one of two concurrent spends: both
-          // callers read the same sum before either commits, so the second write
-          // overwrites the first with a value that never included it. The line
-          // then sits under its own ledger until some later operation recomputes
-          // it, and the club is charged twice, disconnected from the approval
-          // that caused it. `increment` emits SET actualCents = actualCents + $1,
-          // which PostgreSQL re-evaluates against the committed row.
-          data: { actualCents: { increment: signed } },
-        }),
-      ]
-    }
-  }
-
-  // The status this decision was based on was read at the top of this function,
-  // six round-trips ago and outside the transaction below. Both approval gates
-  // are held by more than one person — PENDING_OSE is open to every institution
-  // membership, and delegation widens it further — so two approvers can observe
-  // the same PENDING request and both write. Naming the observed status in the
-  // `where` makes that a compare-and-swap: the second writer matches no row,
-  // Prisma raises P2025, and the whole batch rolls back instead of appending a
-  // second ApprovalStep and AuditEvent to a trail the schema declares immutable,
-  // or posting a SPEND against a request the other approver just rejected.
-  try {
-    await db.$transaction([
-      ...eventUpdates,
-      ...reimbursementOps,
-      db.approvalRequest.update({
-        where: { id: approval.id, status: approval.status },
-        data: { status: target },
-      }),
-      db.approvalStep.create({
-        data: {
-          approvalId: approval.id,
-          fromStatus: approval.status,
-          toStatus: target,
-          actorId: userId,
-          actorRoleContext: roleContext,
-          reason,
-          policySnapshot: {
-            action,
-            requesterIsPresident,
-            ...(onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {}),
-          },
-        },
-      }),
-      db.auditEvent.create({
+    if (!allowed) {
+      await db.auditEvent.create({
         data: {
           institutionId: approval.institutionId,
           organizationId: approval.organizationId,
@@ -320,56 +185,195 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
           action: `Approval.${action}`,
           resourceType: "ApprovalRequest",
           resourceId: approval.id,
-          outcome: "ALLOW",
-          reason,
-          metadata: onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {},
+          outcome: "DENY",
+          reason: `Not permitted from ${approval.status}`,
         },
-      }),
-    ])
-  } catch (error) {
-    if (isConcurrentDecision(error)) {
-      throw new Error(
-        "Someone else decided this request first. Reload to see where it stands."
-      )
+      })
+      throw new Error("You cannot take this action on this request")
     }
-    throw error
-  }
 
-  // ── Notifications (BP: notification system across all RBAC flows) ────────
-  const label =
-    action === "approve" && target === "APPROVED"
-      ? "is approved"
-      : action === "approve"
-        ? "passed the president's review"
-        : action === "reject"
-          ? "was declined"
-          : action === "request_changes"
-            ? "needs a few changes"
-            : action === "cancel"
-              ? "was cancelled"
-              : "moved forward"
-  await notifyUsers([approval.submittedById], {
-    title: `Your request “${approval.title}” ${label}`,
-    body: reason ?? undefined,
-    href: `/approvals/${approval.id}`,
-    excludeUserId: userId,
-  })
-  if (target === "PENDING_OSE" || target === "PENDING_PRESIDENT") {
-    await notifyGate(approval, target, userId)
-  }
-  if (linkedEvent && target === "APPROVED") {
-    await notifyUsers(await orgCurrentMemberIds(approval.organizationId), {
-      title: `${linkedEvent.title} is approved and now on the calendar`,
-      href: `/calendar/${linkedEvent.id}`,
+    const requesterIsPresident = await isActivePresident(
+      approval.submittedById,
+      approval.organizationId
+    )
+    const target = nextStatus(action, approval.status, { requesterIsPresident })
+    if (!target) throw new Error(`Illegal transition: ${action} from ${approval.status}`)
+
+    // Actor's role label for the immutable step record
+    const actorSeat = await db.roleAssignment.findFirst({
+      where: {
+        userId,
+        status: "ACTIVE",
+        role: { organizationId: approval.organizationId },
+      },
+      include: { role: true },
+    })
+    const oseRole = ctx.institutionRoles.find(
+      (m) => m.institutionId === approval.institutionId
+    )?.role
+    const baseRole = actorSeat?.role.name ?? oseRole ?? "Requester"
+    const roleContext = onBehalfOf ? `${baseRole}, on behalf of ${onBehalfOf.name}` : baseRole
+
+    // Approval-linked publishing: an EVENT approval drives its event's lifecycle
+    const linkedEvent = await db.event.findUnique({ where: { approvalId: approval.id } })
+    const eventUpdates =
+      linkedEvent == null
+        ? []
+        : target === "APPROVED"
+          ? [db.event.update({ where: { id: linkedEvent.id }, data: { status: "PUBLISHED" } })]
+          : target === "REJECTED" || target === "CANCELLED"
+            ? [db.event.update({ where: { id: linkedEvent.id }, data: { status: "CANCELLED" } })]
+            : []
+
+    // Reimbursement auto-post: on FINAL approval, post the club spend to the ledger
+    // — linking this approval + the receipt document — and recompute the budget
+    // line's actual (three-way match: request ↔ approval ↔ receipt). A member
+    // reimbursement is real club outflow, so it posts as kind SPEND (+), NOT the
+    // REIMBURSEMENT kind (which is money the club RECOVERS). Idempotent: never
+    // post twice for one request. Authority is the approval gate, not finance
+    // manager rights — so the OSE approver can post without canManageFinance.
+    const reimb = (
+      approval.metadata as {
+        reimbursement?: { budgetLineId?: string; amountCents?: number; documentId?: string | null }
+      } | null
+    )?.reimbursement
+    let reimbursementOps: Prisma.PrismaPromise<unknown>[] = []
+    if (
+      target === "APPROVED" &&
+      reimb?.budgetLineId &&
+      typeof reimb.amountCents === "number" &&
+      reimb.amountCents > 0
+    ) {
+      const [already, line] = await Promise.all([
+        db.ledgerEntry.findFirst({ where: { approvalId: approval.id }, select: { id: true } }),
+        db.budgetLine.findFirst({
+          where: { id: reimb.budgetLineId, organizationId: approval.organizationId },
+          select: { id: true, academicYear: true },
+        }),
+      ])
+      if (!already && line) {
+        const signed = ledgerSignedCents("SPEND", reimb.amountCents)
+        reimbursementOps = [
+          db.ledgerEntry.create({
+            data: {
+              organizationId: approval.organizationId,
+              budgetLineId: line.id,
+              academicYear: line.academicYear,
+              kind: "SPEND",
+              amountCents: signed,
+              description: approval.title.replace(/^Reimbursement:\s*/i, "").slice(0, 140) || "Reimbursement",
+              approvalId: approval.id,
+              documentId: reimb.documentId ?? null,
+              postedById: userId,
+            },
+          }),
+          db.budgetLine.update({
+            where: { id: line.id },
+            // Relative, not a precomputed total. Reading the ledger sum first and
+            // writing back sum+signed loses one of two concurrent spends: both
+            // callers read the same sum before either commits, so the second write
+            // overwrites the first with a value that never included it. The line
+            // then sits under its own ledger until some later operation recomputes
+            // it, and the club is charged twice, disconnected from the approval
+            // that caused it. `increment` emits SET actualCents = actualCents + $1,
+            // which PostgreSQL re-evaluates against the committed row.
+            data: { actualCents: { increment: signed } },
+          }),
+        ]
+      }
+    }
+
+    // The status this decision was based on was read at the top of this function,
+    // six round-trips ago and outside the transaction below. Both approval gates
+    // are held by more than one person — PENDING_OSE is open to every institution
+    // membership, and delegation widens it further — so two approvers can observe
+    // the same PENDING request and both write. Naming the observed status in the
+    // `where` makes that a compare-and-swap: the second writer matches no row,
+    // Prisma raises P2025, and the whole batch rolls back instead of appending a
+    // second ApprovalStep and AuditEvent to a trail the schema declares immutable,
+    // or posting a SPEND against a request the other approver just rejected.
+    try {
+      await db.$transaction([
+        ...eventUpdates,
+        ...reimbursementOps,
+        db.approvalRequest.update({
+          where: { id: approval.id, status: approval.status },
+          data: { status: target },
+        }),
+        db.approvalStep.create({
+          data: {
+            approvalId: approval.id,
+            fromStatus: approval.status,
+            toStatus: target,
+            actorId: userId,
+            actorRoleContext: roleContext,
+            reason,
+            policySnapshot: {
+              action,
+              requesterIsPresident,
+              ...(onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {}),
+            },
+          },
+        }),
+        db.auditEvent.create({
+          data: {
+            institutionId: approval.institutionId,
+            organizationId: approval.organizationId,
+            actorId: userId,
+            action: `Approval.${action}`,
+            resourceType: "ApprovalRequest",
+            resourceId: approval.id,
+            outcome: "ALLOW",
+            reason,
+            metadata: onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {},
+          },
+        }),
+      ])
+    } catch (error) {
+      if (isConcurrentDecision(error)) {
+        throw new Error(
+          "Someone else decided this request first. Reload to see where it stands."
+        )
+      }
+      throw error
+    }
+
+    // ── Notifications (BP: notification system across all RBAC flows) ────────
+    const label =
+      action === "approve" && target === "APPROVED"
+        ? "is approved"
+        : action === "approve"
+          ? "passed the president's review"
+          : action === "reject"
+            ? "was declined"
+            : action === "request_changes"
+              ? "needs a few changes"
+              : action === "cancel"
+                ? "was cancelled"
+                : "moved forward"
+    await notifyUsers([approval.submittedById], {
+      title: `Your request “${approval.title}” ${label}`,
+      body: reason ?? undefined,
+      href: `/approvals/${approval.id}`,
       excludeUserId: userId,
     })
-  }
+    if (target === "PENDING_OSE" || target === "PENDING_PRESIDENT") {
+      await notifyGate(approval, target, userId)
+    }
+    if (linkedEvent && target === "APPROVED") {
+      await notifyUsers(await orgCurrentMemberIds(approval.organizationId), {
+        title: `${linkedEvent.title} is approved and now on the calendar`,
+        href: `/calendar/${linkedEvent.id}`,
+        excludeUserId: userId,
+      })
+    }
 
-  revalidatePath("/approvals")
-  revalidatePath(`/approvals/${approval.id}`)
-  revalidatePath("/dashboard")
-  if (linkedEvent) {
-    revalidatePath("/calendar")
-    revalidatePath(`/calendar/${linkedEvent.id}`)
-  }
+    revalidatePath("/approvals")
+    revalidatePath(`/approvals/${approval.id}`)
+    revalidatePath("/dashboard")
+    if (linkedEvent) {
+      revalidatePath("/calendar")
+      revalidatePath(`/calendar/${linkedEvent.id}`)
+    }
+  })
 }

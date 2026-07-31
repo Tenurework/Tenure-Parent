@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { canViewOrg, getUserContext } from "@/lib/rbac"
+import { withTenantScope } from "@/lib/tenant-scope"
 import { documentViewUrl } from "@/lib/s3"
 
 /**
@@ -16,19 +17,23 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ orgId: string }> }
 ) {
-  const { orgId } = await params
   const session = await auth()
   if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 })
+  const userId = session.user.id
 
-  const org = await db.organization.findUnique({
-    where: { id: orgId },
-    select: { id: true, institutionId: true, imageKey: true },
+  return withTenantScope(userId, async () => {
+    const { orgId } = await params
+
+    const org = await db.organization.findUnique({
+      where: { id: orgId },
+      select: { id: true, institutionId: true, imageKey: true },
+    })
+    if (!org?.imageKey) return new NextResponse("Not found", { status: 404 })
+
+    const ctx = await getUserContext(userId)
+    if (!canViewOrg(ctx, org)) return new NextResponse("Forbidden", { status: 403 })
+
+    const url = await documentViewUrl(org.imageKey)
+    return NextResponse.redirect(url)
   })
-  if (!org?.imageKey) return new NextResponse("Not found", { status: 404 })
-
-  const ctx = await getUserContext(session.user.id)
-  if (!canViewOrg(ctx, org)) return new NextResponse("Forbidden", { status: 403 })
-
-  const url = await documentViewUrl(org.imageKey)
-  return NextResponse.redirect(url)
 }

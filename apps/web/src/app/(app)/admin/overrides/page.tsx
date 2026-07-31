@@ -5,6 +5,7 @@ import type { EventStatus } from "@prisma/client"
 import { CheckCircle, X, Archive, ArchiveRestore, CalendarDays, BookOpen, FileText } from "@/components/ui/icons"
 import { db } from "@/lib/db"
 import { requireAdminContext } from "@/lib/admin/guard"
+import { withTenantScope } from "@/lib/tenant-scope"
 import { institutionTimeZone } from "@/lib/institution-time"
 import { formatInZone } from "@/lib/time"
 import { hasCapability } from "@/lib/admin/capabilities"
@@ -22,119 +23,121 @@ export const metadata: Metadata = { title: "Admin · Overrides" }
 export const dynamic = "force-dynamic"
 
 export default async function AdminOverridesPage() {
-  const { ctx, institutionId } = await requireAdminContext()
-  // Pinning to UTC here dated evening events a day ahead of the calendar an
-  // admin cross-checks them against. src/lib/time.ts is the one authority.
-  const tz = await institutionTimeZone(institutionId)
-  const canEvent = hasCapability(ctx, "event.override", institutionId)
-  const canContent = hasCapability(ctx, "content.override", institutionId)
-  if (!canEvent && !canContent) notFound()
+  const { userId, ctx, institutionId } = await requireAdminContext()
+  return withTenantScope(userId, async () => {
+    // Pinning to UTC here dated evening events a day ahead of the calendar an
+    // admin cross-checks them against. src/lib/time.ts is the one authority.
+    const tz = await institutionTimeZone(institutionId)
+    const canEvent = hasCapability(ctx, "event.override", institutionId)
+    const canContent = hasCapability(ctx, "content.override", institutionId)
+    if (!canEvent && !canContent) notFound()
 
-  const [events, memory, documents] = await Promise.all([
-    canEvent
-      ? db.event.findMany({
-          where: { institutionId, status: { not: "CANCELLED" } },
-          orderBy: { startAt: "desc" },
-          take: 20,
-          include: { organization: { select: { name: true } } },
-        })
-      : [],
-    canContent
-      ? db.memoryRecord.findMany({
-          where: { institutionId },
-          orderBy: { updatedAt: "desc" },
-          take: 15,
-          include: { organization: { select: { name: true } } },
-        })
-      : [],
-    canContent
-      ? db.document.findMany({
-          where: { institutionId },
-          orderBy: { updatedAt: "desc" },
-          take: 15,
-          include: { organization: { select: { name: true } } },
-        })
-      : [],
-  ])
+    const [events, memory, documents] = await Promise.all([
+      canEvent
+        ? db.event.findMany({
+            where: { institutionId, status: { not: "CANCELLED" } },
+            orderBy: { startAt: "desc" },
+            take: 20,
+            include: { organization: { select: { name: true } } },
+          })
+        : [],
+      canContent
+        ? db.memoryRecord.findMany({
+            where: { institutionId },
+            orderBy: { updatedAt: "desc" },
+            take: 15,
+            include: { organization: { select: { name: true } } },
+          })
+        : [],
+      canContent
+        ? db.document.findMany({
+            where: { institutionId },
+            orderBy: { updatedAt: "desc" },
+            take: 15,
+            include: { organization: { select: { name: true } } },
+          })
+        : [],
+    ])
 
-  return (
-    <div className="w-full space-y-6">
-      <p className="text-sm text-text-2">
-        Institution-wide overrides. Every action here bypasses the normal workflow and is
-        recorded in the audit log.
-      </p>
+    return (
+      <div className="w-full space-y-6">
+        <p className="text-sm text-text-2">
+          Institution-wide overrides. Every action here bypasses the normal workflow and is
+          recorded in the audit log.
+        </p>
 
-      {canEvent && (
-        <Card padding="none">
-          <div className="flex items-center gap-2 border-b border-border p-5">
-            <CalendarDays size={18} className="text-text-3" />
-            <CardHeader title="Events" subtitle="Publish or cancel any club event." />
+        {canEvent && (
+          <Card padding="none">
+            <div className="flex items-center gap-2 border-b border-border p-5">
+              <CalendarDays size={18} className="text-text-3" />
+              <CardHeader title="Events" subtitle="Publish or cancel any club event." />
+            </div>
+            {events.length === 0 ? (
+              <EmptyState icon={CalendarDays} title="No events" description="Club events appear here." />
+            ) : (
+              <ul className="divide-y divide-border">
+                {events.map((e) => (
+                  <li key={e.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                    <div className="min-w-0 flex-1">
+                      <Link href={`/calendar/${e.id}`} className="truncate font-medium text-text-1 no-underline hover:text-[--accent]">
+                        {e.title}
+                      </Link>
+                      <p className="text-[13px] text-text-3">
+                        {e.organization.name} ·{" "}
+                        {formatInZone(e.startAt, tz, { month: "short", day: "numeric" })}
+                      </p>
+                    </div>
+                    <EventBadge status={e.status as EventStatus} />
+                    {e.status !== "PUBLISHED" && (
+                      <form action={adminSetEventStatus}>
+                        <input type="hidden" name="eventId" value={e.id} />
+                        <input type="hidden" name="status" value="PUBLISHED" />
+                        <button className="inline-flex items-center gap-1.5 rounded-md bg-[--primary] px-3 py-1.5 text-[13px] font-medium text-[--primary-text] hover:bg-[--primary-hover]">
+                          <CheckCircle size={14} /> Publish
+                        </button>
+                      </form>
+                    )}
+                    <ConfirmSubmit
+                      action={adminSetEventStatus}
+                      hiddenFields={{ eventId: e.id, status: "CANCELLED" }}
+                      title={`Cancel “${e.title}”?`}
+                      description={`Cancelling pulls ${e.organization.name}'s event off calendars across the institution. Because cancelled events drop off this override list, you won't be able to re-publish it from here.`}
+                      confirmLabel="Cancel event"
+                      variant="danger"
+                      triggerClassName="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-3 py-1.5 text-[13px] font-medium text-[--error] hover:bg-[--error-light]"
+                    >
+                      <X size={14} /> Cancel
+                    </ConfirmSubmit>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
+
+        {canContent && (
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <ContentCard
+              title="Memory records"
+              noun="memory record"
+              icon={BookOpen}
+              items={memory.map((m) => ({ id: m.id, title: m.title, org: m.organization.name, archived: m.isArchived }))}
+              action={adminSetMemoryArchived}
+              idField="memoryId"
+            />
+            <ContentCard
+              title="Documents"
+              noun="document"
+              icon={FileText}
+              items={documents.map((d) => ({ id: d.id, title: d.title, org: d.organization.name, archived: d.isArchived }))}
+              action={adminSetDocumentArchived}
+              idField="documentId"
+            />
           </div>
-          {events.length === 0 ? (
-            <EmptyState icon={CalendarDays} title="No events" description="Club events appear here." />
-          ) : (
-            <ul className="divide-y divide-border">
-              {events.map((e) => (
-                <li key={e.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-                  <div className="min-w-0 flex-1">
-                    <Link href={`/calendar/${e.id}`} className="truncate font-medium text-text-1 no-underline hover:text-[--accent]">
-                      {e.title}
-                    </Link>
-                    <p className="text-[13px] text-text-3">
-                      {e.organization.name} ·{" "}
-                      {formatInZone(e.startAt, tz, { month: "short", day: "numeric" })}
-                    </p>
-                  </div>
-                  <EventBadge status={e.status as EventStatus} />
-                  {e.status !== "PUBLISHED" && (
-                    <form action={adminSetEventStatus}>
-                      <input type="hidden" name="eventId" value={e.id} />
-                      <input type="hidden" name="status" value="PUBLISHED" />
-                      <button className="inline-flex items-center gap-1.5 rounded-md bg-[--primary] px-3 py-1.5 text-[13px] font-medium text-[--primary-text] hover:bg-[--primary-hover]">
-                        <CheckCircle size={14} /> Publish
-                      </button>
-                    </form>
-                  )}
-                  <ConfirmSubmit
-                    action={adminSetEventStatus}
-                    hiddenFields={{ eventId: e.id, status: "CANCELLED" }}
-                    title={`Cancel “${e.title}”?`}
-                    description={`Cancelling pulls ${e.organization.name}'s event off calendars across the institution. Because cancelled events drop off this override list, you won't be able to re-publish it from here.`}
-                    confirmLabel="Cancel event"
-                    variant="danger"
-                    triggerClassName="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-3 py-1.5 text-[13px] font-medium text-[--error] hover:bg-[--error-light]"
-                  >
-                    <X size={14} /> Cancel
-                  </ConfirmSubmit>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      )}
-
-      {canContent && (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <ContentCard
-            title="Memory records"
-            noun="memory record"
-            icon={BookOpen}
-            items={memory.map((m) => ({ id: m.id, title: m.title, org: m.organization.name, archived: m.isArchived }))}
-            action={adminSetMemoryArchived}
-            idField="memoryId"
-          />
-          <ContentCard
-            title="Documents"
-            noun="document"
-            icon={FileText}
-            items={documents.map((d) => ({ id: d.id, title: d.title, org: d.organization.name, archived: d.isArchived }))}
-            action={adminSetDocumentArchived}
-            idField="documentId"
-          />
-        </div>
-      )}
-    </div>
-  )
+        )}
+      </div>
+    )
+  })
 }
 
 function ContentCard({

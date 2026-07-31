@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { getUserContext } from "@/lib/rbac"
+import { withTenantScope } from "@/lib/tenant-scope"
 import {
   createResource,
   resourceInstitutionFor,
@@ -49,33 +50,39 @@ export async function publishResource(
 ): Promise<ResourceFormState> {
   const session = await auth()
   if (!session?.user?.id) return { error: "Not signed in." }
+  const userId = session.user.id
 
-  const ctx = await getUserContext(session.user.id)
-  const institutionId = await resourceInstitutionFor(ctx)
-  if (!institutionId) return { error: "You are not attached to an institution." }
+  return withTenantScope(userId, async () => {
+    const ctx = await getUserContext(userId)
+    const institutionId = await resourceInstitutionFor(ctx)
+    if (!institutionId) return { error: "You are not attached to an institution." }
 
-  const id = String(formData.get("id") ?? "")
-  const input = readInput(formData)
-  const result = id
-    ? await updateResource(session.user.id, id, input)
-    : await createResource(session.user.id, institutionId, input)
+    const id = String(formData.get("id") ?? "")
+    const input = readInput(formData)
+    const result = id
+      ? await updateResource(userId, id, input)
+      : await createResource(userId, institutionId, input)
 
-  if ("error" in result) return { error: result.error }
+    if ("error" in result) return { error: result.error }
 
-  revalidatePath("/resources")
-  revalidatePath("/dashboard")
-  return { ok: true }
+    revalidatePath("/resources")
+    revalidatePath("/dashboard")
+    return { ok: true }
+  })
 }
 
 export async function retireResource(formData: FormData): Promise<void> {
   const session = await auth()
   if (!session?.user?.id) throw new Error("Not signed in")
+  const userId = session.user.id
 
-  const id = String(formData.get("id") ?? "")
-  const archived = formData.get("archived") === "1"
-  const result = await setResourceArchived(session.user.id, id, archived)
-  if ("error" in result) throw new Error(result.error)
+  await withTenantScope(userId, async () => {
+    const id = String(formData.get("id") ?? "")
+    const archived = formData.get("archived") === "1"
+    const result = await setResourceArchived(userId, id, archived)
+    if ("error" in result) throw new Error(result.error)
 
-  revalidatePath("/resources")
-  revalidatePath("/dashboard")
+    revalidatePath("/resources")
+    revalidatePath("/dashboard")
+  })
 }

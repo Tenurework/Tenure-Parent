@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { verifyCalendarToken, eventsToICS } from "@/lib/calendar-sync"
 import { loadScopedEvents } from "@/lib/calendar-data"
+import { withTenantScope } from "@/lib/tenant-scope"
 
 /**
  * Per-user ICS subscription feed. Outlook / Google / Apple Calendar poll this
@@ -20,18 +21,22 @@ export async function GET(
   const userId = verifyCalendarToken(token.replace(/\.ics$/i, ""))
   if (!userId) return new NextResponse("Invalid calendar token", { status: 403 })
 
-  const now = new Date()
-  const events = await loadScopedEvents(
-    userId,
-    new Date(now.getTime() - 30 * DAY),
-    new Date(now.getTime() + 180 * DAY)
-  )
+  // The token is the authentication; the tenant is still the token holder's,
+  // exactly as it would be for the same user on the calendar page.
+  return withTenantScope(userId, async () => {
+    const now = new Date()
+    const events = await loadScopedEvents(
+      userId,
+      new Date(now.getTime() - 30 * DAY),
+      new Date(now.getTime() + 180 * DAY)
+    )
 
-  return new NextResponse(eventsToICS(events, "Tenure"), {
-    headers: {
-      "content-type": "text/calendar; charset=utf-8",
-      "content-disposition": 'inline; filename="tenure.ics"',
-      "cache-control": "public, max-age=1800",
-    },
+    return new NextResponse(eventsToICS(events, "Tenure"), {
+      headers: {
+        "content-type": "text/calendar; charset=utf-8",
+        "content-disposition": 'inline; filename="tenure.ics"',
+        "cache-control": "public, max-age=1800",
+      },
+    })
   })
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
 import { rescheduleEvent } from "@/lib/calendar-write"
+import { withTenantScope } from "@/lib/tenant-scope"
 
 /**
  * Drag-to-reschedule endpoint for the week grid.
@@ -28,16 +29,19 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 })
   }
+  const userId = session.user.id
 
-  const parsed = Body.safeParse(await request.json().catch(() => null))
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Malformed request" }, { status: 400 })
-  }
+  return withTenantScope(userId, async () => {
+    const parsed = Body.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Malformed request" }, { status: 400 })
+    }
 
-  const { id, ...input } = parsed.data
-  const result = await rescheduleEvent(session.user.id, id, input)
-  if ("error" in result) {
-    return NextResponse.json({ error: result.error }, { status: 403 })
-  }
-  return NextResponse.json(result)
+    const { id, ...input } = parsed.data
+    const result = await rescheduleEvent(userId, id, input)
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 403 })
+    }
+    return NextResponse.json(result)
+  })
 }

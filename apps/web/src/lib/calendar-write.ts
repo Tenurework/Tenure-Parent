@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
 import { detectConflicts } from "@/lib/calendar"
 import { getUserContext, isOse, type UserContext } from "@/lib/rbac"
+import { withTenantScope } from "@/lib/tenant-scope"
 import { institutionTimeZone } from "@/lib/institution-time"
 import { formatInZone, parseDateKey, zonedTimeToUtc } from "@/lib/time"
 import { notifyUsers, orgPresidentIds } from "@/lib/notify"
@@ -246,117 +247,119 @@ export async function rescheduleEvent(
   eventId: string,
   input: RescheduleInput
 ): Promise<{ startISO: string; endISO: string } | { error: string }> {
-  const found = await requireEditable(userId, eventId)
-  if ("error" in found) return found
-  const { event } = found
+  return withTenantScope(userId, async () => {
+    const found = await requireEditable(userId, eventId)
+    if ("error" in found) return found
+    const { event } = found
 
-  if (!parseDateKey(input.date)) return { error: "That is not a valid date." }
-  if (
-    !Number.isFinite(input.startMinute) ||
-    !Number.isFinite(input.endMinute) ||
-    input.startMinute < 0 ||
-    input.startMinute > 24 * 60 ||
-    // An end past midnight is expressed as minutes beyond 24×60 against the
-    // same start date, so the ceiling is two days, not one. zonedTimeToUtc
-    // carries the overflow into the next calendar day for us.
-    input.endMinute > 48 * 60 ||
-    input.endMinute - input.startMinute < 15
-  ) {
-    return { error: "An event must be at least 15 minutes long." }
-  }
-  if (input.endMinute - input.startMinute > 24 * 60) {
-    return { error: "An event cannot run longer than 24 hours." }
-  }
+    if (!parseDateKey(input.date)) return { error: "That is not a valid date." }
+    if (
+      !Number.isFinite(input.startMinute) ||
+      !Number.isFinite(input.endMinute) ||
+      input.startMinute < 0 ||
+      input.startMinute > 24 * 60 ||
+      // An end past midnight is expressed as minutes beyond 24×60 against the
+      // same start date, so the ceiling is two days, not one. zonedTimeToUtc
+      // carries the overflow into the next calendar day for us.
+      input.endMinute > 48 * 60 ||
+      input.endMinute - input.startMinute < 15
+    ) {
+      return { error: "An event must be at least 15 minutes long." }
+    }
+    if (input.endMinute - input.startMinute > 24 * 60) {
+      return { error: "An event cannot run longer than 24 hours." }
+    }
 
-  const tz = await institutionTimeZone(event.institutionId)
-  const p = parseDateKey(input.date)!
-  const startAt = zonedTimeToUtc(
-    p.year,
-    p.month,
-    p.day,
-    Math.floor(input.startMinute / 60),
-    input.startMinute % 60,
-    tz
-  )
-  const endAt = zonedTimeToUtc(
-    p.year,
-    p.month,
-    p.day,
-    Math.floor(input.endMinute / 60),
-    input.endMinute % 60,
-    tz
-  )
-  if (endAt <= startAt) return { error: "The end time must be after the start time." }
+    const tz = await institutionTimeZone(event.institutionId)
+    const p = parseDateKey(input.date)!
+    const startAt = zonedTimeToUtc(
+      p.year,
+      p.month,
+      p.day,
+      Math.floor(input.startMinute / 60),
+      input.startMinute % 60,
+      tz
+    )
+    const endAt = zonedTimeToUtc(
+      p.year,
+      p.month,
+      p.day,
+      Math.floor(input.endMinute / 60),
+      input.endMinute % 60,
+      tz
+    )
+    if (endAt <= startAt) return { error: "The end time must be after the start time." }
 
-  const before = { startAt: event.startAt, endAt: event.endAt }
-  await db.event.update({ where: { id: eventId }, data: { startAt, endAt } })
+    const before = { startAt: event.startAt, endAt: event.endAt }
+    await db.event.update({ where: { id: eventId }, data: { startAt, endAt } })
 
-  const conflicts = await recheckConflicts({
-    id: event.id,
-    institutionId: event.institutionId,
-    organizationId: event.organizationId,
-    title: event.title,
-    startAt,
-    endAt,
-    venue: event.venue,
-  })
-
-  const hard = conflicts.filter((c) => c.severity === "HARD")
-  const when = formatInZone(startAt, tz, { dateStyle: "medium", timeStyle: "short" })
-
-  await syncApprovalSnapshot(
-    event,
-    {
-      title: event.title,
-      venue: event.venue,
-      description: event.description,
-      startAt,
-      endAt,
-    },
-    userId,
-    tz
-  )
-
-  await db.auditEvent.create({
-    data: {
+    const conflicts = await recheckConflicts({
+      id: event.id,
       institutionId: event.institutionId,
       organizationId: event.organizationId,
-      actorId: userId,
-      actorRole: "Calendar",
-      action: "Event.Rescheduled",
-      resourceType: "Event",
-      resourceId: event.id,
-      outcome: "ALLOW",
-      metadata: {
-        from: { startAt: before.startAt.toISOString(), endAt: before.endAt.toISOString() },
-        to: { startAt: startAt.toISOString(), endAt: endAt.toISOString() },
-        timeZone: tz,
-        hardConflicts: hard.length,
+      title: event.title,
+      startAt,
+      endAt,
+      venue: event.venue,
+    })
+
+    const hard = conflicts.filter((c) => c.severity === "HARD")
+    const when = formatInZone(startAt, tz, { dateStyle: "medium", timeStyle: "short" })
+
+    await syncApprovalSnapshot(
+      event,
+      {
+        title: event.title,
+        venue: event.venue,
+        description: event.description,
+        startAt,
+        endAt,
       },
-    },
+      userId,
+      tz
+    )
+
+    await db.auditEvent.create({
+      data: {
+        institutionId: event.institutionId,
+        organizationId: event.organizationId,
+        actorId: userId,
+        actorRole: "Calendar",
+        action: "Event.Rescheduled",
+        resourceType: "Event",
+        resourceId: event.id,
+        outcome: "ALLOW",
+        metadata: {
+          from: { startAt: before.startAt.toISOString(), endAt: before.endAt.toISOString() },
+          to: { startAt: startAt.toISOString(), endAt: endAt.toISOString() },
+          timeZone: tz,
+          hardConflicts: hard.length,
+        },
+      },
+    })
+
+    // A move that creates a hard conflict is exactly what an approver needs to
+    // hear about — silence here would let drag-and-drop route around the gate.
+    if (hard.length > 0) {
+      await notifyUsers(await orgPresidentIds(event.organizationId), {
+        title: `“${event.title}” was moved into a conflict`,
+        body: `Now ${when}. ${hard[0].reason}`,
+        href: `/calendar/${event.id}`,
+        excludeUserId: userId,
+      })
+    } else if (event.status === "PUBLISHED") {
+      // Moving an already-approved event is a governance event in its own right,
+      // conflict or not: the institution published one time and now sees another.
+      await notifyUsers(await orgPresidentIds(event.organizationId), {
+        title: `“${event.title}” moved after it was approved`,
+        body: `It now starts ${when}. The approval record has been updated to match.`,
+        href: `/calendar/${event.id}`,
+        excludeUserId: userId,
+      })
+    }
+
+    return { startISO: startAt.toISOString(), endISO: endAt.toISOString() }
   })
-
-  // A move that creates a hard conflict is exactly what an approver needs to
-  // hear about — silence here would let drag-and-drop route around the gate.
-  if (hard.length > 0) {
-    await notifyUsers(await orgPresidentIds(event.organizationId), {
-      title: `“${event.title}” was moved into a conflict`,
-      body: `Now ${when}. ${hard[0].reason}`,
-      href: `/calendar/${event.id}`,
-      excludeUserId: userId,
-    })
-  } else if (event.status === "PUBLISHED") {
-    // Moving an already-approved event is a governance event in its own right,
-    // conflict or not: the institution published one time and now sees another.
-    await notifyUsers(await orgPresidentIds(event.organizationId), {
-      title: `“${event.title}” moved after it was approved`,
-      body: `It now starts ${when}. The approval record has been updated to match.`,
-      href: `/calendar/${event.id}`,
-      excludeUserId: userId,
-    })
-  }
-
-  return { startISO: startAt.toISOString(), endISO: endAt.toISOString() }
 }
 
 export interface EventDetailsInput {
@@ -371,71 +374,73 @@ export async function updateEventDetails(
   eventId: string,
   input: EventDetailsInput
 ): Promise<{ ok: true } | { error: string }> {
-  const found = await requireEditable(userId, eventId)
-  if ("error" in found) return found
-  const { event } = found
+  return withTenantScope(userId, async () => {
+    const found = await requireEditable(userId, eventId)
+    if ("error" in found) return found
+    const { event } = found
 
-  const title = input.title.trim()
-  if (!title) return { error: "A title is required." }
-  if (title.length > 200) return { error: "Keep the title under 200 characters." }
+    const title = input.title.trim()
+    if (!title) return { error: "A title is required." }
+    if (title.length > 200) return { error: "Keep the title under 200 characters." }
 
-  const venue = input.venue?.trim() || null
-  const description = input.description?.trim() || null
+    const venue = input.venue?.trim() || null
+    const description = input.description?.trim() || null
 
-  await db.event.update({
-    where: { id: eventId },
-    data: { title, venue, description },
-  })
-
-  // The venue is half of the hard-conflict rule, so a venue edit must re-check.
-  if (venue !== event.venue) {
-    await recheckConflicts({
-      id: event.id,
-      institutionId: event.institutionId,
-      organizationId: event.organizationId,
-      title,
-      startAt: event.startAt,
-      endAt: event.endAt,
-      venue,
+    await db.event.update({
+      where: { id: eventId },
+      data: { title, venue, description },
     })
-  }
 
-  const tz = await institutionTimeZone(event.institutionId)
-  await syncApprovalSnapshot(
-    event,
-    { title, venue, description, startAt: event.startAt, endAt: event.endAt },
-    userId,
-    tz
-  )
+    // The venue is half of the hard-conflict rule, so a venue edit must re-check.
+    if (venue !== event.venue) {
+      await recheckConflicts({
+        id: event.id,
+        institutionId: event.institutionId,
+        organizationId: event.organizationId,
+        title,
+        startAt: event.startAt,
+        endAt: event.endAt,
+        venue,
+      })
+    }
 
-  // Retitling or relocating an approved event changes what the institution
-  // signed off on, so the gate owners hear about it.
-  if (event.status === "PUBLISHED" && (title !== event.title || venue !== event.venue)) {
-    await notifyUsers(await orgPresidentIds(event.organizationId), {
-      title: `“${event.title}” was edited after approval`,
-      body:
-        `It is now “${title}”${venue ? ` at ${venue}` : ""}. ` +
-        `The approval record has been updated to match.`,
-      href: `/calendar/${event.id}`,
-      excludeUserId: userId,
+    const tz = await institutionTimeZone(event.institutionId)
+    await syncApprovalSnapshot(
+      event,
+      { title, venue, description, startAt: event.startAt, endAt: event.endAt },
+      userId,
+      tz
+    )
+
+    // Retitling or relocating an approved event changes what the institution
+    // signed off on, so the gate owners hear about it.
+    if (event.status === "PUBLISHED" && (title !== event.title || venue !== event.venue)) {
+      await notifyUsers(await orgPresidentIds(event.organizationId), {
+        title: `“${event.title}” was edited after approval`,
+        body:
+          `It is now “${title}”${venue ? ` at ${venue}` : ""}. ` +
+          `The approval record has been updated to match.`,
+        href: `/calendar/${event.id}`,
+        excludeUserId: userId,
+      })
+    }
+
+    await db.auditEvent.create({
+      data: {
+        institutionId: event.institutionId,
+        organizationId: event.organizationId,
+        actorId: userId,
+        actorRole: "Calendar",
+        action: "Event.Edited",
+        resourceType: "Event",
+        resourceId: event.id,
+        outcome: "ALLOW",
+        metadata: { title, venue: input.venue ?? null },
+      },
     })
-  }
 
-  await db.auditEvent.create({
-    data: {
-      institutionId: event.institutionId,
-      organizationId: event.organizationId,
-      actorId: userId,
-      actorRole: "Calendar",
-      action: "Event.Edited",
-      resourceType: "Event",
-      resourceId: event.id,
-      outcome: "ALLOW",
-      metadata: { title, venue: input.venue ?? null },
-    },
+    return { ok: true }
   })
-
-  return { ok: true }
 }
 
 /** Load one event for the inspector, with the viewer's edit rights resolved. */
@@ -443,38 +448,40 @@ export async function loadEditableEvent(
   userId: string,
   eventId: string
 ): Promise<EditableEvent | null> {
-  const event = await db.event.findUnique({
-    where: { id: eventId },
-    include: {
-      organization: { select: { name: true, institutionId: true } },
-      approval: { select: { id: true, status: true, description: true } },
-    },
+  return withTenantScope(userId, async () => {
+    const event = await db.event.findUnique({
+      where: { id: eventId },
+      include: {
+        organization: { select: { name: true, institutionId: true } },
+        approval: { select: { id: true, status: true, description: true } },
+      },
+    })
+    if (!event) return null
+
+    const ctx = await getUserContext(userId)
+    const visible =
+      isOse(ctx, event.institutionId) ||
+      ctx.orgRoles.some(
+        (r) =>
+          r.organizationId === event.organizationId &&
+          (r.status === "ACTIVE" || r.status === "SHADOW")
+      ) ||
+      event.status === "PUBLISHED"
+    if (!visible) return null
+
+    return {
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      venue: event.venue,
+      startAt: event.startAt,
+      endAt: event.endAt,
+      status: event.status,
+      organizationId: event.organizationId,
+      institutionId: event.institutionId,
+      organizationName: event.organization.name,
+      editable: canEditEvent(ctx, event),
+      timeZone: await institutionTimeZone(event.institutionId),
+    }
   })
-  if (!event) return null
-
-  const ctx = await getUserContext(userId)
-  const visible =
-    isOse(ctx, event.institutionId) ||
-    ctx.orgRoles.some(
-      (r) =>
-        r.organizationId === event.organizationId &&
-        (r.status === "ACTIVE" || r.status === "SHADOW")
-    ) ||
-    event.status === "PUBLISHED"
-  if (!visible) return null
-
-  return {
-    id: event.id,
-    title: event.title,
-    description: event.description,
-    venue: event.venue,
-    startAt: event.startAt,
-    endAt: event.endAt,
-    status: event.status,
-    organizationId: event.organizationId,
-    institutionId: event.institutionId,
-    organizationName: event.organization.name,
-    editable: canEditEvent(ctx, event),
-    timeZone: await institutionTimeZone(event.institutionId),
-  }
 }

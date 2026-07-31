@@ -7,6 +7,7 @@ import {
   canViewOrg,
   getUserContext,
 } from "@/lib/rbac"
+import { withTenantScope } from "@/lib/tenant-scope"
 import { aiConfigured } from "@/lib/ai"
 import { buildDocContent } from "@/app/api/documents/_lib/content"
 import type { DocContentResponse } from "@/components/documents/types"
@@ -23,70 +24,74 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
   const session = await auth()
   if (!session?.user?.id) return new NextResponse("Unauthorized", { status: 401 })
+  const userId = session.user.id
 
-  const doc = await db.document.findUnique({
-    where: { id },
-    include: { organization: true },
-  })
-  if (!doc) return new NextResponse("Not found", { status: 404 })
+  return withTenantScope(userId, async () => {
+    const { id } = await params
 
-  const slug = new URL(req.url).searchParams.get("slug")
-  if (slug && doc.organization.slug !== slug) {
-    return new NextResponse("Not found", { status: 404 })
-  }
-  if (doc.isArchived) return new NextResponse("Not found", { status: 404 })
+    const doc = await db.document.findUnique({
+      where: { id },
+      include: { organization: true },
+    })
+    if (!doc) return new NextResponse("Not found", { status: 404 })
 
-  const ctx = await getUserContext(session.user.id)
-  if (!canViewOrg(ctx, doc.organization)) {
-    return new NextResponse("Forbidden", { status: 403 })
-  }
+    const slug = new URL(req.url).searchParams.get("slug")
+    if (slug && doc.organization.slug !== slug) {
+      return new NextResponse("Not found", { status: 404 })
+    }
+    if (doc.isArchived) return new NextResponse("Not found", { status: 404 })
 
-  await db.auditEvent.create({
-    data: {
-      institutionId: doc.institutionId,
-      organizationId: doc.organizationId,
-      actorId: session.user.id,
-      action: "Document.Viewed",
-      resourceType: "Document",
-      resourceId: doc.id,
-      outcome: "ALLOW",
-    },
-  })
+    const ctx = await getUserContext(userId)
+    if (!canViewOrg(ctx, doc.organization)) {
+      return new NextResponse("Forbidden", { status: 403 })
+    }
 
-  const content = await buildDocContent({
-    objectKey: doc.objectKey,
-    mime: doc.mimeType,
-    sizeBytes: doc.sizeBytes,
-  })
+    await db.auditEvent.create({
+      data: {
+        institutionId: doc.institutionId,
+        organizationId: doc.organizationId,
+        actorId: userId,
+        action: "Document.Viewed",
+        resourceType: "Document",
+        resourceId: doc.id,
+        outcome: "ALLOW",
+      },
+    })
 
-  // Active members can edit shared docs: uploader, roster managers, or any
-  // ACTIVE contributor (canContribute) may write — but only text / spreadsheet
-  // formats are actually editable.
-  const canEditPermission =
-    doc.createdById === session.user.id ||
-    canManageRoster(ctx, doc.organization) ||
-    canContribute(ctx, doc.organization)
-  const editable =
-    canEditPermission && (content.kind === "text" || content.kind === "sheets")
-
-  const body: DocContentResponse = {
-    meta: {
-      id: doc.id,
-      title: doc.title,
-      mimeType: doc.mimeType,
+    const content = await buildDocContent({
+      objectKey: doc.objectKey,
+      mime: doc.mimeType,
       sizeBytes: doc.sizeBytes,
-      updatedAt: doc.updatedAt.toISOString(),
-      version: doc.version,
-      orgName: doc.organization.name,
-      orgSlug: doc.organization.slug,
-    },
-    editable,
-    canSummarize: aiConfigured(),
-    content,
-  }
+    })
 
-  return NextResponse.json(body)
+    // Active members can edit shared docs: uploader, roster managers, or any
+    // ACTIVE contributor (canContribute) may write — but only text / spreadsheet
+    // formats are actually editable.
+    const canEditPermission =
+      doc.createdById === userId ||
+      canManageRoster(ctx, doc.organization) ||
+      canContribute(ctx, doc.organization)
+    const editable =
+      canEditPermission && (content.kind === "text" || content.kind === "sheets")
+
+    const body: DocContentResponse = {
+      meta: {
+        id: doc.id,
+        title: doc.title,
+        mimeType: doc.mimeType,
+        sizeBytes: doc.sizeBytes,
+        updatedAt: doc.updatedAt.toISOString(),
+        version: doc.version,
+        orgName: doc.organization.name,
+        orgSlug: doc.organization.slug,
+      },
+      editable,
+      canSummarize: aiConfigured(),
+      content,
+    }
+
+    return NextResponse.json(body)
+  })
 }
