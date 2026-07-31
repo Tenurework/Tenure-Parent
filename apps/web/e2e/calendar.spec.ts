@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test"
 import { signIn } from "./support/auth"
-import { RUN_ID } from "./run-id"
+import { RUN_ID, RUN_SEED } from "./run-id"
 
 /**
  * Week 4: shared calendar, conflict detection, approval-linked publishing.
@@ -34,7 +34,7 @@ const stamp = RUN_ID
  * for a reason that has nothing to do with the code under test. Spreading runs
  * across days keeps each assertion about this run only.
  */
-const dayOffset = 60 + (stamp % 240)
+const dayOffset = 60 + (RUN_SEED % 240)
 const dayAt = (n: number) =>
   new Date(Date.now() + (dayOffset + n) * 864e5).toISOString().slice(0, 10)
 

@@ -19,3 +19,15 @@
  * the Playwright runner, where nothing has seeded it.
  */
 export const RUN_ID = process.env.E2E_RUN_ID ?? String(Date.now())
+
+/**
+ * A stable non-negative integer for the same run.
+ *
+ * The calendar suite parks each run on its own far-future week, so that events
+ * left behind by an earlier run cannot trip conflict detection in this one. It
+ * needs a number to do that arithmetic, and RUN_ID is a string — deliberately,
+ * since an outer runner may pin it to something descriptive rather than a
+ * timestamp. `Number(RUN_ID)` would then be NaN and every date would silently
+ * become Invalid Date, so hash the string instead of parsing it.
+ */
+export const RUN_SEED = [...RUN_ID].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7)
