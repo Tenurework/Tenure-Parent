@@ -57,6 +57,50 @@ only against a reconstruction of the pilot's shape, never the pilot itself.
 
 ---
 
+## PD-004 — SSO will be AWS Cognito, and the edge gate comes off until it lands
+
+**Date:** 2026-07-31 · **Status:** Accepted · **Supersedes:** the Okta half of PD-003
+
+**Decision, two parts.**
+
+1. **Single sign-on will be AWS Cognito, not Okta.** Every mention of Okta in
+   this repository predates the decision and none of it was ever used — the
+   pilot has always signed in through the passwordless `dev-login` provider.
+   `src/lib/auth.ts` registers an Okta provider when `OKTA_ISSUER` looks like a
+   URL, Secrets Manager carries `OKTA_*` keys, and the runbook documented an
+   Okta procedure. All of it is now dead code with a plan attached; see ADR-0005.
+
+2. **The CloudFront edge gate is off** (`edge_gate_enabled = false`) until
+   Cognito is rolled out. The sign-in passphrase is the only control in front of
+   the pilot.
+
+**Basis for part 2.** The two-gate arrangement meant a pilot user needed a
+one-time link before they could see a login form at all, and the thing behind
+both gates is a single shared passphrase. Someone holding it was given it
+deliberately; someone without it gets no further inside CloudFront than outside.
+The friction was real and the marginal protection was small.
+
+**What it commits us to, stated rather than assumed.** The exposure is not that
+the passphrase can be guessed — 24 characters over a 36-symbol alphabet is about
+124 bits. It is that a single shared secret travels by email and chat, identifies
+nobody, and grants a one-click `OSE_DIRECTOR` account to whoever ends up with it.
+Two consequences follow and are now on the critical path rather than nice to
+have:
+
+- **Rate limiting.** Nothing throttles the sign-in form, and AI synthesis calls a
+  paid API per question with no per-user quota. The edge gate was what made that
+  survivable.
+- **Cognito is now load-bearing.** While it is outstanding, the pilot's entire
+  access control is one shared string.
+
+`X-Robots-Tag: noindex, nofollow` is set app-wide so a named university's pilot
+does not end up in search results.
+
+Re-closing is one line in `edge-access.tf` plus an apply; the CloudFront Function
+stays built and published rather than deleted, precisely so that stays true.
+
+---
+
 ## PD-003 — Close the public sign-in exposure with an interim gate, not by waiting for Okta
 
 **Date:** 2026-07-30 · **Status:** Accepted
