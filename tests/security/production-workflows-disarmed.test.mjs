@@ -60,7 +60,7 @@ const isGuarded = (job) => {
  * point of the allowlist is to make the exemption deliberate and few — not to
  * create a hole.
  */
-const READ_ONLY_JOBS = new Set(['platform-plan.yml:plan'])
+const READ_ONLY_JOBS = new Set(['platform-plan.yml:plan', 'aws-inventory.yml:inventory'])
 
 /**
  * Jobs that deploy THIS repository's own component, and are therefore armed
@@ -72,6 +72,34 @@ const READ_ONLY_JOBS = new Set(['platform-plan.yml:plan'])
  * fails.
  */
 const ENGINE_DEPLOY_JOBS = new Set(['deploy-studio.yml:deploy'])
+
+/**
+ * Rewrite programmatic AWS invocations into command-line form.
+ *
+ * The patterns below were written against shell syntax — `aws s3 rm …` — and
+ * were therefore blind to the two forms a script actually uses:
+ *
+ *   execFileSync('aws', ['s3', 'rm', 's3://b/k'])   argv array
+ *   aws('s3api', 'delete-object', […])              helper with (service, op)
+ *
+ * That was not hypothetical. Planting a real `execFileSync("aws", ["s3","rm",…])`
+ * in an exempted script and running the suite produced PASS — the detector
+ * declared a mutating script read-only. Normalising both forms to
+ * `aws <service> <operation>` first means one set of patterns covers all three,
+ * rather than three sets that can drift apart.
+ */
+function normaliseAwsCalls(text) {
+  return (
+    text
+      // execFileSync('aws', ['s3', 'rm', …]) → aws s3 rm
+      .replace(/['"]aws['"]\s*,\s*\[([^\]]*)\]/g, (_, args) => {
+        const tokens = [...args.matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1])
+        return `aws ${tokens.join(' ')}`
+      })
+      // aws('s3api', 'delete-object' → aws s3api delete-object
+      .replace(/\baws\(\s*['"]([\w-]+)['"]\s*,\s*['"]([\w-]+)['"]/g, (_, service, op) => `aws ${service} ${op}`)
+  )
+}
 
 /**
  * Commands that change something in AWS. Deliberately broad: a false positive
@@ -90,12 +118,39 @@ const MUTATING = [
   [/^\s*push:\s*true\s*$/m, 'docker/build-push-action push: true'],
 ]
 
-/** Only the parts of a job that execute — not its comments, which may name a command to say it is absent. */
-const executableTextOf = (jobYaml) =>
-  jobYaml
+/**
+ * Only the parts that execute — not comments, which may name a command in order
+ * to say it is absent.
+ *
+ * Strips both `#` (YAML, shell) and `//` (JavaScript), because the scan now
+ * covers referenced `.mjs` scripts as well as workflow bodies. Stripping only
+ * `#` made `// aws s3 rm …` in a script's prose trip the detector, and a
+ * security check that fires on documentation is one people start ignoring.
+ */
+const executableTextOf = (text) =>
+  text
     .split('\n')
-    .filter((l) => !/^\s*#/.test(l))
+    .filter((l) => !/^\s*(#|\/\/|\*|\/\*)/.test(l))
     .join('\n')
+
+/**
+ * Scripts a job runs, inlined so the scan sees where the calls actually are.
+ *
+ * aws-inventory.yml's whole body is `node tools/aws-inventory.mjs` — every AWS
+ * call is in that file, and a detector that reads only the workflow would have
+ * declared it read-only having examined nothing. An exemption whose proof does
+ * not cover the code it exempts is not a proof.
+ */
+function inlineReferencedScripts(jobYaml) {
+  let text = jobYaml
+  const referenced = /node\s+(tools\/[\w.-]+\.mjs)/g
+
+  for (const match of jobYaml.matchAll(referenced)) {
+    const file = match[1]
+    if (fs.existsSync(file)) text += `\n${fs.readFileSync(file, 'utf8')}`
+  }
+  return text
+}
 
 /** Slice the raw text of one job out of a workflow file, for command scanning. */
 function jobText(fileText, jobName) {
@@ -205,7 +260,7 @@ test('every read-only exemption is actually read-only', () => {
     assert.ok(wf, `read-only allowlist names ${file}, which does not exist`)
     assert.ok(wf.doc.jobs?.[jobName], `read-only allowlist names ${entry}, which is not a job`)
 
-    const text = executableTextOf(jobText(wf.text, jobName))
+    const text = normaliseAwsCalls(executableTextOf(inlineReferencedScripts(jobText(wf.text, jobName))))
     for (const [pattern, label] of MUTATING) {
       if (pattern.test(text)) violations.push(`${entry} runs ${label}`)
     }
@@ -233,11 +288,16 @@ test('the mutation detector actually detects mutation', () => {
     'run: aws secretsmanager put-secret-value --secret-id x',
     'run: aws rds delete-db-instance --db-instance-identifier x',
     'run: docker push $ECR_URL:tag',
+    // Programmatic forms — the ones the detector was blind to until a planted
+    // call in an exempted script passed the suite.
+    `execFileSync('aws', ['s3', 'rm', 's3://b/k'])`,
+    `aws('s3api', 'delete-object', [])`,
+    `aws('ecs', 'update-service', [])`,
     '          push: true',
   ]
   for (const sample of samples) {
     assert.ok(
-      MUTATING.some(([p]) => p.test(sample)),
+      MUTATING.some(([p]) => p.test(normaliseAwsCalls(sample))),
       `no MUTATING pattern matched: ${sample}`,
     )
   }
@@ -252,7 +312,7 @@ test('the mutation detector actually detects mutation', () => {
     'run: aws ecs describe-services --cluster "$CLUSTER"',
   ]
   for (const sample of benign) {
-    const hit = MUTATING.find(([p]) => p.test(sample))
+    const hit = MUTATING.find(([p]) => p.test(normaliseAwsCalls(sample)))
     assert.equal(hit, undefined, `MUTATING pattern ${hit?.[1]} false-positived on: ${sample}`)
   }
 })

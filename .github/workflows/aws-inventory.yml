@@ -1,0 +1,116 @@
+name: AWS · Read-only inventory
+
+# GE-001-002 / 003 / 004. Establishes AWS truth before anything writes to AWS.
+#
+# Read-only by construction, not by intention:
+#
+#   * every AWS call below is describe / list / get-*-configuration. There is no
+#     create, put, update, delete, apply or invoke anywhere in this file, and
+#     tests/security/production-workflows-disarmed.test.mjs greps this job for
+#     mutating commands — the detector is itself tested against ten mutating
+#     lines and six benign ones.
+#   * the IAM identity it runs as is whatever the repository secret carries. This
+#     workflow cannot narrow that, which is exactly why GE-011 replaces the
+#     long-lived key with a short-lived OIDC role scoped to read.
+#
+# Manual only. An inventory on a schedule is an inventory nobody reads, and
+# every run of it is an artifact on a PUBLIC repository.
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_account:
+        description: "AWS account id this is allowed to inventory. Refuses to run against any other."
+        required: true
+      expected_region:
+        description: "Region"
+        required: false
+        default: "us-east-1"
+
+concurrency:
+  group: aws-inventory
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    name: Inventory
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ inputs.expected_region }}
+      EXPECTED_ACCOUNT: ${{ inputs.expected_account }}
+
+    steps:
+      # Pinned to commit SHAs, not tags. A tag is mutable: whoever controls the
+      # action can change what @v4 points at, and this job holds AWS credentials.
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+        with:
+          aws-access-key-id: ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # GE-001-003. Before ANY inventory call: prove who we are, and refuse if it
+      # is not who the operator said. Without this the job would happily
+      # enumerate whatever account the credentials happen to belong to — and
+      # write the result to a public artifact.
+      - name: Prove caller identity, and refuse an unexpected account
+        run: |
+          set -euo pipefail
+          IDENTITY=$(aws sts get-caller-identity --output json)
+          ACCOUNT=$(echo "$IDENTITY" | jq -r .Account)
+          ARN=$(echo "$IDENTITY" | jq -r .Arn)
+
+          # Principal type only. The full ARN carries a user or role name that
+          # does not need to be on a public artifact.
+          PRINCIPAL_TYPE=$(echo "$ARN" | cut -d: -f6 | cut -d/ -f1)
+
+          if [ "$ACCOUNT" != "$EXPECTED_ACCOUNT" ]; then
+            echo "::error::Refusing to inventory account ${ACCOUNT:0:4}…, expected ${EXPECTED_ACCOUNT:0:4}…"
+            exit 1
+          fi
+
+          echo "ACCOUNT=$ACCOUNT" >> "$GITHUB_ENV"
+          echo "✅ account matches the allowlist; principal type: $PRINCIPAL_TYPE; region: $AWS_REGION"
+
+      - name: Inventory
+        run: node tools/aws-inventory.mjs
+        env:
+          ACCOUNT: ${{ env.ACCOUNT }}
+
+      # Short retention, because this is a public repository and an inventory is
+      # a map of the estate. It is evidence for a review, not a permanent record.
+      - name: Upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: aws-inventory
+          path: |
+            docs/architecture/aws-current-state.md
+            docs/architecture/aws-inventory.json
+            docs/architecture/resource-reconciliation.md
+          retention-days: 3
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## AWS inventory"
+            echo
+            echo "Read-only. Account and region validated before any call."
+            echo
+            if [ -f docs/architecture/aws-current-state.md ]; then
+              echo "Artifact \`aws-inventory\` holds the full result, retained 3 days."
+              echo
+              echo "### Counts"
+              echo
+              jq -r '.summary | to_entries[] | "- \(.key): \(.value)"' docs/architecture/aws-inventory.json 2>/dev/null || true
+            else
+              echo "Inventory did not complete."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
