@@ -1,6 +1,18 @@
-name: Database recovery
+name: Database recovery and census
 
-# The way out of a P3009 boot lock.
+# Reaching into the pilot database from outside the VPC — the only way there is.
+#
+# Two jobs live here because they need the identical mechanism: a one-off ECS
+# task on the live task definition. RDS is VPC-only, so a GitHub runner cannot
+# talk to it and neither can a laptop.
+#
+#   census  — read-only. Measures the pilot before any tenant migration touches
+#             it (ADR-0004, M0). Every row count in that plan came from a
+#             locally seeded database; this is the one that measures the real
+#             one, and it also checks the schema for drift, because otherwise
+#             its numbers describe a schema nobody verified.
+#
+#   status / resolve-* — the way out of a P3009 boot lock.
 #
 # When a migration fails partway, Postgres rolls its DDL back but Prisma leaves
 # a ledger row recorded as started and never finished. Every subsequent
@@ -25,6 +37,7 @@ on:
         type: choice
         options:
           - status
+          - census
           - resolve-rolled-back
           - resolve-applied
       migration:
@@ -58,9 +71,9 @@ jobs:
       # `status` is offered as the thing you run first.
       - name: Check the inputs
         run: |
-          if [ "${{ inputs.action }}" = "status" ]; then
-            echo "status needs no migration name."; exit 0
-          fi
+          case "${{ inputs.action }}" in
+            status|census) echo "${{ inputs.action }} needs no migration name."; exit 0 ;;
+          esac
           if [ -z "${{ inputs.migration }}" ]; then
             echo "::error::${{ inputs.action }} requires a migration name."; exit 1
           fi
@@ -93,6 +106,7 @@ jobs:
         run: |
           case "${{ inputs.action }}" in
             status)              CMD='["migrate-status"]' ;;
+            census)              CMD='["census"]' ;;
             resolve-rolled-back) CMD='["migrate-resolve-rolled-back","${{ inputs.migration }}"]' ;;
             resolve-applied)     CMD='["migrate-resolve-applied","${{ inputs.migration }}"]' ;;
           esac
@@ -131,6 +145,6 @@ jobs:
           echo "exit code: $EXIT_CODE"
           [ "$EXIT_CODE" = "0" ] || { echo "::error::Recovery task exited $EXIT_CODE"; exit 1; }
 
-          if [ "${{ inputs.action }}" != "status" ]; then
+          if [ "${{ inputs.action }}" != "status" ] && [ "${{ inputs.action }}" != "census" ]; then
             echo "::notice::Resolved. Run this workflow again with action=status to confirm the ledger is clean, then redeploy."
           fi

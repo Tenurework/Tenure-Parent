@@ -133,6 +133,53 @@ That is fixed before M1, not after:
 Rollback is `prisma migrate resolve --rolled-back` **plus** the SQL, both from
 the RunTask stage. The SQL alone is not a rollback.
 
+## Corrections from adversarial review of the census (2026-07-31)
+
+The census that M0 gates on was reviewed through three lenses and did not
+survive the first two. `apps/web/scripts/pilot-census.sql` is the corrected
+version; the corrections generalise beyond it.
+
+**A backfill guarded by `(SELECT count(*) FROM "Institution") = 1` is now
+wrong.** The plan's `Notification` backfill and one expand trigger both branch
+on there being exactly one tenant — the trigger via `SELECT … INTO STRICT`,
+which raises `TOO_MANY_ROWS` at two. CI has had a deliberate second tenant since
+`c4328ca`, so those guards would silently no-op there, leave every row
+quarantined at NULL, and fail at `SET NOT NULL` in contract. **Every backfill
+must be written for N tenants.** The CI fixture is right; the guards are what
+change. This is the two-tenant fixture doing its job before a single migration
+exists.
+
+**`n_live_tup` is not a row count.** It is a statistics estimate, zeroed by a
+crash, a major-version upgrade, and a restore from snapshot or PITR — which is
+precisely how this database would be staged or recovered, and `rds.tf` keeps one
+day of backups. After a failover it reports every table empty, and the plan's
+reading of it ("a clean result proves the migration is safe") would convert a
+populated production database into "there is nothing to back-fill". The census
+counts exactly, via `query_to_xml`, and keeps the estimate only as a staleness
+signal. Locally 13 of 16 populated tables have never been analyzed.
+
+**The nine pointers with no foreign key were never measured** — the one
+population that can hold garbage, because nothing has ever enforced it, while
+(a) and (b) checked FK-backed columns that cannot. M7 adds those constraints,
+and `ADD CONSTRAINT … FOREIGN KEY` validates the whole table at add time: one
+dangling value raises 23503, aborts the migration, and lands in the P3009 lock.
+Now census section (4).
+
+**A report must never omit what it did not measure.** Two instances, both found
+by running it:
+
+- A failure count with no denominator: "0 mismatches" and "0 rows examined"
+  print identically. Every section now carries `rows_examined`.
+- `GROUP BY` emits no row at all for an empty table, so six of seven models
+  vanished from section (2) and only `Document` appeared — reading as "checked
+  and clean". Each model is now its own ungrouped aggregate, which always
+  returns a row, so an unmeasured model says `rows_examined = 0` about itself.
+
+**Nothing verified the pilot's physical shape.** The whole premise is that the
+shape is unknown, yet every query assumed it matched `schema.prisma`, and
+`migrate diff --from-url` was scheduled only *after* each deploy. It must also
+run before M1 — otherwise every zero is a claim about a schema nobody checked.
+
 ## Status of the sequence
 
 M8 (open a tenant scope everywhere) and M10 (`TENANCY_ENFORCE=true`) are already

@@ -39,6 +39,22 @@ fi
 PRISMA="node prisma-cli/node_modules/prisma/build/index.js"
 
 case "$MODE" in
+  census)
+    # Read-only. Measures the pilot before any tenant migration touches it
+    # (ADR-0004, M0). Runs before the bootstrap for the same reason the recovery
+    # modes do: you want to be able to look at the database in states where
+    # migrating it is exactly what you are not ready to do.
+    echo "🔎 Pilot census (read-only)"
+    node scripts/census.mjs
+    CENSUS_EXIT=$?
+    echo ""
+    echo "🔎 Schema drift — the census's numbers are claims about this schema:"
+    $PRISMA migrate diff --from-url "$DATABASE_URL" \
+      --to-schema-datamodel prisma/schema.prisma --exit-code \
+      && echo "   No drift: the database matches schema.prisma." \
+      || echo "   ⚠️  DRIFT — the pilot does not match schema.prisma. Every census number above is about a schema nobody has verified."
+    exit $CENSUS_EXIT
+    ;;
   migrate-status)
     echo "🔎 prisma migrate status"
     # Reports the stuck migration and exits non-zero when the ledger is not
