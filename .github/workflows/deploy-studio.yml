@@ -1,0 +1,192 @@
+name: Deploy Studio
+
+# The Tenure System Studio — the global platform engine.
+#
+# This workflow IS armed here, and that is not a hole in the disarm rule; it is
+# the rule stated properly. The rule was never "this repository may not deploy".
+# It is: **a repository may only deploy what it owns.**
+#
+#   satvikOS/Tenure         owns the pilot        -> deploy.yml is armed there
+#   satvikOS/Tenure-Parent  owns the engine       -> this is armed here
+#
+# The two stacks share an AWS account and nothing else. In particular they use
+# SEPARATE Terraform state (`studio/terraform.tfstate`, not
+# `pilot/terraform.tfstate`), because two repositories applying different code
+# against one state file means whichever runs second destroys the other's
+# resources — which would take the live pilot down.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/system-studio/**"
+      - "packages/**"
+      - "blueprints/**"
+      - "modules/**"
+      - "infrastructure/studio/**"
+      - ".github/workflows/deploy-studio.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-studio
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build, apply, and report the URL
+    runs-on: ubuntu-latest
+
+    # Armed for the repository that OWNS the engine. Inert anywhere else, so a
+    # fork or a mirror cannot deploy it.
+    if: github.repository == 'satvikOS/Tenure-Parent'
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      TF_DIR: infrastructure/studio
+      IMAGE_TAG: sha-${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Locate the Terraform state backend
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          STATE_BUCKET="tenure-tfstate-${ACCOUNT_ID}-${AWS_REGION}"
+
+          # The bucket is created and owned by the pilot's deploy. If it is not
+          # there, something is wrong that this workflow should not paper over
+          # by creating infrastructure the other stack expects to own.
+          aws s3api head-bucket --bucket "$STATE_BUCKET" \
+            || { echo "::error::State bucket $STATE_BUCKET does not exist."; exit 1; }
+
+          echo "STATE_BUCKET=$STATE_BUCKET" >> "$GITHUB_ENV"
+          echo "ACCOUNT_ID=$ACCOUNT_ID"     >> "$GITHUB_ENV"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9"
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=$STATE_BUCKET" \
+            -backend-config="key=studio/terraform.tfstate" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="dynamodb_table=tenure-terraform-locks" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform validate
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform validate
+
+      # ECR first: the image has to have somewhere to go before it is built.
+      - name: Terraform apply — ECR only
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform apply -target=aws_ecr_repository.studio \
+            -var="image_tag=$IMAGE_TAG" \
+            -var="platform_operators=${{ secrets.PLATFORM_OPERATORS }}" \
+            -auto-approve -input=false
+          echo "ECR_URL=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_ENV"
+
+      - name: Login to Amazon ECR
+        run: aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_URL"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          # Root context: the app imports workspace packages that live outside
+          # apps/system-studio and resolve through the root lockfile.
+          context: .
+          file: apps/system-studio/Dockerfile
+          push: true
+          tags: ${{ env.ECR_URL }}:${{ env.IMAGE_TAG }},${{ env.ECR_URL }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Terraform apply
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform apply \
+            -var="image_tag=$IMAGE_TAG" \
+            -var="platform_operators=${{ secrets.PLATFORM_OPERATORS }}" \
+            -auto-approve -input=false
+
+          {
+            echo "STUDIO_URL=$(terraform output -raw studio_url)"
+            echo "ECS_CLUSTER=$(terraform output -raw ecs_cluster)"
+            echo "ECS_SERVICE=$(terraform output -raw ecs_service)"
+          } >> "$GITHUB_ENV"
+
+      - name: Wait for the service to stabilise
+        run: |
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
+          aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" \
+            --query 'services[0].{desired:desiredCount,running:runningCount,status:status}' --output table
+
+      # A URL that 200s is the only evidence that any of the above worked.
+      - name: Prove it serves
+        run: |
+          set -euo pipefail
+          echo "Checking $STUDIO_URL/signin"
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" "$STUDIO_URL/signin" || echo 000)
+            if [ "$CODE" = "200" ]; then
+              echo "✅ $STUDIO_URL/signin -> 200"
+              echo "SERVING=yes" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            echo "  attempt $i: $CODE — CloudFront takes a few minutes to propagate"
+            sleep 20
+          done
+          echo "::warning::$STUDIO_URL/signin did not return 200 within 10 minutes. The distribution may still be deploying."
+          echo "SERVING=no" >> "$GITHUB_ENV"
+
+      - name: The URL
+        if: always()
+        run: |
+          {
+            echo "# Tenure System Studio"
+            echo
+            echo "The **global platform engine** — not a tenant."
+            echo
+            echo "## ${STUDIO_URL:-not deployed}"
+            echo
+            if [ "${SERVING:-no}" = "yes" ]; then
+              echo "Serving. Sign in at ${STUDIO_URL}/signin"
+            else
+              echo "Deployed, but not yet answering. CloudFront can take several minutes on first creation."
+            fi
+            echo
+            echo "### Signing in"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Email | one of \`PLATFORM_OPERATORS\` |"
+            echo "| Operator secret | generated by Terraform, read it with the command below |"
+            echo
+            echo '```'
+            echo "aws secretsmanager get-secret-value --secret-id tenure-studio/app --query SecretString --output text"
+            echo '```'
+            echo
+            echo "Both are required. Neither is enough alone, and a wrong value for either gives the same refusal — the page does not confirm which addresses are operators."
+            echo
+            echo "---"
+            echo
+            echo "Tenant systems are elsewhere: the Simon OSE pilot is at https://d1n6mdis7bs02g.cloudfront.net and deploys from \`satvikOS/Tenure\`. This engine and that tenant share an AWS account and nothing else — separate Terraform state, separate cluster, separate load balancer, separate distribution."
+          } >> "$GITHUB_STEP_SUMMARY"

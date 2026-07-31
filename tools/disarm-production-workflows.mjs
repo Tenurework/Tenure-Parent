@@ -28,6 +28,28 @@ import path from 'node:path'
 
 export const PRODUCTION_OWNER = 'satvikOS/Tenure'
 
+/**
+ * The repository that owns the platform engine — the System Studio and its
+ * infrastructure.
+ *
+ * The rule this file enforces was never "this repository may not deploy". It is
+ * **a repository may only deploy what it owns**, and that distinction only
+ * became visible once there were two things to own:
+ *
+ *   satvikOS/Tenure         owns the pilot   -> deploy.yml is armed there
+ *   satvikOS/Tenure-Parent  owns the engine  -> deploy-studio.yml is armed here
+ *
+ * They share an AWS account and nothing else. Separate Terraform state above
+ * all: two repositories applying different code against one state file means
+ * whichever runs second destroys the other's resources.
+ */
+export const ENGINE_OWNER = 'satvikOS/Tenure-Parent'
+
+/** Jobs that deploy the engine, and are therefore armed HERE and nowhere else. */
+export const ENGINE_JOBS = {
+  'deploy-studio.yml': ['deploy'],
+}
+
 /** Every workflow that reaches AWS with this repository's credentials. */
 export const GUARDED_JOBS = {
   'custom-domain.yml': ['status'],

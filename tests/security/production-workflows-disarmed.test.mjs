@@ -63,6 +63,17 @@ const isGuarded = (job) => {
 const READ_ONLY_JOBS = new Set(['platform-plan.yml:plan'])
 
 /**
+ * Jobs that deploy THIS repository's own component, and are therefore armed
+ * here rather than disarmed.
+ *
+ * Not an exemption from the rule — the rule, correctly stated. A repository may
+ * deploy what it owns and nothing else. These are checked against
+ * ENGINE_OWNER below, so one of them guarded to the wrong repository still
+ * fails.
+ */
+const ENGINE_DEPLOY_JOBS = new Set(['deploy-studio.yml:deploy'])
+
+/**
  * Commands that change something in AWS. Deliberately broad: a false positive
  * costs one line of discussion, a false negative costs production.
  */
@@ -126,6 +137,7 @@ test('every job that can reach AWS is disarmed in this repository', () => {
     for (const [name, job] of Object.entries(doc.jobs)) {
       if (isGuarded(job)) continue
       if (READ_ONLY_JOBS.has(`${file}:${name}`)) continue
+      if (ENGINE_DEPLOY_JOBS.has(`${file}:${name}`)) continue
       unguarded.push(`${file}:${name}  if=${guardOf(job) ?? '(none)'}`)
     }
   }
@@ -136,6 +148,50 @@ test('every job that can reach AWS is disarmed in this repository', () => {
     `These jobs can reach AWS from ${THIS_REPOSITORY} with production credentials:\n  ` +
       unguarded.join('\n  ') +
       `\n\nAdd the guard with: node tools/disarm-production-workflows.mjs`,
+  )
+})
+
+test('an engine deploy is armed for THIS repository and nowhere else', async () => {
+  // The mirror image of the disarm rule. A deploy job for the engine must name
+  // Tenure-Parent, so a fork, a mirror, or the pilot repository cannot run it —
+  // and so that "armed" is never simply "unguarded".
+  const mod = await import('../../tools/disarm-production-workflows.mjs')
+
+  for (const entry of ENGINE_DEPLOY_JOBS) {
+    const [file, jobName] = entry.split(':')
+    const wf = workflows.find((w) => w.file === file)
+    assert.ok(wf, `${file} is missing`)
+
+    const job = wf.doc.jobs?.[jobName]
+    assert.ok(job, `${entry} is not a job`)
+
+    const guard = guardOf(job)
+    assert.ok(guard, `${entry} has no guard at all — armed everywhere is not armed here`)
+    assert.ok(
+      guard.includes(mod.ENGINE_OWNER),
+      `${entry} is guarded to ${guard}, not to the engine owner ${mod.ENGINE_OWNER}`,
+    )
+    assert.ok(
+      !guard.includes(mod.PRODUCTION_OWNER + "'"),
+      `${entry} is guarded to the PILOT's owner. The engine and the pilot are different things.`,
+    )
+  }
+})
+
+test("the engine deploy writes its own Terraform state, not the pilot's", async () => {
+  // The single most destructive mistake available here. Two repositories
+  // applying different code against one state file means whichever runs second
+  // sees the other's resources as undeclared and destroys them — taking the
+  // live pilot down.
+  const wf = workflows.find((w) => w.file === 'deploy-studio.yml')
+  assert.ok(wf, 'deploy-studio.yml is missing')
+  assert.ok(
+    wf.text.includes('key=studio/terraform.tfstate'),
+    'does not pin the studio state key',
+  )
+  assert.ok(
+    !wf.text.includes('key=pilot/terraform.tfstate'),
+    'writes the PILOT state file — this would destroy the live pilot',
   )
 })
 

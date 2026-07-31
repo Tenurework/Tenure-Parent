@@ -19,7 +19,37 @@
  * "tenure" during setup and nobody revisits it.
  */
 
-const PLACEHOLDERS = ["changeme", "change-me", "password", "secret", "tenure", "test", "placeholder"]
+/**
+ * Values that are obviously not secrets.
+ *
+ * Matched against the WHOLE value, not as substrings. Substring matching was the
+ * first attempt and it rejected `a-long-enough-operator-secret-2026` because it
+ * contains "secret" — a legitimate value refused with a message accusing it of
+ * being a placeholder. A rule that rejects correct input while explaining
+ * nothing is worse than no rule.
+ */
+const PLACEHOLDERS = [
+  "changeme",
+  "change-me",
+  "password",
+  "secret",
+  "tenure",
+  "test",
+  "placeholder",
+  "operator-secret",
+  "platform-operator-secret",
+]
+
+/** Strip separators and digits, so "changeme-123" is still "changeme". */
+const normalise = (v: string) => v.toLowerCase().replace(/[^a-z]/g, "")
+
+/**
+ * Distinct characters, as a cheap entropy floor.
+ *
+ * Catches the other way a secret is trivially weak — "aaaaaaaa…" or
+ * "abababab…" — which a placeholder list never will.
+ */
+const distinctChars = (v: string) => new Set(v).size
 
 export interface OperatorConfigProblem {
   variable: string
@@ -50,10 +80,16 @@ export function operatorConfigProblems(
         detail: `Too short (${secret.length}); at least 24 characters. This is the only thing standing between the internet and every tenant's configuration.`,
       })
     }
-    if (PLACEHOLDERS.some((p) => secret.toLowerCase().includes(p))) {
+    if (PLACEHOLDERS.includes(normalise(secret))) {
       problems.push({
         variable: "PLATFORM_OPERATOR_SECRET",
-        detail: "Looks like a placeholder. The usual failure is a value set during setup and never revisited.",
+        detail: `Is a placeholder ("${secret}"). The usual failure is a value set during setup and never revisited.`,
+      })
+    }
+    if (secret.length >= 24 && distinctChars(secret) < 10) {
+      problems.push({
+        variable: "PLATFORM_OPERATOR_SECRET",
+        detail: `Only ${distinctChars(secret)} distinct characters. Long is not the same as unguessable.`,
       })
     }
   }
