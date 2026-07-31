@@ -438,7 +438,29 @@ UPDATE "DirectoryPerson" dp
 
 `AND resolved.n = 1` is the whole correction. A person holding a seat at A and advising at B must **not** be silently stamped to whichever cuid sorts lower — `DirectoryPerson.institutionId` is the one column in this programme that is not a re-derivable copy, so a wrong value there is permanent, undetectable and blocks the later composite FK `SeatHolding(personId, institutionId) → DirectoryPerson(id, institutionId)` from validating. Unclassified rows quarantine as NULL, which makes them invisible to every tenant until an operator classifies them.
 
-**Trigger** (the one place a "pick the only institution" fallback is unavoidable — this model genuinely has no parent)
+> **CORRECTION (2026-07-31) — this trigger breaks CI as written.**
+>
+> `INTO STRICT` raises `TOO_MANY_ROWS` on two or more institutions, and CI has
+> had a deliberate second tenant since `c4328ca`
+> (`apps/web/scripts/ci-two-tenant-fixture.mjs`). `seed.mjs` inserts
+> `DirectoryPerson` rows without an `institutionId` while the column is still
+> nullable, so this trigger would fire, find two rows, and `RAISE EXCEPTION` —
+> failing the seed and every job downstream of it.
+>
+> The premise is also weaker than it reads. "This model genuinely has no
+> parent" is true of the *schema*, not of the *data*: the census
+> (`scripts/pilot-census.sql`, section 6) shows all 172 people reach exactly one
+> institution through `SeatHolding → Role → Organization` or
+> `OrganizationAdvisor → Organization`. The backfill below already uses that.
+> Only a person with neither link has no parent, and locally there are none.
+>
+> So the fallback should not exist. A `DirectoryPerson` inserted with no
+> institution and no seat has no honest tenant to guess at, and guessing is what
+> produces a row whose `institutionId` and relations disagree — the defect this
+> whole programme exists to remove. Leave it NULL and let the quarantine report
+> it, exactly as R2 prescribes for every other unclassifiable row.
+
+**Trigger** (superseded — see the correction above; kept for the reasoning about `INTO STRICT` vs `LIMIT 2`)
 
 ```sql
 CREATE OR REPLACE FUNCTION tenure_expand_fill_single_institution() RETURNS trigger
@@ -530,6 +552,29 @@ Every wave uses the M3 template verbatim: nullable column → total backfill →
 ALTER TABLE "Notification" ADD COLUMN "institutionId" TEXT;
 
 -- total, no RAISE, no-op on an empty database (CI runs migrate deploy against one)
+-- CORRECTION (2026-07-31): the `= 1` guard below is wrong and must not ship.
+--
+-- It does not fail on two tenants, which would at least be visible — it
+-- silently updates nothing, leaves every Notification quarantined at NULL, and
+-- surfaces much later as M11's SET NOT NULL failing on a table nobody was
+-- looking at. CI has had a second tenant since c4328ca, so this would no-op
+-- there today.
+--
+-- Notification has a real parent: `userId`. Derive the tenant from the
+-- recipient's own membership, and leave a NULL for anyone whose membership
+-- cannot be resolved to exactly one institution — that row is genuinely
+-- ambiguous and R2 says quarantine it rather than guess:
+--
+--   UPDATE "Notification" n
+--      SET "institutionId" = m."institutionId"
+--     FROM "InstitutionMembership" m
+--    WHERE m."userId" = n."userId"
+--      AND n."institutionId" IS NULL
+--      AND (SELECT count(*) FROM "InstitutionMembership" m2
+--            WHERE m2."userId" = n."userId") = 1;
+--
+-- A user with memberships at two institutions needs the notification's own
+-- origin to disambiguate, which is a product question, not a backfill.
 UPDATE "Notification" n
    SET "institutionId" = (SELECT id FROM "Institution")
  WHERE n."institutionId" IS NULL
