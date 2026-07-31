@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID, RUN_SEED } from "./run-id"
 
 /**
  * Week 4: shared calendar, conflict detection, approval-linked publishing.
@@ -22,7 +23,7 @@ async function waitForEventPage(page: Page) {
   await page.waitForURL((url) => /^\/calendar\/[a-z0-9]{8,}$/.test(url.pathname))
 }
 
-const stamp = Date.now()
+const stamp = RUN_ID
 
 /**
  * Every run parks on its own far-future week, and every test on its own day
@@ -33,7 +34,7 @@ const stamp = Date.now()
  * for a reason that has nothing to do with the code under test. Spreading runs
  * across days keeps each assertion about this run only.
  */
-const dayOffset = 60 + (stamp % 240)
+const dayOffset = 60 + (RUN_SEED % 240)
 const dayAt = (n: number) =>
   new Date(Date.now() + (dayOffset + n) * 864e5).toISOString().slice(0, 10)
 

@@ -1,9 +1,10 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /** Week 7: permission-aware search with citations + OSE reports. */
 
-const stamp = Date.now()
+const stamp = RUN_ID
 const cardTitle = `Catering vendor SIMONX${stamp}`
 
 test.describe("search", () => {

@@ -46,6 +46,17 @@ loadDotenv()
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000"
 
+/**
+ * Seed the suite's run identifier here, in the main process, before any worker
+ * is forked — workers inherit the environment, so every spec and every retry
+ * reads the same value. See e2e/run-id.ts for why a per-import `Date.now()`
+ * makes a retried test unable to pass.
+ *
+ * `||=`, so an outer runner (a matrix job wanting one id across shards) can set
+ * it and be respected.
+ */
+process.env.E2E_RUN_ID ||= String(Date.now())
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,

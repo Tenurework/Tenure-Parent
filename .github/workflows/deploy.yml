@@ -193,6 +193,63 @@ jobs:
             -var="image_tag=$IMAGE_TAG" \
             -auto-approve -input=false
 
+      # ── 6b. Migrations, as their own stage, before the service moves ─────
+      #
+      # Ordering is the whole point. Applying migrations here means a failure
+      # fails the deploy while the running task keeps serving the old version,
+      # untouched. Applying them at container start instead — which the
+      # entrypoint still does as a fallback — means a bad migration meets a
+      # service that is already mid-replacement, and a half-applied migration
+      # then returns P3009 to every image, including the one the ECS circuit
+      # breaker would roll back to. RDS is VPC-only, so this one-off task is
+      # also the only place `migrate deploy` can run at all.
+      - name: Apply database migrations
+        run: |
+          CLUSTER=$(cd $TF_DIR && terraform output -raw ecs_cluster_name)
+          SERVICE=$(cd $TF_DIR && terraform output -raw ecs_service_name)
+
+          # The task definition Terraform just registered, carrying the new
+          # image — so the migrations applied are the ones this build expects.
+          TASK_DEF=$(cd $TF_DIR && terraform output -raw ecs_task_definition_arn 2>/dev/null || true)
+          if [ -z "$TASK_DEF" ]; then
+            TASK_DEF=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+              --query 'services[0].taskDefinition' --output text)
+          fi
+
+          SVC=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0]' --output json)
+          SUBNETS=$(jq -r '.networkConfiguration.awsvpcConfiguration.subnets | join(",")' <<<"$SVC")
+          SGS=$(jq -r '.networkConfiguration.awsvpcConfiguration.securityGroups | join(",")' <<<"$SVC")
+
+          echo "Running migrations on $TASK_DEF"
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$CLUSTER" \
+            --task-definition "$TASK_DEF" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SGS],assignPublicIp=ENABLED}" \
+            --overrides '{"containerOverrides":[{"name":"app","command":["migrate"]}]}' \
+            --query 'tasks[0].taskArn' --output text)
+
+          [ -n "$TASK_ARN" ] && [ "$TASK_ARN" != "None" ] || { echo "::error::run-task returned no ARN"; exit 1; }
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK_ARN"
+
+          EXIT_CODE=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+
+          LOG_GROUP=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
+            --query 'taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"' --output text)
+          LOG_PREFIX=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
+            --query 'taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-stream-prefix"' --output text)
+          aws logs get-log-events --log-group-name "$LOG_GROUP" \
+            --log-stream-name "$LOG_PREFIX/app/$(basename "$TASK_ARN")" \
+            --limit 100 --query 'events[].message' --output text || echo "(no logs)"
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "::error::Migrations failed (exit $EXIT_CODE). The service was NOT updated and is still serving the previous version."
+            echo "If the log shows P3009, use the 'Database recovery' workflow — redeploying will not clear it."
+            exit 1
+          fi
+          echo "✅ Migrations applied. Safe to move the service."
+
       # ── 7. Force ECS to pull the new image ──────────────────────────────
       - name: Register new ECS task definition and deploy
         run: |

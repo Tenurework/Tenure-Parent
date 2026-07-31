@@ -161,6 +161,24 @@ jobs:
           [ "$ROWS" = "1" ] || { echo "::error::Bootstrap destroyed pre-existing data."; exit 1; }
           echo "✅ Live data survived the migration baseline."
 
+      # Every step above applies migrations to a database created moments
+      # earlier and never populated, so a backfill would run against zero rows
+      # and pass vacuously — verification that reads green while proving
+      # nothing. This gives the migrations data, and two tenants, to meet.
+      #
+      # It is deliberately built to grow: once ADR-0004's M2-M4 make the five
+      # global uniques tenant-scoped, the fixture's COLLIDE_WITH_TENANT_A flag
+      # flips and this step becomes the assertion those migrations exist to
+      # satisfy. Standing it up now means the first real backfill arrives with
+      # its test already in place rather than needing one written alongside it.
+      - name: Migrations must survive a populated, two-tenant database
+        working-directory: apps/web
+        run: |
+          node scripts/seed.mjs
+          node scripts/ci-two-tenant-fixture.mjs
+          npx prisma migrate deploy
+          node scripts/ci-two-tenant-fixture.mjs --verify
+
       # Proves tenant isolation is actually reached, not merely correct in
       # principle. Runs against the enforcing client on a real database: a
       # filter that is never applied looks identical to one that works in any

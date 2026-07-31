@@ -17,15 +17,22 @@ name: Ops Status
 # an account ID is not something to scatter around. Everything needed to make a
 # deployment decision — certificate status, SANs, CloudFront aliases, TLS
 # settings — is preserved.
+# Run this when you want to look, not on a timer.
+#
+# The ten-minute schedule existed to catch the moment ACM validated the
+# certificate for platform.tenurework.com. That happened on 2026-07-30 — status
+# ISSUED, alias attached, distribution deployed — so the question it was polling
+# has an answer, and the schedule was left behind answering it again every ten
+# minutes. Twelve runs landed on a single commit, which buries the checks that
+# say whether the build is green.
+#
+# Restore the cron if something is genuinely being waited on, and delete it
+# again when the waiting is over.
 on:
   workflow_dispatch:
   push:
     paths:
       - ".github/workflows/ops-status.yml"
-  schedule:
-    # Every 10 minutes, so a pending certificate is observed shortly after ACM
-    # validates it without anyone having to babysit the run.
-    - cron: "*/10 * * * *"
 
 concurrency:
   group: ops-status

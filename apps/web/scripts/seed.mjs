@@ -12,7 +12,13 @@
  */
 import { PrismaClient } from "@prisma/client"
 
-import { ROSTER, ADVISORS, CURRENT_TERM, PRIOR_TERM } from "./roster-data.mjs"
+// Via roster-source, not roster-data directly: the real roster is 172 named
+// students with their university addresses, and it should not stay committed in
+// a repository whose visibility is the only thing protecting it. The
+// indirection means removing it is `git rm --cached` plus a .gitignore line,
+// with no code change — CI and local development fall through to the synthetic
+// fixture, and production refuses to seed from that fixture by accident.
+import { ROSTER, ADVISORS, CURRENT_TERM, PRIOR_TERM } from "./roster-source.mjs"
 import { deliverablesWithTerms } from "./deliverables-data.mjs"
 import { RESOURCES } from "./resources-data.mjs"
 

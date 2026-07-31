@@ -1,11 +1,12 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /** Proceed 2 batch E: notifications, interactive calendar, back navigation. */
 
 
 
-const stamp = Date.now()
+const stamp = RUN_ID
 const reqTitle = `E2E Notify ${stamp}`
 
 test.describe("notification system", () => {

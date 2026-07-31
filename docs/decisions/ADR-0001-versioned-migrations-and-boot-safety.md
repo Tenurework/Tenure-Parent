@@ -104,13 +104,27 @@ unstated. `SEED_ON_BOOT` is deliberately *not* set there — boot-time seeding i
 what this ADR removed, and reference data is now published by the "Seed
 reference data" workflow as a one-off ECS task.
 
-**Migrations still run at container boot, not as a separate deploy stage.** RDS
-is reachable only inside the VPC, so a GitHub Actions runner cannot reach it.
-Prisma takes a Postgres advisory lock, so concurrent task starts serialise
-rather than race. This is the remaining gap against §33's "migration stage"
-requirement and is deferred to a follow-up ADR covering a one-off ECS
-`RunTask` stage — which is also what a long backfill will need, since a
-migration that outlives the ALB health-check grace period cannot run at boot.
+**Migrations run as a deploy stage. (Closed 2026-07-31.)** This originally
+shipped applying migrations at container boot, with the note that a separate
+stage was deferred. That deferral had a sharper cost than it looked: a migration
+that fails partway leaves a `finished_at NULL` ledger row, and P3009 then
+refuses from *every* image — including the one the circuit breaker rolls back
+to — so "ECS will roll back" was not a recovery path. Recovery is now
+`db-recovery.yml`, and the trap is largely avoided by ordering:
+`deploy.yml` runs `entrypoint.sh migrate` as a one-off in-VPC task **before**
+the service is updated, so a failed migration fails the deploy while the running
+task keeps serving the old version untouched.
+
+Boot still runs the bootstrap as a fallback, deliberately. `migrate deploy` is
+idempotent, so on a normal deploy it is a no-op — and it remains the only thing
+between a task that started outside a deploy (a scale-out, a health-check
+replacement, a manual `RunTask`) and a schema it was not built for.
+
+The stage sets `lock_timeout` and `statement_timeout`, because Prisma wraps a
+migration in one transaction: the ACCESS EXCLUSIVE lock its first statement
+takes is held until the last commits, and lock *acquisition* is unbounded. With
+`connection_limit=5`, five blocked readers exhaust the pool, `/api/health`
+503s, and the ALB kills the only task in ~90s.
 
 ## Alternatives considered
 

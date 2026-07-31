@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /**
  * End-to-end coverage of every user-facing endpoint:
@@ -129,7 +130,7 @@ test.describe("organizations + roster RBAC", () => {
 })
 
 test.describe("approvals: full state machine", () => {
-  const title = `E2E Budget ${Date.now()}`
+  const title = `E2E Budget ${RUN_ID}`
 
   test("VP submits → President approves → OSE approves", async ({ page }) => {
     // 1. VP creates and submits

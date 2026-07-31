@@ -66,10 +66,38 @@ case "$MODE" in
     ;;
 esac
 
+# `migrate` mode: apply migrations as a deploy stage and exit, without serving.
+#
+# This is where migrations are supposed to happen. deploy.yml runs it as a
+# one-off task BEFORE updating the service, so a migration that fails fails the
+# deploy while the running task carries on serving the old version untouched.
+# Applying at container start instead means a bad migration meets a service that
+# is already mid-replacement, and P3009 then locks out every image including the
+# one ECS would roll back to (ADR-0001, and the recovery path in db-recovery.yml).
+#
+# Timeouts are set here rather than inside the migration files because Prisma
+# wraps a migration in a single transaction: the ACCESS EXCLUSIVE lock its first
+# statement takes is held until the last one commits, and lock *acquisition* is
+# unbounded. Without a ceiling, one long-running reader blocks the migration,
+# the migration blocks every subsequent reader, the pool (connection_limit=5)
+# exhausts, /api/health 503s, and the ALB kills the only task in ~90s.
+if [ "$MODE" = "migrate" ]; then
+  echo "⏳ Applying migrations as a deploy stage..."
+  export PGOPTIONS="${PGOPTIONS:--c lock_timeout=3s -c statement_timeout=120s}"
+  echo "   PGOPTIONS=$PGOPTIONS"
+  node scripts/db-bootstrap.mjs
+  echo "✅ Migrations applied — one-off task, not starting the server."
+  exit 0
+fi
+
 if [ "$SKIP_DB_BOOTSTRAP" != "true" ]; then
-  # Versioned migrations, fail-closed. `set -e` above means a failed bootstrap
-  # exits the container rather than serving against an unverified schema; the
-  # ECS deployment circuit breaker then rolls back. See scripts/db-bootstrap.mjs.
+  # Still runs at boot, deliberately, even though the deploy stage above is the
+  # primary path. `migrate deploy` is idempotent, so on a normal deploy this is
+  # a no-op that prints "No pending migrations to apply" — and it is the only
+  # thing standing between a task that started outside a deploy (a scale-out, a
+  # health-check replacement, a manual RunTask) and a schema it was not built
+  # for. Fail-closed: `set -e` exits the container rather than serving against
+  # an unverified schema. See scripts/db-bootstrap.mjs.
   node scripts/db-bootstrap.mjs
 fi
 

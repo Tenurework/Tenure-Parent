@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /**
  * Week 6: institutional memory + documents.
@@ -7,7 +8,7 @@ import { signIn } from "./support/auth"
  * active VP is readable by the incoming SHADOW president's seat successor.
  */
 
-const stamp = Date.now()
+const stamp = RUN_ID
 const orgCardTitle = `Gala catering contact ${stamp}`
 const seatCardTitle = `President transition notes ${stamp}`
 

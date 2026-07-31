@@ -1,12 +1,13 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /** The dedicated admin console: gating, and assign / transfer / remove roles
  *  through the University directory picker. */
 
 
 
-const stamp = Date.now()
+const stamp = RUN_ID
 const SEARCH = "Search the directory by name or email…"
 
 test.describe("admin console", () => {
