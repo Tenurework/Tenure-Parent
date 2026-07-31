@@ -215,3 +215,69 @@ office's real name; `blueprints/nonprofit-program-operations` exists as a
 structurally different second system so that the claim is testable rather than
 asserted. The slug stays `rochester` because that is what the database says;
 renaming it is a data migration and belongs to ADR-0004's programme.
+
+---
+
+## PD-007 — Tenant systems live under a path prefix; the platform engine gets its own host
+
+**Date:** 2026-07-31 · **Status:** Accepted
+
+**Question.** Two questions, answered together because the answers only make
+sense as a pair.
+
+1. `ADR-0004` Decision **A**, recorded there as outstanding and blocking M9:
+   once organization slugs are per-tenant, what is a club's URL?
+2. Where does the Tenure platform engine — the System Studio, and the control
+   plane behind it — actually live?
+
+**Decision.**
+
+**A tenant's system is served under a path prefix naming that tenant**, on the
+platform host:
+
+```
+platform.tenurework.com/simon/orgs/consulting-club
+platform.tenurework.com/<tenant>/...
+```
+
+The prefix is the tenant's own name — `simon`, not `rochester` and not an
+opaque id. The system belongs to the Ainslie Office of Student Engagement at
+Simon Business School; `simon` is what the people using it call it.
+
+**The platform engine gets a separate host of its own.** Until that host exists
+it is reachable at the CloudFront URL, and the custom domain belongs to tenant
+systems.
+
+**Why the pair matters.** These are the same decision seen twice. A prefix-less
+host cannot serve two tenants, and a host that serves tenants cannot also serve
+the console that configures them — not for routing reasons but for blast radius:
+the Studio shows every tenant's configuration, so putting it on a customer's
+origin makes one authorization bug a cross-customer disclosure.
+
+**What it settles that was open.**
+
+- `ADR-0004` Decision A is now decided, in the form its own recommendation
+  favoured (a path prefix, not a session-derived tenant) but with the tenant's
+  name rather than `/i/<slug>`. A URL means the same thing to everyone who
+  holds it, which is what makes it shareable in a Slack message and
+  diagnosable in a support ticket.
+- M9 — persisting the acting institution — is unblocked. The prefix IS the
+  acting institution, validated against membership on every request exactly as
+  `resolveTenantScope(userId, institutionId)` already supports.
+
+**Commits us to.**
+
+- The ~41 URL construction sites and 18 `revalidatePath` calls `ADR-0004`
+  costed, plus a redirect layer so existing links keep working.
+- A tenant slug that is stable and human-meaningful, since it is now in every
+  URL anyone bookmarks or pastes. `simon` is the tenant's name; the database
+  slug is `rochester` today, and reconciling those is a data migration owned by
+  the schema programme, not a rename done in passing.
+- **Removing `/studio` from `apps/web`.** It currently ships inside the tenant's
+  container on the tenant's domain, with `PLATFORM_OPERATORS` as the only thing
+  between a customer's application and the console that configures every
+  customer. That was tolerable while nothing else existed; this decision makes
+  it wrong. It moves to `apps/system-studio`.
+
+**Not yet decided.** The engine's hostname. Whichever it is, the constraint
+above stands: it is not a host that also serves a tenant.
