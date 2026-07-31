@@ -13,6 +13,21 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  /**
+   * Version-skew protection.
+   *
+   * Without this, someone with the page open during a deploy holds HTML and a
+   * client bundle from the old build while the server serves the new one. The
+   * router then requests chunks that no longer exist and React throws
+   * "Application error: a client-side exception has occurred" — which is what a
+   * user hit after three redeploys in an afternoon.
+   *
+   * With a deployment id, assets are requested as `?dpl=<id>`, a mismatched
+   * request 404s, and Next recovers with a hard navigation instead of failing.
+   * The value must be IDENTICAL at build and at run time, which is why the
+   * Dockerfile bakes it in rather than the task definition supplying it.
+   */
+  deploymentId: process.env.DEPLOYMENT_ID,
   // Self-contained server bundle for the container.
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),

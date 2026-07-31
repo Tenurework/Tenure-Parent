@@ -23,6 +23,38 @@ test.beforeAll(() => {
   expect(SECRET, "PLATFORM_OPERATOR_SECRET must be set for this suite").not.toBe("")
 })
 
+/**
+ * Every test listens for uncaught browser errors.
+ *
+ * Asserting visible text is not enough: a client-side exception can replace the
+ * page a moment after an assertion passes, and Playwright does not fail on
+ * console output by default. Four green tests here coexisted with a user seeing
+ * "Application error: a client-side exception has occurred".
+ */
+/** Errors seen in the browser during the current test, keyed by its title. */
+const browserErrors = new Map<string, string[]>()
+
+test.beforeEach(async ({ page }, testInfo) => {
+  const errors: string[] = []
+  browserErrors.set(testInfo.testId, errors)
+
+  page.on("pageerror", (err) => {
+    errors.push(`${err.name}: ${err.message}`)
+  })
+  page.on("console", (msg) => {
+    if (msg.type() === "error") errors.push(`console: ${msg.text()}`)
+  })
+})
+
+test.afterEach(async ({ page }, testInfo) => {
+  const errors = browserErrors.get(testInfo.testId) ?? []
+  browserErrors.delete(testInfo.testId)
+
+  const body = await page.locator("body").innerText().catch(() => "")
+  expect(body, "Next's client-side exception screen").not.toContain("Application error")
+  expect(errors, "uncaught errors in the browser").toEqual([])
+})
+
 test.describe("operator sign-in", () => {
   test("correct credentials reach the console", async ({ page }) => {
     await page.goto("/signin")

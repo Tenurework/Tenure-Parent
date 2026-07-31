@@ -20,6 +20,10 @@ RUN npm ci --ignore-scripts
 
 FROM node:22-alpine AS builder
 WORKDIR /app
+# Same value at build and at run time, or skew protection is worse than none:
+# every asset request would mismatch and every page would reload forever.
+ARG DEPLOYMENT_ID=dev
+ENV DEPLOYMENT_ID=${DEPLOYMENT_ID}
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
 COPY packages/ packages/
@@ -34,6 +38,8 @@ RUN npm run build --workspace apps/system-studio
 
 FROM node:22-alpine AS runner
 WORKDIR /app
+ARG DEPLOYMENT_ID=dev
+ENV DEPLOYMENT_ID=${DEPLOYMENT_ID}
 ENV NODE_ENV=production
 ENV PORT=3100
 ENV HOSTNAME=0.0.0.0
