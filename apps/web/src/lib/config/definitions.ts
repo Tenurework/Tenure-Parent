@@ -1,6 +1,8 @@
 import { z } from "zod"
 import { defineConfig, type ConfigDefinition } from "@tenure/configuration"
 
+import { LOCALIZATION_DEFINITIONS } from "./localization"
+
 /**
  * What the platform lets an organization system change about the words it uses.
  *
@@ -101,4 +103,5 @@ export const PLATFORM_DEFINITIONS: readonly ConfigDefinition[] = [
   organizationTermPlural,
   leadershipBodyTerm,
   seatTerm,
+  ...LOCALIZATION_DEFINITIONS,
 ] as ConfigDefinition[]

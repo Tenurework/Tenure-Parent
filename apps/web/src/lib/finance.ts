@@ -7,6 +7,8 @@
  * point never touches a currency total.
  */
 
+import { formatMoney, type MoneyFormat } from "@/lib/money"
+
 export type BudgetLineInput = {
   category: string
   budgetedCents: number
@@ -31,14 +33,25 @@ export type FinanceSummary = {
   lineCount: number
 }
 
-/** "$1,234.56" from cents. */
+/**
+ * "$1,234.56" from cents, in the platform default currency.
+ *
+ * Kept for the 36 call sites that have no tenant in hand — most of them client
+ * components rendering a number they were handed. Output is unchanged: the Intl
+ * path it now delegates to was checked byte-for-byte against the hand-rolled
+ * one for positives, negatives, zero, sub-dollar amounts and millions.
+ *
+ * A surface that DOES know its tenant should use `formatCentsIn` instead, which
+ * is the only one of the two that is right for a tenant not denominated in
+ * dollars.
+ */
 export function formatCents(cents: number): string {
-  const sign = cents < 0 ? "-" : ""
-  const abs = Math.abs(cents)
-  const dollars = Math.floor(abs / 100)
-  const rem = abs % 100
-  const withCommas = dollars.toLocaleString("en-US")
-  return `${sign}$${withCommas}.${String(rem).padStart(2, "0")}`
+  return formatMoney(cents)
+}
+
+/** "£1,234.56" — the same amount, in one tenant's locale and currency. */
+export function formatCentsIn(cents: number, format: MoneyFormat): string {
+  return formatMoney(cents, format)
 }
 
 /** "$1.2k" / "$980" for compact axis labels. */

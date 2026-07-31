@@ -21,6 +21,11 @@ export const universityStudentOrganizations: SystemBlueprint = {
     "platform.terminology.organizationPlural": "clubs",
     "platform.terminology.leadershipBody": "executive board",
     "platform.terminology.seatSingular": "seat",
+    // A US university on an academic year: July opening, weeks starting Sunday.
+    "platform.localization.locale": "en-US",
+    "platform.localization.currency": "USD",
+    "platform.localization.firstDayOfWeek": 0,
+    "platform.localization.fiscalYearStartMonth": 7,
   },
   // Everything the pilot runs today. reimbursements and budgeting need the
   // finance entitlement, which the tenant binding grants.

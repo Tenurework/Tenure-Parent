@@ -27,6 +27,13 @@ export const nonprofitProgramOperations: SystemBlueprint = {
     "platform.terminology.organizationPlural": "programs",
     "platform.terminology.leadershipBody": "steering committee",
     "platform.terminology.seatSingular": "post",
+    // A UK-registered charity: sterling, ISO weeks starting Monday, and an
+    // April fiscal year. None of this is a translation of the university's
+    // settings — it is a different organisation with different obligations.
+    "platform.localization.locale": "en-GB",
+    "platform.localization.currency": "GBP",
+    "platform.localization.firstDayOfWeek": 1,
+    "platform.localization.fiscalYearStartMonth": 4,
   },
   // A different system, not the same system renamed: no community feed, no
   // student-facing messaging, no reimbursements. Programs are coordinated, not

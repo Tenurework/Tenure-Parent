@@ -7,6 +7,7 @@ import {
 
 import { getBlueprint, getTenantBinding } from "@tenure/blueprints"
 import { PLATFORM_DEFINITIONS } from "./definitions"
+import type { Localization } from "./localization"
 
 /**
  * The effective configuration for one institution.
@@ -88,5 +89,21 @@ export function terminologyFor(institutionSlug: string): Terminology {
     organizations: config.get<string>("platform.terminology.organizationPlural"),
     leadershipBody: config.get<string>("platform.terminology.leadershipBody"),
     seat: config.get<string>("platform.terminology.seatSingular"),
+  }
+}
+
+/**
+ * Locale, currency and calendar for an institution.
+ *
+ * Here rather than in localization.ts because it needs the registry, and the
+ * registry is built from the definitions that file exports.
+ */
+export function localizationFor(institutionSlug: string): Localization {
+  const config = resolveSystemConfig(institutionSlug)
+  return {
+    locale: config.get<string>("platform.localization.locale"),
+    currency: config.get<string>("platform.localization.currency"),
+    firstDayOfWeek: config.get<number>("platform.localization.firstDayOfWeek"),
+    fiscalYearStartMonth: config.get<number>("platform.localization.fiscalYearStartMonth"),
   }
 }

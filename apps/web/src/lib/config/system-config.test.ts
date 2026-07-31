@@ -88,13 +88,19 @@ describe("every shipped blueprint and binding is valid against the registry", ()
     expect(broken.blueprintId).toBeTruthy()
   })
 
-  it("declares no key that decides authority", () => {
-    // The fallback above is only defensible while that stays true. If a
-    // security-relevant key is ever added here, this fails and the fallback has
-    // to be reconsidered rather than silently inherited.
+  it("declares no key that decides authority, and none that is a secret", () => {
+    // The fallback to platform defaults is only defensible while this holds. If
+    // a security-relevant key is ever added to this registry, this fails and the
+    // fallback has to be reconsidered rather than silently inherited.
+    //
+    // Sensitivity is about disclosure, not authority: fiscalYearStartMonth is
+    // "internal" because it is an operational detail, not because reading it
+    // grants anything. What would break the fallback is a key that gates a
+    // capability, or one whose default is a secret.
     for (const def of REGISTRY.all()) {
       expect(def.requiresCapability).toBeUndefined()
-      expect(def.sensitivity).toBe("public")
+      expect(def.sensitivity).not.toBe("secret")
+      expect(def.sensitivity).not.toBe("confidential")
     }
   })
 })
