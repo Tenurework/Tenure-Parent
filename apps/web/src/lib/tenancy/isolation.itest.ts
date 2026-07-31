@@ -47,10 +47,16 @@ type OrgCreateArgs = Parameters<typeof db.organization.create>[0]
 const createOrg = (data: Record<string, unknown>) =>
   db.organization.create({ data } as unknown as OrgCreateArgs)
 
+const SEAT_HOLDER_EMAIL = `b-president-${SUFFIX}@example.test`
+
 async function cleanup() {
   await runUnscoped("migration", "isolation test cleanup", async () => {
+    // Role cascades from Organization and RoleAssignment from Role, so deleting
+    // the orgs takes the seat with them. User is platform-global and hangs off
+    // neither, so it has to be named.
     await db.organization.deleteMany({ where: { institutionId: { in: [INST_A, INST_B] } } })
     await db.institution.deleteMany({ where: { id: { in: [INST_A, INST_B] } } })
+    await db.user.deleteMany({ where: { email: SEAT_HOLDER_EMAIL } })
   })
 }
 
@@ -73,6 +79,34 @@ beforeAll(async () => {
   })
   await runInTenantScope(scopeB, async () => {
     await createOrg({ name: "B's Club", slug: `b-club-${SUFFIX}` })
+  })
+
+  // One seat, belonging to tenant B.
+  //
+  // The "does NOT protect" cases below are claims about a table that contains
+  // another tenant's rows: that an unfiltered count sees them, and that adding
+  // the relation predicate stops seeing them. Neither claim says anything about
+  // an empty table — both pass trivially on one and prove nothing.
+  //
+  // Nothing else supplies that row. These run in CI against a database that was
+  // created by `prisma migrate deploy` and never seeded, so a test that needs a
+  // RoleAssignment to exist has to create it. Reading a precondition out of
+  // ambient data is what made this suite fail on an empty database while passing
+  // on a developer's seeded one.
+  await runUnscoped("control-plane", "isolation test fixture", async () => {
+    const orgB = await db.organization.findFirstOrThrow({
+      where: { slug: `b-club-${SUFFIX}` },
+      select: { id: true },
+    })
+    const holder = await db.user.create({
+      data: { name: "B's President", email: SEAT_HOLDER_EMAIL },
+    })
+    const seat = await db.role.create({
+      data: { organizationId: orgB.id, name: "President", scope: "PRESIDENT" },
+    })
+    await db.roleAssignment.create({
+      data: { userId: holder.id, roleId: seat.id, status: "ACTIVE" },
+    })
   })
 })
 
@@ -237,8 +271,9 @@ describe("what a tenant scope does NOT protect", () => {
       }),
     )
 
-    // Tenant A is a fixture with no seats, so a correctly filtered count is 0
-    // while the unfiltered one above is the whole table.
+    // Tenant A is a fixture with no seats and tenant B holds exactly one, so a
+    // correctly filtered count is 0 while the unfiltered one above is the whole
+    // table — including B's row, which is the point.
     expect(leaked).toBe(0)
     expect(await runUnscoped("migration", "assert", () => db.roleAssignment.count())).toBeGreaterThan(0)
   })
