@@ -1,6 +1,7 @@
 import { cache } from "react"
 import type { AssignmentStatus, InstitutionRole, RoleScope } from "@prisma/client"
 import { db } from "@/lib/db"
+import { runUnscoped } from "@/lib/tenancy/context"
 
 // ─── User context ─────────────────────────────────────────────────────────────
 
@@ -22,24 +23,31 @@ export interface UserContext {
 
 /** Load everything permission checks need in one query round-trip per request. */
 export const getUserContext = cache(async (userId: string): Promise<UserContext> => {
-  const [memberships, assignments] = await Promise.all([
-    db.institutionMembership.findMany({
-      where: { userId },
-      select: { institutionId: true, role: true },
-      // Stable ordering so a multi-institution admin always resolves the same
-      // acting institution (requireCapability defaults to institutionRoles[0]).
-      orderBy: [{ institutionId: "asc" }],
-    }),
-    db.roleAssignment.findMany({
-      where: { userId },
-      select: {
-        status: true,
-        role: {
-          select: { id: true, name: true, scope: true, organizationId: true },
+  // Reading a user's memberships is *how* a request works out which tenant it
+  // belongs to, so it cannot itself require one — the bootstrap deadlock named
+  // in ADR-0002. The grant also keeps this correct when it is called from
+  // inside an open scope: permission checks need the user's whole membership
+  // set, not the slice that happens to sit in the acting institution.
+  const [memberships, assignments] = await runUnscoped("auth-bootstrap", "getUserContext", () =>
+    Promise.all([
+      db.institutionMembership.findMany({
+        where: { userId },
+        select: { institutionId: true, role: true },
+        // Stable ordering so a multi-institution admin always resolves the same
+        // acting institution (requireCapability defaults to institutionRoles[0]).
+        orderBy: [{ institutionId: "asc" }],
+      }),
+      db.roleAssignment.findMany({
+        where: { userId },
+        select: {
+          status: true,
+          role: {
+            select: { id: true, name: true, scope: true, organizationId: true },
+          },
         },
-      },
-    }),
-  ])
+      }),
+    ]),
+  )
 
   return {
     userId,
