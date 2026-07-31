@@ -43,3 +43,22 @@ variable "platform_operators" {
   default     = ""
   description = "Comma-separated Tenure staff addresses. Empty means nobody can sign in, which the application enforces by refusing to serve."
 }
+
+variable "platform_operator_secret" {
+  type      = string
+  default   = ""
+  sensitive = true
+
+  description = <<-EOT
+    The shared operator secret.
+
+    Supplied rather than generated when it is set, because a generated one can
+    only be read back out of Secrets Manager — and this repository is public, so
+    there is no workflow output, log or artifact that could carry it to the
+    person who needs it without also publishing it. Supplying it means the
+    operator already knows the value and it never has to travel.
+
+    Empty falls back to the generated one, so a deployment with no secret
+    configured still comes up with a strong value rather than a blank.
+  EOT
+}

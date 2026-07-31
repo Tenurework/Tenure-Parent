@@ -98,6 +98,7 @@ jobs:
           terraform apply -target=aws_ecr_repository.studio \
             -var="image_tag=$IMAGE_TAG" \
             -var="platform_operators=${{ secrets.PLATFORM_OPERATORS }}" \
+            -var="platform_operator_secret=${{ secrets.PLATFORM_OPERATOR_SECRET }}" \
             -auto-approve -input=false
           echo "ECR_URL=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_ENV"
 
@@ -125,6 +126,7 @@ jobs:
           terraform apply \
             -var="image_tag=$IMAGE_TAG" \
             -var="platform_operators=${{ secrets.PLATFORM_OPERATORS }}" \
+            -var="platform_operator_secret=${{ secrets.PLATFORM_OPERATOR_SECRET }}" \
             -auto-approve -input=false
 
           {
