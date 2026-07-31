@@ -57,6 +57,19 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000"
  */
 process.env.E2E_RUN_ID ||= String(Date.now())
 
+/**
+ * One seeded account is Tenure staff for the duration of the suite.
+ *
+ * The System Studio is gated on `PLATFORM_OPERATORS`, which fails closed when
+ * unset — so without this, studio.spec.ts would pass its three "cannot reach it"
+ * assertions for the wrong reason and its "operator can" assertion would fail.
+ * Set here rather than in CI's env block so a local run and a CI run agree, and
+ * because `webServer` below inherits this process's environment.
+ *
+ * `||=`, so a run that wants a different operator can say so.
+ */
+process.env.PLATFORM_OPERATORS ||= "director@tenure.demo"
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
