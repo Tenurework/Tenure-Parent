@@ -34,6 +34,8 @@ export const nonprofitProgramOperations: SystemBlueprint = {
     "platform.localization.currency": "GBP",
     "platform.localization.firstDayOfWeek": 1,
     "platform.localization.fiscalYearStartMonth": 4,
+    "platform.branding.primaryColor": "#7a3fb8",
+    "platform.branding.wordmark": "Midtown",
   },
   // A different system, not the same system renamed: no community feed, no
   // student-facing messaging, no reimbursements. Programs are coordinated, not

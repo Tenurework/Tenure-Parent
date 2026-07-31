@@ -8,6 +8,8 @@ import { Footer } from "@/components/shell/Footer"
 import { MainRegion } from "@/components/shell/MainRegion"
 import { AIProvider } from "@/components/ai/AIProvider"
 import { TenureAIPanel } from "@/components/ai/TenureAIPanel"
+import { brandingCss } from "@/lib/config/branding"
+import { brandingFor } from "@/lib/config/system-config"
 import { modulesFor, navigationForSystem } from "@/lib/config/system-modules"
 import { navigationCapabilitiesFor } from "@/lib/authz/navigation-capabilities"
 import { resolveTenantScope } from "@/lib/tenant-scope"
@@ -72,8 +74,15 @@ export default async function AppLayout({
   )
   const navSections = navigationForSystem(institution.slug, capabilities)
 
+  // Empty string for a tenant that has not changed anything, so the common case
+  // adds no bytes to the document. The values are validated to `#rgb`/`#rrggbb`
+  // at publication AND again inside brandingCss, because this is the point where
+  // they actually enter a page.
+  const brandCss = brandingCss(brandingFor(institution.slug))
+
   return (
     <AIProvider>
+      {brandCss && <style dangerouslySetInnerHTML={{ __html: brandCss }} />}
       <ShellHeader
         userName={session.user.name ?? session.user.email ?? "User"}
         userEmail={session.user.email ?? undefined}

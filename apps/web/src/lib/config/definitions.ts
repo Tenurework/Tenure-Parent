@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { defineConfig, type ConfigDefinition } from "@tenure/configuration"
 
+import { BRANDING_DEFINITIONS } from "./branding"
 import { LOCALIZATION_DEFINITIONS } from "./localization"
 
 /**
@@ -104,4 +105,5 @@ export const PLATFORM_DEFINITIONS: readonly ConfigDefinition[] = [
   leadershipBodyTerm,
   seatTerm,
   ...LOCALIZATION_DEFINITIONS,
+  ...BRANDING_DEFINITIONS,
 ] as ConfigDefinition[]

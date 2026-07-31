@@ -7,6 +7,7 @@ import {
 
 import { getBlueprint, getTenantBinding } from "@tenure/blueprints"
 import { PLATFORM_DEFINITIONS } from "./definitions"
+import type { Branding } from "./branding"
 import type { Localization } from "./localization"
 
 /**
@@ -105,5 +106,15 @@ export function localizationFor(institutionSlug: string): Localization {
     currency: config.get<string>("platform.localization.currency"),
     firstDayOfWeek: config.get<number>("platform.localization.firstDayOfWeek"),
     fiscalYearStartMonth: config.get<number>("platform.localization.fiscalYearStartMonth"),
+  }
+}
+
+/** Visual identity for an institution. Beside the registry, for the same reason. */
+export function brandingFor(institutionSlug: string): Branding {
+  const config = resolveSystemConfig(institutionSlug)
+  return {
+    primaryColor: config.get<string>("platform.branding.primaryColor"),
+    primaryTextColor: config.get<string>("platform.branding.primaryTextColor"),
+    wordmark: config.get<string>("platform.branding.wordmark"),
   }
 }
