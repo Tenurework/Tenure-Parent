@@ -225,9 +225,35 @@ async function main() {
 
     if (step === "deploy") {
       console.log("🚀 Applying pending migrations (prisma migrate deploy)...")
-      if (!runPrisma(["migrate", "deploy"]).ok) {
+      const deployed = runPrisma(["migrate", "deploy"], { capture: true })
+      if (!deployed.ok) {
+        process.stderr.write(deployed.output)
         console.error("❌ Migration failed — refusing to start the server against an unverified schema.")
-        console.error("   ECS will roll back to the previous task definition.")
+
+        // P3009 is not an ordinary migration failure and must not be described
+        // as one. Postgres rolls the DDL back, but Prisma leaves a ledger row
+        // with finished_at NULL, and every subsequent `migrate deploy` refuses
+        // — from EVERY image, including the one ECS would roll back to. The
+        // failure lives in the database, not in the artefact, so redeploying
+        // anything cannot clear it, and RDS is VPC-only so no CI runner can
+        // reach in to resolve it. Saying "ECS will roll back" here would send
+        // an operator down the one path that cannot work.
+        if (/\bP3009\b/.test(deployed.output)) {
+          console.error("")
+          console.error("   This is P3009: a previous migration is recorded as started and never finished.")
+          console.error("   Rolling back or redeploying will NOT clear it — the record is in the database,")
+          console.error("   so every image fails here identically until it is resolved.")
+          console.error("")
+          console.error("   Recover with the 'Database recovery' workflow (Actions -> Database recovery),")
+          console.error("   which runs prisma migrate status/resolve as a one-off task inside the VPC:")
+          console.error("     1. action=status                     — see which migration is stuck")
+          console.error("     2. action=resolve-rolled-back        — if its changes did NOT apply")
+          console.error("        action=resolve-applied            — if its changes DID apply")
+          console.error("   Check which before choosing: marking a partly-applied migration as")
+          console.error("   rolled-back leaves the schema and the ledger disagreeing permanently.")
+        } else {
+          console.error("   ECS will roll back to the previous task definition.")
+        }
         process.exit(1)
       }
     }

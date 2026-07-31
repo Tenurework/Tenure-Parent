@@ -4,9 +4,21 @@
 #
 #   sh scripts/entrypoint.sh          → migrate, then serve
 #   sh scripts/entrypoint.sh seed     → migrate, seed reference data, exit
+#
+# Recovery modes. These deliberately run BEFORE the bootstrap, because the
+# situation they exist for is one where the bootstrap cannot succeed: a
+# migration recorded as started and never finished makes `migrate deploy`
+# return P3009 from every image, so a mode that migrated first could never be
+# reached. RDS is VPC-only, so this task is the only place these commands can
+# run at all.
+#
+#   sh scripts/entrypoint.sh migrate-status
+#   sh scripts/entrypoint.sh migrate-resolve-rolled-back <migration_name>
+#   sh scripts/entrypoint.sh migrate-resolve-applied     <migration_name>
 set -e
 
 MODE="${1:-serve}"
+MIGRATION="${2:-}"
 
 # DB_CREDS is the RDS-managed master secret: JSON {"username","password"}.
 # Compose a proper postgres URL from it plus DB_HOST/DB_PORT/DB_NAME.
@@ -22,6 +34,37 @@ if [ -n "$DB_CREDS" ] && [ -n "$DB_HOST" ]; then
   ')
   export DATABASE_URL
 fi
+
+# ── Recovery, before the bootstrap that these exist to unblock ───────────────
+PRISMA="node prisma-cli/node_modules/prisma/build/index.js"
+
+case "$MODE" in
+  migrate-status)
+    echo "🔎 prisma migrate status"
+    # Reports the stuck migration and exits non-zero when the ledger is not
+    # clean, which is the answer we want rather than a failure.
+    $PRISMA migrate status || true
+    exit 0
+    ;;
+  migrate-resolve-rolled-back|migrate-resolve-applied)
+    if [ -z "$MIGRATION" ]; then
+      echo "❌ $MODE needs a migration name as the second argument."
+      exit 1
+    fi
+    # --rolled-back: the migration's changes are NOT in the database.
+    # --applied:     they ARE, and only the ledger is wrong.
+    # Choosing wrong leaves the schema and the ledger permanently disagreeing,
+    # so the workflow that invokes this requires the operator to type which.
+    case "$MODE" in
+      *rolled-back) FLAG="--rolled-back" ;;
+      *)            FLAG="--applied" ;;
+    esac
+    echo "🩹 prisma migrate resolve $FLAG $MIGRATION"
+    $PRISMA migrate resolve "$FLAG" "$MIGRATION"
+    echo "✅ Resolved. Re-run migrate-status to confirm the ledger is clean."
+    exit 0
+    ;;
+esac
 
 if [ "$SKIP_DB_BOOTSTRAP" != "true" ]; then
   # Versioned migrations, fail-closed. `set -e` above means a failed bootstrap
