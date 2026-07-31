@@ -51,6 +51,56 @@ const isGuarded = (job) => {
   return !!g && g.includes('github.repository') && g.includes(PRODUCTION_OWNER)
 }
 
+/**
+ * Jobs that may reach AWS from this repository *unguarded*, because they cannot
+ * change anything.
+ *
+ * An exemption is not taken on trust. Each one is checked against MUTATING below,
+ * so a job added here that later grows a `terraform apply` fails the suite. The
+ * point of the allowlist is to make the exemption deliberate and few — not to
+ * create a hole.
+ */
+const READ_ONLY_JOBS = new Set(['platform-plan.yml:plan'])
+
+/**
+ * Commands that change something in AWS. Deliberately broad: a false positive
+ * costs one line of discussion, a false negative costs production.
+ */
+const MUTATING = [
+  [/terraform\s+(apply|destroy|import|taint|untaint)\b/, 'terraform apply/destroy/import/taint'],
+  [/terraform\s+state\s+(mv|rm|push|replace-provider)\b/, 'terraform state mutation'],
+  [/-auto-approve\b/, '-auto-approve'],
+  [/\baws\s+ecs\s+(update-service|register-task-definition|delete-|create-|run-task)/, 'aws ecs mutation'],
+  [/\baws\s+s3(api)?\s+(rm|cp|sync|mv|create-bucket|put-|delete-)/, 'aws s3 mutation'],
+  [/\baws\s+dynamodb\s+(create-|put-|delete-|update-)/, 'aws dynamodb mutation'],
+  [/\baws\s+secretsmanager\s+(put-|update-|delete-|create-|rotate-)/, 'aws secretsmanager mutation'],
+  [/\baws\s+(rds|elasticache|cloudfront|acm|ses|iam|ec2|logs)\s+(create-|delete-|modify-|update-|put-|restore-|reboot-|attach-|detach-|request-)/, 'aws resource mutation'],
+  [/\bdocker\s+push\b/, 'docker push'],
+  [/^\s*push:\s*true\s*$/m, 'docker/build-push-action push: true'],
+]
+
+/** Only the parts of a job that execute — not its comments, which may name a command to say it is absent. */
+const executableTextOf = (jobYaml) =>
+  jobYaml
+    .split('\n')
+    .filter((l) => !/^\s*#/.test(l))
+    .join('\n')
+
+/** Slice the raw text of one job out of a workflow file, for command scanning. */
+function jobText(fileText, jobName) {
+  const lines = fileText.split('\n')
+  const start = lines.findIndex((l) => l === `  ${jobName}:`)
+  if (start === -1) return ''
+  let end = lines.length
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^ {2}\S/.test(lines[i]) || (/^\S/.test(lines[i]) && lines[i].trim() !== '')) {
+      end = i
+      break
+    }
+  }
+  return lines.slice(start, end).join('\n')
+}
+
 test('every workflow parses', () => {
   for (const { file, doc } of workflows) {
     assert.ok(doc && typeof doc === 'object', `${file} did not parse to an object`)
@@ -74,7 +124,9 @@ test('every job that can reach AWS is disarmed in this repository', () => {
   const unguarded = []
   for (const { file, doc } of dangerous) {
     for (const [name, job] of Object.entries(doc.jobs)) {
-      if (!isGuarded(job)) unguarded.push(`${file}:${name}  if=${guardOf(job) ?? '(none)'}`)
+      if (isGuarded(job)) continue
+      if (READ_ONLY_JOBS.has(`${file}:${name}`)) continue
+      unguarded.push(`${file}:${name}  if=${guardOf(job) ?? '(none)'}`)
     }
   }
 
@@ -85,6 +137,68 @@ test('every job that can reach AWS is disarmed in this repository', () => {
       unguarded.join('\n  ') +
       `\n\nAdd the guard with: node tools/disarm-production-workflows.mjs`,
   )
+})
+
+test('every read-only exemption is actually read-only', () => {
+  assert.ok(READ_ONLY_JOBS.size > 0, 'no exemptions declared — remove this test or the allowlist')
+
+  const violations = []
+  for (const entry of READ_ONLY_JOBS) {
+    const [file, jobName] = entry.split(':')
+    const wf = workflows.find((w) => w.file === file)
+    assert.ok(wf, `read-only allowlist names ${file}, which does not exist`)
+    assert.ok(wf.doc.jobs?.[jobName], `read-only allowlist names ${entry}, which is not a job`)
+
+    const text = executableTextOf(jobText(wf.text, jobName))
+    for (const [pattern, label] of MUTATING) {
+      if (pattern.test(text)) violations.push(`${entry} runs ${label}`)
+    }
+  }
+
+  assert.deepEqual(
+    violations,
+    [],
+    'A job exempted from the production guard as read-only can change production:\n  ' +
+      violations.join('\n  ') +
+      '\n\nEither remove the mutating command, or remove the exemption and let it be guarded.',
+  )
+})
+
+test('the mutation detector actually detects mutation', () => {
+  // A detector that never fires is indistinguishable from no detector. Prove each
+  // pattern class fires on a realistic line before trusting the test above.
+  const samples = [
+    'run: terraform apply -auto-approve',
+    'run: terraform destroy',
+    'run: terraform state rm aws_ecs_service.app',
+    'run: aws ecs update-service --force-new-deployment',
+    'run: aws s3 rm s3://bucket/key',
+    'run: aws dynamodb delete-table --table-name t',
+    'run: aws secretsmanager put-secret-value --secret-id x',
+    'run: aws rds delete-db-instance --db-instance-identifier x',
+    'run: docker push $ECR_URL:tag',
+    '          push: true',
+  ]
+  for (const sample of samples) {
+    assert.ok(
+      MUTATING.some(([p]) => p.test(sample)),
+      `no MUTATING pattern matched: ${sample}`,
+    )
+  }
+
+  // And does not fire on the read-only commands the plan job legitimately runs.
+  const benign = [
+    'run: terraform plan -lock=false -detailed-exitcode',
+    'run: terraform validate',
+    'run: terraform init -input=false',
+    'run: aws sts get-caller-identity',
+    'run: aws s3api head-bucket --bucket "$STATE_BUCKET"',
+    'run: aws ecs describe-services --cluster "$CLUSTER"',
+  ]
+  for (const sample of benign) {
+    const hit = MUTATING.find(([p]) => p.test(sample))
+    assert.equal(hit, undefined, `MUTATING pattern ${hit?.[1]} false-positived on: ${sample}`)
+  }
 })
 
 test('deploy.yml in particular cannot fire on a push to main here', () => {

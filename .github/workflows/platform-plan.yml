@@ -1,0 +1,160 @@
+name: Platform · Terraform plan (read-only)
+
+# What a deploy from THIS repository would do to production, without doing it.
+#
+# `deploy.yml` here is disarmed (see ADR-0004), so nothing in this repository can
+# change infrastructure. But "disarmed" is not the same as "known-safe to arm".
+# Before cutover moves production deployment from satvikOS/Tenure to this
+# repository, the question that has to be answered with evidence is: does this
+# repository's infrastructure/terraform describe the same infrastructure that is
+# actually running?
+#
+# This job answers it. It is read-only by construction:
+#
+#   * no `terraform apply`, no `-auto-approve`, no `terraform destroy/import/state`
+#   * no bucket, table or ECR creation — deploy.yml's "bootstrap the state backend"
+#     step is deliberately NOT copied here; this fails if the backend is missing
+#     rather than creating it
+#   * `-lock=false`, so it cannot block or corrupt a real deploy running concurrently
+#   * `terraform plan` refreshes in memory and does not persist state
+#
+# tests/security/production-workflows-disarmed.test.mjs enforces those properties
+# rather than trusting this comment: this job is on the read-only allowlist, and
+# the test greps it for mutating commands.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to plan against. Leave as-is to plan the currently deployed image."
+        required: false
+        default: "latest"
+
+concurrency:
+  group: platform-plan
+  cancel-in-progress: true
+
+jobs:
+  # Deliberately NOT carrying the production-owner guard: this job cannot change
+  # anything, and it is useless if it only runs where it is not needed.
+  plan:
+    name: Terraform plan (no apply)
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      TF_DIR: infrastructure/terraform
+      IMAGE_TAG: ${{ inputs.image_tag || 'latest' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Locate the existing state backend
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          STATE_BUCKET="tenure-tfstate-${ACCOUNT_ID}-${AWS_REGION}"
+          echo "Account:      $ACCOUNT_ID"
+          echo "State bucket: $STATE_BUCKET"
+          echo "State key:    pilot/terraform.tfstate"
+
+          # Read-only: if the backend does not exist, say so and stop. Creating it
+          # is deploy.yml's job, not this one's.
+          aws s3api head-bucket --bucket "$STATE_BUCKET" \
+            || { echo "::error::State bucket $STATE_BUCKET does not exist. Nothing to plan against."; exit 1; }
+
+          aws s3api head-object --bucket "$STATE_BUCKET" --key pilot/terraform.tfstate >/dev/null \
+            || { echo "::error::No state at pilot/terraform.tfstate. Production was never deployed from this backend."; exit 1; }
+
+          echo "STATE_BUCKET=$STATE_BUCKET" >> "$GITHUB_ENV"
+          echo "ACCOUNT_ID=$ACCOUNT_ID"     >> "$GITHUB_ENV"
+
+      - name: What is actually running right now
+        run: |
+          set -euo pipefail
+          echo "### Live production, before any change" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          CLUSTER=$(aws ecs list-clusters --query 'clusterArns[?contains(@,`tenure`)]|[0]' --output text 2>/dev/null || echo "")
+          if [ -n "$CLUSTER" ] && [ "$CLUSTER" != "None" ]; then
+            SERVICE=$(aws ecs list-services --cluster "$CLUSTER" --query 'serviceArns[0]' --output text)
+            aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+              --query 'services[0].{desired:desiredCount,running:runningCount,taskDef:taskDefinition,status:status}' \
+              --output table | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No ECS cluster matching 'tenure' found." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9"
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=$STATE_BUCKET" \
+            -backend-config="key=pilot/terraform.tfstate" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="dynamodb_table=tenure-terraform-locks" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform validate
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform validate
+
+      - name: Terraform fmt check
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform fmt -check -recursive -diff || echo "::warning::terraform fmt would reformat files (not fatal)"
+
+      # The load-bearing step. -lock=false so a real deploy in flight is not
+      # blocked; plan does not persist refreshed state, so this cannot corrupt it.
+      - name: Terraform plan
+        id: plan
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          set -o pipefail
+          terraform plan \
+            -input=false \
+            -lock=false \
+            -var="image_tag=$IMAGE_TAG" \
+            -detailed-exitcode 2>&1 | tee /tmp/plan.txt || EXIT=$?
+
+          EXIT=${EXIT:-0}
+          echo "exitcode=$EXIT" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Terraform plan — image_tag=\`$IMAGE_TAG\`"
+            case "$EXIT" in
+              0) echo "**No changes.** This repository's Terraform matches what is deployed." ;;
+              2) echo "**Changes would be made.** Read them before arming deploy here." ;;
+              *) echo "**Plan failed** (exit $EXIT)." ;;
+            esac
+            echo
+            echo '```terraform'
+            tail -c 60000 /tmp/plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Exit 2 means "changes present", which is information, not failure.
+          [ "$EXIT" = "2" ] && exit 0
+          exit "$EXIT"
+
+      - name: Upload plan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: /tmp/plan.txt
+          retention-days: 14
