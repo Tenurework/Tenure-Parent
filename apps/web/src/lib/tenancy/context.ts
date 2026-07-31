@@ -12,8 +12,19 @@ import { AsyncLocalStorage } from "node:async_hooks"
 
 export type TenantScope = {
   institutionId: string
-  /** Who the work is being done for. Carried into audit records. */
-  actor: { principalId: string; principalType: "user" | "service" | "system" }
+  /**
+   * Who the work is being done for. Carried into audit records.
+   *
+   * `support` is Tenure staff acting inside a customer's tenant — a tenant
+   * export, a diagnostic read. It is deliberately distinct from `system`: both
+   * are non-interactive, but one has a person behind it who can be asked why,
+   * and an audit trail that cannot tell them apart cannot answer the question
+   * that gets asked after an incident.
+   */
+  actor: {
+    principalId: string
+    principalType: "user" | "service" | "support" | "system"
+  }
 }
 
 /**

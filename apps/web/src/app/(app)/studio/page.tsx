@@ -73,13 +73,21 @@ export default async function StudioPage() {
               title={binding.displayName}
               subtitle={`${binding.slug} · blueprint ${binding.blueprintId}`}
               action={
-                error ? (
-                  <Badge variant="error">Broken</Badge>
-                ) : system!.validation.valid ? (
-                  <Badge variant="success">Valid</Badge>
-                ) : (
-                  <Badge variant="warning">{system!.validation.problems.length} problems</Badge>
-                )
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/api/platform/export/${binding.slug}`}
+                    className="rounded-md border border-border px-2.5 py-1 text-[12.5px] text-text-2 no-underline hover:text-text-1"
+                  >
+                    Export data
+                  </a>
+                  {error ? (
+                    <Badge variant="error">Broken</Badge>
+                  ) : system!.validation.valid ? (
+                    <Badge variant="success">Valid</Badge>
+                  ) : (
+                    <Badge variant="warning">{system!.validation.problems.length} problems</Badge>
+                  )}
+                </div>
               }
             />
 

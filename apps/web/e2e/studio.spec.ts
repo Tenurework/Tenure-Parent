@@ -59,4 +59,42 @@ test.describe("Tenure System Studio", () => {
     await page.goto("/studio")
     await expect(page.getByRole("heading", { name: "System Studio" })).toHaveCount(0)
   })
+
+  test("an operator can export a tenant's data, and it contains only that tenant", async ({ page }) => {
+    await signIn(page, "Dana Whitfield")
+
+    const res = await page.request.get("/api/platform/export/rochester")
+    expect(res.status()).toBe(200)
+    expect(res.headers()["content-disposition"]).toContain("tenure-export-rochester-")
+    // One tenant's data must never sit in a shared cache keyed on the URL.
+    expect(res.headers()["cache-control"]).toContain("no-store")
+
+    const dump = await res.json()
+    expect(dump.tenantSlug).toBe("rochester")
+    expect(dump.checksum).toMatch(/^sha256:[0-9a-f]{64}$/)
+    expect(dump.counts.Organization).toBeGreaterThan(0)
+
+    // Every exported organization belongs to the tenant that was asked for.
+    for (const org of dump.data.Organization) {
+      expect(org.institutionId).toBe(dump.tenantId)
+    }
+
+    // And what could not be exported is stated rather than omitted.
+    expect(dump.gaps.length).toBeGreaterThan(0)
+    expect(dump.gaps[0]).toHaveProperty("reachableVia")
+  })
+
+  test("a customer administrator cannot download an export", async ({ page }) => {
+    // The most sensitive endpoint in the product: a leak here lands in a file
+    // that is about to be handed to someone outside the tenant.
+    await signIn(page, "Priya Raman")
+    const res = await page.request.get("/api/platform/export/rochester")
+    expect(res.status()).toBe(404)
+  })
+
+  test("an unknown tenant is a 404, not an empty export", async ({ page }) => {
+    await signIn(page, "Dana Whitfield")
+    const res = await page.request.get("/api/platform/export/no-such-tenant")
+    expect(res.status()).toBe(404)
+  })
 })
