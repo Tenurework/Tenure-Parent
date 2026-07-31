@@ -172,6 +172,10 @@ jobs:
         env:
           # Optional — enables AI answers on /search when the secret exists
           TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional — the shared pilot sign-in passphrase. Unset means Terraform
+          # generates one, which works but is only readable from the AWS console.
+          # Set the repository secret to a phrase you can hand to a pilot user.
+          TF_VAR_dev_login_passphrase: ${{ secrets.DEV_LOGIN_PASSPHRASE }}
         run: |
           terraform apply \
             -var="image_tag=$IMAGE_TAG" \

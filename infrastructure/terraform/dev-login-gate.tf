@@ -13,6 +13,44 @@
 # so that manually-set values survive an apply — which also means a key added to
 # that bundle would never appear on the already-created secret.
 
+# Set this and the pilot uses a passphrase you chose and already know. Leave it
+# empty and Terraform generates one, which is safe but only readable from the AWS
+# console — and hunting for it in the console is exactly what fails when someone
+# is standing in front of a client waiting to be shown the product.
+#
+# It is a variable rather than a literal because this repository is public: the
+# value arrives from the GitHub Actions secret DEV_LOGIN_PASSPHRASE via
+# TF_VAR_dev_login_passphrase (see .github/workflows/deploy.yml), so the
+# passphrase is known to you and to pilot users but never committed.
+#
+# Editing the secret directly in the AWS console will NOT stick — the next apply
+# rewrites it from this variable. Change it here, in the GitHub secret.
+variable "dev_login_passphrase" {
+  description = "Shared pilot sign-in passphrase. Empty = generate one. Set via TF_VAR_dev_login_passphrase."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    # src/lib/env.ts refuses to boot on a passphrase under 12 characters, since it
+    # is the only thing standing in front of a passwordless OSE_DIRECTOR login.
+    # Catching it at plan time beats discovering it when the container fails
+    # closed and ECS rolls the deployment back.
+    condition     = var.dev_login_passphrase == "" || length(var.dev_login_passphrase) >= 12
+    error_message = "dev_login_passphrase must be at least 12 characters — the app refuses to boot below that."
+  }
+}
+
+locals {
+  # Chosen value wins; generated value is the fallback so the pilot is never
+  # left with no gate at all.
+  dev_login_passphrase = (
+    var.dev_login_passphrase != ""
+    ? var.dev_login_passphrase
+    : random_password.dev_login_passphrase.result
+  )
+}
+
 resource "random_password" "dev_login_passphrase" {
   length = 24
   # Lowercase and digits only: this gets read aloud and typed by pilot users,
@@ -30,11 +68,19 @@ resource "aws_secretsmanager_secret" "dev_login" {
 
 resource "aws_secretsmanager_secret_version" "dev_login" {
   secret_id     = aws_secretsmanager_secret.dev_login.id
-  secret_string = jsonencode({ DEV_LOGIN_PASSPHRASE = random_password.dev_login_passphrase.result })
+  secret_string = jsonencode({ DEV_LOGIN_PASSPHRASE = local.dev_login_passphrase })
 }
 
 output "dev_login_passphrase" {
   description = "Share with pilot users. Also readable via: aws secretsmanager get-secret-value --secret-id tenure-pilot/dev-login"
-  value       = random_password.dev_login_passphrase.result
+  value       = local.dev_login_passphrase
   sensitive   = true
+}
+
+output "dev_login_passphrase_is_chosen" {
+  description = "true when the passphrase came from the DEV_LOGIN_PASSPHRASE secret rather than being generated."
+  # Terraform propagates sensitivity through the comparison, which would make this
+  # boolean unprintable. Whether a passphrase was chosen is not itself a secret —
+  # only its value is, and that is not derivable from a yes/no.
+  value = nonsensitive(var.dev_login_passphrase != "")
 }

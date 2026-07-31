@@ -103,15 +103,30 @@ production it refuses:
 
 ## The interim sign-in gate
 
-Until Okta is live, passwordless sign-in sits behind a shared passphrase.
-Terraform generates it and stores it; nothing needs setting up by hand.
+Until Okta is live, passwordless sign-in sits behind a shared passphrase. It
+stays in place for the whole pilot — there is no other sign-in path until SSO
+lands, so removing it means nobody can get in.
+
+**Choose it yourself.** Add a repository secret `DEV_LOGIN_PASSPHRASE` (GitHub →
+Settings → Secrets and variables → Actions) and deploy. Minimum 12 characters —
+Terraform rejects anything shorter at plan time, because `src/lib/env.ts` refuses
+to boot below that. Pick something a pilot user can be told over the phone.
+
+Changing it later is the same two steps: update the secret, redeploy. Editing the
+value directly in the AWS console does **not** stick; the next apply rewrites it
+from the secret.
+
+**If you never set it**, Terraform generates a 24-character one instead. That is
+safe but only readable from AWS, which is a bad place to be looking when someone
+is waiting to be shown the product:
 
 ```sh
 aws secretsmanager get-secret-value --secret-id tenure-pilot/dev-login \
   --query SecretString --output text
 ```
 
-Give that to pilot users. It is enforced server-side in
+`terraform output dev_login_passphrase_is_chosen` says which of the two you are
+on. Give the passphrase to pilot users. It is enforced server-side in
 `src/lib/auth.ts` before the account lookup, so a wrong passphrase cannot even
 be used to probe which emails exist, and `src/lib/env.ts` refuses to boot if dev
 login is on in production without one.
