@@ -128,6 +128,31 @@ recorded here because it will surface the moment anyone runs the suite twice
 locally, and because it is a real constraint on the platform test suites this
 repository will add.
 
+### One intermittent failure, observed once
+
+`resources.spec.ts` → *"OSE can retire a resource and restore it"* failed once, on
+2026-07-31, in a full-suite run against a freshly migrated and seeded database.
+
+What was checked afterwards:
+
+| Run | Result |
+|---|---|
+| the same spec file alone, same database | 11 / 11 |
+| full suite, new database | 139 / 139 |
+| full suite, another new database | 139 / 139 |
+
+So it is intermittent, not a regression, and not the ordinary non-idempotence
+above — that reproduces reliably on a second run against a used database, and
+this did not. Ruled out by reading: the `title` locator is `RUN_ID`-scoped and
+does not collide with the `E2E Second`/`E2E Third` titles the neighbouring
+publish test creates, so `.first()` is not resolving the wrong card.
+
+Most likely a race between a server action's revalidation and the assertion that
+the heading has gone. Not diagnosed further because the failure output was not
+captured before the retry, and guessing at a cause would be worse than recording
+the observation. CI runs with `retries: 1`, so it would self-heal there — which
+is itself worth knowing, because it means CI can be green while this is real.
+
 ## Pre-existing issues recorded, not fixed
 
 Per the operating rules, these were found during baselining and are left alone so
