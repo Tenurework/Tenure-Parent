@@ -1,11 +1,12 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /** Uniform club cards, the Archived section, and club images. */
 
 
 
-const stamp = Date.now()
+const stamp = RUN_ID
 
 test.describe("club cards", () => {
   test("archiving a club moves it to the Archived section, out of the active grid", async ({

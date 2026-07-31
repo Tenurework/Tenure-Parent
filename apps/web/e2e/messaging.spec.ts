@@ -1,9 +1,10 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /** Week 5: DMs, board channels, approval threads, broadcasts. */
 
-const stamp = Date.now()
+const stamp = RUN_ID
 
 test.describe("messaging", () => {
   const subject = `Budget question ${stamp}`

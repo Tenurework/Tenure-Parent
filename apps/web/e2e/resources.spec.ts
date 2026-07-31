@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /** Board resources: quick links on the dashboard, full board under /resources. */
 
@@ -69,7 +70,7 @@ test.describe("board resources", () => {
  * all. These tests pin the capability and its boundaries.
  */
 test.describe("resource authoring", () => {
-  const title = `E2E Room Booking ${Date.now()}`
+  const title = `E2E Room Booking ${RUN_ID}`
 
   test("the OSE Director can publish a resource onto the board", async ({ page }) => {
     await signIn(page, "Dana Whitfield")

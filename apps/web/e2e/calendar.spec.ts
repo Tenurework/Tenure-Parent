@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /**
  * Week 4: shared calendar, conflict detection, approval-linked publishing.
@@ -22,7 +23,7 @@ async function waitForEventPage(page: Page) {
   await page.waitForURL((url) => /^\/calendar\/[a-z0-9]{8,}$/.test(url.pathname))
 }
 
-const stamp = Date.now()
+const stamp = RUN_ID
 
 /**
  * Every run parks on its own far-future week, and every test on its own day

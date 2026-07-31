@@ -1,12 +1,13 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /**
  * Community Feed: clubs post collaboration calls, others comment and
  * request to collaborate, the OSE Director approves in the middle.
  */
 
-const stamp = Date.now()
+const stamp = RUN_ID
 const postTitle = `Co-host wanted ${stamp}`
 
 test.describe("community feed", () => {

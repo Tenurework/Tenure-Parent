@@ -1,11 +1,12 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { RUN_ID } from "./run-id"
 
 /** Proceed 1: real clubs, permanent position IDs, OSE club administration. */
 
 
 
-const stamp = Date.now()
+const stamp = RUN_ID
 
 test.describe("real clubs + permanent position IDs", () => {
   test("clubs are grouped by category with the real Simon roster", async ({ page }) => {
