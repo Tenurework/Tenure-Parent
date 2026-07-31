@@ -86,15 +86,18 @@ jobs:
         if: contains(github.event.head_commit.message, '[show-url]')
         run: |
           {
-            echo "## Tenure front end"
+            echo "## Tenant front end — Simon OSE"
             echo
             echo "| | URL |"
             echo "|---|---|"
             echo "| CloudFront | https://d1n6mdis7bs02g.cloudfront.net |"
             echo "| Custom domain | https://platform.tenurework.com |"
             echo
-            echo "Served by the production pilot, which deploys from satvikOS/Tenure."
-            echo "This repository does not deploy — see docs/decisions/ADR-0005-CANONICAL-MONOREPO.md."
+            echo "This is **tenant #1's system**, not the platform engine."
+            echo "It serves Simon OSE and deploys from satvikOS/Tenure."
+            echo
+            echo "The Tenure platform engine — the System Studio and control plane —"
+            echo "has no URL: it has no deployment yet. See docs/decisions/ADR-0005-CANONICAL-MONOREPO.md."
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ── Migration integrity: the schema and the migrations must not diverge ────
