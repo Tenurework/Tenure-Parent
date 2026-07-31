@@ -47,10 +47,21 @@ type OrgCreateArgs = Parameters<typeof db.organization.create>[0]
 const createOrg = (data: Record<string, unknown>) =>
   db.organization.create({ data } as unknown as OrgCreateArgs)
 
+// Tenant B's seat, and the person holding it. RoleAssignment has no tenant
+// column, so this is the row the unenforceable-model tests below have to be able
+// to see from tenant A — owning it here is what makes those assertions mean
+// something on any database, seeded or empty.
+const USER_B = `user-b-${SUFFIX}`
+const ROLE_B = `role-b-${SUFFIX}`
+
 async function cleanup() {
   await runUnscoped("migration", "isolation test cleanup", async () => {
+    // Organization -> Role -> RoleAssignment are ON DELETE CASCADE, so deleting
+    // the organizations takes the seat and its assignment with them. User is
+    // platform-global and cascades from nothing; it has to go explicitly.
     await db.organization.deleteMany({ where: { institutionId: { in: [INST_A, INST_B] } } })
     await db.institution.deleteMany({ where: { id: { in: [INST_A, INST_B] } } })
+    await db.user.deleteMany({ where: { id: USER_B } })
   })
 }
 
@@ -66,13 +77,24 @@ beforeAll(async () => {
         { id: INST_B, name: "Tenant B", slug: `tenant-b-${SUFFIX}` },
       ],
     })
+    await db.user.create({
+      data: { id: USER_B, name: "B's Officer", email: `${USER_B}@example.test` },
+    })
   })
 
   await runInTenantScope(scopeA, async () => {
     await createOrg({ name: "A's Club", slug: `a-club-${SUFFIX}` })
   })
   await runInTenantScope(scopeB, async () => {
-    await createOrg({ name: "B's Club", slug: `b-club-${SUFFIX}` })
+    const org = await createOrg({ name: "B's Club", slug: `b-club-${SUFFIX}` })
+
+    // A seat on B's club, held by B's officer. Tenant A must never count it.
+    await db.role.create({
+      data: { id: ROLE_B, organizationId: org.id, name: "President" },
+    })
+    await db.roleAssignment.create({
+      data: { userId: USER_B, roleId: ROLE_B },
+    })
   })
 })
 
@@ -219,13 +241,16 @@ describe("what a tenant scope does NOT protect", () => {
   it("does not filter a model with no tenant column", async () => {
     // RoleAssignment reaches its tenant only via Role -> Organization, which is
     // a join the extension cannot add. Inside tenant A's scope it still sees
-    // rows belonging to every tenant.
-    const [scoped, unscoped] = await Promise.all([
+    // rows belonging to every tenant — including the seat the fixture gave
+    // tenant B, which is the leak this asserts rather than merely describes.
+    const [scoped, unscoped, seesTenantBsSeat] = await Promise.all([
       runInTenantScope(scopeA, () => db.roleAssignment.count()),
       runUnscoped("migration", "assert", () => db.roleAssignment.count()),
+      runInTenantScope(scopeA, () => db.roleAssignment.count({ where: { roleId: ROLE_B } })),
     ])
 
     expect(scoped).toBe(unscoped)
+    expect(seesTenantBsSeat).toBe(1)
   })
 
   it("is filtered once the caller supplies the relation predicate", async () => {
@@ -237,10 +262,32 @@ describe("what a tenant scope does NOT protect", () => {
       }),
     )
 
-    // Tenant A is a fixture with no seats, so a correctly filtered count is 0
-    // while the unfiltered one above is the whole table.
+    // Tenant A owns no seats, so a correctly filtered count is 0.
     expect(leaked).toBe(0)
-    expect(await runUnscoped("migration", "assert", () => db.roleAssignment.count())).toBeGreaterThan(0)
+
+    // On its own, `toBe(0)` cannot tell a working filter from one that matched
+    // nothing — so pin both ends against rows this test created itself.
+    //
+    // It used to guard with `roleAssignment.count() > 0` over the whole table,
+    // which is only true if something else seeded the database. Nothing in CI's
+    // migrations job does, so it failed there on every run from 8f5f151 onward
+    // and, because deploy.yml gates on ci.yml, took the deploys with it. Passing
+    // locally after `scripts/seed.mjs` made it look environmental; it was the
+    // assertion depending on data it did not own.
+    const [totalSeats, tenantBsOwnSeats] = await Promise.all([
+      runUnscoped("migration", "assert", () => db.roleAssignment.count()),
+      runInTenantScope(scopeB, () =>
+        db.roleAssignment.count({
+          where: { role: { organization: { institutionId: INST_B } } },
+        }),
+      ),
+    ])
+
+    // The table is non-empty because of this fixture, not because of a seed.
+    expect(totalSeats).toBeGreaterThanOrEqual(1)
+    // And the predicate is doing real work: the same query that returns 0 for
+    // tenant A returns tenant B's seat for tenant B.
+    expect(tenantBsOwnSeats).toBe(1)
   })
 
   it("does not filter platform-global models either, by design", async () => {

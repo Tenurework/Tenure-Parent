@@ -18,8 +18,8 @@
     "type-check": "npm run type-check --workspace apps/web --",
     "test": "npm run test --workspace apps/web --",
     "test:isolation": "npm run test:isolation --workspace apps/web --",
-    "//test:platform": "Monorepo-level tests, run from the root — they assert properties of the repository itself (which workflows may reach production, which packages are wired in) rather than of the application. The glob is quoted so node expands it: `node --test tests` is not a supported form and exits 1 with `Cannot find module`.",
-    "test:platform": "node --test \"tests/**/*.test.mjs\"",
+    "//test:platform": "Monorepo-level tests, run from the root — they assert properties of the repository itself (which workflows may reach production, which packages are wired in) rather than of the application. It goes through a runner rather than `node --test <glob>` because glob support in the test runner is Node 22 and CI pins Node 20; see tools/run-platform-tests.mjs.",
+    "test:platform": "node tools/run-platform-tests.mjs",
     "e2e": "npm run e2e --workspace apps/web --",
     "db:migrate": "npm exec --workspace apps/web -- prisma migrate deploy",
     "db:seed": "node apps/web/scripts/seed.mjs"
