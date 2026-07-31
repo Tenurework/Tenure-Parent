@@ -56,18 +56,36 @@ than what was built.
     10 packages, 1 module catalog, 2 blueprints, 1 Prisma schema (40 models,
     1 migration), 2 Terraform stacks, 14 workflows, 5 test suites.
 
-- [ ] **GE-000-003** — Identify all auth/authz, tenant, person, role/seat, approval, audit, finance, files, search, AI and connector paths; mark duplicates and contradictions.
-  - Status: FAIL — partially done, and the unfinished part is the important one.
-  - What exists: `docs/architecture/CURRENT-STATE-INVENTORY.md` covers the
-    Prisma models and single-institution assumptions;
-    `apps/web/src/lib/tenancy/registry.ts` classifies all 40 models into
-    scoped / platform-global / unenforceable and a test fails if one is missing.
-  - What is missing: no systematic trace of **connector** or **AI** paths, and
-    no explicit duplicate/contradiction list. Two authorization systems now
-    coexist — `apps/web/src/lib/admin/capabilities.ts` (16 capability ids,
-    Director ⊇ Staff ⊇ Advisor) and `@tenure/authorization` (roles, scope,
-    delegation, SoD) — and nothing records which is canonical. That is exactly
-    the contradiction this item exists to surface.
+- [x] **GE-000-003** — Identify all auth/authz, tenant, person, role/seat, approval, audit, finance, files, search, AI and connector paths; mark duplicates and contradictions.
+  - Status: PASS
+  - Code/config: [`../architecture/subsystem-paths.md`](../architecture/subsystem-paths.md),
+    `tests/security/audit-writes.test.mjs`
+  - Evidence: eleven subsystems traced to file and line. **Six contradictions**
+    ranked, each assigned an owning item, and two duplications examined and
+    recorded as *correct* so a later reader does not "fix" them.
+  - The two findings that change what can honestly be claimed about the product:
+    1. **The authorization engine gates nothing.** `@tenure/authorization` has
+       two consumers, and both are navigational — it decides which menu entries
+       render. Access is decided by `lib/admin/capabilities.ts` (16 ids) and
+       `lib/rbac.ts`. Tenure does not today have a policy engine enforcing
+       access, and saying otherwise would be false. → GE-030s
+    2. **34 of 35 audit writes bypass `@tenure/audit`**, and so skip field
+       validation, the DENY-needs-a-reason rule, and metadata redaction. The
+       evidence trail a school would be shown in an incident review is 34/35
+       unvalidated. → GE-120s
+  - Also recorded: identity is one shared passphrase for every user (→ GE-041);
+    the only outbound HTTP call in the app is a literal `api.anthropic.com` URL
+    with no gateway, tenant policy, cost accounting or prompt audit (→ GE-100s);
+    connectors do not exist at all, rather than partially (→ GE-110s); and five
+    SQS queues, an SES identity and a DLQ alarm are provisioned for a delivery
+    path with **no producer and no consumer** — no package declares an SQS or
+    SES client, so the product sends no email and the green DLQ alarm is
+    watching a queue nothing can write to (→ GE-090 / GE-140).
+  - Tests: `npm run test:platform` → 22 passed. The "34 of 35" claim is a
+    ratchet, not prose: `RAW_WRITE_CEILING` fails if a 35th raw write is added,
+    fails if the ceiling drifts above the real count, fails if the package stops
+    being reached at all, and fails if the document's numbers disagree with the
+    code.
 
 - [x] **GE-000-004** — Trace every entry point, public route, API route, background job, realtime path, scheduled job, webhook, import/export, admin/support route.
   - Status: PASS
