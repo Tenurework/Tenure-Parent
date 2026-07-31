@@ -10,6 +10,7 @@ import { effectiveApprovalContext } from "@/lib/delegation"
 import { ledgerSignedCents } from "@/lib/finance"
 import {
   availableActions,
+  isConcurrentDecision,
   nextStatus,
   type ApprovalActionName,
 } from "@/lib/approvals"
@@ -249,10 +250,6 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
     ])
     if (!already && line) {
       const signed = ledgerSignedCents("SPEND", reimb.amountCents)
-      const agg = await db.ledgerEntry.aggregate({
-        where: { budgetLineId: line.id },
-        _sum: { amountCents: true },
-      })
       reimbursementOps = [
         db.ledgerEntry.create({
           data: {
@@ -269,48 +266,74 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
         }),
         db.budgetLine.update({
           where: { id: line.id },
-          data: { actualCents: (agg._sum.amountCents ?? 0) + signed },
+          // Relative, not a precomputed total. Reading the ledger sum first and
+          // writing back sum+signed loses one of two concurrent spends: both
+          // callers read the same sum before either commits, so the second write
+          // overwrites the first with a value that never included it. The line
+          // then sits under its own ledger until some later operation recomputes
+          // it, and the club is charged twice, disconnected from the approval
+          // that caused it. `increment` emits SET actualCents = actualCents + $1,
+          // which PostgreSQL re-evaluates against the committed row.
+          data: { actualCents: { increment: signed } },
         }),
       ]
     }
   }
 
-  await db.$transaction([
-    ...eventUpdates,
-    ...reimbursementOps,
-    db.approvalRequest.update({
-      where: { id: approval.id },
-      data: { status: target },
-    }),
-    db.approvalStep.create({
-      data: {
-        approvalId: approval.id,
-        fromStatus: approval.status,
-        toStatus: target,
-        actorId: userId,
-        actorRoleContext: roleContext,
-        reason,
-        policySnapshot: {
-          action,
-          requesterIsPresident,
-          ...(onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {}),
+  // The status this decision was based on was read at the top of this function,
+  // six round-trips ago and outside the transaction below. Both approval gates
+  // are held by more than one person — PENDING_OSE is open to every institution
+  // membership, and delegation widens it further — so two approvers can observe
+  // the same PENDING request and both write. Naming the observed status in the
+  // `where` makes that a compare-and-swap: the second writer matches no row,
+  // Prisma raises P2025, and the whole batch rolls back instead of appending a
+  // second ApprovalStep and AuditEvent to a trail the schema declares immutable,
+  // or posting a SPEND against a request the other approver just rejected.
+  try {
+    await db.$transaction([
+      ...eventUpdates,
+      ...reimbursementOps,
+      db.approvalRequest.update({
+        where: { id: approval.id, status: approval.status },
+        data: { status: target },
+      }),
+      db.approvalStep.create({
+        data: {
+          approvalId: approval.id,
+          fromStatus: approval.status,
+          toStatus: target,
+          actorId: userId,
+          actorRoleContext: roleContext,
+          reason,
+          policySnapshot: {
+            action,
+            requesterIsPresident,
+            ...(onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {}),
+          },
         },
-      },
-    }),
-    db.auditEvent.create({
-      data: {
-        institutionId: approval.institutionId,
-        organizationId: approval.organizationId,
-        actorId: userId,
-        action: `Approval.${action}`,
-        resourceType: "ApprovalRequest",
-        resourceId: approval.id,
-        outcome: "ALLOW",
-        reason,
-        metadata: onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {},
-      },
-    }),
-  ])
+      }),
+      db.auditEvent.create({
+        data: {
+          institutionId: approval.institutionId,
+          organizationId: approval.organizationId,
+          actorId: userId,
+          action: `Approval.${action}`,
+          resourceType: "ApprovalRequest",
+          resourceId: approval.id,
+          outcome: "ALLOW",
+          reason,
+          metadata: onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {},
+        },
+      }),
+    ])
+  } catch (error) {
+    if (isConcurrentDecision(error)) {
+      throw new Error(
+        "Someone else decided this request first. Reload to see where it stands."
+      )
+    }
+    throw error
+  }
 
   // ── Notifications (BP: notification system across all RBAC flows) ────────
   const label =

@@ -1,5 +1,10 @@
 import type { ApprovalStatus } from "@prisma/client"
-import { availableActions, nextStatus, type ApprovalView } from "./approvals"
+import {
+  availableActions,
+  isConcurrentDecision,
+  nextStatus,
+  type ApprovalView,
+} from "./approvals"
 import type { UserContext } from "./rbac"
 
 const INST = "inst_1"
@@ -81,5 +86,28 @@ describe("nextStatus", () => {
     expect(nextStatus("approve", "DRAFT", { requesterIsPresident: false })).toBeNull()
     expect(nextStatus("resubmit", "DRAFT", { requesterIsPresident: false })).toBeNull()
     expect(nextStatus("cancel", "APPROVED", { requesterIsPresident: false })).toBeNull()
+  })
+})
+
+describe("isConcurrentDecision", () => {
+  // The status update names the status the decision was read at, so a P2025 from
+  // that statement means another approver moved the request first.
+  it("recognises Prisma P2025", () => {
+    expect(isConcurrentDecision({ code: "P2025", message: "Record to update not found." })).toBe(true)
+  })
+
+  it("ignores every other Prisma error code", () => {
+    expect(isConcurrentDecision({ code: "P2002" })).toBe(false)
+    expect(isConcurrentDecision({ code: "P1001" })).toBe(false)
+  })
+
+  // A connection failure or a bug must not be reported to the user as though a
+  // colleague had beaten them to the decision.
+  it("ignores errors that carry no code", () => {
+    expect(isConcurrentDecision(new Error("boom"))).toBe(false)
+    expect(isConcurrentDecision(null)).toBe(false)
+    expect(isConcurrentDecision(undefined)).toBe(false)
+    expect(isConcurrentDecision("P2025")).toBe(false)
+    expect(isConcurrentDecision({ code: 2025 })).toBe(false)
   })
 })

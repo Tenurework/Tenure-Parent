@@ -115,6 +115,25 @@ export function nextStatus(
   }
 }
 
+/**
+ * True when a write failed because someone else moved the request first.
+ *
+ * `actOnApproval` names the status it read in the `where` of its status update,
+ * so the update matches no row exactly when another approver has already changed
+ * it. Prisma reports that as P2025 ("record to update not found") — the same code
+ * it uses for a genuinely missing record, which is why this is deliberately
+ * narrow: it is only meaningful at a call site that added the status predicate,
+ * and callers must not use it to swallow a real not-found.
+ */
+export function isConcurrentDecision(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "P2025"
+  )
+}
+
 export const ACTION_LABELS: Record<ApprovalActionName, string> = {
   submit: "Submit for approval",
   approve: "Approve",
