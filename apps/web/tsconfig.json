@@ -22,7 +22,9 @@
       "@/*": ["./src/*"],
       "@tenure/configuration": ["../../packages/configuration/src/index.ts"],
       "@tenure/blueprints": ["../../blueprints/index.ts"],
-      "@tenure/organization-model": ["../../packages/organization-model/src/index.ts"]
+      "@tenure/organization-model": ["../../packages/organization-model/src/index.ts"],
+      "@tenure/module-runtime": ["../../packages/module-runtime/src/index.ts"],
+      "@tenure/modules": ["../../modules/index.ts"]
     }
   },
   "include": [
@@ -31,7 +33,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "../../packages/*/src/**/*.ts",
-    "../../blueprints/**/*.ts"
+    "../../blueprints/**/*.ts",
+    "../../modules/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

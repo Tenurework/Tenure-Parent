@@ -22,6 +22,22 @@ export const universityStudentOrganizations: SystemBlueprint = {
     "platform.terminology.leadershipBody": "executive board",
     "platform.terminology.seatSingular": "seat",
   },
+  // Everything the pilot runs today. reimbursements and budgeting need the
+  // finance entitlement, which the tenant binding grants.
+  modules: [
+    "dashboard",
+    "organizations",
+    "feed",
+    "messaging",
+    "approvals",
+    "events",
+    "resources",
+    "search",
+    "memory",
+    "budgeting",
+    "reimbursements",
+    "administration",
+  ],
   topology: {
     id: "university-student-organizations",
     version: "1.0.0",

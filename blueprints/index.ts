@@ -45,6 +45,7 @@ export const TENANT_BINDINGS: readonly TenantBinding[] = [
     slug: "rochester",
     blueprintId: "university-student-organizations",
     displayName: "Simon Business School — Ainslie OSE",
+    entitlements: ["finance"],
     values: {
       // The name the institution actually uses, and the reason this file exists:
       // it was a literal in eight components.
@@ -56,6 +57,9 @@ export const TENANT_BINDINGS: readonly TenantBinding[] = [
     slug: "midtown-arts",
     blueprintId: "nonprofit-program-operations",
     displayName: "Midtown Arts Collective",
+    // No finance entitlement: budgeting is in its blueprint and is refused for
+    // this tenant, with that reason. Proves entitlement gating is real.
+    entitlements: [],
     values: {
       "platform.terminology.staffOfficeName": "Midtown Program Office",
       "platform.terminology.staffOfficeShortName": "MPO",

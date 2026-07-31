@@ -28,6 +28,10 @@ export const nonprofitProgramOperations: SystemBlueprint = {
     "platform.terminology.leadershipBody": "steering committee",
     "platform.terminology.seatSingular": "post",
   },
+  // A different system, not the same system renamed: no community feed, no
+  // student-facing messaging, no reimbursements. Programs are coordinated, not
+  // socialised.
+  modules: ["dashboard", "organizations", "approvals", "events", "memory", "budgeting"],
   topology: {
     id: "nonprofit-program-operations",
     version: "1.0.0",

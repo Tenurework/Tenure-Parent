@@ -27,63 +27,54 @@ import {
 import { TenureAIMark } from "@/components/brand/TenureLogo"
 import { useAI } from "@/components/ai/AIProvider"
 
-interface NavItem {
+/**
+ * A nav entry as it crosses the server/client boundary.
+ *
+ * Icons are named, not passed: a React component is not serializable, and the
+ * module manifests that now decide this menu are plain data resolved on the
+ * server. `ICONS` below is the only place that maps a name to a component.
+ */
+export interface NavItemView {
+  id: string
   label: string
   href: string
-  icon: IconType | typeof TenureAIMark
-  ai?: boolean
+  icon: string
+  /** A named UI behaviour instead of navigation, e.g. "openAiPanel". */
+  action?: string
 }
 
-interface NavSection {
-  label?: string
-  items: NavItem[]
+export interface NavSectionView {
+  label: string
+  // readonly, because these come straight from navigationFor() and nothing here
+  // mutates them. Widening to a mutable array would force a copy at the call
+  // site for no reason.
+  items: readonly NavItemView[]
 }
 
-function buildNav(showReports?: boolean, showAdmin?: boolean): NavSection[] {
-  return [
-    ...(showAdmin
-      ? [
-          {
-            label: "Administration",
-            items: [{ label: "Admin Console", href: "/admin", icon: ShieldCheck }],
-          },
-        ]
-      : []),
-    {
-      label: "Overview",
-      items: [
-        { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        ...(showReports ? [{ label: "Reports", href: "/reports", icon: BarChart3 }] : []),
-      ],
-    },
-    {
-      label: "Community",
-      items: [
-        { label: "Community Feed", href: "/feed", icon: Newspaper },
-        { label: "All Clubs", href: "/orgs", icon: Building2 },
-        { label: "Messages", href: "/messages", icon: MessageSquare },
-      ],
-    },
-    {
-      label: "Operations",
-      items: [
-        { label: "Approvals", href: "/approvals", icon: CheckCircle },
-        { label: "Calendar", href: "/calendar", icon: Calendar },
-      ],
-    },
-    {
-      label: "Knowledge",
-      items: [
-        { label: "Resources", href: "/resources", icon: BookOpen },
-        { label: "Tenure AI", href: "/search", icon: TenureAIMark, ai: true },
-      ],
-    },
-  ]
+const ICONS: Record<string, IconType | typeof TenureAIMark> = {
+  LayoutDashboard,
+  BarChart3,
+  Newspaper,
+  Building2,
+  MessageSquare,
+  CheckCircle,
+  Calendar,
+  BookOpen,
+  ShieldCheck,
+  Settings,
+  TenureAIMark,
 }
 
 interface SideNavProps {
-  showReports?: boolean
-  showAdmin?: boolean
+  /**
+   * The menu, resolved on the server from the modules this system runs.
+   *
+   * Previously this component built the menu itself from two booleans, both of
+   * which were `ctx.institutionRoles.length > 0`. That is the same menu for
+   * every institution and decides visibility from a role *count*. It is now
+   * whatever the enabled modules contribute, filtered by capability.
+   */
+  sections: readonly NavSectionView[]
 }
 
 const TOOLTIP_CLASS =
@@ -97,11 +88,13 @@ function ItemLink({
   active,
   collapsed,
 }: {
-  item: NavItem
+  item: NavItemView
   active: boolean
   collapsed: boolean
 }) {
-  const Icon = item.icon
+  // An unknown icon name renders as a blank slot rather than crashing the whole
+  // shell; a manifest typo should not take out navigation.
+  const Icon = ICONS[item.icon] ?? Settings
   const { openPanel } = useAI()
   const className = `mx-2.5 ${ITEM_BASE} ${
     active
@@ -122,8 +115,9 @@ function ItemLink({
     </>
   )
 
-  // Tenure AI opens the right-side assistant panel instead of navigating.
-  const trigger = item.ai ? (
+  // Tenure AI opens the right-side assistant panel instead of navigating. The
+  // manifest names the behaviour; this is where the name is resolved.
+  const trigger = item.action === "openAiPanel" ? (
     <button type="button" onClick={openPanel} className={`w-[calc(100%-1.25rem)] ${className}`}>
       {inner}
     </button>
@@ -163,7 +157,7 @@ function CollapseToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   )
 }
 
-export function SideNav({ showReports, showAdmin }: SideNavProps) {
+export function SideNav({ sections }: SideNavProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
 
@@ -187,11 +181,11 @@ export function SideNav({ showReports, showAdmin }: SideNavProps) {
     })
   }, [])
 
-  const sections = buildNav(showReports, showAdmin)
-  const isActive = (href: string, label: string) =>
-    label === "Tenure AI"
-      ? false // Search entry owns the highlight for /search
-      : pathname === href || (href !== "/dashboard" && pathname.startsWith(href))
+  const isActive = (item: NavItemView) =>
+    item.action
+      ? false // A panel opener is never the current page.
+      : pathname === item.href ||
+        (item.href !== "/dashboard" && pathname.startsWith(item.href))
 
   return (
     <nav
@@ -200,18 +194,13 @@ export function SideNav({ showReports, showAdmin }: SideNavProps) {
       aria-label="Primary navigation"
     >
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-2.5">
-        {sections.map((section, si) => (
-          <div key={si} className="mb-3.5">
+        {sections.map((section) => (
+          <div key={section.label} className="mb-3.5">
             {section.label && (
               <p className="micro-label nav-section-label mb-1 px-3.5">{section.label}</p>
             )}
             {section.items.map((item) => (
-              <ItemLink
-                key={item.label}
-                item={item}
-                active={isActive(item.href, item.label)}
-                collapsed={collapsed}
-              />
+              <ItemLink key={item.id} item={item} active={isActive(item)} collapsed={collapsed} />
             ))}
           </div>
         ))}
@@ -221,7 +210,7 @@ export function SideNav({ showReports, showAdmin }: SideNavProps) {
       <div className="shrink-0 border-t border-border py-2">
         <CollapseToggle collapsed={collapsed} onToggle={toggle} />
         <ItemLink
-          item={{ label: "Settings", href: "/settings", icon: Settings }}
+          item={{ id: "platform.settings", label: "Settings", href: "/settings", icon: "Settings" }}
           active={pathname.startsWith("/settings")}
           collapsed={collapsed}
         />

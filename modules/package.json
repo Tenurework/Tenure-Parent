@@ -1,0 +1,12 @@
+{
+  "name": "@tenure/modules",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The module catalog: what the platform can switch on for a system, declared as manifests.",
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

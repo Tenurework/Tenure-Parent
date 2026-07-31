@@ -5,7 +5,8 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "blueprints"
+    "blueprints",
+    "modules"
   ],
   "engines": {
     "node": ">=20"
