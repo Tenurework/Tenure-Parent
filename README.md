@@ -1,13 +1,33 @@
-# Tenure
+# Tenure — the global distribution engine
 
-The Tenure platform monorepo. One codebase from which the Tenure team configures,
+The Tenure platform engine: the codebase from which the Tenure team configures,
 provisions, deploys, operates and supports organization-specific systems.
+
+**This repository is the engine. It is not a tenant** (PD-008). A tenant's
+system — the Simon OSE pilot — lives and deploys from `satvikOS/Tenure`. The
+two share an AWS account and nothing else: separate Terraform state, separate
+cluster, separate load balancer, separate CloudFront distribution.
+
+| | URL | Deploys from |
+|---|---|---|
+| **System Studio** (this engine) | https://d2kj4iy5i37kfd.cloudfront.net | this repository |
+| Simon OSE (tenant #1) | https://d1n6mdis7bs02g.cloudfront.net | `satvikOS/Tenure` |
+
+Signing in to the Studio needs an address in `PLATFORM_OPERATORS` and the
+operator secret, which Terraform generates and never prints — this repository is
+public, so a workflow summary is world-readable:
+
+```bash
+aws secretsmanager get-secret-value --secret-id tenure-studio/app   --query SecretString --output text
+```
 
 ## What is here
 
 | Path | What it is |
 |---|---|
-| `apps/web/` | The application. Next.js 15.5, React 19, Prisma 6, NextAuth 5 beta. |
+| `apps/system-studio/` | **The engine.** The internal console: every tenant's blueprint, topology, modules, resolved configuration and release checksum. |
+| `infrastructure/studio/` | The engine's own stack — cluster, ALB, ECR, secret, CloudFront. Separate Terraform state from the pilot's, deliberately. |
+| `apps/web/` | The tenant application, and a **duplicate** of `satvikOS/Tenure`. Here only as the integration proof for the engines until they are consumable by version — see PD-008. |
 | `apps/web/prisma/` | 40-model schema, versioned migrations. |
 | `packages/` | The platform engines — see below. Each is used by the application, not shelved beside it. |
 | `modules/` | The module catalog: 12 manifests describing capability the application already has. |

@@ -281,3 +281,60 @@ origin makes one authorization bug a cross-customer disclosure.
 
 **Not yet decided.** The engine's hostname. Whichever it is, the constraint
 above stands: it is not a host that also serves a tenant.
+
+---
+
+## PD-008 — This repository is the engine. It is not a tenant, and should not contain one.
+
+**Date:** 2026-07-31 · **Status:** Accepted, partially implemented
+
+**Question.** `Tenure-Parent` currently contains `apps/web` — the tenant
+application — imported under ADR-0005 on the reading that this repository is
+"the canonical monorepo for everything". Is that right?
+
+**Decision.** No. **This repository is the global Tenure distribution engine and
+nothing else.** The engine and a tenant are different products: different code,
+different modules, different infrastructure, different audiences. One repository
+holding both invites exactly the confusion that put the cross-tenant console on
+a customer's origin.
+
+**What is already true.**
+
+- `apps/system-studio` is the engine, deployed to its own CloudFront
+  distribution, its own cluster, its own load balancer and its own Terraform
+  state. Live at `https://d2kj4iy5i37kfd.cloudfront.net`.
+- `/studio` is gone from `apps/web`.
+- The platform engines live in `packages/`, and the system definitions in
+  `blueprints/` and `modules/`.
+
+**What is not yet true, and is the remaining work.**
+
+`apps/web` is still here. It is a **duplicate** of `satvikOS/Tenure`, which is
+where it is developed and from which it deploys. Keeping it has cost a merge on
+every sync and will keep costing them.
+
+It cannot simply be deleted, because it is currently the only consumer of most
+of the engines — module-driven navigation, the approval workflow, the resource
+form, terminology and localization are all wired into it, and those wirings are
+what prove the packages work against a real application rather than against
+fixtures.
+
+So the sequence is:
+
+1. **Publish the engines for consumption.** `@tenure/configuration`,
+   `authorization`, `module-runtime`, `organization-model`, `workflow`,
+   `releases`, `metadata`, `audit`, `platform-config` are consumed by path today.
+   A tenant in another repository needs them by version.
+2. **Move the integrations to the tenant.** The navigation, approval-flow,
+   resource-form and terminology wirings belong in `satvikOS/Tenure`, as pull
+   requests — never pushes, because that repository deploys production on push
+   to `main`.
+3. **Then remove `apps/web` from here**, once its integrations live where the
+   application does and the engines are consumable by version.
+
+Doing (3) first would delete the evidence that (1) and (2) work.
+
+**Commits us to.** Not adding new tenant-application features here. Work that
+belongs to the tenant goes to `satvikOS/Tenure`; work that belongs to the engine
+stays. `apps/web` remains only as the integration proof until it is no longer
+needed for that.
