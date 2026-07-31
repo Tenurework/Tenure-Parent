@@ -198,6 +198,59 @@ describe("failing closed", () => {
   })
 })
 
+/**
+ * The edge of the protection, asserted rather than described.
+ *
+ * 24 of 39 models have no column the query layer can filter on, so a scope does
+ * NOT protect them. registry.ts names every one; this proves what that means at
+ * runtime, because "documented in a comment" and "true of the running system"
+ * are different claims and only one of them is testable.
+ *
+ * A caller reaching one of these models inside a scope must filter it itself,
+ * through the relation registry.ts records in `reachableVia`. The reminders
+ * cron is the worked example of getting that wrong: it was made per-tenant, but
+ * its `roleAssignment` query kept returning every institution's board.
+ */
+describe("what a tenant scope does NOT protect", () => {
+  it("does not filter a model with no tenant column", async () => {
+    // RoleAssignment reaches its tenant only via Role -> Organization, which is
+    // a join the extension cannot add. Inside tenant A's scope it still sees
+    // rows belonging to every tenant.
+    const [scoped, unscoped] = await Promise.all([
+      runInTenantScope(scopeA, () => db.roleAssignment.count()),
+      runUnscoped("migration", "assert", () => db.roleAssignment.count()),
+    ])
+
+    expect(scoped).toBe(unscoped)
+  })
+
+  it("is filtered once the caller supplies the relation predicate", async () => {
+    // The remedy available today, and the shape every UNENFORCEABLE model needs
+    // until institutionId is denormalised onto it.
+    const leaked = await runInTenantScope(scopeA, () =>
+      db.roleAssignment.count({
+        where: { role: { organization: { institutionId: INST_A } } },
+      }),
+    )
+
+    // Tenant A is a fixture with no seats, so a correctly filtered count is 0
+    // while the unfiltered one above is the whole table.
+    expect(leaked).toBe(0)
+    expect(await runUnscoped("migration", "assert", () => db.roleAssignment.count())).toBeGreaterThan(0)
+  })
+
+  it("does not filter platform-global models either, by design", async () => {
+    // Same observable behaviour, entirely different reason: User is global
+    // because one person holds seats at more than one institution.
+    const [scoped, unscoped] = await Promise.all([
+      runInTenantScope(scopeA, () => db.user.count()),
+      runUnscoped("migration", "assert", () => db.user.count()),
+    ])
+
+    expect(scoped).toBe(unscoped)
+  })
+})
+
 describe("concurrent tenants do not bleed into each other", () => {
   it("keeps two interleaved operations separate", async () => {
     // Sequential code cannot catch a context that is shared rather than
