@@ -1,59 +1,104 @@
-# Tenure Parent — platform architecture
+# Tenure
 
-The long-term architecture for turning Tenure from a single-institution application into a
-globally deployable, multi-tenant organizational operating platform.
+The Tenure platform monorepo. One codebase from which the Tenure team configures,
+provisions, deploys, operates and supports organization-specific systems.
 
 ## What is here
 
-| File | What it is |
+| Path | What it is |
 |---|---|
-| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | The specification. ~7,200 lines, 28 Mermaid diagrams, 77 SQL blocks, 54 code/pseudocode blocks. |
-| [`CURRENT-STATE-INVENTORY.md`](./CURRENT-STATE-INVENTORY.md) | A direct reading of the existing Tenure codebase: every Prisma model, its keys, which tenant columns it carries, where single-institution assumptions live. Every other section is built on this. |
-| [`REVIEW-FINDINGS.md`](./REVIEW-FINDINGS.md) | An adversarial review of the specification. **Read this before implementing anything.** |
+| `apps/web/` | The application. Next.js 15.5, React 19, Prisma 6, NextAuth 5 beta. 219 source files, 40 routes. |
+| `apps/web/prisma/` | 40-model schema, 997 lines, versioned migrations. |
+| `packages/` | Platform packages. Empty — a package appears here when it has working code that something uses. |
+| `infrastructure/terraform/` | ECS, RDS, CloudFront, ACM, SES, SQS, ElastiCache — 21 files. |
+| `tests/` | Monorepo-level tests: properties of the repository, not of the application. |
+| `tools/` | Operational scripts. |
+| `docs/` | Architecture, decisions, migrations, runbook. |
+| `Tier1/`, `*.pdf`, `*.xlsx` | Simon Business School source documents the roster and resource data derive from. |
 
-## Read the review first
+Status, honestly: this is the working pilot application plus the beginnings of the
+platform around it. The configuration engine, module runtime, blueprint system and
+System Studio described in `docs/architecture/PLATFORM-ARCHITECTURE.md` are not
+built yet. Where a directory named in that document does not exist here, it is
+because nothing real would be in it.
 
-The specification's sections were authored in parallel against a shared current-state brief,
-then reviewed by an independent pass instructed to find only defects. It found real ones,
-including several that would not work as written:
+## Running it
 
-- **An RLS bootstrap deadlock.** `InstitutionMembership` is inside the RLS enable set, but
-  reading memberships is how a request resolves its tenant in the first place. As specified,
-  nobody can authenticate. A bootstrap primitive has to be named.
-- **Two incompatible `withTenant` designs**, with different GUCs and opposite failure
-  semantics (fail-empty vs fail-loud), both labelled as real code. One must be deleted, and
-  fail-loud is the correct one.
-- **Effective-permission SQL that never checks membership state**, so suspended members and
-  disabled principals keep every capability.
-- **Three mutually exclusive target schemas**, all marked MVP, two of which silently
-  contradict the document's own accepted decisions about not renaming tables or migrating
-  primary keys.
+Requires Node ≥ 20 (developed on 22.21) and Docker.
 
-None of these are reasons to distrust the specification as a whole — they are the reason the
-review exists. Treat `ARCHITECTURE.md` as a strong draft with a known defect list, not as a
-finished blueprint.
+```bash
+npm ci
 
-## Grounding
+docker run -d --name tenure-pg \
+  -e POSTGRES_USER=tenure -e POSTGRES_PASSWORD=tenure -e POSTGRES_DB=tenure \
+  -p 5433:5432 postgres:16
 
-Nothing here is generic SaaS advice. The inventory was produced by reading the actual
-application: Next.js 15 App Router, Prisma 6, PostgreSQL 16 on RDS, NextAuth 5 beta with a
-JWT session strategy, ECS Fargate behind CloudFront, schema applied via `prisma db push`
-with no migration history.
+export DATABASE_URL="postgresql://tenure:tenure@localhost:5433/tenure"
 
-Findings that shape the whole migration, drawn from that reading:
+cd apps/web
+npx prisma migrate deploy
+node scripts/seed.mjs        # 26 clubs, 235 seats, 172 people
+cd ../..
 
-- `Organization.slug`, `Role.positionCode`, `Deliverable.key`, `DirectoryPerson.email` and
-  `ApprovalRequest.idempotencyKey` are **globally unique**, so two tenants cannot both have a
-  club called `consulting`.
-- Of the models carrying `institutionId`, only about half declare a relation to
-  `Institution`; the rest hold a bare string with nothing enforcing that it agrees with the
-  parent organization.
-- `Resource` is the only model with a correct composite tenant key,
-  `@@unique([institutionId, key])`.
-- There is no `middleware.ts`, so there is no request-level tenant interceptor — every page,
-  route handler and server action resolves tenancy for itself today.
+npm run dev                  # http://localhost:3000
+```
 
-## Status
+`GET /api/health` returns `{"status":"ok","db":"ok"}` when the app can reach the
+database.
 
-Specification and review complete. No implementation has begun, and the defects in
-`REVIEW-FINDINGS.md` should be resolved before it does.
+## Checks
+
+```bash
+npm run lint
+npm run type-check
+npm run test --workspace apps/web -- --ci    # 258 unit tests
+npm run test:platform                        # monorepo-level tests
+npm run build
+
+cd apps/web
+npm run test:isolation                       # needs DATABASE_URL and a seeded database
+npx playwright install --with-deps chromium
+npx playwright test                          # 132 e2e specs
+```
+
+Two things to know before trusting a red result:
+
+- **`test:isolation` needs seeded data.** One assertion guards itself with
+  `roleAssignment.count() > 0`, which is only true after `scripts/seed.mjs`.
+  16/17 unseeded, 17/17 seeded. This is the failure currently reding CI on
+  `satvikOS/Tenure` — see `docs/migrations/BASELINE-VALIDATION.md`.
+- **The e2e suite is not idempotent.** Seven specs mutate state they later assert
+  on. 132/132 against a fresh migrate+seed; 125/132 on a second run against the
+  same database.
+
+## Deployment
+
+**Production deploys from `satvikOS/Tenure`, not from here.** That is deliberate
+and temporary: this repository is canonical for development first, and canonical
+for deployment only after a staging equivalence proof and an approved cutover.
+
+Every AWS-touching workflow here is disarmed with
+`if: github.repository == 'satvikOS/Tenure'`, because this repository holds the
+same deploy credentials and `deploy.yml` fires on a push to `main`. That guard is
+asserted by `npm run test:platform` in CI. See
+`docs/decisions/ADR-0004-CANONICAL-MONOREPO.md`.
+
+## Documents, in the order they are worth reading
+
+1. `docs/decisions/ADR-0004-CANONICAL-MONOREPO.md` — why this repository is canonical.
+2. `docs/migrations/LIVE-APP-IMPORT-PLAN.md` — how the application got here, with the history proof.
+3. `docs/migrations/BASELINE-VALIDATION.md` — every check, its exit code, and the pre-existing failures.
+4. `docs/architecture/REVIEW-FINDINGS.md` — an adversarial review of the platform spec against the real code. **Read before the spec itself.**
+5. `docs/architecture/PLATFORM-ARCHITECTURE.md` — the target platform (~7,200 lines).
+6. `docs/RUNBOOK.md` — operating the live pilot.
+
+### Why the review comes before the specification
+
+The specification's sections were authored in parallel and then reviewed by an
+independent pass instructed to find only defects. It found several that would not
+work as written — an RLS bootstrap deadlock that would stop the application
+authenticating anyone, two contradictory `withTenant` designs with opposite failure
+semantics, effective-permission SQL that never checks membership state so suspended
+members keep every capability, and three mutually exclusive target schemas all
+marked MVP. Treat the specification as a strong draft with a known defect list.
+Where the two disagree, the review wins.

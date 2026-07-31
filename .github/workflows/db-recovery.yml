@@ -1,0 +1,136 @@
+name: Database recovery
+
+# The way out of a P3009 boot lock.
+#
+# When a migration fails partway, Postgres rolls its DDL back but Prisma leaves
+# a ledger row recorded as started and never finished. Every subsequent
+# `migrate deploy` then refuses with P3009 — from EVERY image, including the one
+# ECS would roll back to, because the record lives in the database rather than
+# in the artefact. Redeploying cannot clear it.
+#
+# RDS is reachable only inside the VPC, so `prisma migrate resolve` cannot be
+# run from a GitHub runner. This runs it as a one-off ECS task on the live task
+# definition, which is the only place it can run at all.
+#
+# The running service is usually still up while this is true: with
+# deployment_minimum_healthy_percent = 100 the existing task keeps serving, and
+# the breakage only shows when ECS next needs to replace it. That is the window
+# this workflow exists for — it is quiet, not harmless.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "What to do"
+        required: true
+        type: choice
+        options:
+          - status
+          - resolve-rolled-back
+          - resolve-applied
+      migration:
+        description: "Migration name (required for both resolve actions), e.g. 20260731000000_add_tenant_uniques"
+        required: false
+        default: ""
+      confirm:
+        description: 'For resolve actions only: type the migration name again to confirm'
+        required: false
+        default: ""
+
+jobs:
+  recover:
+    # Disarmed outside the repository that owns the production deployment, so
+    # that importing this file cannot deploy as a side effect. Flipping the
+    # repository name is the cutover, and is a reviewed change — see
+    # docs/decisions/ADR-0004-CANONICAL-MONOREPO.md and the cutover plan.
+    if: github.repository == 'satvikOS/Tenure'
+
+    name: ${{ inputs.action }}
+    runs-on: ubuntu-latest
+
+    env:
+      CLUSTER: tenure-pilot
+      SERVICE: tenure-pilot-app
+
+    steps:
+      # Choosing wrong is not recoverable by running this again: marking a
+      # partly-applied migration as rolled-back leaves the schema and the ledger
+      # disagreeing permanently. So a resolve requires the name twice, and
+      # `status` is offered as the thing you run first.
+      - name: Check the inputs
+        run: |
+          if [ "${{ inputs.action }}" = "status" ]; then
+            echo "status needs no migration name."; exit 0
+          fi
+          if [ -z "${{ inputs.migration }}" ]; then
+            echo "::error::${{ inputs.action }} requires a migration name."; exit 1
+          fi
+          if [ "${{ inputs.migration }}" != "${{ inputs.confirm }}" ]; then
+            echo "::error::Confirmation does not match. Type the migration name into both fields."
+            exit 1
+          fi
+          echo "::warning::Resolving '${{ inputs.migration }}' as ${{ inputs.action }}."
+          echo "If its DDL actually did apply and you mark it rolled-back (or vice versa),"
+          echo "the schema and the ledger will disagree and CI's drift gate will catch it —"
+          echo "but only on the next schema change."
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      # Reuse the running service's task definition and placement, so this runs
+      # on exactly the image and configuration that is live.
+      - name: Resolve task definition and network
+        run: |
+          SVC=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0]' --output json)
+          echo "TASK_DEF=$(jq -r '.taskDefinition' <<<"$SVC")" >> $GITHUB_ENV
+          echo "SUBNETS=$(jq -r '.networkConfiguration.awsvpcConfiguration.subnets | join(",")' <<<"$SVC")" >> $GITHUB_ENV
+          echo "SGS=$(jq -r '.networkConfiguration.awsvpcConfiguration.securityGroups | join(",")' <<<"$SVC")" >> $GITHUB_ENV
+
+      - name: Run the recovery task
+        run: |
+          case "${{ inputs.action }}" in
+            status)              CMD='["migrate-status"]' ;;
+            resolve-rolled-back) CMD='["migrate-resolve-rolled-back","${{ inputs.migration }}"]' ;;
+            resolve-applied)     CMD='["migrate-resolve-applied","${{ inputs.migration }}"]' ;;
+          esac
+
+          # ENTRYPOINT is ["sh","scripts/entrypoint.sh"], so the override
+          # becomes `sh scripts/entrypoint.sh <mode> [migration]`.
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$CLUSTER" \
+            --task-definition "$TASK_DEF" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SGS],assignPublicIp=ENABLED}" \
+            --overrides "{\"containerOverrides\":[{\"name\":\"app\",\"command\":$CMD}]}" \
+            --query 'tasks[0].taskArn' --output text)
+
+          [ -n "$TASK_ARN" ] && [ "$TASK_ARN" != "None" ] || { echo "::error::run-task returned no ARN"; exit 1; }
+          echo "TASK_ARN=$TASK_ARN" >> $GITHUB_ENV
+          echo "Started $TASK_ARN"
+
+      - name: Wait, then print the task's own output
+        run: |
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK_ARN"
+          TASK=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK_ARN" --query 'tasks[0]' --output json)
+          EXIT_CODE=$(jq -r '.containers[0].exitCode // "null"' <<<"$TASK")
+
+          LOG_GROUP=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
+            --query 'taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"' --output text)
+          LOG_PREFIX=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
+            --query 'taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-stream-prefix"' --output text)
+
+          echo "--- $LOG_GROUP : $LOG_PREFIX/app/$(basename "$TASK_ARN") ---"
+          aws logs get-log-events \
+            --log-group-name "$LOG_GROUP" \
+            --log-stream-name "$LOG_PREFIX/app/$(basename "$TASK_ARN")" \
+            --limit 200 --query 'events[].message' --output text || echo "(no logs)"
+
+          echo "exit code: $EXIT_CODE"
+          [ "$EXIT_CODE" = "0" ] || { echo "::error::Recovery task exited $EXIT_CODE"; exit 1; }
+
+          if [ "${{ inputs.action }}" != "status" ]; then
+            echo "::notice::Resolved. Run this workflow again with action=status to confirm the ledger is clean, then redeploy."
+          fi

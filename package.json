@@ -1,0 +1,30 @@
+{
+  "name": "tenure-parent",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "//": "Every delegating script ends in `--`. Without it, `npm run test -- --ci` expands to `npm run test --workspace apps/web --ci`, and npm eats `--ci` as one of its own CLI flags instead of forwarding it to jest — the step still exits 0, having silently run without the flag. The trailing `--` makes the expansion `... --workspace apps/web -- --ci`, which forwards. Same trap for `npm run e2e -- --list`, which otherwise runs the entire suite.",
+    "dev": "npm run dev --workspace apps/web --",
+    "build": "npm run build --workspace apps/web --",
+    "start": "npm run start --workspace apps/web --",
+    "lint": "npm run lint --workspace apps/web --",
+    "type-check": "npm run type-check --workspace apps/web --",
+    "test": "npm run test --workspace apps/web --",
+    "test:isolation": "npm run test:isolation --workspace apps/web --",
+    "//test:platform": "Monorepo-level tests, run from the root — they assert properties of the repository itself (which workflows may reach production, which packages are wired in) rather than of the application. It goes through a runner rather than `node --test <glob>` because glob support in the test runner is Node 22 and CI pins Node 20; see tools/run-platform-tests.mjs.",
+    "test:platform": "node tools/run-platform-tests.mjs",
+    "e2e": "npm run e2e --workspace apps/web --",
+    "db:migrate": "npm exec --workspace apps/web -- prisma migrate deploy",
+    "db:seed": "node apps/web/scripts/seed.mjs"
+  },
+  "devDependencies": {
+    "yaml": "^2.9.0"
+  }
+}

@@ -1,0 +1,362 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_call: # Allow deploy.yml to call this as a dependency
+
+jobs:
+  ci:
+    name: Lint · Type Check · Test · Build
+    runs-on: ubuntu-latest
+
+    env:
+      AUTH_SECRET: ci-build-secret-not-for-production
+      NEXTAUTH_URL: http://localhost:3000
+      # Okta vars are not set in CI — auth routes are dynamic and not called at build time
+      OKTA_CLIENT_ID: ci-placeholder
+      OKTA_CLIENT_SECRET: ci-placeholder
+      OKTA_ISSUER: https://ci.example.okta.com
+      # DATABASE_URL is not needed for prisma generate or next build (lazy connection)
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tenure
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          # setup-node's findLockFile reads only the top level of
+          # GITHUB_WORKSPACE and does not recurse. The single workspaces
+          # lockfile lives at the root; naming it states which lockfile is
+          # authoritative instead of leaving it to discovery.
+          cache-dependency-path: package-lock.json
+
+      # Root install — npm workspaces installs apps/web from the root lockfile.
+      - name: Install dependencies
+        run: npm ci
+
+      # lint / type-check / build go through the root delegating scripts in
+      # package.json, which run them with cwd = apps/web.
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run type-check
+
+      # Addressed to the workspace directly, so the flags reach jest no matter
+      # what the root script looks like. The root `test` script delegates with a
+      # trailing `--` (see package.json) precisely so `npm test -- --ci` also
+      # forwards; without it npm swallows --ci and --passWithNoTests as its own
+      # CLI flags and the step still exits 0, having run jest without them.
+      - name: Test
+        run: npm run test --workspace apps/web -- --ci --passWithNoTests
+
+      # Monorepo-level tests. These assert properties of the repository rather
+      # than of the application — first among them that the production-operations
+      # workflows cannot fire from a repository that is not the one owning the
+      # production deployment. This repository holds the same AWS credentials as
+      # the one that deploys, so that guard is the only thing between a merge to
+      # main here and a live ECS rollout. It is asserted, not assumed.
+      - name: Platform tests
+        run: npm run test:platform
+
+      - name: Build
+        run: npm run build
+
+  # ── Migration integrity: the schema and the migrations must not diverge ────
+  migrations:
+    name: Migrations · Drift + Apply + Isolation
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tenure
+          POSTGRES_PASSWORD: tenure
+          POSTGRES_DB: tenure
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tenure"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://tenure:tenure@localhost:5432/tenure
+      SHADOW_DATABASE_URL: postgresql://tenure:tenure@localhost:5432/tenure_shadow
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Editing schema.prisma without generating a migration used to be
+      # invisible, because the container reshaped the database with `db push`
+      # at boot. Now it is a build failure.
+      - name: Migrations must reproduce schema.prisma exactly
+        run: |
+          psql "$DATABASE_URL" -c 'CREATE DATABASE tenure_shadow;'
+          npx prisma migrate diff \
+            --from-migrations ./apps/web/prisma/migrations \
+            --to-schema-datamodel ./apps/web/prisma/schema.prisma \
+            --shadow-database-url "$SHADOW_DATABASE_URL" \
+            --exit-code --script > /tmp/drift.sql || {
+              echo "::error::apps/web/prisma/migrations does not reproduce apps/web/prisma/schema.prisma."
+              echo "Generate a migration for your schema change:"
+              echo "  npx prisma migrate dev --name <describe-your-change>"
+              echo ""
+              echo "--- missing DDL ---"
+              cat /tmp/drift.sql
+              exit 1
+            }
+          echo "✅ Migrations reproduce the schema exactly."
+
+      # Proves migrate deploy works from empty, which is the path a new cell,
+      # a new tenant database and every preview environment takes.
+      #
+      # working-directory, not a --schema flag: the Prisma CLI's implicit
+      # ./prisma/schema.prisma lookup is exactly what production relies on, so
+      # CI keeps exercising it. (npx walks up to the hoisted root node_modules
+      # for the binary.)
+      - name: Apply migrations to an empty database
+        working-directory: apps/web
+        run: npx prisma migrate deploy
+
+      # Proves the bootstrap correctly baselines a `db push`-shaped database
+      # with no migration ledger — the shape the live pilot is in today.
+      #
+      # Also runs from apps/web, which mirrors the container (cwd=/app with
+      # prisma/ and scripts/ flattened under it) rather than approximating it.
+      # The psql lines are cwd-independent.
+      - name: Bootstrap must baseline a legacy pre-migrations database
+        working-directory: apps/web
+        run: |
+          psql "$DATABASE_URL" -c 'CREATE DATABASE tenure_legacy;'
+          LEGACY="postgresql://tenure:tenure@localhost:5432/tenure_legacy"
+          DATABASE_URL="$LEGACY" npx prisma db push --skip-generate
+          psql "$LEGACY" -c 'DELETE FROM "_prisma_migrations";' 2>/dev/null || true
+          psql "$LEGACY" -c 'DROP TABLE IF EXISTS "_prisma_migrations";'
+          psql "$LEGACY" -c $'INSERT INTO "Institution" (id,name,slug,domain,"createdAt","updatedAt") VALUES (\'ci_live\',\'CI Live Data\',\'ci-live\',\'ci.test\',NOW(),NOW());'
+
+          DATABASE_URL="$LEGACY" node scripts/db-bootstrap.mjs
+
+          echo "--- the pre-existing row must still be there ---"
+          ROWS=$(psql "$LEGACY" -tAc $'SELECT count(*) FROM "Institution" WHERE id = \'ci_live\';')
+          [ "$ROWS" = "1" ] || { echo "::error::Bootstrap destroyed pre-existing data."; exit 1; }
+          echo "✅ Live data survived the migration baseline."
+
+      # Proves tenant isolation is actually reached, not merely correct in
+      # principle. Runs against the enforcing client on a real database: a
+      # filter that is never applied looks identical to one that works in any
+      # test that does not touch PostgreSQL.
+      #
+      # From apps/web: `prisma generate` resolves ./prisma/schema.prisma from
+      # cwd, and test:isolation is a workspace script. Run from the monorepo
+      # root both halves fail — the first on a missing schema, the second on a
+      # missing script.
+      - name: Tenant isolation must hold against a real database
+        working-directory: apps/web
+        run: npx prisma generate && npm run test:isolation
+
+  # ── Headless e2e: real Postgres, seeded data, production build ─────────────
+  e2e:
+    name: E2E · Playwright
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tenure
+          POSTGRES_PASSWORD: tenure
+          POSTGRES_DB: tenure
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tenure"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://tenure:tenure@localhost:5432/tenure
+      # `next start` runs in production mode, so this server is held to the
+      # production environment contract in src/lib/env.ts. Keeping CI inside
+      # that contract is deliberate: it means the rules are exercised on every
+      # run instead of being discovered at deploy time. These are throwaway
+      # values for an ephemeral database, but they are not the placeholders the
+      # contract rejects.
+      AUTH_SECRET: e2e-not-a-placeholder-2f8c1d9b4a6e7350f1c2
+      AUTH_TRUST_HOST: "true"
+      AUTH_DEV_LOGIN: "true"
+      ALLOW_DEV_LOGIN_IN_PRODUCTION: "true"
+      # Set so the suite signs in through the real interim gate rather than the
+      # ungated path — e2e/support/auth.ts fills it and fails loudly if the
+      # server under test isn't asking for it.
+      DEV_LOGIN_PASSPHRASE: e2e-shared-pilot-passphrase
+      # Same as production. Under enforcement a tenant-scoped query with no open
+      # scope throws rather than logging, so an entry point that loses its
+      # wrapper fails a spec here instead of leaking in production.
+      TENANCY_ENFORCE: "true"
+      NEXTAUTH_URL: http://localhost:3000
+      OKTA_CLIENT_ID: ""
+      OKTA_CLIENT_SECRET: ""
+      OKTA_ISSUER: ""
+      IMAGE_TAG: e2e-local
+      JOB_SECRET: e2e-not-a-placeholder-job-4b7d2e9a
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Same path production takes, so the 27 e2e specs also test the migrations.
+      - name: Apply migrations + seed
+        working-directory: apps/web
+        run: |
+          npx prisma migrate deploy
+          node scripts/seed.mjs
+
+      # From apps/web so npx resolves the pinned @playwright/test rather than
+      # downloading whatever `playwright` is current — a browser/driver version
+      # mismatch is the failure mode otherwise.
+      - name: Install Playwright browsers
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Run e2e suite
+        run: npm run e2e
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          # upload-artifact is a `uses:` step, so it never honours
+          # working-directory — this path is always workspace-relative, and
+          # Playwright writes traces beside its config, at apps/web/.
+          path: apps/web/test-results/
+          retention-days: 7
+
+  # ── The container image, built and inspected before anything deploys ───────
+  #
+  # Nothing used to build this image except a deploy. The Dockerfile was
+  # therefore only ever validated by shipping it, and a mistake in it surfaced
+  # as a failed production rollout. That was tolerable while the Dockerfile was
+  # stable; it stopped being tolerable when the monorepo move rewrote it.
+  #
+  # Build only — no push. deploy.yml still builds and pushes the image it ships.
+  container:
+    name: Container · Build + Inspect
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Context is the repo root, matching deploy.yml, because the Dockerfile
+      # needs the root lockfile and .npmrc as well as apps/web.
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          load: true
+          tags: tenure:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # A build that succeeds can still produce an image that cannot serve. Each
+      # of these is a failure that would otherwise only appear as an ECS task
+      # dying in a rollback loop.
+      - name: The image must contain what the entrypoint expects
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+
+          echo "--- server bundle at the path entrypoint.sh execs ---"
+          docker run --rm --entrypoint sh tenure:ci -c 'test -f /app/apps/web/server.js' \
+            || fail "No server.js at /app/apps/web/server.js — entrypoint.sh would exit 'Cannot find module'."
+
+          echo "--- static assets and public/ ---"
+          docker run --rm --entrypoint sh tenure:ci -c 'test -d /app/apps/web/.next/static' \
+            || fail "Missing .next/static — every page would load unstyled."
+          docker run --rm --entrypoint sh tenure:ci -c 'test -d /app/apps/web/public' \
+            || fail "Missing public/."
+
+          echo "--- prisma schema + migrations, flattened to /app ---"
+          docker run --rm --entrypoint sh tenure:ci -c 'test -f /app/prisma/schema.prisma' \
+            || fail "Missing /app/prisma/schema.prisma — db-bootstrap.mjs resolves it from cwd."
+          docker run --rm --entrypoint sh tenure:ci -c 'test -d /app/prisma/migrations' \
+            || fail "Missing /app/prisma/migrations — migrate deploy would find nothing to apply."
+          docker run --rm --entrypoint sh tenure:ci -c 'test -f /app/scripts/db-bootstrap.mjs' \
+            || fail "Missing /app/scripts/db-bootstrap.mjs."
+          docker run --rm --entrypoint sh tenure:ci -c 'test -f /app/prisma-cli/node_modules/prisma/build/index.js' \
+            || fail "Missing the bundled Prisma CLI — the bootstrap falls back to npx, which is absent."
+
+          # The one a Windows checkout silently breaks: if apps/web/node_modules
+          # leaks into the build context, it overwrites the musl engine with a
+          # Windows .dll.node and the container cannot reach the database.
+          echo "--- Prisma query engine must be the musl build ---"
+          docker run --rm --entrypoint sh tenure:ci \
+            -c 'ls node_modules/.prisma/client/ 2>/dev/null | grep -q "libquery_engine-linux-musl" || ls apps/web/node_modules/.prisma/client/ 2>/dev/null | grep -q "libquery_engine-linux-musl"' \
+            || fail "No linux-musl query engine in the image — Windows/glibc engine leaked in via the build context."
+
+          echo "--- no Windows artefacts anywhere ---"
+          docker run --rm --entrypoint sh tenure:ci -c '! find / -name "*.dll.node" -not -path "*/proc/*" 2>/dev/null | grep -q .' \
+            || fail "A Windows native module is present in the image."
+
+          echo "✅ Image contains everything the entrypoint needs."
+
+      # The entrypoint is fail-closed on migrations, so booting it without a
+      # database proves it refuses rather than serving an unverified schema.
+      # Bounded twice over: a step timeout so a hang cannot consume a six-hour
+      # runner, and `timeout` on the container so the step reports the hang as a
+      # failure with output rather than being killed silently. The bootstrap
+      # retries a connection ~10 times with backoff, so this takes ~2 minutes.
+      - name: The entrypoint must fail closed without a database
+        timeout-minutes: 8
+        run: |
+          set +e
+          OUT=$(timeout 300 docker run --rm \
+                  -e DATABASE_URL="postgresql://nobody:nobody@127.0.0.1:1/none" \
+                  -e SKIP_DB_BOOTSTRAP=false tenure:ci 2>&1)
+          CODE=$?
+          set -e
+          echo "$OUT" | tail -25
+          if [ "$CODE" -eq 124 ]; then
+            echo "::error::The bootstrap hung against an unreachable database instead of giving up."
+            exit 1
+          fi
+          [ "$CODE" -ne 0 ] || { echo "::error::Container started despite an unreachable database."; exit 1; }
+          echo "✅ Refused to serve without a verified schema (exit $CODE)."

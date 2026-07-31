@@ -1,0 +1,48 @@
+name: Probe Debug
+
+# One-off: build the production image, run it, and interrogate the
+# container health probe from inside — ground truth for the churn.
+on: workflow_dispatch
+
+jobs:
+  probe:
+    # Disarmed outside the repository that owns the production deployment, so
+    # that importing this file cannot deploy as a side effect. Flipping the
+    # repository name is the cutover, and is a reviewed change — see
+    # docs/decisions/ADR-0004-CANONICAL-MONOREPO.md and the cutover plan.
+    if: github.repository == 'satvikOS/Tenure'
+
+    name: Run image + exec health probe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        # Same context/file split as deploy.yml, so this diagnostic keeps
+        # reproducing the real production image rather than a different one.
+        run: docker build -t tenure-probe -f apps/web/Dockerfile .
+
+      - name: Run container (bootstrap skipped)
+        run: |
+          docker run -d --name app --cpus 0.5 --memory 1g \
+            -e SKIP_DB_BOOTSTRAP=true \
+            -e AUTH_SECRET=probe-secret \
+            -e AUTH_TRUST_HOST=true \
+            -e DATABASE_URL=postgresql://x:x@127.0.0.1:5/x \
+            -p 3000:3000 tenure-probe
+          sleep 10
+          docker logs app
+
+      - name: Exec the exact ECS probe inside the container
+        run: |
+          echo "== which wget:"; docker exec app sh -c 'which wget; wget 2>&1 | head -2' || true
+          echo "== probe (quiet):"; docker exec app sh -c 'wget -qO- -T 8 http://127.0.0.1:3000/api/health; echo EXIT=$?' || true
+          echo "== probe (verbose):"; docker exec app sh -c 'wget -SO- -T 8 http://127.0.0.1:3000/api/health 2>&1; echo EXIT=$?' || true
+          echo "== listeners:"; docker exec app sh -c 'netstat -tln 2>/dev/null || cat /proc/net/tcp | head -5' || true
+          echo "== from host:"; curl -s -o /dev/null -w "host->container: %{http_code}\n" http://127.0.0.1:3000/api/health
+          echo "== docker health state:"; docker inspect --format '{{json .State.Health}}' app || true
+
+      - name: Container processes + memory
+        run: |
+          docker exec app sh -c 'ps aux | head -10' || true
+          docker stats --no-stream app || true

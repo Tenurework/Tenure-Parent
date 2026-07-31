@@ -1,0 +1,165 @@
+name: Replace ACM Certificate
+
+# Re-requests the custom-domain certificate after a validation failure.
+#
+# ACM cannot retry a certificate whose validation has FAILED — the state is
+# terminal, and `terraform apply` will not replace the resource on its own
+# because the resource still exists and its configuration has not changed. The
+# only way forward is an explicit replacement.
+#
+# The first request failed with CAA_ERROR: tenurework.com published CAA records
+# authorising sectigo.com, letsencrypt.org and pki.goog (Vercel's defaults), and
+# under RFC 8659 the presence of any `issue` property means only those CAs may
+# issue. Amazon was refused by policy, so the DNS validation record was never
+# even consulted.
+#
+# THIS WORKFLOW REFUSES TO RUN UNTIL A CAA RECORD AUTHORISES AMAZON. Replacing
+# the certificate before then just burns another request on the same failure.
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Skip the CAA precondition (not recommended)"
+        required: false
+        default: "false"
+  # Also runs when this file changes, which is the only way to trigger it from
+  # an environment that cannot dispatch a workflow.
+  #
+  # ⚠ DISARMED FOR THE MONOREPO MOVE — RESTORE AFTER THE FIRST GREEN DEPLOY.
+  # The move commits this file into Tenure-Parent for the first time, which
+  # under this trigger would immediately fire a `terraform apply -replace` on
+  # the production ACM certificate as a side effect of reorganising directories.
+  # Uncomment the three lines below once the relocation has landed and the
+  # pilot has deployed successfully from the new layout.
+  # push:
+  #   paths:
+  #     - ".github/workflows/replace-acm-cert.yml"
+
+concurrency:
+  group: terraform-state
+  cancel-in-progress: false
+
+jobs:
+  replace:
+    # Disarmed outside the repository that owns the production deployment, so
+    # that importing this file cannot deploy as a side effect. Flipping the
+    # repository name is the cutover, and is a reviewed change — see
+    # docs/decisions/ADR-0004-CANONICAL-MONOREPO.md and the cutover plan.
+    if: github.repository == 'satvikOS/Tenure'
+
+    name: Re-request the certificate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      # Must stay byte-identical to deploy.yml's TF_DIR. infrastructure/ stays
+      # at the monorepo root, so the apps/web move does not touch this.
+      TF_DIR: infrastructure/terraform
+      DOMAIN: platform.tenurework.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── CAA reconnaissance (informational, never blocking) ────────────────
+      #
+      # This used to hard-fail unless tenurework.com authorised Amazon. That
+      # precondition was wrong, because it assumed the certificate's CAA policy
+      # is read from the subject's parent zone. RFC 8659 resolves the relevant
+      # RRset by following CNAMEs first: platform.tenurework.com is a CNAME to
+      # the CloudFront distribution, so the policy actually consulted may be
+      # cloudfront.net's, not tenurework.com's.
+      #
+      # Rather than encode a subtle resolution rule and get it wrong in the
+      # other direction, print the whole chain and let ACM decide. Re-requesting
+      # a certificate that is already FAILED cannot make anything worse, and its
+      # verdict is the only authoritative answer.
+      - name: CAA chain
+        run: |
+          set +e
+          echo "Resolution order per RFC 8659: the name itself, then its CNAME target, then ancestors."
+          for n in "$DOMAIN" tenurework.com d1n6mdis7bs02g.cloudfront.net cloudfront.net; do
+            printf '%-38s ' "$n"
+            OUT=$(dig +short CAA "$n" | tr '\n' ' ')
+            CN=$(dig +short CNAME "$n" | tr '\n' ' ')
+            if [ -n "$OUT" ]; then echo "CAA: $OUT"
+            elif [ -n "$CN" ]; then echo "(no CAA; CNAME -> $CN)"
+            else echo "(no CAA)"; fi
+          done
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9"
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          terraform init \
+            -backend-config="bucket=tenure-tfstate-${ACCOUNT_ID}-${AWS_REGION}" \
+            -backend-config="key=pilot/terraform.tfstate" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="dynamodb_table=tenure-terraform-locks" \
+            -backend-config="encrypt=true"
+
+      # -target keeps this to the certificate alone. The distribution is not in
+      # scope: attach_custom_domain is still false, so CloudFront does not
+      # reference the certificate and cannot be disturbed by replacing it.
+      - name: Replace the certificate
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          set -euo pipefail
+          terraform apply \
+            -replace='aws_acm_certificate.custom[0]' \
+            -target='aws_acm_certificate.custom[0]' \
+            -var="image_tag=latest" \
+            -auto-approve -input=false
+
+      # ACM validates asynchronously, usually within a couple of minutes once
+      # the DNS record is already in place — which it is, and which carries over
+      # because ACM's validation token is stable per domain name.
+      - name: Wait for validation, then report
+        run: |
+          set +e
+          ARN=$(aws acm list-certificates --region us-east-1 \
+            --query "CertificateSummaryList[?DomainName=='${DOMAIN}'].CertificateArn | [0]" --output text)
+          echo "certificate: $(echo "$ARN" | sed -E 's/[0-9]{12}/************/g')"
+
+          for i in $(seq 1 30); do
+            STATUS=$(aws acm describe-certificate --region us-east-1 --certificate-arn "$ARN" \
+              --query 'Certificate.Status' --output text)
+            REASON=$(aws acm describe-certificate --region us-east-1 --certificate-arn "$ARN" \
+              --query 'Certificate.FailureReason' --output text)
+            echo "[$i/30] status=$STATUS reason=$REASON"
+            case "$STATUS" in
+              ISSUED)  echo "::notice::Certificate ISSUED"; break ;;
+              FAILED)  echo "::error::Certificate FAILED — $REASON"; break ;;
+            esac
+            sleep 20
+          done
+
+          aws acm describe-certificate --region us-east-1 --certificate-arn "$ARN" \
+            | jq '{status: .Certificate.Status, failureReason: .Certificate.FailureReason,
+                   sans: .Certificate.SubjectAlternativeNames, notAfter: .Certificate.NotAfter,
+                   validation: [.Certificate.DomainValidationOptions[]
+                     | {name: .ResourceRecord.Name, value: .ResourceRecord.Value, status: .ValidationStatus}]}' \
+            | sed -E 's/[0-9]{12}/************/g' | tee /tmp/cert.json
+
+          {
+            echo "### Certificate after replacement"
+            echo '```json'
+            cat /tmp/cert.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+# Re-run trigger: CAA at tenurework.com now authorises amazon.com (verified 2026-07-30T12:50Z).

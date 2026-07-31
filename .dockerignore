@@ -1,0 +1,43 @@
+# Docker reads .dockerignore only from the root of the BUILD CONTEXT, and the
+# context is the monorepo root (deploy.yml: `context: .`, `file: apps/web/Dockerfile`).
+# This file must therefore stay here, not travel into apps/web.
+#
+# Every directory pattern is `**/`-prefixed. Docker matches context-relative
+# paths segment-by-segment, so a bare `node_modules` excludes only the top-level
+# one and would let apps/web/node_modules — carrying a Windows-built Prisma
+# engine — into the builder via `COPY . .`, overwriting the musl engine
+# installed in the deps stage.
+
+.git
+.github
+infrastructure
+docs
+
+**/node_modules
+**/.next
+**/out
+**/build
+**/coverage
+**/test-results
+**/playwright-report
+**/.swc
+**/*.tsbuildinfo
+
+**/.env
+**/.env.*
+**/*.md
+**/.DS_Store
+
+# Institutional source data and reference decks: read only by
+# apps/web/scripts/generate-roster.mjs on a developer machine, never at build or
+# run time. ~20 MB that would otherwise be uploaded as build context.
+Tier1
+**/*.pdf
+**/*.pptx
+**/*.xlsx
+**/*.docx
+**/*.mp4
+**/*.zip
+
+# Untracked local debugging scripts (smoke/probe/ovf/rolecheck/addflow)
+**/*.local.mjs

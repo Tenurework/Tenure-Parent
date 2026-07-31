@@ -1,0 +1,997 @@
+// Tenure — Institutional OS for student organizations
+// Architecture principles:
+//   1. Role SEATS are durable identities — people rotate, knowledge stays
+//   2. Every business record resolves to a tenant boundary (institutionId)
+//   3. Club-owned records also carry organizationId; cross-tenant queries denied by default
+//   4. State transitions are append-only and immutable
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ─── NextAuth required models ────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Identity & Tenancy ───────────────────────────────────────────────────────
+
+// The university or contracted school — top-level tenant boundary
+model Institution {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  domain    String?  // e.g., "simon.rochester.edu" — used for verified email matching
+  logoUrl   String?
+  // IANA zone every instant is rendered in for this institution. Instants are
+  // stored in UTC; this is the wall clock officers actually work against, so a
+  // 6pm event reads as 6pm here and in the ICS feed alike. See src/lib/time.ts.
+  timeZone  String   @default("America/New_York")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organizations Organization[]
+  memberships   InstitutionMembership[]
+  auditEvents   AuditEvent[]
+  deliverables  Deliverable[]
+  roleTransfers RoleTransfer[]
+  approvalDelegations ApprovalDelegation[]
+  resources     Resource[]
+}
+
+enum InstitutionRole {
+  OSE_DIRECTOR  // Full institution access, policy, override
+  OSE_STAFF     // Review, comment, access club history
+  OSE_ADVISOR   // Assigned clubs or all clubs; no policy changes
+}
+
+// User's role at the institution level (OSE access)
+model InstitutionMembership {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institutionId String
+  institution   Institution     @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  role          InstitutionRole
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([userId, institutionId])
+  @@index([institutionId, role])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  // Profile picture. `image` is what the UI renders (an external URL or the
+  // /api/profile-image proxy path); `imageKey` is the S3 object key for
+  // uploaded pictures, resolved to a signed URL by the proxy.
+  image         String?
+  imageKey      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts              Account[]
+  sessions              Session[]
+  institutionMembership InstitutionMembership[]
+  roleAssignments       RoleAssignment[]
+  roleTransfersFrom      RoleTransfer[] @relation("RoleTransferFrom")
+  roleTransfersTo        RoleTransfer[] @relation("RoleTransferTo")
+  roleTransfersInitiated RoleTransfer[] @relation("RoleTransferInitiator")
+  delegationsGiven       ApprovalDelegation[] @relation("DelegationFrom")
+  delegationsReceived    ApprovalDelegation[] @relation("DelegationTo")
+  messagesSent          Message[]
+  participants          Participant[]
+  notifications         Notification[]
+  notificationPrefs     NotificationPreference[]
+  deliverableReminders  DeliverableReminder[]
+  resourcesAuthored     Resource[] @relation("ResourceAuthor")
+}
+
+// ─── Organizations & Role Seats ───────────────────────────────────────────────
+
+// A student club or association — identity persists across academic years
+model Organization {
+  id            String      @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  name          String
+  // Official name minus the parenthetical acronym, for compact display
+  shortName     String?
+  acronym       String?
+  slug          String      @unique
+  description   String?
+  // Roster annotation, e.g. "Board formed Fall 2026"
+  rosterNote    String?
+  // Club image. logoUrl is what the UI renders: either an external image URL
+  // (pasted by an admin/leader) or the /api/org-image proxy path when the
+  // image was uploaded to object storage. imageKey is the S3 object key for
+  // uploaded images, resolved to a signed URL by the proxy.
+  logoUrl       String?
+  imageKey      String?
+  status        OrgStatus   @default(ACTIVE)
+  category      OrgCategory @default(PROFESSIONAL)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  advisors       OrganizationAdvisor[]
+  roles          Role[]
+  approvals      ApprovalRequest[]
+  events         Event[]
+  conversations  Conversation[]
+  documents      Document[]
+  budgets        Budget[]
+  vendors        Vendor[]
+  memoryRecords  MemoryRecord[]
+  feedPosts      FeedPost[]
+  collabInterests CollabInterest[]
+  budgetLines    BudgetLine[]
+  ledgerEntries  LedgerEntry[]
+
+  @@index([institutionId, status])
+}
+
+enum OrgStatus {
+  ACTIVE
+  ARCHIVED
+  PENDING
+}
+
+enum OrgCategory {
+  COMMUNITY
+  PROFESSIONAL
+  ORGANIZATION
+  SOCIAL
+}
+
+// A durable board seat — the role persists when the occupant changes
+model Role {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String       // "President", "VP Finance & Operations", etc.
+  description    String?
+  scope          RoleScope    @default(FUNCTIONAL)
+  // Permanent position ID — the seat's identity outlives every holder.
+  // Knowledge, history, and accomplishments attach to this, not to people.
+  positionCode   String?      @unique
+  // Editorial note from the roster, e.g. "Interim oversee marketing and Comms"
+  positionNote   String?
+  // Why a seat is empty, e.g. "Opening in the fall". Only meaningful when the
+  // seat has no current holder.
+  vacancyNote    String?
+  // Preserves the seat order as published by OSE
+  seatOrder      Int?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  assignments   RoleAssignment[]
+  memoryRecords MemoryRecord[]
+  holdings      SeatHolding[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, scope])
+}
+
+/// An institution-wide club deadline: audits, evaluations, event submission
+/// windows, transition milestones, trainings.
+///
+/// Separate from Event because these are published by OSE for every club at
+/// once, rather than being one club's activity. `key` is a stable identifier
+/// from the source document so re-seeding updates rather than duplicates.
+model Deliverable {
+  id            String          @id @default(cuid())
+  institutionId String
+  institution   Institution     @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  key           String          @unique
+  title         String
+  description   String?
+  dueAt         DateTime
+  /// FALL_A | FALL_B | SPRING_A | SPRING_B — null outside the mini-mesters
+  /// (a December audit falls over winter break and is still due)
+  term          String?
+  /// Which board seat owns it, matching SeatKey in src/lib/resources.ts
+  seat          String          @default("ALL")
+  kind          DeliverableKind @default(DEADLINE)
+  /// Which OSE document this came from, so the rule is auditable
+  source        String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  reminders DeliverableReminder[]
+
+  @@index([institutionId, dueAt])
+  @@index([seat, dueAt])
+}
+
+enum DeliverableKind {
+  DEADLINE
+  WINDOW
+  TRAINING
+  MEETING
+}
+
+/// Records that a person was reminded about a deliverable, so the 24-hour
+/// warning fires exactly once per person.
+model DeliverableReminder {
+  id            String      @id @default(cuid())
+  deliverableId String
+  deliverable   Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sentAt        DateTime    @default(now())
+
+  @@unique([deliverableId, userId])
+  @@index([userId])
+}
+
+/// A person from the OSE roster — board member or club advisor.
+///
+/// Deliberately NOT a User. Seeding the real roster as login accounts would
+/// let anyone with the URL impersonate a real student while dev sign-in is
+/// enabled. These records are directory data: displayed, searchable, and
+/// emailable, but they cannot be signed in as. When Okta lands, real people
+/// authenticate there and are matched to these records by email.
+model DirectoryPerson {
+  id          String        @id @default(cuid())
+  name        String
+  email       String        @unique
+  kind        DirectoryKind @default(STUDENT)
+  // For advisors: "Ainslie OSE", "Benet Center", "Faculty", ...
+  affiliation String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  holdings   SeatHolding[]
+  advisorFor OrganizationAdvisor[]
+
+  @@index([kind])
+}
+
+enum DirectoryKind {
+  STUDENT
+  ADVISOR
+}
+
+/// Who holds (or held) a seat in a given academic year.
+///
+/// Past terms are kept rather than overwritten: "who had this job last year
+/// and how do I reach them" is the core handoff question Tenure exists to
+/// answer.
+model SeatHolding {
+  id        String          @id @default(cuid())
+  roleId    String
+  role      Role            @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  personId  String
+  person    DirectoryPerson @relation(fields: [personId], references: [id], onDelete: Cascade)
+  term      String          // "2026-2027"
+  isCurrent Boolean         @default(true)
+  createdAt DateTime        @default(now())
+
+  @@unique([roleId, personId, term])
+  @@index([roleId, isCurrent])
+  @@index([personId])
+}
+
+/// Club advisors, with the contact details every board member needs on hand.
+model OrganizationAdvisor {
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  personId       String
+  person         DirectoryPerson @relation(fields: [personId], references: [id], onDelete: Cascade)
+  createdAt      DateTime        @default(now())
+
+  @@id([organizationId, personId])
+  @@index([personId])
+}
+
+enum RoleScope {
+  PRESIDENT   // Club admin — approves VP requests, escalates to OSE
+  FUNCTIONAL  // VP/Chair — scoped to their domain
+  MEMBER      // General member — limited visibility
+}
+
+// Time-bounded link between a person and a role seat
+enum AssignmentStatus {
+  SHADOW  // Incoming: read-only access before term begins
+  ACTIVE  // Current role holder
+  ALUMNI  // Past holder — record preserved, access revoked
+}
+
+model RoleAssignment {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId    String
+  role      Role             @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  status    AssignmentStatus @default(ACTIVE)
+  startDate DateTime         @default(now())
+  endDate   DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId, roleId])
+  @@index([roleId, status])
+}
+
+// ─── Approval Workflow ────────────────────────────────────────────────────────
+
+enum ApprovalType {
+  EVENT          // Event proposal
+  BUDGET         // Budget or spend request
+  VENDOR         // Vendor engagement or contract
+  COMMUNICATION  // External communication or press
+  DOCUMENT       // Policy or formal document
+  EXCEPTION      // Policy exception or override request
+  ROSTER         // Membership or role change
+}
+
+enum ApprovalStatus {
+  DRAFT
+  PENDING_PRESIDENT
+  NEEDS_CHANGES
+  PENDING_OSE
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// Every request is a durable record — not an email thread
+model ApprovalRequest {
+  id             String         @id @default(cuid())
+  institutionId  String
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  type           ApprovalType
+  title          String
+  description    String?
+  status         ApprovalStatus @default(DRAFT)
+  submittedById  String
+  metadata       Json           @default("{}") // type-specific fields
+  idempotencyKey String?        @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  steps         ApprovalStep[]
+  conversation  Conversation?  @relation("ApprovalConversation")
+  event         Event?         @relation("ApprovalEvent")
+  ledgerEntries LedgerEntry[]
+
+  @@index([organizationId, status])
+  @@index([institutionId, status])
+}
+
+// Each gate in the approval state machine — append-only
+model ApprovalStep {
+  id               String         @id @default(cuid())
+  approvalId       String
+  approval         ApprovalRequest @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  fromStatus       ApprovalStatus
+  toStatus         ApprovalStatus
+  actorId          String
+  actorRoleContext String?        // role seat name at time of decision
+  reason           String?
+  policySnapshot   Json           @default("{}") // permissions in effect at decision time
+  occurredAt       DateTime       @default(now())
+
+  @@index([approvalId])
+}
+
+// ─── Calendar & Events ────────────────────────────────────────────────────────
+
+enum EventStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  PUBLISHED
+  CANCELLED
+}
+
+enum EventAudience {
+  BOARD_ONLY
+  CLUB_MEMBERS
+  SCHOOL_WIDE
+  INVITE_ONLY
+  PUBLIC
+}
+
+model Event {
+  id               String        @id @default(cuid())
+  institutionId    String
+  organizationId   String
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ownerRoleId      String?
+  approvalId       String?       @unique
+  approval         ApprovalRequest? @relation("ApprovalEvent", fields: [approvalId], references: [id])
+  title            String
+  description      String?
+  startAt          DateTime
+  endAt            DateTime
+  timezone         String        @default("America/New_York")
+  venue            String?
+  capacity         Int?
+  audience         EventAudience @default(CLUB_MEMBERS)
+  status           EventStatus   @default(DRAFT)
+  recurrenceRule   String?       // RFC 5545 RRULE
+  conflictSummary  Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  conflicts ConflictRecord[]
+  feedPosts FeedPost[]
+
+  @@index([institutionId, startAt])
+  @@index([organizationId, status])
+}
+
+enum ConflictSeverity {
+  HARD        // Same room/time — block
+  SOFT        // Audience collision — warn
+  INFORMATIONAL
+}
+
+model ConflictRecord {
+  id         String           @id @default(cuid())
+  eventId    String
+  event      Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  conflictWithEventId String?
+  severity   ConflictSeverity
+  reason     String
+  resolved   Boolean          @default(false)
+  resolvedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([eventId])
+}
+
+// ─── Messaging & InMail ───────────────────────────────────────────────────────
+
+enum ConversationType {
+  DIRECT_MESSAGE   // VP <-> President, President <-> OSE, authorized peers
+  BOARD_CHANNEL    // President and board inside one club
+  APPROVAL_THREAD  // Immutable conversation attached to a request
+  PRESIDENT_NETWORK // Cross-club coordination, governed by OSE
+  OSE_BROADCAST    // Administration to everyone or selected audience
+  SYSTEM           // Automated status, deadline, security messages
+}
+
+model Conversation {
+  id              String           @id @default(cuid())
+  institutionId   String
+  organizationId  String?
+  organization    Organization?    @relation(fields: [organizationId], references: [id])
+  type            ConversationType
+  approvalId      String?          @unique
+  approval        ApprovalRequest? @relation("ApprovalConversation", fields: [approvalId], references: [id])
+  subject         String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  participants Participant[]
+  messages     Message[]
+
+  @@index([institutionId])
+  @@index([organizationId, type])
+}
+
+model Participant {
+  id               String       @id @default(cuid())
+  conversationId   String
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleContext      String?      // role name at time of joining
+  kind             String       @default("to") // "to" | "cc" | "bcc"
+  joinedAt         DateTime     @default(now())
+  lastReadMessageId String?
+
+  deliveries Delivery[]
+
+  @@unique([conversationId, userId])
+}
+
+// Messages are immutable — corrections are new entries linked via replyToId
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  body           String       @db.Text
+  format         String       @default("markdown") // "markdown" | "plain"
+  replyToId      String?
+  editedAt       DateTime?
+  createdAt      DateTime     @default(now())
+
+  attachments Attachment[]
+  deliveries  Delivery[]
+
+  @@index([conversationId, createdAt])
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileName    String
+  mimeType    String
+  objectKey   String   // S3 key — never expose directly; use signed URLs
+  sizeBytes   Int?
+  checksum    String?
+  sensitivity String   @default("standard")
+  createdAt   DateTime @default(now())
+}
+
+model Delivery {
+  id            String      @id @default(cuid())
+  messageId     String
+  message       Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  channel       String      // "in_app" | "email" | "push"
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  failureReason String?
+
+  @@unique([messageId, participantId, channel])
+}
+
+// ─── Documents & Institutional Memory ────────────────────────────────────────
+
+model Document {
+  id             String       @id @default(cuid())
+  institutionId  String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  objectKey      String       // S3 key
+  mimeType       String
+  sizeBytes      Int?
+  version        Int          @default(1)
+  sensitivity    String       @default("standard")
+  createdById    String?
+  isArchived     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  ledgerEntries  LedgerEntry[]
+
+  @@index([organizationId, isArchived])
+}
+
+// A typed unit of preserved knowledge attached to a role seat
+enum MemoryRecordType {
+  CONTACT     // Sponsor, vendor, university contact
+  PLAYBOOK    // Step-by-step guide for recurring events or tasks
+  BUDGET      // Financial record or budget template
+  VENDOR      // Vendor deal, contract, or relationship
+  LESSON      // Hard-won insight for the successor
+  THREAD      // Ongoing initiative or open question
+  CREDENTIAL  // Login / access info — stored encrypted
+  DEADLINE    // Compliance or recurring deadline
+}
+
+model MemoryRecord {
+  id             String           @id @default(cuid())
+  institutionId  String
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleId         String?
+  role           Role?            @relation(fields: [roleId], references: [id])
+  title          String
+  type           MemoryRecordType
+  content        Json
+  authorId       String?
+  isArchived     Boolean          @default(false)
+  sensitivity    String           @default("standard")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organizationId, type, isArchived])
+  @@index([roleId])
+}
+
+// ─── Budget & Vendors ─────────────────────────────────────────────────────────
+
+enum BudgetPeriod {
+  FALL
+  SPRING
+  FULL_YEAR
+}
+
+model Budget {
+  id             String       @id @default(cuid())
+  institutionId  String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  period         BudgetPeriod
+  academicYear   String       // e.g., "2025-26"
+  totalCents     Int          @default(0)
+  allocatedCents Int          @default(0)
+  currency       String       @default("USD")
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  transactions Transaction[]
+
+  @@unique([organizationId, period, academicYear])
+}
+
+enum TransactionType {
+  ALLOCATION   // Funds allocated to this budget
+  SPEND        // Approved expense
+  REIMBURSEMENT
+  ADJUSTMENT
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  budgetId    String
+  budget      Budget          @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  type        TransactionType
+  amountCents Int
+  description String
+  approvalId  String?
+  recordedById String?
+  occurredAt  DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+
+  @@index([budgetId, occurredAt])
+}
+
+/// A category line in a club's budget — the unit the finance dashboard plots.
+///
+/// Budgeted vs actual per category is how a VP of Finance already tracks in a
+/// spreadsheet, so this is what an uploaded Excel maps onto and what the
+/// actual-vs-budget chart reads. `forecastCents` holds a saved projection
+/// (null = none), keeping a what-if separate from the real actual.
+model BudgetLine {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  academicYear   String       // "2026-2027"
+  category       String
+  budgetedCents  Int          @default(0)
+  actualCents    Int          @default(0)
+  /// Saved forecast projection for cost-savings planning; null when unset
+  forecastCents  Int?
+  currency       String       @default("USD")
+  note           String?
+  sortOrder      Int          @default(0)
+  /// "manual" | "import" — where the line came from
+  source         String       @default("manual")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  ledgerEntries  LedgerEntry[]
+
+  @@unique([organizationId, academicYear, category])
+  @@index([organizationId, academicYear])
+}
+
+model Vendor {
+  id             String       @id @default(cuid())
+  institutionId  String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  contactName    String?
+  contactEmail   String?
+  contactPhone   String?
+  website        String?
+  notes          String?
+  isArchived     Boolean      @default(false)
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  ledgerEntries  LedgerEntry[]
+
+  @@index([organizationId, isArchived])
+}
+
+enum LedgerKind {
+  SPEND         // an expense posted against the line (increases actual spend)
+  REIMBURSEMENT // money recovered (decreases actual spend)
+  ADJUSTMENT    // a signed correction
+}
+
+/// A posted ledger entry against a budget line — the transaction detail behind a
+/// line's "actual". Every entry can point at its SOURCE (the approved request,
+/// the vendor, the receipt document), so any actual figure drills down to the
+/// records that justify it. A line's actualCents is the cache of Σ amountCents.
+model LedgerEntry {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  budgetLineId   String
+  budgetLine     BudgetLine       @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
+  academicYear   String
+  kind           LedgerKind       @default(SPEND)
+  /// Signed effect on actual spend, in cents (SPEND +, REIMBURSEMENT −).
+  amountCents    Int
+  description    String
+  memo           String?
+  occurredAt     DateTime         @default(now())
+  // Summary-to-source links.
+  approvalId     String?
+  approval       ApprovalRequest? @relation(fields: [approvalId], references: [id])
+  vendorId       String?
+  vendor         Vendor?          @relation(fields: [vendorId], references: [id])
+  documentId     String?
+  document       Document?        @relation(fields: [documentId], references: [id])
+  postedById     String?
+  createdAt      DateTime         @default(now())
+
+  @@index([budgetLineId, occurredAt])
+  @@index([organizationId, academicYear])
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  EMAIL_DIGEST
+}
+
+// ─── Community Feed ───────────────────────────────────────────────────────────
+// Clubs post collaboration calls; other clubs raise interest; the OSE
+// Director sits in the middle and approves each collaboration.
+
+model FeedPost {
+  id             String       @id @default(cuid())
+  institutionId  String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  authorId       String
+  title          String
+  body           String       @db.Text
+  eventId        String?
+  event          Event?       @relation(fields: [eventId], references: [id])
+  isArchived     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  comments  FeedComment[]
+  interests CollabInterest[]
+
+  @@index([institutionId, createdAt])
+}
+
+model FeedComment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+}
+
+enum CollabStatus {
+  PENDING_OSE
+  APPROVED
+  DECLINED
+}
+
+model CollabInterest {
+  id             String       @id @default(cuid())
+  postId         String
+  post           FeedPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  organizationId String // the interested club
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedById  String
+  note           String?
+  status         CollabStatus @default(PENDING_OSE)
+  decidedById    String?
+  decisionNote   String?
+  decidedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@unique([postId, organizationId]) // one request per club per post
+  @@index([status])
+}
+
+// In-app notification — RBAC-aware by construction (created per user)
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  href      String? // in-app destination
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+model NotificationPreference {
+  id      String              @id @default(cuid())
+  userId  String
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel NotificationChannel
+  enabled Boolean             @default(true)
+  updatedAt DateTime          @updatedAt
+
+  @@unique([userId, channel])
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+// Append-only, tamper-evident — never update or delete
+model AuditEvent {
+  id            String      @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  actorId       String?
+  actorRole     String?
+  action        String      // e.g., "ApprovalRequest.StatusChanged"
+  resourceType  String      // e.g., "ApprovalRequest"
+  resourceId    String?
+  organizationId String?
+  outcome       String      // "ALLOW" | "DENY"
+  reason        String?
+  metadata      Json        @default("{}")
+  traceId       String?
+  occurredAt    DateTime    @default(now())
+
+  @@index([institutionId, occurredAt])
+  @@index([actorId, occurredAt])
+  @@index([resourceType, resourceId])
+}
+
+// ─── Institution role transfers ───────────────────────────────────────────────
+
+// The two-party handoff of an OSE administration role (Director / Staff / Advisor).
+// The outgoing holder KEEPS their role until the successor accepts, so coverage
+// is never interrupted. On acceptance the grant + step-down happen atomically.
+enum RoleTransferStatus {
+  PENDING    // awaiting the successor's decision
+  COMPLETED  // successor accepted; role handed over
+  DECLINED   // successor declined
+  CANCELLED  // initiator withdrew before it was decided
+}
+
+model RoleTransfer {
+  id            String             @id @default(cuid())
+  institutionId String
+  institution   Institution        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  // The person handing the role off — keeps it until COMPLETED.
+  fromUserId    String
+  fromUser      User               @relation("RoleTransferFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  // The successor who must accept.
+  toUserId      String
+  toUser        User               @relation("RoleTransferTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  // The institution role being transferred (e.g. OSE_DIRECTOR).
+  role          InstitutionRole
+  status        RoleTransferStatus @default(PENDING)
+  note          String?
+  // Where the initiator lands on completion. Null = fully revoke their access.
+  stepDownRole  InstitutionRole?
+  initiatedById String
+  initiatedBy   User               @relation("RoleTransferInitiator", fields: [initiatedById], references: [id], onDelete: Cascade)
+  createdAt     DateTime           @default(now())
+  resolvedAt    DateTime?
+
+  @@index([institutionId, status])
+  @@index([toUserId, status])
+}
+
+/// A backup approver. While active (revokedAt null), `toUser` may act on the
+/// approval gates `fromUser` could act on — covering officer gaps (breaks,
+/// exams) so requests never stall. Every delegated action records "on behalf of"
+/// on the append-only ApprovalStep, so the trail stays honest.
+model ApprovalDelegation {
+  id            String      @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  fromUserId    String
+  fromUser      User        @relation("DelegationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId      String
+  toUser        User        @relation("DelegationTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  note          String?
+  createdAt     DateTime    @default(now())
+  revokedAt     DateTime?
+
+  @@index([toUserId, revokedAt])
+  @@index([fromUserId, revokedAt])
+  @@index([institutionId])
+}
+
+enum ResourceKind {
+  FORM
+  GUIDE
+  POLICY
+  TOOL
+  CHECKLIST
+}
+
+/// A board resource — a form, guide, policy, tool or checklist, routed to the
+/// board seats that need it.
+///
+/// These used to live in a hardcoded TypeScript array, which meant no one could
+/// add one: not a club president, not OSE staff, not even the OSE Director who
+/// owns the board-resource programme. Publishing a new form required a code
+/// change and a deploy. They are records now, owned by the institution, so the
+/// people accountable for the content can maintain it (see canManageResources
+/// in src/lib/rbac.ts).
+///
+/// `key` is a stable identifier carried over from the original array so that
+/// existing links, seeds and bookmarks keep resolving after the migration.
+model Resource {
+  id            String       @id @default(cuid())
+  institutionId String
+  institution   Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  key           String
+  title         String
+  description   String
+  /// External URL, or an internal Tenure route
+  href          String
+  external      Boolean      @default(false)
+  /// False while an internal page is still being built. Unready resources
+  /// render inert — a listed-but-dead link is worse than an honest "not yet".
+  ready         Boolean      @default(true)
+  kind          ResourceKind
+  /// Seat audiences, matching SeatKey in src/lib/resources.ts
+  seats         String[]
+  /// Hard rule surfaced next to the link, e.g. a lead time
+  rule          String?
+  /// Manual ordering within a seat group; ties break on title
+  sortOrder     Int          @default(0)
+  /// Soft delete — a retired resource stays auditable and restorable
+  archivedAt    DateTime?
+  createdById   String?
+  createdBy     User?        @relation("ResourceAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([institutionId, key])
+  @@index([institutionId, archivedAt])
+  @@index([institutionId, kind])
+}

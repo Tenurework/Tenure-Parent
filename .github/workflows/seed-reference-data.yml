@@ -1,0 +1,106 @@
+name: Seed reference data
+
+# Publish a reference-data update (clubs, roster, deliverables, board
+# resources) to the pilot database.
+#
+# This used to happen on every container start, which meant every task, every
+# scale-out and every health-check restart re-ran a script that issues unscoped
+# deletes to reset e2e state. It now runs here: once, deliberately, with a
+# record of who ran it.
+#
+# RDS is reachable only inside the VPC, so this cannot run on the GitHub runner.
+# It runs as a one-off ECS task on the same task definition the service uses,
+# with the entrypoint put into `seed` mode — so it applies migrations, seeds,
+# and exits without serving.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "seed" to confirm. The seed archives clubs absent from apps/web/scripts/roster-data.mjs and clears rows it treats as test state.'
+        required: true
+        default: ""
+
+jobs:
+  seed:
+    # Disarmed outside the repository that owns the production deployment, so
+    # that importing this file cannot deploy as a side effect. Flipping the
+    # repository name is the cutover, and is a reviewed change — see
+    # docs/decisions/ADR-0004-CANONICAL-MONOREPO.md and the cutover plan.
+    if: github.repository == 'satvikOS/Tenure'
+
+    name: Run seed as a one-off ECS task
+    runs-on: ubuntu-latest
+
+    env:
+      CLUSTER: tenure-pilot
+      SERVICE: tenure-pilot-app
+
+    steps:
+      - name: Check confirmation
+        if: ${{ inputs.confirm != 'seed' }}
+        run: |
+          echo "::error::Type \"seed\" in the confirm box to run this."
+          exit 1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      # Reuse the running service's task definition and network placement so the
+      # seed runs on exactly the image and configuration that is live.
+      - name: Resolve task definition and network from the running service
+        run: |
+          SVC=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" --query 'services[0]' --output json)
+          echo "TASK_DEF=$(jq -r '.taskDefinition' <<<"$SVC")"                                        >> $GITHUB_ENV
+          echo "SUBNETS=$(jq -r '.networkConfiguration.awsvpcConfiguration.subnets | join(",")' <<<"$SVC")" >> $GITHUB_ENV
+          echo "SGS=$(jq -r '.networkConfiguration.awsvpcConfiguration.securityGroups | join(",")' <<<"$SVC")" >> $GITHUB_ENV
+
+      - name: Run the seed task
+        run: |
+          # ENTRYPOINT is ["sh", "scripts/entrypoint.sh"], so this command
+          # override becomes `sh scripts/entrypoint.sh seed`.
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "$CLUSTER" \
+            --task-definition "$TASK_DEF" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SGS],assignPublicIp=ENABLED}" \
+            --overrides '{"containerOverrides":[{"name":"app","command":["seed"]}]}' \
+            --query 'tasks[0].taskArn' --output text)
+
+          if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" = "None" ]; then
+            echo "::error::run-task did not return a task ARN"
+            exit 1
+          fi
+          echo "TASK_ARN=$TASK_ARN" >> $GITHUB_ENV
+          echo "Started $TASK_ARN"
+
+      - name: Wait for it to finish and report its exit code
+        run: |
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK_ARN"
+
+          TASK=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK_ARN" --query 'tasks[0]' --output json)
+          EXIT_CODE=$(jq -r '.containers[0].exitCode // "null"' <<<"$TASK")
+          REASON=$(jq -r '.stoppedReason // ""' <<<"$TASK")
+
+          echo "exit code: $EXIT_CODE"
+          echo "stopped reason: $REASON"
+
+          # Print the task's logs so a failure is diagnosable from this run.
+          LOG_GROUP=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
+            --query 'taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-group"' --output text)
+          LOG_PREFIX=$(aws ecs describe-task-definition --task-definition "$TASK_DEF" \
+            --query 'taskDefinition.containerDefinitions[0].logConfiguration.options."awslogs-stream-prefix"' --output text)
+          STREAM="$LOG_PREFIX/app/$(basename "$TASK_ARN")"
+
+          echo "--- $LOG_GROUP : $STREAM ---"
+          aws logs get-log-events --log-group-name "$LOG_GROUP" --log-stream-name "$STREAM" \
+            --limit 200 --query 'events[].message' --output text || echo "(no logs)"
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "::error::Seed task exited $EXIT_CODE — $REASON"
+            exit 1
+          fi
+          echo "✅ Seed completed."
