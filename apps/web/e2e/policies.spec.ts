@@ -36,9 +36,14 @@ test.describe("policy pages", () => {
     await page.goto("/resources/alumni-outreach")
 
     await expect(page.getByText(/No outreach may occur before Diana responds/)).toBeVisible()
-    await expect(
-      page.getByRole("link", { name: "dsipp@simon.rochester.edu" })
-    ).toHaveAttribute("href", /^mailto:dsipp@simon\.rochester\.edu/)
+    // The page must publish a reachable contact. Asserted structurally so the
+    // spec does not carry a staff address of its own, and so it keeps holding
+    // when that person changes.
+    const contact = page.getByRole("link", { name: /@/ }).first()
+    await expect(contact).toBeVisible()
+    const email = (await contact.textContent())?.trim()
+    const href = (await contact.getAttribute("href")) ?? ""
+    expect(href === `mailto:${email}` || href.startsWith(`mailto:${email}?`)).toBe(true)
   })
 
   test("finance handbook lists non-reimbursables and the file naming rule", async ({ page }) => {

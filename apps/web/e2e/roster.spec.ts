@@ -16,19 +16,43 @@ test.describe("club roster", () => {
     await page.goto("/orgs/simon-consulting-club/members")
 
     await expect(page.getByText("Club advisors")).toBeVisible()
-    const advisor = page.getByRole("link", { name: "wayne.france@simon.rochester.edu" })
+
+    // Asserted structurally rather than by naming a person. This test named a
+    // real advisor and their university address, which put personal data in the
+    // spec as well as in the roster file, and pinned the test to one particular
+    // member of staff. What it is actually for — its own name — is that every
+    // listed address is a working mailto, so check exactly that: the link's
+    // href is its own visible text.
+    const advisor = page.getByRole("link", { name: /@/ }).first()
     await expect(advisor).toBeVisible()
-    await expect(advisor).toHaveAttribute("href", /^mailto:wayne\.france@simon\.rochester\.edu/)
+    const advisorEmail = (await advisor.textContent())?.trim()
+    expect(advisorEmail).toMatch(/^[^@\s]+@[^@\s]+$/)
+    const advisorHref = (await advisor.getAttribute("href")) ?? ""
+    expect(
+      advisorHref === `mailto:${advisorEmail}` || advisorHref.startsWith(`mailto:${advisorEmail}?`),
+    ).toBe(true)
   })
 
   test("board members show with mailto links", async ({ page }) => {
     await signIn(page, "Dana Whitfield")
     await page.goto("/orgs/simon-consulting-club/members")
 
-    // He also appears as last year's 1Y MBA Rep further down the page
-    await expect(page.getByText("Arjun Prashant Moghe").first()).toBeVisible()
-    const member = page.getByRole("link", { name: "amoghe@simon.rochester.edu" }).first()
-    await expect(member).toHaveAttribute("href", /^mailto:amoghe@simon\.rochester\.edu/)
+    // Every address on the roster must be a working mailto, so assert that of
+    // all of them rather than of one named person. This also covers more than
+    // the original did: it previously checked a single hardcoded student.
+    const links = page.getByRole("link", { name: /@/ })
+    const count = await links.count()
+    expect(count).toBeGreaterThan(0)
+
+    for (let i = 0; i < count; i++) {
+      const link = links.nth(i)
+      const email = (await link.textContent())?.trim()
+      const href = (await link.getAttribute("href")) ?? ""
+      // Roster links prefill a subject, so the href is `mailto:<addr>?subject=…`.
+      // Matched as address-then-boundary rather than a bare prefix, so a link to
+      // `<addr>.example.com` could not pass.
+      expect(href === `mailto:${email}` || href.startsWith(`mailto:${email}?`)).toBe(true)
+    }
   })
 
   test("empty seats read as Vacant Position with the roster's reason", async ({ page }) => {
