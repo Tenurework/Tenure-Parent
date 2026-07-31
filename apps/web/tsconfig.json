@@ -28,7 +28,8 @@
       "@tenure/authorization": ["../../packages/authorization/src/index.ts"],
       "@tenure/releases": ["../../packages/releases/src/index.ts"],
       "@tenure/workflow": ["../../packages/workflow/src/index.ts"],
-      "@tenure/audit": ["../../packages/audit/src/index.ts"]
+      "@tenure/audit": ["../../packages/audit/src/index.ts"],
+      "@tenure/metadata": ["../../packages/metadata/src/index.ts"]
     }
   },
   "include": [

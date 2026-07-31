@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
 import { canManageResources, getUserContext, type UserContext } from "@/lib/rbac"
 import { terminologyForInstitution } from "@/lib/config/server"
+import { validateResourceForm } from "@/lib/forms/resource-form"
 import {
   isSeatKey,
   type Resource,
@@ -128,16 +129,26 @@ function normaliseHref(raw: string): { href: string; external: boolean } | null 
   }
 }
 
+/**
+ * Validate a submission against the published form definition.
+ *
+ * The rules used to be six `if`s here. They are now RESOURCE_FORM, which means
+ * a different organization system can require different fields on this form by
+ * pinning a different definition rather than by editing this function.
+ *
+ * Behaviour is unchanged, message for message: resource-form.test.ts holds the
+ * original as an oracle and compares the two across every boundary — empty,
+ * whitespace-only, exactly at the limit, one past it, each malformed href, and
+ * the combinations where two rules could fire and the ORDER decides which
+ * message the person sees.
+ *
+ * `normaliseHref` stays here and is passed in. It accepts an https URL or an
+ * internal path AND rewrites it, which makes it a normalising parser rather
+ * than a validator; folding it into a field type would either lose the rewrite
+ * or duplicate it.
+ */
 function validate(input: ResourceInput): string | null {
-  if (!input.title.trim()) return "A title is required."
-  if (input.title.length > 160) return "Keep the title under 160 characters."
-  if (!input.description.trim()) return "A short description is required."
-  if (input.description.length > 600) return "Keep the description under 600 characters."
-  if (!normaliseHref(input.href)) {
-    return "Enter a full https:// link or an internal path starting with /."
-  }
-  if (input.seats.length === 0) return "Choose at least one seat to route this to."
-  return null
+  return validateResourceForm(input, (href) => normaliseHref(href) !== null)
 }
 
 /** Slug from a title, uniquified against the institution's existing keys. */
