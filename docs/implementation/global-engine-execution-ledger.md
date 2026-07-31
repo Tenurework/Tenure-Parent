@@ -69,11 +69,30 @@ than what was built.
     delegation, SoD) — and nothing records which is canonical. That is exactly
     the contradiction this item exists to surface.
 
-- [ ] **GE-000-004** — Trace every entry point, public route, API route, background job, realtime path, scheduled job, webhook, import/export, admin/support route.
-  - Status: FAIL — not systematically traced.
-  - Partial: 40 routes are known from `next build` output, and the reminders
-    cron is traced end to end in `apps/web/src/lib/jobs/reminders-isolation.itest.ts`.
-    No inventory of webhooks, import/export or support routes exists.
+- [x] **GE-000-004** — Trace every entry point, public route, API route, background job, realtime path, scheduled job, webhook, import/export, admin/support route.
+  - Status: PASS
+  - Code/config: [`../architecture/entry-points.md`](../architecture/entry-points.md),
+    `tools/entry-point-inventory.mjs`, `tests/security/entry-points.test.mjs`
+  - Evidence: generated from the filesystem, not written from memory.
+    **20 API routes · 37 pages · 13 modules exporting 62 server actions.**
+    Guards are attributed from the handler *and every ancestor layout*, because
+    a Next.js layout guards what nests beneath it — without that the table
+    would report most pages unguarded and be useless.
+  - The finding that justified doing this per-action rather than per-file:
+    **a layout guard does not protect a server action.** A POST to an action id
+    never renders the layout. `(app)/admin/actions.ts` alone exports 21; had
+    guards been attributed per module, one guarded action would have vouched
+    for twenty others. Attributed individually, **61 of 62 carry their own
+    guard**; the exception is `signOutAction`, which takes no argument, reads
+    no tenant row, and leaves an anonymous caller with what they already had.
+  - Unauthenticated surface is exactly `/api/auth/[...nextauth]`, `/api/health`
+    and `/signin`, each allowlisted with a reason.
+  - Tests: `npm run test:platform` → 24 passed. Proven to catch, not merely to
+    pass: an unguarded exported action FAILS (named in the message), a
+    tenant-scoped action with no session check FAILS, a guard mentioned only in
+    a comment FAILS, and the unmodified tree PASSES.
+  - Gap this closes onto: there is **no import endpoint**. A tenant's data can
+    leave over HTTP and cannot be loaded back — owned by GE-060.
 
 - [x] **GE-000-005** — Baseline install, lint, type check, tests, builds, migration validation, dependency audit, secret scan, e2e inventory. Record exact failures.
   - Status: PASS
