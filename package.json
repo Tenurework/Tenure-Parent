@@ -24,7 +24,11 @@
     "test:platform": "node tools/run-platform-tests.mjs",
     "e2e": "npm run e2e --workspace apps/web --",
     "db:migrate": "npm exec --workspace apps/web -- prisma migrate deploy",
-    "db:seed": "node apps/web/scripts/seed.mjs"
+    "db:seed": "node apps/web/scripts/seed.mjs",
+    "//studio": "The internal console. Separate app because it shows every tenant configuration and must not share an origin with any one tenant (PD-007).",
+    "studio:dev": "npm run dev --workspace apps/system-studio --",
+    "studio:build": "npm run build --workspace apps/system-studio --",
+    "studio:type-check": "npm run type-check --workspace apps/system-studio --"
   },
   "devDependencies": {
     "yaml": "^2.9.0"

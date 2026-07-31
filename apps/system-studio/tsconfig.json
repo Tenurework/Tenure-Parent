@@ -13,11 +13,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"],
       "@tenure/configuration": ["../../packages/configuration/src/index.ts"],
@@ -25,13 +21,8 @@
       "@tenure/organization-model": ["../../packages/organization-model/src/index.ts"],
       "@tenure/module-runtime": ["../../packages/module-runtime/src/index.ts"],
       "@tenure/modules": ["../../modules/index.ts"],
-      "@tenure/authorization": ["../../packages/authorization/src/index.ts"],
       "@tenure/releases": ["../../packages/releases/src/index.ts"],
-      "@tenure/workflow": ["../../packages/workflow/src/index.ts"],
-      "@tenure/audit": ["../../packages/audit/src/index.ts"],
-      "@tenure/metadata": ["../../packages/metadata/src/index.ts"],
-      "@tenure/platform-config": ["../../packages/platform-config/src/index.ts"],
-      "@tenure/platform-config/money": ["../../packages/platform-config/src/money.ts"]
+      "@tenure/platform-config": ["../../packages/platform-config/src/index.ts"]
     }
   },
   "include": [

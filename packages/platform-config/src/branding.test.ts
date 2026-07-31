@@ -1,7 +1,7 @@
 import { resolveConfig } from "@tenure/configuration"
 
-import { brandingCss } from "./branding"
-import { REGISTRY, brandingFor, layersFor } from "./system-config"
+import { brandingCss } from "./index"
+import { REGISTRY, brandingFor, layersFor } from "./index"
 
 describe("each system carries its own identity", () => {
   it("gives the pilot Tenure's own brand", () => {

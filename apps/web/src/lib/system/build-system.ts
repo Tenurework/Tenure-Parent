@@ -8,8 +8,8 @@ import {
   type ValidationResult,
 } from "@tenure/releases"
 
-import { modulesFor } from "@/lib/config/system-modules"
-import { REGISTRY, layersFor } from "@/lib/config/system-config"
+import { modulesFor } from "@tenure/platform-config"
+import { REGISTRY, layersFor } from "@tenure/platform-config"
 import { resolveConfig } from "@tenure/configuration"
 
 /**

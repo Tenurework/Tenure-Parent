@@ -2,7 +2,7 @@ import "server-only"
 import { cache } from "react"
 
 import { db } from "@/lib/db"
-import { terminologyFor, type Terminology } from "./system-config"
+import { terminologyFor, type Terminology } from "@tenure/platform-config"
 
 /**
  * Terminology for an institution, looked up by its database id.

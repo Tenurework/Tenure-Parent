@@ -1,0 +1,25 @@
+{
+  "name": "@tenure/system-studio",
+  "version": "0.1.0",
+  "private": true,
+  "//": "The Tenure-internal console. Separate from apps/web because it shows EVERY tenant's configuration, and a host that serves one customer must not also serve the console that configures all of them — see PD-007.",
+  "scripts": {
+    "dev": "next dev --port 3100",
+    "build": "next build",
+    "start": "next start --port 3100",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^15.1.0",
+    "next-auth": "5.0.0-beta.25",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}

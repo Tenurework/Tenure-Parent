@@ -136,4 +136,4 @@ export interface Localization {
  * `node:crypto` — and `finance.ts`, which needs the formatter, is imported by
  * client components.
  */
-export { formatMoney } from "../money"
+export { formatMoney, DEFAULT_MONEY_FORMAT, type MoneyFormat } from "./money"

@@ -7,7 +7,9 @@
  * point never touches a currency total.
  */
 
-import { formatMoney, type MoneyFormat } from "@/lib/money"
+// The /money subpath, not the package root: the root reaches node:crypto via the
+// configuration resolver, and this module is imported by client components.
+import { formatMoney, type MoneyFormat } from "@tenure/platform-config/money"
 
 export type BudgetLineInput = {
   category: string

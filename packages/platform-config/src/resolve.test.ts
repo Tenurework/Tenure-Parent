@@ -1,5 +1,5 @@
 import { BLUEPRINTS, TENANT_BINDINGS } from "@tenure/blueprints"
-import { REGISTRY, layersFor, resolveSystemConfig, terminologyFor } from "./system-config"
+import { REGISTRY, layersFor, resolveSystemConfig, terminologyFor } from "./index"
 
 /**
  * The claim under test is the platform's central one: two organizations behave

@@ -1,0 +1,14 @@
+{
+  "name": "@tenure/platform-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "What the platform makes configurable: the definitions, the registry, and resolution for one institution.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./money": "./src/money.ts"
+  },
+  "//exports": "Two entry points on purpose. The main one reaches @tenure/configuration, whose resolver imports node:crypto for checksums — importing it from a module that client components also import fails the build with UnhandledSchemeError. `./money` is the client-safe subset: a pure Intl formatter with no imports at all."
+}

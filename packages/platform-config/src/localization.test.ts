@@ -1,7 +1,7 @@
 import { resolveConfig } from "@tenure/configuration"
 
-import { formatMoney } from "./localization"
-import { REGISTRY, layersFor, localizationFor } from "./system-config"
+import { formatMoney } from "./index"
+import { REGISTRY, layersFor, localizationFor } from "./index"
 
 describe("two systems, two sets of conventions, one code path", () => {
   it("gives the US university dollars on an academic year", () => {

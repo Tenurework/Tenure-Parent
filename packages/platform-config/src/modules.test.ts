@@ -1,7 +1,7 @@
 import { getBlueprint, TENANT_BINDINGS } from "@tenure/blueprints"
 import { MODULE_CATALOG } from "@tenure/modules"
 
-import { hasModule, modulesFor, navigationForSystem } from "./system-modules"
+import { hasModule, modulesFor, navigationForSystem } from "./index"
 
 const ALL = null // show every entry, regardless of capability
 
