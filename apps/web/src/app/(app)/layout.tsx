@@ -8,7 +8,8 @@ import { Footer } from "@/components/shell/Footer"
 import { MainRegion } from "@/components/shell/MainRegion"
 import { AIProvider } from "@/components/ai/AIProvider"
 import { TenureAIPanel } from "@/components/ai/TenureAIPanel"
-import { navigationForSystem } from "@/lib/config/system-modules"
+import { modulesFor, navigationForSystem } from "@/lib/config/system-modules"
+import { navigationCapabilitiesFor } from "@/lib/authz/navigation-capabilities"
 import { resolveTenantScope } from "@/lib/tenant-scope"
 import { signOutAction } from "./actions"
 
@@ -21,16 +22,16 @@ import { signOutAction } from "./actions"
  * layout, whose job is to render a shell. An empty slug resolves to no tenant
  * binding, which gives the minimal menu; the page inside still fails loudly.
  */
-async function actingInstitutionSlug(userId: string): Promise<string> {
+async function actingInstitution(userId: string): Promise<{ id: string; slug: string }> {
   try {
     const scope = await resolveTenantScope(userId)
     const institution = await db.institution.findUnique({
       where: { id: scope.institutionId },
       select: { slug: true },
     })
-    return institution?.slug ?? ""
+    return { id: scope.institutionId, slug: institution?.slug ?? "" }
   } catch {
-    return ""
+    return { id: "", slug: "" }
   }
 }
 
@@ -42,24 +43,34 @@ export default async function AppLayout({
   const session = await auth()
   if (!session?.user) redirect("/signin")
 
-  const [ctx, unreadNotifications, me, institutionSlug] = await Promise.all([
+  const [ctx, unreadNotifications, me, institution] = await Promise.all([
     getUserContext(session.user.id),
     db.notification.count({ where: { userId: session.user.id, readAt: null } }),
     // Fresh image (JWT sessions don't refresh it when the user changes it).
     db.user.findUnique({ where: { id: session.user.id }, select: { image: true } }),
-    actingInstitutionSlug(session.user.id),
+    actingInstitution(session.user.id),
   ])
 
-  // Deliberately the same predicate the two booleans used before —
-  // `institutionRoles.length > 0` — so routing navigation through modules
-  // changes where the menu comes from and not who can see what. That predicate
-  // is itself wrong (a role *count* is not a capability), and it is the
-  // authorization engine's job to replace it, not this change's.
-  const isStaff = ctx.institutionRoles.length > 0
-  const capabilities = new Set<string>(
-    isStaff ? ["institution.administer", "institution.viewReports"] : [],
+  // The menu is what the enabled modules contribute, filtered by what the
+  // authorization engine says this principal actually holds. Both halves are
+  // decided server-side; neither is a boolean threaded through a component.
+  //
+  // The outcome is unchanged today — every institution role maps to both
+  // navigation capabilities, exactly as `institutionRoles.length > 0` did — but
+  // it is now a decision the engine makes, so a suspended membership, an expired
+  // grant or a disabled module removes the entry without anyone editing a layout.
+  // Both halves use the institution resolveTenantScope validated against this
+  // user's own memberships. Reaching for `ctx.institutionRoles[0]` here would
+  // reintroduce the first-role fallback one line below the comment complaining
+  // about it, and would not be validated at all.
+  const enabledModules = modulesFor(institution.slug).keys
+  const capabilities = navigationCapabilitiesFor(
+    ctx,
+    institution.id,
+    enabledModules,
+    new Date().toISOString(),
   )
-  const navSections = navigationForSystem(institutionSlug, capabilities)
+  const navSections = navigationForSystem(institution.slug, capabilities)
 
   return (
     <AIProvider>

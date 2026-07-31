@@ -1,0 +1,56 @@
+/**
+ * @tenure/authorization — who may do what, and an answer to "why not?".
+ *
+ * Combines role-based grants, attribute conditions, relationship checks
+ * (ownership, org-unit ancestry), hierarchical scope inheritance, delegation
+ * and separation of duties into one decision that carries its own trace.
+ *
+ *   const decision = decide(world, {
+ *     principalId: "u1", tenantId: "t1",
+ *     permission: "approvals.decide",
+ *     resource: { type: "ApprovalRequest", id: "a1", orgUnitId: "club1", createdByPrincipalId: "u1" },
+ *     at: "2026-07-31T00:00:00Z",
+ *   })
+ *   decision.allowed   // false
+ *   decision.reason    // "SEPARATION_OF_DUTIES"
+ *   decision.trace     // every step that was checked, in order
+ *
+ * Two properties are load-bearing.
+ *
+ * It is a pure function of stated facts. Nothing is fetched inside; the world is
+ * passed in. That is what makes a decision reproducible in a test and in a
+ * support session, and what stops it quietly depending on request state.
+ *
+ * It fails closed and says why. Every denial names one of thirteen reasons, and
+ * every reason is reachable — including the two the architecture's own SQL can
+ * never produce, because it never checks membership state or whether the
+ * principal is disabled.
+ */
+
+export { DENY_REASONS } from "./model"
+export type {
+  Delegation,
+  DenyReason,
+  GrantScope,
+  GrantState,
+  ISODate,
+  Membership,
+  MembershipState,
+  Policy,
+  PolicyContext,
+  Principal,
+  ResourceRef,
+  RoleDefinition,
+  RoleGrant,
+  TenantEntitlement,
+} from "./model"
+
+export { decide, effectivePermissions } from "./decide"
+export type {
+  AuthorizationRequest,
+  AuthorizationWorld,
+  Decision,
+  TraceStep,
+} from "./decide"
+
+export { SEPARATION_OF_DUTIES, notOwnRequest, notOwnReimbursement } from "./policies"

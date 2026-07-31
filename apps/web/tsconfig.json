@@ -24,7 +24,8 @@
       "@tenure/blueprints": ["../../blueprints/index.ts"],
       "@tenure/organization-model": ["../../packages/organization-model/src/index.ts"],
       "@tenure/module-runtime": ["../../packages/module-runtime/src/index.ts"],
-      "@tenure/modules": ["../../modules/index.ts"]
+      "@tenure/modules": ["../../modules/index.ts"],
+      "@tenure/authorization": ["../../packages/authorization/src/index.ts"]
     }
   },
   "include": [

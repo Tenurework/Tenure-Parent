@@ -186,7 +186,7 @@ const budgeting: ModuleManifest = {
   lifecycle: "available",
   dependsOn: ["organizations"],
   requiresEntitlement: "finance",
-  permissions: ["budgeting.manage", "budgeting.view", "budgeting.viewPortfolio"],
+  permissions: ["budgeting.manage", "budgeting.view", "budgeting.viewPortfolio", "budgeting.viewReports"],
   navigation: [
     {
       id: "budgeting.reports",
@@ -196,7 +196,7 @@ const budgeting: ModuleManifest = {
       sectionOrder: 10,
       order: 20,
       icon: "BarChart3",
-      requiresCapability: "institution.viewReports",
+      requiresCapability: "budgeting.viewReports",
     },
   ],
 }
@@ -248,7 +248,7 @@ const administration: ModuleManifest = {
       sectionOrder: 5,
       order: 10,
       icon: "ShieldCheck",
-      requiresCapability: "institution.administer",
+      requiresCapability: "administration.access",
     },
   ],
 }
