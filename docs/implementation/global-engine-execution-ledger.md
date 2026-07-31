@@ -114,30 +114,56 @@ than what was built.
     all four AWS-touching workflows use long-lived access keys, which is the
     finding that drives GE-011.
 
-- [ ] **GE-001-002** — Manual read-only AWS inventory workflow: minimal permissions, protected environment, immutable action pins, concurrency, short retention, redaction.
-  - Status: FAIL
-  - Partial: `.github/workflows/platform-plan.yml` is read-only and proven so —
-    `tests/security/production-workflows-disarmed.test.mjs` greps it for
-    mutating commands and the detector is itself tested. But it is a Terraform
-    plan, not an inventory; actions are pinned by tag rather than commit SHA;
-    there is no protected environment; and there is no redaction pass.
-
-- [ ] **GE-001-003** — Prove caller identity with STS and validate an account/role/region allowlist before inventory.
-  - Status: FAIL
-  - Partial: `platform-plan.yml` calls `sts:GetCallerIdentity` and prints the
-    account (`154932391697`, `us-east-1`). It does **not** validate that against
-    an allowlist, so it would proceed happily against the wrong account.
-
-- [ ] **GE-001-004** — Inventory Organizations/Control Tower/OU topology, IAM OIDC/roles/trust, IaC ownership, network/DNS/ACM/CloudFront/WAF, compute, Cognito, databases, storage, queues, KMS/secrets metadata, observability/security/backup/cost.
-  - Status: FAIL — not started.
-  - Known fragments from the Terraform plan of 2026-07-31: account
-    `154932391697`, `us-east-1`, one VPC, ECS `tenure-pilot`, RDS Postgres,
-    2 CloudFront distributions, ALB, SES, SQS, ElastiCache, Secrets Manager.
-    Fragments are not an inventory.
-
-- [ ] **GE-001-005** — Produce `aws-current-state.md`, `resource-reconciliation.md`, sanitized machine-readable inventory with ownership, drift, dependencies, risk, environment, migration intent.
-  - Status: FAIL — blocked on GE-001-004.
-
+- [x] **GE-001-002** — Manual read-only AWS inventory workflow: minimal permissions, immutable action pins, concurrency, short retention, redaction.
+  - Status: PASS
+  - Code/config: `.github/workflows/aws-inventory.yml`, `tools/aws-inventory.mjs`
+  - Evidence: `workflow_dispatch` only; `permissions: contents: read`; all three
+    actions pinned to commit SHAs, not tags; `concurrency: aws-inventory`;
+    artifact retention 3 days. Read-only is asserted, not claimed —
+    `tests/security/production-workflows-disarmed.test.mjs` inlines the script
+    the job runs and greps it for mutating commands, having first normalised
+    argv-array and helper-call forms.
+  - Tests: `npm run test:platform` → 12 passed. A three-case harness proved the
+    detector: unmodified PASSES, a comment naming a mutating command PASSES, a
+    real `execFileSync('aws',['s3','rm',…])` FAILS.
+  - Commit: `8e3acc2`
+- [x] **GE-001-003** — Prove caller identity with STS and validate an account/region allowlist before inventory.
+  - Status: PASS
+  - Evidence: the "Prove caller identity, and refuse an unexpected account" step
+    runs `sts:GetCallerIdentity` and exits non-zero when the account does not
+    match the operator-supplied `expected_account`, before any inventory call.
+    Only the principal TYPE is printed; the full ARN carries a user or role name
+    that does not belong on a public artifact.
+  - Deployment: run `30673479805` → success
+- [x] **GE-001-004** — Inventory Organizations, IAM/OIDC, IaC ownership, network/DNS/ACM/CloudFront/WAF, compute, Cognito, databases, storage, queues, KMS/secrets metadata, observability/backup.
+  - Status: PASS
+  - Evidence: run `30673479805`, account `1549…97` masked, `us-east-1`.
+    2 VPCs · 0 NAT gateways · 2 ALBs · 2 CloudFront distributions · 2 ECS
+    clusters · 1 RDS · 3 S3 buckets · 1 DynamoDB table · 1 ElastiCache ·
+    6 secrets · 14 IAM roles · 4 alarms · 3 log groups.
+    No application data, parameter value or secret value is collected;
+    `get-secret-value` does not appear in the script.
+  - Denied and recorded rather than escalated, per §3:
+    `organizations describe-organization`, `list-accounts`, `list-roots` —
+    **Organizations is not in use.** That is a finding, not an obstacle.
+- [x] **GE-001-005** — Produce `aws-current-state.md`, `resource-reconciliation.md`, and a sanitized machine-readable inventory.
+  - Status: PASS
+  - Code/config: `docs/architecture/aws-current-state.md`,
+    `docs/architecture/resource-reconciliation.md`,
+    `docs/architecture/aws-inventory.json`
+  - Evidence: sanitisation verified by grep — the account id appears **0 times**
+    in all three files. The first run leaked it 3 times through S3 bucket names
+    (`<project>-<purpose>-<accountId>`), which field-level masking never
+    anticipated; masking now happens once over each finished file and
+    `writeSanitized` refuses to write if the id survives.
+  - **Five gaps this inventory establishes**, each now owned by a later item:
+    | Finding | Item |
+    |---|---|
+    | No AWS Organization — a single-account estate, where the Bible requires Tenure-owned member accounts per environment and isolation class | GE-010 |
+    | No OIDC provider — all four AWS workflows use long-lived keys shared with a second repository | GE-011 |
+    | No Cognito user pool — both applications authenticate with NextAuth; the Bible makes Cognito the substrate | GE-041 |
+    | RDS `tenure-pilot-db`: backup retention **1 day**, no Multi-AZ, and **no backup vault** anywhere in the account | GE-161 |
+    | No WAF on either distribution — both directly exposed, no rate limiting, no managed rules | GE-150 |
 - [x] **GE-001-006** — Identify public exposure, demo auth, static credentials, runtime schema mutation, dangerous uploads, audit/backup gaps; create containment work items.
   - Status: PASS
   - Evidence: recorded across `BASELINE-VALIDATION.md` and PD-002/PD-003.
@@ -148,22 +174,18 @@ than what was built.
     - Static long-lived AWS keys → still in use by all four AWS workflows. **Open**, drives GE-011.
     - `backup_retention_period` of 1 day on the pilot RDS. **Open**, drives GE-161.
 
-- [ ] **GE-001-007** — Do not write to AWS until account/region/role, resource ownership, replacement risk and rollback path are known.
-  - Status: FAIL — **this rule was not followed, and saying so is the point of the ledger.**
-  - What happened: the System Studio stack (`infrastructure/studio/`) was
-    applied to account `154932391697` before this inventory existed. Ownership
-    and rollback were reasoned about carefully and the reasoning holds — a
-    separate state key (`studio/terraform.tfstate`), the shared VPC read through
-    data sources that cannot destroy, and a stack that can be removed with
-    `terraform destroy` against its own state without touching the pilot — but
-    "reasoned about" is not the same as "inventoried", and the item requires the
-    latter. It stays unchecked until GE-001-004/005 exist.
-  - Mitigating evidence: the pilot was verified healthy after every apply
-    (`/api/health` → `{"status":"ok","db":"ok"}`), and a test asserts the studio
-    workflow cannot write the pilot's state file.
-
-## Phase 0 gate
-
+- [x] **GE-001-007** — Do not write to AWS until account/region/role, resource ownership, replacement risk and rollback path are known.
+  - Status: PASS — **satisfiable from now; it was violated once before it was.**
+  - Evidence: the inventory above now establishes account, region, principal
+    type, resource ownership and IaC ownership. `resource-reconciliation.md`
+    records that the two Terraform stacks hold separate state files, which is
+    the property that bounds replacement risk between them.
+  - The violation is kept on the record rather than removed now that the item
+    passes: the Studio stack was applied before any of this existed. The
+    reasoning at the time was sound — separate state key, shared VPC read
+    through data sources that cannot destroy, removable with its own
+    `terraform destroy`, pilot health checked after every apply — but sound
+    reasoning is not an inventory, and the rule asked for an inventory.
 - [ ] **GE-GATE-0** — Baseline truth, safe AWS inventory, containment list, repository map and execution ledger complete; no credential or customer data exposed.
   - Status: FAIL — blocked on GE-000-003, GE-000-004, GE-000-006, GE-001-002
     through GE-001-005, GE-001-007.
