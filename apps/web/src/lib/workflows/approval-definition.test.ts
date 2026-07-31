@@ -2,7 +2,8 @@ import type { ApprovalStatus } from "@prisma/client"
 import { applyAction, availableActions as engineActions } from "@tenure/workflow"
 
 import {
-  availableActions as switchActions,
+  actorRoles,
+  availableActions,
   nextStatus,
   type ApprovalActionName,
   type ApprovalView,
@@ -12,7 +13,14 @@ import type { UserContext } from "@/lib/rbac"
 import { APPROVAL_WORKFLOW } from "./approval-definition"
 
 /**
- * The definition must behave *identically* to the switch it transcribes.
+ * The definition must behave *identically* to the switch it replaced.
+ *
+ * `lib/approvals.ts` now delegates to the workflow engine, so comparing it
+ * against the engine would compare the engine to itself. The two functions
+ * below are the ORIGINAL switch, copied verbatim from approvals.ts before the
+ * delegation, and frozen here as an oracle. They are the only remaining copy of
+ * the behaviour the pilot shipped with, and their whole job is to disagree if
+ * the definition ever drifts.
  *
  * Moving a flow into data is only valuable if a second organization system can
  * have a different one; it is only safe if the first one's behaviour did not
@@ -20,10 +28,70 @@ import { APPROVAL_WORKFLOW } from "./approval-definition"
  * tests cannot tell those apart, so this walks the full cross product:
  *
  *   7 statuses × 8 actor-role combinations × 2 values of requesterIsPresident
- *
- * — 112 cases, comparing available actions and resulting status against the
- * existing implementation on every one.
  */
+
+/** ORACLE — the pre-delegation implementation. Do not "simplify" this. */
+function referenceAvailableActions(
+  ctx: UserContext,
+  approval: ApprovalView,
+): ApprovalActionName[] {
+  const { isRequester, isPresident, isOseGate } = actorRoles(ctx, approval)
+  const actions: ApprovalActionName[] = []
+
+  switch (approval.status) {
+    case "DRAFT":
+      if (isRequester) actions.push("submit", "cancel")
+      break
+    case "PENDING_PRESIDENT":
+      if (isPresident) actions.push("approve", "request_changes", "reject")
+      if (isRequester) actions.push("cancel")
+      break
+    case "PENDING_OSE":
+      if (isOseGate) actions.push("approve", "request_changes", "reject")
+      if (isRequester) actions.push("cancel")
+      break
+    case "NEEDS_CHANGES":
+      if (isRequester) actions.push("resubmit", "cancel")
+      break
+    // APPROVED / REJECTED / CANCELLED are terminal
+  }
+  return actions
+}
+
+/** ORACLE — the pre-delegation implementation. */
+function referenceNextStatus(
+  action: ApprovalActionName,
+  current: ApprovalStatus,
+  opts: { requesterIsPresident: boolean },
+): ApprovalStatus | null {
+  switch (action) {
+    case "submit":
+      if (current !== "DRAFT") return null
+      return opts.requesterIsPresident ? "PENDING_OSE" : "PENDING_PRESIDENT"
+    case "resubmit":
+      if (current !== "NEEDS_CHANGES") return null
+      return opts.requesterIsPresident ? "PENDING_OSE" : "PENDING_PRESIDENT"
+    case "approve":
+      if (current === "PENDING_PRESIDENT") return "PENDING_OSE"
+      if (current === "PENDING_OSE") return "APPROVED"
+      return null
+    case "request_changes":
+      if (current === "PENDING_PRESIDENT" || current === "PENDING_OSE") return "NEEDS_CHANGES"
+      return null
+    case "reject":
+      if (current === "PENDING_PRESIDENT" || current === "PENDING_OSE") return "REJECTED"
+      return null
+    case "cancel":
+      if (
+        current === "DRAFT" ||
+        current === "PENDING_PRESIDENT" ||
+        current === "PENDING_OSE" ||
+        current === "NEEDS_CHANGES"
+      )
+        return "CANCELLED"
+      return null
+  }
+}
 
 const STATUSES: ApprovalStatus[] = [
   "DRAFT",
@@ -87,7 +155,7 @@ describe("the definition reproduces the switch exactly", () => {
 
         it(`offers the same actions — ${name}`, () => {
           const { ctx, approval } = contextFor(combo)
-          const expected = switchActions(ctx, { ...approval, status })
+          const expected = referenceAvailableActions(ctx, { ...approval, status })
 
           // The host resolves which roles the actor plays for this instance —
           // exactly what actorRoles() does in the existing implementation.
@@ -96,13 +164,14 @@ describe("the definition reproduces the switch exactly", () => {
           if (combo.president) roles.push("president")
           if (combo.ose) roles.push("oseGate")
 
-          const actual = engineActions(APPROVAL_WORKFLOW, {
-            state: status,
-            roles,
-            conditions: { requesterIsPresident },
-          }).map((a) => a.action)
+          // The shipping function, not the engine — this has to prove what
+          // callers actually get, and roles are unused by it beyond ctx.
+          void roles
+          const actual = availableActions(ctx, { ...approval, status })
 
           expect([...actual].sort()).toEqual([...expected].sort())
+          // Order matters too: the detail page renders buttons in this order.
+          expect(actual).toEqual(expected)
         })
       }
     }
@@ -123,23 +192,12 @@ describe("the definition reaches the same next status", () => {
     for (const action of ACTIONS) {
       for (const requesterIsPresident of [false, true]) {
         it(`${action} from ${status} (president=${requesterIsPresident})`, () => {
-          const expected = nextStatus(action, status, { requesterIsPresident })
+          const expected = referenceNextStatus(action, status, { requesterIsPresident })
 
           // Every role, so role filtering cannot mask a routing difference —
           // this compares where the flow GOES, which nextStatus also ignores
           // roles for.
-          const result = applyAction(APPROVAL_WORKFLOW, {
-            state: status,
-            roles: ["requester", "president", "oseGate"],
-            conditions: { requesterIsPresident },
-          }, action)
-
-          if (expected === null) {
-            expect(result.ok).toBe(false)
-          } else {
-            expect(result.ok).toBe(true)
-            expect(result.ok && result.to).toBe(expected)
-          }
+          expect(nextStatus(action, status, { requesterIsPresident })).toBe(expected)
         })
       }
     }
