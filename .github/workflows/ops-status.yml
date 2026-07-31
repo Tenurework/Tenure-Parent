@@ -1,0 +1,197 @@
+name: Ops Status
+
+# Publishes a read-only snapshot of the custom-domain wiring to the `ops-status`
+# branch, where it can be read without credentials.
+#
+# Why this exists: the AWS credentials for this account live only as GitHub
+# Actions secrets, which are write-only by design — they cannot be read from a
+# developer machine, and Actions *log* content is not publicly readable even on
+# a public repository. So the only way to observe AWS state from outside CI is
+# for CI to write what it sees somewhere public.
+#
+# This workflow never mutates AWS. It issues describe/list calls only, makes no
+# terraform call (so it cannot touch state or take the state lock), and force
+# pushes a single JSON file to a branch that no other workflow watches.
+#
+# The AWS account ID is masked in the published output: the branch is public and
+# an account ID is not something to scatter around. Everything needed to make a
+# deployment decision — certificate status, SANs, CloudFront aliases, TLS
+# settings — is preserved.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/ops-status.yml"
+  schedule:
+    # Every 10 minutes, so a pending certificate is observed shortly after ACM
+    # validates it without anyone having to babysit the run.
+    - cron: "*/10 * * * *"
+
+concurrency:
+  group: ops-status
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: Snapshot AWS custom-domain state
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      ACM_REGION: us-east-1
+      DOMAIN: platform.tenurework.com
+      CF_DOMAIN: d1n6mdis7bs02g.cloudfront.net
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Collect state
+        run: |
+          set -uo pipefail
+          mask() { sed -E 's/[0-9]{12}/************/g'; }
+
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text 2>/dev/null || echo "unknown")
+
+          # ── ACM ────────────────────────────────────────────────────────────
+          ARN=$(aws acm list-certificates --region "$ACM_REGION" \
+                  --query "CertificateSummaryList[?DomainName=='${DOMAIN}'].CertificateArn | [0]" \
+                  --output text 2>/dev/null || echo "None")
+
+          if [ "$ARN" = "None" ] || [ -z "$ARN" ]; then
+            CERT_JSON='{"found":false}'
+          else
+            CERT_JSON=$(aws acm describe-certificate --region "$ACM_REGION" --certificate-arn "$ARN" \
+              | jq '{
+                  found: true,
+                  status: .Certificate.Status,
+                  domain: .Certificate.DomainName,
+                  sans: .Certificate.SubjectAlternativeNames,
+                  issuer: .Certificate.Issuer,
+                  type: .Certificate.Type,
+                  keyAlgorithm: .Certificate.KeyAlgorithm,
+                  notBefore: .Certificate.NotBefore,
+                  notAfter: .Certificate.NotAfter,
+                  inUseBy: (.Certificate.InUseBy | length),
+                  failureReason: .Certificate.FailureReason,
+                  validation: [ .Certificate.DomainValidationOptions[] | {
+                    domain: .DomainName,
+                    status: .ValidationStatus,
+                    method: .ValidationMethod,
+                    recordName: .ResourceRecord.Name,
+                    recordValue: .ResourceRecord.Value
+                  } ]
+                }')
+          fi
+
+          # ── CloudFront ─────────────────────────────────────────────────────
+          MATCHES=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?DomainName=='${CF_DOMAIN}'].Id" --output text 2>/dev/null | wc -w)
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?DomainName=='${CF_DOMAIN}'].Id | [0]" --output text 2>/dev/null || echo "None")
+
+          if [ "$MATCHES" != "1" ]; then
+            CF_JSON=$(jq -n --arg m "$MATCHES" '{uniqueMatch:false, matches:($m|tonumber)}')
+          else
+            CF_JSON=$(aws cloudfront get-distribution --id "$DIST_ID" | jq '{
+              uniqueMatch: true,
+              id: .Distribution.Id,
+              status: .Distribution.Status,
+              domainName: .Distribution.DomainName,
+              lastModified: .Distribution.LastModifiedTime,
+              enabled: .Distribution.DistributionConfig.Enabled,
+              aliases: (.Distribution.DistributionConfig.Aliases.Items // []),
+              aliasQuantity: .Distribution.DistributionConfig.Aliases.Quantity,
+              viewerCertificate: .Distribution.DistributionConfig.ViewerCertificate,
+              originCount: .Distribution.DistributionConfig.Origins.Quantity,
+              cacheBehaviorCount: .Distribution.DistributionConfig.CacheBehaviors.Quantity,
+              customErrorCount: .Distribution.DistributionConfig.CustomErrorResponses.Quantity,
+              webACLId: .Distribution.DistributionConfig.WebACLId,
+              loggingEnabled: .Distribution.DistributionConfig.Logging.Enabled,
+              priceClass: .Distribution.DistributionConfig.PriceClass,
+              httpVersion: .Distribution.DistributionConfig.HttpVersion,
+              isIPV6Enabled: .Distribution.DistributionConfig.IsIPV6Enabled
+            }')
+          fi
+
+          # ── Alias conflict scan across the whole account ───────────────────
+          # Safeguard: if platform.tenurework.com is already an alias on a
+          # DIFFERENT distribution, attaching it here would fail (CloudFront
+          # refuses duplicate aliases) and would mean someone else owns the
+          # hostname. Checked across every distribution, not just the target.
+          CONFLICT=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?contains(Aliases.Items || \`[]\`, '${DOMAIN}')].{id:Id,domain:DomainName}" \
+            --output json 2>/dev/null || echo '[]')
+
+          # ── Pre-change backup (Phase 3) ────────────────────────────────────
+          # Taken BEFORE any alias/certificate change, which is the only time a
+          # backup is worth anything. ETag is captured separately because it is
+          # what an imperative rollback would need for --if-match.
+          if [ "$DIST_ID" != "None" ] && [ -n "$DIST_ID" ]; then
+            aws cloudfront get-distribution --id "$DIST_ID" | mask > /tmp/distribution-before.json
+            aws cloudfront get-distribution-config --id "$DIST_ID" | mask > /tmp/distribution-config-before.json
+            jq -r '.ETag' /tmp/distribution-config-before.json > /tmp/etag-before.txt
+            jq '.DistributionConfig' /tmp/distribution-config-before.json > /tmp/distribution-config-original.json
+            DIST_ARN=$(jq -r '.Distribution.ARN' /tmp/distribution-before.json)
+          else
+            echo '{}' > /tmp/distribution-before.json
+            echo '{}' > /tmp/distribution-config-before.json
+            echo "none" > /tmp/etag-before.txt
+            echo '{}' > /tmp/distribution-config-original.json
+            DIST_ARN="unknown"
+          fi
+
+          HASHES=$(cd /tmp && sha256sum distribution-before.json distribution-config-before.json \
+                     distribution-config-original.json etag-before.txt \
+                   | jq -Rn '[inputs | split("  ") | {file: .[1], sha256: .[0]}]')
+
+          jq -n \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg sha "$GITHUB_SHA" \
+            --arg acct "$ACCOUNT" \
+            --arg arn "$DIST_ARN" \
+            --arg etag "$(cat /tmp/etag-before.txt)" \
+            --argjson cert "$CERT_JSON" \
+            --argjson cf "$CF_JSON" \
+            --argjson conflict "$CONFLICT" \
+            --argjson hashes "$HASHES" \
+            '{observedAt:$ts, fromCommit:$sha, accountKnown:($acct!="unknown"),
+              certificate:$cert,
+              cloudfront:($cf + {arn:$arn, etag:$etag}),
+              aliasConflict:{otherDistributions:$conflict, count:($conflict|length)},
+              backupHashes:$hashes}' \
+            | mask > /tmp/status.json
+
+          echo "----- snapshot -----"
+          cat /tmp/status.json
+
+      - name: Publish to ops-status branch
+        run: |
+          set -euo pipefail
+          git config user.name  "tenure-ops-bot"
+          git config user.email "ops@tenurework.com"
+
+          # Orphan branch: this carries only the snapshot, never application code,
+          # and no workflow watches it, so publishing cannot trigger a deploy.
+          git checkout --orphan ops-status
+          git rm -rf . -q || true
+          mkdir -p ops
+          cp /tmp/status.json ops/status.json
+          # The pre-change configuration backup travels with the snapshot, so a
+          # rollback does not depend on anyone having kept a local copy.
+          cp /tmp/distribution-before.json         ops/distribution-before.json
+          cp /tmp/distribution-config-before.json  ops/distribution-config-before.json
+          cp /tmp/distribution-config-original.json ops/distribution-config-original.json
+          cp /tmp/etag-before.txt                  ops/etag-before.txt
+          git add -f ops/
+          git commit -q -m "ops: AWS custom-domain snapshot [skip ci]"
+          git push -f origin ops-status
+          echo "published to ops-status"

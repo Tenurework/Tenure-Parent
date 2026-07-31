@@ -1,0 +1,61 @@
+name: Debug Logs
+
+# Manual utility: dump ECS service events, stopped-task reasons, and app
+# logs so container/deployment failures can be diagnosed from Actions.
+on: workflow_dispatch
+
+jobs:
+  logs:
+    name: Dump ECS + app logs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region:            ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Service state + deployment events
+        run: |
+          aws ecs describe-services --cluster tenure-pilot --services tenure-pilot-app \
+            --query 'services[0].{taskDef:taskDefinition,desired:desiredCount,running:runningCount,pending:pendingCount}' \
+            --output table
+          echo "=== Deployments ==="
+          aws ecs describe-services --cluster tenure-pilot --services tenure-pilot-app \
+            --query 'services[0].deployments[].{status:status,taskDef:taskDefinition,desired:desiredCount,running:runningCount,failed:failedTasks,state:rolloutState,reason:rolloutStateReason}' \
+            --output table
+          echo "=== Events (newest first) ==="
+          aws ecs describe-services --cluster tenure-pilot --services tenure-pilot-app \
+            --query 'services[0].events[:25].[createdAt,message]' --output text
+
+      - name: All stopped tasks with task-def revisions
+        run: |
+          TASKS=$(aws ecs list-tasks --cluster tenure-pilot \
+            --desired-status STOPPED --query 'taskArns' --output text)
+          if [ -n "$TASKS" ]; then
+            aws ecs describe-tasks --cluster tenure-pilot --tasks $TASKS \
+              --query 'tasks[].{stopped:stoppedAt,taskDef:taskDefinitionArn,reason:stoppedReason,exit:containers[0].exitCode,creason:containers[0].reason}' \
+              --output json
+          else
+            echo "No stopped tasks"
+          fi
+
+      - name: Running tasks with revisions and health
+        run: |
+          TASKS=$(aws ecs list-tasks --cluster tenure-pilot --query 'taskArns' --output text)
+          [ -n "$TASKS" ] && aws ecs describe-tasks --cluster tenure-pilot --tasks $TASKS \
+            --query 'tasks[].{def:taskDefinitionArn,status:lastStatus,health:healthStatus,started:startedAt}' \
+            --output json || echo none
+
+      - name: Newest log streams and their tails
+        run: |
+          STREAMS=$(aws logs describe-log-streams --log-group-name /ecs/tenure-pilot \
+            --order-by LastEventTime --descending --limit 4 \
+            --query 'logStreams[].logStreamName' --output text)
+          for s in $STREAMS; do
+            echo "===== STREAM HEAD: $s ====="
+            aws logs get-log-events --log-group-name /ecs/tenure-pilot \
+              --log-stream-name "$s" --limit 30 --start-from-head \
+              --query 'events[].message' --output text || true
+          done

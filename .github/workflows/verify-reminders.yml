@@ -1,0 +1,63 @@
+name: Verify Reminders
+
+# Proves the scheduled reminder path actually works, rather than trusting
+# that Terraform created the resources. Checks the rule is enabled and
+# correctly targeted, then invokes the endpoint with the real secret so the
+# whole chain (secret -> CloudFront -> ALB -> app -> database) is exercised.
+on: workflow_dispatch
+
+jobs:
+  verify:
+    name: Inspect rule + invoke endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region:            ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Rule state and schedule
+        run: |
+          aws events describe-rule \
+            --name tenure-pilot-deliverable-reminders \
+            --query '{name:Name,state:State,schedule:ScheduleExpression}' \
+            --output json
+
+      - name: Rule target
+        run: |
+          aws events list-targets-by-rule \
+            --rule tenure-pilot-deliverable-reminders \
+            --query 'Targets[].{id:Id,arn:Arn,role:RoleArn,input:Input}' \
+            --output json
+
+      - name: API destination endpoint
+        run: |
+          aws events describe-api-destination \
+            --name tenure-pilot-reminders \
+            --query '{endpoint:InvocationEndpoint,method:HttpMethod,state:ApiDestinationState}' \
+            --output json
+
+      - name: Invoke the endpoint exactly as the schedule does
+        run: |
+          SECRET=$(aws secretsmanager get-secret-value \
+            --secret-id tenure-pilot/job \
+            --query SecretString --output text | sed 's/.*"JOB_SECRET":"\([^"]*\)".*/\1/')
+
+          if [ -z "$SECRET" ]; then echo "❌ Could not read JOB_SECRET"; exit 1; fi
+
+          echo "== unauthenticated (expect 401):"
+          curl -s -o /dev/null -w "   %{http_code}\n" \
+            -X POST https://d1n6mdis7bs02g.cloudfront.net/api/jobs/reminders
+
+          echo "== authenticated (expect 200 + JSON):"
+          BODY=$(curl -s -X POST \
+            -H "Authorization: Bearer $SECRET" \
+            https://d1n6mdis7bs02g.cloudfront.net/api/jobs/reminders)
+          echo "   $BODY"
+
+          case "$BODY" in
+            *'"checked"'*) echo "✅ Reminder job ran end to end" ;;
+            *) echo "❌ Unexpected response"; exit 1 ;;
+          esac

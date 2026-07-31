@@ -1,0 +1,617 @@
+{
+  "summary": "Market analysis of org/governance/ERP platforms -> prioritized Tenure feature roadmap",
+  "agentCount": 8,
+  "logs": [
+    "parallel[1] failed: agent({schema}): StructuredOutput retry cap (5) exceeded — 5 failed calls with no valid output",
+    "Researched 5/6 segments",
+    "[stall] agent \"critique\" stalled (no progress) after 339s — retrying (1/5)"
+  ],
+  "result": {
+    "roadmap": {
+      "themes": [
+        {
+          "theme": "ERP-Grade Finance & Auditability",
+          "features": [
+            {
+              "name": "Summary-to-source drill-down",
+              "value": "Every budget number is a live link that traces to its approved transactions and source documents.",
+              "evidence": "NetSuite 'summary-to-source' one-click drill and Workday drill-from-KPI are cited as the professional-grade tell; no figure is a dead end.",
+              "extendsModule": "club finance (budget lines/variance) + documents",
+              "effort": "L",
+              "tier": "must-have",
+              "dataModelImpact": "Requires a transaction/ledger-line entity linking budget line -> transaction -> document -> approval; add consistent reporting dimensions (club, category, event, term, funding source)."
+            },
+            {
+              "name": "Reimbursement & expense flow with three-way match",
+              "value": "One auditable chain from budget line to approval to uploaded receipt, closing Tenure's finance loop.",
+              "evidence": "Ramp three-way matching (invoice/PO/receipt), CampusGroups reimbursement forms with status notifications, Pipefy threshold-based reimbursement routing — cross-segment.",
+              "extendsModule": "club finance + 7-state approvals + documents",
+              "effort": "M",
+              "tier": "must-have",
+              "dataModelImpact": "New reimbursement/expense-request entity referencing a budget line, an approval instance, and one or more receipt documents; match-status field."
+            },
+            {
+              "name": "Enforced budget guardrails (Live Budgets)",
+              "value": "Budgets become controls that flag or block over-budget/out-of-category requests at request time, not after the fact.",
+              "evidence": "Brex Live Budgets and Pleo per-department merchant-category guardrails are the differentiators of the modern finance segment.",
+              "extendsModule": "club finance + 7-state approvals",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "Per-club/per-line spend limits and category rules evaluated during approval routing; headroom computed against committed + pending spend."
+            },
+            {
+              "name": "Allocation -> encumbrance -> spend funding model",
+              "value": "Models how universities actually fund clubs (allocation, encumbrance, drawdown, reconciliation) rather than corporate-card spend.",
+              "evidence": "NetSuite/Workday encumbrance accounting; GrantVantage pass-through/subgrant compliance; a defensible niche consumer tools lack.",
+              "extendsModule": "club finance",
+              "effort": "L",
+              "tier": "high",
+              "dataModelImpact": "Allocation and encumbrance records with states; spend draws down against encumbrance which draws down against allocation."
+            },
+            {
+              "name": "Event-linked finance",
+              "value": "Budget lines and spend tag to calendar events so variance is explainable per event and over-budget flags surface at planning time.",
+              "evidence": "Dimensional-model pattern (tag every record with club/category/event/term); a dimension generic spend tools lack.",
+              "extendsModule": "club finance + events calendar",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "Optional event foreign key on budget lines/transactions."
+            },
+            {
+              "name": "Sankey flow view + amount-hidden share mode",
+              "value": "Non-accountant officers see where funds come from and go; a figures-hidden share reuses for handoff and OSE reporting.",
+              "evidence": "Monarch Sankey is the signature UX; its amount-hiding share mode maps directly to officer-to-successor and OSE context sharing.",
+              "extendsModule": "club finance + org memory cards",
+              "effort": "M",
+              "tier": "nice-to-have",
+              "dataModelImpact": "None beyond dimensional finance model; a privacy flag on shared views."
+            }
+          ]
+        },
+        {
+          "theme": "Turnover-Proof Governance & Knowledge Handoff (Tenure's Wedge)",
+          "features": [
+            {
+              "name": "Term-transition handoff packet",
+              "value": "At term boundary, auto-generate a successor packet: open deliverables, pending approvals, budget state, and memory cards routed to the position ID's next holder.",
+              "evidence": "Explicit whitespace: board/CRM/grant tools treat onboarding as document dumps and lose institutional knowledge on turnover; no competitor ties knowledge handoff to a role/seat lifecycle.",
+              "extendsModule": "org memory cards + seats/rosters + deliverables",
+              "effort": "L",
+              "tier": "must-have",
+              "dataModelImpact": "Term-transition event entity snapshotting open items per position ID; handoff artifact linking memory cards, deliverables, approvals, and budget snapshot to incoming seat holder."
+            },
+            {
+              "name": "Turnover-aware approval routing",
+              "value": "In-flight approvals auto-reassign to whoever currently holds the seat, so requests never die with a graduated officer.",
+              "evidence": "Enterprise engines (ServiceNow/Ironclad) assume stable org charts; university boards turn over yearly — a gap none handle natively.",
+              "extendsModule": "7-state approvals + seats (effective-dated holdings, permanent position IDs)",
+              "effort": "M",
+              "tier": "must-have",
+              "dataModelImpact": "Approver assignment stored as position ID/role, resolved to current holder at each step rather than a named user."
+            },
+            {
+              "name": "Delegation with 'acted on behalf of'",
+              "value": "Backup approvers can act during gaps while the audit trail preserves the original approver identity.",
+              "evidence": "ServiceNow delegation records the delegate acted 'on behalf of' the primary — critical for summer/exam gaps.",
+              "extendsModule": "7-state approvals",
+              "effort": "S",
+              "tier": "high",
+              "dataModelImpact": "Delegation record and 'on behalf of' reference on approval action log."
+            },
+            {
+              "name": "Academic-calendar-aware SLAs & escalation",
+              "value": "Pause or reroute approvals over breaks/exams and escalate dormant-club requests to OSE.",
+              "evidence": "ServiceNow per-step SLA + auto-escalation, reframed for the academic calendar which competitors treat generically.",
+              "extendsModule": "7-state approvals + deliverables/reminders",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "Calendar/term windows influencing SLA clocks; escalation target = OSE seat."
+            },
+            {
+              "name": "Outgoing-to-incoming officer mentor matching",
+              "value": "Pairs departing and incoming holders of a position ID to reinforce knowledge handoff.",
+              "evidence": "Hivebrite Orbiit AI mentor matching with scheduling/feedback; repurposed for officer succession.",
+              "extendsModule": "seats + org memory cards",
+              "effort": "M",
+              "tier": "nice-to-have",
+              "dataModelImpact": "Mentor-pairing record keyed to position ID transition."
+            }
+          ]
+        },
+        {
+          "theme": "OSE Oversight & Two-Tier ERP Consolidation",
+          "features": [
+            {
+              "name": "OSE portfolio roll-up dashboard with drill-down",
+              "value": "OSE drills portfolio -> club -> budget line -> transaction/approval — a consolidation view competitors reserve for enterprise tiers.",
+              "evidence": "Anthology 'mirror your division structure' org tree + NetSuite/Workday drill + GrantVantage funder/grantee split portal; Tenure's OSE-over-clubs is native, not bolt-on.",
+              "extendsModule": "OSE reporting/analytics",
+              "effort": "L",
+              "tier": "must-have",
+              "dataModelImpact": "Hierarchical org-tree (division -> club -> seat) enforced in RBAC scoping and roll-up aggregation queries."
+            },
+            {
+              "name": "Standardized global outcome fields",
+              "value": "Every club reports comparable metrics (events held, members engaged, service hours, variance) OSE can aggregate and benchmark.",
+              "evidence": "Submittable 'global form fields' let outcomes roll up comparably across programs — the pattern for portfolio benchmarking.",
+              "extendsModule": "OSE reporting/analytics + deliverables",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "OSE-defined standardized field templates applied uniformly across all clubs' reporting records."
+            },
+            {
+              "name": "OSE as automatic backup/override approver",
+              "value": "Built-in escalation tier where OSE directors are default backup/override across all clubs with cross-club visibility.",
+              "evidence": "Dual-layer governance gap: ServiceNow/Ironclad need heavy config to model a supervising authority spanning tenants.",
+              "extendsModule": "7-state approvals",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "OSE override capability in approval policy; cross-club scope on the OSE role."
+            },
+            {
+              "name": "Auto-generated club Impact Page per term",
+              "value": "Turns existing events, finance, and deliverables data into a shareable outcome summary for OSE and incoming officers with zero manual assembly.",
+              "evidence": "Galaxy Digital real-time infographic Impact Pages; Submittable impact dashboards (theirs is a paid add-on — Tenure includes it).",
+              "extendsModule": "OSE reporting/analytics + events + finance",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "Read-model aggregating term-scoped activity; no new source tables."
+            },
+            {
+              "name": "Cross-club anonymized benchmarking feed",
+              "value": "OSE surfaces anonymized budget/variance/engagement benchmarks so officers self-correct.",
+              "evidence": "Light analytics differentiator single-org tools cannot offer; pairs with Tenure's cross-club community feed.",
+              "extendsModule": "community feed + OSE analytics",
+              "effort": "M",
+              "tier": "nice-to-have",
+              "dataModelImpact": "Anonymization/aggregation layer over club metrics."
+            }
+          ]
+        },
+        {
+          "theme": "Compliance Lifecycle & Deliverables",
+          "features": [
+            {
+              "name": "Annual re-registration & compliance gating",
+              "value": "Deactivates a club until officers/compliance data are refreshed each term — a natural fit for effective-dated seats.",
+              "evidence": "Table stakes across CampusGroups, Anthology, ClubExpress re-registration/compliance flows.",
+              "extendsModule": "seats/rosters + deliverables",
+              "effort": "M",
+              "tier": "must-have",
+              "dataModelImpact": "Club registration-status entity with term validity; gates access/features until reactivated."
+            },
+            {
+              "name": "Deliverable objects on the approvals engine",
+              "value": "Deliverables get reminder cadences and automatic status transitions by reusing the 7-state workflow, so deliverables and approvals share one engine.",
+              "evidence": "Submittable/grant tools automate milestone reminders and status changes; the deliverable/deadline pattern is table stakes in the grant segment.",
+              "extendsModule": "deliverables/deadline reminders + 7-state approvals",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "Deliverable entity with state, owner (position ID), due cadence, submission documents."
+            },
+            {
+              "name": "Compliance calendar with automated nudges",
+              "value": "Turns OSE's compliance calendar into automated reminders tied to re-registration and approval SLAs.",
+              "evidence": "Incumbents handle compliance only as static forms; deadline/deliverable calendars with milestone reminders are standard in grant tools.",
+              "extendsModule": "deliverables/deadline reminders",
+              "effort": "S",
+              "tier": "high",
+              "dataModelImpact": "None new; scheduling over existing deliverable/deadline records."
+            }
+          ]
+        },
+        {
+          "theme": "Events, Attendance & Participation",
+          "features": [
+            {
+              "name": "Mobile check-in / QR-wallet attendance",
+              "value": "Event check-in writes attendance back to the member/seat record for longitudinal participation history.",
+              "evidence": "Strongest cross-competitor signal: Anthology, Presence mobile-first check-in, Join It wallet-card + QR write-back, Galaxy Digital multi-channel check-in, Bloomerang app check-in — table stakes.",
+              "extendsModule": "events calendar + seats/rosters",
+              "effort": "M",
+              "tier": "must-have",
+              "dataModelImpact": "Attendance record linking member/seat to event with timestamp and check-in method."
+            },
+            {
+              "name": "Integrated room/resource reservation in event approval",
+              "value": "Attach space/resource booking to the event record so approval checks conflicts and space together.",
+              "evidence": "Room/resource reservation integrated into event approval is strongest in Anthology and CampusGroups.",
+              "extendsModule": "events calendar (conflict detection) + approvals",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "Resource/room entity and reservation record on the event; conflict checks extended to resources."
+            },
+            {
+              "name": "Service/volunteer-hour logging",
+              "value": "Log service hours tied to events, rolled up per member and per club for reporting to the school.",
+              "evidence": "Galaxy Digital core hour-tracking and Bloomerang monetized-hours reporting; absent from Tenure but highly relevant to student clubs.",
+              "extendsModule": "events calendar (NEW hours sub-module)",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "Hours entity keyed to member/seat and event, with approval/verification status."
+            },
+            {
+              "name": "Co-curricular involvement transcript",
+              "value": "Auto-populates a student-owned record of attended/approved activities and seats held.",
+              "evidence": "Anthology verified co-curricular transcript and Presence SmartTranscript are marquee student-facing artifacts; table stakes in the engagement segment.",
+              "extendsModule": "seats/rosters + events (NEW transcript module)",
+              "effort": "L",
+              "tier": "nice-to-have",
+              "dataModelImpact": "Derived per-member record aggregating seat history, attendance, and completed deliverables."
+            }
+          ]
+        },
+        {
+          "theme": "Defensible Records & Workflow Configurability",
+          "features": [
+            {
+              "name": "Certificate-of-Completion for approvals",
+              "value": "Each closed approval yields a portable, tamper-evident PDF: chain of custody, timestamps, and which officer held the seat.",
+              "evidence": "DocuSign Certificate of Completion is the gold-standard defensible artifact; brings enterprise auditability to a student budget without DocuSign cost.",
+              "extendsModule": "7-state approvals + documents",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "Immutable approval-completion record with versioned artifact hash and point-in-time seat holder."
+            },
+            {
+              "name": "Pre-built OSE-approved workflow templates",
+              "value": "Ship student-org approval templates (event, budget/reimbursement, room booking, sponsorship, travel) that work out of the box, with per-club overrides.",
+              "evidence": "Asana Rule Bundles and Ironclad configurations reused across units; Ironclad/ServiceNow are admin-heavy — Tenure wins on zero-config for non-professional admins.",
+              "extendsModule": "7-state approvals",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "Workflow-template entity clubs inherit; override layer per club."
+            },
+            {
+              "name": "Threshold auto-approval",
+              "value": "Small requests auto-approve while large ones escalate, cutting officer/OSE load.",
+              "evidence": "Pipefy threshold routing and Ironclad value-based escalation across the workflow segment.",
+              "extendsModule": "7-state approvals + club finance",
+              "effort": "S",
+              "tier": "high",
+              "dataModelImpact": "Threshold rules on workflow templates evaluated against typed request properties (amount, type)."
+            },
+            {
+              "name": "Plain-language conditional routing rules",
+              "value": "OSE authors branching (amount, event type, risk flag) as readable rules against typed record properties.",
+              "evidence": "Ironclad conditions read like plain-English business rules against typed properties, authored by non-engineers.",
+              "extendsModule": "7-state approvals",
+              "effort": "L",
+              "tier": "nice-to-have",
+              "dataModelImpact": "Typed properties on request records; rule-expression storage."
+            }
+          ]
+        },
+        {
+          "theme": "AI, Segmentation & Self-Service",
+          "features": [
+            {
+              "name": "Permission-aware AI finance & approval search",
+              "value": "OSE asks 'show clubs over budget this term' while a president is scoped to only their club; members ask 'what's the status of our travel request.'",
+              "evidence": "Ramp/Brex AI direction, but with RBAC respecting the club/OSE boundary; enterprise tools gate this behind admin dashboards.",
+              "extendsModule": "permission-aware AI search + finance + approvals",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "AI index over finance/approval records honoring existing RBAC scopes; no new source schema."
+            },
+            {
+              "name": "Segmentation as a first-class primitive",
+              "value": "Any cohort (committee, class year, engagement tier, compliance status) is directly targetable for comms and workflows.",
+              "evidence": "Glue Up first-class segmentation and Hivebrite/Glue Up score-driven cohorts drive comms and renewals.",
+              "extendsModule": "messaging + seats/rosters",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "Saved-segment definitions over member/seat/activity attributes."
+            },
+            {
+              "name": "Role-based landing dashboards",
+              "value": "President, finance officer, and OSE director each land on the KPIs and drill paths relevant to their seat.",
+              "evidence": "NetSuite role-based dashboards and Brex central dashboard; consistent role-aware navigation is an ERP hallmark.",
+              "extendsModule": "OSE reporting/analytics (cross-module) + RBAC",
+              "effort": "M",
+              "tier": "high",
+              "dataModelImpact": "None new; per-role dashboard configuration keyed to seat/role."
+            },
+            {
+              "name": "Self-service member portal",
+              "value": "Members update their own profile and info, reducing officer admin load.",
+              "evidence": "Self-service portal is table stakes across the association/membership segment (Wild Apricot, Glue Up, ClubExpress, Join It).",
+              "extendsModule": "seats/rosters",
+              "effort": "M",
+              "tier": "nice-to-have",
+              "dataModelImpact": "Member-editable profile fields with permission scoping."
+            },
+            {
+              "name": "Leadership-readiness / participation scoring",
+              "value": "Reframes engagement scoring toward officer-succession and accountability signals instead of retention/revenue.",
+              "evidence": "Hivebrite tunable weighted scoring and Glue Up engagement scoring — repurposed since student orgs rarely charge dues.",
+              "extendsModule": "OSE analytics + seats",
+              "effort": "L",
+              "tier": "nice-to-have",
+              "dataModelImpact": "Configurable weighted score derived from attendance, deliverables completed, and seat tenure."
+            }
+          ]
+        }
+      ],
+      "topTen": [
+        "OSE portfolio roll-up dashboard with drill-down (portfolio -> club -> budget line -> transaction/approval) — native two-tier ERP consolidation competitors reserve for enterprise tiers",
+        "Term-transition handoff packet — auto-generated successor package (open deliverables, pending approvals, budget state, memory cards) routed by position ID; uncontested whitespace",
+        "Reimbursement & expense flow with three-way match — closes Tenure's finance loop into one auditable chain (budget line -> approval -> receipt)",
+        "Summary-to-source finance drill-down — every number is a live link to its transaction and source document, the professional-grade ERP tell",
+        "Turnover-aware approval routing — in-flight approvals auto-reassign to the current seat holder so requests never die with a graduated officer",
+        "Approval-native point-in-time audit trail — bind the finance/approval audit to the 7-state workflow and effective-dated seats, recording who held the seat at the time",
+        "Annual re-registration & compliance gating — deactivate a club until officers/compliance data refresh each term; cross-competitor table stakes",
+        "Mobile check-in / QR-wallet attendance writing back to the seat record — strongest cross-competitor signal and feeds OSE participation analytics",
+        "Enforced budget guardrails (Live Budgets) — budgets flag or block over-budget/out-of-category requests at request time, not after the fact",
+        "Standardized global outcome fields — every club reports comparable metrics so OSE can aggregate and benchmark across the portfolio"
+      ]
+    },
+    "critique": {
+      "missing": [
+        {
+          "feature": "Segregation-of-duties / maker-checker enforcement",
+          "rationale": "The single most conspicuous ERP internal-control gap. The roadmap adds reimbursements, threshold auto-approval, and turnover-aware routing but never enforces requester != approver, or that a finance officer cannot approve their own reimbursement. This risk is ACUTE in student orgs precisely because tiny boards frequently have one person holding multiple seats (president also acting treasurer), and the roadmap's own 'delegation' and 'auto-reassign to current holder' features make self-approval collisions more likely. Any auditor or OSE reviewing 'defensible records' will expect SoD. Cheap to add on top of the existing 7-state engine and position-ID resolution; high defensibility payoff."
+        },
+        {
+          "feature": "Fiscal-period close / term lock",
+          "rationale": "A core NetSuite/Workday hallmark the roadmap cites for prestige but omits. Summary-to-source drill-down, encumbrance accounting, and the point-in-time audit trail are only defensible if closed terms are locked against back-dating and edits. Without period close, a 'live link to the approved transaction' can silently change after the fact, defeating the whole ERP-integrity narrative. Pairs naturally with the term-transition handoff (close the books as part of the handoff packet)."
+        },
+        {
+          "feature": "GL / AP export to the institution's system of record (Banner/Workday/Colleague)",
+          "rationale": "The 'two-tier ERP consolidation' story has no last mile. Real money at a business school moves through the university bursar/AP, not through Tenure. Reimbursements end at 'approved + receipt matched' with no journal export, AP feed, or reconciliation back to the institutional GL. Without this, OSE still re-keys everything into the real ERP and Tenure remains a shadow ledger. GrantVantage/NetSuite integrations are cited as the professional tell; a structured export (or reconciliation match) is the feature that makes the roll-up authoritative instead of advisory."
+        },
+        {
+          "feature": "SSO / SIS integration and enrollment-verified rosters",
+          "rationale": "Table stakes for the .edu segment and cited competitors (Anthology, CampusGroups) that the roadmap silently assumes. SAML/Shibboleth SSO and student-directory sync are what make per-term re-registration and roster refresh not-manual, and enrollment verification is what proves a seat holder is an eligible enrolled student. The 'annual re-registration & compliance gating' must-have is far weaker without a directory to verify against; right now onboarding each term is hand-keyed."
+        },
+        {
+          "feature": "Annual budget request / allocation submission cycle",
+          "rationale": "The finance module starts at 'allocation exists' and models only execution (encumbrance, drawdown, variance). The actual central annual finance workflow at universities is the front end: clubs submit a budget proposal, OSE/student-government reviews and allocates activity-fee funds. That request-and-award cycle is missing entirely, yet it is the natural on-ramp to the allocation->encumbrance->spend model and a perfect fit for the 7-state approvals + OSE-oversight modules."
+        },
+        {
+          "feature": "Elections / appointment mechanism that populates seats",
+          "rationale": "The entire wedge is turnover and effective-dated seat holdings, but there is no mechanism to determine and install the NEXT holder. The handoff packet, mentor matching, and turnover-aware routing all presume the successor is already known. Competitors (CampusGroups, ClubExpress) ship elections modules. A lightweight election/appointment workflow that writes the winner into the effective-dated seat is high-fit, closes the seat lifecycle, and is arguably a stronger wedge feature than several listed nice-to-haves."
+        },
+        {
+          "feature": "Revenue / income side of finance (dues, ticketing, sponsorship income, fundraising)",
+          "rationale": "The finance model is entirely outflow (allocation -> spend -> variance). Student clubs also collect dues, sell event tickets, take sponsorship revenue, and fundraise — the core of Wild Apricot/Glue Up/ClubExpress, all cited. A finance module claiming ERP-grade completeness with no income ledger cannot compute true net position or reconcile a club's real cash. Even if some money routes through the school, sponsorship and ticket revenue commonly do not."
+        },
+        {
+          "feature": "System-wide immutable audit log (not just approval-scoped)",
+          "rationale": "The roadmap's 'point-in-time audit trail' and Certificate-of-Completion are bound to the approvals engine only. ERP integrity requires an append-only actor/timestamp/before-after log across finance ledger edits, seat changes, allocation adjustments, and document actions. Finance mutations that never pass through an approval (a corrected budget line, an encumbrance release) currently have no tamper record, undercutting the 'every number traces to source' claim."
+        },
+        {
+          "feature": "First-class notification / digest infrastructure",
+          "rationale": "At least six 'high' features (SLA escalation, reimbursement status, compliance nudges, guardrail flags, re-registration deadlines, delegation) assume a reliable multi-channel notification + preference system, but it is never scoped as its own capability. CampusGroups 'status notifications' are cited as the pattern. This plumbing is a hidden dependency that, if left implicit, will bottleneck the whole compliance and approvals slate."
+        },
+        {
+          "feature": "Conflict-of-interest / disclosure handling",
+          "rationale": "The roadmap cites board-governance tooling and lists sponsorship and travel approval templates, but has no COI or disclosure step. For sponsorship, vendor selection, and reimbursement to related parties, a disclosure/recusal record is a standard governance control (BoardEffect/Boardable). It slots directly into the approvals engine and strengthens the 'defensible records' theme at low cost."
+        }
+      ],
+      "overscopedOrPoorFit": [
+        {
+          "feature": "Leadership-readiness / participation scoring",
+          "rationale": "Cut or heavily reframe. It is explicitly a repurpose of Hivebrite/Glue Up retention-and-revenue scoring ('repurposed since student orgs rarely charge dues' is a tell that it is a solution seeking a problem). Algorithmically ranking students' 'leadership readiness' is low-value at club scale and ethically/optically fraught (bias, FERPA-adjacent profiling of students by an office that governs them). The downside risk outweighs the L effort."
+        },
+        {
+          "feature": "Outgoing-to-incoming officer mentor matching (AI)",
+          "rationale": "Over-engineered for the context. The Orbiit/Hivebrite matching algorithm exists to pair strangers across large alumni communities. Here the outgoing and incoming holders of a position ID are both already known and number one each — the 'match' is a trivial 1:1 pairing by position ID that needs no AI. Keep a simple successor-pairing hook inside the handoff packet; drop the standalone AI-matching framing and its M effort."
+        },
+        {
+          "feature": "Sankey flow view + amount-hidden share mode",
+          "rationale": "Defer. Monarch's Sankey is a consumer personal-finance signature tuned for many income/expense streams. A student club budget with roughly a dozen lines does not benefit visually or decision-wise from a Sankey; it is flourish at M effort. The amount-hidden share mode is a nice idea but can be delivered far more cheaply as a redaction flag on the existing Impact Page than as a bespoke Sankey renderer."
+        },
+        {
+          "feature": "Cross-club anonymized benchmarking feed",
+          "rationale": "Poor fit at this scale — the anonymization promise cannot be honored. With a single business school's ~15-30 clubs, 'the anonymized club with a $X budget and Y events' is trivially re-identifiable (everyone knows the population). Publishing benchmarks that leak identity invites exactly the inter-club politics OSE wants to avoid. Defer until N is large enough for real k-anonymity, or drop the anonymization claim and make it explicit OSE-only analytics."
+        },
+        {
+          "feature": "Plain-language conditional routing rule engine (Ironclad-style)",
+          "rationale": "Over-scoped relative to org size and admin sophistication. A non-engineer-authored branching rule engine over typed properties is effectively a product in itself (it is Ironclad's core), rated L / nice-to-have here for good reason. The pre-built OSE templates plus threshold auto-approval already cover the realistic branch set (amount, request type) for a b-school's clubs. Ship those; defer the general rule authoring."
+        },
+        {
+          "feature": "Co-curricular involvement transcript",
+          "rationale": "Defer. Anthology/Presence transcripts derive their value from being institution-official artifacts backed by registrar/SIS integration. Absent that integration (also missing from the roadmap), a Tenure-only 'transcript' is an unofficial student-facing vanity record at L effort. Sequence it AFTER SSO/SIS integration and institutional buy-in, when it can actually be verified and carry weight."
+        },
+        {
+          "feature": "Enforced budget guardrails that hard-BLOCK requests (Brex/Pleo merchant-category model)",
+          "rationale": "Partially poor fit — reframe rather than cut. The evidence is Brex Live Budgets and Pleo per-department merchant-category-code guardrails, which are corporate-CARD controls enforced at swipe time. Student club spend is predominantly post-hoc reimbursement with no card and no MCC in the loop, so a hard block is often unenforceable and the merchant-category dimension is largely inapplicable. Keep the flag/warn-at-request-time behavior against headroom; drop the block-and-MCC framing."
+        },
+        {
+          "feature": "Segmentation as a first-class primitive",
+          "rationale": "Over-scoped for the scale (flagged 'high' but questionable). Glue Up/Hivebrite segmentation exists to slice tens of thousands of contacts for marketing and renewals. A b-school's cohorts are small and already expressible through the existing seat/role/committee/compliance-status structure. A general saved-segment engine over arbitrary member/activity attributes is heavier than the payoff; simple role/committee/status filters on messaging cover the real need. Defer the generalized engine."
+        }
+      ],
+      "notes": "Cross-cutting observations for sequencing. (1) The biggest structural gap is the institutional last mile: SSO/SIS integration and a GL/AP export are unlisted dependencies that several must-haves quietly assume (re-registration, roll-up authority, reimbursement finality). Without them the two-tier ERP story is advisory, not authoritative — I'd elevate at least the GL/AP reconciliation export into the finance must-have tier. (2) Three internal-control patterns an auditor would expect are absent despite the 'ERP-grade' and 'defensible records' positioning: segregation of duties, fiscal-period close, and a system-wide immutable audit log. They are individually cheap on the existing engine and collectively are what separate 'looks like ERP' from 'passes an audit.' (3) The finance module is modeled as outflow-only and mid-lifecycle-only; adding the budget-request front end and the income side would make it a complete ledger rather than a spend tracker. (4) The features I flagged for cut/defer cluster around imported concepts from large-community CRM/alumni/consumer-finance tools (scoring, mentor-matching, Sankey, segmentation, anonymized benchmarking) whose value assumptions (large N, dues revenue, card rails, stranger networks) do not hold for a single school's clubs — the roadmap's own evidence notes several are 'repurposed,' which is the tell. I did not inspect the codebase; this is a roadmap-vs-market-evidence completeness/fit critique as requested."
+    },
+    "segmentsResearched": 5
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Research"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 2,
+      "title": "Synthesize"
+    },
+    {
+      "type": "workflow_phase",
+      "index": 3,
+      "title": "Critique"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "research:campus-engagement",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "af4cb8b771a4af664",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1784728450573,
+      "queuedAt": 1784728450553,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Campus / student-organization engagement & management platf…",
+      "promptPreview": "Tenure is a governance/operations platform for university student organizations — specifically a business school's clubs and the Office of Student Engagement (OSE) that oversees them. Existing modules: role-based seats/rosters (permanent position IDs, effective-dated seat holdings), a 7-state approvals workflow, an events calendar with conflict detection, messaging (DMs / board channels / OSE broa…",
+      "lastProgressAt": 1784728633748,
+      "tokens": 31390,
+      "toolCalls": 16,
+      "durationMs": 183174,
+      "resultPreview": "{\"segment\":\"Campus / student-organization engagement & management platforms (serving student-org operations plus the student-affairs / engagement office that oversees them)\",\"products\":[{\"name\":\"Anthology Engage (formerly Campus Labs Engage / OrgSync)\",\"notableFeatures\":[\"Org & roster management that mirrors the division's administrative branch/tree; student leaders get autonomy over org registrat…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "research:board-governance",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "abaf9c17e5fcf153d",
+      "model": "claude-opus-4-8[1m]",
+      "state": "error",
+      "startedAt": 1784728450577,
+      "queuedAt": 1784728450553,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "test",
+      "promptPreview": "Tenure is a governance/operations platform for university student organizations — specifically a business school's clubs and the Office of Student Engagement (OSE) that oversees them. Existing modules: role-based seats/rosters (permanent position IDs, effective-dated seat holdings), a 7-state approvals workflow, an events calendar with conflict detection, messaging (DMs / board channels / OSE broa…",
+      "lastProgressAt": 1784728723668,
+      "error": "agent({schema}): StructuredOutput retry cap (5) exceeded — 5 failed calls with no valid output",
+      "tokens": 42926,
+      "toolCalls": 15,
+      "durationMs": 273091
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "research:assoc-club-mgmt",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "ac95485140f85e0d2",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1784728450578,
+      "queuedAt": 1784728450553,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Association / club / membership management (Glue Up, Hivebr…",
+      "promptPreview": "Tenure is a governance/operations platform for university student organizations — specifically a business school's clubs and the Office of Student Engagement (OSE) that oversees them. Existing modules: role-based seats/rosters (permanent position IDs, effective-dated seat holdings), a 7-state approvals workflow, an events calendar with conflict detection, messaging (DMs / board channels / OSE broa…",
+      "lastProgressAt": 1784728536151,
+      "tokens": 26878,
+      "toolCalls": 9,
+      "durationMs": 85573,
+      "resultPreview": "{\"segment\":\"Association / club / membership management (Glue Up, Hivebrite, Wild Apricot, ClubExpress, Join It)\",\"products\":[{\"name\":\"Wild Apricot\",\"notableFeatures\":[\"All-in-one for small orgs: membership DB, event registration + ticketing, payment processing, and a bundled website/CMS builder\",\"Multiple membership levels/tiers with customizable application and renewal forms, automated invoicing …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "research:finops-erp",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "ac5441d28e94066c9",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1784728450578,
+      "queuedAt": 1784728450553,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Modern finance / ERP UX benchmarks (Monarch Money, Ramp, Br…",
+      "promptPreview": "Tenure is a governance/operations platform for university student organizations — specifically a business school's clubs and the Office of Student Engagement (OSE) that oversees them. Existing modules: role-based seats/rosters (permanent position IDs, effective-dated seat holdings), a 7-state approvals workflow, an events calendar with conflict detection, messaging (DMs / board channels / OSE broa…",
+      "lastProgressAt": 1784728652329,
+      "tokens": 34251,
+      "toolCalls": 12,
+      "durationMs": 201751,
+      "resultPreview": "{\"segment\":\"Modern finance / ERP UX benchmarks (Monarch Money, Ramp, Brex, Pleo, Workday, NetSuite) — the structure, data model, and interface patterns that make them read as professional-grade ERP.\",\"products\":[{\"name\":\"Monarch Money\",\"notableFeatures\":[\"Cash Flow tab with two modes: Breakdown (Sankey diagram of income-to-expense flows) and Trends (grouped/stacked bar charts over daily-to-yearly …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 5,
+      "label": "research:workflow-approval",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "a9a32c9ddaafde09f",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1784728450579,
+      "queuedAt": 1784728450553,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Configurable workflow / approval engines & governance UX (S…",
+      "promptPreview": "Tenure is a governance/operations platform for university student organizations — specifically a business school's clubs and the Office of Student Engagement (OSE) that oversees them. Existing modules: role-based seats/rosters (permanent position IDs, effective-dated seat holdings), a 7-state approvals workflow, an events calendar with conflict detection, messaging (DMs / board channels / OSE broa…",
+      "lastProgressAt": 1784728570895,
+      "tokens": 29092,
+      "toolCalls": 10,
+      "durationMs": 120316,
+      "resultPreview": "{\"segment\":\"Configurable workflow / approval engines & governance UX (ServiceNow, Jira Service Management, Asana, DocuSign, Ironclad, Pipefy)\",\"products\":[{\"name\":\"ServiceNow (Flow Designer / App Engine)\",\"notableFeatures\":[\"Multi-step approval flows with if/then control flow, logical loops, timers, child-task generation, and scripting inside a visual Flow Designer\",\"Approval delegation with full …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 6,
+      "label": "research:nonprofit-ops",
+      "phaseIndex": 1,
+      "phaseTitle": "Research",
+      "agentId": "a2e698ed6f328dc99",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1784728450579,
+      "queuedAt": 1784728450553,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Nonprofit & volunteer / grant-deliverable operations (donor…",
+      "promptPreview": "Tenure is a governance/operations platform for university student organizations — specifically a business school's clubs and the Office of Student Engagement (OSE) that oversees them. Existing modules: role-based seats/rosters (permanent position IDs, effective-dated seat holdings), a 7-state approvals workflow, an events calendar with conflict detection, messaging (DMs / board channels / OSE broa…",
+      "lastProgressAt": 1784728605963,
+      "tokens": 31760,
+      "toolCalls": 11,
+      "durationMs": 155384,
+      "resultPreview": "{\"segment\":\"Nonprofit & volunteer / grant-deliverable operations (donor/volunteer CRMs, volunteer-hour platforms, and grant lifecycle/deliverable management tools)\",\"products\":[{\"name\":\"Submittable\",\"notableFeatures\":[\"Full grant lifecycle from launch to closeout: configurable application forms with conditional logic and reviewer workflows with side-by-side application + scoring rubric\",\"Centraliz…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 7,
+      "label": "synthesize",
+      "phaseIndex": 2,
+      "phaseTitle": "Synthesize",
+      "agentId": "a27aea82fa52d9d03",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1784728723738,
+      "queuedAt": 1784728723681,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "promptPreview": "Tenure is a governance/operations platform for university student organizations — specifically a business school's clubs and the Office of Student Engagement (OSE) that oversees them. Existing modules: role-based seats/rosters (permanent position IDs, effective-dated seat holdings), a 7-state approvals workflow, an events calendar with conflict detection, messaging (DMs / board channels / OSE broa…",
+      "lastProgressAt": 1784728851256,
+      "tokens": 36141,
+      "toolCalls": 1,
+      "durationMs": 127517,
+      "resultPreview": "{\"themes\":[{\"theme\":\"ERP-Grade Finance & Auditability\",\"features\":[{\"name\":\"Summary-to-source drill-down\",\"value\":\"Every budget number is a live link that traces to its approved transactions and source documents.\",\"evidence\":\"NetSuite 'summary-to-source' one-click drill and Workday drill-from-KPI are cited as the professional-grade tell; no figure is a dead end.\",\"extendsModule\":\"club finance (bud…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 8,
+      "label": "critique (retry 1)",
+      "phaseIndex": 3,
+      "phaseTitle": "Critique",
+      "agentId": "a58385818dc99b10b",
+      "model": "claude-opus-4-8[1m]",
+      "state": "done",
+      "startedAt": 1784728851333,
+      "queuedAt": 1784728851284,
+      "attempt": 2,
+      "lastAttemptReason": "stalled",
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Cross-cutting observations for sequencing. (1) The biggest …",
+      "promptPreview": "Tenure is a governance/operations platform for university student organizations — specifically a business school's clubs and the Office of Student Engagement (OSE) that oversees them. Existing modules: role-based seats/rosters (permanent position IDs, effective-dated seat holdings), a 7-state approvals workflow, an events calendar with conflict detection, messaging (DMs / board channels / OSE broa…",
+      "lastProgressAt": 1784729333871,
+      "tokens": 58616,
+      "toolCalls": 9,
+      "durationMs": 482535,
+      "resultPreview": "{\"missing\":[{\"feature\":\"Segregation-of-duties / maker-checker enforcement\",\"rationale\":\"The single most conspicuous ERP internal-control gap. The roadmap adds reimbursements, threshold auto-approval, and turnover-aware routing but never enforces requester != approver, or that a finance officer cannot approve their own reimbursement. This risk is ACUTE in student orgs precisely because tiny boards …"
+    }
+  ],
+  "totalTokens": 291054,
+  "totalToolCalls": 83
+}

@@ -1,0 +1,45 @@
+name: Force Redeploy
+
+# Restart the ECS tasks without shipping a new build.
+#
+# The recovery path for any failure a fresh container fixes on its own —
+# most importantly stale database credentials. RDS rotates the master
+# password on its own schedule, but a task composes DATABASE_URL once at
+# boot, so a long-lived task can end up holding a password that no longer
+# works. Restarting re-reads the current secret.
+on: workflow_dispatch
+
+jobs:
+  redeploy:
+    name: Force new deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region:            ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Force new deployment
+        run: |
+          aws ecs update-service \
+            --cluster tenure-pilot \
+            --service tenure-pilot-app \
+            --force-new-deployment \
+            --query 'service.deployments[0].{status:status,desired:desiredCount}' \
+            --output json
+
+      - name: Wait for health to recover
+        run: |
+          CF_URL="https://d1n6mdis7bs02g.cloudfront.net"
+          for i in $(seq 1 40); do
+            BODY=$(curl -sf "$CF_URL/api/health" || true)
+            echo "[$i] $BODY"
+            case "$BODY" in
+              *'"status":"ok"'*) echo "✅ Healthy (database reachable)"; exit 0 ;;
+            esac
+            sleep 15
+          done
+          echo "❌ Did not become healthy within 10 minutes"
+          exit 1

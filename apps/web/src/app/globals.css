@@ -1,0 +1,563 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Tenure Design Tokens — "Ledger v2 · ERP-grade" ───────────────────────────
+   A dense, professional operations language. Dark mode is the flagship and now
+   bottoms out on true near-black (#08090a): cards float one step above on
+   #0f1113 with hairline borders — depth from layering + borders, never heavy
+   shadows. Light mode is a calmer, duller off-white "paper" (never stark white)
+   that is easier on the eyes across a long working session. Chrome is quiet;
+   colour belongs to charts, status, and the forest-mint "grove" accent alone.
+
+   The chart slots (--chart-1..8) are validated CVD-safe in BOTH modes against
+   the real card surfaces (light #fbfaf7 / dark #0f1113) via the data-viz
+   validator; the order is warm-forward (green→amber→teal→orange lead) so low
+   series-count charts read warm and on-brand. Two documented WARNs — amber on
+   the light card, and green↔amber on the dark card — are covered by the chart
+   kit's mandatory secondary encoding (legends + direct labels + 2px gaps).
+
+   Shell = header / side-nav / footer read as one flat plane on --shell-bg,
+   separated by hairline borders. The frame is deliberately compact.
+────────────────────────────────────────────────────────────────────────────── */
+@layer base {
+  :root {
+    /* Shell — flat plane shared by header, side nav and footer. */
+    --shell-bg: #faf9f5;
+    --shell-bg-elevated: #f1f0ea;
+    --shell-text: #191a1c;
+    --shell-text-secondary: #565b62;
+    --shell-border: #e6e4dd;
+    --shell-item-hover: rgba(23, 24, 26, 0.045);
+    --shell-item-active: rgba(23, 24, 26, 0.075);
+
+    /* Primary — "grove" green (forest-mint brand accent) */
+    --primary: #1c8c5a;
+    --primary-hover: #14724a;
+    --primary-press: #115e3d;
+    --primary-light: #e4f2ea;
+    --primary-text: #ffffff;
+
+    /* Accent — the administration surface reads as its own, more authoritative
+       plane. Ink-slate (neutral, not a second brand colour), harmonised warm. */
+    --accent: #26364a;
+    --accent-hover: #1a2634;
+    --accent-light: #eef1f5;
+    --accent-text: #ffffff;
+    --accent-strong: #16202c;
+
+    /* Surfaces — calmer duller-paper base + soft off-white cards (not pure #fff) */
+    --bg-base: #f0efe9;
+    --bg-surface: #fbfaf7;
+    --bg-subtle: #ebeae3;
+    --bg-overlay: rgba(20, 21, 24, 0.5);
+
+    /* Borders */
+    --border: #e6e4dd;
+    --border-strong: #d3d0c8;
+    --border-focus: #1c8c5a;
+
+    /* Text — warm ink scale */
+    --text-1: #191a1c;
+    --text-2: #565b62;
+    --text-3: #868b92;
+    --text-disabled: #b7bac0;
+    --text-inverse: #ffffff;
+    --text-link: #14724a;
+
+    /* Status — info aligned to the chart-blue slot */
+    --success: #1c8c5a;
+    --success-light: #e4f2ea;
+    --warning: #b07a10;
+    --warning-light: #f7efd8;
+    --error: #c2402a;
+    --error-light: #fae7e1;
+    --info: #2f7fd6;
+    --info-light: #e8f1fb;
+
+    /* Status badges — tints from the status hues, readable text step */
+    --badge-approved-bg: #e4f2ea;
+    --badge-approved-text: #14724a;
+    --badge-pending-bg: #f7efd8;
+    --badge-pending-text: #8a5c0f;
+    --badge-rejected-bg: #fae7e1;
+    --badge-rejected-text: #a3331f;
+    --badge-draft-bg: #ebeae3;
+    --badge-draft-text: #565b62;
+    --badge-accent-bg: #eef1f5;
+    --badge-accent-text: #26364a;
+
+    /* Segmented control — active chip pops above the subtle container */
+    --segment-active-bg: #ffffff;
+
+    /* Chart palette — validated CVD-safe on the #fbfaf7 card (data-viz gate).
+       Warm-forward order: green · amber · teal · orange · violet · berry · blue · red */
+    --chart-1: #1c8c5a;
+    --chart-2: #d99a20;
+    --chart-3: #0e9aa7;
+    --chart-4: #e06a2e;
+    --chart-5: #5a4bd0;
+    --chart-6: #cf5f97;
+    --chart-7: #2f7fd6;
+    --chart-8: #d23f38;
+    --chart-grid: #ecebe5;
+    --chart-axis: #d6d4cc;
+
+    /* Spacing scale — 4px base */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    --space-16: 64px;
+
+    /* Layout — app frame (compact / ERP-dense) */
+    --shell-height: 52px;
+    --sidenav-width: 224px;
+    --sidenav-width-collapsed: 60px;
+    /* Resolved side-nav width the whole frame follows; html.nav-collapsed
+       switches it and every consumer (nav, main, footer) transitions. */
+    --sidenav-current-width: var(--sidenav-width);
+    --footer-height: 38px;
+
+    /* Radius — a touch crisper for the ERP surface */
+    --radius-sm: 7px;
+    --radius-md: 9px;
+    --radius-lg: 13px;
+    --radius-xl: 18px;
+    --radius-full: 9999px;
+
+    /* Shadow — soft layered set, slightly reduced (light mode) */
+    --shadow-xs: 0 1px 2px rgba(23, 24, 26, 0.05);
+    --shadow-sm: 0 1px 2px rgba(23, 24, 26, 0.06), 0 1px 3px rgba(23, 24, 26, 0.05);
+    --shadow-md: 0 4px 12px rgba(23, 24, 26, 0.08), 0 2px 4px rgba(23, 24, 26, 0.05);
+    --shadow-lg: 0 16px 36px rgba(23, 24, 26, 0.14), 0 4px 10px rgba(23, 24, 26, 0.07);
+    --shadow-focus: 0 0 0 3px rgba(28, 140, 90, 0.28);
+
+    /* Typography */
+    --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+  }
+
+  /* ─── Dark theme "graphite" ────────────────────────────────────────────────
+     Applied via html.dark (explicit) — the pre-hydration script in the root
+     layout resolves "system" against prefers-color-scheme. True near-black:
+     page #08090a, cards #0f1113. Depth from borders, not heavy shadows. */
+  html.dark {
+    --shell-bg: #08090a;
+    --shell-bg-elevated: #0f1113;
+    --shell-text: #f2f3f5;
+    --shell-text-secondary: #99a1ad;
+    --shell-border: #191c21;
+    --shell-item-hover: rgba(255, 255, 255, 0.05);
+    --shell-item-active: rgba(255, 255, 255, 0.09);
+
+    --primary: #2bb673;
+    --primary-hover: #37c884;
+    --primary-press: #23a869;
+    --primary-light: rgba(43, 182, 115, 0.14);
+    --primary-text: #06130c;
+
+    --accent: #cbd5e1;
+    --accent-hover: #e2e8f0;
+    --accent-light: rgba(203, 213, 225, 0.14);
+    --accent-text: #0b1220;
+    --accent-strong: #e2e8f0;
+
+    --bg-base: #08090a;
+    --bg-surface: #0f1113;
+    --bg-subtle: #15181c;
+    --bg-overlay: rgba(2, 3, 4, 0.72);
+
+    --border: #1c1f24;
+    --border-strong: #2a2e35;
+    --border-focus: #2bb673;
+
+    --text-1: #f2f3f5;
+    --text-2: #99a1ad;
+    --text-3: #6b7280;
+    --text-disabled: #454a53;
+    --text-inverse: #08090a;
+    --text-link: #37c884;
+
+    --success: #2bb673;
+    --success-light: rgba(43, 182, 115, 0.14);
+    --warning: #d9a441;
+    --warning-light: rgba(217, 164, 65, 0.15);
+    --error: #e8674c;
+    --error-light: rgba(232, 103, 76, 0.15);
+    --info: #4a90e6;
+    --info-light: rgba(74, 144, 230, 0.15);
+
+    --badge-approved-bg: rgba(43, 182, 115, 0.16);
+    --badge-approved-text: #56d199;
+    --badge-pending-bg: rgba(217, 164, 65, 0.16);
+    --badge-pending-text: #e3bd78;
+    --badge-rejected-bg: rgba(232, 103, 76, 0.16);
+    --badge-rejected-text: #f0977f;
+    --badge-draft-bg: rgba(255, 255, 255, 0.07);
+    --badge-draft-text: #99a1ad;
+    --badge-accent-bg: rgba(203, 213, 225, 0.15);
+    --badge-accent-text: #cbd5e1;
+
+    --segment-active-bg: #1b1f25;
+
+    /* Chart palette — validated CVD-safe on the #0f1113 dark card (data-viz gate).
+       Same warm-forward order, stepped for the near-black surface. */
+    --chart-1: #1f9e63;
+    --chart-2: #b8861d;
+    --chart-3: #17a0ad;
+    --chart-4: #df6f33;
+    --chart-5: #8778e4;
+    --chart-6: #d268a0;
+    --chart-7: #4a90e6;
+    --chart-8: #e85a50;
+    --chart-grid: #1c1f24;
+    --chart-axis: #2c3038;
+
+    /* Dark leans on borders; soft large shadows only for overlays/popovers. */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 24px 50px rgba(0, 0, 0, 0.6);
+    --shadow-focus: 0 0 0 3px rgba(43, 182, 115, 0.4);
+
+    color-scheme: dark;
+  }
+
+  /* Collapsed side nav — switches the width the whole frame follows. */
+  html.nav-collapsed {
+    --sidenav-current-width: var(--sidenav-width-collapsed);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    color: var(--text-1);
+    background: var(--bg-base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+  }
+
+  /* React Aria focus visible ring */
+  [data-focus-visible] {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  /* ─── Accessibility ──────────────────────────────────────────────────────
+     Higher-contrast palette for users who request it, and no motion for
+     users who prefer reduced motion. */
+  @media (prefers-contrast: more) {
+    :root {
+      --text-1: #000000;
+      --text-2: #1f2937;
+      --text-3: #374151;
+      --shell-text: #000000;
+      --shell-text-secondary: #1f2937;
+      --border: #6b7280;
+      --border-strong: #374151;
+      --primary: #0f6b42;
+      --text-link: #0f5132;
+    }
+    html.dark {
+      --text-1: #ffffff;
+      --text-2: #e5e7eb;
+      --text-3: #d1d5db;
+      --shell-text: #ffffff;
+      --shell-text-secondary: #e5e7eb;
+      --border: #9ca3af;
+      --border-strong: #d1d5db;
+      --primary: #34d399;
+      --text-link: #6ee7b7;
+    }
+    * {
+      outline-width: 3px !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Layout scale — fluid across every resolution
+
+   The content container grows with the viewport, stays centered, and scales
+   its gutters, so a 13" laptop and a 34" monitor both look deliberate.
+   ────────────────────────────────────────────────────────────────────────── */
+@layer components {
+  :root {
+    /* Wide enough to use a large monitor, bounded so dense tables stay
+       scannable rather than stretching into unreadable line lengths. */
+    --content-max: 1720px;
+    --gutter: clamp(1rem, 0.6rem + 1.6vw, 2.5rem);
+  }
+
+  .page-shell {
+    width: 100%;
+    max-width: var(--content-max);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  /* Reading-width content (forms, prose) inside the wide shell */
+  .prose-measure {
+    max-width: 74ch;
+  }
+
+  /* Uppercase micro-label — card headers and nav section labels (Origin style) */
+  .micro-label {
+    font-size: 10.5px;
+    line-height: 1.4;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-3);
+  }
+
+  /* Collapsed side nav — hide every text label so the rail is icon-only.
+     Driven off the pre-hydration <html class="nav-collapsed"> so there is no
+     flash of squished labels before React catches up. */
+  html.nav-collapsed .nav-label,
+  html.nav-collapsed .nav-section-label {
+    display: none;
+  }
+
+  /* ─── Calendar event chip ─────────────────────────────────────────────────
+     The per-club colour arrives as custom properties from lib/calendar-color
+     (both themes at once) and the theme picks a pair here, so a club chip is
+     legible on the paper card and on the near-black dark card alike. */
+  .cal-chip {
+    background: var(--chip-bg);
+    border-color: var(--chip-border);
+    color: var(--chip-text);
+  }
+  html.dark .cal-chip {
+    background: var(--chip-bg-dark);
+    border-color: var(--chip-border-dark);
+    color: var(--chip-text-dark);
+  }
+
+  /* Chart hit targets are keyboard-reachable, so their focus must be visible.
+     They previously carried `outline: none`, which combined with the outer svg
+     being role="img" — making every descendant presentational — produced a run
+     of invisible, unannounced tab stops through each chart. The outer svg is
+     now role="group" so the per-datum labels reach assistive technology, and
+     this makes the focused datum visible to everyone else. */
+  .chart-hit {
+    outline: none;
+  }
+  .chart-hit:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+    rx: 2px;
+  }
+
+  /* Avatar monograms, same contract as .cal-chip: the component emits both
+     theme pairs and this resolves them. Hue is derived from the name, so the
+     colour is decorative — every avatar is aria-hidden with the real name
+     adjacent, and none of these pairs is the sole carrier of meaning. */
+  .avatar-monogram {
+    background: var(--avatar-bg);
+    color: var(--avatar-text);
+  }
+  html.dark .avatar-monogram {
+    background: var(--avatar-bg-dark);
+    color: var(--avatar-text-dark);
+  }
+
+  /* ─── Iconography rule ────────────────────────────────────────────────────
+     System rule: an icon's colour lives on its OUTLINE only. Icons are never
+     set on a tinted plate (no bg-[--primary-light] / --accent / --*-light
+     square behind a glyph) and never use Phosphor's "duotone" or "fill"
+     weights, which paint a coloured field inside the glyph itself. Where an
+     icon needs a visual anchor — an empty state, a callout, a brand moment —
+     use `.icon-frame` below: a hairline ring on the page surface.
+
+     This is deliberately narrow. It does NOT apply to:
+       · buttons (a primary button is a filled control, not an icon),
+       · count/status badges and chips (the fill IS the signal),
+       · date markers such as the calendar "today" pill.
+
+     Use <IconFrame> from @/components/ui/IconFrame rather than hand-rolling. */
+  .icon-frame {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    color: var(--text-3);
+    background: transparent;
+  }
+
+  /* Instrument panels — flat, border-defined tiles (depth from hairlines, not
+     shadow). On hover the border firms up and a faint shadow lifts it a hair —
+     a professional, ERP-grade response, not a playful bounce. */
+  .tile-float {
+    box-shadow: none;
+    transition:
+      box-shadow 160ms ease,
+      border-color 160ms ease;
+  }
+  .tile-float:hover {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--border-strong);
+  }
+
+  /* Uniform bento grid — every dashboard/worklet grid opts into the same
+     rhythm so tiles line up across the whole product. */
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
+
+  @media (max-width: 900px) {
+    .bento-grid {
+      gap: var(--space-4);
+    }
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Typography — a real scale, tuned denser for an operations interface
+
+   Body sits at a compact-but-comfortable 14px. Headings use the display face,
+   tighten their tracking as they grow (optical correction), and the larger
+   steps scale with the viewport so wide screens get proportionate hierarchy.
+   ────────────────────────────────────────────────────────────────────────── */
+@layer base {
+  :root {
+    /* Plus Jakarta Sans for display/headings, Inter for UI/body */
+    --font-display: var(--font-display-face), var(--font-inter), system-ui, -apple-system, sans-serif;
+
+    --step-00: 0.75rem;                                   /* 12px — meta/caption */
+    --step-0: 0.875rem;                                   /* 14px — body */
+    --step-1: 1rem;                                       /* 16px — lead / list title */
+    --step-2: clamp(1.15rem, 1.05rem + 0.4vw, 1.35rem);   /* section title */
+    --step-3: clamp(1.35rem, 1.2rem + 0.7vw, 1.75rem);    /* page title */
+    --step-4: clamp(1.7rem, 1.4rem + 1.3vw, 2.4rem);      /* display */
+  }
+
+  body {
+    font-size: var(--step-0);
+    line-height: 1.5;
+    /* Contextual alternates + kerning: small polish, reads noticeably
+       more professional at UI sizes. */
+    font-feature-settings: "cv05" 1, "cv08" 1, "calt" 1, "kern" 1, "ss01" 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    color: var(--text-1);
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: var(--step-3);
+    line-height: 1.15;
+    letter-spacing: -0.022em;
+    font-weight: 700;
+  }
+
+  h2 {
+    font-size: var(--step-2);
+    line-height: 1.25;
+    letter-spacing: -0.016em;
+    font-weight: 650;
+  }
+
+  h3 {
+    font-size: var(--step-1);
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+  }
+
+  /* Tabular figures wherever numbers are compared down a column */
+  table, .tabular, [data-tabular] {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Overlays & motion — self-contained keyframes so the modal/popover system
+   never depends on an external animation plugin.
+   ────────────────────────────────────────────────────────────────────────── */
+@layer components {
+  @keyframes tenure-overlay-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes tenure-overlay-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+  @keyframes tenure-panel-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes tenure-panel-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(6px) scale(0.985); }
+  }
+  @keyframes tenure-pop-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .overlay-backdrop {
+    background: var(--bg-overlay);
+    backdrop-filter: blur(6px);
+  }
+  .overlay-backdrop[data-entering] { animation: tenure-overlay-in 180ms ease-out; }
+  .overlay-backdrop[data-exiting]  { animation: tenure-overlay-out 140ms ease-in; }
+
+  .overlay-panel[data-entering] { animation: tenure-panel-in 200ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .overlay-panel[data-exiting]  { animation: tenure-panel-out 140ms ease-in; }
+
+  .pop-panel[data-entering] { animation: tenure-pop-in 150ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+  /* ─── Live data motion — used by the chart kit (Phase 2) and live tickers.
+     Respects prefers-reduced-motion via the global reduce block above. */
+  @keyframes tenure-draw-in {
+    from { stroke-dashoffset: var(--draw-length, 1000); }
+    to   { stroke-dashoffset: 0; }
+  }
+  @keyframes tenure-rise-in {
+    from { opacity: 0; transform: scaleY(0.6); }
+    to   { opacity: 1; transform: scaleY(1); }
+  }
+  @keyframes tenure-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes tenure-pulse-soft {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.45; }
+  }
+  .live-dot {
+    animation: tenure-pulse-soft 2s ease-in-out infinite;
+  }
+}
