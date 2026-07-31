@@ -201,6 +201,50 @@ test('the mutation detector actually detects mutation', () => {
   }
 })
 
+test('no production workflow can be triggered automatically in this repository', async () => {
+  // The job guard alone leaves a trail of `skipped` runs — a run is still
+  // created, then discarded. Eight of the first sixteen runs here were exactly
+  // that, and the single genuine CI failure sat among them where nobody would
+  // look. So the trigger goes too, and this asserts it stays gone.
+  const mod = await import('../../tools/disarm-production-workflows.mjs')
+
+  const offenders = []
+  for (const file of mod.AUTOMATIC_TRIGGERS_REMOVED) {
+    const wf = workflows.find((w) => w.file === file)
+    assert.ok(wf, `${file} is missing`)
+
+    // YAML 1.1 parses a bare `on` key as boolean true, which is why this reads
+    // both spellings rather than just doc.on.
+    const triggers = wf.doc.on ?? wf.doc[true]
+    assert.ok(triggers, `${file} declares no triggers at all`)
+
+    const keys = typeof triggers === 'string' ? [triggers] : Object.keys(triggers)
+    for (const key of keys) {
+      if (mod.AUTOMATIC_TRIGGER_KEYS.includes(key)) offenders.push(`${file}: on.${key}`)
+    }
+    assert.ok(
+      keys.includes('workflow_dispatch'),
+      `${file} has no workflow_dispatch left — it is unrunnable rather than disarmed`,
+    )
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    'These production workflows fire automatically in a repository that must not deploy:\n  ' +
+      offenders.join('\n  ') +
+      '\n\nRemove the trigger with: node tools/disarm-production-workflows.mjs',
+  )
+})
+
+test('CI still runs automatically — the point is to hear from it', () => {
+  const ci = workflows.find((w) => w.file === 'ci.yml')
+  const triggers = ci.doc.on ?? ci.doc[true]
+  const keys = Object.keys(triggers)
+  assert.ok(keys.includes('push'), 'ci.yml no longer runs on push — nothing would report on main')
+  assert.ok(keys.includes('pull_request'), 'ci.yml no longer runs on pull requests')
+})
+
 test('deploy.yml in particular cannot fire on a push to main here', () => {
   const deploy = workflows.find((w) => w.file === 'deploy.yml')
   assert.ok(deploy, 'deploy.yml is missing')

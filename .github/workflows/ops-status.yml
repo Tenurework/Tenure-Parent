@@ -29,10 +29,16 @@ name: Ops Status
 # Restore the cron if something is genuinely being waited on, and delete it
 # again when the waiting is over.
 on:
+  # No automatic trigger in this repository.
+  #
+  # The job-level guard below is not enough on its own: a guarded job still
+  # creates a run, which then reports `skipped`. Eight of the first sixteen runs
+  # here were skipped Deploy and Ops Status runs, which buries the one CI failure
+  # among them. A run created only to be discarded is worse than no run.
+  #
+  # Cutover restores the trigger and flips the guard, in the same reviewed change.
+  # See docs/decisions/ADR-0005-CANONICAL-MONOREPO.md.
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/ops-status.yml"
 
 concurrency:
   group: ops-status
