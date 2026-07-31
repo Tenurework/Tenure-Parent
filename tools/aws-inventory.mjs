@@ -236,8 +236,42 @@ inventory.summary = {
   deniedCalls: denied.length,
 }
 
+/**
+ * Mask at the serialisation boundary, not field by field.
+ *
+ * The first version sanitised individual fields it thought carried the account
+ * id — the organization's master account, IAM ARNs — and the first real run
+ * leaked it three times anyway, through S3 bucket names: buckets are
+ * conventionally named `<project>-<purpose>-<accountId>`, which no field-level
+ * rule anticipated. Anything derived from a naming convention will do the same.
+ *
+ * One mask over the finished text cannot be forgotten for a field nobody thought
+ * of, and `assertNoAccountId` below refuses to write if it somehow still appears.
+ */
+function maskAll(text) {
+  if (!ACCOUNT) return text
+  return text.split(ACCOUNT).join(`${ACCOUNT.slice(0, 4)}…${ACCOUNT.slice(-2)}`)
+}
+
+/**
+ * Refuse to write a file that still contains the account id.
+ *
+ * A sanitiser nobody checks is a sanitiser that silently stops working. These
+ * files are uploaded as artifacts of a PUBLIC repository, so failing the job is
+ * the correct outcome — a missing inventory is recoverable, a published one is
+ * not.
+ */
+function writeSanitized(file, text) {
+  const masked = maskAll(text)
+  if (ACCOUNT && masked.includes(ACCOUNT)) {
+    console.error(`::error::${file} still contains the account id after masking. Refusing to write.`)
+    process.exit(1)
+  }
+  fs.writeFileSync(file, masked)
+}
+
 fs.mkdirSync('docs/architecture', { recursive: true })
-fs.writeFileSync('docs/architecture/aws-inventory.json', JSON.stringify(inventory, null, 2) + '\n')
+writeSanitized('docs/architecture/aws-inventory.json', JSON.stringify(inventory, null, 2) + '\n')
 
 // ── Human-readable ──────────────────────────────────────────────────────────
 
@@ -359,7 +393,7 @@ if (denied.length === 0 && errors.length === 0) {
   }
 }
 
-fs.writeFileSync('docs/architecture/aws-current-state.md', md.join('\n'))
+writeSanitized('docs/architecture/aws-current-state.md', md.join('\n'))
 
 // ── Reconciliation: what the repository claims vs what exists ───────────────
 
@@ -399,7 +433,7 @@ r('once a reviewer has classified it. Automating that classification requires re
 r('state files, which this job deliberately does not do — a state file contains resource')
 r('attributes including generated passwords.', '')
 
-fs.writeFileSync('docs/architecture/resource-reconciliation.md', rec.join('\n'))
+writeSanitized('docs/architecture/resource-reconciliation.md', rec.join('\n'))
 
 console.log(JSON.stringify(inventory.summary, null, 2))
 if (denied.length) console.log(`\n${denied.length} denied call(s) recorded, inventory continued.`)
