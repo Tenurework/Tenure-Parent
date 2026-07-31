@@ -170,26 +170,47 @@ the provider it guards and there is nothing left behind. Also delete the seeded
   `RunTask` stage.
 - Single ECS task (no HA); scale `ecs_desired_count` for production.
 - Free-tier account caps RDS backups at 1 day — raise to 7 after upgrading.
-- **No rate limiting.** The edge gate below blocks unknown viewers outright, so
-  the pilot is not exposed, but nothing throttles an allowlisted one. Anything
-  expensive and authenticated — AI synthesis in particular, which calls a paid
-  API per question with no per-user quota — is unprotected against a tester
-  holding the access token. Attach `aws_wafv2_web_acl` with rate-based rules
-  before the gate comes off.
+- **No rate limiting, and the edge gate that compensated for it is now off.**
+  This was written when unknown viewers could not reach the app at all. Since
+  2026-07-31 they can, so nothing stands between the internet and the sign-in
+  form except the passphrase, and nothing throttles attempts against it. The
+  passphrase itself is not guessable (~124 bits), so the exposure is not brute
+  force — it is that anything expensive and authenticated has no per-user quota.
+  AI synthesis is the sharp one: it calls a paid API per question, so a single
+  tester with the passphrase can spend real money in a loop. Attach
+  `aws_wafv2_web_acl` with rate-based rules, or add per-user throttling in the
+  application, before the pilot widens.
 - The app runs as the RDS master user (`entrypoint.sh` composes `DATABASE_URL`
   from the AWS-managed master secret), so a server-side compromise gets
   database-owner rights rather than the CRUD its queries need.
 
-## The closed-pilot access gate
+## The closed-pilot access gate — currently OFF
 
-The pilot is not reachable from an arbitrary address. A CloudFront Function
-(`infrastructure/terraform/edge-access.tf`) runs on viewer request, before the
-cache and before the origin, and answers 403 to anyone it does not recognise.
+**As of 2026-07-31 the edge gate is disabled** (`edge_gate_enabled = false`), by
+decision, until AWS Cognito SSO is rolled out. The sign-in passphrase is the
+only control in front of the pilot. Everything below describes the gate as it
+works when switched back on, which is a one-line change and an apply — the
+CloudFront Function stays built and published, just attached to nothing.
 
-This exists because the interim sign-in passphrase above is one control, and
-one control in front of a real 172-person directory and a one-click
-`OSE_DIRECTOR` account is not enough. Two independent things now have to be
-wrong before a stranger sees institutional data.
+Why it was turned off: it required every pilot user to be handed a one-time link
+before they could see a login form, and the thing behind it is a single shared
+passphrase either way. Someone holding the passphrase was given it deliberately;
+someone without it gets no further from inside CloudFront than outside.
+
+What that costs, stated plainly:
+
+- **A leaked passphrase is now the whole story.** Guessing it is not a risk — 24
+  characters over a 36-symbol alphabet is about 124 bits — but it travels by
+  email and chat, it is the same secret for everyone, and it identifies nobody.
+  Whoever ends up with it has a one-click `OSE_DIRECTOR` account.
+- **Nothing rate-limits the sign-in form**, which mattered less when strangers
+  could not reach it. See the rate-limiting entry above.
+- The sign-in page is publicly reachable, so `next.config.ts` sends
+  `X-Robots-Tag: noindex, nofollow`.
+
+When it is on, this exists because one control in front of a real 172-person
+directory and a one-click `OSE_DIRECTOR` account is not much: two independent
+things then have to be wrong before a stranger sees institutional data.
 
 **Getting in.** Terraform prints a one-time entry link:
 

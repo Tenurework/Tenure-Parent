@@ -29,14 +29,34 @@
 #      with pilot testers.
 
 # Master switch. `false` leaves the function built and published but attached to
-# nothing, so the pilot is reachable by anyone again — a client demo, where the
-# people being shown the product are not on an allowlist and cannot be handed a
-# token mid-call. Flip back to `true` the moment the demo is over: while this is
-# off, the only control in front of the directory is the sign-in passphrase.
+# nothing, so the pilot is reachable by anyone and the sign-in passphrase becomes
+# the only control in front of the directory.
+#
+# OPEN since 2026-07-31, by decision, until AWS Cognito SSO is fully rolled out
+# (PD-004). The two-gate arrangement made every pilot user need a one-time link
+# before they could even see a login form, which is friction that buys little
+# while the thing behind it is a single shared passphrase either way: someone who
+# has the passphrase has been handed access deliberately, and someone who has not
+# cannot get past the sign-in form regardless of which side of CloudFront they
+# are on.
+#
+# What genuinely changes with the gate off, and is worth being clear about:
+#
+#   * The sign-in page is now publicly reachable and indexable. `next.config.ts`
+#     sends X-Robots-Tag: noindex so it does not end up in search results.
+#   * Guessing the passphrase is not the risk — 24 characters over a 36-symbol
+#     alphabet is ~124 bits. LEAKING it is: it travels by email and chat, it is
+#     the same secret for everyone, and it identifies nobody. A passphrase that
+#     reaches the wrong person gives them a one-click OSE_DIRECTOR account.
+#   * Nothing rate-limits the sign-in form. That mattered less when unknown
+#     viewers could not reach it at all. See SEC-003.
+#
+# The function stays built and published rather than deleted, so re-closing is a
+# one-line change and an apply — not a rebuild — if the pilot needs it.
 variable "edge_gate_enabled" {
-  description = "Attach the closed-pilot gate to CloudFront. false = open to the internet."
+  description = "Attach the closed-pilot gate to CloudFront. false = open, sign-in passphrase is the only control."
   type        = bool
-  default     = true # CLOSED. Open 2026-07-30 17:57Z–19:59Z for a client demo.
+  default     = false # OPEN until Cognito SSO is live. See PD-004.
 }
 
 resource "random_password" "edge_access_token" {

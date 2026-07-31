@@ -8,6 +8,12 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  // The CloudFront edge gate is off until Cognito SSO lands, so the sign-in page
+  // is publicly reachable and would otherwise be crawled. A named university's
+  // pilot showing up in search results is not something anyone chose, and
+  // `noindex` costs nothing. Every page behind sign-in is already unreachable to
+  // a crawler; this covers the ones that are not.
+  { key: "X-Robots-Tag", value: "noindex, nofollow" },
 ]
 
 const nextConfig: NextConfig = {
