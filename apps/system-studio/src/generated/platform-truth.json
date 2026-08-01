@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "cacd5e2",
+  "commit": "ac39bce",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 35,
-    "done": 28,
+    "total": 36,
+    "done": 29,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -258,6 +258,13 @@
             "isGate": false
           },
           {
+            "id": "GE-021-005",
+            "done": true,
+            "title": "Tenant-bound repositories requiring a resolved scope; raw unscoped access fails architecture tests.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
             "id": "GE-GATE-2",
             "done": false,
             "title": "Status: FAIL — 2 of 17 items.",
@@ -471,7 +478,7 @@
     },
     {
       "name": "application unit",
-      "files": 28,
+      "files": 29,
       "what": "apps/web"
     },
     {

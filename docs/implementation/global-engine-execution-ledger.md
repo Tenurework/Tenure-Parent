@@ -731,7 +731,41 @@ for progress:
     recorded before the handler runs FAILS, and authorization moved after the
     version read FAILS.
 
-- [ ] **GE-021-005 … 007** — Status: FAIL — not started.
+- [x] **GE-021-005** — Tenant-bound repositories requiring a resolved scope; raw unscoped access fails architecture tests.
+  - Status: PASS
+  - Code/config: `apps/web/src/lib/tenancy/repository.ts`, `repository.test.ts`;
+    the raw-client half is `tests/architecture/forbidden-clients.test.mjs`
+    (GE-020-002), which already fails any module outside `lib/db.ts`
+    constructing a Prisma client.
+  - Evidence: `tenancyExtension` already refuses an unscoped query at the Prisma
+    layer, and that remains the control that matters. This is the layer above,
+    and it exists for a different reason: **the extension refuses at execution**,
+    when the query has already been written, reviewed and shipped. A repository
+    that cannot be *constructed* without a scope refuses at authoring, which is
+    where refusing is cheap.
+  - Holding a `BoundRepository` is proof a tenant was resolved — a property a
+    function signature can carry, where a comment cannot.
+  - It is deliberately **not an abstraction over Prisma**. Wrapping every method
+    would be a second query language to learn, kept in sync by hand, worse at
+    the thing Prisma is good at. `for()` returns the real delegate; the whole
+    contribution is that getting one requires a scope, and that the model is one
+    the registry classifies as tenant-scoped.
+  - Two refusals with distinct messages: a **platform-global** model asked for
+    through a tenant repository (a mistake the extension would allow, since
+    those rows genuinely are global), and a model the registry calls scoped that
+    the client does not have — **registry/schema drift**, a different problem
+    deserving a different message.
+  - It throws rather than returning null, on purpose: `repo?.for("X")` would
+    yield undefined, and undefined behaves like "no rows" everywhere downstream.
+    An unscoped read silently becoming an empty result is worse than an error,
+    because it looks like data.
+  - Tests: 9, proven to catch by mutation. Six bypasses, each restored: binding
+    without a scope FAILS, returning null instead of throwing FAILS,
+    platform-global models allowed through FAILS, the refusal no longer naming
+    `runUnscoped()` FAILS, drift reported as misclassification FAILS, and
+    binding inside an explicitly unscoped block FAILS.
+
+- [ ] **GE-021-006, GE-021-007** — Status: FAIL — not started.
 
 ## GE-022: Common UX/runtime
 
