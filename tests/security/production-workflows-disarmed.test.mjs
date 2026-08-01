@@ -46,10 +46,25 @@ const reachesProduction = ({ text }) =>
   /^\s*(run:.*|\s+)aws\s/m.test(text)
 
 const guardOf = (job) => (typeof job?.if === 'string' ? job.if : null)
-const isGuarded = (job) => {
+
+/**
+ * The repository a guard pins to, or null.
+ *
+ * Extracted and compared exactly, never with `includes`. That is not
+ * fastidiousness: `'satvikOS/Tenure-Parent'.includes('satvikOS/Tenure')` is
+ * true, so a substring test reads every ENGINE-guarded job as
+ * disarmed-for-production and skips it — including any AWS-mutating one added
+ * later. This test had that bug, and a `terraform apply` workflow guarded to
+ * the engine passed it silently.
+ */
+const guardedRepository = (job) => {
   const g = guardOf(job)
-  return !!g && g.includes('github.repository') && g.includes(PRODUCTION_OWNER)
+  if (!g || !g.includes('github.repository')) return null
+  return g.match(/github\.repository\s*==\s*['"]([^'"]+)['"]/)?.[1] ?? null
 }
+
+/** Disarmed here means: runs only in the PILOT repository, exactly. */
+const isGuarded = (job) => guardedRepository(job) === PRODUCTION_OWNER
 
 /**
  * Jobs that may reach AWS from this repository *unguarded*, because they cannot
@@ -71,7 +86,14 @@ const READ_ONLY_JOBS = new Set(['platform-plan.yml:plan', 'aws-inventory.yml:inv
  * ENGINE_OWNER below, so one of them guarded to the wrong repository still
  * fails.
  */
-const ENGINE_DEPLOY_JOBS = new Set(['deploy-studio.yml:deploy'])
+const ENGINE_DEPLOY_JOBS = new Set([
+  'deploy-studio.yml:deploy',
+  // GE-011-003. Creates the OIDC provider and roles using the long-lived keys
+  // one last time. Armed here because deployment identity for the engine is
+  // this repository's to own; checked below for its own state key like any
+  // other engine job.
+  'bootstrap-oidc.yml:bootstrap',
+])
 
 /**
  * Rewrite programmatic AWS invocations into command-line form.
@@ -233,21 +255,39 @@ test('an engine deploy is armed for THIS repository and nowhere else', async () 
   }
 })
 
-test("the engine deploy writes its own Terraform state, not the pilot's", async () => {
+test("no engine job writes the pilot's Terraform state", async () => {
   // The single most destructive mistake available here. Two repositories
   // applying different code against one state file means whichever runs second
   // sees the other's resources as undeclared and destroys them — taking the
   // live pilot down.
-  const wf = workflows.find((w) => w.file === 'deploy-studio.yml')
-  assert.ok(wf, 'deploy-studio.yml is missing')
-  assert.ok(
-    wf.text.includes('key=studio/terraform.tfstate'),
-    'does not pin the studio state key',
-  )
-  assert.ok(
-    !wf.text.includes('key=pilot/terraform.tfstate'),
-    'writes the PILOT state file — this would destroy the live pilot',
-  )
+  //
+  // This used to name deploy-studio.yml directly, which meant it checked one
+  // workflow rather than the property. bootstrap-oidc.yml was added, pointed at
+  // `key=pilot/terraform.tfstate` as an experiment, and the suite passed. It is
+  // now driven by ENGINE_DEPLOY_JOBS, so a job cannot be armed here without
+  // also being checked.
+  assert.ok(ENGINE_DEPLOY_JOBS.size > 0, 'no engine jobs declared')
+
+  for (const entry of ENGINE_DEPLOY_JOBS) {
+    const [file] = entry.split(':')
+    const wf = workflows.find((w) => w.file === file)
+    assert.ok(wf, `${file} is missing`)
+
+    const keys = [...wf.text.matchAll(/key=([\w./-]+\.tfstate)/g)].map((m) => m[1])
+
+    // A job that runs terraform must say which state it writes. One that runs
+    // no terraform legitimately names none.
+    if (!/terraform\s+(init|apply|plan)/.test(wf.text)) continue
+
+    assert.ok(keys.length > 0, `${file} runs terraform but pins no backend key`)
+
+    const pilot = keys.filter((k) => k.startsWith('pilot/'))
+    assert.deepEqual(
+      pilot,
+      [],
+      `${file} writes the PILOT state file (${pilot.join(', ')}). This would destroy the live pilot.`,
+    )
+  }
 })
 
 test('every read-only exemption is actually read-only', () => {

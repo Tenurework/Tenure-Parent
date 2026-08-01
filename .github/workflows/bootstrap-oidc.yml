@@ -1,0 +1,198 @@
+name: AWS · Bootstrap OIDC (one-time)
+
+# GE-011-003. Creates the GitHub Actions OIDC provider and its roles, using the
+# long-lived access keys ONE LAST TIME — so that nothing has to use them again.
+#
+# ── Why the keys are acceptable here specifically ───────────────────────────
+#
+# There is a bootstrap problem with OIDC: the role a workflow assumes has to be
+# created by something, and that something cannot itself assume the role. The
+# execution prompt's answer is a protected one-time job, which is this. After it
+# runs, the read and plan workflows switch to OIDC and the keys stop being used
+# routinely.
+#
+# The keys are used, never exposed. This job does not echo them, does not write
+# them to a file, does not put them in an output, an artifact or a job summary,
+# and does not run `aws configure export-credentials`, `sts get-session-token`,
+# or `env`/`printenv`. tests/security/production-workflows-disarmed.test.mjs
+# greps for those.
+#
+# ── What it creates, and what it costs ──────────────────────────────────────
+#
+# An OIDC provider and three IAM roles. Both are free. It creates no compute,
+# no storage, and no networking, so there is no cost decision to weigh and
+# nothing to roll back beyond deleting four resources.
+#
+# ── Reversal ────────────────────────────────────────────────────────────────
+#
+#   terraform destroy   in infrastructure/oidc
+#
+# Nothing else depends on this stack until a workflow is switched to a role, so
+# destroying it before that switch is a no-op for everything running.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "bootstrap" to confirm. Creates an IAM OIDC provider and three roles.'
+        required: true
+      expected_account:
+        description: "AWS account id this is allowed to write to. Refuses to run against any other."
+        required: true
+      apply:
+        description: "Plan only by default. Set to true to apply."
+        required: false
+        default: "false"
+
+concurrency:
+  group: bootstrap-oidc
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap
+    runs-on: ubuntu-latest
+
+    # This repository owns the engine's deployment identity. The guard is the
+    # same one every AWS-touching job here carries: it must be impossible for a
+    # fork, or for satvikOS/Tenure, to run this against the same account.
+    if: github.repository == 'satvikOS/Tenure-Parent'
+
+    env:
+      AWS_REGION: us-east-1
+      TF_DIR: infrastructure/oidc
+
+    steps:
+      - name: Refuse without the typed confirmation
+        run: |
+          if [ "${{ inputs.confirm }}" != "bootstrap" ]; then
+            echo "::error::Confirmation not given. Type exactly: bootstrap"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+        with:
+          aws-access-key-id: ${{ secrets.ACCESSKEYID }}
+          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Same allowlist the inventory carries. A bootstrap that creates trust
+      # relationships in the wrong account is worse than one that fails.
+      - name: Prove caller identity, and refuse an unexpected account
+        run: |
+          set -euo pipefail
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+
+          if [ "$ACCOUNT" != "${{ inputs.expected_account }}" ]; then
+            echo "::error::Refusing to bootstrap account ${ACCOUNT:0:4}…, expected ${GITHUB_EXPECTED:0:4}…"
+            exit 1
+          fi
+
+          STATE_BUCKET="tenure-tfstate-${ACCOUNT}-${AWS_REGION}"
+          aws s3api head-bucket --bucket "$STATE_BUCKET" \
+            || { echo "::error::State bucket does not exist. The studio stack creates it."; exit 1; }
+
+          echo "ACCOUNT=$ACCOUNT" >> "$GITHUB_ENV"
+          echo "STATE_BUCKET=$STATE_BUCKET" >> "$GITHUB_ENV"
+          echo "✅ account matches the allowlist; state backend present"
+        env:
+          GITHUB_EXPECTED: ${{ inputs.expected_account }}
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=$STATE_BUCKET" \
+            -backend-config="key=oidc/terraform.tfstate" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="dynamodb_table=tenure-terraform-locks" \
+            -backend-config="encrypt=true"
+
+      # Always plan, and show it. An IAM change that nobody read is the kind
+      # that is discovered by an outage.
+      - name: Terraform plan
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform plan -input=false -no-color \
+            -var="state_bucket=$STATE_BUCKET" \
+            -var="aws_region=$AWS_REGION" \
+            | tee "$RUNNER_TEMP/plan.txt"
+
+      - name: The plan must not destroy or replace anything
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          # This stack is additive. A destroy or replace here means either the
+          # code drifted from what is deployed, or someone is running it against
+          # a state that is not its own — both worth stopping for.
+          if grep -qE '^\s*# .* will be (destroyed|replaced)' "$RUNNER_TEMP/plan.txt"; then
+            echo "::error::The plan destroys or replaces a resource. Bootstrap is additive; read the plan."
+            grep -E '^\s*# .* will be (destroyed|replaced)' "$RUNNER_TEMP/plan.txt"
+            exit 1
+          fi
+          echo "✅ additive only"
+
+      - name: Terraform apply
+        if: inputs.apply == 'true'
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform apply -auto-approve -input=false \
+            -var="state_bucket=$STATE_BUCKET" \
+            -var="aws_region=$AWS_REGION"
+
+      # Role ARNs are not secret — an ARN grants nothing without a trust policy
+      # match, and the trust policy is the control. Printing them is what makes
+      # the next step actionable; masking them would only make debugging harder.
+      - name: Report the roles
+        if: inputs.apply == 'true'
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          READ=$(terraform output -raw read_role_arn)
+          PLAN=$(terraform output -raw plan_role_arn)
+          DEPLOY=$(terraform output -raw deploy_engine_role_arn)
+
+          {
+            echo "## OIDC deployment identity created"
+            echo
+            echo "Set these as repository **variables** (not secrets):"
+            echo
+            echo '```'
+            echo "gh variable set AWS_READ_ROLE_ARN          --body \"$READ\""
+            echo "gh variable set AWS_PLAN_ROLE_ARN          --body \"$PLAN\""
+            echo "gh variable set AWS_DEPLOY_ENGINE_ROLE_ARN --body \"$DEPLOY\""
+            echo '```'
+            echo
+            echo "The deploy role additionally requires a GitHub environment named"
+            echo "\`engine-production\`, because its trust policy names one. Until that"
+            echo "environment exists the role cannot be assumed by anything, which is the"
+            echo "intended failure direction."
+            echo
+            echo "### Then"
+            echo
+            echo "Once \`aws-inventory.yml\` has run green on OIDC, the long-lived keys are"
+            echo "no longer used routinely. Do **not** delete them in the same change —"
+            echo "GE-011-006 asks for last-use metadata and a separately approved"
+            echo "disable/delete checklist, because a surprise revocation breaks whatever"
+            echo "was quietly depending on them."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Plan-only notice
+        if: inputs.apply != 'true'
+        run: |
+          {
+            echo "## Plan only"
+            echo
+            echo "Nothing was applied. Re-run with \`apply: true\` once the plan above reads correctly."
+          } >> "$GITHUB_STEP_SUMMARY"
