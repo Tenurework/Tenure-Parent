@@ -58,11 +58,15 @@ resource "aws_ecs_task_definition" "studio" {
         # cell cannot tell which schema an artifact was built against, and the
         # console renders "unpinned" — honest, and useless.
         { name = "SCHEMA_VERSION", value = var.schema_version },
+        # Where to deliver a signed artifact. Empty means "publish only", which
+        # the console reports rather than hides.
+        { name = "CELL_RECONCILE_URL", value = var.cell_reconcile_url },
       ]
 
       secrets = [
         { name = "AUTH_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:AUTH_SECRET::" },
         { name = "PLATFORM_OPERATOR_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:PLATFORM_OPERATOR_SECRET::" },
+        { name = "PLATFORM_RECONCILE_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:PLATFORM_RECONCILE_SECRET::" },
       ]
 
       logConfiguration = {

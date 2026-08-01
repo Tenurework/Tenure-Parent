@@ -75,3 +75,36 @@ variable "schema_version" {
   type        = string
   default     = "2026.07.31"
 }
+
+variable "platform_reconcile_secret" {
+  description = <<-EOT
+    Bearer token the engine presents when delivering a signed deployment
+    manifest to a cell.
+
+    The SAME value must be configured on the receiving cell. It authenticates
+    the caller; the artifact's own digest authenticates the content, and neither
+    substitutes for the other — a stolen token still cannot make a cell apply an
+    altered manifest.
+
+    Empty means the engine publishes artifacts and delivers none. That is
+    reported on the tenant's page as a failed step rather than passed over: a
+    hand-off nobody received is not a hand-off.
+  EOT
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "cell_reconcile_url" {
+  description = <<-EOT
+    Where a cell accepts deployment manifests. `{region}` is substituted with
+    the tenant's placement region, so a second cell is configuration rather than
+    a code change.
+
+    One cell exists today, so this is one URL. It is a variable rather than a
+    constant because the alternative — hardcoding a hostname in the engine —
+    is what makes adding a region a deploy of the engine.
+  EOT
+  type        = string
+  default     = ""
+}

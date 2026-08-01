@@ -34,6 +34,10 @@ resource "aws_secretsmanager_secret_version" "studio" {
       ? var.platform_operator_secret
       : random_password.operator_secret.result
     )
+
+    # Supplied, never generated: the receiving cell must hold the identical
+    # value, and a value this stack invented would be known only to this stack.
+    PLATFORM_RECONCILE_SECRET = var.platform_reconcile_secret
   })
 
   # No ignore_changes on secret_string any more: with the operator secret now

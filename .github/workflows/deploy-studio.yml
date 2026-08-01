@@ -99,6 +99,8 @@ jobs:
             -var="image_tag=$IMAGE_TAG" \
             -var="platform_operators=${{ secrets.PLATFORM_OPERATORS }}" \
             -var="platform_operator_secret=${{ secrets.PLATFORM_OPERATOR_SECRET }}" \
+            -var="platform_reconcile_secret=${{ secrets.PLATFORM_RECONCILE_SECRET }}" \
+            -var="cell_reconcile_url=https://d1n6mdis7bs02g.cloudfront.net/api/platform/reconcile" \
             -auto-approve -input=false
           echo "ECR_URL=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_ENV"
 
@@ -129,6 +131,8 @@ jobs:
             -var="image_tag=$IMAGE_TAG" \
             -var="platform_operators=${{ secrets.PLATFORM_OPERATORS }}" \
             -var="platform_operator_secret=${{ secrets.PLATFORM_OPERATOR_SECRET }}" \
+            -var="platform_reconcile_secret=${{ secrets.PLATFORM_RECONCILE_SECRET }}" \
+            -var="cell_reconcile_url=https://d1n6mdis7bs02g.cloudfront.net/api/platform/reconcile" \
             -auto-approve -input=false
 
           {
