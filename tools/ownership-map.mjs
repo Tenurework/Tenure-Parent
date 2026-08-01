@@ -123,6 +123,7 @@ const DOMAINS = [
     what: 'Approvals, their gates and their state machine.',
     owns: [
       'apps/web/src/lib/workflows/',
+      'apps/web/src/lib/commands/',
       'apps/web/src/lib/approvals',
       'apps/web/src/app/(app)/approvals/',
       'packages/workflow/',

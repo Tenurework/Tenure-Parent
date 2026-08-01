@@ -696,7 +696,42 @@ for progress:
     `requireContext` defaulting FAILS, reasonless elevation FAILS, elevation
     raising assurance FAILS, and arrays stored by reference FAILS.
 
-- [ ] **GE-021-004 … 007** — Status: FAIL — not started.
+- [x] **GE-021-004** — Typed command bus with semantic action, resource, expected version, idempotency key, effective time and source.
+  - Status: PASS
+  - Code/config: `apps/web/src/lib/commands/bus.ts`, `bus.test.ts`
+  - Evidence: the `Command` contract already refuses a malformed command; the
+    bus is what makes it unavoidable. As long as a handler can be called
+    directly the contract is a convention, and the call site that skips it is
+    the one written under time pressure.
+  - Four things happen here and nowhere else, **in this order**, and the order
+    is the design:
+    1. **parse** — a value from a browser or a queue was never seen by the
+       compiler that believed its type
+    2. **claim the idempotency key**, before authorizing or executing. Claiming
+       after the work means two concurrent retries both do the work and one
+       loses the race to record it — the work having already happened twice.
+    3. **authorize now**, not at render time. A page rendered a minute ago; the
+       seat may be gone since. Authorization runs *before* the version read, so
+       someone who may not act on a resource does not learn whether it exists.
+    4. **optimistic concurrency** against `expectedVersion`, with
+       `null` meaning create — and a create whose target already exists is
+       refused, or two people creating the same thing both succeed and one
+       silently overwrites.
+  - A handler that throws **releases the key**. A key stuck in-flight makes the
+    operation permanently unretryable, which is worse than the original failure.
+    The handler's message is never returned — it may name a row, a column or
+    another tenant, and that string is rendered to a user.
+  - Errors are returned rather than thrown, because a thrown exception at this
+    boundary loses the distinction between "your request was wrong" and "we
+    failed", and the caller needs it to decide whether to retry.
+  - Tests: 17, proven to catch by mutation. Eight bypasses, each restored:
+    authorization not rechecked FAILS, version check skipped FAILS, a create
+    overwriting FAILS, a reused key replaying FAILS, the key not released on
+    failure FAILS, the handler error reaching the caller FAILS, the result
+    recorded before the handler runs FAILS, and authorization moved after the
+    version read FAILS.
+
+- [ ] **GE-021-005 … 007** — Status: FAIL — not started.
 
 ## GE-022: Common UX/runtime
 
