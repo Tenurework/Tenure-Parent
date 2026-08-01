@@ -55,9 +55,34 @@ const now = () => new Date().toISOString()
 function executionContext(): ExecutionContext {
   return {
     resolveConfiguration(manifest) {
-      const { config, problems } = resolveConfig(REGISTRY, layersFor(manifest.slug), {
-        collectProblems: true,
-      })
+      // A tenant composed in this console has no file binding, so `layersFor`
+      // returns nothing for it and every value would fall back to a platform
+      // default — a system that looks configured and is not. The blueprint
+      // layer is therefore built from the manifest, and the file binding is
+      // used only when one exists (the pilot, which predates the registry).
+      const fileLayers = layersFor(manifest.slug)
+      const blueprint = getBlueprint(manifest.blueprintId)
+      const layers =
+        fileLayers.length > 0
+          ? fileLayers
+          : blueprint
+            ? [
+                {
+                  scope: "blueprint" as const,
+                  id: blueprint.id,
+                  label: blueprint.name,
+                  values: blueprint.values,
+                },
+                {
+                  scope: "tenant" as const,
+                  id: manifest.slug,
+                  label: manifest.displayName,
+                  values: manifest.configuration,
+                },
+              ]
+            : []
+
+      const { config, problems } = resolveConfig(REGISTRY, layers, { collectProblems: true })
       return {
         checksum: config?.checksum ?? "",
         values: config?.values ?? {},
@@ -133,7 +158,22 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
     takenSlugs: [...(await takenSlugs()), ...TENANT_BINDINGS.map((b) => b.slug)],
   })
 
-  if (!valid) return { problems }
+  // Module dependencies are resolved here, not only at VALIDATING. A manifest
+  // that cannot build should not be registrable: catching it at composition
+  // puts the message in front of the checkbox that caused it, rather than in
+  // front of an operator wondering why a registered tenant will not advance.
+  const moduleProblems = resolveModules(MODULE_CATALOG, {
+    requested: manifest.modules,
+    entitlements: manifest.entitlements,
+  }).problems.map((p) => ({
+    field: "modules",
+    reason: p.reason,
+    detail: `${p.moduleKey}: ${p.detail}`,
+  }))
+
+  if (!valid || moduleProblems.length > 0) {
+    return { problems: [...problems, ...moduleProblems] }
+  }
 
   try {
     await registerTenant(manifest, { principalId, at: now() })
