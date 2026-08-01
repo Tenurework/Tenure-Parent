@@ -48,7 +48,11 @@ const B = {
 const COLLIDE_WITH_TENANT_A = false
 
 const orgSlug = COLLIDE_WITH_TENANT_A ? "simon-consulting-club" : "ci-b-consulting-club"
-const personEmail = COLLIDE_WITH_TENANT_A ? "amoghe@simon.rochester.edu" : "ci-b-president@example.invalid"
+// The colliding value is tenant A's seeded president, taken from the synthetic
+// fixture that CI seeds from — not a real address. A fixture that hardcodes a
+// real person's email is a real person's email in a public repository, and the
+// collision it is testing works just as well against an invented one.
+const personEmail = COLLIDE_WITH_TENANT_A ? "logan.ellery@example.invalid" : "ci-b-president@example.invalid"
 const deliverableKey = COLLIDE_WITH_TENANT_A ? "budget-submission" : "ci-b-budget-submission"
 
 async function create() {

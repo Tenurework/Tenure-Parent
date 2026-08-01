@@ -62,3 +62,8 @@ infrastructure/terraform/.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfplan
+
+# Real roster: 172 named students and advisors with university addresses.
+# Never commit. scripts/roster-source.mjs falls through to the synthetic
+# fixture when this is absent, so removing it breaks nothing.
+apps/web/scripts/roster-data.mjs
