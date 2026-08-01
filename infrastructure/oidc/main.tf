@@ -61,10 +61,23 @@ locals {
     StateKey  = "oidc/terraform.tfstate"
   }
 
-  # The exact repositories permitted to assume anything here. Written out rather
-  # than derived, because a wildcard in a trust policy is how "our CI" quietly
-  # becomes "any fork's CI".
-  engine_repo = "satvikOS/Tenure-Parent"
+  # The exact repositories permitted to assume anything here, in the form
+  # GitHub actually signs.
+  #
+  # This is NOT `satvikOS/Tenure-Parent`. GitHub issues this repository an
+  # immutable-ID-qualified subject:
+  #
+  #   repo:satvikOS@228056784/Tenure-Parent@1316219596:ref:refs/heads/main
+  #
+  # A trust policy naming the plain path never matches, and the failure is
+  # "Not authorized to perform sts:AssumeRoleWithWebIdentity" — which says only
+  # that the policy did not match, never what was received. It cost a debug step
+  # printing the claim to find; that step is kept for the next role.
+  #
+  # The ID form is stricter, not a workaround: the numbers are immutable, so
+  # renaming or recreating a repository at the same path does not inherit this
+  # trust. The names are kept alongside for readability.
+  engine_repo = "satvikOS@228056784/Tenure-Parent@1316219596"
   pilot_repo  = "satvikOS/Tenure"
 }
 

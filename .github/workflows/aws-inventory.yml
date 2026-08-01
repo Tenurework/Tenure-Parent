@@ -61,6 +61,8 @@ jobs:
       # values here are public — a repository, a ref and a fixed audience — and
       # having them in the log turns a guessing exercise into a diff.
       - name: What subject and audience is this job claiming
+        env:
+          ROLE_ARN: ${{ vars.AWS_READ_ROLE_ARN }}
         run: |
           set -euo pipefail
           TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
@@ -73,7 +75,9 @@ jobs:
 
           echo "sub = $(echo "$CLAIMS" | jq -r .sub)"
           echo "aud = $(echo "$CLAIMS" | jq -r .aud)"
-          echo "role = ${{ vars.AWS_READ_ROLE_ARN }}"
+          # Name only. The full ARN carries the account id, and this log is
+          # world-readable — the same reason the inventory masks it.
+          echo "role = ${ROLE_ARN##*/}"
 
       # No long-lived key. The credentials are minted for this job, expire in an
       # hour, and are bound by a `sub` claim GitHub signs — so a workflow in

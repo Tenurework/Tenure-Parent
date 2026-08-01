@@ -108,7 +108,12 @@ test('no subject value contains a wildcard', () => {
   const subjectLists = [...rolesCode.matchAll(/^\s*(\w*_subjects)\s*=\s*\[([\s\S]*?)\]/gm)]
   assert.ok(subjectLists.length >= 3, 'could not find the subject lists')
 
+  // GitHub signs this repository's subject with immutable numeric ids appended
+  // to the owner and repo — `satvikOS@228056784/Tenure-Parent@1316219596`. The
+  // ids are stripped before comparison so the check reads the same either way,
+  // and a wildcard is still rejected above regardless of form.
   const ALLOWED_REPOS = ['satvikOS/Tenure-Parent', 'satvikOS/Tenure']
+  const withoutIds = (repo) => repo.replace(/@\d+/g, '')
 
   for (const [, name, body] of subjectLists) {
     for (const raw of [...body.matchAll(/"([^"]*)"/g)].map((m) => m[1])) {
@@ -118,7 +123,7 @@ test('no subject value contains a wildcard', () => {
       const repo = value.match(/^repo:([^:]+\/[^:]+):/)?.[1]
       assert.ok(repo, `${name} contains a subject with no repository: ${value}`)
       assert.ok(
-        ALLOWED_REPOS.includes(repo),
+        ALLOWED_REPOS.includes(withoutIds(repo)),
         `${name} trusts ${repo}, which is not a Tenure repository (subject: ${value})`
       )
     }
