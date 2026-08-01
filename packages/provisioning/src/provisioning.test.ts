@@ -357,7 +357,10 @@ describe("execute", () => {
     // misleading thing in the console.
     const e = executeStep("MIGRATING", manifest(), ctx)
     expect(e.detail).toMatch(/does not write to a tenant's database/)
-    expect(e.detail).toMatch(/not built yet/)
+    // The boundary moved once the reconciler landed, and the claim moved with
+    // it: the reconciler is real, the transport is not. Pinned so the next
+    // change has to be deliberate rather than aspirational.
+    expect(e.detail).toMatch(/NOT wired is the transport/)
     expect(CELL_APPLY).toBe("MIGRATING")
   })
 

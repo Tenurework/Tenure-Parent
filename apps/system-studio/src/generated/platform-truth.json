@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "6b655f9",
+  "commit": "36fc1eb",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 24,
@@ -394,7 +394,7 @@
     },
     {
       "name": "tenant isolation",
-      "files": 4,
+      "files": 5,
       "what": "cross-tenant reads must fail"
     },
     {

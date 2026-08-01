@@ -218,9 +218,12 @@ export function executeStep(
         ok: true,
         detail:
           "Handed to the cell. The engine does not write to a tenant's database — it publishes a " +
-          "signed deployment manifest and the cell reconciles toward it. This step records the " +
-          "hand-off; the cell-side reconciler is not built yet, so a tenant advanced past here " +
-          "has an artifact waiting rather than a migrated schema.",
+          "signed deployment manifest and the cell reconciles toward it. The reconciler exists " +
+          "and is proven against a real database (apps/web/src/lib/provisioning): it verifies the " +
+          "digest with its own implementation, refuses across a schema boundary, and four " +
+          "concurrent runs produce exactly one institution, one account and one membership. What " +
+          "is NOT wired is the transport between them — nothing yet delivers this artifact to a " +
+          "cell, so a tenant advanced past here has one published and waiting to be collected.",
       }
 
     case "VERIFYING": {
