@@ -2,6 +2,7 @@ import { z } from "zod"
 import { defineConfig, type ConfigDefinition } from "@tenure/configuration"
 
 import { BRANDING_DEFINITIONS } from "./branding"
+import { FLAG_DEFINITIONS } from "./flags"
 import { LOCALIZATION_DEFINITIONS } from "./localization"
 
 /**
@@ -106,4 +107,10 @@ export const PLATFORM_DEFINITIONS: readonly ConfigDefinition[] = [
   seatTerm,
   ...LOCALIZATION_DEFINITIONS,
   ...BRANDING_DEFINITIONS,
+  // Flags sit in the same registry as everything else deliberately: one
+  // resolution, one checksum, one provenance trace. A separate flag store would
+  // be a second configuration system with its own precedence rules, and the
+  // restrict-only law in flags.ts is enforceable precisely because it is written
+  // as merge strategies this engine already understands.
+  ...FLAG_DEFINITIONS,
 ] as ConfigDefinition[]

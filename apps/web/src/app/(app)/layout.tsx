@@ -12,30 +12,8 @@ import { brandingCss } from "@tenure/platform-config"
 import { brandingFor } from "@tenure/platform-config"
 import { modulesFor, navigationForSystem } from "@tenure/platform-config"
 import { navigationCapabilitiesFor } from "@/lib/authz/navigation-capabilities"
-import { resolveTenantScope } from "@/lib/tenant-scope"
-import { signOutAction } from "./actions"
-
-/**
- * The slug of the institution this user is acting in, for configuration lookup.
- *
- * Returns "" when there is no honest answer — an account with neither an OSE
- * membership nor a club seat. `resolveTenantScope` throws for that case, which
- * is right for a page that is about to query tenant-scoped rows and wrong for a
- * layout, whose job is to render a shell. An empty slug resolves to no tenant
- * binding, which gives the minimal menu; the page inside still fails loudly.
- */
-async function actingInstitution(userId: string): Promise<{ id: string; slug: string }> {
-  try {
-    const scope = await resolveTenantScope(userId)
-    const institution = await db.institution.findUnique({
-      where: { id: scope.institutionId },
-      select: { slug: true },
-    })
-    return { id: scope.institutionId, slug: institution?.slug ?? "" }
-  } catch {
-    return { id: "", slug: "" }
-  }
-}
+import { actingInstitutions } from "@/lib/tenant-scope"
+import { signOutAction, switchTenantAction } from "./actions"
 
 export default async function AppLayout({
   children,
@@ -45,13 +23,23 @@ export default async function AppLayout({
   const session = await auth()
   if (!session?.user) redirect("/signin")
 
-  const [ctx, unreadNotifications, me, institution] = await Promise.all([
+  const [ctx, unreadNotifications, me, tenants] = await Promise.all([
     getUserContext(session.user.id),
     db.notification.count({ where: { userId: session.user.id, readAt: null } }),
     // Fresh image (JWT sessions don't refresh it when the user changes it).
     db.user.findUnique({ where: { id: session.user.id }, select: { image: true } }),
-    actingInstitution(session.user.id),
+    // The user's own choice where they have made one, validated against their
+    // live membership, and their default institution where they have not.
+    // Returns a null active institution rather than throwing for an account
+    // with neither an OSE membership nor a club seat: the shell has to render
+    // for that user — it is how they reach sign-out — while the page inside it
+    // still fails loudly the moment it queries a tenant-scoped row.
+    actingInstitutions(session.user.id),
   ])
+
+  // "" rather than undefined for an account with no institution: it resolves to
+  // no tenant binding, which gives the minimal menu and no branding.
+  const institution = { id: tenants.active?.id ?? "", slug: tenants.active?.slug ?? "" }
 
   // The menu is what the enabled modules contribute, filtered by what the
   // authorization engine says this principal actually holds. Both halves are
@@ -87,6 +75,9 @@ export default async function AppLayout({
         userName={session.user.name ?? session.user.email ?? "User"}
         userEmail={session.user.email ?? undefined}
         userImage={me?.image ?? undefined}
+        activeTenant={tenants.active}
+        tenantOptions={tenants.options}
+        onSwitchTenant={switchTenantAction}
         unreadNotifications={unreadNotifications}
         onSignOut={signOutAction}
       />

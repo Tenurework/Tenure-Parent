@@ -24,6 +24,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 
 const APP_ROOT = 'apps/web/src/app'
@@ -320,16 +321,36 @@ provisioning and is owned by GE-060.
 `
 }
 
-const generated = render(collect())
+/**
+ * Only when run as a command — never on import.
+ *
+ * `tests/security/entry-points.test.mjs` imports `collect` from this module,
+ * and an ESM import executes the whole body. With the write unguarded, that
+ * import rewrote `entry-points.md` before the test's own `--check` subprocess
+ * compared against it, so the staleness assertion healed the file and then
+ * confirmed it was healthy. It passed on every possible input, including a
+ * handler whose guard had just been deleted: the guards column would silently
+ * update and the test would report the document up to date.
+ *
+ * Found while adding `/api/me`: `switchTenantAction` lost its `tenant` guard in
+ * a deliberate mutation, `npm run test:platform` reported 52/52, and the
+ * committed document had quietly changed to agree with the mutation.
+ */
+const isCommand =
+  !!process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 
-if (process.argv.includes('--check')) {
-  const current = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : ''
-  if (current !== generated) {
-    console.error(`::error::${OUT} is stale. Run: node tools/entry-point-inventory.mjs`)
-    process.exit(1)
+if (isCommand) {
+  const generated = render(collect())
+
+  if (process.argv.includes('--check')) {
+    const current = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : ''
+    if (current !== generated) {
+      console.error(`::error::${OUT} is stale. Run: node tools/entry-point-inventory.mjs`)
+      process.exit(1)
+    }
+    console.log(`${OUT} is up to date.`)
+  } else {
+    fs.writeFileSync(OUT, generated)
+    console.log(`Wrote ${OUT}`)
   }
-  console.log(`${OUT} is up to date.`)
-} else {
-  fs.writeFileSync(OUT, generated)
-  console.log(`Wrote ${OUT}`)
 }

@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "b23f6ce",
+  "commit": "6eb1327",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 24,
@@ -389,7 +389,7 @@
     },
     {
       "name": "application unit",
-      "files": 23,
+      "files": 25,
       "what": "apps/web"
     },
     {

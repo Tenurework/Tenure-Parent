@@ -14,6 +14,19 @@ export { LOCALIZATION_DEFINITIONS, formatMoney, DEFAULT_MONEY_FORMAT } from "./l
 export type { Localization, MoneyFormat } from "./localization"
 
 export {
+  FLAG_DEFINITIONS,
+  FLAG_KILL_LIST_KEY,
+  FLAG_NAMES,
+  FlagDefinitionError,
+  assertRestrictOnly,
+  cohortBucket,
+  decideFlag,
+  flagEnabledKey,
+  flagRolloutKey,
+} from "./flags"
+export type { FlagDecision, FlagName, FlagReason } from "./flags"
+
+export {
   REGISTRY,
   brandingFor,
   layersFor,

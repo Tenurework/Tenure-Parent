@@ -13,8 +13,10 @@
  * point. They are declared here now so that step is a one-line change to a flag
  * rather than a new fixture written under time pressure.
  *
- *   node scripts/ci-two-tenant-fixture.mjs           # create
- *   node scripts/ci-two-tenant-fixture.mjs --verify  # assert both tenants intact
+ *   node scripts/ci-two-tenant-fixture.mjs                      # create
+ *   node scripts/ci-two-tenant-fixture.mjs --verify             # assert both tenants intact
+ *   node scripts/ci-two-tenant-fixture.mjs --switcher           # GE-022-001 fixture (see below)
+ *   node scripts/ci-two-tenant-fixture.mjs --switcher-teardown  # remove it
  *
  * Run AFTER seed.mjs, so tenant A is the realistic 26-club dataset and B is a
  * small deliberate neighbour rather than a second copy of everything.
@@ -162,7 +164,100 @@ async function verify() {
   console.log("✅ Both tenants intact after migration.")
 }
 
-const mode = process.argv.includes("--verify") ? verify : create
+/**
+ * The institution switcher's fixture (GE-022-001).
+ *
+ * A different shape from tenant B above and needed for a different reason. B
+ * exists so a *migration* meets more than one tenant; this exists so a *user*
+ * does. Proving that switching institution changes which rows are reachable —
+ * and that naming an institution you have no claim to does not — takes a
+ * signed-in account with a real seat in a second tenant, and a third tenant it
+ * has no seat in at all. The pilot seed has neither.
+ *
+ * It lives here rather than in the Playwright spec because building it means
+ * writing across tenants, which is control-plane work: this file already owns
+ * that (`tests/architecture/forbidden-clients.test.mjs` exempts it by name, and
+ * the header above says why the extension is not attached). A spec that built
+ * its own client would be a second unextended client with no such reason.
+ *
+ *   node scripts/ci-two-tenant-fixture.mjs --switcher           # create
+ *   node scripts/ci-two-tenant-fixture.mjs --switcher-teardown  # remove
+ *
+ * The last line of --switcher output is JSON, so the spec reads the names from
+ * here instead of keeping its own copy of them.
+ */
+const SWITCHER = {
+  /** The second tenant, which the seeded member genuinely holds a seat in. */
+  b: { id: "e2e-switch-b", slug: "e2e-switch-b", name: "E2E Switcher Institution B" },
+  /** A third tenant nobody is placed in. Only ever named in a forged cookie. */
+  c: { id: "e2e-switch-c", slug: "e2e-switch-c", name: "E2E Switcher Institution C" },
+  /**
+   * `zzzz-` rather than a cuid, deliberately.
+   *
+   * A user's candidate institutions are ordered by the id of the organizations
+   * they hold seats in, so an id sorting before the seeded clubs' cuids would
+   * make this tenant the member's *default* institution and silently change
+   * what every other spec in the suite sees. Sorting last keeps the pilot the
+   * default and makes this tenant reachable only by actually switching.
+   */
+  org: {
+    id: "zzzz-e2e-switch-b-org",
+    slug: "e2e-switch-b-robotics",
+    name: "Tenant B Robotics Club",
+  },
+  /** A seeded pilot account, so the spec can sign in as it through the real form. */
+  member: { email: "member@tenure.demo", name: "Maya Johnson" },
+  /** Seeded, holds a seat in the pilot tenant only — the non-member in the attack case. */
+  outsider: { email: "president@tenure.demo", name: "Priya Raman" },
+}
+
+async function switcherTeardown() {
+  // Organization cascades from Institution, Role from Organization and
+  // RoleAssignment from Role, so the two institutions take the subtree with
+  // them. The seeded User is platform-global and is deliberately left alone.
+  await db.institution.deleteMany({ where: { id: { in: [SWITCHER.b.id, SWITCHER.c.id] } } })
+}
+
+async function switcherCreate() {
+  await switcherTeardown()
+
+  await db.institution.createMany({ data: [SWITCHER.b, SWITCHER.c] })
+
+  const member = await db.user.findUnique({ where: { email: SWITCHER.member.email } })
+  if (!member) {
+    console.error(
+      `❌ ${SWITCHER.member.email} does not exist. Run scripts/seed.mjs first — this fixture ` +
+        `extends the pilot seed rather than replacing it.`,
+    )
+    process.exit(1)
+  }
+
+  await db.organization.create({
+    data: {
+      ...SWITCHER.org,
+      institutionId: SWITCHER.b.id,
+      category: "PROFESSIONAL",
+      roles: {
+        create: {
+          name: "President",
+          scope: "PRESIDENT",
+          assignments: { create: { userId: member.id, status: "ACTIVE" } },
+        },
+      },
+    },
+  })
+
+  console.log(`✅ Switcher fixture created (${SWITCHER.b.id}, ${SWITCHER.c.id})`)
+  console.log(JSON.stringify(SWITCHER))
+}
+
+const MODES = [
+  ["--verify", verify],
+  ["--switcher-teardown", switcherTeardown],
+  ["--switcher", switcherCreate],
+]
+
+const mode = MODES.find(([flag]) => process.argv.includes(flag))?.[1] ?? create
 await mode()
   .catch((e) => {
     console.error(e)

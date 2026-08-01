@@ -13,13 +13,22 @@ import { TenureAIMark, TenureLogo } from "@/components/brand/TenureLogo"
 import { EmailLink } from "@/components/EmailLink"
 import { SearchCommand } from "./SearchCommand"
 import { NotificationBell } from "./NotificationBell"
+import { TenantSwitcher, type TenantOption } from "./TenantSwitcher"
 import { useAI } from "@/components/ai/AIProvider"
 
 interface ShellHeaderProps {
   userName?: string
   userEmail?: string
   userImage?: string
-  orgName?: string
+  /**
+   * The institution every query on the page below is filtered to. Named in the
+   * header rather than on individual pages because it is true of all of them,
+   * and because a user who cannot see which tenant they are in will eventually
+   * act in the wrong one.
+   */
+  activeTenant?: TenantOption | null
+  tenantOptions?: TenantOption[]
+  onSwitchTenant?: (institutionId: string) => Promise<void>
   unreadNotifications?: number
   onSignOut?: () => Promise<void>
 }
@@ -28,7 +37,9 @@ export function ShellHeader({
   userName = "User",
   userEmail,
   userImage,
-  orgName,
+  activeTenant = null,
+  tenantOptions = [],
+  onSwitchTenant,
   unreadNotifications = 0,
   onSignOut,
 }: ShellHeaderProps) {
@@ -49,16 +60,12 @@ export function ShellHeader({
         <span className="font-display text-[17px] font-bold tracking-tight">Tenure</span>
       </Link>
 
-      {orgName && (
-        <>
-          <div className="hidden h-6 w-px shrink-0 sm:block" style={{ background: "var(--shell-border)" }} />
-          <span
-            className="hidden max-w-[200px] truncate text-sm md:block"
-            style={{ color: "var(--shell-text-secondary)" }}
-          >
-            {orgName}
-          </span>
-        </>
+      {onSwitchTenant && (
+        <TenantSwitcher
+          active={activeTenant}
+          options={tenantOptions}
+          onSwitch={onSwitchTenant}
+        />
       )}
 
       {/* Flexible gap pushes the utilities to the right */}

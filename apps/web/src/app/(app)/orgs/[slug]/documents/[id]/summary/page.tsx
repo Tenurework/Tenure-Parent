@@ -1,13 +1,12 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3"
 import { Sparkles } from "@/components/ui/icons"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { canViewOrg, getUserContext } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
 import { aiConfigured, summarizeDocument } from "@/lib/ai"
-import { documentsBucket } from "@/lib/s3"
+import { documentsBucket, getDocumentBytes } from "@/lib/s3"
 import { Card, CardHeader } from "@/components/ui/Card"
 
 export const dynamic = "force-dynamic"
@@ -44,11 +43,11 @@ export default async function DocumentSummaryPage({
     } else if ((doc.sizeBytes ?? 0) > MAX_BYTES) {
       note = "This document is too large to summarize in the pilot (200 KB limit)."
     } else if (documentsBucket) {
-      const s3 = new S3Client({ region: process.env.AWS_REGION ?? "us-east-1" })
-      const obj = await s3.send(
-        new GetObjectCommand({ Bucket: documentsBucket, Key: doc.objectKey })
-      )
-      const content = await obj.Body!.transformToString()
+      // Through the adapter, not a client of our own: lib/s3.ts owns the region,
+      // the credential chain and the single shared S3Client. Same bytes, same
+      // UTF-8 decode as the SDK's transformToString() — this path is guarded to
+      // textual mime types under 200 KB above.
+      const content = (await getDocumentBytes(doc.objectKey)).toString("utf8")
       summary = await summarizeDocument(doc.title, content)
       if (!summary) note = "Summarization was unavailable — try again shortly."
       else {

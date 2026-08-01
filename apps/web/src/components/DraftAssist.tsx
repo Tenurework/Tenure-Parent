@@ -29,7 +29,16 @@ export function DraftAssist({
         body: JSON.stringify({ kind, instruction }),
       })
       if (!res.ok) {
-        setError(res.status === 503 ? "Tenure AI is not enabled" : "Drafting failed — try again")
+        // 403 is the aiAssistant flag switched off for this institution, 503 is
+        // no model configured anywhere. The route distinguishes them, so the
+        // person reading this message gets to as well.
+        setError(
+          res.status === 403
+            ? "Tenure AI is turned off for this workspace"
+            : res.status === 503
+              ? "Tenure AI is not enabled"
+              : "Drafting failed — try again",
+        )
         return
       }
       const { text } = (await res.json()) as { text: string }

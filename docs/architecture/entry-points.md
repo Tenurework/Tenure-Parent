@@ -7,7 +7,7 @@ Generated from the filesystem. `npm run test:platform` regenerates this and
 fails if the committed copy is stale, so it cannot quietly go out of date, and
 fails if a handler appears with no guard and no entry on the public allowlist.
 
-**21 API routes · 36 pages · 14 server-action modules exporting 62 actions.**
+**22 API routes · 36 pages · 14 server-action modules exporting 63 actions.**
 
 ## What a guard means here
 
@@ -30,7 +30,7 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 |---|---|---|
 | `/api/admin/directory` | GET | `session` |
 | `/api/ai/chat` | POST | `session` + `tenant` |
-| `/api/ai/draft` | POST | `session` |
+| `/api/ai/draft` | POST | `session` + `tenant` |
 | `/api/attachment/[id]/content` | GET | `session` + `capability` |
 | `/api/attachment/[id]` | GET | `session` + `capability` |
 | `/api/auth/[...nextauth]` |  | **none** |
@@ -41,6 +41,7 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/api/documents/[id]/save` | POST | `session` + `capability` + `tenant` |
 | `/api/health` | GET | **none** |
 | `/api/jobs/reminders` | POST | `tenant` + `shared-secret` |
+| `/api/me` | GET | `session` |
 | `/api/notifications` | GET, POST | `session` |
 | `/api/org-image/[orgId]` | GET | `session` + `capability` + `tenant` |
 | `/api/platform/export/[slug]` | GET | `session` + `operator` |
@@ -72,7 +73,7 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/(app)/messages/[id]` | GET | `session` + `capability` + `tenant` |
 | `/(app)/messages/compose` | GET | `session` + `tenant` |
 | `/(app)/messages` | GET | `session` + `tenant` |
-| `/(app)/notifications` | GET | `session` + `tenant` |
+| `/(app)/notifications` | GET | `session` |
 | `/(app)/orgs/[slug]/documents/[id]/summary` | GET | `session` + `capability` + `tenant` |
 | `/(app)/orgs/[slug]/documents/[id]/view` | GET | `session` + `capability` + `tenant` |
 | `/(app)/orgs/[slug]/documents` | GET | `session` + `capability` + `tenant` |
@@ -81,11 +82,11 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/(app)/orgs/[slug]/impact` | GET | `session` + `capability` + `tenant` |
 | `/(app)/orgs/[slug]/members` | GET | `session` + `capability` + `tenant` |
 | `/(app)/orgs/[slug]/memory` | GET | `session` + `capability` + `tenant` |
-| `/(app)/orgs/[slug]` | GET | `session` + `tenant` |
+| `/(app)/orgs/[slug]` | GET | `session` |
 | `/(app)/orgs` | GET | `session` + `tenant` |
 | `/(app)/reports/finance` | GET | `session` + `tenant` |
 | `/(app)/reports` | GET | `session` + `tenant` |
-| `/(app)/resources/[slug]` | GET | `session` + `tenant` |
+| `/(app)/resources/[slug]` | GET | `session` |
 | `/(app)/resources` | GET | `session` + `capability` + `tenant` |
 | `/(app)/search` | GET | `session` + `tenant` |
 | `/(app)/settings` | GET | `session` + `tenant` |
@@ -108,6 +109,7 @@ otherwise report `capability` for all twenty-one.
 | Action | Guards |
 |---|---|
 | `signOutAction` | **none** |
+| `switchTenantAction` | `session` + `tenant` |
 
 ### `(app)/admin/actions.ts`
 

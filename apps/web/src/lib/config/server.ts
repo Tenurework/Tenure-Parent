@@ -2,7 +2,14 @@ import "server-only"
 import { cache } from "react"
 
 import { db } from "@/lib/db"
-import { terminologyFor, type Terminology } from "@tenure/platform-config"
+import {
+  decideFlag,
+  resolveSystemConfig,
+  terminologyFor,
+  type FlagDecision,
+  type FlagName,
+  type Terminology,
+} from "@tenure/platform-config"
 
 /**
  * Terminology for an institution, looked up by its database id.
@@ -33,5 +40,37 @@ export const terminologyForInstitution = cache(
     // screen — see the note on resolveSystemConfig — so the failure mode is
     // generic wording, not a broken page.
     return terminologyFor(institution?.slug ?? "")
+  },
+)
+
+/**
+ * A feature flag's decision for one subject in one institution.
+ *
+ * The same id→slug bridge as above, for the same reason: call sites carry a
+ * cuid, the configuration engine is keyed by slug, and one file should know
+ * that rather than every route.
+ *
+ * `subjectId` is what the cohort bucket is computed from — the acting user, so
+ * a rollout percentage means "this fraction of people", stable across their
+ * requests and sessions.
+ *
+ * An institution with no binding resolves to platform defaults, which under the
+ * restrict-only law in `flags.ts` is the most a tenant could ever be granted and
+ * is exactly what every tenant had before flags existed. It is not a fail-open:
+ * this decision runs *after* the caller's own `auth()` and capability checks and
+ * can only subtract from them.
+ *
+ * `React.cache` keyed on (institutionId, flag, subjectId) — tenant-keyed, so it
+ * is a request-scoped memo rather than the cross-tenant hazard ADR-0002 warns
+ * about, same as `terminologyForInstitution`.
+ */
+export const flagDecisionForInstitution = cache(
+  async (institutionId: string, flag: FlagName, subjectId: string): Promise<FlagDecision> => {
+    const institution = await db.institution.findUnique({
+      where: { id: institutionId },
+      select: { slug: true },
+    })
+
+    return decideFlag(resolveSystemConfig(institution?.slug ?? ""), flag, subjectId)
   },
 )
