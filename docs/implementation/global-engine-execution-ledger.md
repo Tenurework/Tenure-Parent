@@ -126,12 +126,44 @@ than what was built.
   - Gap: no secret scan and no dependency-audit **gate** in CI. Recorded under
     GE-170; the audit numbers above are an observation, not a control.
 
-- [ ] **GE-000-006** — Reconcile claimed product metrics and UI surfaces to canonical code/data; identify seeded/demo/placeholder data.
-  - Status: FAIL — not started.
-  - Known relevant fact: the pilot's data comes from `apps/web/scripts/seed.mjs`
-    (26 clubs, 235 seats, 172 directory people) and is real roster data, not
-    placeholder — but nothing distinguishes seeded from operator-entered rows,
-    which is what this item asks for.
+- [x] **GE-000-006** — Reconcile claimed product metrics and UI surfaces to canonical code/data; identify seeded/demo/placeholder data.
+  - Status: PASS
+  - Code/config: [`../architecture/data-provenance.md`](../architecture/data-provenance.md),
+    `tests/security/no-personal-data.test.mjs`
+  - Evidence: seven documents in this repository quote "26 clubs, 235 seats,
+    172 people". Reconciled against the code that produces each:
+    | Quoted | Canonical | Verdict |
+    |---|---|---|
+    | 26 clubs | `ROSTER.length` | correct |
+    | 235 seats | `db.role.count()` | **conflates 209 board seats with 26 advisor roles** |
+    | 172 people | `db.directoryPerson.count()` | correct — and *not* 172 names |
+    The pilot has **209 seats**. An advisor is not a board seat: not elected,
+    not termed, not part of the handoff the product exists for.
+    The roster carries 278 entries with an address, 172 distinct addresses and
+    **191 distinct names** — not 19 lost people, but 18 addresses each carrying
+    two spellings of one person (a dropped middle initial, `F.V.T.` vs
+    `F.v.T.`). `DirectoryPerson.email` is `@unique`, so the upsert collapses
+    them and the *last* spelling wins, making a person's displayed name depend
+    on roster iteration order. Minor, real, and undetected until now.
+  - Seeded vs operator-entered: **no column in any of the 40 models records
+    provenance.** No `source`, no `isSeed`. So "is this real data?" is not a
+    query, a tenant cannot be reset to as-provisioned, and
+    `seed-reference-data.yml` decides what is test state by heuristic because
+    there is no marker to read. → GE-060.
+  - **This audit found a live data exposure**, which is why it is recorded here
+    and not only in the document: `apps/web/scripts/roster-data.mjs` — 328 real
+    university addresses for 172 named students and advisors — was committed to
+    **two public repositories**, served by `raw.githubusercontent.com` with
+    HTTP 200, and shipped inside the production container image. Untracked and
+    gitignored here (`b5edb93`); `satvikOS/Tenure` PR #1 does the same there.
+    The mechanism to prevent it already existed — `roster-source.mjs` and its
+    three-source fallback — and had never been used, because nothing failed
+    while the file sat there. The fix therefore landed as a failing test rather
+    than as a deletion.
+  - Tests: `npm run test:platform` → 25 passed. Verified to catch: a planted
+    real-domain address FAILS and the file is named without printing the
+    address (a failure prints into public CI logs). It immediately caught two
+    the manual sweep had missed.
 
 - [x] **GE-000-007** — Import the Architecture Bible into `docs/architecture/`; create ADR index and execution ledger.
   - Status: PASS
