@@ -1,0 +1,304 @@
+/**
+ * The lifecycle and the manifest, tested for what they REFUSE.
+ *
+ * A state machine's value is entirely in the transitions it rejects; one that
+ * accepts everything is a field. So most of what follows asserts failure, and
+ * the exhaustive test at the end walks all 25 states against all 25 to prove no
+ * edge was added by accident.
+ */
+import { describe, expect, it } from "@jest/globals"
+
+import {
+  ALL_STATES,
+  LifecycleError,
+  RESIDUAL_COST,
+  TERMINAL,
+  advance,
+  canAdvance,
+  needsApproval,
+  nextStates,
+  type LifecycleStep,
+  type TenantState,
+} from "./lifecycle"
+import { MANIFEST_VERSION, digestOf, planFor, validateManifest, type TenantManifest } from "./manifest"
+
+const OPERATOR = { principalId: "dana@tenure.example", at: "2026-08-01T00:00:00.000Z" }
+const SECOND = "ravi@tenure.example"
+
+const manifest = (over: Partial<TenantManifest> = {}): TenantManifest => ({
+  manifestVersion: MANIFEST_VERSION,
+  slug: "midtown-arts",
+  legalName: "Midtown Arts Collective",
+  displayName: "Midtown Arts",
+  blueprintId: "student-organizations",
+  modules: ["governance"],
+  entitlements: [],
+  region: "us-east-1",
+  isolation: "pooled",
+  configuration: {},
+  secretRefs: {},
+  initialAdminEmail: "admin@midtown.example",
+  ...over,
+})
+
+const context = {
+  knownBlueprints: ["student-organizations", "arts-collective"],
+  knownModules: ["governance", "finance", "calendar"],
+  takenSlugs: ["rochester"],
+}
+
+describe("lifecycle", () => {
+  it("walks the happy path from DRAFT to ACTIVE", () => {
+    const path: TenantState[] = [
+      "VALIDATING",
+      "PLANNED",
+      "AWAITING_APPROVAL",
+      "PROVISIONING",
+      "CONFIGURING",
+      "MIGRATING",
+      "VERIFYING",
+      "READY",
+      "ACTIVATING",
+      "ACTIVE",
+    ]
+
+    let state: TenantState = "DRAFT"
+    const history: LifecycleStep[] = []
+
+    for (const to of path) {
+      const result = advance(
+        state,
+        to,
+        { actor: OPERATOR, ...(needsApproval(state, to) ? { approvedBy: SECOND } : {}) },
+        history,
+      )
+      history.push(result.step)
+      state = result.state
+    }
+
+    expect(state).toBe("ACTIVE")
+    expect(history).toHaveLength(path.length)
+  })
+
+  it("refuses a jump that skips verification", () => {
+    // The transition that matters most: a tenant reaching ACTIVE without having
+    // proved its own isolation is an outage its users discover.
+    expect(() => advance("MIGRATING", "ACTIVE", { actor: OPERATOR })).toThrow(LifecycleError)
+    expect(() => advance("PROVISIONING", "READY", { actor: OPERATOR })).toThrow(/only legal moves/)
+  })
+
+  it("refuses to provision, activate or purge without an approver", () => {
+    for (const [from, to] of [
+      ["AWAITING_APPROVAL", "PROVISIONING"],
+      ["READY", "ACTIVATING"],
+      ["PURGE_PENDING", "PURGING"],
+    ] as const) {
+      expect(() => advance(from, to, { actor: OPERATOR })).toThrow(/requires a recorded approver/)
+      expect(advance(from, to, { actor: OPERATOR, approvedBy: SECOND }).state).toBe(to)
+    }
+  })
+
+  it("refuses self-approval", () => {
+    // Separation of duties, enforced where it cannot be routed around: the
+    // person who asked is not the person who agrees.
+    expect(() =>
+      advance("PURGE_PENDING", "PURGING", { actor: OPERATOR, approvedBy: OPERATOR.principalId }),
+    ).toThrow(/cannot approve their own/)
+  })
+
+  it("will not let a legal hold be lifted straight into deletion", () => {
+    // A hold that can go directly to PURGING is not a hold.
+    expect(canAdvance("LEGAL_HOLD", "PURGING")).toBe(false)
+    expect(canAdvance("LEGAL_HOLD", "PURGE_PENDING")).toBe(false)
+    expect(canAdvance("LEGAL_HOLD", "OFFBOARDING")).toBe(true)
+  })
+
+  it("treats a purged tenant as terminal", () => {
+    expect(TERMINAL.has("PURGED_ZERO_INCREMENTAL_COST")).toBe(true)
+    expect(nextStates("PURGED_ZERO_INCREMENTAL_COST")).toEqual([])
+    expect(() => advance("PURGED_ZERO_INCREMENTAL_COST", "DRAFT", { actor: OPERATOR })).toThrow(
+      /terminal/,
+    )
+  })
+
+  it("counts retries of the same step rather than presenting them as new", () => {
+    const history: LifecycleStep[] = [
+      { from: "AWAITING_APPROVAL", to: "PROVISIONING", at: "t0", actor: "a", attempt: 1 },
+      { from: "FAILED", to: "PROVISIONING", at: "t1", actor: "a", attempt: 2 },
+    ]
+    // Not a legal transition from FAILED, so use the real one and check counting.
+    const { step } = advance(
+      "AWAITING_APPROVAL",
+      "PROVISIONING",
+      { actor: OPERATOR, approvedBy: SECOND },
+      history,
+    )
+    expect(step.attempt).toBe(3)
+  })
+
+  it("never claims a paused tenant is free", () => {
+    // GE-103-012. HIBERNATED_ZERO_RUNTIME means zero RUNTIME. A console that
+    // renders it as $0 is the specific lie this exists to prevent.
+    for (const state of ["SUSPENDED_LOGICAL", "HIBERNATED_ZERO_RUNTIME", "LEGAL_HOLD"] as const) {
+      expect(RESIDUAL_COST[state]).toBeDefined()
+      expect(RESIDUAL_COST[state]).toMatch(/bill|retain/i)
+    }
+    expect(RESIDUAL_COST.HIBERNATED_ZERO_RUNTIME).toMatch(/not zero cost/i)
+  })
+
+  it("has no transition into DRAFT except from a failure or a rejection", () => {
+    const intoDraft = ALL_STATES.filter((s) => canAdvance(s, "DRAFT"))
+    expect(intoDraft.sort()).toEqual(
+      ["AWAITING_APPROVAL", "FAILED", "PLANNED", "ROLLING_BACK", "VALIDATING"].sort(),
+    )
+  })
+
+  it("every state is reachable from DRAFT", () => {
+    // A state nothing can reach is dead code pretending to be a lifecycle.
+    const seen = new Set<TenantState>(["DRAFT"])
+    const queue: TenantState[] = ["DRAFT"]
+    while (queue.length) {
+      for (const next of nextStates(queue.shift()!)) {
+        if (!seen.has(next)) {
+          seen.add(next)
+          queue.push(next)
+        }
+      }
+    }
+    expect([...ALL_STATES].filter((s) => !seen.has(s))).toEqual([])
+  })
+
+  it("declares every transition deliberately", () => {
+    // 25 × 25 = 625 ordered pairs; only the declared ones may pass. This is the
+    // test that catches an edge added by a careless merge.
+    let legal = 0
+    for (const from of ALL_STATES) {
+      for (const to of ALL_STATES) {
+        if (canAdvance(from, to)) legal += 1
+      }
+    }
+    expect(ALL_STATES).toHaveLength(25)
+    // Pinned. Changing the graph must be a deliberate edit to this number, so
+    // an edge added by a careless merge fails here rather than in production.
+    expect(legal).toBe(69)
+  })
+})
+
+describe("manifest", () => {
+  it("accepts a well-formed pooled tenant", () => {
+    expect(validateManifest(manifest(), context)).toEqual({ valid: true, problems: [] })
+  })
+
+  it("refuses a slug that would collide with the platform's own routes", () => {
+    for (const slug of ["admin", "api", "studio", "platform"]) {
+      const { valid, problems } = validateManifest(manifest({ slug }), context)
+      expect(valid).toBe(false)
+      expect(problems[0].reason).toBe("reserved")
+    }
+  })
+
+  it("refuses a slug already taken", () => {
+    const { problems } = validateManifest(manifest({ slug: "rochester" }), context)
+    expect(problems.map((p) => p.reason)).toContain("taken")
+  })
+
+  it("refuses malformed slugs", () => {
+    for (const slug of ["A-Capital", "1leading-digit", "trailing-", "no", "has_underscore"]) {
+      expect(validateManifest(manifest({ slug }), context).valid).toBe(false)
+    }
+  })
+
+  it("refuses a secret VALUE where a reference belongs, without echoing it", () => {
+    const { valid, problems } = validateManifest(
+      manifest({ secretRefs: { okta: "sk_live_verysecretvalue" } }),
+      context,
+    )
+    expect(valid).toBe(false)
+    const problem = problems.find((p) => p.field === "secretRefs.okta")!
+    expect(problem.reason).toBe("not-a-reference")
+    // The whole point: the rejection must not repeat the thing it rejected.
+    expect(JSON.stringify(problem)).not.toContain("sk_live_verysecretvalue")
+  })
+
+  it("accepts a proper secret reference", () => {
+    expect(
+      validateManifest(manifest({ secretRefs: { okta: "secretsmanager:tenure/midtown/okta" } }), context)
+        .valid,
+    ).toBe(true)
+  })
+
+  it("refuses a credential smuggled into configuration", () => {
+    const { problems } = validateManifest(
+      manifest({ configuration: { OKTA_CLIENT_SECRET: "abc123" } }),
+      context,
+    )
+    expect(problems.map((p) => p.reason)).toContain("secret-in-configuration")
+  })
+
+  it("refuses a dedicated account, because there is no Organization to vend one", () => {
+    // Refused at composition rather than at provisioning: a manifest that
+    // cannot be built should not be approvable.
+    const { valid, problems } = validateManifest(manifest({ isolation: "dedicated-account" }), context)
+    expect(valid).toBe(false)
+    expect(problems[0].detail).toMatch(/ADR-0007|GE-010/)
+  })
+
+  it("refuses an unknown blueprint or module", () => {
+    expect(validateManifest(manifest({ blueprintId: "nope" }), context).valid).toBe(false)
+    expect(validateManifest(manifest({ modules: ["teleportation"] }), context).valid).toBe(false)
+    expect(validateManifest(manifest({ modules: [] }), context).valid).toBe(false)
+  })
+
+  it("requires somebody who can sign in", () => {
+    const { problems } = validateManifest(manifest({ initialAdminEmail: "not-an-email" }), context)
+    expect(problems.map((p) => p.field)).toContain("initialAdminEmail")
+  })
+})
+
+describe("digest", () => {
+  it("does not change when keys are reordered", () => {
+    // An operator reordering a form field must not produce a "different"
+    // manifest and a spurious diff.
+    const a = manifest({ configuration: { alpha: 1, beta: 2 } })
+    const b = manifest({ configuration: { beta: 2, alpha: 1 } })
+    expect(digestOf(a)).toBe(digestOf(b))
+  })
+
+  it("changes when anything meaningful changes", () => {
+    const base = digestOf(manifest())
+    expect(digestOf(manifest({ slug: "other-slug" }))).not.toBe(base)
+    expect(digestOf(manifest({ modules: ["governance", "finance"] }))).not.toBe(base)
+    expect(digestOf(manifest({ configuration: { a: 1 } }))).not.toBe(base)
+  })
+})
+
+describe("plan", () => {
+  it("puts routing last, and separates it from building", () => {
+    const plan = planFor(manifest())
+    expect(plan.steps.at(-1)!.during).toBe("ACTIVATING")
+    expect(plan.steps.at(-1)!.what).toMatch(/routing/i)
+  })
+
+  it("includes a verification step that proves isolation", () => {
+    const plan = planFor(manifest())
+    const verify = plan.steps.find((s) => s.during === "VERIFYING")!
+    expect(verify.detail).toMatch(/cross-tenant read that MUST fail/)
+  })
+
+  it("says a pooled tenant is marginal-cost-zero without calling it free", () => {
+    const plan = planFor(manifest({ isolation: "pooled" }))
+    expect(plan.estimatedMonthlyCostCents).toBe(0)
+    expect(plan.warnings.join(" ")).toMatch(/not free/i)
+  })
+
+  it("prices a non-pooled tenant with a stated basis", () => {
+    const plan = planFor(manifest({ isolation: "silo" }))
+    expect(plan.estimatedMonthlyCostCents).toBeGreaterThan(0)
+    expect(plan.costBasis).toMatch(/ALB|Fargate/)
+  })
+
+  it("carries the manifest digest so plan and manifest are comparable", () => {
+    const m = manifest()
+    expect(planFor(m).digest).toBe(digestOf(m))
+  })
+})

@@ -50,6 +50,10 @@ resource "aws_ecs_task_definition" "studio" {
         # public hostname.
         { name = "AUTH_TRUST_HOST", value = "true" },
         { name = "PLATFORM_OPERATORS", value = var.platform_operators },
+        # The tenant registry. Passed by name rather than hardcoded in the app
+        # so the same image runs against a different table in a different cell.
+        { name = "TENANT_TABLE", value = aws_dynamodb_table.tenants.name },
+        { name = "AWS_REGION", value = var.aws_region },
       ]
 
       secrets = [

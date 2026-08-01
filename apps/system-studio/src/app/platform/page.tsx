@@ -48,6 +48,7 @@ export default async function PlatformPage() {
     <>
       <nav className="tabs">
         <Link href="/">Organization systems</Link>
+        <Link href="/tenants">Tenants</Link>
         <span className="here">Platform</span>
       </nav>
 

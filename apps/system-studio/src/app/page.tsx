@@ -78,6 +78,7 @@ export default async function StudioPage() {
     <>
       <nav className="tabs">
         <span className="here">Organization systems</span>
+        <Link href="/tenants">Tenants</Link>
         <Link href="/platform">Platform</Link>
       </nav>
 
