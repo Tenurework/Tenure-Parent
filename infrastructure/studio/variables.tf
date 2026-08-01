@@ -62,3 +62,16 @@ variable "platform_operator_secret" {
     configured still comes up with a strong value rather than a blank.
   EOT
 }
+
+variable "schema_version" {
+  description = <<-EOT
+    The tenant schema version this engine builds artifacts against.
+
+    Bumped when apps/web ships a migration that a provisioned tenant must be at.
+    A cell compares this against its own before applying a deployment manifest,
+    so an engine that is behind cannot publish an artifact claiming a schema it
+    does not know about.
+  EOT
+  type        = string
+  default     = "2026.07.31"
+}

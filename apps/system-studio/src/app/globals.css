@@ -296,13 +296,21 @@ form.compose button[type="submit"],
 form.compose button[type="submit"]:disabled,
 .advance button[type="submit"]:disabled { opacity: 0.5; cursor: default; }
 
-/* Transition chips are buttons; they must not inherit the chip's static look. */
+/* Transition chips are buttons.
+   `color: inherit` was not enough: a <button> carries UA defaults for BOTH
+   colour and background, so the text resolved to the same value as the box and
+   the controls rendered as six empty rectangles — clickable, and invisible.
+   Both are set explicitly. */
 .advance .chips button.chip {
   font: inherit;
-  color: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: transparent;
+  padding: 0.3rem 0.6rem;
   cursor: pointer;
-  border: 1px solid var(--line, #333);
+  border: 1px solid var(--border);
 }
+.advance .chips button.chip:hover { border-color: var(--text); }
 .advance .chips button.chip.chosen {
   border-color: currentColor;
   box-shadow: inset 0 0 0 1px currentColor;

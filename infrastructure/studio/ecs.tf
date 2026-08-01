@@ -54,6 +54,10 @@ resource "aws_ecs_task_definition" "studio" {
         # so the same image runs against a different table in a different cell.
         { name = "TENANT_TABLE", value = aws_dynamodb_table.tenants.name },
         { name = "AWS_REGION", value = var.aws_region },
+        # Stamped into every deployment manifest the engine signs. Without it a
+        # cell cannot tell which schema an artifact was built against, and the
+        # console renders "unpinned" — honest, and useless.
+        { name = "SCHEMA_VERSION", value = var.schema_version },
       ]
 
       secrets = [
