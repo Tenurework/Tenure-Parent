@@ -102,13 +102,26 @@ export function registryConfigured(): boolean {
 export async function listTenants(): Promise<
   Array<{ slug: string; state: TenantState; displayName: string; updatedAt: string; isolation: string }>
 > {
+  // Every projected name is aliased, not just the ones that look risky.
+  // DynamoDB reserves several hundred words — `state` and `isolation` are both
+  // on the list — and a projection naming one fails the whole request with a
+  // validation error, which surfaces as a 500 on a page that renders fine
+  // locally against no table. Aliasing everything removes the need to know
+  // which words are reserved this year.
   const out = await client().send(
     new ScanCommand({
       TableName: TABLE,
-      FilterExpression: "sk = :sk",
+      FilterExpression: "#sk = :sk",
       ExpressionAttributeValues: { ":sk": "STATE" },
-      ProjectionExpression: "slug, #s, displayName, updatedAt, isolation",
-      ExpressionAttributeNames: { "#s": "state" },
+      ProjectionExpression: "#slug, #state, #displayName, #updatedAt, #isolation",
+      ExpressionAttributeNames: {
+        "#sk": "sk",
+        "#slug": "slug",
+        "#state": "state",
+        "#displayName": "displayName",
+        "#updatedAt": "updatedAt",
+        "#isolation": "isolation",
+      },
     }),
   )
 

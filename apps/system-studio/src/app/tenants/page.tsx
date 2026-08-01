@@ -23,7 +23,21 @@ export default async function TenantsPage() {
   if (!isOperator(session?.user?.email)) redirect("/signin")
 
   const configured = registryConfigured()
-  const tenants = configured ? await listTenants() : []
+
+  // A registry that cannot be read must say so, not 500. In production Next
+  // replaces a thrown server error with "Application error: a server-side
+  // exception has occurred" and a digest — which tells an operator nothing they
+  // can act on, and hides whether the table is missing, the role lacks a
+  // permission, or the query is malformed.
+  let tenants: Awaited<ReturnType<typeof listTenants>> = []
+  let failure: string | null = null
+  if (configured) {
+    try {
+      tenants = await listTenants()
+    } catch (err) {
+      failure = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+    }
+  }
 
   return (
     <>
@@ -35,7 +49,24 @@ export default async function TenantsPage() {
 
       <h1>Tenants</h1>
 
-      {!configured ? (
+      {failure ? (
+        <section className="system">
+          <header>
+            <h2>Registry unreadable</h2>
+            <span className="badge bad">error</span>
+          </header>
+          <p>
+            The table is configured but the read failed. The console shows the reason rather than a
+            blank error page, because &ldquo;a server-side exception has occurred&rdquo; is not
+            something anyone can act on.
+          </p>
+          <p className="error">{failure}</p>
+          <p className="slug">
+            Most likely: the task role is missing an action on the table, or the table does not
+            exist in this region.
+          </p>
+        </section>
+      ) : !configured ? (
         <section className="system">
           <header>
             <h2>Registry unavailable</h2>
