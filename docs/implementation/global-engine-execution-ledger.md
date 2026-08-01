@@ -256,17 +256,75 @@ than what was built.
     `terraform destroy`, pilot health checked after every apply — but sound
     reasoning is not an inventory, and the rule asked for an inventory.
 - [ ] **GE-GATE-0** — Baseline truth, safe AWS inventory, containment list, repository map and execution ledger complete; no credential or customer data exposed.
-  - Status: FAIL — blocked on GE-000-003, GE-000-004, GE-000-006, GE-001-002
-    through GE-001-005, GE-001-007.
-  - **Credential exposure — one incident, disclosed here rather than omitted.**
-    The System Studio operator secret was generated locally, stored as the
-    write-only GitHub secret `PLATFORM_OPERATOR_SECRET`, and then transmitted to
-    the operator in conversation. It has never appeared in this repository, in a
-    workflow log, in a summary, or in an artifact — verified by grepping the
-    deploy run's log for secret values (0 matches). It is nonetheless a secret
-    that travelled, which §4 rule 9 and §5 both discourage. **Action: rotate
-    before this gate is claimed**, and replace the shared secret with Cognito
-    operator identity under GE-041.
+  - Status: **BLOCKED_EXTERNAL** — all fourteen Phase 0 items pass. The gate is
+    held open by two decisions that are a person's to make, not mine.
+  - Phase 0 items: GE-000-001 … 007 and GE-001-001 … 007, all `- [x]`.
+
+  ### Blocker 1 — customer data was exposed, and removal is not remediation
+
+  `apps/web/scripts/roster-data.mjs` carried **328 real university email
+  addresses for 172 named students and advisors**. It was committed to **two
+  public repositories**, served by `raw.githubusercontent.com` with HTTP 200,
+  and shipped inside the production container image (the Dockerfile copies
+  `apps/web/scripts` wholesale). It was added on 2026-07-30 in `a9d901b` while
+  importing the live application, and nothing failed while it sat there.
+
+  Done:
+  - untracked and gitignored here (`b5edb93`); the API returns 404 for the path
+  - `satvikOS/Tenure` PR #1 does the same there — that repository cannot be
+    pushed to directly
+  - three specs and one comment that named real people now derive them from
+    `roster-source.mjs` (`d2d40b1`), verified 14/14 against both rosters
+  - `tests/security/no-personal-data.test.mjs` fails the build on a real-domain
+    address in any tracked file, and cross-references real roster **names**
+    where the roster is present
+
+  **Not done, and not mine to decide:**
+  1. the blob remains reachable by commit SHA in both public histories —
+     purging it means rewriting history and force-pushing two public repos
+  2. GitHub Support must be asked to drop cached views of the affected SHAs
+  3. whether the 172 affected people are notified
+
+  Until (1)–(3) are decided, **those addresses should be treated as disclosed**,
+  and this gate cannot honestly claim "no customer data exposed".
+
+  ### Blocker 2 — the operator secret must be rotated, and I should not choose how
+
+  The System Studio operator secret was generated locally, stored as the
+  write-only GitHub secret `PLATFORM_OPERATOR_SECRET`, and then transmitted to
+  the operator in conversation. It has never appeared in this repository, a
+  workflow log, a summary or an artifact — verified by grepping the deploy run's
+  log (0 matches). It is nonetheless a secret that travelled.
+
+  Rotating it is two commands, and they are the operator's to run because the
+  point is that the new value never passes through me or through a transcript:
+
+  ```
+  gh secret set PLATFORM_OPERATOR_SECRET --repo satvikOS/Tenure-Parent
+  gh workflow run deploy-studio.yml --repo satvikOS/Tenure-Parent
+  ```
+
+  The value must clear the checks in `apps/system-studio/src/lib/operators.ts`:
+  24 characters minimum, not a placeholder, and enough distinct characters that
+  a repeated string is refused. After the deploy, the previous value is dead.
+
+  A generated secret shared by every operator is an interim answer regardless.
+  **GE-041** replaces it with Cognito operator identity, which is the real fix.
+
+  ### What the inventory found, carried forward
+
+  | Finding | Owner |
+  |---|---|
+  | No AWS Organization — a single-account estate | GE-010 |
+  | No OIDC provider — long-lived keys shared across two repositories | GE-011 |
+  | No Cognito user pool — identity is one shared passphrase | GE-041 |
+  | RDS backup retention 1 day, no Multi-AZ, no backup vault | GE-161 |
+  | No WAF on either distribution | GE-150 |
+  | The authorization engine gates nothing — two consumers, both navigational | GE-030s |
+  | 34 of 35 audit writes bypass validation, redaction and chaining | GE-120s |
+  | Five SQS queues, an SES identity and a DLQ alarm with no producer or consumer | GE-090 / GE-140 |
+  | No row provenance — seeded and operator-entered data are indistinguishable | GE-060 |
+  | One tenant's policy content compiled into the global engine | GE-060 |
 
 ---
 
