@@ -21,6 +21,7 @@ import {
   type TenantState,
 } from "./lifecycle"
 import { MANIFEST_VERSION, digestOf, planFor, validateManifest, type TenantManifest } from "./manifest"
+import { CELL_APPLY, deploymentManifest, executeStep, type ExecutionContext } from "./execute"
 
 const OPERATOR = { principalId: "dana@tenure.example", at: "2026-08-01T00:00:00.000Z" }
 const SECOND = "ravi@tenure.example"
@@ -300,5 +301,100 @@ describe("plan", () => {
   it("carries the manifest digest so plan and manifest are comparable", () => {
     const m = manifest()
     expect(planFor(m).digest).toBe(digestOf(m))
+  })
+})
+
+describe("execute", () => {
+  const ctx: ExecutionContext = {
+    resolveConfiguration: () => ({ checksum: "cfg-abc123", values: { a: 1, b: 2 }, problems: [] }),
+    resolveModules: () => ({ ordered: [{ key: "governance", version: "1.2.0" }], problems: [] }),
+    validateTopology: () => ({ valid: true, problems: [] }),
+    schemaVersion: () => "2026.07.31",
+  }
+
+  const broken: ExecutionContext = {
+    ...ctx,
+    resolveConfiguration: () => ({
+      checksum: "",
+      values: {},
+      problems: [{ key: "term.label", reason: "missing", detail: "no value and no default" }],
+    }),
+  }
+
+  it("produces evidence for every state in the build path", () => {
+    for (const state of [
+      "VALIDATING",
+      "PLANNED",
+      "PROVISIONING",
+      "CONFIGURING",
+      "MIGRATING",
+      "VERIFYING",
+      "ACTIVATING",
+    ] as const) {
+      const e = executeStep(state, manifest(), ctx)
+      expect(e.state).toBe(state)
+      expect(e.detail.length).toBeGreaterThan(20)
+    }
+  })
+
+  it("fails validation when configuration no longer resolves", () => {
+    // The manifest was fine when composed; a value can go missing between then
+    // and provisioning, and the run must stop rather than build half a system.
+    const e = executeStep("VALIDATING", manifest(), broken)
+    expect(e.ok).toBe(false)
+    expect(e.checks!.find((c) => c.name === "configuration resolves")!.ok).toBe(false)
+  })
+
+  it("produces no artifact when configuring fails", () => {
+    const e = executeStep("CONFIGURING", manifest(), broken)
+    expect(e.ok).toBe(false)
+    expect(e.detail).toMatch(/no artifact/i)
+  })
+
+  it("says plainly that migration is the cell's work, not the engine's", () => {
+    // The honesty this whole module turns on: the engine does not write to a
+    // tenant's database, and a step that pretended to would be the single most
+    // misleading thing in the console.
+    const e = executeStep("MIGRATING", manifest(), ctx)
+    expect(e.detail).toMatch(/does not write to a tenant's database/)
+    expect(e.detail).toMatch(/not built yet/)
+    expect(CELL_APPLY).toBe("MIGRATING")
+  })
+
+  it("refuses to pass verification with a secret value in the manifest", () => {
+    const e = executeStep("VERIFYING", manifest({ secretRefs: { k: "sk_live_abc" } }), ctx)
+    expect(e.ok).toBe(false)
+    expect(e.checks!.find((c) => c.name === "no secret value in the manifest")!.ok).toBe(false)
+  })
+
+  it("is deterministic — two runs produce identical digests", () => {
+    // Nothing reads a clock or a random source, so "what did we agree to build"
+    // and "what did we build" are comparable rather than merely asserted.
+    const a = executeStep("CONFIGURING", manifest(), ctx)
+    const b = executeStep("CONFIGURING", manifest(), ctx)
+    expect(a.digest).toBe(b.digest)
+    expect(a.digest).toBeDefined()
+  })
+
+  it("digests the deployment manifest over every field it carries", () => {
+    const evidence = (["VALIDATING", "CONFIGURING"] as const).map((s) =>
+      executeStep(s, manifest(), ctx),
+    )
+    const meta = { createdAt: "2026-08-01T00:00:00.000Z", createdBy: "dana@tenure.example" }
+
+    const dm = deploymentManifest(manifest(), evidence, ctx, meta)
+    expect(dm.digest).toHaveLength(32)
+    expect(dm.configurationChecksum).toBe("cfg-abc123")
+    expect(dm.modules).toEqual(["governance@1.2.0"])
+
+    // Any change to what was built must change the digest a cell verifies.
+    const other = deploymentManifest(manifest({ slug: "different-slug" }), evidence, ctx, meta)
+    expect(other.digest).not.toBe(dm.digest)
+
+    const differentModules = deploymentManifest(manifest(), evidence, {
+      ...ctx,
+      resolveModules: () => ({ ordered: [{ key: "finance", version: "1.0.0" }], problems: [] }),
+    }, meta)
+    expect(differentModules.digest).not.toBe(dm.digest)
   })
 })

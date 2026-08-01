@@ -14,7 +14,9 @@ import {
   advance,
   digestOf,
   type AdvanceOptions,
+  type DeploymentManifest,
   type LifecycleStep,
+  type StepEvidence,
   type TenantManifest,
   type TenantState,
 } from "@tenure/provisioning"
@@ -84,6 +86,10 @@ export interface TenantRecord {
   createdAt: string
   updatedAt: string
   history: LifecycleStep[]
+  /** What each step actually produced, keyed by the state it ran for. */
+  evidence: StepEvidence[]
+  /** The signed artifact a cell reconciles toward, once CONFIGURING has run. */
+  deployment?: DeploymentManifest
 }
 
 const pk = (slug: string) => `TENANT#${slug}`
@@ -167,6 +173,10 @@ export async function getTenant(slug: string): Promise<TenantRecord | null> {
       .filter((i) => String(i.sk).startsWith("STEP#"))
       .map((i) => i.step as LifecycleStep)
       .sort((a, b) => a.at.localeCompare(b.at)),
+    evidence: items
+      .filter((i) => String(i.sk).startsWith("STEP#") && i.evidence)
+      .map((i) => i.evidence as StepEvidence),
+    deployment: items.find((i) => i.sk === "DEPLOYMENT")?.deployment as DeploymentManifest | undefined,
   }
 }
 
@@ -233,6 +243,7 @@ export async function registerTenant(
     createdAt: actor.at,
     updatedAt: actor.at,
     history: [],
+    evidence: [],
   }
 }
 
@@ -248,6 +259,10 @@ export async function advanceTenant(
   slug: string,
   to: TenantState,
   options: AdvanceOptions,
+  /** What the step produced. Stored with the step so evidence cannot drift from it. */
+  evidence?: StepEvidence,
+  /** Written once, when CONFIGURING succeeds. */
+  deployment?: DeploymentManifest,
 ): Promise<TenantRecord> {
   const current = await getTenant(slug)
   if (!current) throw new RegistryUnavailable(`No tenant "${slug}".`)
@@ -286,14 +301,32 @@ export async function advanceTenant(
               sk: `STEP#${options.actor.at}#${step.attempt}`,
               slug,
               step,
+              ...(evidence ? { evidence } : {}),
             },
           },
         },
+        ...(deployment
+          ? [
+              {
+                Put: {
+                  TableName: TABLE,
+                  Item: { pk: pk(slug), sk: "DEPLOYMENT", slug, deployment },
+                },
+              },
+            ]
+          : []),
       ],
     }),
   )
 
-  return { ...current, state, updatedAt: options.actor.at, history: [...current.history, step] }
+  return {
+    ...current,
+    state,
+    updatedAt: options.actor.at,
+    history: [...current.history, step],
+    evidence: evidence ? [...current.evidence, evidence] : current.evidence,
+    deployment: deployment ?? current.deployment,
+  }
 }
 
 /** A single item read, used by the detail page's freshness check. */

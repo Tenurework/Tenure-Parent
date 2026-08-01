@@ -6,6 +6,8 @@
  *   lifecycle.ts  where a tenant is, and which moves are legal from there
  *   manifest.ts   what a tenant IS — the thing an operator composes and the
  *                 thing provisioning reads
+ *   execute.ts    what each state actually DOES, and the signed artifact a
+ *                 cell reconciles toward
  *
  * Neither touches storage. That is what lets the rules be tested exhaustively
  * without AWS, and it is why the Studio can render a plan before anything has
@@ -25,6 +27,9 @@ export {
   nextStates,
 } from "./lifecycle"
 export type { Actor, AdvanceOptions, LifecycleStep, TenantState } from "./lifecycle"
+
+export { CELL_APPLY, deploymentManifest, executeStep } from "./execute"
+export type { DeploymentManifest, ExecutionContext, StepEvidence } from "./execute"
 
 export { MANIFEST_VERSION, digestOf, planFor, validateManifest } from "./manifest"
 export type {

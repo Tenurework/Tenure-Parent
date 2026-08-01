@@ -111,6 +111,69 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
         </table>
       </section>
 
+      {tenant.deployment && (
+        <section className="system">
+          <header>
+            <h2>Deployment manifest</h2>
+            <span className="badge ok">{tenant.deployment.digest}</span>
+          </header>
+          <p>
+            The signed artifact a cell reconciles toward. Its digest covers every field below, so a
+            cell can verify it received what the engine published rather than trusting the
+            transport.
+          </p>
+          <dl className="kv">
+            <dt>configuration</dt>
+            <dd>{tenant.deployment.configurationChecksum}</dd>
+            <dt>modules</dt>
+            <dd>{tenant.deployment.modules.join(", ")}</dd>
+            <dt>schema</dt>
+            <dd>{tenant.deployment.schemaVersion}</dd>
+            <dt>evidence</dt>
+            <dd>{tenant.deployment.evidenceDigest}</dd>
+            <dt>published</dt>
+            <dd>
+              {tenant.deployment.createdAt} by {tenant.deployment.createdBy}
+            </dd>
+          </dl>
+        </section>
+      )}
+
+      {tenant.evidence.length > 0 && (
+        <section className="system">
+          <header>
+            <h2>Evidence</h2>
+            <span className="badge">{tenant.evidence.length} steps</span>
+          </header>
+          <p>
+            What each step actually produced. A step that records having run without producing
+            anything citable is a step that did not run.
+          </p>
+          {tenant.evidence.map((e) => (
+            <div key={`${e.state}-${e.step}`}>
+              <h3>
+                {e.state} · {e.step} <span className="badge">{e.ok ? "ok" : "failed"}</span>
+              </h3>
+              <p className="slug">{e.detail}</p>
+              {e.digest && <p className="slug">digest {e.digest}</p>}
+              {e.checks && (
+                <table className="grid">
+                  <tbody>
+                    {e.checks.map((c) => (
+                      <tr key={c.name}>
+                        <td className="state">{c.ok ? "✓" : "✗"}</td>
+                        <td>{c.name}</td>
+                        <td className="slug">{c.detail}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
+
       <section className="system">
         <header>
           <h2>History</h2>

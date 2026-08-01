@@ -3,12 +3,19 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
-import { TENANT_BINDINGS } from "@tenure/blueprints"
+import { TENANT_BINDINGS, getBlueprint } from "@tenure/blueprints"
 import { MODULE_CATALOG } from "@tenure/modules"
+import { resolveConfig } from "@tenure/configuration"
+import { resolveModules } from "@tenure/module-runtime"
+import { validateTopology } from "@tenure/organization-model"
+import { REGISTRY, layersFor } from "@tenure/platform-config"
 import {
   MANIFEST_VERSION,
   LifecycleError,
+  deploymentManifest,
+  executeStep,
   validateManifest,
+  type ExecutionContext,
   type IsolationTier,
   type TenantManifest,
   type TenantState,
@@ -16,7 +23,7 @@ import {
 
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
-import { SlugTaken, advanceTenant, registerTenant, takenSlugs } from "@/lib/registry"
+import { SlugTaken, advanceTenant, getTenant, registerTenant, takenSlugs } from "@/lib/registry"
 
 /**
  * Every action here re-checks the operator, in the action.
@@ -37,6 +44,52 @@ async function operator(): Promise<string> {
 }
 
 const now = () => new Date().toISOString()
+
+/**
+ * The engines the executor runs against.
+ *
+ * Built here, from the real catalogs, and passed in — so the executor stays
+ * free of them and the console cannot accidentally verify a tenant against a
+ * different configuration engine than the one that will build it.
+ */
+function executionContext(): ExecutionContext {
+  return {
+    resolveConfiguration(manifest) {
+      const { config, problems } = resolveConfig(REGISTRY, layersFor(manifest.slug), {
+        collectProblems: true,
+      })
+      return {
+        checksum: config?.checksum ?? "",
+        values: config?.values ?? {},
+        problems: problems ?? [],
+      }
+    },
+    resolveModules(manifest) {
+      const resolved = resolveModules(MODULE_CATALOG, {
+        requested: manifest.modules,
+        entitlements: manifest.entitlements,
+      })
+      return {
+        ordered: resolved.ordered.map((m) => ({ key: m.key, version: m.version })),
+        problems: resolved.problems,
+      }
+    },
+    validateTopology(manifest) {
+      const blueprint = getBlueprint(manifest.blueprintId)
+      if (!blueprint) return { valid: false, problems: [`No blueprint "${manifest.blueprintId}".`] }
+      try {
+        validateTopology(blueprint.topology)
+        return { valid: true, problems: [] }
+      } catch (err) {
+        return { valid: false, problems: [err instanceof Error ? err.message : String(err)] }
+      }
+    },
+    // Pinned to the migration the cell is expected to be at. Read from the
+    // build rather than hardcoded so a stale engine cannot publish an artifact
+    // claiming a schema it does not know about.
+    schemaVersion: () => process.env.SCHEMA_VERSION ?? "unpinned",
+  }
+}
 
 export interface ComposeResult {
   problems: Array<{ field: string; reason: string; detail: string }>
@@ -121,8 +174,43 @@ export async function advanceState(_prev: AdvanceResult | null, form: FormData):
   const approvedBy = String(form.get("approvedBy") ?? "").trim() || undefined
   const reason = String(form.get("reason") ?? "").trim() || undefined
 
+  const at = now()
+
   try {
-    await advanceTenant(slug, to, { actor: { principalId, at: now() }, approvedBy, reason })
+    // Run the work for the destination state BEFORE recording the move. A step
+    // that fails must not leave a tenant claiming to be in a state it never
+    // reached — which is precisely what the lifecycle looked like before the
+    // executor existed.
+    const tenant = await getTenant(slug)
+    if (!tenant) return { error: `No tenant "${slug}".` }
+
+    const ctx = executionContext()
+    const evidence = executeStep(to, tenant.manifest, ctx)
+
+    if (!evidence.ok) {
+      const failed = (evidence.checks ?? []).filter((c) => !c.ok).map((c) => `${c.name}: ${c.detail}`)
+      return {
+        error: `${to} did not complete. ${evidence.detail}${failed.length ? ` — ${failed.join("; ")}` : ""}`,
+      }
+    }
+
+    // The signed artifact is written once, when configuring succeeds, because
+    // that is the step that computes what a cell reconciles toward.
+    const deployment =
+      to === "CONFIGURING"
+        ? deploymentManifest(tenant.manifest, [...tenant.evidence, evidence], ctx, {
+            createdAt: at,
+            createdBy: principalId,
+          })
+        : undefined
+
+    await advanceTenant(
+      slug,
+      to,
+      { actor: { principalId, at }, approvedBy, reason },
+      evidence,
+      deployment,
+    )
   } catch (err) {
     if (err instanceof LifecycleError) return { error: err.message }
     if ((err as { name?: string }).name === "TransactionCanceledException") {
