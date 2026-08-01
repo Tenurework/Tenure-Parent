@@ -188,3 +188,60 @@ form.signin button {
   padding: 0.8rem 1rem;
   color: var(--bad);
 }
+
+/* ── Tabs ──────────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--line, #e5e5e5);
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+.tabs a,
+.tabs .here {
+  padding: 0.6rem 0;
+  text-decoration: none;
+  color: inherit;
+  opacity: 0.6;
+}
+.tabs a:hover { opacity: 1; }
+.tabs .here {
+  opacity: 1;
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 currentColor;
+}
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+/* Wide content scrolls inside its own container so the page body never does. */
+table.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  margin: 0.75rem 0 0.25rem;
+  display: block;
+  overflow-x: auto;
+}
+table.grid th,
+table.grid td {
+  text-align: left;
+  padding: 0.4rem 0.75rem 0.4rem 0;
+  border-bottom: 1px solid var(--line, #eee);
+  vertical-align: top;
+}
+table.grid th {
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+}
+table.grid td.num,
+table.grid th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.grid td.state { width: 1.5rem; opacity: 0.7; }
+table.grid td.id {
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82rem;
+  opacity: 0.75;
+}
+table.grid tr.gate td { font-weight: 600; }

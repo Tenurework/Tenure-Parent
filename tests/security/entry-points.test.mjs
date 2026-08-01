@@ -90,3 +90,19 @@ test('the document exists and names every API route', () => {
     assert.ok(doc.includes(`\`${r.route}\``), `${DOC} does not mention ${r.route}`)
   }
 })
+
+test('the Studio ships the platform truth it renders, and it is current', () => {
+  // The Studio's container ships apps/system-studio, not docs/. The page
+  // therefore imports a generated JSON rather than reading the ledger from
+  // disk — which would work locally and 500 in production.
+  //
+  // The cost of generating is that it can go stale, so the build fails when it
+  // has. Without this the console would keep showing whatever was true on the
+  // day someone last remembered to run the generator, which is worse than
+  // showing nothing.
+  const result = execFileSync('node', ['tools/platform-truth.mjs', '--check'], {
+    encoding: 'utf8',
+    stdio: 'pipe',
+  })
+  assert.match(result, /up to date/)
+})

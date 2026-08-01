@@ -1,0 +1,338 @@
+{
+  "generatedBy": "tools/platform-truth.mjs",
+  "commit": "edacc29",
+  "ledger": {
+    "source": "docs/implementation/global-engine-execution-ledger.md",
+    "total": 15,
+    "done": 14,
+    "phases": [
+      {
+        "phase": "Phase 0 — Establish repository, product, and AWS truth",
+        "items": [
+          {
+            "id": "GE-000-001",
+            "done": true,
+            "title": "Worktree, branch, remotes, default branch, protection, unrelated changes.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-000-002",
+            "done": true,
+            "title": "Repository map of every app, package, module, schema, migration, workflow, IaC stack, test suite, deployment script.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-000-003",
+            "done": true,
+            "title": "Identify all auth/authz, tenant, person, role/seat, approval, audit, finance, files, search, AI and connector paths; mark duplicates and contradictions.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-000-004",
+            "done": true,
+            "title": "Trace every entry point, public route, API route, background job, realtime path, scheduled job, webhook, import/export, admin/support route.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-000-005",
+            "done": true,
+            "title": "Baseline install, lint, type check, tests, builds, migration validation, dependency audit, secret scan, e2e inventory. Record exact failures.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-000-006",
+            "done": true,
+            "title": "Reconcile claimed product metrics and UI surfaces to canonical code/data; identify seeded/demo/placeholder data.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-000-007",
+            "done": true,
+            "title": "Import the Architecture Bible into `docs/architecture/`; create ADR index and execution ledger.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-001-001",
+            "done": true,
+            "title": "Inventory workflows, environments, variables, secret NAMES only, Actions settings, runners, deployment history, concurrency, OIDC references.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-001-002",
+            "done": true,
+            "title": "Manual read-only AWS inventory workflow: minimal permissions, immutable action pins, concurrency, short retention, redaction.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-001-003",
+            "done": true,
+            "title": "Prove caller identity with STS and validate an account/region allowlist before inventory.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-001-004",
+            "done": true,
+            "title": "Inventory Organizations, IAM/OIDC, IaC ownership, network/DNS/ACM/CloudFront/WAF, compute, Cognito, databases, storage, queues, KMS/secrets metadata, observability/backup.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-001-005",
+            "done": true,
+            "title": "Produce `aws-current-state.md`, `resource-reconciliation.md`, and a sanitized machine-readable inventory.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-001-006",
+            "done": true,
+            "title": "Identify public exposure, demo auth, static credentials, runtime schema mutation, dangerous uploads, audit/backup gaps; create containment work items.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-001-007",
+            "done": true,
+            "title": "Do not write to AWS until account/region/role, resource ownership, replacement risk and rollback path are known.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": false
+          },
+          {
+            "id": "GE-GATE-0",
+            "done": false,
+            "title": "Baseline truth, safe AWS inventory, containment list, repository map and execution ledger complete; no credential or customer data exposed.",
+            "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": true
+          }
+        ]
+      }
+    ]
+  },
+  "programme": {
+    "source": "docs/implementation/Tenure_Claude_Code_Global_Engine_Execution_Prompt_v1.0.md",
+    "totalItems": 552,
+    "totalGates": 18,
+    "phases": [
+      {
+        "phase": "Phase 0 — Establish repository, product, and AWS truth",
+        "items": 15,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+        "items": 20,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 2 — Monorepo boundaries and common runtime",
+        "items": 18,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
+        "items": 21,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 4 — Identity, SSO, SCIM, sessions, and security",
+        "items": 31,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 5 — Organization graph, durable seats, and authorization",
+        "items": 26,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 6 — Tenant-isolated data, files, audit, events, and analytics",
+        "items": 39,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 7 — Workflow, forms, files/records, messaging, calendar, and memory",
+        "items": 41,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 8 — Finance, procurement, projects, reports, and Simon pilot core",
+        "items": 42,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 9 — Relay by Tenure: multimodal RAG, editing, and automation",
+        "items": 59,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 10 — One-click tenant distribution and lifecycle",
+        "items": 53,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 11 — Integration Hub and external coexistence",
+        "items": 24,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 12 — Low-code, SDK extensions, and Marketplace shell",
+        "items": 16,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 13 — Remaining enterprise ERP module families",
+        "items": 60,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 14 — Industry packs, globalization, accessibility, and client platform",
+        "items": 16,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 15 — Security, privacy, governance, and evidence",
+        "items": 23,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 16 — Reliability, observability, operations, and FinOps",
+        "items": 21,
+        "gates": 1
+      },
+      {
+        "phase": "Phase 17 — CI/CD, release, migration, and production readiness",
+        "items": 27,
+        "gates": 1
+      }
+    ]
+  },
+  "findings": [
+    {
+      "finding": "No AWS Organization — a single-account estate",
+      "owner": "GE-010"
+    },
+    {
+      "finding": "No OIDC provider — long-lived keys shared across two repositories",
+      "owner": "GE-011"
+    },
+    {
+      "finding": "No Cognito user pool — identity is one shared passphrase",
+      "owner": "GE-041"
+    },
+    {
+      "finding": "RDS backup retention 1 day, no Multi-AZ, no backup vault",
+      "owner": "GE-161"
+    },
+    {
+      "finding": "No WAF on either distribution",
+      "owner": "GE-150"
+    },
+    {
+      "finding": "The authorization engine gates nothing — two consumers, both navigational",
+      "owner": "GE-030s"
+    },
+    {
+      "finding": "34 of 35 audit writes bypass validation, redaction and chaining",
+      "owner": "GE-120s"
+    },
+    {
+      "finding": "No row provenance — seeded and operator-entered data are indistinguishable",
+      "owner": "GE-060"
+    },
+    {
+      "finding": "One tenant's policy content compiled into the global engine",
+      "owner": "GE-060"
+    }
+  ],
+  "estate": {
+    "generatedAt": "2026-07-31T23:40:04.289Z",
+    "account": "1549…97",
+    "region": "us-east-1",
+    "summary": {
+      "vpcs": 2,
+      "natGateways": 0,
+      "loadBalancers": 2,
+      "cloudfrontDistributions": 2,
+      "ecsClusters": 2,
+      "rdsInstances": 1,
+      "s3Buckets": 3,
+      "cognitoUserPools": 0,
+      "secrets": 6,
+      "deniedCalls": 3
+    },
+    "organizationInUse": false,
+    "oidcProviders": 0,
+    "cognitoUserPools": 0,
+    "backupVaults": 0,
+    "sqsQueues": [
+      "tenure-pilot-default",
+      "tenure-pilot-default-dlq",
+      "tenure-pilot-email",
+      "tenure-pilot-email-dlq",
+      "tenure-pilot-notifications"
+    ],
+    "alarms": [
+      {
+        "name": "tenure-pilot-alb-5xx",
+        "state": "OK"
+      },
+      {
+        "name": "tenure-pilot-dlq-messages",
+        "state": "OK"
+      },
+      {
+        "name": "tenure-pilot-ecs-no-running-tasks",
+        "state": "OK"
+      },
+      {
+        "name": "tenure-pilot-rds-cpu-high",
+        "state": "OK"
+      }
+    ],
+    "deniedCalls": [
+      {
+        "call": "organizations describe-organization",
+        "reason": "Organizations not in use"
+      },
+      {
+        "call": "organizations list-accounts",
+        "reason": "Organizations not in use"
+      },
+      {
+        "call": "organizations list-roots",
+        "reason": "Organizations not in use"
+      }
+    ]
+  },
+  "suites": [
+    {
+      "name": "platform guards",
+      "files": 6,
+      "what": "repository and deployment invariants"
+    },
+    {
+      "name": "application unit",
+      "files": 23,
+      "what": "apps/web"
+    },
+    {
+      "name": "tenant isolation",
+      "files": 4,
+      "what": "cross-tenant reads must fail"
+    },
+    {
+      "name": "end to end",
+      "files": 30,
+      "what": "real browser"
+    }
+  ]
+}

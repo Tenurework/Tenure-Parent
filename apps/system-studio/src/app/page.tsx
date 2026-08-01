@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 
 import { TENANT_BINDINGS, getBlueprint } from "@tenure/blueprints"
@@ -75,6 +76,11 @@ export default async function StudioPage() {
 
   return (
     <>
+      <nav className="tabs">
+        <span className="here">Organization systems</span>
+        <Link href="/platform">Platform</Link>
+      </nav>
+
       <h1>Organization systems</h1>
       <p>
         {systems.length} configured. Read-only — tenant overlays are files until the configuration
