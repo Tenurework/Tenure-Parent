@@ -9,9 +9,10 @@ name: AWS · Read-only inventory
 #     tests/security/production-workflows-disarmed.test.mjs greps this job for
 #     mutating commands — the detector is itself tested against ten mutating
 #     lines and six benign ones.
-#   * the IAM identity it runs as is whatever the repository secret carries. This
-#     workflow cannot narrow that, which is exactly why GE-011 replaces the
-#     long-lived key with a short-lived OIDC role scoped to read.
+#   * it assumes a short-lived OIDC role scoped to read, not a long-lived key.
+#     The role is ViewOnlyAccess — NOT ReadOnlyAccess, which can read secret
+#     values and object bodies — plus an explicit Deny that survives someone
+#     later attaching a broader policy.
 #
 # Manual only. An inventory on a schedule is an inventory nobody reads, and
 # every run of it is an artifact on a PUBLIC repository.
@@ -33,6 +34,10 @@ concurrency:
 
 permissions:
   contents: read
+  # GE-011-004. Required to mint the OIDC token GitHub signs. Without it the
+  # assume-role fails with a confusing "Credentials could not be loaded"; the
+  # token is not requested at all.
+  id-token: write
 
 jobs:
   inventory:
@@ -49,11 +54,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
+      # No long-lived key. The credentials are minted for this job, expire in an
+      # hour, and are bound by a `sub` claim GitHub signs — so a workflow in
+      # another repository cannot assume this role even holding this file.
+      #
+      # The role is ViewOnlyAccess plus an explicit Deny on GetSecretValue,
+      # GetObject, Decrypt and Scan, because this job writes to a PUBLIC
+      # repository and must not be able to read the inside of anything.
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
-          aws-access-key-id: ${{ secrets.ACCESSKEYID }}
-          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
+          role-to-assume: ${{ vars.AWS_READ_ROLE_ARN }}
+          role-session-name: aws-inventory-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
 
       # GE-001-003. Before ANY inventory call: prove who we are, and refuse if it

@@ -234,3 +234,70 @@ test('sessions are short', () => {
     assert.ok(d <= 3600, `a role allows a ${d}s session; the point of OIDC is that it expires`)
   }
 })
+
+/**
+ * GE-011-004/006. Which workflows still hold a long-lived key.
+ *
+ * A ratchet, not a rule: the keys cannot all go at once, because GE-011-006
+ * asks for last-use metadata and a separately approved disable checklist first
+ * — surprise-revoking a credential breaks whatever was quietly depending on it.
+ * So the list below may only shrink. Moving a workflow to OIDC means deleting
+ * its entry in the same commit, which is the moment to notice progress.
+ */
+test('no workflow uses a long-lived key unless it is still on the list', () => {
+  const dir = '.github/workflows'
+  const STILL_ON_KEYS = new Set([
+    'bootstrap-oidc.yml', // by design — it CREATES the roles; GE-011-003
+    'deploy-studio.yml',
+    'deploy.yml',
+    'platform-plan.yml',
+    'custom-domain.yml',
+    'db-recovery.yml',
+    'debug-logs.yml',
+    'force-redeploy.yml',
+    'ops-status.yml',
+    'probe-debug.yml',
+    'replace-acm-cert.yml',
+    'rotate-auth-secret.yml',
+    'seed-reference-data.yml',
+    'verify-reminders.yml',
+  ])
+
+  const offenders = []
+  for (const file of fs.readdirSync(dir)) {
+    if (!file.endsWith('.yml')) continue
+    const text = fs.readFileSync(`${dir}/${file}`, 'utf8')
+    if (!/secrets\.(ACCESSKEYID|SECRETACCESSKEY)/.test(text)) continue
+    if (!STILL_ON_KEYS.has(file)) offenders.push(file)
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `these use a long-lived AWS key and are not on the list. Move them to OIDC, or add them with ` +
+      `a reason:\n  ${offenders.join('\n  ')}`,
+  )
+
+  // The list may only shrink. aws-inventory.yml came off it when GE-011-004
+  // switched it to a short-lived role.
+  assert.ok(
+    !STILL_ON_KEYS.has('aws-inventory.yml'),
+    'aws-inventory.yml is back on long-lived keys — that is a regression, not a fix',
+  )
+  assert.ok(STILL_ON_KEYS.size <= 14, 'the long-lived-key list grew; it may only shrink')
+})
+
+test('every workflow that assumes a role can actually mint a token', () => {
+  // `id-token: write` is not optional and its absence fails confusingly: the
+  // token is never requested, and the error reads "Credentials could not be
+  // loaded" as if the role were wrong.
+  const dir = '.github/workflows'
+  const missing = []
+  for (const file of fs.readdirSync(dir)) {
+    if (!file.endsWith('.yml')) continue
+    const text = fs.readFileSync(`${dir}/${file}`, 'utf8')
+    if (!/role-to-assume:/.test(text)) continue
+    if (!/id-token:\s*write/.test(text)) missing.push(file)
+  }
+  assert.deepEqual(missing, [], 'assume a role without id-token: write')
+})
