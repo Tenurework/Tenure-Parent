@@ -11,7 +11,7 @@ resource "aws_lb" "main" {
   access_logs {
     bucket  = aws_s3_bucket.exports.bucket
     prefix  = "alb-logs"
-    enabled = false  # Enable in production
+    enabled = false # Enable in production
   }
 }
 

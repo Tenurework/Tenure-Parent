@@ -30,8 +30,8 @@ resource "aws_iam_policy" "ecs_secrets" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = ["secretsmanager:GetSecretValue"]
+        Effect = "Allow"
+        Action = ["secretsmanager:GetSecretValue"]
         Resource = [
           aws_secretsmanager_secret.app.arn,
           # Bearer token for scheduled job endpoints

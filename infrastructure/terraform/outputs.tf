@@ -47,12 +47,12 @@ output "redis_endpoint" {
   value = "${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379"
 }
 
-output "sqs_default_url"       { value = aws_sqs_queue.default.url }
-output "sqs_email_url"         { value = aws_sqs_queue.email.url }
+output "sqs_default_url" { value = aws_sqs_queue.default.url }
+output "sqs_email_url" { value = aws_sqs_queue.email.url }
 output "sqs_notifications_url" { value = aws_sqs_queue.notifications.url }
 
 output "s3_documents_bucket" { value = aws_s3_bucket.documents.bucket }
-output "s3_exports_bucket"   { value = aws_s3_bucket.exports.bucket }
+output "s3_exports_bucket" { value = aws_s3_bucket.exports.bucket }
 
 output "app_secrets_arn" {
   value     = aws_secretsmanager_secret.app.arn

@@ -1,6 +1,6 @@
 # ── ECS cluster ───────────────────────────────────────────────────────────────
 resource "aws_ecs_cluster" "main" {
-  name = "${local.name_prefix}"
+  name = local.name_prefix
 
   setting {
     name  = "containerInsights"
@@ -75,8 +75,8 @@ resource "aws_iam_role_policy" "ecs_task_inline" {
         Resource = "*"
       },
       {
-        Effect   = "Allow"
-        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:GetObjectAttributes"]
+        Effect = "Allow"
+        Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:GetObjectAttributes"]
         Resource = [
           "${aws_s3_bucket.documents.arn}/*",
           "${aws_s3_bucket.exports.arn}/*",
@@ -138,17 +138,17 @@ resource "aws_ecs_task_definition" "app" {
       portMappings = [{ containerPort = 3000, protocol = "tcp" }]
 
       environment = [
-        { name = "NODE_ENV",      value = "production" },
-        { name = "PORT",          value = "3000" },
+        { name = "NODE_ENV", value = "production" },
+        { name = "PORT", value = "3000" },
         { name = "NEXTAUTH_URL", value = var.attach_custom_domain ? "https://${var.custom_domain}" : "https://${aws_cloudfront_distribution.main.domain_name}" },
-        { name = "REDIS_URL",     value = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379" },
-        { name = "SQS_DEFAULT_URL",       value = aws_sqs_queue.default.url },
-        { name = "SQS_EMAIL_URL",         value = aws_sqs_queue.email.url },
+        { name = "REDIS_URL", value = "redis://${aws_elasticache_cluster.redis.cache_nodes[0].address}:6379" },
+        { name = "SQS_DEFAULT_URL", value = aws_sqs_queue.default.url },
+        { name = "SQS_EMAIL_URL", value = aws_sqs_queue.email.url },
         { name = "SQS_NOTIFICATIONS_URL", value = aws_sqs_queue.notifications.url },
-        { name = "S3_DOCUMENTS_BUCKET",   value = aws_s3_bucket.documents.bucket },
-        { name = "S3_EXPORTS_BUCKET",     value = aws_s3_bucket.exports.bucket },
-        { name = "AWS_REGION",            value = var.aws_region },
-        { name = "SES_FROM_EMAIL",        value = var.ses_from_email },
+        { name = "S3_DOCUMENTS_BUCKET", value = aws_s3_bucket.documents.bucket },
+        { name = "S3_EXPORTS_BUCKET", value = aws_s3_bucket.exports.bucket },
+        { name = "AWS_REGION", value = var.aws_region },
+        { name = "SES_FROM_EMAIL", value = var.ses_from_email },
         # DATABASE_URL is composed in the entrypoint from DB_CREDS + these:
         { name = "DB_HOST", value = aws_db_instance.postgres.address },
         { name = "DB_PORT", value = "5432" },
@@ -281,7 +281,7 @@ resource "aws_ecs_service" "app" {
   network_configuration {
     subnets          = aws_subnet.public[*].id
     security_groups  = [aws_security_group.ecs.id]
-    assign_public_ip = true  # Required for ECR pull without NAT gateway
+    assign_public_ip = true # Required for ECR pull without NAT gateway
   }
 
   load_balancer {

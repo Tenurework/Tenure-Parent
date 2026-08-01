@@ -4,8 +4,11 @@
 # slash anchors a pattern to the directory holding the .gitignore, so a leading-
 # slash "node_modules" here would no longer match apps/web/node_modules and the first
 # `git add -A` after the move would stage the entire installed dependency tree.
-# The terraform entries at the bottom keep their path prefix on purpose:
-# infrastructure/ lives here, at the root.
+# The terraform entries at the bottom are deliberately UNANCHORED, for the same
+# reason: there are three stacks now (terraform, studio, oidc) and a fourth will
+# not remember to add itself. A path-prefixed rule covered only the first, and a
+# 674 MB provider binary from a local `terraform init` in the second was staged
+# by `git add -A` and rejected at the remote.
 
 # dependencies
 node_modules/
@@ -57,8 +60,8 @@ next-env.d.ts
 # `terraform validate` outside CI. The lock file is ignored on purpose too:
 # CI pins terraform 1.9 and resolves providers itself, so a lock written by a
 # newer local CLI would silently change what production deploys.
-infrastructure/terraform/.terraform/
-infrastructure/terraform/.terraform.lock.hcl
+.terraform/
+.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfplan

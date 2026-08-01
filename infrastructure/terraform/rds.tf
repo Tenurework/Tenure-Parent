@@ -27,12 +27,12 @@ resource "aws_db_parameter_group" "postgres" {
 resource "aws_db_instance" "postgres" {
   identifier = "${local.name_prefix}-db"
 
-  engine               = "postgres"
-  engine_version       = "16.3"
-  instance_class       = var.rds_instance_class
-  allocated_storage    = var.rds_allocated_storage
-  storage_type         = "gp3"
-  storage_encrypted    = true
+  engine            = "postgres"
+  engine_version    = "16.3"
+  instance_class    = var.rds_instance_class
+  allocated_storage = var.rds_allocated_storage
+  storage_type      = "gp3"
+  storage_encrypted = true
 
   db_name  = var.rds_db_name
   username = var.rds_username
