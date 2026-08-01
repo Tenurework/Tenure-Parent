@@ -806,7 +806,58 @@ for progress:
     section in a customer's export. Each was fixed with the reasoning recorded
     beside it rather than by adjusting the number.
 
-- [ ] **GE-021-007** — Status: FAIL — not started.
+- [x] **GE-021-007** — Query/job/error envelopes, cursor pagination, conditional operations, rate limits, quotas, async bulk job contracts.
+  - Status: PASS
+  - Code/config: `apps/web/src/lib/envelopes/pagination.ts`, `limits.ts`,
+    `envelopes.test.ts`. The envelope *shapes* are `@tenure/contracts`
+    (`Query`, `JobRequest`, `ContractError`) from GE-020-003; this is the
+    enforcement over them.
+  - Every mechanism here shares a failure mode: **it fails quietly.** A cursor
+    that restarts a listing, a page that stops one short, a limiter that says
+    "wait 0 seconds", a bulk job reporting success with half its work undone —
+    none throws, none logs, and each sends the caller away with a wrong answer
+    they cannot detect. So the tests are almost entirely about those.
+  - **Cursors are client-supplied values.** One carries the tenant it was
+    issued for and the sort it was issued against, and both are checked: a
+    cursor from another tenant is a small opaque-looking token that returns
+    another tenant's page, and a cursor used against a different ordering names
+    a position that is meaningless there and would silently return the wrong
+    window. The refusal does not say which tenant it belonged to — that would
+    turn it into a way of learning another tenant exists.
+  - Deliberately **not signed**. Tamper-evidence is not the property that
+    matters, because the tenant is checked against the caller's resolved tenant;
+    a signature would add key management for a guarantee already held elsewhere.
+  - `hasMore` comes from fetching `limit + 1` rows, not from
+    `items.length === limit` — a final page that happens to be exactly full is
+    otherwise indistinguishable from one with more behind it.
+  - Sort is a **whitelist**: the field arrives from a query string and reaches
+    an ORDER BY, and an arbitrary one lets a caller sort by a column they cannot
+    read, then infer its values from the ordering.
+  - The rate limiter is fixed-window, and says so: a fixed window allows up to
+    2× the limit across a boundary. That is acceptable for protecting capacity
+    and would not be for gating an attack, and it is written down because the
+    next reader will otherwise assume it is sliding. `retryAfterSeconds` rounds
+    **up**, since telling a denied caller to wait 0 seconds produces an
+    immediate retry that is denied again.
+  - A quota denial offers no retry — exceeding it is a plan problem, not a pace
+    problem, and waiting will not help. The warning fires only on the request
+    that crosses the threshold; reporting it on every subsequent one turns a
+    useful warning into noise that gets filtered out.
+  - Tests: 32, proven to catch by mutation. Twelve bypasses, each restored, all
+    caught.
+  - **Two of my own tests were wrong and both were fixed rather than adjusted.**
+    A test asserting the negative-count message got the relational one, because
+    `processed: -1` satisfies "failed exceeds processed" first — the validator
+    now checks negatives first, since every later comparison assumes the counts
+    are counts. And the vanished-resource test asserted only status 412, which
+    still passes when the null branch is deleted (`null !== "v3"`); it now
+    asserts the message, because "that no longer exists" and "this changed since
+    you loaded it" lead a user to different actions.
+
+## GE-GATE-2
+
+- [ ] **GE-GATE-2** — Status: FAIL — GE-020 and GE-021 complete (12 of 17);
+  GE-022's five items are not started.
 
 ## GE-022: Common UX/runtime
 
@@ -817,4 +868,3 @@ for progress:
     and counting code that happens to exist as an item completed is what rule 3
     forbids.
 
-- [ ] **GE-GATE-2** — Status: FAIL — 2 of 17 items.

@@ -116,6 +116,7 @@ const DOMAINS = [
       'packages/module-runtime/',
       'packages/metadata/',
       'packages/contracts/',
+      'apps/web/src/lib/envelopes/',
     ],
   },
   {
