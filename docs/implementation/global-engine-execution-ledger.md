@@ -606,13 +606,75 @@ for progress:
 
 ## GE-021 / GE-022
 
-- [ ] **GE-021-001 … 007**, **GE-022-001 … 005** — Status: FAIL — not started,
-  except where noted below.
-  - `apps/web/src/middleware.ts` and `apps/web/src/app/api/me/route.ts` exist in
-    the tree and are owned by `configuration` and `identity` respectively in the
-    ownership map. They are **not** claimed as passing GE-021-003 or
-    GE-022-001: neither has been verified against those items' full scope, and
-    counting code that happens to exist as an item completed is exactly what
-    rule 3 of this ledger forbids.
+## GE-021: Tenant context and command path
+
+- [x] **GE-021-001** — Server-side `TenantResolver` from verified host/domain, session, membership, tenant registry and cell route. Never trust a client header or slug alone.
+  - Status: PASS
+  - Code/config: `apps/web/src/lib/tenancy/resolver.ts`, `resolver.test.ts`
+  - Evidence: resolution gathers every signal, narrows to a candidate, then
+    **proves the principal belongs to it**. The proof is the step that matters;
+    everything before it is narrowing. A URL saying `/rochester` is a request to
+    be treated as Rochester, not evidence of any relationship with it.
+  - Decisions worth naming:
+    - **Membership is checked per request, not per session.** A membership
+      revoked between sign-in and this request must fail, which is why
+      `isMember` is a port rather than a claim baked into the token.
+    - **Host and path disagreeing is refused, not resolved.** Picking a winner
+      would make one of "misconfigured" or "an attempt" succeed.
+    - **A tenant hint in a header is refused explicitly** and named in the
+      failure, so it appears in logs. `middleware.ts` already strips these at
+      the boundary; this is the second line, because "the middleware handles it"
+      is a sentence that stops being true during a refactor.
+    - **The refusal does not confirm the tenant exists.** Probing slugs learns
+      the same thing from a real tenant one cannot reach and one that was never
+      there, so the message is not an enumeration oracle.
+    - A tenant that is registered but **not serving** — suspended, hibernated,
+      offboarding — is refused with that reason rather than a 404 that reads as
+      "you typed it wrong".
+  - Every lookup is injected, which is what lets the decision be tested against
+    combinations that are painful to build in a database: a host bound to one
+    tenant while the path claims another, a membership that expired mid-session.
+  - Tests: 17, proven to catch by mutation. Eight bypasses, each restored:
+    membership no longer proved FAILS, a header hint accepted FAILS, host/path
+    disagreement resolved FAILS, anonymous allowed through FAILS, a non-serving
+    tenant serving FAILS, the refusal naming the tenant FAILS, platform hosts
+    resolvable as tenants FAILS, and reserved segments treated as slugs FAILS.
+  - That last one **initially passed when it should not have**, and the reason
+    is the useful part: the test only used segments absent from the registry, so
+    lookup returned null with or without the guard and the mutation changed
+    nothing. It now registers a tenant under the slug `admin` — the case that
+    makes the reserved list load-bearing — and fails correctly.
+
+- [x] **GE-021-003** — Strip/reject spoofed internal tenant/actor headers at public boundaries.
+  - Status: PASS
+  - Code/config: `apps/web/src/middleware.ts`, `apps/web/src/lib/http/internal-headers.ts`,
+    `internal-headers.test.ts`
+  - Evidence: 35 tests across 18 blocks. The matcher covers **every path with no
+    exclusions**, including `/_next/static` and `/favicon.ico` — the conventional
+    matcher excludes them and buys a real saving by creating a set of paths where
+    the control is off, which is not a property worth having on this control.
+  - The policy lives in a separate module from the middleware so it can be
+    asserted directly under jest, which cannot instantiate a Next request
+    lifecycle, and so a change to the list is reviewed as a change to a list.
+  - It landed ahead of GE-021-001 and GE-021-002 on purpose: a deny-list is
+    trivial to install while no code reads these headers and expensive once code
+    does, and the ordering matters in one direction only — adding the readers
+    first ships a window in which the bypass is live.
+  - Previously present in the tree and deliberately **not** claimed until
+    verified, per rule 3.
+
+- [ ] **GE-021-002, GE-021-004 … 007** — Status: FAIL — not started.
+  - GE-021-002 (immutable request context) is partly served by
+    `contextFrom()` and `@tenure/contracts`' `TenantContext`, but nothing yet
+    threads it through a request, so it is not claimed.
+
+## GE-022: Common UX/runtime
+
+- [ ] **GE-022-001 … 005** — Status: FAIL — not started.
+  - `apps/web/src/app/api/me/route.ts` exists and is owned by `identity` in the
+    ownership map. It is **not** claimed as passing GE-022-001: the item also
+    requires a tenant/seat switcher and navigation from semantic entitlements,
+    and counting code that happens to exist as an item completed is what rule 3
+    forbids.
 
 - [ ] **GE-GATE-2** — Status: FAIL — 2 of 17 items.
