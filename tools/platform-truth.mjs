@@ -130,10 +130,22 @@ function programme() {
   }
 }
 
-/** Test suites and their sizes, so the console does not have to be told. */
+/**
+ * Test suites and their sizes, so the console does not have to be told.
+ *
+ * Counted over tracked AND untracked-but-not-ignored files. Plain `git
+ * ls-files` lists only tracked ones, which makes this output change at the
+ * moment of `git commit` — so generating, verifying and committing in that
+ * order produces a file that was current when written and stale when pushed.
+ * That is exactly what happened, and CI caught it.
+ */
 function suites() {
   const count = (glob) =>
-    execFileSync('git', ['ls-files', glob], { encoding: 'utf8' }).split('\n').filter(Boolean).length
+    execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', glob], {
+      encoding: 'utf8',
+    })
+      .split('\n')
+      .filter(Boolean).length
 
   return [
     { name: 'platform guards', files: count('tests/security/*.test.mjs'), what: 'repository and deployment invariants' },
