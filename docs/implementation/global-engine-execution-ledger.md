@@ -366,3 +366,89 @@ for progress:
   versioned and published through the control plane.
 - `apps/web` is a duplicate of `satvikOS/Tenure` and does not belong in the
   engine repository (PD-008).
+
+---
+
+# Phase 1 — Secure AWS organization, accounts, and deployment identity
+
+## GE-010: Tenure-owned landing zone
+
+- [x] **GE-010-001** — ADR for a Tenure-owned AWS Organization and member accounts.
+  - Status: PASS
+  - Code/config: [`../decisions/ADR-0007-tenure-owned-aws-organization.md`](../decisions/ADR-0007-tenure-owned-aws-organization.md)
+  - Evidence: OU model fixed (Security, Log Archive, Infrastructure, Tenure
+    Parent, Nonproduction, Production Cells, Dedicated Tenants, Quarantine);
+    management account runs nothing; a tenant is never asked for an AWS account
+    and a dedicated tenant gets a **Tenure-owned** account vended for it.
+  - Status of the ADR itself is *Proposed*, deliberately. Creating an
+    Organization fixes its management account forever, moves billing, and needs
+    root emails and tax details that are the operator's. Deciding the shape is
+    mine; creating it is not.
+
+- [ ] **GE-010-002 … 007** — OUs, Control Tower baseline, SCPs, workload separation, partition abstraction.
+  - Status: **BLOCKED_EXTERNAL** on the four decisions ADR-0007 names.
+
+## GE-011: GitHub Actions OIDC
+
+- [x] **GE-011-001** — Reconcile the provider and create least-privilege roles.
+  - Status: PASS
+  - Code/config: `infrastructure/oidc/` (own state key `oidc/terraform.tfstate`)
+  - Evidence: the inventory found **zero** OIDC providers. One provider and
+    three roles now exist — read, plan, deploy-engine. Read is
+    **ViewOnlyAccess, not ReadOnlyAccess**, because ReadOnlyAccess can read
+    secret values and object bodies and the inventory writes to a public
+    repository; it carries an explicit Deny on GetSecretValue / GetObject /
+    Decrypt / Scan that survives a broader policy being attached later. The
+    deploy role can manage IAM roles only under a name prefix — unprefixed, a
+    compromised deploy mints an administrator — and is denied RDS,
+    Organizations, CreateUser/CreateAccessKey and the pilot's state prefix.
+
+- [x] **GE-011-002** — Restrict trust by repository, environment, ref and audience. Negative tests.
+  - Status: PASS
+  - Tests: `tests/security/oidc-trust.test.mjs`. Proven to catch, not to pass —
+    nine weakenings, each a plausible edit, each caught: StringEquals→StringLike,
+    a wildcard subject, deploy rebound to a branch, the aud condition deleted,
+    the read role widened, the IAM resource unprefixed, the pilot-state Deny
+    removed, 12-hour sessions, a wildcard trust principal.
+  - **The finding that only a real run could produce:** GitHub signs this
+    repository an *immutable-ID-qualified* subject —
+    `repo:satvikOS@228056784/Tenure-Parent@1316219596:ref:refs/heads/main`. A
+    policy naming the plain path is refused with "Not authorized to perform
+    sts:AssumeRoleWithWebIdentity", which never says what it received. The ID
+    form is stricter: the numbers are immutable, so recreating a repository at
+    the same path does not inherit the trust.
+
+- [x] **GE-011-003** — Use the existing keys only in a protected one-time bootstrap. Never expose them.
+  - Status: PASS
+  - Code/config: `.github/workflows/bootstrap-oidc.yml`
+  - Evidence: manual only, typed confirmation, STS account allowlist before
+    anything runs, plan-by-default with apply behind an explicit input, and a
+    check that refuses a plan containing a destroy or a replace — this stack is
+    additive, so either would mean drift or the wrong state. No echo, no file,
+    no output, no artifact, no `configure export-credentials`. Applied in run
+    `30701411608`.
+
+- [x] **GE-011-004** — Switch read workflows to OIDC and prove caller identity and least privilege.
+  - Status: PASS
+  - Evidence: `aws-inventory.yml` run `30701877182` — green, with
+    **`principal type: assumed-role`** in its own output. No long-lived key is
+    available to that job. A ratchet in `oidc-trust.test.mjs` lists the fourteen
+    workflows still on keys and **may only shrink**.
+
+- [ ] **GE-011-005** — Staging and production behind protected human approval.
+  - Status: FAIL — the deploy role's trust names a GitHub environment
+    `engine-production` that does not exist yet, so that role currently cannot
+    be assumed by anything. That is the intended failure direction, and creating
+    the environment with reviewers is the remaining work.
+
+- [ ] **GE-011-006** — Legacy key last-use inventory and an approved disable checklist.
+  - Status: FAIL — not started. Deliberately not bundled with GE-011-004:
+    surprise-revoking a credential breaks whatever was quietly depending on it.
+
+- [ ] **GE-011-007** — Drift detection for OIDC trust, IAM, action pinning, workflow permissions.
+  - Status: FAIL — partially covered statically by `oidc-trust.test.mjs`; no
+    detection against what is *deployed*.
+
+- [ ] **GE-GATE-1** — Multi-account baseline and OIDC identity operational; no long-lived key used routinely.
+  - Status: FAIL — OIDC identity is operational for the read path, but fourteen
+    workflows still use long-lived keys and there is no Organization.

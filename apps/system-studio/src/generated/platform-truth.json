@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "d94e0e4",
+  "commit": "6b655f9",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 15,
-    "done": 14,
+    "total": 24,
+    "done": 19,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -112,6 +112,74 @@
             "done": false,
             "title": "Baseline truth, safe AWS inventory, containment list, repository map and execution ledger complete; no credential or customer data exposed.",
             "phase": "Phase 0 — Establish repository, product, and AWS truth",
+            "isGate": true
+          }
+        ]
+      },
+      {
+        "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+        "items": [
+          {
+            "id": "GE-010-001",
+            "done": true,
+            "title": "ADR for a Tenure-owned AWS Organization and member accounts.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-011-001",
+            "done": true,
+            "title": "Reconcile the provider and create least-privilege roles.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-011-002",
+            "done": true,
+            "title": "Restrict trust by repository, environment, ref and audience. Negative tests.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-011-003",
+            "done": true,
+            "title": "Use the existing keys only in a protected one-time bootstrap. Never expose them.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-011-004",
+            "done": true,
+            "title": "Switch read workflows to OIDC and prove caller identity and least privilege.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-011-005",
+            "done": false,
+            "title": "Staging and production behind protected human approval.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-011-006",
+            "done": false,
+            "title": "Legacy key last-use inventory and an approved disable checklist.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-011-007",
+            "done": false,
+            "title": "Drift detection for OIDC trust, IAM, action pinning, workflow permissions.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-GATE-1",
+            "done": false,
+            "title": "Multi-account baseline and OIDC identity operational; no long-lived key used routinely.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
             "isGate": true
           }
         ]
