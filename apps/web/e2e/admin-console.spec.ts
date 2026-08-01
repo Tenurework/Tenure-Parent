@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
 import { RUN_ID } from "./run-id"
+import { ASSIGNEE, TRANSFEREE } from "./support/roster"
 
 /** The dedicated admin console: gating, and assign / transfer / remove roles
  *  through the University directory picker. */
@@ -33,25 +34,27 @@ test.describe("admin console", () => {
     await page.getByRole("button", { name: "Charter club" }).click()
     await page.waitForURL(/\/admin\/clubs\/[a-z0-9-]+$/)
 
-    // Assign Arjun (a real directory person) to the first seat.
-    await page.getByPlaceholder(SEARCH).first().fill("amoghe")
-    await page.getByRole("button", { name: /amoghe@simon/ }).first().click()
+    // Assign a directory person to the first seat. Who that is comes from the
+    // roster that seeded this database, not from a name written here — see
+    // support/roster.ts.
+    await page.getByPlaceholder(SEARCH).first().fill(ASSIGNEE.searchTerm)
+    await page.getByRole("button", { name: new RegExp(ASSIGNEE.email) }).first().click()
     await page.getByRole("button", { name: "Assign", exact: true }).first().click()
-    await expect(page.getByRole("button", { name: /Remove Arjun Prashant Moghe/ })).toBeVisible()
+    await expect(page.getByRole("button", { name: new RegExp(`Remove ${ASSIGNEE.name}`) })).toBeVisible()
 
     // Transfer the seat to a different person.
     await page.getByRole("button", { name: "Clear selection" }).first().click()
-    await page.getByPlaceholder(SEARCH).first().fill("esquivel")
-    await page.getByRole("button", { name: /esquivel/i }).first().click()
+    await page.getByPlaceholder(SEARCH).first().fill(TRANSFEREE.searchTerm)
+    await page.getByRole("button", { name: new RegExp(TRANSFEREE.email, "i") }).first().click()
     await page.getByRole("button", { name: /Transfer to this person/ }).first().click()
     await page.getByRole("dialog").getByRole("button", { name: "Transfer seat" }).click()
-    await expect(page.getByRole("button", { name: /Remove Jaime Esquivel/ })).toBeVisible()
-    await expect(page.getByRole("button", { name: /Remove Arjun Prashant Moghe/ })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: new RegExp(`Remove ${TRANSFEREE.name}`) })).toBeVisible()
+    await expect(page.getByRole("button", { name: new RegExp(`Remove ${ASSIGNEE.name}`) })).toHaveCount(0)
 
     // Remove the current holder.
-    await page.getByRole("button", { name: /Remove Jaime Esquivel/ }).first().click()
+    await page.getByRole("button", { name: new RegExp(`Remove ${TRANSFEREE.name}`) }).first().click()
     await page.getByRole("dialog").getByRole("button", { name: "Remove from seat" }).click()
-    await expect(page.getByRole("button", { name: /Remove Jaime Esquivel/ })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: new RegExp(`Remove ${TRANSFEREE.name}`) })).toHaveCount(0)
   })
 
   test("admin can force-decide any approval, overriding the gates", async ({ page }) => {

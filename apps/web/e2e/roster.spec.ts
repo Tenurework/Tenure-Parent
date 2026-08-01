@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test"
 import { signIn } from "./support/auth"
+import { CONSULTING_PREDECESSOR } from "./support/roster"
 
 /** 2026-2027 OSE roster: real board members, advisors, vacancies, predecessors. */
 
@@ -69,8 +70,9 @@ test.describe("club roster", () => {
     await page.goto("/orgs/simon-consulting-club/members")
 
     await expect(page.getByText("Previously held by").first()).toBeVisible()
-    // Last year's VP Finance & Operations
-    await expect(page.getByText("Jaime Esquivel")).toBeVisible()
+    // A named predecessor from the roster that seeded this database, rather
+    // than a person's name written into the test.
+    await expect(page.getByText(CONSULTING_PREDECESSOR.name).first()).toBeVisible()
   })
 
   test("Director can filter clubs by category", async ({ page }) => {

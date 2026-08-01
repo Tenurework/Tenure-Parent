@@ -55,6 +55,21 @@ const ALLOWED = new Map([
 /** Files whose entire purpose is the real roster, and which are not committed. */
 const UNTRACKED_BY_DESIGN = ['apps/web/scripts/roster-data.mjs']
 
+/**
+ * Files permitted to name a real person, with the reason and the item that
+ * removes the permission.
+ *
+ * `lib/policies.ts` names three OSE staff as the approvers for purchases and
+ * swag. That is operational content: editing the names would change who a
+ * student is told to seek approval from, which is a product decision and not a
+ * cleanup. The defect is not the names — it is that one tenant's governing
+ * content is compiled into the global engine at all, which the platform
+ * directive forbids. This entry disappears when GE-060 moves the file into
+ * tenant configuration, and until then it is one line rather than a silent
+ * exception.
+ */
+const NAMES_ALLOWED_IN = new Set(['apps/web/src/lib/policies.ts'])
+
 const tracked = () =>
   execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n').filter(Boolean)
 
@@ -107,6 +122,71 @@ test('the real roster is untracked and ignored', () => {
     const ignored = execFileSync('git', ['check-ignore', file], { encoding: 'utf8', stdio: 'pipe' })
     assert.match(ignored.trim(), new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   }
+})
+
+/**
+ * Names, not just addresses.
+ *
+ * The address check passed while two e2e specs asserted on real students by
+ * name — `getByRole("button", { name: /Remove <real person>/ })`. An address is
+ * the obvious shape of personal data and not the only one.
+ *
+ * This can only run where the real roster is present: on an operator's machine,
+ * which is exactly where a name would be copied from. In CI the roster is
+ * absent by design, so the check reports that it did not run rather than
+ * passing vacuously — a skipped check that looks green is worse than no check.
+ */
+test('no tracked file names a person from the real roster', async (t) => {
+  const REAL_ROSTER = 'apps/web/scripts/roster-data.mjs'
+  if (!fs.existsSync(REAL_ROSTER)) {
+    t.diagnostic(`${REAL_ROSTER} is absent — name check NOT RUN. It runs where the roster is.`)
+    return
+  }
+
+  const [real, sample] = await Promise.all([
+    import(`file://${process.cwd()}/${REAL_ROSTER}`),
+    import(`file://${process.cwd()}/apps/web/scripts/roster-data.sample.mjs`),
+  ])
+
+  const namesOf = (m) => {
+    const out = new Set()
+    for (const club of m.ROSTER) {
+      for (const seat of club.seats ?? []) {
+        if (seat.holder?.name) out.add(seat.holder.name.trim())
+        if (seat.predecessor?.name) out.add(seat.predecessor.name.trim())
+      }
+    }
+    for (const a of m.ADVISORS ?? []) if (a.name) out.add(a.name.trim())
+    return out
+  }
+
+  // A name the anonymiser also invented is not evidence of a leak — the
+  // surname pool it draws from can collide with a real one.
+  const synthetic = namesOf(sample)
+  const realNames = [...namesOf(real)].filter((n) => !synthetic.has(n) && n.includes(' '))
+
+  const offenders = new Map()
+  for (const file of tracked()) {
+    if (file === REAL_ROSTER) continue
+    if (NAMES_ALLOWED_IN.has(file)) continue
+    let text
+    try {
+      text = fs.readFileSync(file, 'utf8')
+    } catch {
+      continue
+    }
+    const found = realNames.filter((n) => text.includes(n))
+    if (found.length) offenders.set(file, found.length)
+  }
+
+  const report = [...offenders].map(([f, n]) => `  ${f}: ${n} name(s)`).join('\n')
+  assert.equal(
+    offenders.size,
+    0,
+    `tracked files name real people. Derive them from scripts/roster-source.mjs instead, as\n` +
+      `apps/web/e2e/support/roster.ts does — a test that asserts on a person breaks when the\n` +
+      `person changes, which is the wrong thing for it to be coupled to:\n${report}`
+  )
 })
 
 test('the synthetic fixture contains no real address, and is complete enough to replace the roster', () => {

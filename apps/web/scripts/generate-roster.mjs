@@ -125,7 +125,8 @@ function parseAdvisorMaster(file) {
   return byName
 }
 
-/** "Wayne France (Ainslie OSE)" -> { name, affiliation } */
+/** "Jordan Avery (Ainslie OSE)" -> { name, affiliation }. Invented example: a
+ *  real advisor's name in a comment is a real advisor's name in a public repo. */
 function splitAdvisor(raw) {
   const m = raw.match(/^(.*?)\s*\(([^)]+)\)\s*$/)
   return m
