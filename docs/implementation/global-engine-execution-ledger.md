@@ -765,7 +765,48 @@ for progress:
     `runUnscoped()` FAILS, drift reported as misclassification FAILS, and
     binding inside an explicitly unscoped block FAILS.
 
-- [ ] **GE-021-006, GE-021-007** — Status: FAIL — not started.
+- [x] **GE-021-006** — Transactional audit and outbox with idempotent dispatch, schema versions, retries, DLQ, replay and traceability.
+  - Status: PASS
+  - Code/config: `apps/web/src/lib/outbox/outbox.ts`, `outbox.test.ts`,
+    `prisma/schema.prisma` (`OutboxEvent`), migration
+    `20260801210840_outbox_events`
+  - Evidence: the property is one sentence — **"the row changed" and "the event
+    exists" cannot disagree.** Publishing after commit leaves a window where the
+    change happened and the event did not; publishing before leaves the
+    opposite. The row is written in the caller's transaction, and delivery
+    becomes a separate retryable problem.
+  - At-least-once, chosen deliberately: a dispatcher that marks dispatched
+    before the consumer confirms can **lose** a record; one that marks after can
+    **duplicate** it. Duplication is the survivable failure, because a consumer
+    can deduplicate on `eventId` and cannot invent a message it never received.
+  - A record whose event no longer satisfies the `DomainEvent` contract is
+    dead-lettered **immediately** rather than retried — it will never start
+    parsing, and eight attempts would reach the same place with a less useful
+    reason.
+  - Backoff is exponential, capped at an hour, and **jittered**. Without jitter
+    a batch that failed together retries together, turning a transient
+    downstream blip into a sustained one at the moment it is least able to
+    absorb it. The jitter source is injected so schedules are deterministic in
+    tests.
+  - `replay` requires **explicit ids** and refuses more than 100. A dead letter
+    failed eight times and the reason is usually still true; replaying the queue
+    reproduces the incident and buries the one record that would have succeeded.
+    Only `dead` records may be replayed — requeuing a pending one duplicates it
+    deliberately, the one duplication this design does not accept.
+  - Tests: 13, proven to catch by mutation. Nine bypasses, each restored:
+    marking dispatched before delivery FAILS, a failure aborting the pass FAILS,
+    retrying forever FAILS, retrying an unparseable event FAILS, jitter removed
+    FAILS, backoff uncapped FAILS, empty replay FAILS, unbounded replay FAILS,
+    and replaying a non-dead record FAILS.
+  - **Three existing tripwires fired on the migration, all correctly**, and that
+    is the useful part of adding a table here: the registry refused an
+    unclassified model carrying `institutionId`; the pinned scoped-model count
+    refused to move silently; and the tenant-export suite refused a
+    tenant-scoped model with no reader, which would have been a silent empty
+    section in a customer's export. Each was fixed with the reasoning recorded
+    beside it rather than by adjusting the number.
+
+- [ ] **GE-021-007** — Status: FAIL — not started.
 
 ## GE-022: Common UX/runtime
 

@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**321 files · 12 domains with code · 2 declared and unbuilt · 20 shared.**
+**323 files · 12 domains with code · 2 declared and unbuilt · 20 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
@@ -24,7 +24,7 @@ defensible.
 | `workflow` | 16 | Approvals, their gates and their state machine. |
 | `files` | 15 | Documents and attachments: storage, retrieval, editing. |
 | `search-memory` | 8 | Retrieval across everything a principal may already see, and org memory. |
-| `notifications` | 34 | Telling someone something happened: in-app notices, calendars, messaging. |
+| `notifications` | 36 | Telling someone something happened: in-app notices, calendars, messaging. |
 | `reporting` | 27 | Reading the estate back: reports, dashboards, the audit trail. |
 | `erp-modules` | 29 | The domain modules a tenant runs: finance, resources, and the module catalog. |
 | `integrations` | 9 | Outbound connections to anything Tenure does not run. |

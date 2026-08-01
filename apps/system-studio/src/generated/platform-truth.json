@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "ac39bce",
+  "commit": "da75193",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 36,
-    "done": 29,
+    "total": 38,
+    "done": 30,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -265,6 +265,20 @@
             "isGate": false
           },
           {
+            "id": "GE-021-006",
+            "done": true,
+            "title": "Transactional audit and outbox with idempotent dispatch, schema versions, retries, DLQ, replay and traceability.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
+            "id": "GE-021-007",
+            "done": false,
+            "title": "Status: FAIL — not started.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
             "id": "GE-GATE-2",
             "done": false,
             "title": "Status: FAIL — 2 of 17 items.",
@@ -478,7 +492,7 @@
     },
     {
       "name": "application unit",
-      "files": 29,
+      "files": 30,
       "what": "apps/web"
     },
     {

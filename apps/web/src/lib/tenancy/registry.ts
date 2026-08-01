@@ -22,6 +22,10 @@
  * reads and stamps it on writes.
  */
 export const TENANT_SCOPED = [
+  // An outbox row is a tenant's event awaiting delivery. Scoped like the change
+  // that produced it: a dispatcher reading across tenants would be reading every
+  // tenant's activity, which is the thing the chokepoint exists to prevent.
+  "OutboxEvent",
   // institutionId with a declared relation to Institution
   "InstitutionMembership",
   "Organization",

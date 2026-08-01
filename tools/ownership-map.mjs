@@ -160,6 +160,7 @@ const DOMAINS = [
       'apps/web/src/components/Calendar',
 
       'apps/web/src/lib/notify.ts',
+      'apps/web/src/lib/outbox/',
       'apps/web/src/lib/messaging',
       'apps/web/src/lib/calendar',
       'apps/web/src/lib/jobs/',

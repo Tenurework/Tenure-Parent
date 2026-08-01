@@ -75,6 +75,7 @@ model Institution {
   roleTransfers RoleTransfer[]
   approvalDelegations ApprovalDelegation[]
   resources     Resource[]
+  outboxEvents  OutboxEvent[]
 }
 
 enum InstitutionRole {
@@ -994,4 +995,52 @@ model Resource {
   @@unique([institutionId, key])
   @@index([institutionId, archivedAt])
   @@index([institutionId, kind])
+}
+
+// ─── Transactional outbox ─────────────────────────────────────────────────────
+
+/// An event written in the SAME transaction as the change that caused it.
+///
+/// The property this table exists for is one sentence: "the row changed" and
+/// "the event exists" cannot disagree. Publishing to a queue after committing
+/// leaves a window where the change happened and the event did not, and nothing
+/// downstream ever learns about it; publishing before committing leaves the
+/// opposite. Writing here inside the caller's transaction removes the window,
+/// and delivery becomes a separate, retryable problem.
+///
+/// `attempts`, `lastError` and `deadLetteredAt` live on the record rather than
+/// in a queue's private state, so "why was this never delivered" is answerable
+/// from the same database that holds the change.
+model OutboxEvent {
+  id String @id @default(cuid())
+
+  /// Scoped like every other tenant row — the isolation registry classifies it.
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  /// The event, validated against the DomainEvent contract before dispatch.
+  eventId       String @unique
+  type          String
+  schemaVersion Int
+  resourceType  String
+  resourceId    String
+  correlationId String
+  causationId   String?
+  payload       Json   @default("{}")
+
+  /// pending | dispatching | dispatched | dead
+  state          String    @default("pending")
+  attempts       Int       @default(0)
+  lastError      String?
+  /// When this record becomes due. Retries move it forward with backoff.
+  availableAt    DateTime  @default(now())
+  deadLetteredAt DateTime?
+
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  /// The dispatcher's only query: due records, oldest first.
+  @@index([state, availableAt])
+  @@index([institutionId, state])
 }

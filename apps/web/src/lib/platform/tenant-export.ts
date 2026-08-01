@@ -67,6 +67,11 @@ const SCOPED_READERS: Record<(typeof TENANT_SCOPED)[number], () => Promise<unkno
   Organization: () => db.organization.findMany(),
   Deliverable: () => db.deliverable.findMany(),
   AuditEvent: () => db.auditEvent.findMany(),
+  // Events awaiting or having completed delivery. Included because an export
+  // that omitted them would be missing the tenant's own record of what its
+  // changes told the rest of the platform — and a dead-lettered row is exactly
+  // the thing someone asks about after an incident.
+  OutboxEvent: () => db.outboxEvent.findMany(),
   RoleTransfer: () => db.roleTransfer.findMany(),
   ApprovalDelegation: () => db.approvalDelegation.findMany(),
   Resource: () => db.resource.findMany(),

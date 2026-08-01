@@ -92,10 +92,16 @@ describe("the registry matches prisma/schema.prisma", () => {
   it("counts what we expect today", () => {
     // A tripwire, not a spec: if these move, the change was intentional and
     // this number should be updated deliberately along with the reasoning.
-    expect(TENANT_SCOPED).toHaveLength(15)
+    //
+    // 15 → 16 on 2026-08-01: OutboxEvent (GE-021-006). An outbox row is a
+    // tenant's event awaiting delivery, and a dispatcher reading across tenants
+    // would be reading every tenant's activity — exactly what the chokepoint
+    // exists to prevent. The tripwire fired on the migration, which is the
+    // behaviour it was written for.
+    expect(TENANT_SCOPED).toHaveLength(16)
     expect(PLATFORM_GLOBAL).toHaveLength(5)
     expect(Object.keys(UNENFORCEABLE)).toHaveLength(19)
-    expect(schemaModels).toHaveLength(39)
+    expect(schemaModels).toHaveLength(40)
   })
 })
 
