@@ -452,3 +452,83 @@ for progress:
 - [ ] **GE-GATE-1** — Multi-account baseline and OIDC identity operational; no long-lived key used routinely.
   - Status: FAIL — OIDC identity is operational for the read path, but fourteen
     workflows still use long-lived keys and there is no Organization.
+
+---
+
+# Phase 2 — Monorepo boundaries and common runtime
+
+## GE-020: Architecture boundaries
+
+- [x] **GE-020-001** — Define and enforce module/service ownership across the fourteen platform domains.
+  - Status: PASS
+  - Code/config: [`../architecture/ownership.md`](../architecture/ownership.md),
+    `tools/ownership-map.mjs`, `tests/architecture/ownership.test.mjs`
+  - Evidence: all 14 domains the prompt names are declared and every one of the
+    **298 source files** across `apps/web/src`, `apps/system-studio/src` and
+    `packages/` belongs to **exactly one** — 0 unclaimed, 0 claimed twice.
+  - The enforcement is the deliverable, not the table. An orphan is not a
+    formatting problem: it means code was added that nobody decided the
+    ownership of, which is how a codebase stops having boundaries — one
+    unclaimed file at a time, each individually defensible.
+  - **Four domains are declared with no code**, rather than omitted, because a
+    map showing ten would read as a complete map of a ten-domain system:
+    `relay` (→ GE-090s), `billing-metering` (→ GE-160s), and the note on each
+    says what exists instead. `lib/ai.ts` is owned by `integrations` rather than
+    `relay`, because a single direct vendor call with no gateway, no per-tenant
+    policy and no cost accounting is an integration, not a Relay.
+  - Tests: 7, proven to catch by mutation — a new file in no domain FAILS, two
+    domains claiming one path FAILS, a domain deleted from the map FAILS, a scan
+    root removed FAILS (`only 53 files scanned — a root stopped being read`),
+    and an unbuilt domain relabelled as built FAILS. Unmodified passes and the
+    worktree is clean afterwards.
+  - Honest limit: ownership is by path prefix, so it governs where code lives
+    rather than what it imports. GE-020-002 is the import-direction half.
+
+- [x] **GE-020-002** — Prevent controllers, UI, connectors and general modules from importing raw database, provider or AWS clients.
+  - Status: PASS
+  - Code/config: `tests/architecture/forbidden-clients.test.mjs`
+  - Evidence: no module outside `lib/db.ts` constructs a Prisma client, none
+    outside `lib/s3.ts` and the Studio's `registry.ts` constructs an AWS one,
+    and no provider URL is called outside `lib/ai.ts`. **One real violation
+    existed and was fixed rather than allowlisted** — the document summary page
+    built its own `S3Client` and now reads through `getDocumentBytes`.
+  - The rule shipped with a hole an adversarial pass found:
+    `import * as p from "@prisma/client"` then `new p.PrismaClient()` passed
+    cleanly, because the check searched the import clause for a literal
+    identifier that a namespace import never contains. Closed, with
+    `import type * as` still correctly ignored.
+  - Tests: twelve mutations, each restored — reinstating the original violation
+    byte-for-byte, a raw client in a page, a provider URL, an AWS constructor
+    with no import, an aliased AWS import, a dynamic
+    `await import("@aws-sdk/client-sts")`, owner rot in both adapters, and a
+    rogue **untracked** file proving the scan sees uncommitted code.
+  - Two limits recorded rather than papered over: the provider rule anchors on
+    `https?://` immediately followed by the host, so a host assembled from a
+    string constant is not detected; and the AWS constructor pattern matches
+    inside string literals, because the same stripper must preserve strings for
+    the URL rule.
+
+- [ ] **GE-020-003** — Shared contracts for tenant context, commands, queries, domain events, audit, outbox, errors, jobs, idempotency, config, permissions, files, tool registration.
+  - Status: FAIL — not started.
+
+- [ ] **GE-020-004** — ADR defining the modular-monolith default and objective service-extraction criteria.
+  - Status: FAIL — not started.
+
+- [ ] **GE-020-005** — Consolidate duplicate person/member/role/approval/audit/finance sources into migration plans.
+  - Status: FAIL — not started. The duplicates are already identified in
+    [`../architecture/subsystem-paths.md`](../architecture/subsystem-paths.md)
+    §2 and §3; what is missing is the migration plan, and the item is explicit
+    that historical data must not be deleted blindly.
+
+## GE-021 / GE-022
+
+- [ ] **GE-021-001 … 007**, **GE-022-001 … 005** — Status: FAIL — not started,
+  except where noted below.
+  - `apps/web/src/middleware.ts` and `apps/web/src/app/api/me/route.ts` exist in
+    the tree and are owned by `configuration` and `identity` respectively in the
+    ownership map. They are **not** claimed as passing GE-021-003 or
+    GE-022-001: neither has been verified against those items' full scope, and
+    counting code that happens to exist as an item completed is exactly what
+    rule 3 of this ledger forbids.
+
+- [ ] **GE-GATE-2** — Status: FAIL — 2 of 17 items.

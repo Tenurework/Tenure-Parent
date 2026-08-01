@@ -1,0 +1,120 @@
+/**
+ * GE-020-001. Module ownership, enforced rather than described.
+ *
+ * The execution prompt asks that ownership across fourteen platform domains be
+ * *defined and enforced*. A table in a document is the definition; this is the
+ * enforcement, and without it the table is a snapshot of the day someone wrote
+ * it.
+ *
+ * The property is deliberately absolute: every source file belongs to exactly
+ * one domain. Not "most files" and not "files we remembered" — an orphan means
+ * code was added that nobody decided the ownership of, which is how a codebase
+ * stops having boundaries. One unclaimed file at a time, each individually
+ * defensible.
+ */
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import { execFileSync } from 'node:child_process'
+
+import { DOMAINS, SHARED, SHARED_PREFIXES, classify } from '../../tools/ownership-map.mjs'
+
+test('every source file belongs to a domain', () => {
+  const { orphans } = classify()
+
+  assert.deepEqual(
+    orphans,
+    [],
+    `these files belong to no domain. Add each to the domain that owns it in\n` +
+      `tools/ownership-map.mjs, or to SHARED with a reason if it genuinely belongs to none:\n  ` +
+      orphans.join('\n  '),
+  )
+})
+
+test('no file is claimed by two domains', () => {
+  const { ambiguous } = classify()
+
+  // Two domains claiming one file is not a tie to be broken by iteration order.
+  // It means the boundary between them is wrong, and quietly picking the first
+  // match would hide that.
+  assert.deepEqual(ambiguous, [], `ambiguous ownership:\n  ${ambiguous.join('\n  ')}`)
+})
+
+test('all fourteen domains the prompt names are declared', () => {
+  // Ten with code and four without. The four are the point: a map showing ten
+  // would read as a complete map of a ten-domain system.
+  assert.equal(DOMAINS.length, 14, 'the domain list changed')
+
+  const unbuilt = DOMAINS.filter((d) => d.unbuilt)
+  assert.ok(unbuilt.length > 0, 'no domain is declared unbuilt — that would be a claim, not a map')
+
+  for (const d of unbuilt) {
+    assert.match(d.unbuilt, /^GE-/, `${d.key} is unbuilt with no item that builds it`)
+    assert.ok(
+      (d.note ?? '').length > 40,
+      `${d.key} is declared unbuilt without saying what exists instead`,
+    )
+    assert.deepEqual(d.owns, [], `${d.key} is marked unbuilt but owns files`)
+  }
+})
+
+test('every domain with code actually has some', () => {
+  const { byDomain } = classify()
+
+  const empty = DOMAINS.filter((d) => !d.unbuilt && byDomain.get(d.key).length === 0).map(
+    (d) => d.key,
+  )
+
+  // A domain declared as built and owning nothing is either unbuilt and
+  // mislabelled, or its prefixes are wrong. Both are worth failing on.
+  assert.deepEqual(empty, [], `declared as built, owning no files: ${empty.join(', ')}`)
+})
+
+test('the shared list stays small', () => {
+  // Every entry here is a file the map cannot describe, so the count is the
+  // measure of how well the domains fit. Pinned at what is actually there
+  // rather than at a round number, and it may only FALL: adding a file here is
+  // the easy way out of classifying it, and this is what makes that a decision
+  // rather than a reflex.
+  //
+  // The sixteen are the root document and its error boundaries, the load
+  // balancer probe, the boot-time environment check, and four UI primitives
+  // that live at the top of components/ rather than in components/ui/. None
+  // belongs to a platform domain, and forcing them into one to make a number
+  // smaller would be worse than the number.
+  assert.equal(
+    SHARED.size,
+    16,
+    `${SHARED.size} files are owned by no domain, expected 16. This may only fall — if a file ` +
+      `was classified into a domain, lower this in the same commit.`,
+  )
+  assert.ok(SHARED_PREFIXES.length <= 5, 'too many shared directories')
+
+  for (const [file, why] of SHARED) {
+    assert.ok(fs.existsSync(file), `${file} is in SHARED but does not exist`)
+    assert.ok(why.length > 10, `${file} is shared without a reason`)
+  }
+})
+
+test('the committed map matches the code', () => {
+  const result = execFileSync('node', ['tools/ownership-map.mjs', '--check'], {
+    encoding: 'utf8',
+    stdio: 'pipe',
+  })
+  assert.match(result, /up to date/)
+})
+
+test('the map covers the app, the studio and the packages', () => {
+  // A map that silently stopped scanning a root would report zero orphans
+  // forever. Asserting the file count is non-trivial is what stops that being
+  // indistinguishable from success.
+  const { files } = classify()
+  assert.ok(files.length > 200, `only ${files.length} files scanned — a root stopped being read`)
+
+  for (const root of ['apps/web/src/', 'apps/system-studio/src/', 'packages/']) {
+    assert.ok(
+      files.some((f) => f.startsWith(root)),
+      `no file scanned under ${root}`,
+    )
+  }
+})

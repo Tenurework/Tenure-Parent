@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "6eb1327",
+  "commit": "619b9ba",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 24,
-    "done": 19,
+    "total": 30,
+    "done": 21,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -180,6 +180,53 @@
             "done": false,
             "title": "Multi-account baseline and OIDC identity operational; no long-lived key used routinely.",
             "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": true
+          }
+        ]
+      },
+      {
+        "phase": "Phase 2 — Monorepo boundaries and common runtime",
+        "items": [
+          {
+            "id": "GE-020-001",
+            "done": true,
+            "title": "Define and enforce module/service ownership across the fourteen platform domains.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
+            "id": "GE-020-002",
+            "done": true,
+            "title": "Prevent controllers, UI, connectors and general modules from importing raw database, provider or AWS clients.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
+            "id": "GE-020-003",
+            "done": false,
+            "title": "Shared contracts for tenant context, commands, queries, domain events, audit, outbox, errors, jobs, idempotency, config, permissions, files, tool registration.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
+            "id": "GE-020-004",
+            "done": false,
+            "title": "ADR defining the modular-monolith default and objective service-extraction criteria.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
+            "id": "GE-020-005",
+            "done": false,
+            "title": "Consolidate duplicate person/member/role/approval/audit/finance sources into migration plans.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
+            "id": "GE-GATE-2",
+            "done": false,
+            "title": "Status: FAIL — 2 of 17 items.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
             "isGate": true
           }
         ]
