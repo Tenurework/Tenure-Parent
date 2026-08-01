@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "36fc1eb",
+  "commit": "eb04722",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 24,
@@ -384,7 +384,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 6,
+      "files": 7,
       "what": "repository and deployment invariants"
     },
     {

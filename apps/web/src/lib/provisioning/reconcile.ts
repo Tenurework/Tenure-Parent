@@ -1,4 +1,5 @@
-import type { PrismaClient } from "@prisma/client"
+import { buildAuditRecord } from "@tenure/audit"
+import type { Prisma, PrismaClient } from "@prisma/client"
 
 /**
  * The cell side of provisioning.
@@ -158,26 +159,45 @@ export async function reconcile(db: PrismaClient, input: ReconcileInput): Promis
     })
     if (!existingMembership) changes.push("granted director rights to the administrator")
 
-    // The audit row is the record that a tenant was materialised here, and by
-    // which artifact. Written inside the transaction so it cannot exist for a
-    // reconcile that rolled back.
+    // The record that a tenant was materialised here, and by which artifact.
+    //
+    // Built through @tenure/audit rather than hand-assembled: that validates the
+    // required fields, refuses a DENY with no reason, and redacts sensitive
+    // metadata. 34 of 35 audit writes in this application skip all of it
+    // (subsystem-paths.md §3) and a ratchet stops a 35th being added — this is
+    // a new write, so it goes through the package, which is where they are all
+    // heading anyway.
+    //
+    // Inside the transaction, so it cannot exist for a reconcile that rolled back.
+    const record = buildAuditRecord({
+      tenantId: institution.id,
+      actor: { principalId: user.id },
+      action: "Tenant.Reconciled",
+      resourceType: "Institution",
+      resourceId: institution.id,
+      outcome: "ALLOW",
+      occurredAt: input.at,
+      metadata: {
+        manifestDigest: manifest.manifestDigest,
+        deploymentDigest: manifest.digest,
+        configurationChecksum: manifest.configurationChecksum,
+        modules: [...manifest.modules],
+        publishedBy: manifest.createdBy,
+        publishedAt: manifest.createdAt,
+        changes,
+      },
+    })
+
     await tx.auditEvent.create({
       data: {
-        institutionId: institution.id,
-        actorId: user.id,
-        action: "Tenant.Reconciled",
-        resourceType: "Institution",
-        resourceId: institution.id,
-        outcome: "ALLOW",
-        metadata: {
-          manifestDigest: manifest.manifestDigest,
-          deploymentDigest: manifest.digest,
-          configurationChecksum: manifest.configurationChecksum,
-          modules: [...manifest.modules],
-          publishedBy: manifest.createdBy,
-          publishedAt: manifest.createdAt,
-          changes,
-        },
+        institutionId: record.tenantId,
+        actorId: record.actorId,
+        action: record.action,
+        resourceType: record.resourceType,
+        resourceId: record.resourceId ?? undefined,
+        outcome: record.outcome,
+        reason: record.reason ?? undefined,
+        metadata: record.metadata as Prisma.InputJsonValue,
       },
     })
 

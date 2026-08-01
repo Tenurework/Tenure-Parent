@@ -77,16 +77,16 @@ currently "the older one", which is the opposite of the intended direction.
 > answers a different question (who holds what seat) and stays. It is
 > `admin/capabilities.ts` whose 16 ids must become policies the engine decides.
 
-## 3. Audit — 35 writes, 1 through the audit package
+## 3. Audit — 36 writes, 2 through the audit package
 
 ```
 $ grep -rho 'auditEvent\.create' apps/web/src --include=*.ts --include=*.tsx | wc -l
-35
+36
 ```
 
-Of those 35 call sites, exactly **one** — `lib/admin/guard.ts` — imports
-`buildAuditRecord` from `@tenure/audit`. The other 34 construct a
-`db.auditEvent.create({ ... })` payload by hand.
+Of those call sites, exactly **two** — `lib/admin/guard.ts` and
+`lib/provisioning/reconcile.ts` — import `buildAuditRecord` from `@tenure/audit`.
+The other 34 construct a `db.auditEvent.create({ ... })` payload by hand.
 
 What the 34 therefore skip:
 
@@ -99,8 +99,10 @@ What the 34 therefore skip:
   events tamper-evident. A hand-built row does not participate.
 
 This is not a latent risk; it is the current state of the evidence trail. The
-audit log that a school would be shown in an incident review is 34/35
-unvalidated.
+audit log that a school would be shown in an incident review is 34/36
+unvalidated. The ratchet in `tests/security/audit-writes.test.mjs` is what makes
+that number able only to improve: the reconciler was a *new* write, and it went
+through the package rather than adding a 35th raw one.
 
 > Owned by: GE-120s. The fix is mechanical — route every write through one
 > helper — and the test that keeps it fixed is the same shape as
@@ -241,7 +243,7 @@ session- and tenant-guarded.
 | # | Contradiction | Evidence | Owner |
 |---|---|---|---|
 | 1 | The authorization engine gates nothing. Two older systems decide access; the newest paints the menu. | 2 consumers, both navigational | GE-030s |
-| 2 | 34 of 35 audit writes bypass validation, redaction and chaining. | 1 of 35 imports `@tenure/audit` | GE-120s |
+| 2 | 34 of 36 audit writes bypass validation, redaction and chaining. | 2 of 36 import `@tenure/audit` | GE-120s |
 | 3 | Five SQS queues, an SES identity and a DLQ alarm exist for a delivery path with no producer and no consumer. | no SQS/SES client in any package | GE-090 / GE-140 |
 | 4 | Identity is a shared passphrase; the Bible mandates Cognito. | 0 user pools in the account | GE-041 |
 | 5 | Inference calls a vendor API directly from the task; the Bible mandates a gateway with per-tenant policy, cost and audit. | one literal URL in `lib/ai.ts` | GE-100s |

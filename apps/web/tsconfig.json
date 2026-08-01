@@ -21,6 +21,12 @@
     "paths": {
       "@/*": ["./src/*"],
       "@tenure/configuration": ["../../packages/configuration/src/index.ts"],
+      // TEST-ONLY. reconcile.itest.ts cross-checks that an artifact the engine
+      // signs verifies with this cell's own, independent implementation. The
+      // cell must not depend on the engine at runtime, and
+      // tests/security/cell-independence.test.mjs fails the build if any
+      // non-test file here imports it.
+      "@tenure/provisioning": ["../../packages/provisioning/src/index.ts"],
       "@tenure/blueprints": ["../../blueprints/index.ts"],
       "@tenure/organization-model": ["../../packages/organization-model/src/index.ts"],
       "@tenure/module-runtime": ["../../packages/module-runtime/src/index.ts"],
