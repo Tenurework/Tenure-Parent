@@ -24,6 +24,7 @@ import {
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
 import { SlugTaken, advanceTenant, getTenant, registerTenant, takenSlugs } from "@/lib/registry"
+import { deliverToCell } from "@/lib/deliver"
 
 /**
  * Every action here re-checks the operator, in the action.
@@ -226,6 +227,23 @@ export async function advanceState(_prev: AdvanceResult | null, form: FormData):
 
     const ctx = executionContext()
     const evidence = executeStep(to, tenant.manifest, ctx)
+
+    // MIGRATING is the hand-off. The artifact is delivered here, and the
+    // evidence records what the cell actually did — or that nothing received
+    // it, which must not read as success.
+    if (to === "MIGRATING" && tenant.deployment) {
+      const outcome = await deliverToCell(tenant.deployment, tenant.manifest)
+      evidence.detail = `${evidence.detail} ${outcome.detail}`
+      evidence.checks = [
+        ...(evidence.checks ?? []),
+        {
+          name: "delivered to the cell",
+          ok: outcome.delivered,
+          detail: outcome.detail,
+        },
+      ]
+      if (!outcome.delivered) evidence.ok = false
+    }
 
     if (!evidence.ok) {
       const failed = (evidence.checks ?? []).filter((c) => !c.ok).map((c) => `${c.name}: ${c.detail}`)

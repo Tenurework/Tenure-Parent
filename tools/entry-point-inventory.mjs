@@ -38,12 +38,32 @@ const GUARDS = [
   { key: 'operator', label: 'platform operator', pattern: /isPlatformOperator|requireOperator/ },
   { key: 'capability', label: 'capability', pattern: /requireCapability|assertCapability|\bcan[A-Z]\w*\(|guardAdmin|requireAdmin/ },
   { key: 'tenant', label: 'tenant scope', pattern: /withTenant|resolveTenantScope|forEachInstitution|tenantScope/ },
-  { key: 'shared-secret', label: 'shared secret', pattern: /JOB_SECRET|CRON_SECRET/ },
+  // Any bearer-secret comparison, not two names someone thought of once. The
+  // reconcile endpoint was correctly guarded by PLATFORM_RECONCILE_SECRET and
+  // reported as unguarded, because the pattern was a list rather than a shape.
+  {
+    key: 'shared-secret',
+    label: 'shared secret',
+    pattern: /process\.env\.[A-Z0-9_]*SECRET|JOB_SECRET|CRON_SECRET/,
+  },
   { key: 'url-token', label: 'unguessable URL token', pattern: /params.*token|\btoken\b.*findUnique/s },
 ]
 
+/**
+ * Tracked AND untracked-but-not-ignored.
+ *
+ * Plain `git ls-files` lists only tracked files, which made this blind to the
+ * one file that matters most: a brand-new route. It could not be seen until the
+ * commit that introduced it had already passed the guard, so the check ran
+ * against every entry point except the one being added. A security check that
+ * only inspects code it has seen before is not a security check.
+ */
 const listFiles = (glob) =>
-  execFileSync('git', ['ls-files', glob], { encoding: 'utf8' }).split('\n').filter(Boolean)
+  execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', glob], {
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .filter(Boolean)
 
 const read = (f) => fs.readFileSync(f, 'utf8')
 

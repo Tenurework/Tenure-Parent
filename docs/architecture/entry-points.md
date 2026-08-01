@@ -7,7 +7,7 @@ Generated from the filesystem. `npm run test:platform` regenerates this and
 fails if the committed copy is stale, so it cannot quietly go out of date, and
 fails if a handler appears with no guard and no entry on the public allowlist.
 
-**20 API routes · 36 pages · 14 server-action modules exporting 62 actions.**
+**21 API routes · 36 pages · 14 server-action modules exporting 62 actions.**
 
 ## What a guard means here
 
@@ -44,6 +44,7 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/api/notifications` | GET, POST | `session` |
 | `/api/org-image/[orgId]` | GET | `session` + `capability` + `tenant` |
 | `/api/platform/export/[slug]` | GET | `session` + `operator` |
+| `/api/platform/reconcile` | POST | `shared-secret` |
 | `/api/profile-image/[userId]` | GET | `session` |
 | `/api/reports/pulse` | GET | `session` + `tenant` |
 | `/api/search` | GET | `session` + `tenant` |

@@ -129,17 +129,28 @@ p {
   color: var(--bad);
 }
 
+/* Key/value pairs.
+   The key column was a fixed 15rem, so `platform.terminology.leadershipBody`
+   ran past its own column and printed on top of its value. Nothing detected it:
+   the ELEMENT stayed 15rem wide while the TEXT overflowed, so no two boxes
+   collided and every visibility assertion passed on an unreadable page.
+   `max-content` sizes the column to the longest key that is actually there, and
+   the keys wrap rather than overflow if one is longer still. */
 .kv {
   display: grid;
-  grid-template-columns: 15rem 1fr;
-  gap: 0.15rem 1rem;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 0.2rem 1.5rem;
+  align-items: baseline;
 }
 .kv dt {
   color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .kv dd {
   margin: 0;
-  word-break: break-all;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .chips {

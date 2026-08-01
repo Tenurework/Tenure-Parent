@@ -1,5 +1,5 @@
 import { buildAuditRecord } from "@tenure/audit"
-import type { Prisma, PrismaClient } from "@prisma/client"
+import type { Prisma } from "@prisma/client"
 
 /**
  * The cell side of provisioning.
@@ -94,7 +94,22 @@ export async function verifyDigest(manifest: DeploymentManifest): Promise<boolea
  * that was built against a schema this cell is not at, is not something to make
  * a best effort with.
  */
-export async function reconcile(db: PrismaClient, input: ReconcileInput): Promise<ReconcileReport> {
+/**
+ * The client this needs, named by what it does rather than by its type.
+ *
+ * The application's `db` is a PrismaClient wrapped in the tenancy extension —
+ * nominally a different type, structurally a superset. Typing this parameter as
+ * `PrismaClient` refused the extended client; typing it as the extended client
+ * would refuse a plain one. It needs a transaction, so it asks for a
+ * transaction, and the callback's client is `Prisma.TransactionClient` either
+ * way because that is what both hand it.
+ */
+export interface ReconcileClient {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $transaction<T>(fn: (tx: any) => Promise<T>, options?: unknown): Promise<T>
+}
+
+export async function reconcile(db: ReconcileClient, input: ReconcileInput): Promise<ReconcileReport> {
   const { manifest } = input
   const changes: string[] = []
 
@@ -130,7 +145,7 @@ export async function reconcile(db: PrismaClient, input: ReconcileInput): Promis
   // Everything in one transaction: a cell left with an institution but no
   // administrator is worse than one left with neither, because it looks
   // provisioned.
-  const result = await db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx: Prisma.TransactionClient) => {
     const existing = await tx.institution.findUnique({ where: { slug: manifest.slug } })
 
     const institution = await tx.institution.upsert({
