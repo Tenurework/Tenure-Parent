@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import "./globals.css"
+import { Nav } from "@/components/Nav"
 
 export const metadata: Metadata = {
   title: "Tenure System Studio",
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <span className="title">System Studio</span>
           <span className="internal">Internal</span>
         </header>
+        <Nav />
         <main>{children}</main>
       </body>
     </html>

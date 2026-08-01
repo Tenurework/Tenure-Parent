@@ -32,10 +32,10 @@ export default async function NewTenantPage() {
 
   return (
     <>
-      <nav className="tabs">
-        <Link href="/tenants">Tenants</Link>
-        <span className="here">Compose</span>
-      </nav>
+
+      <p className="breadcrumb">
+        <Link href="/tenants">Tenants</Link> <span aria-hidden="true">/</span> Compose
+      </p>
 
       <h1>Compose a tenant</h1>
       <p>

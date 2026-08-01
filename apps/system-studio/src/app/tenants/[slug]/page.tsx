@@ -37,10 +37,13 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
 
   return (
     <>
-      <nav className="tabs">
-        <Link href="/tenants">Tenants</Link>
-        <span className="here">{tenant.slug}</span>
-      </nav>
+
+      {/* The section nav names Tenants; this says which one, and how to get
+          back. Two levels is the whole hierarchy — a breadcrumb longer than the
+          hierarchy is decoration. */}
+      <p className="breadcrumb">
+        <Link href="/tenants">Tenants</Link> <span aria-hidden="true">/</span> {tenant.slug}
+      </p>
 
       <h1>{tenant.manifest.displayName}</h1>
       <p className="slug">

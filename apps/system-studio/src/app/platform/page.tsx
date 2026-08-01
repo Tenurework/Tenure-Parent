@@ -1,4 +1,3 @@
-import Link from "next/link"
 
 import { auth } from "@/lib/auth"
 import { isOperator, operatorConfigProblems } from "@/lib/operators"
@@ -46,11 +45,6 @@ export default async function PlatformPage() {
 
   return (
     <>
-      <nav className="tabs">
-        <Link href="/">Organization systems</Link>
-        <Link href="/tenants">Tenants</Link>
-        <span className="here">Platform</span>
-      </nav>
 
       <h1>Platform</h1>
       <p>

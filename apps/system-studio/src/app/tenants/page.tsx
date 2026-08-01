@@ -41,11 +41,6 @@ export default async function TenantsPage() {
 
   return (
     <>
-      <nav className="tabs">
-        <Link href="/">Organization systems</Link>
-        <span className="here">Tenants</span>
-        <Link href="/platform">Platform</Link>
-      </nav>
 
       <h1>Tenants</h1>
 
@@ -86,10 +81,16 @@ export default async function TenantsPage() {
           </header>
 
           {tenants.length === 0 ? (
-            <p>
-              None yet. <Link href="/tenants/new">Compose one</Link> — it is registered in{" "}
-              <code>DRAFT</code> and nothing is built until the plan is approved.
-            </p>
+            <div className="empty">
+              <p>
+                No tenant has been composed through this console yet. Composing one registers it in{" "}
+                <code>DRAFT</code>: nothing is built, nothing is billed, and no routing changes
+                until its plan is read and approved.
+              </p>
+              <Link className="primary-action" href="/tenants/new">
+                Compose a tenant
+              </Link>
+            </div>
           ) : (
             <table className="grid">
               <thead>
@@ -120,9 +121,11 @@ export default async function TenantsPage() {
             </table>
           )}
 
-          <p style={{ marginTop: "1rem" }}>
-            <Link href="/tenants/new">Compose a new tenant →</Link>
-          </p>
+          {tenants.length > 0 && (
+            <Link className="primary-action" href="/tenants/new">
+              Compose a tenant
+            </Link>
+          )}
         </section>
       )}
 

@@ -94,8 +94,8 @@ export function ComposeForm({
               <label key={m.key} className="check" title={m.description}>
                 <input type="checkbox" name="modules" value={m.key} />
                 <span>
-                  <b>{m.key}</b> <span className="slug">v{m.version}</span>
-                  <br />
+                  <b>{m.key}</b>{" "}
+                  <span className="version">v{m.version}</span>
                   <span className="slug">{m.description}</span>
                 </span>
               </label>

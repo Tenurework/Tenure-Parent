@@ -4,19 +4,32 @@
  * An internal console that looks like the customer application is one someone
  * screenshots into a customer conversation by accident. It should be obvious at
  * a glance which of the two you are looking at.
+ *
+ * ── The palette ────────────────────────────────────────────────────────────
+ *
+ * Off-white surfaces, darker muted grey text. Not white and not black: pure
+ * #fff against pure #000 is the highest-contrast pairing a screen can produce,
+ * and an operator reads this console for long stretches. Everything here is
+ * warm-shifted and desaturated so nothing vibrates.
+ *
+ * Status is carried by weight and a *muted* tint, never by a saturated colour.
+ * A console where the eye is pulled to whatever is reddest stops being read.
  */
 
 :root {
-  --bg: #0f1113;
-  --surface: #17191c;
-  --border: #262a2f;
-  --text: #e8eaed;
-  --muted: #9aa1a9;
-  --accent: #d18b2c;
-  --ok: #3f9e6a;
-  --warn: #c9752e;
-  --bad: #c05252;
+  --bg: #f2f0ed;        /* warm off-white — the page */
+  --surface: #fbfaf8;   /* cards sit slightly above it */
+  --surface-2: #eceae6; /* inputs sit slightly below */
+  --border: #dbd6cf;
+  --border-strong: #c3bdb4;
+  --text: #33302c;      /* darker muted grey, not black */
+  --muted: #6e6a64;
+  --accent: #7a6440;    /* desaturated ochre */
+  --ok: #4c6350;
+  --warn: #7d6538;
+  --bad: #7d4f4c;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
 }
 
 * {
@@ -173,7 +186,9 @@ form.signin button {
   background: var(--accent);
   border: 0;
   border-radius: 3px;
-  color: #17191c;
+  /* The one place text sits ON the accent, so it takes the page colour rather
+     than the text colour. Named, not hardcoded, so a palette change carries. */
+  color: var(--surface);
   font: inherit;
   font-weight: 600;
   padding: 0.5rem;
@@ -193,7 +208,7 @@ form.signin button {
 .tabs {
   display: flex;
   gap: 1.5rem;
-  border-bottom: 1px solid var(--line, #e5e5e5);
+  border-bottom: 1px solid var(--border);
   margin-bottom: 1.5rem;
   font-size: 0.9rem;
 }
@@ -225,19 +240,19 @@ table.grid th,
 table.grid td {
   text-align: left;
   padding: 0.4rem 0.75rem 0.4rem 0;
-  border-bottom: 1px solid var(--line, #eee);
+  border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
 table.grid th {
   font-weight: 600;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.55;
+  letter-spacing: 0.05em;
+  color: var(--muted);
 }
 table.grid td.num,
 table.grid th.num { text-align: right; font-variant-numeric: tabular-nums; }
-table.grid td.state { width: 1.5rem; opacity: 0.7; }
+table.grid td.state { width: 1.5rem; color: var(--muted); }
 table.grid td.id {
   white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -248,13 +263,18 @@ table.grid tr.gate td { font-weight: 600; }
 
 /* ── Forms ─────────────────────────────────────────────────────────────── */
 .field { margin: 0.9rem 0; }
-.field label {
+/* Direct children only.
+   `.field label` matched the per-module labels nested inside the checkbox grid
+   too, so twelve module names and their descriptions rendered in uppercase at
+   60% opacity — a wall of shouting, unreadable grey. A field's caption is a
+   caption; the content inside it is content. */
+.field > label {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  opacity: 0.6;
-  margin-bottom: 0.3rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
 }
 .field input[type="text"],
 .field input[type="email"],
@@ -267,19 +287,60 @@ table.grid tr.gate td { font-weight: 600; }
   font: inherit;
   font-size: 0.92rem;
   color: inherit;
-  background: var(--surface-2, #131313);
-  border: 1px solid var(--line, #2a2a2a);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: 4px;
 }
 .field input:focus, .field select:focus, .field textarea:focus {
   outline: 2px solid currentColor;
   outline-offset: 1px;
 }
-.field .hint { font-size: 0.8rem; opacity: 0.55; margin: 0.3rem 0 0; max-width: 34rem; }
+/* Colour, not opacity. Stacking 0.55 opacity on top of an already-muted grey
+   put hint text near 3:1 against the card — the guidance that explains what a
+   field means was the least readable thing on the page. */
+.field .hint {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0.3rem 0 0;
+  max-width: 34rem;
+}
 
-.checks { display: grid; gap: 0.5rem; max-width: 34rem; }
-.check { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.88rem; text-transform: none; letter-spacing: 0; opacity: 1; }
-.check input { margin-top: 0.25rem; flex: none; }
+/* Two columns: twelve modules in one column pushed everything below the fold,
+   and the section that decides what the system IS should not be the section an
+   operator scrolls past. */
+.checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  gap: 0.15rem 1.25rem;
+  max-width: 46rem;
+}
+.check {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  align-items: start;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.check:hover { background: var(--surface-2); }
+.check input { margin: 0.2rem 0 0; }
+.check b { font-weight: 600; text-transform: none; }
+/* The description is support, not a label — it must not inherit the caption
+   styling above, and it must stay readable. */
+.check .slug {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
 
 form.compose button[type="submit"],
 .advance button[type="submit"] {
@@ -288,8 +349,8 @@ form.compose button[type="submit"],
   font: inherit;
   font-weight: 600;
   color: inherit;
-  background: var(--surface-2, #1c1c1c);
-  border: 1px solid var(--line, #333);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
   cursor: pointer;
 }
@@ -314,4 +375,44 @@ form.compose button[type="submit"]:disabled,
 .advance .chips button.chip.chosen {
   border-color: currentColor;
   box-shadow: inset 0 0 0 1px currentColor;
+}
+
+/* ── Breadcrumb ────────────────────────────────────────────────────────────
+   The section nav says which area; this says which item within it. */
+.breadcrumb {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0 0 0.35rem;
+}
+.breadcrumb a { color: var(--muted); text-decoration: none; }
+.breadcrumb a:hover { color: var(--text); text-decoration: underline; }
+.breadcrumb span { margin: 0 0.35rem; opacity: 0.5; }
+
+/* ── Primary action ────────────────────────────────────────────────────────
+   One per screen, and it looks like it. Everything else is a link or a plain
+   control, so an operator scanning a page finds the thing to do next without
+   reading every button. */
+.primary-action {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.5rem 0.95rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.primary-action:hover { border-color: var(--text); }
+
+/* An empty section states what is absent and links to what creates it, rather
+   than rendering an empty table that looks like a loading failure. */
+.empty {
+  padding: 1rem 0;
+  color: var(--muted);
+}
+.check .version {
+  font-size: 0.72rem;
+  color: var(--muted);
+  opacity: 0.8;
 }
