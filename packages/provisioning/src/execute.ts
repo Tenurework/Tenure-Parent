@@ -71,8 +71,37 @@ export interface ExecutionContext {
   schemaVersion(): string
 }
 
+/**
+ * A digest that does not depend on key order.
+ *
+ * `JSON.stringify` preserves insertion order, and the deployment manifest does
+ * not keep it: it is written to DynamoDB, read back to be delivered, and a
+ * DynamoDB map has no order at all. The bytes hashed at publication and the
+ * bytes hashed at the cell were therefore different objects with identical
+ * content, and the cell correctly refused its own engine's artifact —
+ * "altered between publication and here", which was true of the encoding and
+ * not of the meaning.
+ *
+ * No unit test could have caught it. Both sides agreed perfectly until a real
+ * store sat between them.
+ *
+ * Keys are sorted at every level before hashing, the same way `digestOf` has
+ * always canonicalised the tenant manifest.
+ */
+const canonical = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(canonical)
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => [k, canonical(v)]),
+    )
+  }
+  return value
+}
+
 const sha = (value: unknown) =>
-  createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 32)
+  createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex").slice(0, 32)
 
 /**
  * The state at which the engine's work ends and a cell's begins.

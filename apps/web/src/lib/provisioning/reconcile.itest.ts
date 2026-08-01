@@ -33,7 +33,22 @@ function signed(over: Partial<DeploymentManifest> = {}): DeploymentManifest {
     createdBy: "operator@tenure.example",
     ...over,
   }
-  const digest = createHash("sha256").update(JSON.stringify(body)).digest("hex").slice(0, 32)
+  // Signed exactly as the engine signs: canonically, so key order cannot
+  // change the answer.
+  const canonical = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(canonical)
+      : v && typeof v === "object"
+        ? Object.fromEntries(
+            Object.entries(v as Record<string, unknown>)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([k, x]) => [k, canonical(x)]),
+          )
+        : v
+  const digest = createHash("sha256")
+    .update(JSON.stringify(canonical(body)))
+    .digest("hex")
+    .slice(0, 32)
   return { ...body, digest }
 }
 
@@ -214,5 +229,41 @@ describe("engine and cell agree on what a digest covers", () => {
     expect(report.applied).toBe(true)
     expect(report.changes).toContain(`created institution "${SLUG}"`)
     expect(await db.institution.count({ where: { slug: SLUG } })).toBe(1)
+  })
+})
+
+describe("the digest survives a round trip through a store", () => {
+  it("verifies after the artifact's keys are reordered", async () => {
+    // The bug this exists for. The engine signs the manifest, writes it to
+    // DynamoDB, reads it back to deliver it — and a DynamoDB map has no key
+    // order, so what came back was a different ENCODING of identical content.
+    // Hashing `JSON.stringify(body)` compared bytes rather than meaning, and
+    // the cell refused its own engine's artifact as "altered between
+    // publication and here".
+    //
+    // No unit test could have found it: both sides agreed perfectly until a
+    // real store sat between them. This simulates the store by shuffling the
+    // keys, which is the only property of DynamoDB that mattered.
+    const original = signed()
+    expect(await verifyDigest(original)).toBe(true)
+
+    const shuffled = Object.fromEntries(
+      Object.entries(original).sort(() => -1),
+    ) as unknown as DeploymentManifest
+
+    expect(Object.keys(shuffled)).not.toEqual(Object.keys(original))
+    expect(await verifyDigest(shuffled)).toBe(true)
+  })
+
+  it("still refuses an artifact whose content actually changed", async () => {
+    // Canonicalising must not make the digest indifferent to the thing it
+    // exists to protect.
+    const tampered = { ...signed(), configurationChecksum: "cfg-tampered" }
+    expect(await verifyDigest(tampered)).toBe(false)
+
+    const reordered = Object.fromEntries(
+      Object.entries(tampered).reverse(),
+    ) as unknown as DeploymentManifest
+    expect(await verifyDigest(reordered)).toBe(false)
   })
 })

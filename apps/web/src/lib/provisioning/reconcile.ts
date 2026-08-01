@@ -83,7 +83,29 @@ export class ReconcileRefused extends Error {
 export async function verifyDigest(manifest: DeploymentManifest): Promise<boolean> {
   const { createHash } = await import("node:crypto")
   const { digest, ...body } = manifest
-  const computed = createHash("sha256").update(JSON.stringify(body)).digest("hex").slice(0, 32)
+
+  // Key order must not change the answer. The artifact is stored in DynamoDB
+  // between being signed and being delivered, and a DynamoDB map has no order —
+  // so hashing `JSON.stringify(body)` directly compared the bytes of two
+  // different encodings of the same content, and this refused its own engine's
+  // artifact as "altered". Sorting at every level is what makes the digest a
+  // property of the meaning rather than of the transport.
+  const canonical = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(canonical)
+    if (value && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => [k, canonical(v)]),
+      )
+    }
+    return value
+  }
+
+  const computed = createHash("sha256")
+    .update(JSON.stringify(canonical(body)))
+    .digest("hex")
+    .slice(0, 32)
   return computed === digest
 }
 
