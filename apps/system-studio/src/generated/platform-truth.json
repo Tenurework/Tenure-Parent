@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "619b9ba",
+  "commit": "0117f44",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 30,
-    "done": 21,
+    "done": 22,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -203,7 +203,7 @@
           },
           {
             "id": "GE-020-003",
-            "done": false,
+            "done": true,
             "title": "Shared contracts for tenant context, commands, queries, domain events, audit, outbox, errors, jobs, idempotency, config, permissions, files, tool registration.",
             "phase": "Phase 2 — Monorepo boundaries and common runtime",
             "isGate": false

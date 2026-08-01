@@ -115,6 +115,7 @@ const DOMAINS = [
       'packages/platform-config/',
       'packages/module-runtime/',
       'packages/metadata/',
+      'packages/contracts/',
     ],
   },
   {

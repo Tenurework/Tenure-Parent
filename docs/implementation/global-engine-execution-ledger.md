@@ -508,8 +508,48 @@ for progress:
     inside string literals, because the same stripper must preserve strings for
     the URL rule.
 
-- [ ] **GE-020-003** — Shared contracts for tenant context, commands, queries, domain events, audit, outbox, errors, jobs, idempotency, config, permissions, files, tool registration.
-  - Status: FAIL — not started.
+- [x] **GE-020-003** — Shared contracts for tenant context, commands, queries, domain events, audit, outbox, errors, jobs, idempotency, config, permissions, files, tool registration.
+  - Status: PASS
+  - Code/config: `packages/contracts/`, `packages/contracts/src/contracts.test.ts`
+  - Evidence: all fourteen contracts, each a **runtime gate** rather than an
+    erased interface. A TypeScript interface constrains nothing at a module
+    boundary — a value arriving from a queue, a job runner or a browser was
+    never seen by the compiler that believed it — so every contract has a
+    `parseX` that returns the value or throws a `ContractViolation` naming the
+    field and the problem.
+  - Decisions the contracts make, rather than describe:
+    - `Command.expectedVersion` is **required**, with `null` meaning "this is a
+      create". Optional concurrency control is concurrency control nobody uses:
+      it is omitted at the call site that needs it most, and the lost update is
+      found by a customer.
+    - A `validation`, `not-found`, `forbidden` or `precondition` error may not
+      declare itself retryable — a client told to retry one retries forever.
+    - An idempotency key replayed against a **different** request digest is a
+      conflict, never the earlier result. Without that, a client reusing a key
+      receives the first request's answer and believes the second succeeded.
+    - A `FileRef` whose object key does not begin with its tenant id is refused;
+      that is the whole failure mode of shared storage.
+    - A tool that writes must reauthorize per call, because the permission may
+      have been revoked since the session began — and a tool registered with no
+      `requiredPermission` is how a retrieval system becomes an exfiltration
+      system.
+    - A `DENY` needs a reason. "Denied" alone cannot answer the only question
+      anyone asks about one.
+  - Dependency-free by design — no Prisma, AWS, Next or React. A contract that
+    imports the database is the database with extra steps, and it is what lets a
+    job runner, an HTTP handler and a queue consumer all speak the same shapes.
+  - Tests: 35, and **proven to catch by mutation**. Nine guards were removed one
+    at a time and each restored: optional `expectedVersion` FAILS, a retryable
+    permanent error FAILS, cross-request replay FAILS, a cross-tenant file key
+    FAILS, a writing tool that skips reauthorization FAILS, a reasonless DENY
+    FAILS, the page cap removed FAILS, and **two real value-leaks** — `str()`
+    reporting the rejected value, and the actorKind refusal naming it — both
+    FAIL.
+  - One mutation initially passed when it should not have, and the reason is
+    recorded because it is the interesting part: it used `arguments[3]`, which
+    does not exist on a three-parameter constructor, so it echoed the problem
+    string rather than the value and simulated no leak at all. A proof that does
+    not reproduce the defect proves nothing; it was replaced with two that do.
 
 - [ ] **GE-020-004** — ADR defining the modular-monolith default and objective service-extraction criteria.
   - Status: FAIL — not started.
