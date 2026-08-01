@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "05a6334",
+  "commit": "c5bb4d9",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 33,
-    "done": 26,
+    "total": 34,
+    "done": 27,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -244,6 +244,13 @@
             "isGate": false
           },
           {
+            "id": "GE-021-002",
+            "done": true,
+            "title": "Immutable request context: tenant, cell, actor, session assurance, memberships, assignments, policy/config revision, correlation/trace, locale, resource handles.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
             "id": "GE-GATE-2",
             "done": false,
             "title": "Status: FAIL — 2 of 17 items.",
@@ -457,7 +464,7 @@
     },
     {
       "name": "application unit",
-      "files": 26,
+      "files": 27,
       "what": "apps/web"
     },
     {

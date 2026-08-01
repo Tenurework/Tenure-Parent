@@ -663,10 +663,40 @@ for progress:
   - Previously present in the tree and deliberately **not** claimed until
     verified, per rule 3.
 
-- [ ] **GE-021-002, GE-021-004 … 007** — Status: FAIL — not started.
-  - GE-021-002 (immutable request context) is partly served by
-    `contextFrom()` and `@tenure/contracts`' `TenantContext`, but nothing yet
-    threads it through a request, so it is not claimed.
+- [x] **GE-021-002** — Immutable request context: tenant, cell, actor, session assurance, memberships, assignments, policy/config revision, correlation/trace, locale, resource handles.
+  - Status: PASS
+  - Code/config: `apps/web/src/lib/tenancy/request-context.ts`, `request-context.test.ts`
+  - Evidence: carried through the request on `AsyncLocalStorage`, so it survives
+    an await boundary and two concurrent requests stay apart — both asserted,
+    because a module-level variable would pass every single-request test and
+    lose under load.
+  - **Immutability is enforced, not documented.** The context is deep-frozen:
+    `Object.freeze` is shallow, so a top-level freeze leaves
+    `actor.assurance` and `handles.database` writable — exactly where a
+    "helpful" mutation lands, because nobody reassigns the whole context. The
+    arrays are copied before freezing, so freezing does not reach back into the
+    caller's array and the caller cannot mutate the context afterwards.
+  - The failure this prevents is quiet: a middle layer swaps in a fresher config
+    revision, the audit row records a decision against a revision the decision
+    did not use, nothing detects it, and the incident review reaches the wrong
+    conclusion.
+  - Refuses to be built wrong: every field that makes a decision explainable is
+    required; a tenant the principal does not belong to is rejected even though
+    the resolver already proved it, so a context built by another path cannot
+    skip the proof; and an object prefix that could address another tenant is
+    refused, the same failure the `FileRef` contract catches.
+  - `withElevation` returns a **new** context rather than editing one — support
+    acting inside a customer tenant is different work, and mutating would leave
+    the audit trail unable to say when the elevation began. It requires a reason
+    and does **not** raise assurance: acting as support does not make the
+    engineer's own sign-in stronger than it was.
+  - Tests: 16, proven to catch by mutation. Nine guards removed, each restored:
+    shallow freeze FAILS, no freeze FAILS, membership unasserted FAILS, a
+    cross-tenant object prefix FAILS, optional required-fields FAILS,
+    `requireContext` defaulting FAILS, reasonless elevation FAILS, elevation
+    raising assurance FAILS, and arrays stored by reference FAILS.
+
+- [ ] **GE-021-004 … 007** — Status: FAIL — not started.
 
 ## GE-022: Common UX/runtime
 

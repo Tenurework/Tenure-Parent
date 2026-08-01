@@ -55,12 +55,17 @@ export type ResolutionFailure =
   | "tenant-not-serving"
 
 export interface ResolvedTenant {
-  tenantId: string
-  slug: string
+  // Readonly so the type agrees with the runtime. RequestContext deep-freezes
+  // this object, and a mutable type over a frozen value is worse than either
+  // alone: the compiler waves through an assignment that throws in production.
+  // Caught by an unused @ts-expect-error in request-context.test.ts, which is
+  // the only reason it surfaced at all.
+  readonly tenantId: string
+  readonly slug: string
   /** Which signal produced the candidate. Recorded, because "why this tenant" is asked in incidents. */
-  via: SignalSource
+  readonly via: SignalSource
   /** The cell this tenant is served from. */
-  cell: string
+  readonly cell: string
 }
 
 export type Resolution =
