@@ -183,6 +183,29 @@ jobs:
           DATABASE_URL="$LEGACY" npx prisma db push --skip-generate
           psql "$LEGACY" -c 'DELETE FROM "_prisma_migrations";' 2>/dev/null || true
           psql "$LEGACY" -c 'DROP TABLE IF EXISTS "_prisma_migrations";'
+
+          # Reconstruct the BASELINE shape, not the current one.
+          #
+          # `db push` writes today's schema, which was indistinguishable from
+          # the baseline while the baseline was the only migration. It no longer
+          # is: a database that is simultaneously pre-migrations AND up to date
+          # cannot exist, and simulating one made bootstrap try to CREATE a
+          # table db push had just created.
+          #
+          # Derived from the baseline migration rather than listed, so the next
+          # migration does not need this step edited — every table the baseline
+          # does not create is dropped, which is what "legacy" means.
+          BASELINE_TABLES=$(grep -ohE 'CREATE TABLE "[A-Za-z_]+"' prisma/migrations/*_baseline/migration.sql | tr -d '"' | awk '{print $3}' | sort -u)
+          ALL_TABLES=$(psql "$LEGACY" -tAc "SELECT tablename FROM pg_tables WHERE schemaname='public';" | sort -u)
+          POST_BASELINE=$(comm -13 <(echo "$BASELINE_TABLES") <(echo "$ALL_TABLES"))
+
+          if [ -n "$POST_BASELINE" ]; then
+            echo "Dropping tables the baseline does not create, to make this database genuinely legacy:"
+            for t in $POST_BASELINE; do
+              echo "  - $t"
+              psql "$LEGACY" -c "DROP TABLE IF EXISTS \"$t\" CASCADE;"
+            done
+          fi
           psql "$LEGACY" -c $'INSERT INTO "Institution" (id,name,slug,domain,"createdAt","updatedAt") VALUES (\'ci_live\',\'CI Live Data\',\'ci-live\',\'ci.test\',NOW(),NOW());'
 
           DATABASE_URL="$LEGACY" node scripts/db-bootstrap.mjs
