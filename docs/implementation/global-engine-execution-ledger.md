@@ -857,7 +857,8 @@ for progress:
 ## GE-GATE-2
 
 - [ ] **GE-GATE-2** — Status: FAIL — GE-020 and GE-021 complete (12 of 17);
-  GE-022's five items are not started.
+  GE-022 is 2 of 5 (001 shell + switching proof, 002 dense-ERP states).
+  003 (WCAG 2.2 AA), 004 (localization) and 005 (flags/kill switches) remain.
 
 ## GE-022: Common UX/runtime
 
@@ -895,5 +896,66 @@ for progress:
     rule, the ownership map, and the exemption-size ratchet. Each was resolved
     with its reason recorded rather than by adjusting a number.
 
-- [ ] **GE-022-002 … 005** — Status: FAIL — not started.
+- [x] **GE-022-002** — Design tokens/components for dense ERP states: loading,
+  empty, error, permission denied, stale, conflict, offline, archived, partial,
+  high-risk confirmation.
+  - Status: PASS
+  - Code: `components/ui/states.ts` (the semantics table + copy + `retryAdvice`),
+    `components/ui/StateSurface.tsx` (one component, rendering from the table)
+  - Tests: `components/ui/states.test.ts` — 18 cases, all green
+  - **Not a palette.** The item lists ten states, and the thing that goes wrong
+    is not their colour. It is that each panel re-decides three questions and
+    gets one of them wrong:
+    - which ARIA role, and how urgently a screen reader is interrupted
+    - whether what is on screen may be read as a **complete** answer
+    - whether a retry is offered, and whether retrying could possibly help
+  - The middle one is why this exists. `stale`, `partial`, `offline` and
+    `permission-denied` all render something, and a reader who cannot tell them
+    from a complete result decides on an incomplete one. `presentsAsComplete` is
+    true for exactly **two** states — `empty` and `archived` — because those are
+    the only two where what is on screen IS the whole correct answer. Empty *is*
+    the answer; archived is correct but no longer live. The other eight are not,
+    and the component renders a **textual** marker for them, not a tone. Colour
+    alone fails for a reader who cannot distinguish it, and "this is not
+    everything" is the one thing they must not miss.
+  - Two pieces of copy are load-bearing:
+    - `permission-denied` never names what it hides. "You cannot see the
+      Rochester budget" confirms a Rochester budget exists — the same
+      enumeration oracle the tenancy resolver (GE-021-001) and the command bus
+      (GE-021-004) already refuse to leak. A UI that leaks it back undoes that
+      work, so a test greps the string.
+    - `conflict` says **reload**, not retry, because retrying the identical
+      write reproduces the conflict. `retryable: false` and the copy agree, and
+      `retryAdvice()` carries the *reason* a retry is absent so it cannot be
+      re-added by someone who only sees a missing button.
+  - `role` and `aria-live` come from the table and are **not props**. A prop
+    would let one call site announce a loading spinner assertively over whatever
+    the reader was doing. A test asserts the component has no such prop.
+  - Proven by mutation — 9 of 9 caught, then restored and green again:
+    `stale` marked complete FAILS; `loading` set to `assertive` FAILS;
+    `permission-denied` made retryable FAILS; the denial copy naming a budget
+    FAILS; `conflict` copy saying "try again" FAILS; deleting the incomplete
+    marker FAILS; hardcoding the ARIA role FAILS; dropping a tone from the token
+    map FAILS; a literal hex in place of a token FAILS.
+  - One mutation initially reported **SKIP — marker not found**, because the
+    component had been rewritten onto the design tokens after the mutation was
+    written. Recorded rather than quietly dropped: a mutation whose anchor has
+    drifted proves nothing and is indistinguishable from a guard that works.
+  - Design tokens: `TONE` maps four tones onto `globals.css` variables. Four
+    rather than ten because the palette is a smaller vocabulary than the state
+    set — `stale`, `offline`, `partial` and `permission-denied` are different
+    situations that should look the same amount of unfinished. A test asserts
+    every tone the table can produce has an entry (a missing one is
+    `undefined.frame` — a blank panel in production) and that the file contains
+    no hex/rgb literal, since a literal survives the dark-mode switch and the
+    high-contrast media query unchanged.
+  - Honest limit: `@testing-library/react` is not installed and
+    `apps/web/jest.config.js` runs in `node`, so the component's *rendered DOM*
+    is asserted by reading its source, not by mounting it. That catches the
+    decisions (role from the table, marker present, retry gated) but not layout.
+    Layout is covered by the headless geometric suite. Recorded rather than
+    papered over: adding a DOM test dependency for this one item is a larger
+    change than the item.
+
+- [ ] **GE-022-003 … 005** — Status: FAIL — not started.
 

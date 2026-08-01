@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**327 files · 12 domains with code · 2 declared and unbuilt · 20 shared.**
+**330 files · 12 domains with code · 2 declared and unbuilt · 20 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
