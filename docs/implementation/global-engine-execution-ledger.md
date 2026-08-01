@@ -551,8 +551,52 @@ for progress:
     string rather than the value and simulated no leak at all. A proof that does
     not reproduce the defect proves nothing; it was replaced with two that do.
 
-- [ ] **GE-020-004** — ADR defining the modular-monolith default and objective service-extraction criteria.
-  - Status: FAIL — not started.
+- [x] **GE-020-004** — ADR defining the modular-monolith default and objective service-extraction criteria.
+  - Status: PASS
+  - Code/config: [`../decisions/ADR-0008-modular-monolith-and-extraction-criteria.md`](../decisions/ADR-0008-modular-monolith-and-extraction-criteria.md)
+  - Evidence: the default is stated as **where the burden of proof sits**, not as
+    a preference, and five extraction criteria are each measurable — a ≥10×
+    sustained resource divergence, a written-down independent-failure
+    requirement, a genuinely different runtime, a regulatory boundary, or ≥3
+    releases in a quarter blocked and recorded at the time.
+  - It also names what does **not** qualify, because each has been a real
+    argument somewhere: the domain is large (split the module), the deploy is
+    risky (make the deploy safer), it would be cleaner (a network boundary is
+    not a design tool), we might need to later (the enforced module boundary is
+    what preserves that option).
+  - Measured against its own criteria, **nothing currently qualifies**. The
+    engine and the cell are already separate under criterion 2, and the ADR says
+    plainly that this predates it rather than claiming it as a decision made
+    under these rules.
+  - The five-step extraction procedure puts data separation fourth, because it
+    is the irreversible one: a domain that cannot first route all traffic
+    through its contracts is not ready to be deployed separately, and finding
+    that out at step 2 costs a sprint rather than a quarter.
+
+- [x] **GE-020-005** — Consolidate duplicate person/member/role/approval/audit/finance sources into migration plans.
+  - Status: PASS
+  - Code/config: [`../migrations/DUPLICATE-SOURCES.md`](../migrations/DUPLICATE-SOURCES.md)
+  - Evidence: six areas audited, each with the trigger, ordered steps, what is
+    irreversible, and how it is verified. Every count reproduced from the code
+    on 2026-08-01 — 11 capability consumers, 2 authorization-engine consumers,
+    36 audit writes.
+  - **Three of the six turn out not to be duplicates**, and saying so is the
+    useful part: `User`/`DirectoryPerson` is a correct separation recorded so a
+    later audit does not "fix" it; `RoleAssignment`/`SeatHolding` is a
+    current-state table beside a history table; and finance has two callers of
+    one domain rather than two sources of truth.
+  - **A claim I made and had to withdraw:** §6 first said finance had one
+    writer. Checking rather than asserting found a second —
+    `approvals/actions.ts:257` posts a `LedgerEntry` when an approval is
+    decided. That is correct behaviour, and it surfaced the one real finance
+    finding: the double-post guard is a read-then-write rather than a uniqueness
+    constraint, so it is correct under the current isolation level and not by
+    construction. A unique index on `LedgerEntry.approvalId` is the only change
+    the plan proposes there. The withdrawal is left in the document.
+  - The item says *do not delete historical data blindly*, and no plan deletes a
+    row. Where old data carries weaker guarantees — the 34 unvalidated audit
+    rows — the plan is to **say so in the viewer**, not to rewrite them into
+    looking stronger.
 
 - [ ] **GE-020-005** — Consolidate duplicate person/member/role/approval/audit/finance sources into migration plans.
   - Status: FAIL — not started. The duplicates are already identified in
