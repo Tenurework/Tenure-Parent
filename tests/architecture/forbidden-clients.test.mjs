@@ -196,6 +196,10 @@ const OWNERS = {
  */
 const DATABASE_EXEMPT = new Map([
   [
+    'apps/web/src/lib/tenant-switching.itest.ts',
+    'an unextended client on purpose: it asserts that the MEMBERSHIP ROW decides which tenants a user may act in, and an extended client would answer from the scope under test',
+  ],
+  [
     'apps/web/src/lib/tenancy/isolation.itest.ts',
     'builds an enforcing client deliberately: lib/db.ts attaches the extension in observe mode, and an isolation proof that runs unenforced proves nothing',
   ],
@@ -393,7 +397,13 @@ test('the exemption lists are reasoned, real, and have not grown silently', () =
 
   // A client added to a page is a code review question. A file added to an
   // exemption list is the same question, asked where it is easier to miss.
-  assert.equal(DATABASE_EXEMPT.size, 8, 'the raw-database-client exemption list changed')
+  // 8 → 9 on 2026-08-01: tenant-switching.itest.ts (GE-022-001). It needs an
+  // unextended client for the same reason the other integration tests do — the
+  // property under test is that the MEMBERSHIP ROW decides which tenants a user
+  // may act in, and an extended client would answer from the very scope being
+  // tested. Raised deliberately, with the reason recorded, which is what this
+  // assertion exists to force.
+  assert.equal(DATABASE_EXEMPT.size, 9, 'the raw-database-client exemption list changed')
   assert.equal(AWS_EXEMPT.size, 0, 'a file was exempted from the AWS client rule')
   assert.equal(PROVIDER_EXEMPT.size, 0, 'a file was exempted from the provider endpoint rule')
 

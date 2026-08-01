@@ -861,10 +861,39 @@ for progress:
 
 ## GE-022: Common UX/runtime
 
-- [ ] **GE-022-001 … 005** — Status: FAIL — not started.
-  - `apps/web/src/app/api/me/route.ts` exists and is owned by `identity` in the
-    ownership map. It is **not** claimed as passing GE-022-001: the item also
-    requires a tenant/seat switcher and navigation from semantic entitlements,
-    and counting code that happens to exist as an item completed is what rule 3
-    forbids.
+- [x] **GE-022-001** — Tenant/seat-aware shell, `/me` bootstrap, tenant/seat switcher, navigation from semantic entitlements, clear active context.
+  - Status: PASS
+  - Code/config: `app/api/me/route.ts`, `components/shell/TenantSwitcher.tsx`,
+    `components/shell/ShellHeader.tsx`, `(app)/actions.ts` (`switchTenantAction`),
+    `lib/authz/navigation-capabilities.ts`, `lib/tenant-scope.ts`
+  - **All five parts already existed.** What did not exist was any proof of the
+    load-bearing claim, which `(app)/actions.ts` states in a comment:
+    > every later request re-proves the membership rather than trusting the
+    > cookie — that, not the switch action, is what stands between a forged
+    > cookie and another tenant's rows.
+    A comment asserting a security property is worth exactly what the test under
+    it is worth, and there was none. `lib/tenant-switching.itest.ts` is that
+    test: 8 cases against real Postgres, because the property is "the membership
+    row decides" and a mock decides whatever it is told.
+  - The case that matters revokes a membership **between two identical calls**.
+    That is the only way to tell a re-derived answer from a cached one: a cached
+    answer keeps working, a re-derived one stops. It also asserts the switcher
+    stops offering the tenant, so the UI cannot keep showing one the server
+    would now refuse.
+  - Proven by mutation: trusting a requested tenant without checking membership
+    FAILS, granting a scope to a user with no memberships FAILS, and memoising
+    the candidate set across calls FAILS.
+  - That third mutation initially **passed**, and the reason is worth keeping:
+    the marker string appears twice in `tenant-scope.ts` and the mutation landed
+    in the wrong function. Re-anchored on `resolveTenantScope`, it fails
+    correctly. A mutation that does not reach the code under test proves nothing
+    about it, and it looks identical to a guard that works.
+  - Honest limit: the **cookie-reading** path (`actingInstitutionChoice`) needs a
+    Next request context and is not covered here. It is exercised by the browser
+    e2e suite; this file covers the decision it delegates to.
+  - Three guards fired on the new file and all three were right — the raw-client
+    rule, the ownership map, and the exemption-size ratchet. Each was resolved
+    with its reason recorded rather than by adjusting a number.
+
+- [ ] **GE-022-002 … 005** — Status: FAIL — not started.
 

@@ -108,6 +108,7 @@ const DOMAINS = [
       'apps/web/src/lib/config/',
       'apps/web/src/lib/tenancy/',
       'apps/web/src/lib/tenant-scope',
+      'apps/web/src/lib/tenant-switching',
       'apps/web/src/lib/env',
       'apps/web/src/lib/institution-time.ts',
       'apps/web/src/lib/time',
