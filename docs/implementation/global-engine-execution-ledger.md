@@ -3283,3 +3283,65 @@ worth less than three items that hold.
     30-minute step-up freshness are constants here rather than configuration;
     they belong in the `identity` domain, which is `reserved` until GE-033's
     identity work lands.
+
+- [x] **GE-033-004** — Break-glass controls, alarm, post-use review, and no
+  routine use.
+  - Status: PASS
+  - Code: `packages/authorization/src/break-glass.ts`
+  - Tests: `break-glass.test.ts` — 26 cases. `apps/web` **1616/1616**;
+    96 platform guards.
+  - Bible §14.6, the sentence after the one governing support sessions:
+    "Break-glass is separately controlled, alarms immediately, and requires
+    post-incident review."
+  - A support session (GE-033-003) needs tenant approval or incident policy.
+    Break-glass is what exists when neither is available in time — nobody at the
+    tenant can approve at 03:00 and the incident is now. It therefore drops the
+    one control that requires another party and **tightens every control that
+    does not**: an hour rather than eight, an alarm that is not optional, and a
+    review that blocks the next use.
+  - **"No routine use" is the clause that decays first, and it is enforced
+    rather than asked for.** Every break-glass use has a good reason at the
+    time, and a mechanism used weekly is ordinary access with an alarming name.
+    Two things make that visible: an unreviewed use **blocks the next one by the
+    same operator**, so the review is load-bearing rather than a courtesy; and
+    `routineUse` refuses once the rate crosses a threshold, so "we break glass a
+    lot" is a number somebody sees rather than a feeling nobody raises. Neither
+    is a technical control against a determined operator; both make the pattern
+    impossible to hold and not notice, which is the realistic goal.
+  - The routine count includes **justified** uses. "Each one was fine" is how a
+    pattern gets explained rather than noticed.
+  - **The alarm cannot be skipped**, because `openBreakGlass` is the only
+    constructor and returns the alarm with the grant. An alarm raised by a
+    separate call is one somebody can forget, and the forgetting looks exactly
+    like a quiet incident. Its severity is the literal `"critical"` — there is
+    no quiet break-glass — and its message leads with the fact that
+    distinguishes it: no tenant approval was obtained.
+  - A refused open produces **no alarm**, asserted. Otherwise the signal meaning
+    "someone has fleet access right now" would fire when nobody does, and a
+    signal that cries wolf is one people mute.
+  - Only the same operator's unreviewed uses block: one person's outstanding
+    review must not lock a different operator out during an incident. And the
+    routine count is per operator, not per fleet — otherwise one heavy user is
+    hidden by everyone else's restraint, or everyone is blocked by one.
+  - A refusal during an incident **says what to do instead** — request a support
+    session, or escalate the gap. A refusal that only says no is an obstruction
+    rather than a control.
+  - Self-review is refused: a review of one's own emergency is a note to file.
+    An **unjustified** finding is still a valid review and still unblocks the
+    operator — the review's job is to conclude, not to absolve, and the
+    consequence for an unjustified use belongs to a person rather than to this
+    function.
+  - Proven by mutation, **6 of 6 caught**: routine use no longer refused FAILS 2;
+    an unreviewed prior use no longer blocking FAILS; the hour limit unenforced
+    FAILS; routine counting ignoring the operator FAILS; self-review permitted
+    FAILS; the routine window ignored FAILS.
+  - Honest limits: **nothing calls this yet**, the same as GE-033-003 — no store
+    persists a use, no alarm is delivered anywhere, and no UI opens or reviews
+    one. The alarm is a value, not a page or a notification: delivering it needs
+    the observability estate that is blocked on the AWS Organization along with
+    GE-012 and GE-GATE-1. The thresholds (60 minutes, 72 hours, 3 uses in 30
+    days) are constants rather than configuration; they belong in the `identity`
+    domain, which is `reserved`. And the "separately controlled" clause is
+    satisfied structurally — break-glass has its own module, its own constructor
+    and its own refusals — but not yet by a separate credential, which is again
+    the federation work §4.2 requires.

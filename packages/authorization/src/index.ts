@@ -76,3 +76,24 @@ export type {
   SupportBasis,
   SupportSession,
 } from "./support-session"
+
+export {
+  MAX_MINUTES,
+  REVIEW_DEADLINE_HOURS,
+  ROUTINE_THRESHOLD,
+  ROUTINE_WINDOW_DAYS,
+  alarmFor,
+  openBreakGlass,
+  routineUse,
+  unreviewedOverdue,
+  validateReview,
+  validateUse,
+} from "./break-glass"
+export type {
+  BreakGlassAlarm,
+  BreakGlassProblem,
+  BreakGlassReview,
+  BreakGlassUse,
+  OpenOutcome,
+  RefusalReason,
+} from "./break-glass"

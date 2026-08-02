@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "e1cfbe8",
+  "commit": "8dc08a3",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 75,
-    "done": 64,
+    "total": 76,
+    "done": 65,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -551,6 +551,13 @@
             "id": "GE-033-003",
             "done": true,
             "title": "Just-in-time support sessions with ticket/reason, tenant approval or incident policy, narrow scope, time limit, step-up, visible banner, dual attribution, automatic revocation and audit.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-033-004",
+            "done": true,
+            "title": "Break-glass controls, alarm, post-use review, and no routine use.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }
