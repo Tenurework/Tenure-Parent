@@ -18,9 +18,24 @@
  */
 import fs from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { programme as queue } from './loop/next-batch.mjs'
 
 const LEDGER = 'docs/implementation/global-engine-execution-ledger.md'
-const PROMPT = 'docs/implementation/Tenure_Claude_Code_Global_Engine_Execution_Prompt_v1.0.md'
+
+/**
+ * Every ledger, because there are three.
+ *
+ * The two bibles added on 2026-08-02 each instruct that their own file be
+ * created. Reading only the first one means an entry recorded correctly, under
+ * the rules, in the file its own prompt named, does not appear on the console —
+ * and the console's numbers quietly become a subset that looks like a total.
+ * `LEDGER` stays as the one whose findings table GE-GATE-0 lives in.
+ */
+const LEDGERS = [
+  LEDGER,
+  'docs/implementation/system-studio-aws-control-plane-execution-ledger.md',
+  'docs/implementation/simon-ose-absorption-execution-ledger.md',
+]
 const INVENTORY = 'docs/architecture/aws-inventory.json'
 const OUT = 'apps/system-studio/src/generated/platform-truth.json'
 
@@ -65,7 +80,11 @@ function ledger() {
     })
   }
 
-  if (items.length === 0) throw new Error(`Parsed no items from ${LEDGER} — the format changed.`)
+  // A ledger that exists but has no entries yet is fine — it was just created.
+  // Only the global engine ledger parsing to nothing means the format changed.
+  if (items.length === 0 && file === LEDGER) {
+    throw new Error(`Parsed no items from ${file} — the format changed.`)
+  }
   return items
 }
 
@@ -110,35 +129,38 @@ function estate() {
 }
 
 /**
- * The whole programme, from the execution prompt.
+ * The whole programme, across every binding document.
+ *
+ * Derived from `tools/loop/next-batch.mjs` rather than parsed here again. This
+ * function used to have its own parser pointed at the superseded v1.1 prompt,
+ * and so the console published "65 of 552 — 11.8%" while the true figure was
+ * 76 of 1219 — 6.2%. Two parsers of the same documents will disagree; the only
+ * question is how long before anyone notices, and the answer was months.
  *
  * The ledger only carries the phase currently being worked, so reporting
- * progress against it alone would read as "14 of 15" — which is true of Phase 0
- * and badly misleading about the programme. The denominator here is every item
- * the prompt defines.
+ * progress against it alone would read as "65 of 76" — true of what has been
+ * transcribed, and badly misleading about the programme.
  */
 function programme() {
-  const text = fs.readFileSync(PROMPT, 'utf8')
-  const phases = []
-  let phase = null
+  const { items, state, sources } = queue()
 
-  for (const line of text.split('\n')) {
-    const h = line.match(/^##\s+(Phase\s+\d+.*)$/)
-    if (h) {
-      phase = { phase: h[1].trim(), items: 0, gates: 0 }
-      phases.push(phase)
-      continue
-    }
-    const item = line.match(/^- \[[ x]\]\s+(GE-[\w-]+)/)
-    if (!item || !phase) continue
-    phase.items += 1
-    if (item[1].includes('GATE')) phase.gates += 1
+  const byPhase = new Map()
+  for (const item of items) {
+    const key = `${item.source} · ${item.phase}`
+    if (!byPhase.has(key)) byPhase.set(key, { phase: key, source: item.source, items: 0, gates: 0, done: 0 })
+    const bucket = byPhase.get(key)
+    bucket.items += 1
+    if (item.id.includes('GATE')) bucket.gates += 1
+    const status = state.get(item.id)
+    if (status === 'PASS' || status === 'BLOCKED_EXTERNAL' || status === 'NOT_APPLICABLE') bucket.done += 1
   }
 
+  const phases = [...byPhase.values()]
   return {
-    source: PROMPT,
-    totalItems: phases.reduce((n, p) => n + p.items, 0),
+    sources,
+    totalItems: items.length,
     totalGates: phases.reduce((n, p) => n + p.gates, 0),
+    decided: phases.reduce((n, p) => n + p.done, 0),
     phases,
   }
 }

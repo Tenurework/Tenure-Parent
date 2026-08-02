@@ -1,6 +1,6 @@
 # The autonomous loop
 
-How work on the 552-item programme proceeds without being asked each time.
+How work on the 1219-item programme proceeds without being asked each time.
 
 This file is the durable part. The scheduler that fires a tick lives in a
 Claude session and dies with it; the rules, the scripts and the ledger do not.
@@ -12,6 +12,14 @@ which is the point. **Nothing here depends on remembering anything.**
 ## The cadence
 
 **Ten items per push. One item at a time inside the batch.**
+
+**Re-read the authority every 30 minutes** — the ledgers, then the execution
+prompts, then the Architecture Bible. Not hourly: this was tightened on
+2026-08-02 after two new binding prompts landed mid-session and the queue kept
+serving the old one. Thirty minutes is short enough that a document uploaded
+while a batch is in flight is picked up inside that batch. A tick that has not
+re-read in 30 minutes re-reads before it does anything else.
+
 
 Those are different cadences and conflating them is the mistake this section
 exists to prevent. Batching the *push* trades CI cycles for later discovery of
@@ -120,6 +128,12 @@ actually failed: the gate runs `npm run generate` as its FIRST step, so a
 regeneration triggered by the ledger append lands unstaged and the gate rejects
 its own output. Generate before staging and the gate's own run is a no-op.
 
+The entry goes in the ledger belonging to the item's prefix — `GE-*` and `EXT-*`
+in the global engine ledger, `STUDIO-*` and `SIMON-*` in their own. Putting one
+in the wrong file does not fail anything loudly: `next-batch.mjs` reads all
+three into one map, so the item correctly drops out of the queue and the only
+casualty is that the record is filed where nobody looking for it will look.
+
 ```bash
 cat entry.md >> docs/implementation/global-engine-execution-ledger.md
 npm run generate                 # the ledger append changed the item counts
@@ -145,17 +159,47 @@ treats `PASS`, `BLOCKED_EXTERNAL` and `NOT_APPLICABLE` as decided.
 
 ### The authority, as of 2026-08-02
 
+Four binding execution prompts, one target design.
+
 ```
-docs/implementation/Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v2.0.md   GE-*   (658)
-docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md                 EXT-*  (186)
-docs/architecture/Tenure_Global_System_Architecture_Bible_v1.0.md                    target design
+docs/implementation/Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v2.0.md     GE-*      (709)
+docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md                   EXT-*     (186)
+docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_..._v1.0.md   STUDIO-*  (167)
+docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_..._v1.0.md                     SIMON-*   (157)
+docs/architecture/Tenure_Global_System_Architecture_Bible_v1.0.md                      target design
 ```
 
-**844 items in one queue, not two.** v2.0 requires a single traceable
-verification system and forbids duplicating requirements into divergent
-documents; a second queue would be exactly that, and it would be the one nobody
-ran. The ledger records `GE-*` and `EXT-*` decisions in the same file for the
-same reason.
+**1219 items in one queue, from four documents, recorded in three ledgers.**
+
+The queue is single because v2.0 requires one traceable verification system and
+a second queue is the one nobody runs. The ledgers are plural because the two
+bibles added on 2026-08-02 each name their own file in an imperative sentence
+— "Create `docs/implementation/simon-ose-absorption-execution-ledger.md` and
+copy every `SIMON-*` item into it" — and tidying three explicit instructions
+into one file would be overriding them for neatness. `next-batch.mjs` reads all
+three into one map, so the split record costs nothing.
+
+**A full batch draws from every document, in runs of three.** Straight document
+order would leave both new bibles untouched for months behind 700 GE items,
+while SIMON carries a Fall 2026 pilot date and STUDIO is the contract the Studio
+is being built against. Runs of three rather than strict round-robin because
+consecutive items are usually one piece of work.
+
+**Gates are items.** All 80 `*-GATE-*` ids are real checkpoints carrying their
+own evidence, and they appear in document order after the work they gate — so
+reaching one in the queue is exactly when it should be evaluated. They were
+silently excluded until 2026-08-02 by a filter written to drop section heads
+that do not exist; three had already been decided while the queue said they were
+not items at all, which is how `decided` came to exceed `total - remaining`.
+`tests/architecture/work-queue.test.mjs` now asserts that arithmetic closes.
+
+**Precedence, when documents disagree.** Both new bibles state it and they
+agree: law and protected-environment controls, then the Architecture Bible and
+accepted ADRs, then the binding extension, then the prompt in hand, then the
+existing implementation. Preserve the stricter security, isolation, audit,
+reversibility and data-ownership invariant. Stop only the conflicting scope,
+write an ADR quoting both exact clauses, and carry on with everything else.
+**Never silently weaken the Bible to accommodate current code.**
 
 **v2.0 supersedes the v1.1 execution prompt and invalidated nothing.** Every one
 of v1.1's 534 GE ids survives into v2.0's 658 — verified by set difference, not

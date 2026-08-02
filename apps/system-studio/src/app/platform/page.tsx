@@ -42,7 +42,7 @@ export default async function PlatformPage() {
   // The inventory records denials as {call, reason}; a count alone would lose
   // the reason, which is the part that matters.
   const denied = Array.isArray(estate.deniedCalls) ? estate.deniedCalls : []
-  const percent = ((ledger.done / programme.totalItems) * 100).toFixed(1)
+  const percent = ((programme.decided / programme.totalItems) * 100).toFixed(1)
   // Set by the deploy workflow. Unset locally, which correctly means "cannot
   // tell" — an unknown build must claim neither freshness nor staleness.
   const buildCommit = process.env.BUILD_COMMIT
@@ -81,34 +81,61 @@ export default async function PlatformPage() {
         <header>
           <h2>Programme</h2>
           <span className="badge warn">
-            {ledger.done} of {programme.totalItems} — {percent}%
+            {programme.decided} of {programme.totalItems} — {percent}%
           </span>
         </header>
 
         <p>
-          {programme.totalItems} items across {programme.phases.length} phases, with{" "}
-          {programme.totalGates} phase gates. Progress is counted against the whole programme, not
-          against the phase currently open — {ledger.total} items are transcribed into the ledger so
-          far, and reporting {ledger.done}/{ledger.total} would be true of Phase 0 and misleading
-          about the rest.
+          {programme.totalItems} items across {programme.phases.length} phases of four binding
+          execution prompts, with {programme.totalGates} phase gates. Progress is counted against
+          the whole programme, not against the phase currently open — {ledger.total} items are
+          transcribed into the ledgers so far, and reporting {ledger.done}/{ledger.total} would be
+          true of what has been written down and misleading about the rest.
         </p>
 
+        <p>
+          {/*
+            Two numerators, and they measure different things. `done` is a
+            checked box: implemented, tested, evidenced. `decided` also counts
+            items validly recorded BLOCKED_EXTERNAL or NOT_APPLICABLE — settled,
+            but not built. Showing only the larger would overstate what exists;
+            showing only the smaller would imply the loop is still due to
+            revisit work that is waiting on a human. Both, named.
+          */}
+          {ledger.done} implemented. {programme.decided - ledger.done} more are decided without
+          being built — blocked on an external dependency, or not applicable — for{" "}
+          {programme.decided} of {programme.totalItems} settled in total.
+        </p>
+
+        {/*
+          Grouped by document, not listed by phase. There are 178 phases across
+          the four prompts; a table with 178 rows is a wall, and the question
+          this section answers is "how much of each document is left", which is
+          four numbers.
+        */}
         <table className="grid">
           <thead>
             <tr>
-              <th>Phase</th>
+              <th>Document</th>
               <th className="num">Items</th>
               <th className="num">Gates</th>
+              <th className="num">Decided</th>
             </tr>
           </thead>
           <tbody>
-            {programme.phases.map((p) => (
-              <tr key={p.phase}>
-                <td>{p.phase}</td>
-                <td className="num">{p.items}</td>
-                <td className="num">{p.gates}</td>
-              </tr>
-            ))}
+            {[...new Set(programme.phases.map((p) => p.source))].map((source) => {
+              const rows = programme.phases.filter((p) => p.source === source)
+              const sum = (pick: (p: (typeof rows)[number]) => number) =>
+                rows.reduce((n, p) => n + pick(p), 0)
+              return (
+                <tr key={source}>
+                  <td>{source}</td>
+                  <td className="num">{sum((p) => p.items)}</td>
+                  <td className="num">{sum((p) => p.gates)}</td>
+                  <td className="num">{sum((p) => p.done)}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </section>
