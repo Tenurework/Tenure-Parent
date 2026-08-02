@@ -180,6 +180,25 @@ Verify it the way the deploy does:
 docker run --rm -v "//c/Users/satvi/Tenure-Parent://w" -w //w node:22-alpine   sh -c "npm ci --ignore-scripts --dry-run"
 ```
 
+**A narrowing guard is not an assertion.** TypeScript needs
+`if (outcome.valid) return` to narrow a discriminated union, and it silently
+turns the test that follows into nothing:
+
+```ts
+const outcome = validate(...)
+if (outcome.valid) return          // regression -> early return -> test passes
+expect(outcome.reason).toBe("ISSUER_MISMATCH")
+```
+
+Assert the premise first — `expect(outcome.valid).toBe(false)` — then narrow.
+This was found by a mutation run on GE-042-003 that caught only 10 of 17: seven
+survivors had one cause and no other. A sweep found 54 such guards across the
+identity package and 21 were missing their assertion.
+
+The tell is a mutation surviving that obviously should not. When several
+survive at once, look for one shared cause in the tests before concluding the
+code is under-specified.
+
 **Never type a control character into source. Write the escape, and fix it at
 the byte level.** A NUL or a newline typed into a string literal — a map-key
 separator, a header-splitting test fixture — lands as a raw byte. The code

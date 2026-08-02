@@ -74,6 +74,7 @@ describe("both questions are asked, not one", () => {
     // recently" when the answer is "you need a security key" sends them round
     // a loop that cannot terminate.
     const outcome = assuranceFor("break-glass", held({ level: "PASSWORD", provedAt: minutesAgo(600) }), NOW)
+    expect(outcome.satisfied).toBe(false)
     if (outcome.satisfied) return
     expect(outcome.reason).toBe("LEVEL_TOO_LOW")
   })
@@ -81,6 +82,7 @@ describe("both questions are asked, not one", () => {
   it("reports never-proved separately from too-old", () => {
     for (const nothing of [held({ provedAt: null }), held({ level: "NONE" })]) {
       const outcome = assuranceFor("credential-change", nothing, NOW)
+      expect(outcome.satisfied).toBe(false)
       if (outcome.satisfied) return
       expect(outcome.reason).toBe("NEVER_PROVED")
     }
@@ -93,6 +95,7 @@ describe("both questions are asked, not one", () => {
   it("tells the caller what would satisfy it", () => {
     // So the caller can prompt for the right thing rather than guessing.
     const outcome = assuranceFor("break-glass", held({ level: "PASSWORD" }), NOW)
+    expect(outcome.satisfied).toBe(false)
     if (outcome.satisfied) return
     expect(outcome.required.level).toBe("PHISHING_RESISTANT")
     expect(outcome.required.maxAgeMinutes).toBe(10)

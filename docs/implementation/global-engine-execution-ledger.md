@@ -4448,3 +4448,98 @@ worth less than three items that hold.
   * `validateReturnPath` decodes exactly once. A caller that decodes again
     before using the value re-opens the hole, which is a property of the caller
     this function cannot check.
+
+- [x] **GE-042-003** — Validate callback code exchange, issuer, JWKS/signature, algorithm, expiry/not-before, token use, client/audience, scopes, nonce, and transaction replay.
+  - Status: PASS
+  - Code: `packages/identity/src/token-validation.ts`
+  - Tests: `packages/identity/src/token-validation.test.ts` (35)
+  - Evidence: 1953/1953 apps/web unit across 86 suites, type-check clean.
+    **17 mutations, 16 caught and 1 provably equivalent** — after the first run
+    caught only 10 and exposed a systematic flaw in how the tests were written.
+
+  **The algorithm is ours to choose, never the token's.** Two of the
+  best-known authentication failures are the same mistake — letting a value
+  inside the token decide how the token is checked. `alg: none` says it is
+  unsigned, so a library that honours it skips verification and every claim is
+  attacker-controlled. Algorithm confusion says `HS256` where the issuer uses
+  `RS256`, so a verifier that reads `alg` HMACs the token with the *public* key.
+  Both are closed the same way: the allowlist is asymmetric-only and is checked
+  **before** the signature, and the algorithm handed to the verifier is the
+  connection's. A header that disagrees is a refusal, not an instruction —
+  asserted by a test that fails if the verifier is called at all for `none`.
+
+  **Order is a security property.** Cheap structural checks, then the signature,
+  then claims. A validator that reports "wrong audience" for an unsigned token
+  has told the attacker their forgery parses; `CHECK_ORDER` is exported so that
+  ordering is asserted rather than read out of the source.
+
+  **`azp` when the audience has several values.** Without it, a token issued for
+  a different client that merely *lists* us is accepted — which is how one
+  application borrows another's sign-in. Not required for a single audience,
+  because demanding it there would refuse conforming issuers.
+
+  **An access token is not an identity.** `token_use: access` and `typ: at+jwt`
+  are refused; a token carrying neither is accepted, because not every issuer
+  emits them and the audience and nonce checks already bind the token.
+
+  **A missing `exp` is refused, not read as "no limit"** — that reading is what
+  makes a token permanent. Clock skew is tolerated in both directions, because
+  an issuer a few seconds ahead is normal and refusing it is an outage that
+  looks like an attack.
+
+  **The nonce is single-use across the issuer**, not merely within one
+  transaction: a token replayed into a *different* transaction passes every
+  other check. Scopes are a set membership test after splitting on whitespace,
+  so `openid_admin` does not satisfy `openid`.
+
+  **The first mutation run caught 10 of 17, and the cause was one pattern
+  repeated across the file.** Tests were written as:
+
+  ```ts
+  const outcome = validate(...)
+  if (outcome.valid) return        // narrows the union for TypeScript
+  expect(outcome.reason).toBe(...)
+  ```
+
+  If the code regresses to *accepting* what it should refuse, the guard
+  early-returns and the test passes. Seven mutations — issuer normalisation,
+  audience unchecked, access tokens accepted, missing expiry, `nbf` unchecked,
+  substring scope matching — all survived for that reason and no other.
+
+  The guard has to stay, because TypeScript needs it to narrow. What was missing
+  is the assertion that its premise held. **21 such assertions were added across
+  four files** (`token-validation`, `assurance`, `invalidation`,
+  `authorization-request`); a sweep found 54 guards in total and left the ones
+  that already had a preceding assertion alone. Re-run: 16 of 17.
+
+  Worth stating plainly: this pattern was in tests written for four earlier
+  items. Those items' mutation runs reported everything caught, and adding an
+  assertion cannot turn a caught mutation into a surviving one — so their
+  recorded results still stand. The risk was future regressions passing
+  silently, not past results being wrong.
+
+  **The one equivalent mutant.** Passing `header.alg` to the verifier instead of
+  `expected.algorithm` cannot be killed, because the check above it already
+  rejects any token where the two differ — after that point they are provably
+  the same value. Stated rather than papered over with an invented assertion.
+  The pair is still protected: removing the mismatch check is a separate
+  mutation, and it is caught.
+
+  **Honest limits.**
+
+  * **Nothing calls `validateIdToken`.** There is no callback to validate:
+    `apps/web` signs in through NextAuth, which does its own token handling for
+    Okta. This is the validator the Cognito cutover will use, and it now
+    enforces every clause of Bible §9.1's callback sentence that belongs to the
+    token. Wiring it is GE-041-003's cutover, BLOCKED_EXTERNAL.
+  * **Signature verification and JWKS fetching are injected**, not implemented.
+    The contract is that the verifier is told which algorithm to use and cannot
+    be told otherwise; key selection by `kid`, JWKS caching and rotation belong
+    to the adapter, which cannot be written without an issuer to fetch from.
+  * **Replay detection is a callback with no store.** `seenNonce` is optional
+    and nothing provides it, so replay is enforceable but not enforced — the
+    same persistence gap recorded under GE-040-001.
+  * The parsed token is taken as a parameter rather than decoded here. Decoding
+    is a parser's job and a parser that this module also owned would be one more
+    thing to get wrong; what matters is that nothing in the parsed value is
+    trusted before the signature.

@@ -137,6 +137,7 @@ describe("the four deliberate triggers end the session immediately", () => {
       context({ membership: membership({ interval: { effectiveFrom: days(-100), effectiveUntil: hours(-1) } }) }),
       NOW,
     )
+    expect(ended.valid).toBe(false)
     if (ended.valid) return
     expect(ended.trigger).toBe("MEMBERSHIP_ENDED")
   })
@@ -163,6 +164,7 @@ describe("the four deliberate triggers end the session immediately", () => {
 
   it("ends a session for a person who is no longer a member at all", () => {
     const result = evaluateSession(session(), context({ membership: null }), NOW)
+    expect(result.valid).toBe(false)
     if (result.valid) return
     expect(result.trigger).toBe("MEMBERSHIP_ENDED")
   })
@@ -175,6 +177,7 @@ describe("the four deliberate triggers end the session immediately", () => {
       context({ membership: membership({ status: "SUSPENDED", statusReason: "x" }), connectionStatus: "DISABLED" }),
       NOW,
     )
+    expect(result.valid).toBe(false)
     if (result.valid) return
     expect(result.trigger).toBe("SESSION_REVOKED")
   })

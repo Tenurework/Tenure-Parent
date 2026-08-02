@@ -195,6 +195,7 @@ describe("three values, three jobs", () => {
 
   it("reports every problem, not the first", () => {
     const outcome = beginAuthorization(input({ codeVerifier: "short", returnPath: "//evil", state: "x" }), fakeSha256)
+    expect(outcome.ok).toBe(false)
     if (outcome.ok) return
     expect(outcome.problems.length).toBeGreaterThanOrEqual(3)
   })

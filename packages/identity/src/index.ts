@@ -206,3 +206,23 @@ export {
   type ReturnPathVerdict,
   type Sha256Base64Url,
 } from "./authorization-request"
+
+export {
+  ALLOWED_ALGORITHMS,
+  CHECK_ORDER,
+  CLOCK_SKEW_SECONDS,
+  SAFE_TOKEN_MESSAGE,
+  validateIdToken,
+  type AllowedAlgorithm,
+  type ExpectedToken,
+  type ParsedToken,
+  type SeenNonce,
+  type TokenAccepted,
+  type TokenClaims,
+  type TokenHeader,
+  type TokenOutcome,
+  type TokenRefusal,
+  type TokenRejected,
+  type ValidateInput,
+  type VerifySignature,
+} from "./token-validation"
