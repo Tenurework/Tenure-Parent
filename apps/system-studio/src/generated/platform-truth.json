@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "aa05d98",
+  "commit": "bd27fa3",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 84,
-    "done": 73,
+    "total": 86,
+    "done": 74,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -616,6 +616,20 @@
             "title": "Implement configurable shared regional pool, sharded pool, tenant pool, and dedicated-account pool strategies behind cell/tenant resource resolution.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-041-003",
+            "done": false,
+            "title": "Provision domains, app clients, callbacks, logout URLs, scopes, Lambda triggers, logs, threat protection/WAF where justified, messaging, and alarms through IaC.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-041-004",
+            "done": true,
+            "title": "Disable self-sign-up by default; implement invitation-only local auth where tenant policy allows.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -630,7 +644,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 87,
+    "decided": 89,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -756,7 +770,7 @@
         "source": "GE",
         "items": 5,
         "gates": 0,
-        "done": 2
+        "done": 4
       },
       {
         "phase": "GE · GE-042: Browser/API authentication",

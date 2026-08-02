@@ -4044,3 +4044,141 @@ worth less than three items that hold.
     real traffic rather than treated as derived.
   * Nothing calls `resolvePool` yet — no sign-in path resolves a pool, because
     no pool exists. It is exercised by its tests and by nothing else.
+
+- [ ] **GE-041-003** — Provision domains, app clients, callbacks, logout URLs, scopes, Lambda triggers, logs, threat protection/WAF where justified, messaging, and alarms through IaC.
+  - Status: **BLOCKED_EXTERNAL** — there is no AWS Organization, no member
+    account, and no user pool to provision into.
+
+  This is the same blocker as GE-010-002…007, GE-012-002…005 and GE-GATE-1: the
+  Tenure-controlled AWS Organization does not exist. The engine deploys the
+  Studio into a single existing account (`deploy-studio.yml`), and that account
+  is not an Organization with member accounts, Control Tower baselines or SCPs.
+
+  **Why the Terraform is not being written ahead of the account.** The System
+  Studio bible §"BEGIN" names the failure directly: this mission "is not
+  completed by writing another `CLAUDE.md`, architecture essay, static mockup,
+  empty package, disconnected component library, **speculative IaC**, list of
+  AWS services, placeholder API, fake cost, fake alarm, fake tenant, or
+  unchecked test."
+
+  A Cognito stack written now could be `terraform validate`d and never
+  `plan`ned against a real account, never applied, and never observed to
+  produce a working callback. It would sit in the repository looking finished,
+  and the first person to apply it would discover which of its assumptions were
+  wrong — callback URL shapes, Lambda trigger permissions, the domain
+  certificate's region constraint — all of which are exactly the parts that
+  cannot be checked without an account. GE-041-001 and GE-041-002 were worth
+  building ahead of the account because they are *decisions* that provisioning
+  will be asked to implement; this item is the provisioning.
+
+  **What the operator runs to unblock it.** In order, and the first two are
+  decisions rather than commands (ADR-0007 records the four that are open):
+
+  ```bash
+  # 1. Create the Organization, from the account that will be the payer.
+  aws organizations create-organization --feature-set ALL
+
+  # 2. Create the OUs the workload accounts live under.
+  aws organizations create-organizational-unit \
+    --parent-id "$ROOT_ID" --name Workloads
+  aws organizations create-organizational-unit \
+    --parent-id "$ROOT_ID" --name Security
+
+  # 3. Create the first member account for a cell.
+  aws organizations create-account \
+    --email "aws+cell-use1@<domain>" --account-name "tenure-cell-use1"
+
+  # 4. Record the account id and region in the cell registry, so
+  #    resolvePool (GE-041-002) has a cell to resolve against.
+
+  # 5. Give the deploy role a path into the member account, then:
+  cd infrastructure/identity && terraform init && terraform plan
+  ```
+
+  Steps 1–3 create resources that cost money, bind a payer, and are not
+  reversible without account closure — which is why they are a person's
+  decision and not this loop's. Nothing here is attempted automatically.
+
+  **What is NOT blocked, and has been done instead.** GE-041-001 (the
+  provider-independent port and the guard keeping the SDK out of business
+  modules) and GE-041-002 (pool strategy resolution) are both PASS. When an
+  account exists, this item creates the pools that GE-041-002 already knows how
+  to name.
+
+- [x] **GE-041-004** — Disable self-sign-up by default; implement invitation-only local auth where tenant policy allows.
+  - Status: PASS for the enrolment policy and the invitation rules. Turning
+    Cognito's own self-sign-up setting off is part of GE-041-003 and is
+    BLOCKED_EXTERNAL.
+  - Code: `packages/identity/src/enrolment.ts`
+  - Tests: `packages/identity/src/enrolment.test.ts` (20)
+  - Evidence: 1830/1830 apps/web unit across 82 suites, type-check clean.
+    **11 mutations, 11 caught.**
+
+  Bible §9.1 lists "approved Cognito local authentication, invitation-only by
+  default", §6.1 requires a tenant's inputs to include "SAML/OIDC/SCIM
+  connection inputs **or explicit invitation-only local policy**", and §6 step
+  13 describes the invitation itself: "single-use, tenant-bound, expiring,
+  audited".
+
+  **The word doing the work is *default*, and it is closed by absence.**
+  `enrolmentPolicy` returns `INVITATION_ONLY` for a tenant that has decided
+  nothing. Self-service sign-up is a decision a tenant records, not a state a
+  tenant falls into because a field was never set. A misconfiguration fails
+  closed — somebody cannot get in — rather than open, where the first sign
+  anything is wrong is a stranger inside a university's finance module.
+
+  `policy` is optional rather than defaulted at the type level, deliberately, so
+  "not decided" and "decided to be closed" are the same *outcome* while
+  remaining distinguishable *facts* — one of them is something an operator
+  should go and ask about.
+
+  **Three properties of an invitation, each failing differently.**
+
+  * **Single-use.** A shared link is an open door with extra steps, and it is
+    the failure that spreads by being convenient: one person forwards it to a
+    colleague and nothing complains.
+  * **Tenant-bound.** An invitation valid anywhere lets somebody invited to a
+    small pilot walk into the tenant next door.
+  * **Expiring.** An invitation is a statement about who should join *now*; an
+    unexpiring one is a credential in an inbox that outlives the reason it was
+    sent, the person who sent it, and often the person who received it.
+
+  All three are computed, not stored — `invitationLiveness` derives expiry from
+  the timestamp, so an invitation nobody swept does not stay acceptable.
+
+  **Every refusal reads the same from outside.** "No such invitation",
+  "expired", "already used" and "wrong recipient" all return one message,
+  because the difference between them is exactly what tells somebody probing
+  whether an address was ever invited. The `reason` stays distinct for the log —
+  four causes, four codes, one sentence for the person. The single exception is
+  telling an existing member they are already a member, which reveals nothing
+  they do not know.
+
+  **Open enrolment falls through to invitations rather than replacing them.** A
+  tenant open to its own domain still invites external advisors; refusing them
+  would make the open policy narrower than the closed one. The domain match is
+  exact, not a suffix — `notrochester.example` ends with `rochester.example`,
+  and a suffix match would admit anybody who could register that domain.
+
+  **`selfSignUpBreaches` reports the configuration that reads open and behaves
+  closed**: `OPEN_TO_VERIFIED_DOMAIN` with no verified domain admits nobody by
+  domain and quietly still requires invitations. That is a tenant whose operator
+  believes self-service works and will be surprised. The inverse — verified
+  domains and no policy — is correct and is not reported.
+
+  **Honest limits.**
+
+  * **Cognito's own self-sign-up setting is not touched**, because there is no
+    pool. That is GE-041-003, BLOCKED_EXTERNAL on the AWS Organization. This
+    item is the policy the provisioning will be asked to enforce, and the
+    application-side rule that has to hold whatever the provider is configured
+    to allow — a provider setting alone would be one misconfiguration away from
+    open.
+  * **Nothing calls `admitToTenant`.** `apps/web` has no self-service enrolment
+    path at all today: members are created by an OSE Director through the admin
+    console, which is invitation-only in the strongest sense. So the default is
+    currently enforced by the absence of a sign-up route, and this item makes it
+    enforced by a rule instead — before the route exists, which is the only time
+    that ordering is free.
+  * `Invitation` still has no storage (the persistence gap recorded under
+    GE-040-001), so invitations are a modelled entity rather than a table.

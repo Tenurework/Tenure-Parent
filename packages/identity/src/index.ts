@@ -128,3 +128,18 @@ export {
   type IdentityProvider,
   type ProviderAccount,
 } from "./provider"
+
+export {
+  ENROLMENT_POLICIES,
+  admitToTenant,
+  enrolmentPolicy,
+  selfSignUpBreaches,
+  type EnrolmentAdmitted,
+  type EnrolmentOutcome,
+  type EnrolmentPolicy,
+  type EnrolmentRefusal,
+  type EnrolmentRefused,
+  type EnrolmentRequest,
+  type SelfSignUpBreach,
+  type TenantEnrolment,
+} from "./enrolment"
