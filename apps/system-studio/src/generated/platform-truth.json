@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "e9986e2",
+  "commit": "29cdacf",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 60,
-    "done": 49,
+    "total": 61,
+    "done": 50,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -448,6 +448,13 @@
             "title": "Configuration domains for identity, organization/seats, permissions, modules, entities/fields/forms, workflows, reports, connectors, Relay, localization, deployment, recovery, observability and cost.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-022-008",
+            "done": true,
+            "title": "Comfortable/compact density and light/dark/system/ reduced-motion/increased-contrast preferences, without weakening touch targets, focus, safety context, or accessibility.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -666,7 +673,7 @@
     },
     {
       "name": "end to end",
-      "files": 36,
+      "files": 37,
       "what": "real browser"
     }
   ]

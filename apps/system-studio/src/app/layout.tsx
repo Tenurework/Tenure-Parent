@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 
 import "./globals.css"
 import { Nav } from "@/components/Nav"
-import { ThemeToggle } from "@/components/ThemeToggle"
-import { NO_FLASH_SCRIPT } from "@/lib/theme"
+import { PreferencesMenu } from "@/components/PreferencesMenu"
+import { NO_FLASH_SCRIPT } from "@/lib/preferences"
 
 export const metadata: Metadata = {
   title: "Tenure System Studio",
@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="masthead">
           <span className="mark">Tenure</span>
           <span className="title">System Studio</span>
-          <ThemeToggle />
+          <PreferencesMenu />
           <span className="internal">Internal</span>
         </header>
         <Nav />

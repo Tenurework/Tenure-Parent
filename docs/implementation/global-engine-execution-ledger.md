@@ -2273,3 +2273,74 @@ worth less than three items that hold.
     modes. When that lands, the tokens change and everything here — the toggle,
     the three states, the pre-paint script, the persistence, the contrast
     measurement — is palette-independent and stands.
+
+---
+
+# Batch 3 (v2.0 authority)
+
+- [x] **GE-022-008** — Comfortable/compact density and light/dark/system/
+  reduced-motion/increased-contrast preferences, without weakening touch
+  targets, focus, safety context, or accessibility.
+  - Status: PASS
+  - Code: `apps/system-studio/src/lib/preferences.ts`,
+    `src/components/PreferencesMenu.tsx`, density/contrast/motion token layers
+    in `src/app/globals.css`, `src/app/layout.tsx`
+  - Tests: `e2e/preferences-logic.spec.ts` — 11 cases (no browser);
+    `e2e/preferences.spec.ts` — 29 cases. Full Studio suite **79 passed,
+    3 skipped**.
+  - Closes the item the previous batch's dark mode was a third of. The three
+    that were missing — density, reduced motion, increased contrast — are the
+    ones with the accessibility clause attached, which is why the item was left
+    open rather than checked off.
+  - **The device is a floor for accessibility and a default for taste, and the
+    asymmetry is the design.** Bible §26.5: settings "can be overridden by
+    device accessibility preferences". So an explicit light choice beats a dark
+    machine — nobody's health depends on it — while `prefers-reduced-motion`
+    applies whatever this console's control says. That setting is commonly used
+    for vestibular disorders, and a product where a stray click in its own
+    settings re-enables animation has turned a medical accommodation into a
+    preference. The UI enforces it too: reduced motion and increased contrast
+    offer "Match device" and "Always on" and **no third option**, and a test
+    asserts the third option does not exist.
+  - Density is a governed four-pixel scale (Bible §26.3.4), not forty hardcoded
+    paddings. Compact tightens space only: `--tap` is outside the scale and
+    **identical in both densities**, and the type size is asserted unchanged —
+    "ERP density is earned through alignment and progressive disclosure, not
+    tiny text".
+  - **Contrast is tested as a matrix, because it is a property of the
+    combination.** Eight runs — 2 themes × 2 densities × 2 contrast settings ×
+    3 routes — each measuring every text block's computed colour against its
+    effective background. Increased contrast on dark is a different set of pairs
+    from increased contrast on light.
+  - **The matrix found a real defect in the existing palette.** `--muted`
+    `#6e6a64` measures **4.47:1 on `--surface-2`** — under AA. The control that
+    exposed it was new; every prior use of muted text on that surface had the
+    same defect and nothing had ever measured it. Now `#67635c`, 4.97:1 at
+    worst across all three surfaces.
+  - **The layout suite caught a regression nothing else could see.** The
+    preferences panel is absolutely positioned, and a closed `<details>` hides
+    children through `::details-content`, which an absolutely-positioned child
+    escapes — so the panel kept a real bounding box while closed and was drawing
+    "Density" on top of the page's own text at 1180px and 900px. Invisible on
+    screen; only a geometry assertion finds that. Now rendered conditionally.
+  - **A mutation exposed that the drift test was measuring the wrong thing.**
+    The pre-paint script must duplicate `documentAttributes` — a bundled import
+    cannot run before the bundle loads, and the bundle loading is what is being
+    raced — so eight cases drive the real script and compare. All eight passed
+    with the script's device check for contrast REMOVED, because
+    `PreferencesMenu`'s mount effect re-stamps the attributes from the module a
+    moment after hydration: the script's error was silently corrected before any
+    assertion ran. The reload now blocks `_next/static/chunks/**`, so what is
+    measured is the script alone.
+  - Proven by mutation, **4 of 4 caught after that fix**: `--tap` reduced in
+    compact FAILS (and only the compact case, which is the precision that makes
+    it worth having); the device dropped as a floor FAILS 4 tests across both
+    specs; the script's device check for contrast removed FAILS the exact drift
+    case; the compact scale set equal to comfortable FAILS.
+  - Honest limits: this is the **Studio only**. `apps/web` has no preference
+    surface, and GE-022-002's Experience System package — which would give both
+    apps one token pipeline — does not exist yet, so building a second copy for
+    the tenant app now would be the thing that package exists to prevent. Text
+    scaling and chart palette, also named in Bible §26.5, are not built. The
+    palette itself remains the warm system that v2.0 flags as possibly obsolete;
+    everything here is palette-independent.

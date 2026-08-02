@@ -23,7 +23,10 @@
   --border: #dbd6cf;
   --border-strong: #c3bdb4;
   --text: #33302c;      /* darker muted grey, not black */
-  --muted: #6e6a64;
+  /* #6e6a64 measured 4.47:1 on --surface-2, just under AA. The control that
+     exposed it was new; every other use of --muted on that surface had the
+     same defect and nothing had measured it. 4.97:1 at worst now. */
+  --muted: #67635c;
   --accent: #7a6440;    /* desaturated ochre */
   --ok: #4c6350;
   --warn: #7d6538;
@@ -63,6 +66,105 @@
   color-scheme: dark;
 }
 
+/*
+ * ── Density ────────────────────────────────────────────────────────────────
+ *
+ * GE-022-008. A four-pixel base grid with a governed scale (Bible §26.3.4), so
+ * density is one decision in one place rather than forty hardcoded paddings
+ * that drift apart.
+ *
+ * Compact tightens SPACE. It does not shrink type, and it does not shrink
+ * anything a person has to hit: "ERP density is earned through alignment and
+ * progressive disclosure, not tiny text", and compact "never removes labels,
+ * focus visibility, status explanations, or safe-action context". `--tap` is
+ * therefore outside the scale and identical in both densities — the e2e
+ * measures it in all eight preference combinations.
+ */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 28px;
+  /* Minimum interactive box. WCAG 2.2 AA 2.5.8 asks for 24x24 CSS pixels. */
+  --tap: 24px;
+}
+
+:root[data-density="compact"] {
+  --space-1: 2px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 14px;
+  --space-6: 18px;
+  /* Deliberately NOT reduced. This is the line the item draws. */
+  --tap: 24px;
+}
+
+/*
+ * ── Increased contrast ─────────────────────────────────────────────────────
+ *
+ * Raises the two tokens that are legible-but-lowest — secondary text and
+ * borders — rather than inverting the palette. Both themes already clear AA;
+ * this is for a viewer who needs more than the minimum, so it moves `--muted`
+ * toward `--text` and makes structure explicit.
+ */
+:root[data-contrast="more"] {
+  --muted: #4a4640;
+  --border: #b3aca2;
+  --border-strong: #8a8279;
+}
+:root[data-theme="dark"][data-contrast="more"] {
+  --muted: #d6d2cb;
+  --border: #6b655d;
+  --border-strong: #8e877e;
+}
+
+/*
+ * ── Motion ─────────────────────────────────────────────────────────────────
+ *
+ * Bible §26.3.7: 120–220 ms, decelerating on entry. Reduced motion is honoured
+ * from BOTH the machine and this console's own control, and the machine is a
+ * floor rather than a default — `prefers-reduced-motion` is commonly set for
+ * vestibular disorders, and a product that lets its own settings re-enable
+ * animation has turned an accommodation into a preference.
+ */
+:root {
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --ease-entry: cubic-bezier(0, 0, 0.2, 1);
+}
+
+:root[data-motion="reduced"] {
+  --motion-fast: 0s;
+  --motion-base: 0s;
+}
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation-duration: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+/* The machine's request, honoured even before the script runs. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0s;
+    --motion-base: 0s;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -78,8 +180,8 @@ body {
 .masthead {
   display: flex;
   align-items: baseline;
-  gap: 0.6rem;
-  padding: 0.85rem 1.25rem;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -91,12 +193,16 @@ body {
   color: var(--muted);
 }
 /*
- * The toggle takes the flexible space, so it and the Internal badge sit
- * together at the right rather than being pushed apart by two `auto` margins
- * splitting the gap between them.
+ * The preferences control takes the flexible space, so it and the Internal
+ * badge sit together at the right rather than being pushed apart by two `auto`
+ * margins splitting the gap between them.
  */
-.masthead .theme-toggle {
+.masthead .preferences {
   margin-left: auto;
+  position: relative;
+}
+
+.pref-trigger {
   font: inherit;
   font-size: 11px;
   text-transform: uppercase;
@@ -105,19 +211,88 @@ body {
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 3px;
-  padding: 0.1rem 0.55rem;
+  padding: 0 var(--space-2);
   cursor: pointer;
-  /* 24px tall including the border. WCAG 2.2 2.5.8 asks for 24x24 CSS pixels,
-     and a control that is only as tall as its 11px text is a miss on a laptop
-     trackpad long before it is an accessibility finding. */
-  min-height: 24px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* `--tap`, not a literal. WCAG 2.2 AA 2.5.8 asks for 24x24 CSS pixels, and
+     the token is identical in both densities on purpose — compact tightens the
+     space around a control, never the control. */
+  min-height: var(--tap);
   min-width: 64px;
+  transition: color var(--motion-fast) var(--ease-entry),
+    border-color var(--motion-fast) var(--ease-entry);
 }
-.masthead .theme-toggle:hover {
+/* Safari draws a disclosure triangle that `list-style: none` alone does not remove. */
+.pref-trigger::-webkit-details-marker {
+  display: none;
+}
+.pref-trigger:hover {
   color: var(--text);
   border-color: var(--border-strong);
 }
-.masthead .theme-toggle:focus-visible {
+.pref-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.pref-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-1));
+  z-index: 10;
+  min-width: 15rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* A panel that scrolls the page sideways is the defect the layout suite
+     exists to catch; it is anchored to the right edge and bounded here. */
+  max-width: min(20rem, calc(100vw - var(--space-4)));
+}
+
+.pref-group {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.pref-group legend {
+  padding: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.pref-hint {
+  margin: var(--space-1) 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.pref-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+.pref-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  /* The label is the target, and it keeps the floor with the control. A radio
+     input is ~13px on its own; the row is what a person actually hits. */
+  min-height: var(--tap);
+  color: var(--text);
+}
+.pref-option input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+.pref-option input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -134,7 +309,7 @@ body {
 }
 
 main {
-  padding: 1.25rem;
+  padding: var(--space-5);
   max-width: 1100px;
 }
 
@@ -151,7 +326,7 @@ h3 {
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--muted);
-  margin: 1.1rem 0 0.4rem;
+  margin: var(--space-5) 0 var(--space-2);
 }
 p {
   margin: 0.3rem 0;
@@ -162,15 +337,15 @@ p {
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: 5px;
-  padding: 1rem 1.1rem;
-  margin-bottom: 1rem;
+  padding: var(--space-4) var(--space-4);
+  margin-bottom: var(--space-4);
 }
 .system > header {
   display: flex;
   align-items: baseline;
-  gap: 0.75rem;
+  gap: var(--space-3);
   border-bottom: 1px solid var(--border);
-  padding-bottom: 0.6rem;
+  padding-bottom: var(--space-2);
 }
 .slug {
   color: var(--muted);
@@ -202,7 +377,7 @@ p {
 .kv {
   display: grid;
   grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
-  gap: 0.2rem 1.5rem;
+  gap: var(--space-1) var(--space-6);
   align-items: baseline;
 }
 .kv dt {
@@ -219,7 +394,7 @@ p {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: var(--space-1);
 }
 .chip {
   border: 1px solid var(--border);
@@ -240,7 +415,7 @@ form.signin {
   max-width: 26rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: var(--space-3);
 }
 form.signin label {
   display: flex;
