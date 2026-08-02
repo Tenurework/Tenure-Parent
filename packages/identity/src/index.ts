@@ -143,3 +143,26 @@ export {
   type SelfSignUpBreach,
   type TenantEnrolment,
 } from "./enrolment"
+
+export {
+  ASSURANCE_LEVELS,
+  GATED_ACTIONS,
+  MAX_VERIFICATION_ATTEMPTS,
+  REQUIREMENTS,
+  SAFE_VERIFICATION_MESSAGE,
+  assuranceFor,
+  digestsEqual,
+  meetsLevel,
+  verifyChallenge,
+  type AssuranceLevel,
+  type AssuranceOutcome,
+  type AssuranceRefusal,
+  type AssuranceRequirement,
+  type AssuranceSatisfied,
+  type AssuranceUnsatisfied,
+  type GatedAction,
+  type HeldAssurance,
+  type VerificationChallenge,
+  type VerificationOutcome,
+  type VerificationRefusal,
+} from "./assurance"

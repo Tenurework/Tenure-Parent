@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "bd27fa3",
+  "commit": "410eaff",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 86,
-    "done": 74,
+    "total": 87,
+    "done": 75,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -630,6 +630,13 @@
             "title": "Disable self-sign-up by default; implement invitation-only local auth where tenant policy allows.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-041-005",
+            "done": true,
+            "title": "Use secure MFA/recovery/verification and generic errors that resist enumeration.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -644,7 +651,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 89,
+    "decided": 90,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -770,7 +777,7 @@
         "source": "GE",
         "items": 5,
         "gates": 0,
-        "done": 4
+        "done": 5
       },
       {
         "phase": "GE · GE-042: Browser/API authentication",

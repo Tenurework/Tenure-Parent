@@ -4182,3 +4182,92 @@ worth less than three items that hold.
     that ordering is free.
   * `Invitation` still has no storage (the persistence gap recorded under
     GE-040-001), so invitations are a modelled entity rather than a table.
+
+- [x] **GE-041-005** — Use secure MFA/recovery/verification and generic errors that resist enumeration.
+  - Status: PASS for the assurance policy, verification handling and the
+    enumeration-resistant surfaces. Cognito's own MFA configuration is part of
+    GE-041-003 and is BLOCKED_EXTERNAL.
+  - Code: `packages/identity/src/assurance.ts`, `packages/identity/src/linking.ts`
+  - Tests: `packages/identity/src/assurance.test.ts` (28)
+  - Evidence: 1858/1858 apps/web unit across 83 suites, type-check clean.
+    **15 mutations, 15 caught** — after the first run exposed a real gap in the
+    constant-time comparison.
+
+  Bible §21.2: "MFA and step-up based on risk and action; strong recovery and
+  enumeration resistance."
+
+  **"Has this person stepped up" is the wrong question**, and asking it is how
+  step-up degrades into a checkbox. There are two: *how* did they prove it — a
+  password, a second factor, something phishing-resistant — and *when*. A policy
+  that sets only a freshness window lets a password re-prompt satisfy an action
+  needing a security key. One that sets only a level lets a key-tap from this
+  morning authorise a break-glass at midnight. `assuranceFor` asks both, and
+  checks the level first: telling someone who holds only a password to "try
+  again more recently" sends them round a loop that cannot terminate.
+
+  Levels are **ordered and compared by index**. A set-membership test would make
+  `PHISHING_RESISTANT` fail a requirement for `MFA`, which is backwards and is
+  the classic way this check is written wrong.
+
+  **One table, so there are not three answers.** Linking a credential required
+  authentication within 10 minutes and a support session within 30, as two bare
+  constants in two packages with nothing saying why they differ. They differ for
+  a good reason — changing how somebody signs in is not the same act as
+  continuing to hold support access during an incident, where a ten-minute
+  re-prompt is a control people route around. `REQUIREMENTS` is where that
+  reason now lives, and `linking.ts` derives its window from it rather than
+  declaring its own.
+
+  `GATED_ACTIONS` is a closed list deliberately: an open string would mean a new
+  sensitive action arrives with no requirement and defaults to whatever the code
+  happens to do, which in every system that has tried it is "nothing".
+
+  **Verification is single-use, expiring, attempt-limited and constant-time.**
+  Consumed and expired are checked *before* the comparison, so a spent challenge
+  cannot be used as an oracle to grind at the code. The attempt counter
+  increments on a wrong guess and **not** on an expired or consumed one —
+  otherwise an attacker exhausts somebody's attempts against a challenge that
+  was never usable and locks them out of a code they could have used. Success
+  returns the challenge already consumed, so a caller persisting the outcome
+  cannot leave a used code usable. The record holds a digest, never the code: a
+  database read must not hand somebody every outstanding verification.
+
+  **One message for every failure.** "Expired", "already used" and "incorrect"
+  are three facts, and the difference is worth exactly one thing to an attacker:
+  whether they are guessing at a real challenge. The distinct `reason` stays for
+  the log.
+
+  **The mutation run found a real hole in the constant-time comparison.**
+  Removing the length term survived, because the loop's `charCodeAt(i) || 0`
+  folds an out-of-range read to zero — so a trailing `U+0000` XORs against the
+  absent position to zero and `"abc"` compares equal to `"abc\u0000"`. Every
+  other length case in the tests differed in a non-zero byte and never reached
+  it. The case is now covered and the mutation is caught. Narrow, since digests
+  are normally hex, but the function is generic and should not carry the hole.
+
+  Writing that test also reproduced the raw-NUL trap for the third time in this
+  repository: the heredoc turned `\u0000` into a literal byte, and
+  `no-binary-source` would have rejected it. Fixed at the byte level, which is
+  the only reliable way — a text-mode read/modify/write round trip silently
+  re-encodes it and reports success.
+
+  **Honest limits.**
+
+  * **Nothing enforces this yet at a request boundary.** `assuranceFor` is
+    called by its tests and by nothing else: `apps/web` has no step-up prompt,
+    and NextAuth sessions carry no assurance level to check. `linking.ts` uses
+    the *window* from the table but still compares timestamps itself rather than
+    calling `assuranceFor`, because it has no level to pass. Wiring both is the
+    Cognito cutover (GE-041-003, BLOCKED_EXTERNAL) — this item defines what the
+    cutover must satisfy.
+  * **`support-session.ts` still declares its own 30**, now duplicated in the
+    table. Changing it means touching a passing item in another package; the
+    table records the intent and the duplication is stated here rather than left
+    to be discovered. It should collapse when GE-033-003 next moves.
+  * **No recovery-initiation rate limit.** Attempt-limiting protects a challenge
+    once issued; nothing yet limits how many challenges an address can be sent,
+    which is the other half of resisting enumeration by exhaustion. That needs a
+    counter with storage, and `VerificationChallenge` has none.
+  * `digestsEqual` compares digests, not codes, and does not hash — a hash
+    chosen here would be one nobody could change without rewriting every stored
+    challenge.

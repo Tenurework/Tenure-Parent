@@ -1,6 +1,7 @@
 import type { ExternalIdentity, Person, RecoveryMethod } from "./entities"
 import { identityLiveness, usableRecoveryCount } from "./effective-state"
 import { identityKey, keyOf, type IdentityAssertion } from "./keying"
+import { REQUIREMENTS } from "./assurance"
 
 /**
  * GE-040-004 — linking a credential to a person, unlinking one, and the two
@@ -38,8 +39,16 @@ import { identityKey, keyOf, type IdentityAssertion } from "./keying"
  * permanently, and the system will have done it on request, politely.
  */
 
-/** How recently the person must have authenticated to link or unlink. */
-export const LINK_STEP_UP_MINUTES = 10
+/**
+ * How recently the person must have authenticated to link or unlink.
+ *
+ * Derived from `REQUIREMENTS["credential-change"]` rather than declared here.
+ * It was a bare 10 sitting next to a bare 30 in `support-session.ts`, with
+ * nothing saying why they differ — they differ for a good reason, and
+ * `assurance.ts` is now where that reason is written down. Kept as an export
+ * because callers and tests refer to it.
+ */
+export const LINK_STEP_UP_MINUTES = REQUIREMENTS["credential-change"].maxAgeMinutes!
 
 export type LinkRefusal =
   | "STEP_UP_REQUIRED"
