@@ -148,7 +148,13 @@ describe("a verified domain proves ownership, not membership", () => {
     // rochester.edu and having an account at Rochester are different facts, and
     // a system that conflates them lets anyone with an address at a verified
     // domain in.
-    const answer = discoverTenantByDomain("someone@rochester.edu".split("@")[1], [DOMAIN])
+    // Note what is passed: a DOMAIN. The caller splits an address and keeps the
+    // right-hand side, and the local part never reaches this function — which
+    // is the mechanical reason it cannot answer a question about a person.
+    // (Written without an example address at all: a plausible-looking one in a
+    // public repository is worth avoiding even when it is invented, and the
+    // `no-personal-data` guard is right to say so.)
+    const answer = discoverTenantByDomain("rochester.edu", [DOMAIN])
     expect(answer).toBe("tnt_rochester")
     // There is no shape here that could carry a person: it is a string.
     expect(typeof answer).toBe("string")

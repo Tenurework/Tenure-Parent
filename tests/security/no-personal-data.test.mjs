@@ -11,9 +11,14 @@
  * A control that only exists in a person's memory is not a control. This is the
  * thing that fails.
  *
- * Scope: tracked files only. The real roster still exists on an operator's
- * machine and is gitignored; that is the intended end state, and it is why the
- * check reads `git ls-files` rather than walking the filesystem.
+ * Scope: everything git would carry — tracked files and untracked ones that are
+ * not ignored. The real roster still exists on an operator's machine and is
+ * gitignored; that is the intended end state, and it is why this reads
+ * `git ls-files --exclude-standard` rather than walking the filesystem.
+ *
+ * It was tracked-only until it let a plausible address reach a pushed commit
+ * (see `tracked()` below). A check that runs after the thing it prevents has
+ * already happened is a report, not a control.
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -70,8 +75,25 @@ const UNTRACKED_BY_DESIGN = ['apps/web/scripts/roster-data.mjs']
  */
 const NAMES_ALLOWED_IN = new Set(['apps/web/src/lib/policies.ts'])
 
+/**
+ * Tracked AND untracked-but-not-ignored.
+ *
+ * Plain `git ls-files` lists only tracked files, which makes this check blind
+ * to a file that has not been staged yet — so a new file with an address in it
+ * passes locally and fails in CI, after the address is already in a pushed
+ * commit. That is the wrong order for a check whose entire purpose is to stop
+ * data reaching a public repository, and it happened: GE-030-003's test fixture
+ * used a plausible address at a real domain and only CI saw it.
+ *
+ * `--exclude-standard` keeps the gitignored real roster out, which is the
+ * scoping this check has always wanted.
+ */
 const tracked = () =>
-  execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n').filter(Boolean)
+  execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .filter(Boolean)
 
 function findAddresses() {
   const hits = []

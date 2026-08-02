@@ -1402,6 +1402,20 @@ for progress:
     and nothing publishes or polls a TXT record because no tenant has claimed a
     domain. Both are the *registry* being complete ahead of the estate, recorded
     as such rather than claimed as integrated.
+  - **CI caught the test fixture, and the guard that caught it was itself
+    wrong.** `tests/security/no-personal-data.test.mjs` flagged a plausible
+    address at a real domain in the new test — correctly. But it scanned
+    `git ls-files`, tracked files only, so it was blind to the file until
+    `git add`: it passed locally and failed only after the address was already
+    in a pushed commit. For a check whose entire purpose is stopping data
+    reaching a public repository, that is the wrong order — it was a report,
+    not a control. It now scans untracked-but-not-ignored files too, which is
+    the same fix `tools/platform-truth.mjs` already carries for the same
+    reason. Proven by writing an unstaged file containing an address and
+    watching the suite go 58/59, then removing it and watching it return to
+    59/59. The fixture itself no longer contains an example address at all:
+    `discoverTenantByDomain` is passed a domain, and the point of the test is
+    that the local part never reaches it.
   - Honest limit: SCIM tokens are modelled as a credential purpose with expiry
     and rotation, but no SCIM endpoint exists — that is GE-04x work.
 
