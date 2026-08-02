@@ -56,6 +56,11 @@ const DOMAINS = [
     key: 'identity',
     what: 'Who someone is: providers, sessions, the sign-in surface.',
     owns: [
+      // GE-040-001. The canonical model — a durable person, effective-dated
+      // memberships, and the rule that no status change is expressible without
+      // its audit record.
+      'packages/identity/',
+      'apps/web/src/lib/identity/',
       'apps/web/src/app/api/me/',
       'apps/web/src/types/next-auth.d.ts',
 

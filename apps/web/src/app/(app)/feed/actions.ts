@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { liveMembershipWhere } from "@/lib/identity/live-membership"
 import { getUserContext, isOseDirector } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
 import { notifyUsers, orgPresidentIds, oseMemberIds } from "@/lib/notify"
@@ -132,7 +133,9 @@ export async function requestCollab(formData: FormData) {
 
     // The Director's task + a heads-up to the hosting club
     const directors = await db.institutionMembership.findMany({
-      where: { institutionId: post.institutionId, role: "OSE_DIRECTOR" },
+      // Live only: a departed Director must not keep receiving collaboration
+      // requests for an institution they have left.
+      where: { ...liveMembershipWhere(), institutionId: post.institutionId, role: "OSE_DIRECTOR" },
       select: { userId: true },
     })
     await notifyUsers(directors.map((d) => d.userId), {

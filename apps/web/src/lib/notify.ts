@@ -1,4 +1,5 @@
 import { db } from "@/lib/db"
+import { liveMembershipWhere } from "@/lib/identity/live-membership"
 
 /** Fan out an in-app notification to a set of users (deduped, no self). */
 export async function notifyUsers(
@@ -29,7 +30,9 @@ export async function orgPresidentIds(organizationId: string): Promise<string[]>
 /** OSE staff of an institution. */
 export async function oseMemberIds(institutionId: string): Promise<string[]> {
   const staff = await db.institutionMembership.findMany({
-    where: { institutionId },
+    // Live only: a revoked staff member must stop receiving the institution's
+    // notifications the moment their membership ends (GE-040-001).
+    where: { ...liveMembershipWhere(), institutionId },
     select: { userId: true },
   })
   return staff.map((s) => s.userId)

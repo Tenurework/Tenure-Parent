@@ -3412,3 +3412,106 @@ worth less than three items that hold.
   * The operator plane's support-session and break-glass mechanisms
     (GE-033-003/004) remain complete and inert — no session store, and no
     federated operator identity to step up against. Unchanged by this gate.
+
+## GE-040: Canonical identity data
+
+- [x] **GE-040-001** — Implement/migrate `Person`, `ExternalIdentity`, `TenantMembership`, `IdentityConnection`, `Invitation`, `Session`, `AuthenticationEvent`, and recovery/linking entities with effective state and audit.
+  - Status: PASS for the model, effective state, audit and the membership
+    migration; the remaining entities are modelled but not yet persisted, which
+    is stated below rather than implied.
+  - Code: `packages/identity/src/{entities,effective-state,transitions}.ts`,
+    `apps/web/src/lib/identity/live-membership.ts`,
+    `apps/web/prisma/migrations/20260802184410_membership_effective_state/`
+  - Tests: `packages/identity/src/identity.test.ts` (45),
+    `apps/web/src/lib/identity/live-membership.itest.ts` (2, against real
+    Postgres), `tests/architecture/live-membership.test.mjs` (5 guards)
+  - Evidence: 73/73 unit (identity), **63/63 integration against real
+    Postgres**, 5/5 architecture guards, type-check clean.
+    12 mutations, 12 caught — after fixing a guard that let one through.
+
+  **The item's real content is "with effective state and audit", and the
+  repository had neither.** `InstitutionMembership` was a row that existed or
+  did not: no status, no window. Revoking called `db.institutionMembership.delete`
+  while the notification it sent said *"Your past activity stays on record"*.
+  The audit entry survived; the membership fact did not. Nothing could answer
+  "was this person a Director on 12 March", which is exactly what an approval
+  signed on 12 March raises — and it contradicts the product's own thesis, that
+  the person changes and the seat remembers.
+
+  Now: `MembershipStatus` + `effectiveFrom` / `effectiveUntil` / `statusReason`,
+  an additive migration applied against Postgres. Revocation closes the window
+  and keeps the row. `reviseMembership` is the only way to change state and it
+  returns the membership **and its audit record together** — there is no
+  function returning just the membership, because an audit write issued as a
+  separate call is one a code path can skip.
+
+  **Effective state is computed, never stored.** No entity carries `isActive`.
+  A stored flag is a second source of truth that a missed job leaves wrong, and
+  the window in which it is wrong is the window that matters. Every "no" is a
+  distinct reason — EXPIRED, SUSPENDED, REVOKED, NOT_YET_EFFECTIVE,
+  SUPERSEDED, UNVERIFIED, ALREADY_ACCEPTED — because they need different
+  actions, and an interface answering only `false` makes the caller guess.
+
+  **Effective-dating changed the meaning of every existing read, and that was
+  the dangerous part.** `where: { institutionId }` used to mean "current
+  members" and now means "everyone who was ever a member". Left alone, the
+  change made to preserve history would have preserved *access*: a revoked
+  director still counting toward the last-director guard, a departed staff
+  member still notified, a revoked person keeping every capability.
+
+  Ten call sites, all now filtered through one `liveMembershipWhere()`. A manual
+  sweep found nine. **The guard found the tenth: `rbac.ts` — the one every
+  capability check in the application resolves through.**
+
+  `liveMembershipWhere` is a genuine second definition of the rule, as SQL. What
+  makes that safe is `live-membership.itest.ts`, which runs both over the same
+  fixtures against real Postgres and compares row by row, including the
+  half-open boundary where a membership ending exactly at `T` and one starting
+  exactly at `T` must leave no gap and no overlap.
+
+  **Mutation proof — 12 mutations, 11 caught first time.** Liveness ignoring the
+  window; inclusive window end (caught by both unit and integration, at the
+  boundary); revoke clearing the window instead of closing it; revoke without a
+  reason; reviving a revoked membership by GRANT; SQL dropping the status check;
+  SQL dropping the window check; SQL using `gte` and disagreeing with the engine
+  by one instant; revoke going back to `delete`; director count ignoring
+  liveness; unverified recovery methods counting as a way back in.
+
+  **M9 survived, and it was the guard's fault.** Removing the filter from
+  `rbac.ts` left the guard green, because it asked whether the file *mentioned*
+  `liveMembershipWhere` — which the import line satisfies. A guard that cannot
+  tell use from mention is a guard against typos, and this is the third time
+  that exact shape has bitten (see `operator-boundary`, `operator-plane-content`).
+  Rewritten to brace-match each query and test its body. Re-proven: the mutation
+  now fails the guard, naming the offending call. A test was added asserting the
+  extractor itself can distinguish the two, because its failure mode is silence —
+  a brace-matcher returning nothing reports every file as compliant.
+
+  **Honest limits.**
+
+  * **`Person`, `ExternalIdentity`, `Invitation`, `AuthSession`,
+    `AuthenticationEvent` and `RecoveryMethod` are modelled and tested but not
+    yet persisted.** Only `TenantMembership` has storage, because only it had an
+    existing table to migrate. The rest need either the Cognito integration
+    (GE-041, BLOCKED_EXTERNAL on the AWS Organization) or a schema change that
+    replaces NextAuth's `User`/`Session` — which is a cutover, not an additive
+    migration, and belongs with the Simon absorption. The entities are not
+    speculative: each is exercised by its liveness rules and each is required by
+    a named later item. But this item is not claiming they are stored.
+  * **`IdentityConnection` is deliberately not here.** It already exists in
+    `@tenure/provisioning` (GE-030-003) and belongs to the tenant registry
+    rather than to a person. Duplicating it would give the fleet two answers to
+    "which SAML connection is this".
+  * **A re-granted membership reuses its row and loses the previous period's
+    dates.** `@@unique([userId, institutionId])` allows only one row per pair,
+    so a grant after a revoke reopens the window rather than creating a second
+    period. The engine refuses `GRANT` on a revoked membership for exactly this
+    reason and the application resets the window explicitly; full period history
+    needs a `MembershipPeriod` table, which is a schema change this item does
+    not smuggle in. Without the explicit reset the upsert would have left
+    `status: REVOKED` on a re-granted person — shown as a member, holding no
+    access — so that path is covered even though the history gap is not closed.
+  * The pilot's existing rows default to `ACTIVE` with `effectiveFrom` set to
+    the migration instant rather than their true grant date. `createdAt` holds
+    the real date; backfilling it is a data migration that belongs with the
+    Simon absorption, where the pilot's data is being reconciled anyway.

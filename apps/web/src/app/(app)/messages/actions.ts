@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
+import { liveMembershipWhere } from "@/lib/identity/live-membership"
 import { getUserContext, isOse } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
 import { canPostToConversation } from "@/lib/messaging"
@@ -258,7 +259,9 @@ export async function sendBroadcast(formData: FormData) {
       select: { userId: true },
     })
     const staff = await db.institutionMembership.findMany({
-      where: { institutionId },
+      // Live only. A revoked staff member must fall out of the message
+      // audience immediately, not at the next cleanup.
+      where: { ...liveMembershipWhere(), institutionId },
       select: { userId: true },
     })
     const audience = [...new Set([...seats.map((s) => s.userId), ...staff.map((s) => s.userId)])]

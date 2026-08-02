@@ -21,6 +21,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@tenure/contracts": ["../../packages/contracts/src/index.ts"],
+      "@tenure/identity": ["../../packages/identity/src/index.ts"],
       "@tenure/configuration": ["../../packages/configuration/src/index.ts"],
       // TEST-ONLY. reconcile.itest.ts cross-checks that an artifact the engine
       // signs verifies with this cell's own, independent implementation. The

@@ -220,6 +220,10 @@ const DATABASE_EXEMPT = new Map([
     'an unextended client on purpose: it asserts the DATABASE refuses duplicates, over control-plane rows that belong to no single tenant',
   ],
   [
+    'apps/web/src/lib/identity/live-membership.itest.ts',
+    'an unextended client on purpose: it asserts the SQL live-membership filter agrees with the engine row by row, which means reading rows of every status including revoked ones — an extended client would filter the fixtures the assertion is about',
+  ],
+  [
     'apps/web/scripts/seed.mjs',
     'control-plane script: it creates the institution a tenant scope would have to name, and runs with no session at container start',
   ],
@@ -411,7 +415,13 @@ test('the exemption lists are reasoned, real, and have not grown silently', () =
   // may act in, and an extended client would answer from the very scope being
   // tested. Raised deliberately, with the reason recorded, which is what this
   // assertion exists to force.
-  assert.equal(DATABASE_EXEMPT.size, 11, 'the raw-database-client exemption list changed')
+  // 11 → 12 on 2026-08-02: live-membership.itest.ts (GE-040-001). Membership
+  // became effective-dated, and the SQL filter that expresses "is a member now"
+  // is a second statement of a rule the engine also states. The test that keeps
+  // those two from drifting has to read rows of every status, including revoked
+  // ones, so an extended client would filter away the fixtures the assertion is
+  // about. Raised deliberately, with the reason recorded.
+  assert.equal(DATABASE_EXEMPT.size, 12, 'the raw-database-client exemption list changed')
   assert.equal(AWS_EXEMPT.size, 0, 'a file was exempted from the AWS client rule')
   assert.equal(PROVIDER_EXEMPT.size, 0, 'a file was exempted from the provider endpoint rule')
 

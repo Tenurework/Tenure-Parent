@@ -1,6 +1,7 @@
 import { cache } from "react"
 import type { AssignmentStatus, InstitutionRole, RoleScope } from "@prisma/client"
 import { db } from "@/lib/db"
+import { liveMembershipWhere } from "@/lib/identity/live-membership"
 import { runUnscoped } from "@/lib/tenancy/context"
 
 // ─── User context ─────────────────────────────────────────────────────────────
@@ -31,7 +32,12 @@ export const getUserContext = cache(async (userId: string): Promise<UserContext>
   const [memberships, assignments] = await runUnscoped("auth-bootstrap", "getUserContext", () =>
     Promise.all([
       db.institutionMembership.findMany({
-        where: { userId },
+        // Live only, and this is the call site where it matters most: every
+        // capability check in the application resolves through this list. An
+        // unfiltered read would mean a revoked person keeps their institution
+        // role — the effective-dating that was supposed to preserve history
+        // would instead have preserved access (GE-040-001).
+        where: { ...liveMembershipWhere(), userId },
         select: { institutionId: true, role: true },
         // Stable ordering so a multi-institution admin always resolves the same
         // acting institution (requireCapability defaults to institutionRoles[0]).

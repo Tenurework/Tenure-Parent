@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "2745f2e",
+  "commit": "733d7cd",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 77,
-    "done": 66,
+    "total": 78,
+    "done": 67,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -567,6 +567,13 @@
             "title": "Parent registries, versioned configuration engine, tenant configuration studio, and isolated operator plane are integrated and deployed to development/staging with audit and rollback evidence.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": true
+          },
+          {
+            "id": "GE-040-001",
+            "done": true,
+            "title": "Implement/migrate `Person`, `ExternalIdentity`, `TenantMembership`, `IdentityConnection`, `Invitation`, `Session`, `AuthenticationEvent`, and recovery/linking entities with effective state and audit.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -581,7 +588,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 80,
+    "decided": 81,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -700,7 +707,7 @@
         "source": "GE",
         "items": 5,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-041: Cognito infrastructure",
@@ -1942,7 +1949,7 @@
     },
     {
       "name": "tenant isolation",
-      "files": 6,
+      "files": 7,
       "what": "cross-tenant reads must fail"
     },
     {

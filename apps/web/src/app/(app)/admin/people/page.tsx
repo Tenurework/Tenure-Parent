@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { UserPlus, ShieldCheck, X } from "@/components/ui/icons"
 import { db } from "@/lib/db"
+import { liveMembershipWhere } from "@/lib/identity/live-membership"
 import { requireAdminContext } from "@/lib/admin/guard"
 import { withTenantScope } from "@/lib/tenant-scope"
 import { hasCapability, roleLabel } from "@/lib/admin/capabilities"
@@ -25,7 +26,9 @@ export default async function AdminPeoplePage() {
   return withTenantScope(userId, async () => {
     const [memberships, people, peopleCount, incomingTransfers, outgoingTransfers] = await Promise.all([
       db.institutionMembership.findMany({
-        where: { institutionId },
+        // The roster is who is a member now. Past members belong on a history
+        // view, not mixed into the current list with no way to tell them apart.
+        where: { ...liveMembershipWhere(), institutionId },
         orderBy: { role: "asc" },
         include: { user: { select: { name: true, email: true } } },
       }),

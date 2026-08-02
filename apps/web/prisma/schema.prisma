@@ -85,6 +85,23 @@ enum InstitutionRole {
 }
 
 // User's role at the institution level (OSE access)
+/// GE-040-001. Membership is effective-dated, not a row that exists or does not.
+///
+/// Revoking used to `delete` the row, while the notification it sent said "Your
+/// past activity stays on record". The audit log recorded the revocation; the
+/// membership fact did not survive it, so nothing could answer "was this person
+/// a Director on 12 March" — which is exactly what an approval signed on 12
+/// March raises, and it contradicts the product's own thesis.
+///
+/// Liveness is never read off `status` alone. `@tenure/identity`'s
+/// `membershipLiveness` combines status with the window, because a membership
+/// whose window has closed is not live however active it claims to be.
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
 model InstitutionMembership {
   id            String          @id @default(cuid())
   userId        String
@@ -95,8 +112,20 @@ model InstitutionMembership {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
+  status         MembershipStatus @default(ACTIVE)
+  /// Defaults to the row's creation for every membership that predates this
+  /// column, which is true: they were effective from when they were granted.
+  effectiveFrom  DateTime         @default(now())
+  /// Null means open-ended. Set to the instant of revocation, never cleared.
+  effectiveUntil DateTime?
+  /// Required by the engine for anything that removes access. Nullable here
+  /// because ACTIVE rows have no reason to carry one.
+  statusReason   String?
+
   @@unique([userId, institutionId])
   @@index([institutionId, role])
+  /// Reads that mean "who is a member now" filter on this.
+  @@index([institutionId, status, effectiveUntil])
 }
 
 model User {

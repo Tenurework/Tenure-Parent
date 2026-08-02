@@ -1,5 +1,6 @@
 import "server-only"
 import { db } from "@/lib/db"
+import { liveMembershipWhere } from "@/lib/identity/live-membership"
 import { getUserContext } from "@/lib/rbac"
 import { messagingTier } from "@/lib/messaging"
 
@@ -41,7 +42,8 @@ export async function getAllowedRecipients(userId: string) {
   // OSE staff are reachable by every tier except MEMBER
   if (tier !== "MEMBER") {
     const staff = await db.institutionMembership.findMany({
-      where: { institutionId: { in: institutionIds } },
+      // Live only: the directory of who can be messaged is current members.
+      where: { ...liveMembershipWhere(), institutionId: { in: institutionIds } },
       include: { user: { select: { id: true, name: true, email: true } } },
     })
     for (const s of staff) add(s.user, s.role === "OSE_DIRECTOR" ? "OSE Director" : "OSE")

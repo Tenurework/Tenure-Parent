@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import type { AssignmentStatus, InstitutionRole, OrgCategory, RoleScope } from "@prisma/client"
+import { reviseMembership } from "@tenure/identity"
+
 import { db } from "@/lib/db"
+import { liveMembershipWhere, toEngineMembership } from "@/lib/identity/live-membership"
 import { auth } from "@/lib/auth"
 import { getUserContext, isOseDirector } from "@/lib/rbac"
 import { requireCapability } from "@/lib/admin/guard"
@@ -390,7 +393,14 @@ export async function adminGrantInstitutionRole(formData: FormData) {
     const isDemotingDirector = existing?.role === "OSE_DIRECTOR" && role !== "OSE_DIRECTOR"
     if (isDemotingDirector) {
       const otherDirectors = await db.institutionMembership.count({
-        where: { institutionId, role: "OSE_DIRECTOR", NOT: { userId: user.id } },
+        // Live only. Counting revoked directors would let the last real one be
+        // demoted because a departed colleague still had a row (GE-040-001).
+        where: {
+          ...liveMembershipWhere(),
+          institutionId,
+          role: "OSE_DIRECTOR",
+          NOT: { userId: user.id },
+        },
       })
       if (otherDirectors === 0)
         throw new Error(
@@ -400,9 +410,20 @@ export async function adminGrantInstitutionRole(formData: FormData) {
         )
     }
 
+    // A person who was revoked and is being granted access again keeps the same
+    // row — `@@unique([userId, institutionId])` allows only one — so the grant
+    // must reopen the window explicitly. Without this the upsert would update
+    // the role and leave `status: REVOKED`, and the person would be shown as a
+    // member while having no access at all: the worst of both.
     await db.institutionMembership.upsert({
       where: { userId_institutionId: { userId: user.id, institutionId } },
-      update: { role },
+      update: {
+        role,
+        status: "ACTIVE",
+        effectiveFrom: new Date(),
+        effectiveUntil: null,
+        statusReason: null,
+      },
       create: { userId: user.id, institutionId, role },
     })
     const roleName = roleWord(role)
@@ -476,6 +497,7 @@ export async function adminRevokeInstitutionRole(formData: FormData) {
   const sessionUserId = await actingUserId()
   await withTenantScope(sessionUserId, async () => {
     const membershipId = String(formData.get("membershipId") ?? "")
+    const reason = String(formData.get("reason") ?? "").trim()
     const membershipPre = await db.institutionMembership.findUnique({
       where: { id: membershipId },
       include: { user: { select: { email: true } } },
@@ -496,7 +518,10 @@ export async function adminRevokeInstitutionRole(formData: FormData) {
     // cleanly they must hand off through the transfer pipeline first.
     if (membership.role === "OSE_DIRECTOR") {
       const directors = await db.institutionMembership.count({
-        where: { institutionId, role: "OSE_DIRECTOR" },
+        // Live only, for the same reason as the demote path: once memberships
+        // are effective-dated, a count that ignores the window counts people
+        // who left.
+        where: { ...liveMembershipWhere(), institutionId, role: "OSE_DIRECTOR" },
       })
       if (directors <= 1)
         throw new Error(
@@ -505,7 +530,29 @@ export async function adminRevokeInstitutionRole(formData: FormData) {
             : "This is the institution's last OSE Director and can't be revoked. Grant Director access to a successor first — the institution must always keep at least one Director."
         )
     }
-    await db.institutionMembership.delete({ where: { id: membershipId } })
+    // GE-040-001. Effective-dated, not deleted. This used to `delete` the row
+    // while the notification below told the person "Your past activity stays on
+    // record" — the audit entry survived, the membership fact did not, and
+    // nothing could answer "was this person a Director on 12 March".
+    //
+    // The engine decides the next state and produces the audit metadata; there
+    // is no code path here that changes status without it.
+    const revision = reviseMembership(toEngineMembership(membership), {
+      change: "REVOKE",
+      actorId,
+      reason: reason || "Access revoked by an OSE Director.",
+      at: new Date(),
+    })
+    if (!revision.ok) throw new Error(revision.problem)
+
+    await db.institutionMembership.update({
+      where: { id: membershipId },
+      data: {
+        status: "REVOKED",
+        effectiveUntil: new Date(revision.membership.interval.effectiveUntil!),
+        statusReason: revision.membership.statusReason,
+      },
+    })
     if (membership.userId !== actorId)
       await notifyUsers([membership.userId], {
         title: "Your OSE Admin access has been turned off",
@@ -638,7 +685,15 @@ export async function acceptRoleTransfer(formData: FormData) {
       // 1. Grant the successor the role (add a Director — coverage first).
       await tx.institutionMembership.upsert({
         where: { userId_institutionId: { userId: transfer.toUserId, institutionId: transfer.institutionId } },
-        update: { role: transfer.role },
+        // Reopens the window, for the same reason as the grant path: the
+        // successor may be someone whose membership was previously revoked.
+        update: {
+          role: transfer.role,
+          status: "ACTIVE",
+          effectiveFrom: new Date(),
+          effectiveUntil: null,
+          statusReason: null,
+        },
         create: { userId: transfer.toUserId, institutionId: transfer.institutionId, role: transfer.role },
       })
       // 2. Step the initiator down (or fully revoke).
@@ -648,8 +703,16 @@ export async function acceptRoleTransfer(formData: FormData) {
           data: { role: transfer.stepDownRole },
         })
       } else {
-        await tx.institutionMembership.deleteMany({
+        // Effective-dated, not deleted (GE-040-001). The outgoing Director's
+        // membership is the record that they held the role until this instant,
+        // which is what every approval they signed resolves against.
+        await tx.institutionMembership.updateMany({
           where: { userId: transfer.fromUserId, institutionId: transfer.institutionId },
+          data: {
+            status: "REVOKED",
+            effectiveUntil: new Date(),
+            statusReason: `Stepped down on completing role transfer ${transfer.id}.`,
+          },
         })
       }
       // 3. Close the transfer.
