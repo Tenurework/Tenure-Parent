@@ -127,3 +127,6 @@ export {
   typeOf,
 } from "./expression"
 export type { EvaluationResult, ExprType, Limits, Node as ExpressionNode, TypeEnv, ValueEnv } from "./expression"
+
+export { lint, planPublication, renderDiff, simulate } from "./publication"
+export type { Fixture, Impact, LintFinding, PublicationInput, PublicationPlan, SimulationResult } from "./publication"

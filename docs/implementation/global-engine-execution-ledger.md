@@ -2690,3 +2690,73 @@ worth less than three items that hold.
     needing a list will need it extended (GE-036). The language version is
     declared and **not yet recorded alongside stored expressions**; that pairing
     belongs with the same versioned-store work.
+
+- [x] **GE-031-006** — Human and machine diff, validation, lint, simulation,
+  synthetic fixtures, cost/impact preview, four-eyes approval, scheduled
+  activation, progressive rollout, rollback, and audit.
+  - Status: PASS
+  - Code: `packages/configuration/src/publication.ts` — `lint`, `simulate`,
+    `renderDiff`, `planPublication`; exported from the package index
+  - Tests: `publication.test.ts` — 24 cases. Configuration **215/215**;
+    `apps/web` **1511/1511**; 84 platform guards.
+  - Eleven capabilities, and **five already existed** — this item is mostly the
+    assembly that makes them a decision rather than a pile of parts. Machine
+    diff was `diffVersions` (GE-031-001); scheduled activation was
+    `effectiveFrom` and `isEffectiveAt`; progressive rollout was the flags'
+    `rolloutPercent` under a restrict-only `min` merge (GE-022-005); validation
+    was `resolve.ts` problems plus `rejections.ts` (GE-031-004); versioning and
+    rollback targets were `publish`/`supersede`. What did not exist was a human
+    diff, lint, simulation over fixtures, an impact preview, and the gate that
+    turns all of it into "may this be published".
+  - **Lint is not rejection, and keeping them apart is the whole design.** A
+    rejection is "this cannot be published"; a lint finding is "this is probably
+    not what you meant". Conflating them fails in both directions and both are
+    common — warnings that block become noise people route around, and errors
+    demoted to warnings become defects that ship. `blocked` is computed from
+    rejections and blockers only, and a test asserts a proposal with several
+    lint findings and no rejections **is publishable**.
+  - Lint catches what is legal, occasionally deliberate and usually a mistake: a
+    value set to the platform default (the override does nothing and hides that
+    the default applies), an experiment with no end date (a permanent change
+    wearing a temporary label), a layer that sets nothing, and a change reason
+    too short to mean anything in an incident review.
+  - **Four eyes means two people.** An approval by the identity publishing the
+    change records a second signature that was never obtained. Reported in lint
+    *and* blocked in the plan — deliberately two places, so a reviewer reading
+    the findings sees it without opening the verdict.
+  - **Simulation runs the real resolver.** Fixtures are environments, not
+    expected outputs: a simulation compared against hand-written expectations
+    tests the fixture. Each is resolved through `resolveVersionedLayers` — the
+    same function production uses — and a fixture that fails is a *result*, not
+    an exception, because the point of simulating is to learn which environments
+    break and throwing on the first one hides the rest.
+  - Impact **names** rather than counts. "3 modules affected" sends an operator
+    to find out which, which is the work a preview exists to remove.
+  - `rollbackTo` is `null` on a first publication rather than `0`. A change with
+    nothing to roll back to is a different risk from one with a target, and the
+    person signing should be told which they have.
+  - Proven by mutation, **6 of 6 caught, after two escaped and both were my
+    tests' fault.** Lint contributing to `blocked` FAILS; a past activation
+    accepted FAILS; `rollbackTo` defaulting to 0 FAILS; the lint copy of the
+    four-eyes check removed FAILS; the blocking copy removed FAILS; the
+    simulation catch removed FAILS.
+    - The four-eyes condition appears **twice**, and `String.replace` hit the
+      first — the lint copy — which no test asserted. The blocker was never
+      touched and nothing failed. There are now two tests, one per copy.
+    - The simulation test used a bad *value*, which resolves to problems and
+      never reaches the catch, so removing the catch changed nothing. It now
+      uses a layer whose compatibility range is not a version, which makes
+      `compareSemver` throw, and asserts the *second* fixture still resolves.
+  - Two test fixtures were also wrong about correct behaviour: `current` must be
+    a **resolved** configuration (a hand-written subset makes every registry
+    default look "added"), and a flag merged with `and` can never turn **on** —
+    that is the restrict-only law working, and the wrong fixture for observing a
+    change.
+  - Honest limits: **audit is a plan, not a record.** `planPublication` produces
+    everything an audit entry needs and writes nothing; persisting it belongs
+    with the versioned store that GE-031-003's immutability digests and
+    GE-031-005's language version are also waiting on. Nothing calls this from
+    the Studio or `apps/web` — GE-031-007 is the item that makes the admin UI
+    write through this path, and until then it is reachable only from tests.
+    Cost is reported as keys and named modules, not currency: a monetary
+    estimate needs the metering data in GE-042.
