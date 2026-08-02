@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "77164be",
+  "commit": "bdf2486",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 67,
-    "done": 56,
+    "total": 68,
+    "done": 57,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -497,6 +497,13 @@
             "title": "Human and machine diff, validation, lint, simulation, synthetic fixtures, cost/impact preview, four-eyes approval, scheduled activation, progressive rollout, rollback, and audit.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-031-007",
+            "done": true,
+            "title": "The admin UI writes the same canonical configuration used by config-as-code; no parallel hidden settings store.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -700,7 +707,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 12,
+      "files": 13,
       "what": "repository and deployment invariants"
     },
     {

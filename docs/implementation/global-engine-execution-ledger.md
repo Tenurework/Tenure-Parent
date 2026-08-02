@@ -2760,3 +2760,77 @@ worth less than three items that hold.
     write through this path, and until then it is reachable only from tests.
     Cost is reported as keys and named modules, not currency: a monetary
     estimate needs the metering data in GE-042.
+
+- [x] **GE-031-007** — The admin UI writes the same canonical configuration used
+  by config-as-code; no parallel hidden settings store.
+  - Status: PASS
+  - Code: `packages/configuration/src/store.ts` — the `ConfigStore` port,
+    `commit`, `InMemoryConfigStore`, `rollbackTarget`
+  - Tests: `store.test.ts` — 17 cases; `tests/security/one-config-writer.test.mjs`
+    — 4 guards. Configuration **232/232**; `apps/web` **1528/1528**; 88 platform
+    guards.
+  - The item says "**Ensure**", not "build". Today the console has no
+    configuration editor at all, so the requirement is satisfied by having
+    nothing — the least durable way to satisfy anything. The moment somebody
+    builds one, the cheapest implementation is a `Setting` table with a key and
+    a value, and then there are two sources of truth, a reconciliation problem
+    nobody chose, and a tenant whose console shows one thing while the engine
+    resolves another. So the path exists before the editor does.
+  - **It closes three deferrals that had accumulated.** Each of the last three
+    items ended with "nothing persists this yet", and all three were waiting on
+    the same missing piece:
+    - GE-031-003 — `immutabilityBreaches` took the previously published digests
+      as an *argument*; `commit` supplies them from the store's own history,
+      which turns a function into a guarantee.
+    - GE-031-005 — the expression language declared a version recorded nowhere;
+      every record carries it, because an expression evaluated by a different
+      language version is a different expression.
+    - GE-031-006 — `planPublication` produced everything an audit entry needs
+      and wrote nothing; the plan is stored with the revision it justified.
+  - **A port, not a database.** The adapter is the caller's. A configuration
+    package that imported a database client would be untestable without one and
+    undeployable outside the cell that has it. `InMemoryConfigStore` is real
+    rather than a mock — it enforces append-only and rejects a duplicate
+    revision, which are the properties `commit` depends on, so the adapter that
+    replaces it cannot quietly relax them and still pass these tests.
+  - **No `update`, no `delete`, at the interface.** A published revision that
+    can be edited is not a record of what was live, and every claim built on it
+    — an incident reconstruction, a rollback target, an audit trail — becomes a
+    guess. Asserted against the interface *source*, because an adapter that
+    added `update` would still satisfy the TypeScript type: a wider object is
+    assignable to a narrower one.
+  - The guard is four checks: no `Setting`/`Config`/`Preference` model in the
+    schema; nothing outside `commit` appends a revision; the interface offers no
+    mutation; and no module writes a `platform.*` key through Prisma. It greps
+    with `--untracked`, because a plain `git grep` sees only what is committed —
+    a brand-new second writer would be invisible until after it was pushed,
+    which is exactly when a guard stops being useful. This repository has been
+    bitten by that before with `no-personal-data`.
+  - The allowlist is checked for **vacuity**: if the one permitted writer stops
+    calling `append`, the guard fails rather than passing while checking
+    nothing.
+  - **A mutation found a real hole rather than a weak test.** Recomputing
+    `rollbackTo` as `revision - 1` instead of taking the value from the signed
+    plan passed every test — because nothing prevented committing a plan
+    computed against a *stale* revision, and in a linear history the two
+    expressions agree. `commit` now refuses a plan whose reviewed revision is
+    not the current one: the diff the operator approved is not the diff it would
+    apply. With that invariant the recomputation is provably equal to the plan's
+    value, so that mutation is now an **equivalent mutant** — unkillable because
+    the code is the same function, not because the test is weak. Recorded rather
+    than papered over.
+  - Proven by mutation, **8 of 9, with the ninth equivalent**: a blocked plan
+    committed FAILS; immutability checked against nothing FAILS; revisions
+    starting at zero FAILS; `append` silently replacing FAILS; `history` handing
+    out its own array FAILS; the stale-plan check removed FAILS; a `Setting`
+    model added FAILS; `ConfigStore` gaining an `update` FAILS; a second module
+    appending directly FAILS; the allowlisted writer no longer appending FAILS.
+  - Honest limits: **there is still no admin configuration editor**, so nothing
+    calls `commit` outside tests — this item makes the path canonical and
+    guarded, and GE-032-001 is what builds the editors that use it. No adapter
+    exists for a real store; DynamoDB or Postgres is a cell-level decision and
+    the port is what keeps it out of this package. `commit` takes the resolved
+    values and checksum from the caller rather than re-resolving, so a caller
+    could pass values that do not match the layers — the honest fix is for
+    `commit` to resolve them itself, which needs the registry threaded through
+    and is a change to the signature rather than an addition.

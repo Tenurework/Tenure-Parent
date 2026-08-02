@@ -130,3 +130,6 @@ export type { EvaluationResult, ExprType, Limits, Node as ExpressionNode, TypeEn
 
 export { lint, planPublication, renderDiff, simulate } from "./publication"
 export type { Fixture, Impact, LintFinding, PublicationInput, PublicationPlan, SimulationResult } from "./publication"
+
+export { ConfigStoreError, InMemoryConfigStore, commit, rollbackTarget } from "./store"
+export type { CommitInput, ConfigRecord, ConfigStore } from "./store"
