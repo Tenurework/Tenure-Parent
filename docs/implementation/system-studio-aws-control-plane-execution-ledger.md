@@ -56,6 +56,13 @@ exact commands an operator would run.
 
 ---
 
+> **Commit note.** The FinOps Center landed in `2745f2e`, which is *labelled*
+> "GE-GATE-3: the gate found the publish path was dead in the UI". The message is
+> wrong and the tree is right: a commit-message file was written to `C:	mp` by
+> Python while `git` read Git Bash's `/tmp`, so the previous commit's message was
+> reused. Not amended — rewriting pushed history is on the must-not list. The
+> corrective commit is the one that adds this note.
+
 # Phase 120 — Reliability, observability, operations, DR, and FinOps
 
 ## STUDIO-120: FinOps Center

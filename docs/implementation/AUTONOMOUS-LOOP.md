@@ -160,6 +160,32 @@ cd apps/system-studio && ../../node_modules/.bin/playwright test --config=playwr
 A new route returning **404 while the build output lists it** means the server is
 not the build you just made. It is never a routing bug; check the log first.
 
+**A new package under `packages/` needs `npm install --package-lock-only`.**
+Adding a workspace without regenerating `package-lock.json` passes every local
+check — the workspace symlink already exists in `node_modules`, so type-check,
+jest and both builds are happy — and then `npm ci` fails inside the Docker build
+because the lockfile does not list the workspace. `batch-gate.mjs` cannot catch
+it: it runs `npm run build`, not `npm ci` in a clean container. This is the
+second failure mode that only appears past the gate, after the Playwright one.
+
+Verify it the way the deploy does:
+
+```bash
+docker run --rm -v "//c/Users/satvi/Tenure-Parent://w" -w //w node:22-alpine   sh -c "npm ci --ignore-scripts --dry-run"
+```
+
+**Never write a commit message with Python's `open("/tmp/...")`.** Git Bash's
+`/tmp` and Windows' `C:	mp` are different directories, and Python resolves the
+POSIX-looking path to the Windows one. The script reports success, `git commit -F
+/tmp/msg.txt` reads whatever the *last* heredoc left there, and the commit lands
+carrying the previous commit's message over completely different work. That
+happened on 2026-08-02: `2745f2e` contains the FinOps Center and is labelled
+GE-GATE-3. It was not amended, because rewriting pushed history is on the
+must-not list — the correction is a follow-up commit and this paragraph.
+
+Write the message with a heredoc, or to an absolute Windows path, and `head -3`
+the file before committing.
+
 **Write the ledger entry BEFORE the final `git add`.** The gate regenerates
 first, and `platform-truth.json` includes the ledger's item counts — so
 appending an entry after staging produces a real, material diff (not the
