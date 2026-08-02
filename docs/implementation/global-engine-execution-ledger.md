@@ -4638,3 +4638,81 @@ worth less than three items that hold.
   * `rotateSession` returns both records and persisting only one leaves either
     an orphaned session or a live old id. The contract is stated; nothing
     enforces it, because there is no store to enforce it in.
+
+- [x] **GE-042-005** — Never place access/refresh tokens in local storage or accept ID tokens as API access tokens.
+  - Status: PASS
+  - Code: `packages/identity/src/token-validation.ts` (`validateAccessToken`)
+  - Tests: `packages/identity/src/access-token.test.ts` (17),
+    `tests/security/no-tokens-in-browser-storage.test.mjs` (4 guards)
+  - Evidence: 2006/2006 apps/web unit across 88 suites, type-check clean.
+    **13 mutations, 13 caught** — after the first run showed the guard could be
+    neutered without its own self-test noticing.
+
+  Two prohibitions, and they fail in different ways.
+
+  **No token in browser storage.** Bible §9.1: "Tokens are not stored in browser
+  local storage." The reason is the whole of GE-042-004: the session cookie is
+  `HttpOnly` precisely so that one XSS is not one stolen session, and putting a
+  token in `localStorage` hands that straight back. `sessionStorage` and
+  `IndexedDB` are the same property with a shorter lifetime, and a token in a
+  script-writable cookie is the same mistake wearing the shape of the thing that
+  was supposed to prevent it.
+
+  The guard bans **tokens, not storage**. `localStorage` is the right place for
+  a theme preference, a collapsed sidebar and the command palette's recents —
+  all of which this repository legitimately stores today, and a test asserts
+  those three files stay clean. A guard that banned the API outright would fire
+  on correct code, and a guard that fires on correct code gets an exemption
+  added rather than a bug fixed. Written while the count was zero, which is the
+  cheap moment: the first token put there will be put there by somebody wiring
+  an API call in a hurry.
+
+  **An ID token is never an API access token.** The confusion is easy to ship:
+  an ID token is issued *to the client*, says who signed in, and is the token
+  nearest to hand when somebody is wiring an API call. It carries
+  `aud = clientId`, so an API checking "is the audience my client id" accepts it
+  happily — and has granted API access on a token never scoped for it, never
+  intended to leave the browser's session, and typically far longer-lived.
+
+  `validateAccessToken` checks the opposite markers: `token_use` must be
+  `access` — absence is refused rather than assumed, because an issuer emitting
+  neither cannot be distinguished — and the audience is the **resource server**.
+  That field is named `resourceServer` rather than `clientId` deliberately: the
+  field name is what stops somebody passing the value that makes an ID token
+  pass, and a guard asserts `ExpectedAccessToken` never grows a `clientId`.
+
+  An API requiring no scope is refused outright rather than defaulted, because
+  the default somebody would pick is "none" and a token minted for anything
+  would then open it.
+
+  **Two independent barriers, and the tests prove each alone suffices.** A
+  genuine access token fails the ID-token validator on *audience* before
+  reaching `token_use` — so a second test forces the audience to match and
+  confirms `token_use` still refuses it. That is the misconfiguration that makes
+  the whole confusion possible, isolated.
+
+  **The guard could be neutered without noticing.** The first mutation run
+  weakened the sweep's credential check and the self-test stayed green, because
+  the self-test exercised the matcher and the extractor *separately* and never
+  their composition. Detection now lives in one exported `credentialWrites`
+  that both the sweep and the self-test call, so a mutation inside it is caught.
+  Deleting the sweep entirely still is not — no guard can catch its own removal,
+  which is what the exemption-count ratchets and review are for, and saying so
+  is more useful than a self-referential assertion that only looks like one.
+
+  **Honest limits.**
+
+  * **Nothing calls `validateAccessToken`.** There is no API taking bearer
+    tokens: `apps/web` authenticates with a NextAuth session cookie and the
+    Studio with an operator allowlist. This is the validator a resource server
+    will use, and the prohibition it encodes is enforceable today by the guard,
+    which is the half that can act now.
+  * **The guard reads source, not behaviour.** It cannot see a token written to
+    storage by a dependency, or one assembled from variables whose names carry
+    no credential vocabulary. It catches the shape people actually write, and a
+    determined author can evade it — the point is that nobody does this
+    deliberately.
+  * `refresh_token` handling is not implemented at all. There is nothing to
+    refresh, and a refresh flow written now would be the speculative code this
+    repository refuses; the prohibition on storing one is what this item
+    delivers.

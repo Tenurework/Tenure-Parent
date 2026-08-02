@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "23738cf",
+  "commit": "e467ce8",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 91,
-    "done": 79,
+    "total": 92,
+    "done": 80,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -665,6 +665,13 @@
             "title": "Implement BFF/server-side session with secure HttpOnly cookies, CSRF protection, rotation, absolute/idle expiry, tenant binding, session inventory, and immediate revocation.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-042-005",
+            "done": true,
+            "title": "Never place access/refresh tokens in local storage or accept ID tokens as API access tokens.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -679,7 +686,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 94,
+    "decided": 95,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -812,7 +819,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 4
+        "done": 5
       },
       {
         "phase": "GE · GE-043: Enterprise federation and lifecycle",
@@ -2030,7 +2037,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 18,
+      "files": 19,
       "what": "repository and deployment invariants"
     },
     {

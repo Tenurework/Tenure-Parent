@@ -251,3 +251,131 @@ export const CHECK_ORDER: readonly TokenRefusal[] = [
   "REPLAYED",
   "SCOPE_MISSING",
 ]
+
+/**
+ * GE-042-005 — an ID token is never an API access token.
+ *
+ * `validateIdToken` above answers "who is this person, for this sign-in".
+ * This answers "may this call do that", and the two must not be
+ * interchangeable in either direction.
+ *
+ * The confusion is worth spelling out because it is easy to ship. An ID token
+ * is issued *to the client*, says who signed in, and is often the token nearest
+ * to hand when somebody is wiring an API call. It carries `aud = clientId`, so
+ * an API that checks "is the audience my client id" accepts it happily — and
+ * has then granted API access on the strength of a token that was never scoped
+ * for it, never intended to leave the browser's own session, and typically
+ * lives far longer than an access token.
+ *
+ * So this checks the *opposite* markers to `validateIdToken`: `token_use` must
+ * be `access` rather than `id`, the audience is the **resource server** rather
+ * than the client, and required scopes are not optional. A token that satisfies
+ * one of these functions cannot satisfy the other.
+ */
+
+/** What an API expects of a bearer token. Distinct from `ExpectedToken`. */
+export interface ExpectedAccessToken {
+  issuer: string
+  /**
+   * The API being called, not the client that called it.
+   *
+   * Naming it `resourceServer` rather than `clientId` is deliberate: the field
+   * name is what stops somebody passing the client id here, which is exactly
+   * the mistake that makes an ID token pass.
+   */
+  resourceServer: string
+  algorithm: AllowedAlgorithm
+  /** Never empty. An access token with no scope grants nothing in particular. */
+  requiredScopes: readonly string[]
+}
+
+export type AccessTokenRefusal =
+  | TokenRefusal
+  | "NOT_AN_ACCESS_TOKEN"
+  | "NO_SCOPES_REQUIRED"
+
+export interface AccessTokenRejected {
+  valid: false
+  reason: AccessTokenRefusal
+  detail: string
+}
+
+export interface AccessTokenAccepted {
+  valid: true
+  claims: TokenClaims
+  subject: string
+  scopes: readonly string[]
+}
+
+export type AccessTokenOutcome = AccessTokenAccepted | AccessTokenRejected
+
+export interface ValidateAccessInput {
+  token: string
+  parsed: ParsedToken
+  expected: ExpectedAccessToken
+  at: Date
+  verify: VerifySignature
+}
+
+export function validateAccessToken(input: ValidateAccessInput): AccessTokenOutcome {
+  const { parsed, expected, at } = input
+  const { header, claims } = parsed
+
+  // An API that requires no scope has not decided what the token is for, and
+  // will accept a token minted for anything. Refused rather than defaulted,
+  // because the default somebody would pick is "none".
+  if (expected.requiredScopes.length === 0) {
+    return { valid: false, reason: "NO_SCOPES_REQUIRED", detail: SAFE_TOKEN_MESSAGE }
+  }
+
+  if (!(ALLOWED_ALGORITHMS as readonly string[]).includes(header.alg)) {
+    return { valid: false, reason: "ALGORITHM_NOT_ALLOWED", detail: SAFE_TOKEN_MESSAGE }
+  }
+  if (header.alg !== expected.algorithm) {
+    return { valid: false, reason: "ALGORITHM_MISMATCH", detail: SAFE_TOKEN_MESSAGE }
+  }
+  if (!input.verify({ token: input.token, algorithm: expected.algorithm, kid: header.kid })) {
+    return { valid: false, reason: "SIGNATURE_INVALID", detail: SAFE_TOKEN_MESSAGE }
+  }
+
+  if (claims.iss !== expected.issuer) {
+    return { valid: false, reason: "ISSUER_MISMATCH", detail: SAFE_TOKEN_MESSAGE }
+  }
+
+  // The marker that separates the two token types. An ID token says `id` here,
+  // and an issuer that emits neither cannot be distinguished — so a token
+  // carrying no marker is refused rather than assumed to be an access token.
+  if (claims.token_use !== "access") {
+    return { valid: false, reason: "NOT_AN_ACCESS_TOKEN", detail: SAFE_TOKEN_MESSAGE }
+  }
+
+  // The audience is the API, not the client. An ID token's audience is the
+  // client id, so this is the second independent thing that stops one passing.
+  const audiences = claims.aud === undefined ? [] : Array.isArray(claims.aud) ? claims.aud : [claims.aud]
+  if (!audiences.includes(expected.resourceServer)) {
+    return { valid: false, reason: "AUDIENCE_MISMATCH", detail: SAFE_TOKEN_MESSAGE }
+  }
+
+  const now = Math.floor(at.getTime() / 1000)
+  if (typeof claims.exp !== "number") {
+    return { valid: false, reason: "NO_EXPIRY", detail: SAFE_TOKEN_MESSAGE }
+  }
+  if (now > claims.exp + CLOCK_SKEW_SECONDS) {
+    return { valid: false, reason: "EXPIRED", detail: SAFE_TOKEN_MESSAGE }
+  }
+  if (typeof claims.nbf === "number" && now < claims.nbf - CLOCK_SKEW_SECONDS) {
+    return { valid: false, reason: "NOT_YET_VALID", detail: SAFE_TOKEN_MESSAGE }
+  }
+
+  const granted = typeof claims.scope === "string" ? claims.scope.split(/\s+/).filter(Boolean) : []
+  const grantedSet = new Set(granted)
+  if (!expected.requiredScopes.every((scope) => grantedSet.has(scope))) {
+    return { valid: false, reason: "SCOPE_MISSING", detail: SAFE_TOKEN_MESSAGE }
+  }
+
+  if (typeof claims.sub !== "string" || claims.sub.length === 0) {
+    return { valid: false, reason: "AUDIENCE_MISMATCH", detail: SAFE_TOKEN_MESSAGE }
+  }
+
+  return { valid: true, claims, subject: claims.sub, scopes: granted }
+}
