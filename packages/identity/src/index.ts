@@ -69,3 +69,17 @@ export {
   type RefusalReason,
   type ResolutionOutcome,
 } from "./keying"
+
+export {
+  SEAT_STATUSES,
+  actingSeats,
+  concurrentHolders,
+  liveSeats,
+  personReach,
+  seatState,
+  type PersonReach,
+  type SeatAssignment,
+  type SeatAuthority,
+  type SeatState,
+  type SeatStatus,
+} from "./seats"

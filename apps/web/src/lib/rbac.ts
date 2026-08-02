@@ -1,6 +1,8 @@
 import { cache } from "react"
 import type { AssignmentStatus, InstitutionRole, RoleScope } from "@prisma/client"
 import { db } from "@/lib/db"
+import { seatState } from "@tenure/identity"
+
 import { liveMembershipWhere } from "@/lib/identity/live-membership"
 import { runUnscoped } from "@/lib/tenancy/context"
 
@@ -44,9 +46,17 @@ export const getUserContext = cache(async (userId: string): Promise<UserContext>
         orderBy: [{ institutionId: "asc" }],
       }),
       db.roleAssignment.findMany({
+        // GE-040-003. The term is read, not merely stored. `startDate` and
+        // `endDate` existed in the schema and in no query: authority came from
+        // `status` alone, and ALUMNI is only ever written by a person clicking,
+        // so a seat whose term ended in June kept full authority until somebody
+        // remembered. Bible §9.2 requires temporal rules for assignment
+        // start/end boundaries; this is where they enter.
         where: { userId },
         select: {
           status: true,
+          startDate: true,
+          endDate: true,
           role: {
             select: { id: true, name: true, scope: true, organizationId: true },
           },
@@ -58,13 +68,36 @@ export const getUserContext = cache(async (userId: string): Promise<UserContext>
   return {
     userId,
     institutionRoles: memberships,
-    orgRoles: assignments.map((a) => ({
-      organizationId: a.role.organizationId,
-      roleId: a.role.id,
-      roleName: a.role.name,
-      scope: a.role.scope,
-      status: a.status,
-    })),
+    // Filtered by the engine, not by a second copy of the rule written here.
+    // The three statuses do not share one window rule — SHADOW is deliberately
+    // live *before* its start date, because previewing before the term begins
+    // is the whole point of it — and encoding that in a `where` clause would
+    // have quietly deleted the feature while looking like a tightening.
+    orgRoles: assignments
+      .filter((a) =>
+        seatState(
+          {
+            id: a.role.id,
+            personId: userId,
+            organizationId: a.role.organizationId,
+            tenantId: "",
+            roleId: a.role.id,
+            status: a.status,
+            interval: {
+              effectiveFrom: a.startDate.toISOString(),
+              effectiveUntil: a.endDate?.toISOString() ?? null,
+            },
+          },
+          new Date(),
+        ).liveness.live,
+      )
+      .map((a) => ({
+        organizationId: a.role.organizationId,
+        roleId: a.role.id,
+        roleName: a.role.name,
+        scope: a.role.scope,
+        status: a.status,
+      })),
   }
 })
 

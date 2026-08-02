@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "cf48c12",
+  "commit": "4f09733",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 79,
-    "done": 68,
+    "total": 80,
+    "done": 69,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -581,6 +581,13 @@
             "title": "Key external identity by verified connection + issuer + subject. Email is mutable and never auto-merges identities.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-040-003",
+            "done": true,
+            "title": "Support one person with multiple identities, memberships, tenants, and simultaneous seat assignments.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -595,7 +602,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 82,
+    "decided": 83,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -714,7 +721,7 @@
         "source": "GE",
         "items": 5,
         "gates": 0,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "GE · GE-041: Cognito infrastructure",
@@ -1956,7 +1963,7 @@
     },
     {
       "name": "tenant isolation",
-      "files": 7,
+      "files": 8,
       "what": "cross-tenant reads must fail"
     },
     {

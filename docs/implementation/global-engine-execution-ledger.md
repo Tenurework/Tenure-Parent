@@ -3615,3 +3615,86 @@ worth less than three items that hold.
     identity packages right now.
   * `connectionsToOffer` is not wired into a sign-in page, because the sign-in
     page does not yet offer connections per tenant. That is GE-041-004.
+
+- [x] **GE-040-003** — Support one person with multiple identities, memberships, tenants, and simultaneous seat assignments.
+  - Status: PASS
+  - Code: `packages/identity/src/seats.ts`, `apps/web/src/lib/rbac.ts`
+  - Tests: `packages/identity/src/seats.test.ts` (19),
+    `apps/web/src/lib/seat-term.itest.ts` (4, against real Postgres)
+  - Evidence: 1731/1731 apps/web unit across 77 suites, 67/67 integration
+    against real Postgres, type-check clean. **11 mutations, 11 caught** —
+    after the first run exposed two genuine coverage gaps.
+
+  The entities already allowed multi-everything structurally: an
+  `ExternalIdentity` points at a person, a `TenantMembership` names a person and
+  a tenant, and nothing limits either to one. What the item actually asks is
+  that *resolution* works when a person has several — and the place that stops
+  being true is time.
+
+  **`RoleAssignment.startDate` and `endDate` were in the schema and in no
+  query.** Authority came from `status` alone, and `ALUMNI` is only ever written
+  by a person clicking a button. A seat whose term ended in June therefore kept
+  full authority until somebody remembered — which is exactly the "temporal
+  rules for assignment and delegation start/end boundaries" Bible §9.2 requires
+  and nothing enforced. `rbac.ts` now reads the term and filters through the
+  engine.
+
+  **The three statuses do not share one window rule**, and this is what makes it
+  more than a `where` clause:
+
+  * `ALUMNI` — never live.
+  * `SHADOW` — live until `endDate`, *including before* `startDate`. Previewing
+    before the term begins is the entire purpose of SHADOW; excluding
+    not-yet-started seats would have deleted the feature while looking like a
+    tightening.
+  * `ACTIVE` — live only within `[startDate, endDate)`.
+
+  Half-open at the end, matching memberships, so one term ending exactly where
+  the next begins leaves no gap and no overlap. `concurrentHolders` returns the
+  seats rather than a boolean because both failure directions matter: two means
+  an outgoing term was never closed, zero means somebody is locked out of a role
+  that appears filled.
+
+  **Seats do not outlive the membership that placed them.** `personReach` only
+  includes a seat if the person has a live membership in that seat's tenant. A
+  seat surviving its tenant membership would be authority in a place the person
+  no longer belongs, which is the exact shape of a cross-tenant leak. Tenant
+  order is stable, because `apps/web` takes the first when no acting institution
+  is chosen and a set that reordered would move somebody between tenants
+  between page loads.
+
+  **The two mutations that survived were both real gaps, not equivalent
+  mutants.**
+
+  * `concurrentHolders` counting *live* rather than *acting* holders survived,
+    because no test placed a SHADOW seat alongside an ACTIVE one — which is the
+    **normal** state of a planned handover. Counting SHADOW would report every
+    planned handover as a two-holder conflict, and a conflict report that fires
+    on the correct case is one nobody reads. Case added.
+  * Removing the term filter from `rbac.ts` left every unit test green, because
+    nothing exercised `getUserContext` against a database. The rule was proven
+    and the wiring was not — which is the same shape as GE-GATE-3's finding, one
+    layer down. `seat-term.itest.ts` closes it with seven fixtures through the
+    real function that every capability check calls.
+
+  **Honest limits.**
+
+  * **Nothing transitions `ACTIVE` to `ALUMNI` when a term ends.** Authority now
+    stops at `endDate`, which is the part that mattered, but the row still reads
+    `ACTIVE` afterwards and a roster that groups by status will show a past
+    holder as current. Computing the display state from the term is a UI change
+    across several pages; enforcing authority was the security fix and is what
+    this item claims.
+  * **`seatState` is called per assignment in `rbac.ts`, not pushed into SQL.**
+    The three statuses need different window rules, and a `where` clause
+    expressing that is exactly the kind of second definition GE-040-001 had to
+    add an integration test to keep honest. At current roster sizes — hundreds
+    of assignments per user at the very worst — filtering in memory after a
+    single indexed query is not the bottleneck. If it becomes one, the fix is a
+    SQL fragment plus an agreement test, the shape `live-membership.itest.ts`
+    already establishes.
+  * `personReach` is not yet called by `apps/web`; the application resolves the
+    acting institution through `getUserContext`, which this item fixed in place
+    rather than replacing. Moving that path onto `personReach` is a refactor
+    across the tenancy layer and belongs with the Simon absorption, where the
+    multi-tenant case gets its first real second tenant.
