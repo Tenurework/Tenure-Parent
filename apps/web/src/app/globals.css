@@ -31,8 +31,11 @@
     --shell-item-hover: rgba(23, 24, 26, 0.045);
     --shell-item-active: rgba(23, 24, 26, 0.075);
 
-    /* Primary — "grove" green (forest-mint brand accent) */
-    --primary: #1c8c5a;
+    /* Primary — "grove" green (forest-mint brand accent).
+       Darkened from #1c8c5a by the GE-022-003 contrast audit: white on the old
+       value was 4.24:1, below the 4.5:1 AA floor, on the most-clicked control
+       in the product. #198052 is the same hue at 4.94:1. */
+    --primary: #198052;
     --primary-hover: #14724a;
     --primary-press: #115e3d;
     --primary-light: #e4f2ea;
@@ -52,10 +55,17 @@
     --bg-subtle: #ebeae3;
     --bg-overlay: rgba(20, 21, 24, 0.5);
 
-    /* Borders */
+    /* Borders.
+       Three tokens, not two, because WCAG 1.4.11 asks a different question of
+       each. --border is a decorative hairline between cards; the card is
+       identifiable without it, so no ratio applies. --border-control is the
+       ONLY thing that identifies an input's boundary, so it must clear 3:1
+       against every surface it sits on — 3.81 / 3.45 / 3.30 here. Using
+       --border-strong (1.48:1) for a control edge was the audit's finding. */
     --border: #e6e4dd;
     --border-strong: #d3d0c8;
-    --border-focus: #1c8c5a;
+    --border-control: #847f76;
+    --border-focus: #198052;
 
     /* Text — warm ink scale */
     --text-1: #191a1c;
@@ -65,14 +75,25 @@
     --text-inverse: #ffffff;
     --text-link: #14724a;
 
-    /* Status — info aligned to the chart-blue slot */
+    /* Status — info aligned to the chart-blue slot.
+       Two steps per hue, the way the badges already work. The base hue is a
+       FILL and is held to 1.4.11's 3:1; the --*-text step is what the product
+       writes words in and is held to 4.5:1. The GE-022-003 audit found the
+       reason: --warning (3.57:1), --info (3.92:1) and --success (4.07:1) were
+       all being used as text below the floor, and even --error, which clears
+       it on a card, drops to 4.29:1 on --bg-subtle. Darkening the base hues
+       instead would have made every status fill in the product heavier. */
     --success: #1c8c5a;
+    --success-text: #14724a;
     --success-light: #e4f2ea;
     --warning: #b07a10;
+    --warning-text: #8a5c0f;
     --warning-light: #f7efd8;
     --error: #c2402a;
+    --error-text: #a3331f;
     --error-light: #fae7e1;
     --info: #2f7fd6;
+    --info-text: #1f66b8;
     --info-light: #e8f1fb;
 
     /* Status badges — tints from the status hues, readable text step */
@@ -93,7 +114,10 @@
     /* Chart palette — validated CVD-safe on the #fbfaf7 card (data-viz gate).
        Warm-forward order: green · amber · teal · orange · violet · berry · blue · red */
     --chart-1: #1c8c5a;
-    --chart-2: #d99a20;
+    /* Darkened from #d99a20 (2.34:1) by the GE-022-003 audit; a chart series
+       carries meaning, so 1.4.11 applies. #b07a10 is the same amber at 3.57:1,
+       and it is the --warning hue, which the two were already close to. */
+    --chart-2: #b07a10;
     --chart-3: #0e9aa7;
     --chart-4: #e06a2e;
     --chart-5: #5a4bd0;
@@ -136,7 +160,7 @@
     --shadow-sm: 0 1px 2px rgba(23, 24, 26, 0.06), 0 1px 3px rgba(23, 24, 26, 0.05);
     --shadow-md: 0 4px 12px rgba(23, 24, 26, 0.08), 0 2px 4px rgba(23, 24, 26, 0.05);
     --shadow-lg: 0 16px 36px rgba(23, 24, 26, 0.14), 0 4px 10px rgba(23, 24, 26, 0.07);
-    --shadow-focus: 0 0 0 3px rgba(28, 140, 90, 0.28);
+    --shadow-focus: 0 0 0 3px rgba(25, 128, 82, 0.28);
 
     /* Typography */
     --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
@@ -174,6 +198,8 @@
 
     --border: #1c1f24;
     --border-strong: #2a2e35;
+    /* 3.80 / 4.00 / 3.58 against the dark surface, base and subtle. */
+    --border-control: #69707e;
     --border-focus: #2bb673;
 
     --text-1: #f2f3f5;
@@ -184,12 +210,16 @@
     --text-link: #37c884;
 
     --success: #2bb673;
+    --success-text: #56d199;
     --success-light: rgba(43, 182, 115, 0.14);
     --warning: #d9a441;
+    --warning-text: #e3bd78;
     --warning-light: rgba(217, 164, 65, 0.15);
     --error: #e8674c;
+    --error-text: #f0977f;
     --error-light: rgba(232, 103, 76, 0.15);
     --info: #4a90e6;
+    --info-text: #7db4f0;
     --info-light: rgba(74, 144, 230, 0.15);
 
     --badge-approved-bg: rgba(43, 182, 115, 0.16);
@@ -267,6 +297,7 @@
       --shell-text-secondary: #1f2937;
       --border: #6b7280;
       --border-strong: #374151;
+      --border-control: #4b5563;
       --primary: #0f6b42;
       --text-link: #0f5132;
     }
@@ -278,6 +309,7 @@
       --shell-text-secondary: #e5e7eb;
       --border: #9ca3af;
       --border-strong: #d1d5db;
+      --border-control: #e5e7eb;
       --primary: #34d399;
       --text-link: #6ee7b7;
     }

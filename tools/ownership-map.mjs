@@ -265,6 +265,10 @@ const SHARED_PREFIXES = [
   'apps/web/src/components/shell/',
   'apps/web/src/components/brand/',
   'apps/system-studio/src/components/',
+  // Accessibility is a property of the design system, not of any one domain.
+  // Giving it to a domain would mean the contrast audit belonged to whoever
+  // happened to add it, and the next domain would grow its own.
+  'apps/web/src/lib/a11y/',
 ]
 
 const SHARED = new Map([

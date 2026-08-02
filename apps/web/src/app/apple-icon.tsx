@@ -20,7 +20,7 @@ export default function AppleIcon() {
           justifyContent: "center",
           width: "100%",
           height: "100%",
-          background: "#1c8c5a",
+          background: "#198052",
         }}
       >
         <svg width="132" height="132" viewBox="0 0 32 32" fill="#ffffff">

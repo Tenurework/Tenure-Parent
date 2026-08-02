@@ -7,7 +7,7 @@
     Geometry is the same PETAL path as src/components/brand/TenureLogo.tsx —
     keep the two in sync.
   -->
-  <rect width="32" height="32" rx="7.5" fill="#1c8c5a"/>
+  <rect width="32" height="32" rx="7.5" fill="#198052"/>
   <g transform="translate(16 16) scale(0.86) translate(-16 -16)" fill="#ffffff">
     <path d="M16 16 C 12.4 10.5, 12.4 5.4, 16 3.4 C 19.6 5.4, 19.6 10.5, 16 16 Z"/>
     <path d="M16 16 C 12.4 10.5, 12.4 5.4, 16 3.4 C 19.6 5.4, 19.6 10.5, 16 16 Z" transform="rotate(60 16 16)"/>

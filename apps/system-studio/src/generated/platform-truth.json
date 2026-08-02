@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "e301b52",
+  "commit": "0c8e0f8",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 39,
-    "done": 32,
+    "total": 40,
+    "done": 33,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -281,7 +281,7 @@
           {
             "id": "GE-GATE-2",
             "done": false,
-            "title": "Status: FAIL — GE-020 and GE-021 complete (12 of 17);",
+            "title": "Status: FAIL — GE-020 and GE-021 complete (12 of 17); GE-022 is 2 of 5 (001 shell + switching proof, 002 dense-ERP states). 003 (WCAG 2.2 AA), 004 (localization) and 005 (flags/kill switches) remain.",
             "phase": "Phase 2 — Monorepo boundaries and common runtime",
             "isGate": true
           },
@@ -289,6 +289,13 @@
             "id": "GE-022-001",
             "done": true,
             "title": "Tenant/seat-aware shell, `/me` bootstrap, tenant/seat switcher, navigation from semantic entitlements, clear active context.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
+            "id": "GE-022-002",
+            "done": true,
+            "title": "Design tokens/components for dense ERP states: loading, empty, error, permission denied, stale, conflict, offline, archived, partial, high-risk confirmation.",
             "phase": "Phase 2 — Monorepo boundaries and common runtime",
             "isGate": false
           }
@@ -499,7 +506,7 @@
     },
     {
       "name": "application unit",
-      "files": 32,
+      "files": 33,
       "what": "apps/web"
     },
     {

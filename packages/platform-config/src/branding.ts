@@ -32,7 +32,10 @@ export const primaryColor = defineConfig({
   key: "platform.branding.primaryColor",
   owner: "platform",
   type: hexColor,
-  default: "#1c8c5a",
+  // Was #1c8c5a. The GE-022-003 contrast audit measured white on it at 4.24:1,
+  // below the 4.5:1 AA floor, and this default is what every unbranded tenant
+  // renders its primary buttons in. #198052 is the same hue at 4.94:1.
+  default: "#198052",
   allowedScopes: ["blueprint", "tenant"],
   mergeStrategy: "replace",
   sensitivity: "public",

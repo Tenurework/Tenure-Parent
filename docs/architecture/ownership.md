@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**330 files · 12 domains with code · 2 declared and unbuilt · 20 shared.**
+**333 files · 12 domains with code · 2 declared and unbuilt · 21 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
@@ -57,6 +57,7 @@ list here would mean the domains are wrong rather than that the code is unusual.
 | `apps/web/src/components/shell/` | the shell and the design system — what every domain renders through |
 | `apps/web/src/components/brand/` | the shell and the design system — what every domain renders through |
 | `apps/system-studio/src/components/` | the shell and the design system — what every domain renders through |
+| `apps/web/src/lib/a11y/` | the shell and the design system — what every domain renders through |
 | `apps/web/src/instrumentation.ts` | the boot-time environment check |
 | `apps/web/src/app/(app)/error.tsx` | the application error boundary |
 | `apps/web/src/app/(app)/not-found.tsx` | the application 404 |

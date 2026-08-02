@@ -48,7 +48,7 @@ const TONE: Record<StateSemantics["tone"], { frame: string; title: string; body:
   },
   danger: {
     frame: "border-status-error/35 bg-surface",
-    title: "text-status-error",
+    title: "text-status-error-text",
     body: "text-text-2",
   },
 }

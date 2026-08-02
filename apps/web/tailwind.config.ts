@@ -38,6 +38,10 @@ const config: Config = {
         border: {
           DEFAULT: "var(--border)",
           strong: "var(--border-strong)",
+          // The 3:1 edge for anything whose boundary IS its affordance — inputs,
+          // selects, checkboxes. `border-strong` is a decorative hairline and
+          // does not clear 1.4.11; see the GE-022-003 contrast audit.
+          control: "var(--border-control)",
         },
         text: {
           1: "var(--text-1)",
@@ -47,10 +51,16 @@ const config: Config = {
           link: "var(--text-link)",
         },
         status: {
+          // The base hue is a FILL (1.4.11, 3:1). Words go in the -text step,
+          // which clears 4.5:1 on every surface — see the GE-022-003 audit.
           success: "var(--success)",
+          "success-text": "var(--success-text)",
           warning: "var(--warning)",
+          "warning-text": "var(--warning-text)",
           error: "var(--error)",
+          "error-text": "var(--error-text)",
           info: "var(--info)",
+          "info-text": "var(--info-text)",
         },
         chart: {
           1: "var(--chart-1)",

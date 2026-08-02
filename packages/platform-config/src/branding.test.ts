@@ -6,7 +6,7 @@ import { REGISTRY, brandingFor, layersFor } from "./index"
 describe("each system carries its own identity", () => {
   it("gives the pilot Tenure's own brand", () => {
     expect(brandingFor("rochester")).toEqual({
-      primaryColor: "#1c8c5a",
+      primaryColor: "#198052",
       primaryTextColor: "#ffffff",
       wordmark: "Tenure",
     })

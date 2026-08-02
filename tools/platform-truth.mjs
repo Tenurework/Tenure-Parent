@@ -36,17 +36,30 @@ function ledger() {
   const items = []
   let phase = 'Phase 0'
 
-  for (const line of text.split('\n')) {
+  const lines = text.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
     const heading = line.match(/^#\s+(Phase\s+\d+[^\n]*)/) ?? line.match(/^#\s+(.*)/)
     if (heading && /^Phase\s/.test(heading[1])) phase = heading[1].trim()
 
     const item = line.match(/^- \[([ x])\]\s+\*\*(GE-[\w-]+)\*\*\s+—\s+(.*)$/)
     if (!item) continue
 
+    // A title may wrap. Continuation lines are indented and are not the item's
+    // sub-bullets, so absorb them — otherwise the console renders half a
+    // sentence ending in a comma, which looks like a truncation bug in the
+    // console rather than a line break in the ledger.
+    let title = item[3].trim()
+    for (let j = i + 1; j < lines.length; j++) {
+      const next = lines[j]
+      if (!/^\s{2,}\S/.test(next) || /^\s*[-*]\s/.test(next)) break
+      title += ` ${next.trim()}`
+    }
+
     items.push({
       id: item[2],
       done: item[1] === 'x',
-      title: item[3].trim(),
+      title,
       phase,
       isGate: item[2].includes('GATE'),
     })
