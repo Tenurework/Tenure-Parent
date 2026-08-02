@@ -310,7 +310,7 @@ queues that exist in AWS.
 
 | Path | Direction | Guard |
 |---|---|---|
-| \`GET /api/platform/export/[slug]\` | export, whole tenant, JSON | \`operator\`; 404 rather than 403 for everyone else |
+| \`GET /api/platform/export/[slug]\` | export, whole tenant, JSON | \`shared-secret\` (control plane calling the cell, GE-033-001); 404 rather than 403 for everyone else |
 | \`GET /api/calendar/ics/[token]\` | export, one calendar, iCal | unguessable per-user token, no session |
 | \`GET /api/templates/budget\` | export, CSV template | \`session\` |
 | \`apps/web/scripts/seed.mjs\` | import, offline | none — it is a script, not an endpoint |

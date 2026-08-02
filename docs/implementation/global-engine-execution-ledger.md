@@ -3079,3 +3079,77 @@ worth less than three items that hold.
     workflow also needs a tenant-admin identity, which GE-033 creates. What
     exists today is the decision procedure and its refusals, exercised through
     the publication path.
+
+- [x] **GE-033-001** — A separate Tenure operator application and identity
+  boundary; no operator superpowers hidden in the tenant UI.
+  - Status: PASS
+  - Code: `apps/web/src/app/api/platform/export/[slug]/route.ts` rewritten,
+    `apps/web/src/lib/platform/operator.ts` and its test deleted, a corrected
+    line in `tools/entry-point-inventory.mjs`
+  - Tests: `tests/security/operator-boundary.test.mjs` — 4 guards.
+    `apps/web` **1560/1560**; **92 platform guards**.
+  - The separation mostly existed — `apps/system-studio` is its own
+    application, origin and deployment — and **it had one hole.**
+    `/api/platform/export/[slug]` authenticated with the customer app's session
+    and then checked the address against the platform-operator list: a browser
+    session on the TENANT origin that could dump any tenant in the fleet. Bible
+    §4.2 forbids exactly this — "It is not a hidden 'super admin' route in the
+    customer application."
+  - **Nothing about that route was careless**, which is why it survived. It
+    returned 404 rather than 403 so the endpoint's existence was not confirmed,
+    it ran the export inside the tenant's own scope so the filtering was the
+    application's chokepoint rather than clauses written for one route, and its
+    comments reasoned about leaks. It was on the wrong side of a boundary, which
+    review does not catch and a grep does.
+  - The consequence, stated concretely: anything compromising a customer-app
+    session belonging to an operator — a stolen cookie, an XSS on a tenant page,
+    a shared laptop — became fleet-wide data access, through the customer app's
+    CSRF posture, on its deploy cadence, and invisible to the operator plane's
+    audit.
+  - **The operator plane cannot simply own the endpoint instead.** The export
+    reads the tenant's Postgres and the Studio is control plane with no cell
+    database; `cell-independence` enforces that separation deliberately. So the
+    endpoint stays where the data is and what changes is *who may call it* — the
+    control plane as a service, not a person with a browser.
+    `/api/platform/reconcile` had already established the pattern for the
+    inbound direction with the same reasoning; this is the outbound one.
+  - It also requires `x-tenure-operator`, because an export is evidence and
+    "some caller holding the secret" is not an answer to "who took a copy of
+    this tenant's data".
+  - **`lib/platform/operator.ts` was deleted.** Its own header said it existed
+    "for the System Studio" — but the Studio has had its own `lib/operators.ts`
+    since the split, and this copy stayed behind in the customer app with no
+    callers. An unused function that answers "is this person Tenure staff",
+    sitting inside the tenant application, is what the next person needing an
+    operator check would find and use.
+  - The guard is four checks: no route in `apps/web` decides authority from an
+    operator identity; every `/api/platform/*` route reads a `PLATFORM_*_SECRET`
+    and calls no `auth()`; secrets are compared in constant time; and the two
+    applications remain distinct packages.
+  - Proven by mutation, **4 of 4 caught, after two guard defects of my own**:
+    reverting the export to a session check FAILS 2; dropping the secret FAILS;
+    comparing with `===` FAILS; merging the console into the customer app's
+    package FAILS.
+    - The first guard matched the bare name `isPlatformOperator` and fired on
+      the export route's own comment explaining what it used to do. A guard that
+      fires on documentation is one people satisfy by deleting the explanation,
+      so it now matches an import or a call — and the comment was reworded to
+      describe the old behaviour without reproducing its syntax.
+    - The constant-time check matched `timingSafeEqual` anywhere, so replacing
+      the comparison body with `===` passed while the import line remained. It
+      now requires a call.
+  - The generated inventory reclassified the route from `session + operator` to
+    `shared-secret` on its own, which is the derivation working. A **hand-written
+    line inside the generator** still described it as `operator`, so the document
+    contradicted itself in two places; corrected.
+  - Honest limits: a shared bearer secret is **not** the identity boundary the
+    Bible ultimately requires. §4.2 asks for IAM Identity Center federation,
+    hardware-backed phishing-resistant MFA, step-up for sensitive actions,
+    just-in-time privilege and session recording. None of that is buildable
+    while the AWS Organization does not exist — the same blocker as GE-012 and
+    GE-GATE-1. What this delivers is the *structural* half: no browser session,
+    however privileged its owner, can reach a fleet-wide power from the customer
+    application. Nothing in the Studio calls the export endpoint yet; the route
+    is reachable only by a caller holding the secret, and giving the Studio that
+    caller is cell-to-control-plane networking that the same Organization work
+    gates.

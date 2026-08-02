@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "817eb89",
+  "commit": "16ced26",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 72,
-    "done": 61,
+    "total": 73,
+    "done": 62,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -532,6 +532,13 @@
             "title": "Operator workflow for reviewed requests that exceed tenant guardrails, with reason, scope, plan, approval and audit.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-033-001",
+            "done": true,
+            "title": "A separate Tenure operator application and identity boundary; no operator superpowers hidden in the tenant UI.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -735,12 +742,12 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 13,
+      "files": 14,
       "what": "repository and deployment invariants"
     },
     {
       "name": "application unit",
-      "files": 35,
+      "files": 34,
       "what": "apps/web"
     },
     {
