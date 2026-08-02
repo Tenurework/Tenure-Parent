@@ -136,3 +136,6 @@ export type { CommitInput, ConfigRecord, ConfigStore } from "./store"
 
 export { INVARIANT_DOMAINS, authorityViolations, tenantAdminMayWrite } from "./authority"
 export type { AuthorityInput, AuthorityViolation, Invariant } from "./authority"
+
+export { EXCEPTABLE, NEVER_EXCEPTABLE, applyExceptions, covers, validateException } from "./exceptions"
+export type { ExceptionOutcome, ExceptionProblem, GuardrailException } from "./exceptions"

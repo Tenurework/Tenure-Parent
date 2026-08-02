@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "832a745",
+  "commit": "817eb89",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 71,
-    "done": 60,
+    "total": 72,
+    "done": 61,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -523,6 +523,13 @@
             "id": "GE-032-003",
             "done": true,
             "title": "Preview, validation errors, dependency graph, impact/cost, test fixture results, approval, schedule, publish, history, compare and rollback UX.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-032-004",
+            "done": true,
+            "title": "Operator workflow for reviewed requests that exceed tenant guardrails, with reason, scope, plan, approval and audit.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }

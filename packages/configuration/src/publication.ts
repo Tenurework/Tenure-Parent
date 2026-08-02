@@ -3,6 +3,7 @@ import { resolveVersionedLayers } from "./layer-bridge"
 import type { VersionedLayer } from "./layer-schema"
 import { stableStringify } from "./merge"
 import { authorityViolations, type AuthorityViolation } from "./authority"
+import { applyExceptions, type GuardrailException } from "./exceptions"
 import { allRejections, type ModuleLike, type Rejection } from "./rejections"
 import type { ConfigDiffEntry } from "./version"
 
@@ -209,6 +210,8 @@ export interface PublicationInput {
   activateAt: Date
   now: Date
   fixtures?: readonly Fixture[]
+  /** Approved guardrail exceptions to weigh against the violations. */
+  exceptions?: readonly GuardrailException[]
   modules?: readonly ModuleLike[]
   enabledModules?: readonly string[]
   entitlements?: readonly string[]
@@ -228,6 +231,14 @@ export interface PublicationPlan {
    * at before deciding whether to fix it or to ask.
    */
   violations: readonly AuthorityViolation[]
+  /**
+   * Violations an approved exception permitted, and which one (GE-032-004).
+   *
+   * Recorded, not merely removed. A publication that proceeded because an
+   * operator reviewed a request must carry which exception and for which key,
+   * or the audit trail says a change was clean when it was permitted.
+   */
+  excused: readonly { exceptionId: string; invariant: string; key: string }[]
   lint: readonly LintFinding[]
   diff: readonly ConfigDiffEntry[]
   humanDiff: string
@@ -254,6 +265,7 @@ export function planPublication(input: PublicationInput): PublicationPlan {
     activateAt,
     now,
     fixtures = [],
+    exceptions = [],
     modules = [],
     enabledModules = [],
     entitlements = [],
@@ -265,13 +277,17 @@ export function planPublication(input: PublicationInput): PublicationPlan {
   // value was stripped, the plan showed no blockers, and the change published
   // cleanly and quietly did nothing. An operator who submits a residency change
   // and sees it accepted has been told their data moved.
-  const violations = authorityViolations({
+  const allViolations = authorityViolations({
     layers: proposed,
     knownKeys: new Set(registry.keys()),
     enabledModules,
     entitlements,
     moduleEntitlements: Object.fromEntries(modules.map((m) => [m.key, m.entitlement])),
   })
+
+  // An exception excuses a violation; it does not make the tenant able to
+  // write. The operator publishes, with the reviewed request attached.
+  const { remaining: violations, relied: excused } = applyExceptions(allViolations, exceptions, now)
   const lintFindings = lint(proposed, registry, publishedBy)
 
   const blockers: string[] = []
@@ -341,6 +357,7 @@ export function planPublication(input: PublicationInput): PublicationPlan {
     blockers,
     rejections,
     violations,
+    excused,
     lint: lintFindings,
     diff,
     humanDiff: renderDiff(diff),

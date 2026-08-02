@@ -38,6 +38,7 @@ function record(revision: number, values: Record<string, unknown>): ConfigRecord
       blockers: [],
       rejections: [],
       violations: [],
+      excused: [],
       lint: [],
       diff: [],
       humanDiff: "",

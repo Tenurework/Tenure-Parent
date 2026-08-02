@@ -3025,3 +3025,57 @@ worth less than three items that hold.
     and named modules, not currency (GE-042). The blast-radius walk terminates
     on a cyclic catalogue — asserted — but the graph itself is not drawn in
     dependency order.
+
+- [x] **GE-032-004** — Operator workflow for reviewed requests that exceed
+  tenant guardrails, with reason, scope, plan, approval and audit.
+  - Status: PASS
+  - Code: `packages/configuration/src/exceptions.ts`; `exceptions` input and
+    `excused` output on `planPublication`
+  - Tests: `exceptions.test.ts` — 23 cases. Configuration **272/272**;
+    `apps/web` **1568/1568**; 88 platform guards.
+  - **Exactly one of the five invariants may be excepted, and the requirement
+    says which.** Bible §2.1 lists what a tenant super administrator cannot do:
+    bypass tenant isolation, mutate canonical schemas directly, grant themselves
+    operator access, upload arbitrary privileged backend code, weaken immutable
+    audit, "or change the physical deployment topology **outside approved
+    requests**". Five prohibitions and exactly one qualifier. `EXCEPTABLE`
+    contains `physical-placement` and nothing else; `NEVER_EXCEPTABLE` carries
+    the clause each of the other four is refused by, quoted — so an argument for
+    a sixth exception has to be made against the text rather than against a
+    habit.
+  - This is the part most implementations get wrong in the permissive
+    direction. An exception mechanism that can excuse anything is not a
+    guardrail with a review process, it is a guardrail with a switch, and most
+    of these tests are about the switch not existing.
+  - **An exception does not make the tenant able to write.** It records that an
+    operator reviewed a request and published the change themselves. The tenant
+    never acquires the authority, which is why this cannot become a temporary
+    key to one's own residency.
+  - Five ways it would otherwise become a bypass, each refused: unapproved; a
+    self-approval by the requester (the same rule as publication, for the same
+    reason); no expiry, because an exception with no end is a permanent grant;
+    an expired one, which covers nothing; and a blanket or pattern scope,
+    because an exception names exact keys so that what it permits can be read.
+    A placeholder reason or scope is refused too — an approver reading "wip" is
+    guessing.
+  - **What is excused is recorded, not merely removed.** `excused` names the
+    exception and the key it covered. A publication that proceeded because of a
+    reviewed request must say so, or the audit trail claims a change was clean
+    when it was permitted.
+  - Proven by mutation, **6 of 6 caught, after one escaped for the usual
+    reason**: making every invariant exceptable FAILS; self-approval permitted
+    FAILS; an expired exception still covering FAILS; patterns allowed FAILS;
+    `covers` skipping validation FAILS (4 tests). Excusing every **keyless**
+    violation initially PASSED — my test used an `entitlement` violation, so
+    `covers` returned false at the invariant check and never reached the key
+    check. It passed for a reason other than the one it names. The test now uses
+    a keyless violation whose invariant matches, and the mutation is caught.
+  - Honest limits: **there is no request UI.** The engine models an approved
+    exception and honours it; nothing yet lets a tenant administrator raise one
+    or an operator approve one on screen, and no store persists them —
+    `planPublication` takes them as an argument the way `immutabilityBreaches`
+    once took digests. The same store work that GE-031-003/005/006 waited on
+    covers this, and it is now four items pointing at it. The tenant side of the
+    workflow also needs a tenant-admin identity, which GE-033 creates. What
+    exists today is the decision procedure and its refusals, exercised through
+    the publication path.
