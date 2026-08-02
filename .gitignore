@@ -70,3 +70,6 @@ next-env.d.ts
 # Never commit. scripts/roster-source.mjs falls through to the synthetic
 # fixture when this is absent, so removing it breaks nothing.
 apps/web/scripts/roster-data.mjs
+
+# Run artifact from tools/loop/batch-gate.mjs — a verdict, not a record.
+.loop-gate.json
