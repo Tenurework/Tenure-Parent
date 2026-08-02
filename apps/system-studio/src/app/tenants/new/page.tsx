@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 
 import { TENANT_BINDINGS } from "@tenure/blueprints"
 import { MODULE_CATALOG } from "@tenure/modules"
+import { PLAN_CATALOG } from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
@@ -29,6 +30,14 @@ export default async function NewTenantPage() {
     description: m.description,
     version: m.version,
   }))
+  const plans = PLAN_CATALOG.map((plan) => ({
+    planId: plan.planId,
+    displayName: plan.displayName,
+    grants:
+      plan.entitlements.length > 0
+        ? plan.entitlements.join(", ")
+        : "blueprint modules only",
+  }))
 
   return (
     <>
@@ -44,7 +53,7 @@ export default async function NewTenantPage() {
         page once you have read its plan.
       </p>
 
-      <ComposeForm blueprints={blueprints} modules={modules} />
+      <ComposeForm blueprints={blueprints} modules={modules} plans={plans} />
     </>
   )
 }

@@ -14,6 +14,7 @@ import {
   LifecycleError,
   deploymentManifest,
   executeStep,
+  getPlan,
   validateManifest,
   type ExecutionContext,
   type IsolationTier,
@@ -133,6 +134,8 @@ export interface ComposeResult {
 export async function composeTenant(_prev: ComposeResult | null, form: FormData): Promise<ComposeResult> {
   const principalId = await operator()
 
+  const planId = String(form.get("planId") ?? "")
+
   const manifest: TenantManifest = {
     manifestVersion: MANIFEST_VERSION,
     slug: String(form.get("slug") ?? "").trim().toLowerCase(),
@@ -140,10 +143,10 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
     displayName: String(form.get("displayName") ?? "").trim(),
     blueprintId: String(form.get("blueprintId") ?? ""),
     modules: form.getAll("modules").map(String),
-    entitlements: String(form.get("entitlements") ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
+    // From the contracted plan, not from a text box. A typed entitlement list
+    // makes every tenant's commercial state a typing exercise — a typo is a
+    // silently missing feature, and nothing reconciles against an invoice.
+    entitlements: getPlan(planId)?.entitlements ?? [],
     region: String(form.get("region") ?? "us-east-1"),
     isolation: String(form.get("isolation") ?? "pooled") as IsolationTier,
     configuration: {},
@@ -174,8 +177,21 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
     detail: `${p.moduleKey}: ${p.detail}`,
   }))
 
-  if (!valid || moduleProblems.length > 0) {
-    return { problems: [...problems, ...moduleProblems] }
+  // An unknown plan yields no entitlements, which is the right failure but a
+  // silent one — the tenant registers, every gated module is refused, and the
+  // operator is left wondering why. Said out loud instead (GE-030-004).
+  const planProblems = getPlan(planId)
+    ? []
+    : [
+        {
+          field: "planId",
+          reason: "unknown-plan",
+          detail: `No plan "${planId}". Entitlements and quotas come from the plan, so an unknown one entitles nothing.`,
+        },
+      ]
+
+  if (!valid || moduleProblems.length > 0 || planProblems.length > 0) {
+    return { problems: [...problems, ...moduleProblems, ...planProblems] }
   }
 
   try {
@@ -221,7 +237,10 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
         cellId: placement.cellId,
         release: process.env.SCHEMA_VERSION ?? "unpinned",
         primaryContactEmail: manifest.initialAdminEmail,
-        plan: manifest.entitlements.length > 0 ? "institution" : "institution-core",
+        // The plan the operator contracted, not one inferred back out of the
+        // entitlements it produced. Inferring it was a placeholder that would
+        // have named the wrong plan the moment two plans shared an entitlement.
+        plan: planId,
         at,
       }),
     )

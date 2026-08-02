@@ -1419,4 +1419,107 @@ for progress:
   - Honest limit: SCIM tokens are modelled as a credential purpose with expiry
     and rotation, but no SCIM endpoint exists — that is GE-04x work.
 
-- [ ] **GE-030-004 … 005** — Status: FAIL — not started.
+- [x] **GE-030-004** — Entitlements, plan, quota, usage meter, feature catalog,
+  and tenant commercial-billing metadata.
+  - Status: PASS
+  - Code: `packages/provisioning/src/commercial.ts`,
+    `packages/provisioning/src/plan-catalog.ts`; the Studio's compose form and
+    `composeTenant` now derive entitlements from a contracted plan
+  - Tests: `commercial.test.ts` — 31 cases. Studio e2e **39/39**.
+  - Entitlements already existed as bare strings that `module-runtime` checks.
+    What did not exist is where a tenant's strings come from. "Which modules may
+    this tenant run" was answerable; "why, and until when" was not.
+
+  **Two rules shape the whole module.**
+  - *A quota check fails closed.* An unknown dimension, a missing plan, or a
+    limit with no meter is `UNKNOWN` and refuses. Treating any of those as
+    "under the limit" is how an unmetered dimension becomes unlimited in
+    production while looking enforced in code — and it is the natural mistake,
+    because pretending usage is zero reads as reasonable.
+  - *A downgrade refuses new work and never destroys old work.* A tenant that
+    drops to a plan allowing 10 organizations while holding 25 is `OVER_LIMIT`.
+    The right answer is to refuse the 26th, not to delete 15, and the enum says
+    so — `AT_LIMIT` and `OVER_LIMIT` are different answers and only one of them
+    is about the record you are trying to create.
+  - `AT_LIMIT` refuses the next one: the limit is the count you may hold, so
+    holding it means the next is one too many. Off by one here is either a free
+    extra or a customer who cannot reach the number they bought.
+  - A `soft` limit never refuses. That is what makes it soft, and a soft limit
+    that occasionally blocks is worse than a hard one because nobody expects it.
+
+  **A lapsed contract entitles nothing.** `entitlementsFor` returns `[]` outside
+  the activation window, and an unparseable window is not an active one.
+  Returning the plan's list regardless would keep every paid feature working for
+  a customer who has stopped paying, with the software behaving perfectly and
+  nothing surfacing it.
+
+  **A commercial override may GRANT** — unlike a feature flag, which under
+  GE-022-005's law may only restrict, because a signed amendment grants things
+  and modelling it as a restriction would make it inexpressible. It requires a
+  reason and an approver for exactly that asymmetry: a grant nobody can explain
+  is a grant nobody can bill for or withdraw, and it outlives whoever added it.
+  It also rides on the contract, so it does not survive the window lapsing.
+
+  **The tenant-facing projection hides the commercial relationship.** Plan name,
+  entitlements and usage; no price, no contract dates, no override reason and no
+  approver. Those are negotiated by different people than the ones administering
+  the system, and an override reason is often a note about a customer written
+  for internal readers. Asserted by grepping the serialized projection.
+
+  **`monthlyPriceCents` is `number | null`, and both catalog entries are
+  `null`.** No price has been agreed for either tier, and `0` is a commercial
+  statement — it says Tenure gives this away. A catalog asserting that about a
+  plan nobody has priced is wrong in the direction of a refund claim.
+
+  **Made live.** The compose form asked an operator to type a comma-separated
+  entitlement list, which made every tenant's commercial state a typing
+  exercise: a typo was a silently missing feature and nothing reconciled against
+  an invoice. It is now a plan select, entitlements follow from the plan, and an
+  unknown plan is reported as a form problem rather than silently entitling
+  nothing. The `plan` on the registry record is the plan that was contracted,
+  not one inferred back out of the entitlements it produced — which would have
+  named the wrong plan the moment two plans shared an entitlement.
+  - The catalog has **two** tiers because two is what the tenant bindings
+    already demonstrate: `rochester` holds `finance`, `midtown-arts` is refused
+    it. A third invented tier would put a price on something nobody has agreed
+    to sell.
+
+  - Proven by mutation, **16 of 16 caught**: missing plan permitting creation,
+    unset read as unlimited, no meter assumed zero, the limit off by one, at-
+    limit permitting, soft refusing, a lapsed contract still entitling, the
+    window ignoring its start and its end, an unparseable window read as active,
+    overrides without a reason, a dimension limited twice, the report omitting
+    forgotten dimensions, and the projection leaking the price or the override
+    reasons.
+
+  - **The Studio's e2e suite was never run by anything.** Thirty-nine tests —
+    the operator gate, the layout geometry, the platform console — existed and
+    no workflow executed them, so `platform.spec.ts` had been looking for a link
+    named "Organization systems" (the page's `<h1>`) when the nav entry is
+    "Systems", and had been red indefinitely without saying so. A suite nobody
+    runs is documentation with a test-runner API. Fixed the locator and added a
+    `Studio · Playwright` job to `ci.yml` that builds the Studio, waits for it
+    to answer, and runs the suite — with no AWS credentials, because the
+    registry degrades when `DYNAMODB_TABLE` is unset and pointing CI at a real
+    tenant table would mean reading customer configuration to check a heading.
+  - A build-hygiene note worth keeping: three layout tests failed mid-tick and
+    the cause was mine, not the code's — a `git stash` experiment rebuilt the
+    baseline into `.next` underneath a running server, leaving the process
+    serving a mix of two builds. Clean rebuild, restart, 39/39. Never rebuild
+    under a running server.
+  - The Studio build refused `PLAN_CATALOG` imported into `ComposeForm.tsx`:
+    `@tenure/provisioning`'s index reaches `node:crypto` for the manifest
+    digests, and a client component importing it fails the build. That is the
+    build telling the truth about what would otherwise be shipped to a browser.
+    The plan list is now read server-side in `page.tsx` and passed as a prop,
+    which is how the form already receives blueprints and modules.
+
+  - Honest limits: **nothing meters anything yet.** `UsageMeter` is the shape a
+    reading takes and `checkQuota` refuses when there is no reading, which is
+    the correct behaviour for today's state, but no collector writes one — that
+    is GE-033-002's fleet-observability work. No `Contract` is persisted either;
+    the registry record carries `plan` and the contract type is exercised by
+    tests. Both are the commercial *model* being complete ahead of the
+    commercial *process*, recorded as such.
+
+- [ ] **GE-030-005** — Status: FAIL — not started.

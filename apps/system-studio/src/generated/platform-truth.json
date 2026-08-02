@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "c91f9c0",
+  "commit": "26b0285",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 46,
-    "done": 40,
+    "total": 48,
+    "done": 41,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -343,6 +343,20 @@
             "id": "GE-030-003",
             "done": true,
             "title": "Identity-connection registry, verified domains, pool/app-client mapping, certificates/secrets references, health, rotation, and expiry.",
+            "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
+            "isGate": false
+          },
+          {
+            "id": "GE-030-004",
+            "done": true,
+            "title": "Entitlements, plan, quota, usage meter, feature catalog, and tenant commercial-billing metadata.",
+            "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
+            "isGate": false
+          },
+          {
+            "id": "GE-030-005",
+            "done": false,
+            "title": "Status: FAIL — not started.",
             "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
             "isGate": false
           }

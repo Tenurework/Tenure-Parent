@@ -72,7 +72,11 @@ test.describe("platform console", () => {
     await page.getByRole("link", { name: "Platform" }).click()
     await expect(page.getByRole("heading", { name: "Platform", exact: true })).toBeVisible()
 
-    await page.getByRole("link", { name: "Organization systems" }).click()
+    // The nav entry is "Systems"; the page it lands on is headed "Organization
+    // systems". This looked for a link by the heading's name and had therefore
+    // never passed — nothing ran this suite, so nothing said so. See the CI job
+    // added alongside this fix.
+    await page.getByRole("link", { name: "Systems", exact: true }).click()
     await expect(page.getByRole("heading", { name: "Organization systems" })).toBeVisible()
   })
 

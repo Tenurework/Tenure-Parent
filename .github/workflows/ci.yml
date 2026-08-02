@@ -337,6 +337,78 @@ jobs:
           path: apps/web/test-results/
           retention-days: 7
 
+  # ── The System Studio, driven headless ─────────────────────────────────────
+  #
+  # Nothing ran this suite. Thirty-nine tests — the operator gate, the layout
+  # geometry, the platform console — existed and were never executed by any
+  # workflow, so a locator that had gone stale sat red indefinitely and said
+  # nothing about it. A suite nobody runs is documentation with a test-runner
+  # API.
+  #
+  # No AWS credentials, deliberately: the registry degrades when DYNAMODB_TABLE
+  # is unset, and pointing CI at a real tenant table would mean reading
+  # customer configuration to check a heading.
+  studio-e2e:
+    name: Studio · Playwright
+    runs-on: ubuntu-latest
+
+    env:
+      # Throwaway values for an ephemeral instance, but not the placeholders
+      # the environment contract rejects.
+      PLATFORM_OPERATORS: operator@tenure.example
+      PLATFORM_OPERATOR_SECRET: ci-studio-not-a-placeholder-4c8e2f
+      AUTH_SECRET: ci-studio-auth-not-a-placeholder-71bd93
+      AUTH_TRUST_HOST: "true"
+      NEXTAUTH_URL: http://localhost:3100
+      PORT: "3100"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build the Studio
+        run: npm run studio:build
+
+      - name: Start the Studio
+        run: |
+          npm run start --workspace apps/system-studio &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:3100/signin; then
+              echo "studio answered after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::the Studio never answered on :3100"
+          exit 1
+
+      - name: Playwright
+        working-directory: apps/system-studio
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3100
+        run: npx playwright test
+
+      - name: Upload traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-playwright-traces
+          # `uses:` steps never honour working-directory, so this stays
+          # workspace-relative.
+          path: apps/system-studio/test-results/
+          retention-days: 7
   # ── The container image, built and inspected before anything deploys ───────
   #
   # Nothing used to build this image except a deploy. The Dockerfile was

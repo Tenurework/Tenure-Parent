@@ -15,9 +15,15 @@ import { composeTenant, type ComposeResult } from "../actions"
 export function ComposeForm({
   blueprints,
   modules,
+  plans,
 }: {
   blueprints: string[]
   modules: Array<{ key: string; description: string; version: string }>
+  // Passed in, not imported. The provisioning package's index reaches
+  // `node:crypto` for the manifest digests, and importing it from a client
+  // component fails the build — which is the build telling the truth about
+  // what would otherwise be shipped to a browser.
+  plans: Array<{ planId: string; displayName: string; grants: string }>
 }) {
   const [result, action, pending] = useActionState<ComposeResult | null, FormData>(
     composeTenant,
@@ -103,12 +109,22 @@ export function ComposeForm({
           </div>
         </Field>
 
+        {/* Entitlements are a consequence of the contracted plan, not free
+            text. Typed, every tenant's commercial state was a typing exercise:
+            a typo was a silently missing feature and there was nothing to
+            reconcile an invoice against (GE-030-004). */}
         <Field
-          name="entitlements"
-          label="Entitlements"
-          hint="Comma separated. Modules the plan permits beyond the blueprint's defaults."
+          name="planId"
+          label="Plan"
+          hint="What was contracted. Entitlements and quotas follow from it."
         >
-          <input id="entitlements" name="entitlements" placeholder="analytics, relay" />
+          <select id="planId" name="planId" defaultValue="institution-core">
+            {plans.map((p) => (
+              <option key={p.planId} value={p.planId}>
+                {p.displayName} — {p.grants}
+              </option>
+            ))}
+          </select>
         </Field>
       </section>
 

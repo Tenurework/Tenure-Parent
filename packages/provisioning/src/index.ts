@@ -87,3 +87,28 @@ export type {
   OfferedMethod,
   VerifiedDomain,
 } from "./identity-registry"
+
+export {
+  QUOTA_DIMENSIONS,
+  checkQuota,
+  commercialProjection,
+  contractIsActive,
+  entitlementsFor,
+  quotaReport,
+  validateContract,
+  validatePlan,
+} from "./commercial"
+export type {
+  CommercialProblem,
+  CommercialProjection,
+  Contract,
+  Plan,
+  QuotaCheck,
+  QuotaDimension,
+  QuotaEnforcement,
+  QuotaLimit,
+  QuotaVerdict,
+  UsageMeter,
+} from "./commercial"
+
+export { PLAN_CATALOG, getPlan, planIds } from "./plan-catalog"
