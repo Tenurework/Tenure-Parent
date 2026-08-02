@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "37d1c8e",
+  "commit": "44c1169",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 64,
-    "done": 53,
+    "total": 65,
+    "done": 54,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -474,6 +474,13 @@
             "id": "GE-031-003",
             "done": true,
             "title": "Deterministic overlay resolution, immutable versions, signatures/digests, semantic schema version, compatibility, effective interval, author/approver, and change reason.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-031-004",
+            "done": true,
+            "title": "Reject unknown fields, invalid references, ambiguous precedence, dependency cycles, unreachable workflows, unsafe expressions, missing required translations, and unentitled features.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }

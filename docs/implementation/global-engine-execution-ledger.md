@@ -2550,3 +2550,68 @@ worth less than three items that hold.
     is called from `apps/web` yet — the app resolves through
     `@tenure/platform-config`, which uses the unversioned `ConfigLayer` path,
     and moving it onto `VersionedLayer` is its own change.
+
+- [x] **GE-031-004** — Reject unknown fields, invalid references, ambiguous
+  precedence, dependency cycles, unreachable workflows, unsafe expressions,
+  missing required translations, and unentitled features.
+  - Status: PASS
+  - Code: `packages/configuration/src/rejections.ts`, wired into
+    `layer-bridge.ts` (`rejections` on every versioned resolution)
+  - Tests: `rejections.test.ts` — 25 cases. Configuration **148/148**;
+    `apps/web` **1444/1444**; 82 platform guards.
+  - Bible §7.1 names eight. `resolve.ts` already refused **unknown fields**
+    (plus disallowed scopes, un-overridable keys, values failing their schema,
+    and impossible merges). Five more are implemented here. **Two are not, and
+    saying so is the point:** `unreachable workflows` and `missing required
+    translations` both need a domain that does not exist — `workflows` is
+    reserved for GE-036, and `localization` carries locale and calendar rather
+    than message bundles. A validator over an empty namespace passes on every
+    input, which is the shape of check that reads green and proves nothing.
+    `UNIMPLEMENTED_REJECTIONS` names both with the item that brings the data,
+    and a test asserts each entry cites one.
+  - **Ambiguous precedence is reported, not thrown.** `orderLayers` already
+    breaks ties on id, so two org-unit overlays setting the same key have a
+    defined outcome — and that is exactly why it needs reporting. Determinism is
+    not the same as being unambiguous: the author of the losing layer gets no
+    error, no warning, and a value they did not choose, decided by which id
+    sorts first. Refusing the whole resolution would take a tenant down over a
+    conflict that resolves.
+  - **Cycles are reported as the path that forms them**, once per cycle rather
+    than once per participant — three modules in one cycle is one problem with
+    one fix. The detector distinguishes "on the current stack" from "seen
+    before", so a diamond (`a→b→d`, `a→c→d`) is not mistaken for a cycle; there
+    is a test for exactly that, because a visited-set that forgets the
+    distinction is the usual way this is written wrong.
+  - **Run against the real catalogue, not only fixtures.** A cycle detector that
+    has only ever seen a hand-built graph has never met the data it protects, so
+    the tests assert `MODULES` has no cycles and no dependency naming a module
+    that does not exist, and that enabling `feed` without `organizations` is
+    caught — a real pair from the real catalogue.
+  - **Unsafe expressions are refused because there is no engine.** A value
+    containing `${…}` would be a literal today and an evaluated expression the
+    day GE-031-005 lands: the same stored configuration changing meaning with no
+    diff and no deploy. Nested values are scanned too, since a template one
+    level down is the one nobody looks at, and `$100` / `{ not a template }` are
+    left alone.
+  - Entitlements are checked at publication, **not** as enforcement. Bible §14:
+    "Frontend entitlements improve UX but never provide security" — the module
+    runtime enforces. This stops a configuration being published that claims
+    something the contract does not support, because a console showing a module
+    enabled while every request for it is refused is worse than one where it
+    never appeared.
+  - Proven by mutation, **5 of 5 caught after a test of mine was fixed**: losing
+    the on-stack distinction in the cycle walk FAILS; the expression scan
+    stopping at the top level FAILS; the entitlement filter passing everything
+    FAILS; the missing-dependency check dropped FAILS; and collapsing every
+    layer rank to a constant FAILS — **but only after the test was corrected**.
+    The differing-rank case used the same layer id for both layers, so the
+    "same id twice" guard skipped the pair before rank was ever consulted, and
+    the mutation passed. The test named rank and did not exercise it.
+  - Honest limits: `moduleGraphRejections` and `unentitledFeatures` are not
+    called from `resolveVersionedLayers` — it is not given a catalogue or a
+    contract, and inventing a dependency on `@tenure/modules` inside the
+    configuration engine would invert the layering. `allRejections` is the entry
+    point for a caller that holds both; **nothing calls it yet**, which lands
+    with GE-031-006's validation and simulation surface. "Invalid permission
+    references" is covered only for module ids; the semantic permission
+    catalogue is GE-034's.

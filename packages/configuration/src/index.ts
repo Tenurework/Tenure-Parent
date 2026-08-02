@@ -102,3 +102,13 @@ export {
   provenanceDigest,
 } from "./integrity"
 export type { CompatibilityProblem, ImmutabilityBreach, PublishedDigest } from "./integrity"
+
+export {
+  UNIMPLEMENTED_REJECTIONS,
+  allRejections,
+  ambiguousPrecedence,
+  moduleGraphRejections,
+  unentitledFeatures,
+  unsafeExpressions,
+} from "./rejections"
+export type { ModuleLike, Rejection } from "./rejections"

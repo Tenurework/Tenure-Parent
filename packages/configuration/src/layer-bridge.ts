@@ -7,6 +7,7 @@ import {
   provenanceDigest,
   type CompatibilityProblem,
 } from "./integrity"
+import { ambiguousPrecedence, unsafeExpressions, type Rejection } from "./rejections"
 import {
   orderLayers,
   type LayerKind,
@@ -119,6 +120,16 @@ export interface VersionedResolveResult extends ResolveResult {
   provenance: string
   /** Per-layer digests, in precedence order, so a resolution can cite its inputs. */
   layerDigests: readonly { kind: LayerKind; id: string; version: number; digest: string }[]
+  /**
+   * GE-031-004 rejections found across the layers being resolved.
+   *
+   * Reported, not thrown. Ambiguous precedence has a defined outcome, and
+   * refusing a whole resolution over a conflict that resolves would take a
+   * tenant down to report a warning. The module-graph and entitlement
+   * rejections need a catalogue this function is not given, so
+   * `allRejections` is the entry point for a caller that has one.
+   */
+  rejections: readonly Rejection[]
 }
 
 /**
@@ -184,6 +195,10 @@ export function resolveVersionedLayers(
     domainRefused,
     incompatible,
     provenance: provenanceDigest(ordered),
+    // Over the layers that will actually apply. Reporting a conflict between
+    // two layers when one of them is outside its effective interval sends the
+    // reader to fix something that is not in effect.
+    rejections: [...ambiguousPrecedence(ordered), ...unsafeExpressions(ordered)],
     layerDigests: ordered.map((l) => ({
       kind: l.kind,
       id: l.id,
