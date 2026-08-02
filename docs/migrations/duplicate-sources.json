@@ -1,0 +1,238 @@
+{
+  "item": "GE-020-005",
+  "what": "Every fact this schema stores in more than one place, what is authoritative, and what must be true before anything is dropped.",
+  "howVerified": "tests/security/duplicate-sources.test.mjs recomputes the writer sets from the codebase and fails when they disagree with this file. apps/web/scripts/duplicate-source-report.mjs measures the disagreement against a live database.",
+  "writerDetection": {
+    "pattern": "<handle>.<delegate>.(create|createMany|update|updateMany|upsert|delete|deleteMany)(",
+    "searched": ["apps/web/src", "apps/web/scripts", "packages"],
+    "excluded": "*.test.ts, *.itest.ts, *.spec.ts — a test is not a source of production fact",
+    "note": "The handle is deliberately any identifier, not `db`. An earlier version matched only `db.` and would have missed every write made through a `tx.` transaction handle, which is where the writes that matter most happen."
+  },
+  "strictness": {
+    "deprecated": "exact writer list — one new writer is the entire risk, so there is no ratchet",
+    "unwired": "exact writer list, expected empty — this is what distinguishes 'built but not connected' from 'working'",
+    "canonical": "a floor of one writer, not an exact list — these legitimately grow, and a guard that churns is a guard people update without reading",
+    "parallel": "exact writer list — the point of the family is that this source is not supposed to spread"
+  },
+
+  "families": [
+    {
+      "fact": "person",
+      "question": "Who is this human?",
+      "verdict": "LINK_NOT_MERGE",
+      "reason": "Both tables are deliberate. DirectoryPerson exists precisely because it CANNOT be signed in as: seeding the real roster as login accounts would let anyone with the URL impersonate a named student while dev sign-in is enabled. Merging them would delete that property. What is missing is not a merge, it is an enforced link — they are joinable only by email, and on the pilot 2 of 172 directory people have a matching account.",
+      "sources": [
+        {
+          "model": "User",
+          "role": "canonical",
+          "holds": "an authenticated account",
+          "writers": []
+        },
+        {
+          "model": "DirectoryPerson",
+          "role": "parallel",
+          "holds": "roster directory data for people who have never signed in",
+          "writers": [
+            "scripts/ci-two-tenant-fixture.mjs",
+            "scripts/seed.mjs",
+            "src/app/(app)/admin/actions.ts"
+          ]
+        }
+      ],
+      "plan": [
+        "Add DirectoryPerson.userId — nullable, unique, ON DELETE SET NULL.",
+        "Backfill ONLY where User.emailVerified is non-null and the addresses match case-insensitively. An unverified address is a claim, and matching on it grants one person another's roster identity.",
+        "Leave every unmatched row null. 170 of 172 will stay null on the pilot and that is the correct outcome, not a failed backfill.",
+        "Once Okta lands, match on the provider subject rather than the address, and treat the email match as the legacy path."
+      ],
+      "beforeAnyDrop": [
+        "Nothing is dropped in this family. If that ever changes: DirectoryPerson holds the only contact details for people with no account, and deleting it deletes the answer to 'how do I reach last year's treasurer', which is the question the product exists to answer."
+      ]
+    },
+
+    {
+      "fact": "seat",
+      "question": "Who holds this board seat?",
+      "verdict": "KEEP_BOTH_DIFFERENT_DOMAINS",
+      "reason": "Not redundant, despite looking it. SeatHolding keys on DirectoryPerson and can represent a holder who has no account — which is most of the roster — and carries the academic term, so it answers 'who had this job in 2025-2026'. RoleAssignment keys on User, carries a date range and a SHADOW/ACTIVE/ALUMNI status, and is what grants access. Collapsing either into the other loses something: one loses history for accountless people, the other loses the access grant.",
+      "sources": [
+        {
+          "model": "RoleAssignment",
+          "role": "canonical",
+          "holds": "the access grant — this is what the authorization layer reads",
+          "writers": []
+        },
+        {
+          "model": "SeatHolding",
+          "role": "parallel",
+          "holds": "the historical roster, by academic term, including holders with no account",
+          "writers": ["scripts/seed.mjs"]
+        }
+      ],
+      "plan": [
+        "Do NOT consolidate. Document the split instead — the two answer different questions and the bug was believing they answered the same one.",
+        "The measured disagreement (6 active assignments with no current holding, 106 current holdings with no assignment) is a join gap, not corruption: the 106 are roster people with no User at all.",
+        "Any code asking 'who holds this seat' must state which it means. `scripts/person-reach.mjs` is the worked example — it traverses both and reports them separately with their own denominators."
+      ],
+      "beforeAnyDrop": [
+        "SeatHolding is the only record of past terms. Dropping it deletes institutional memory, which is the product."
+      ]
+    },
+
+    {
+      "fact": "role",
+      "question": "What role does this person hold?",
+      "verdict": "TWO_SYSTEMS_UNIFY_LATER",
+      "reason": "Club seats are rows in Role with a RoleScope; institution staff roles are an InstitutionRole enum on a membership. Two role systems with no common vocabulary, which is why authorization has to special-case which one it is reading. Separately, three columns copy a role NAME onto an audit row — ApprovalStep.actorRoleContext, Participant.roleContext, AuditEvent.actorRole. Those are NOT duplicates: they are snapshots, and a snapshot that no longer matches a live Role is the snapshot working. 9 of 29 on the pilot.",
+      "sources": [
+        {
+          "model": "Role",
+          "role": "canonical",
+          "holds": "durable club board seats",
+          "writers": []
+        },
+        {
+          "model": "InstitutionMembership",
+          "role": "parallel",
+          "holds": "institution-level staff roles, as an enum rather than a row",
+          "writers": [
+            "scripts/seed.mjs",
+            "src/app/(app)/admin/actions.ts",
+            "src/lib/provisioning/reconcile.ts"
+          ]
+        }
+      ],
+      "plan": [
+        "Unification belongs to the authorization engine's role model (Phase 5), not to a data migration. Recorded here so the next reader knows the split is known rather than accidental.",
+        "Do not 'clean up' the snapshot columns. A role renamed after a decision must still show the name it had at the time, or the audit trail misrepresents what the approver saw."
+      ],
+      "beforeAnyDrop": [
+        "InstitutionMembership rows are the only grant of OSE access. Dropping any before the replacement grants exist locks every administrator out of their own institution."
+      ]
+    },
+
+    {
+      "fact": "approval",
+      "question": "Was this approved, and by whom?",
+      "verdict": "ONE_ENGINE_THREE_IMPLEMENTATIONS",
+      "reason": "ApprovalRequest + ApprovalStep is a real state machine with an append-only step history and a policy snapshot per decision. CollabInterest and RoleTransfer each re-implement a smaller one inline — a status column, a decidedBy, a decidedAt — with no step history, so 'who moved this and under what permissions' is unanswerable for them. On the pilot that is 1 collaboration and 2 transfers already decided with no recoverable trail. Separately Event.status duplicates the linked ApprovalRequest.status, so an approval decision is stored twice.",
+      "sources": [
+        {
+          "model": "ApprovalRequest",
+          "role": "canonical",
+          "holds": "the request and its current state",
+          "writers": []
+        },
+        {
+          "model": "ApprovalStep",
+          "role": "canonical",
+          "holds": "every transition, append-only, with the permissions in effect at the time",
+          "writers": []
+        },
+        {
+          "model": "CollabInterest",
+          "role": "parallel",
+          "holds": "a collaboration decision, inline, with no step history",
+          "writers": ["src/app/(app)/feed/actions.ts"]
+        },
+        {
+          "model": "RoleTransfer",
+          "role": "parallel",
+          "holds": "an OSE role handoff decision, inline, with no step history",
+          "writers": ["src/app/(app)/admin/actions.ts"]
+        }
+      ],
+      "plan": [
+        "New approval-shaped flows go through ApprovalRequest. Do not add a fourth inline state machine.",
+        "CollabInterest and RoleTransfer keep their columns — they are the historical record — and gain an ApprovalRequest for decisions made from here on. Rewriting the past two decisions into steps would be inventing a policy snapshot nobody took.",
+        "Event.status: measured at 0 disagreements out of 6 today, which is luck rather than a constraint. Either derive it from the approval, or write both inside one transaction. It is currently neither."
+      ],
+      "beforeAnyDrop": [
+        "Nothing here is droppable. The inline decision columns are the only record of decisions already made."
+      ]
+    },
+
+    {
+      "fact": "audit",
+      "question": "What happened, who did it, and what should downstream learn?",
+      "verdict": "THREE_TRAILS_ONE_UNWIRED",
+      "reason": "AuditEvent answers who did what (20 writers). ApprovalStep answers how the state machine moved (5 writers) and carries the policy snapshot AuditEvent does not. Those two are complementary and both should stay. OutboxEvent is the third and it has a table, a dispatch loop with retries and a dead-letter path, unit tests, and NO adapter and NO writer anywhere in the repository — so the table is written by nothing and the loop is called by nothing. Measured: 0 rows. GE-021-006 recorded this as PASS; by the standard in AUTONOMOUS-LOOP.md it is not, and the correction is in the ledger.",
+      "sources": [
+        {
+          "model": "AuditEvent",
+          "role": "canonical",
+          "holds": "who did what, institution-scoped",
+          "writers": []
+        },
+        {
+          "model": "OutboxEvent",
+          "role": "unwired",
+          "holds": "nothing — no adapter implements the ports and no code writes the table",
+          "writers": []
+        }
+      ],
+      "plan": [
+        "Write the Prisma adapter for the outbox ports and call it inside the same transaction as the change it describes. That is the entire property the table exists for: 'the row changed' and 'the event exists' cannot disagree.",
+        "7 of 29 approval steps have no AuditEvent naming the request. The two are written by separate statements with no transaction around them, which is the same failure mode the outbox exists to remove — so fixing the outbox and routing audit through it fixes this too.",
+        "Do not reconcile the 7 retroactively. An audit row invented later is worse than a missing one."
+      ],
+      "beforeAnyDrop": [
+        "Append-only trails are never dropped. If OutboxEvent is abandoned rather than wired, drop the table in a migration that says so, and delete the loop with it — a dispatch loop nobody calls will eventually be called."
+      ]
+    },
+
+    {
+      "fact": "finance",
+      "question": "What did this club budget, and what did it actually spend?",
+      "verdict": "DROP_ONE_STACK_AND_DECIDE_ONE_FIELD",
+      "reason": "Two parallel finance stacks. Budget + Transaction has zero rows, zero creators anywhere in the codebase, and exactly one writer — an admin override that updates a row nothing can create, guarded by a capability that therefore can never fire. BudgetLine + LedgerEntry is the live stack. Separately, BudgetLine.actualCents has two incompatible contracts in one column and they overwrite each other; see contestedField.",
+      "sources": [
+        {
+          "model": "BudgetLine",
+          "role": "canonical",
+          "holds": "budgeted and actual per category per year",
+          "writers": []
+        },
+        {
+          "model": "LedgerEntry",
+          "role": "canonical",
+          "holds": "the posted detail behind an actual, with links to the approval, vendor and receipt",
+          "writers": []
+        },
+        {
+          "model": "Budget",
+          "role": "deprecated",
+          "holds": "nothing — 0 rows, and nothing in the codebase creates one",
+          "writers": ["src/app/(app)/admin/actions.ts"]
+        },
+        {
+          "model": "Transaction",
+          "role": "deprecated",
+          "holds": "nothing — 0 rows, no writer of any kind",
+          "writers": []
+        }
+      ],
+      "contestedField": {
+        "column": "BudgetLine.actualCents",
+        "problem": "Three writers, two contracts, mutually destructive. The line editor and the spreadsheet import SET it to what the officer typed. Posting a ledger entry RECOMPUTES it from the sum of ledger entries, discarding the typed figure. An approval-driven reimbursement INCREMENTS it. So a treasurer who records 'Catering: $1,875' and later attaches one $10 receipt to that line ends up with an actual of $10, silently, and the dashboard shows the club underspending by $1,865.",
+        "measured": "15 of 18 lines on the pilot have an actualCents that does not equal the sum of their ledger entries.",
+        "whyNotFixedHere": "Which contract is correct is a product decision about what a treasurer is being asked for, not a refactor. Under 'stated', the ledger path must stop overwriting; under 'derived', the line editor must stop accepting a typed actual and the schema comment is already right. Choosing one silently would change what a financial figure means. The divergence is measured by scripts/duplicate-source-report.mjs so the decision is made against numbers.",
+        "options": [
+          "STATED — actualCents is what the club says it spent; ledger entries are supporting detail. Ledger writes increment rather than recompute, and the schema comment is wrong and must change.",
+          "DERIVED — actualCents is the cache of the ledger. The line editor loses its actual field, the import creates ledger entries instead of setting a number, and 15 pilot lines need entries created or their actuals cleared."
+        ]
+      },
+      "plan": [
+        "Confirm Budget and Transaction are empty on the database being migrated. They are empty here; that is a statement about this database only.",
+        "Remove the unreachable admin override and re-point the budget.override capability at BudgetLine, or delete the capability if nothing needs it.",
+        "Drop Transaction, then Budget, in that order — Transaction has the foreign key.",
+        "Resolve contestedField BEFORE either stack is touched. Dropping the dead stack does not fix the live one and must not be reported as if it had."
+      ],
+      "beforeAnyDrop": [
+        "SELECT count(*) FROM \"Budget\";       -- must be 0",
+        "SELECT count(*) FROM \"Transaction\";  -- must be 0",
+        "If either is non-zero on the pilot, they hold the only copy of whatever is in them. Export first; nothing in the application can re-derive them."
+      ]
+    }
+  ]
+}

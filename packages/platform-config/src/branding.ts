@@ -68,16 +68,44 @@ export const wordmark = defineConfig({
   description: "The name shown in the shell. Rendered as text, never as markup.",
 })
 
+/**
+ * Light, dark, or follow the viewer's machine.
+ *
+ * The DEFAULT for a system, not a person's choice. An operator or a member
+ * still overrides it locally — that override lives in their browser and is
+ * nobody else's business — but an institution that runs its console dark by
+ * policy sets it once here rather than asking every user to.
+ *
+ * "system" is the default and is deliberately not "light": a product pinned to
+ * light on a machine set to dark is a decision nobody knows was made.
+ */
+export const colorScheme = defineConfig({
+  key: "platform.branding.colorScheme",
+  owner: "platform",
+  type: z.enum(["system", "light", "dark"]),
+  default: "system",
+  allowedScopes: ["blueprint", "tenant"],
+  mergeStrategy: "replace",
+  sensitivity: "public",
+  overridable: true,
+  description:
+    "Default colour scheme: follow the viewer's machine, or pin light or dark. A viewer may still override it locally.",
+})
+
 export const BRANDING_DEFINITIONS: readonly ConfigDefinition[] = [
   primaryColor,
   primaryTextColor,
   wordmark,
+  colorScheme,
 ] as ConfigDefinition[]
+
+export type ColorScheme = "system" | "light" | "dark"
 
 export interface Branding {
   primaryColor: string
   primaryTextColor: string
   wordmark: string
+  colorScheme: ColorScheme
 }
 
 /**

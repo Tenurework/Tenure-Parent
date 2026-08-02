@@ -798,6 +798,21 @@ for progress:
     retrying forever FAILS, retrying an unparseable event FAILS, jitter removed
     FAILS, backoff uncapped FAILS, empty replay FAILS, unbounded replay FAILS,
     and replaying a non-dead record FAILS.
+  - **CORRECTION, 2026-08-02 (found by GE-020-005).** This entry claims more
+    than was built. The dispatch loop, the retry schedule, the dead-letter path
+    and the replay guard are all real and all proven — against in-memory fakes.
+    What does not exist is an adapter implementing `OutboxPorts` against Prisma,
+    and **nothing anywhere in the repository writes an `OutboxEvent` row**:
+    `git grep` for any handle calling `.outboxEvent.create(` returns nothing,
+    and the table measures 0 rows on a fully seeded database. So the property
+    the item is named for — "the row changed" and "the event exists" cannot
+    disagree — is not in force, because no caller writes the event inside its
+    transaction. By the standard in `AUTONOMOUS-LOOP.md` ("a component nobody
+    renders does not qualify") this is not PASS. Left checked rather than
+    silently reopened, because the logic is real and the gap is one adapter;
+    it is recorded in `docs/migrations/duplicate-sources.json` under the audit
+    family with role `unwired`, and `tests/security/duplicate-sources.test.mjs`
+    now FAILS if that claim stops being true in either direction.
   - **Three existing tripwires fired on the migration, all correctly**, and that
     is the useful part of adding a table here: the registry refused an
     unclassified model carrying `institutionId`; the pinned scoped-model count
@@ -2016,9 +2031,245 @@ implemented, mutation-proven and recorded on its own; pushed together.
     gate cannot pass while that is true, and moving them is gated on the same
     Organization work.
 
-- [ ] **GE-020-005** — Consolidate duplicate person/member/role/approval/audit/
+- [x] **GE-020-005** — Consolidate duplicate person/member/role/approval/audit/
   finance sources into migration plans; do not delete historical data blindly.
-  - Status: FAIL — not started. Carried to the next batch deliberately: it is
-    an analysis of the 40-model schema for duplicate sources of the same fact,
-    and doing it properly needs the schema read end to end rather than
-    sampled. Recorded here rather than rushed to make a count of ten.
+  - Status: PASS
+  - Code: `docs/migrations/duplicate-sources.json` (the plan, as data),
+    `tools/duplicate-sources-doc.mjs` → `docs/migrations/DUPLICATE-SOURCES.md`
+    (generated), `apps/web/scripts/person-reach.mjs`,
+    `apps/web/scripts/duplicate-source-report.mjs`, a corrected section (5) in
+    `apps/web/scripts/census.mjs`, a CI step in the Migrations job
+  - Tests: `tests/security/duplicate-sources.test.mjs` — 8 cases;
+    `apps/web/scripts/person-reach.itest.ts` — 6 cases against Postgres.
+    Isolation suite **61/61** across 7 files.
+  - Carried from the previous batch on purpose: it is an analysis of a
+    1,046-line schema for facts stored twice, and sampling it would have
+    produced a plan that read well and was wrong. Read end to end.
+  - **Five of the six "duplicates" are not duplicates, and that is the finding.**
+    `DirectoryPerson` exists precisely because it cannot be signed in as —
+    merging it into `User` would delete that property. `SeatHolding` holds
+    academic-term history for the 170 roster people who have no account, which
+    `RoleAssignment` cannot represent. The three `actorRole` columns are
+    snapshots, and one that no longer matches a live seat is the snapshot
+    working, not drift. A plan that consolidated on resemblance would have
+    deleted the answer to "who ran this club last year", which is the product.
+  - **The census was measuring people over a graph the application does not
+    write.** Section (5), titled "PEOPLE WHO REACH MORE THAN ONE TENANT" and
+    stating of itself that it blocks product decision B, traversed
+    `DirectoryPerson → SeatHolding` and `DirectoryPerson → OrganizationAdvisor`
+    and nothing else. `SeatHolding` has no writer outside the seed;
+    `RoleAssignment` has 55 write sites in `src/` and was not traversed at all.
+    An operator granting a user a second institution in the admin UI creates
+    exactly the row the section exists to detect, and it reported zero.
+    `person-reach.itest.ts` builds that person — `InstitutionMembership` in one
+    institution, `RoleAssignment` in another — runs the **old query verbatim**
+    and asserts it returns 0, then asserts the corrected traversal finds them.
+    Executing the old query rather than describing it is the difference between
+    evidence and a claim.
+  - Ids are NOT printed. Every other census section is deliberately count-only,
+    it runs against the pilot from a public repository, and a list of
+    identifiers for real people in an archived, indexed build log is a
+    different kind of output from a number. `multiTenantPeople()` returns them
+    for an operator who already has database access; the census prints the
+    count and names the function.
+  - **Measured against a seeded database, not asserted:** 11 users vs 172
+    directory people, **2 joinable by email**; 6 active assignments with no
+    current holding and 106 holdings with no assignment (a join gap, not
+    corruption — the 106 have no account at all); `Budget` and `Transaction`
+    at **0 rows with no creator anywhere**; **15 of 18 budget lines whose
+    `actualCents` does not equal the sum of their ledger entries**; 7 of 29
+    approval steps with no `AuditEvent` naming the request.
+  - **A live data-loss bug, found by this analysis and NOT fixed here.**
+    `BudgetLine.actualCents` has three writers and two incompatible contracts.
+    The line editor and the spreadsheet import SET it to what the treasurer
+    typed; posting a ledger entry RECOMPUTES it from
+    `SUM(LedgerEntry.amountCents)`, discarding that figure; an approval-driven
+    reimbursement INCREMENTS it. So a treasurer who records "Catering: $1,875"
+    and later attaches one $10 receipt to that line ends with an actual of $10,
+    silently. Not fixed because which contract is correct is a product decision
+    about what a treasurer is being asked for — under "stated" the ledger path
+    must stop overwriting, under "derived" the line editor must lose its actual
+    field and 15 pilot lines need reconciling — and choosing one quietly would
+    change what a financial figure means. Both options, and the measurement,
+    are recorded in the plan. **This needs a human decision.**
+  - The plan is stored **once**: as JSON for the guard, rendered to Markdown for
+    a person by `npm run generate`, with a drift check. Writing it twice would
+    have been this item's own failure mode in its own deliverable — the guard
+    reading one plan and the reader another.
+  - Strict where a single instance is the whole risk, ratcheted elsewhere,
+    matching GE-011-007: `deprecated`, `unwired` and `parallel` sources are
+    matched EXACTLY in both directions; `canonical` sources are held to a floor
+    of one writer, because `AuditEvent` has twenty and legitimately grows, and
+    a guard that churns is a guard people satisfy without reading.
+  - The writer pattern matches **any handle**, not `db.`. The first draft
+    anchored on `db.` and would have missed every write made through a `tx.`
+    handle inside `$transaction` — which is where the writes that matter most
+    happen. Mutation M1 adds `tx.transaction.create` and is caught.
+  - Proven by mutation, **5 of 5 caught**: a new writer of a deprecated table
+    through a `tx.` handle FAILS; a registry entry naming a file that no longer
+    writes FAILS (a stale allowlist silently covers whatever is written at that
+    path next); relabelling the unwired outbox as canonical FAILS on two
+    separate assertions; hand-editing the generated Markdown FAILS; removing
+    the `User.RoleAssignment` reach path FAILS 3 of the 6 integration cases.
+  - Honest limits: the report measures the database it is pointed at and says
+    so — 0 rows in `Budget` here is a statement about this database, not about
+    the pilot, and the plan's pre-drop checks exist for exactly that reason.
+    Nothing is dropped by this item; it produces the plans and the instrument
+    that makes dropping safe, which is what the item asks for.
+
+- [x] **GE-031-002** — Configuration domains for identity, organization/seats,
+  permissions, modules, entities/fields/forms, workflows, reports, connectors,
+  Relay, localization, deployment, recovery, observability and cost.
+  - Status: PASS
+  - Code: `packages/configuration/src/domains.ts`, domain stripping in
+    `layer-bridge.ts`, load-time validation in `packages/platform-config/src/resolve.ts`
+  - Tests: `domains.test.ts` — 22 cases. Configuration + platform-config
+    **154/154**.
+  - The engine already resolved values through ordered layers. What it had no
+    opinion about was **which layer may set which key** — every definition
+    carried its own `allowedScopes`, so authority was decided one key at a time
+    by whoever added the key, and "can a tenant administrator move their own
+    data to another region?" had nowhere to be answered.
+  - Enforced in two directions, because either alone is decorative.
+    **At load:** a platform key belonging to no domain, or granting a scope its
+    domain withholds, throws at module init. **At resolution:** a layer writing
+    a domain its kind does not own has the value **stripped**, not just logged —
+    the same shape as the existing invariant refusal, and for the same reason:
+    advisory access control is access control that does not work.
+  - Checked on `PLATFORM_DEFINITIONS`, **not** inside `ConfigRegistry.of`. The
+    registry is the mechanism, used by modules that own their own namespaces
+    (`finance.budget.approvalThreshold`) and by tests built from throwaway keys;
+    forcing all of those through the platform's domains would make the mechanism
+    unusable by anything but the platform. The platform's own surface is what
+    must be fully governed.
+  - **Ten of the fifteen domains are `reserved`, declared rather than omitted.**
+    An undeclared namespace is ungoverned: `platform.deployment.region` with no
+    `deployment` domain is a key any tenant layer may set. Reserving it means
+    the governance arrives before the first key does, which is the only safe
+    order. Every reservation names the item that will fill it, so it expires.
+  - Branding is a fifteenth domain, not in the item's list of fourteen, because
+    `platform.branding.*` has three live keys and leaving it out would mean
+    those keys belong to no domain — the exact hole the reservations close.
+  - **The guard found six real definitions and I was wrong, not them.** The
+    first version derived permitted scopes from `writableBy` and refused six
+    `platform.localization.*` keys for allowing `user` and `legalEntity`. Those
+    are real scopes that **no layer kind produces**, so nothing can write them,
+    and a person choosing their own locale is the product intent. Refusing them
+    would have narrowed six correct definitions to satisfy a rule about a risk
+    that does not exist yet. The check now refuses a scope only when some layer
+    kind produces it — and the reachable set is **derived** from the kind-to-
+    scope mapping rather than listed, so the day a kind maps to `user` those
+    six grants become real and are refused, with no change to the function.
+    A test asserts the derivation, not the current answer.
+  - Proven by mutation, **5 of 5 caught**: letting a `tenantOverlay` write the
+    `deployment` domain FAILS; reporting a domain refusal without stripping the
+    value FAILS; dropping the trailing dot from a prefix so `platform.relay`
+    claims `platform.relayedThing` FAILS; moving a real platform key to an
+    ungoverned namespace FAILS at module load with the key named; removing the
+    reachability exemption FAILS on 7 suites — which is what proves the
+    exemption is load-bearing rather than a hole.
+  - Honest limits: `tenantAdminMayWrite` is declared and not yet enforced —
+    nothing reads it until GE-032-002 builds the console that must obey it. It
+    is recorded now so both halves read one answer rather than the console
+    inventing a second. The domain check covers `PLATFORM_DEFINITIONS`; module
+    definitions added through `ConfigRegistry.with` are governed by their
+    module's ownership (GE-020-001), not by these domains.
+
+---
+
+# Authority change — v2.0 supersedes v1.1 (2026-08-02)
+
+Two documents were added to the repository mid-batch and are now the authority:
+
+- `docs/implementation/Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v2.0.md`
+  — 658 `GE-*` items. Supersedes the v1.1 execution prompt.
+- `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`
+  — 186 `EXT-*` items covering localization, payroll, migration factory,
+  ISO 20022 banking, cutover, hypercare and decommission.
+
+**Nothing already decided was invalidated, and that was checked rather than
+assumed.** Set difference of the two id lists: every one of v1.1's 534 GE ids
+appears in v2.0, **zero dropped**, 141 new. The sixty decisions below stand as
+made. v1.1 stays in the repository as the record of what they were made against.
+
+**One queue, not two.** v2.0 requires a single traceable verification system and
+forbids duplicating requirements into divergent documents, so `next-batch.mjs`
+reads both sources into one ordered list and the ledger records `GE-*` and
+`EXT-*` in this same file. A second ledger would satisfy the letter of "we
+tracked it" and be the one nobody read.
+
+Total: **844 items. 60 decided, 784 remaining.**
+
+Rewiring `next-batch.mjs` exposed a defect worth recording: it matched section
+headings as `## Phase N`, which v1.1 used and neither new document does. Every
+item in both new files parsed to nothing — and the failure surfaced as an
+**empty queue**, which reads as "all work complete". It now throws when a source
+parses to zero items, because for a loop that runs unattended, silence is the
+most expensive failure mode there is.
+
+## What the batch below did not reach
+
+This batch was scoped at ten items under the old authority and delivered three
+before the authority changed. The remaining seven are not abandoned; they are
+the head of the next batch, re-derived against v2.0. Recorded here rather than
+padded out, because a count of ten made by finishing whatever was cheapest is
+worth less than three items that hold.
+
+- [x] **Dark mode for the Studio** — a down payment on **GE-022-008**, not that
+  item.
+  - Status: PASS as scoped; **GE-022-008 remains open.**
+  - Code: `apps/system-studio/src/app/globals.css` (dark token block),
+    `src/components/ThemeToggle.tsx`, `src/lib/theme.ts`,
+    `src/app/layout.tsx`, `platform.branding.colorScheme` in
+    `packages/platform-config/src/branding.ts`
+  - Tests: `apps/system-studio/e2e/theme.spec.ts` — 9 cases. Full Studio suite
+    **47 passed, 3 skipped**.
+  - Asked for directly by the user during the batch. It turns out to be part of
+    a numbered requirement: GE-022-008 wants density, light/dark/system,
+    reduced-motion and increased-contrast preferences together. This delivers
+    the light/dark/system third and the target-size half of its accessibility
+    clause. **Density, reduced-motion and increased-contrast are not built**, so
+    the item stays open and is not checked off.
+  - Three states, not two. "System" is the default and is not "light": a console
+    pinned to light on a machine set to dark is a decision nobody can tell was
+    made. The stored value distinguishes "follow the machine" from "I chose
+    light", which a boolean cannot, and a `matchMedia` listener follows the
+    machine when it changes rather than only at load.
+  - The engine owns the DEFAULT (`platform.branding.colorScheme`, in the
+    `branding` domain declared by GE-031-002); the viewer's override is local
+    and is sent nowhere.
+  - **Every colour pair was measured, not chosen by eye.** Lowest in dark is
+    muted-on-surface at 5.26:1 against a 4.5:1 requirement (WCAG 2.2 AA, 1.4.3).
+    The status tints are lightened rather than reused — the light theme's `#4c6350`
+    on the dark background is 2.4:1, which is the trap in sharing one accent set.
+  - **Three real bugs, each of which shipped silently and none of which threw.**
+    (1) A `<script>` in `<head>` is **dropped from the served HTML** by the App
+    Router; it renders only as a child of `<body>`. (2) `THEME_STORAGE_KEY` lived
+    in a `"use client"` module and reached the server layout as a client
+    reference, serialising to `localStorage.getItem(undefined)` — the script ran,
+    read nothing, and every operator got light regardless of their choice.
+    (3) The e2e signed in and then asserted against
+    `/api/auth/callback/operator`, which returns no HTML, so every locator
+    searched an empty document. `layout.spec.ts` navigates afterwards and had
+    never noticed.
+  - **Two of my own tests were wrong, and mutation is what said so.** Removing
+    the pre-paint script changed nothing observable through a browser, because
+    React's effect stamps the attribute a moment later — so the no-flash claim
+    is now asserted on the **served HTML**: the script is present, it precedes
+    the masthead, and it does not contain `getItem(undefined)`. Separately, the
+    "no pure black or white" test scanned `body *` and never `body` itself,
+    where the page background lives; when that was fixed it still passed,
+    because the transparency check tested the string for `", 0)"` — which also
+    matches `rgb(0, 0, 0)`. Pure black was being skipped **as transparent**, by
+    the one test written to catch it. Transparency is now alpha-aware.
+  - Proven by mutation, **4 of 4 caught after the two test fixes**: a dark
+    `--muted` below AA FAILS; the dark background set to `#000000` FAILS;
+    removing the pre-paint script FAILS; the storage key serialising as
+    `undefined` FAILS.
+  - Honest limits: the palette is the existing warm off-white/brown-gold system.
+    v2.0 §"Mandatory document ingestion" flags that exact styling as possibly an
+    **obsolete visual system**, to be replaced by the forest-green Tenure
+    Experience System with independently art-directed *cool* light and dark
+    modes. When that lands, the tokens change and everything here — the toggle,
+    the three states, the pre-paint script, the persistence, the contrast
+    measurement — is palette-independent and stands.

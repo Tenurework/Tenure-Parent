@@ -21,7 +21,25 @@
 import fs from "node:fs"
 
 const LEDGER = "docs/implementation/global-engine-execution-ledger.md"
-const PROMPT = "docs/implementation/Tenure_Claude_Code_Global_Engine_Execution_Prompt_v1.0.md"
+
+/**
+ * The sources of requirements, in the order they are worked.
+ *
+ * v2.0 SUPERSEDES the v1.1 execution prompt (2026-08-02). It does not replace
+ * it destructively: every one of v1.1's 534 GE ids survives into v2.0's 675,
+ * verified by set difference, so nothing already decided in the ledger was
+ * invalidated by the upgrade. v1.1 is left in the repository as the record of
+ * what the first 60 decisions were made against.
+ *
+ * The extension's EXT items are read into the SAME queue rather than a second
+ * one. v2.0 §"Mandatory document ingestion" requires one traceable verification
+ * system and forbids duplicating requirements into divergent documents — two
+ * queues would be exactly that, and the second would be the one nobody ran.
+ */
+const SOURCES = [
+  { path: "docs/implementation/Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v2.0.md", prefix: "GE" },
+  { path: "docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md", prefix: "EXT" },
+]
 
 export const DEFAULT_BATCH = 10
 
@@ -34,7 +52,11 @@ export const DEFAULT_BATCH = 10
  * simply not started — and those need different answers.
  */
 function promptItems() {
-  const text = fs.readFileSync(PROMPT, "utf8")
+  return SOURCES.flatMap((source) => itemsFrom(source))
+}
+
+function itemsFrom({ path, prefix }) {
+  const text = fs.readFileSync(path, "utf8")
   const items = []
   let phase = "Phase 0"
 
@@ -53,22 +75,31 @@ function promptItems() {
     }
     if (inFence) continue
 
-    const heading = /^##\s+(Phase\s+[^\n]*)/.exec(line)
+    // v1.1 used `## Phase N`. v2.0 and the extension use their own section
+    // headings — `### GE-031: Configuration engine`, `## 6. Migration factory`.
+    // Matching only "Phase" dropped every item in both new documents, and
+    // dropped them as an empty queue rather than an error, which is the worst
+    // shape for a loop to fail in: it reads as "nothing left to do".
+    const heading = /^#{2,3}\s+(.+?)\s*$/.exec(line)
     if (heading) {
       phase = heading[1].trim()
       seenFirstPhase = true
     }
 
-    // Nothing before the first phase heading is an item either — that region is
-    // the rules, and a checkbox there is prose.
+    // Nothing before the first section heading is an item — that region is the
+    // rules, and a checkbox there is prose.
     if (!seenFirstPhase) continue
 
-    const item = /^- \[([ x])\]\s+(GE-[\w-]+)\s+—\s+(.*)$/.exec(line)
+    const item = new RegExp(`^- \\[([ x])\\]\\s+(${prefix}-[\\w-]+)\\s+—\\s+(.*)$`).exec(line)
     if (!item) continue
+    // Leaf items only. A section id like `EXT-050` heads a group and is not
+    // itself a unit of work; counting one would put an unfinishable entry at
+    // the front of a queue that is meant to be worked to zero.
+    if (!/^[A-Z]+-\d{3}-\d{3}$/.test(item[2])) continue
     items.push({ id: item[2], title: item[3].trim(), phase })
   }
 
-  if (items.length === 0) throw new Error(`Parsed no items from ${PROMPT} — the format changed.`)
+  if (items.length === 0) throw new Error(`Parsed no items from ${path} — the format changed.`)
   return items
 }
 
@@ -96,8 +127,12 @@ function ledgerState() {
     const checkbox = /^- \[([ x])\]\s+\*\*/.exec(lines[i])
     if (!checkbox) continue
 
-    const range = /\*\*(GE-[\w-]+)\s*(?:…|\.\.\.)\s*(\d+)\*\*/.exec(lines[i])
-    const single = /^- \[[ x]\]\s+\*\*(GE-[\w-]+)\*\*/.exec(lines[i])
+    // Both prefixes. The ledger records GE and EXT decisions in one file
+    // because they are one verification system — v2.0 forbids splitting
+    // requirements across divergent documents, and a second ledger would be
+    // exactly that.
+    const range = /\*\*((?:GE|EXT)-[\w-]+)\s*(?:…|\.\.\.)\s*(\d+)\*\*/.exec(lines[i])
+    const single = /^- \[[ x]\]\s+\*\*((?:GE|EXT)-[\w-]+)\*\*/.exec(lines[i])
     if (!range && !single) continue
 
     const done = checkbox[1] === "x"

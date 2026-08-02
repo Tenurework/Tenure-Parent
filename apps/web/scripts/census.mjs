@@ -20,6 +20,7 @@
  */
 
 import { PrismaClient } from "@prisma/client"
+import { reachSummary } from "./person-reach.mjs"
 
 const db = new PrismaClient({ log: ["error"] })
 
@@ -183,28 +184,34 @@ table(uniques.map((r) => ({
 h(
   "(5) PEOPLE WHO REACH MORE THAN ONE TENANT",
   "Blocks product decision B. Meaningful only if (0) reported more than one —\n" +
-    "under a single tenant this is 0 by arithmetic, not by evidence.",
+    "under a single tenant this is 0 by arithmetic, not by evidence.\n" +
+    "BOTH person tables, each with its own denominator (GE-020-005). This asked\n" +
+    "only the DirectoryPerson graph until 2026-08-02, which is the graph the\n" +
+    "application does not write: a user granted a second institution through the\n" +
+    "admin UI reaches two tenants and did not appear here.",
 )
-const people = await db.$queryRaw`
-  WITH reach AS (
-    SELECT dp.id, o."institutionId" AS inst FROM "DirectoryPerson" dp
-      JOIN "SeatHolding" sh ON sh."personId" = dp.id
-      JOIN "Role" r ON r.id = sh."roleId"
-      JOIN "Organization" o ON o.id = r."organizationId"
-    UNION
-    SELECT dp.id, o."institutionId" FROM "DirectoryPerson" dp
-      JOIN "OrganizationAdvisor" oa ON oa."personId" = dp.id
-      JOIN "Organization" o ON o.id = oa."organizationId"
-  )
-  SELECT (SELECT count(*) FROM "DirectoryPerson") AS total,
-         count(DISTINCT id) AS reaching_a_tenant,
-         (SELECT count(*) FROM "DirectoryPerson") - count(DISTINCT id) AS reaching_none,
-         count(*) FILTER (WHERE n > 1) AS reaching_several
-  FROM (SELECT id, count(DISTINCT inst) AS n FROM reach GROUP BY id) p`
-table(people.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Number(v)]))))
-const p0 = people[0]
-if (Number(p0.reaching_none) > 0) note(`${p0.reaching_none} directory people reach no tenant — they quarantine as NULL`)
-if (Number(p0.reaching_several) > 0) note(`${p0.reaching_several} directory people reach several tenants — product decision B applies to real rows`)
+for (const r of await reachSummary(db)) {
+  console.log(`\n  ${r.identity}  (via ${r.paths.join(" + ")})`)
+  table([
+    {
+      total: r.total,
+      reaching_a_tenant: r.reachingATenant,
+      reaching_none: r.reachingNone,
+      reaching_several: r.reachingSeveral,
+    },
+  ])
+  if (r.reachingNone > 0) note(`${r.reachingNone} ${r.identity} rows reach no tenant — they quarantine as NULL`)
+  if (r.reachingSeveral > 0) {
+    note(`${r.reachingSeveral} ${r.identity} rows reach several tenants — product decision B applies to real rows`)
+    // The count, not the ids. This census runs against the pilot from a public
+    // repository, and every other section of it is deliberately count-only —
+    // a list of identifiers for real people in an archived, indexed build log
+    // is a different kind of output from a number. `multiTenantPeople` in
+    // person-reach.mjs returns them for an operator who already has database
+    // access, which is the only place that list should exist.
+    console.log(`\n  Which rows: multiTenantPeople(db, "${r.identity}") — run it where you can already read the data.`)
+  }
+}
 
 // ── verdict ──────────────────────────────────────────────────────────────────
 console.log(`\n${"═".repeat(72)}`)

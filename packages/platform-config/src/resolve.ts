@@ -2,6 +2,7 @@ import {
   ConfigRegistry,
   resolveConfigOrThrow,
   type ConfigLayer,
+  validateDomains,
   type ResolvedConfig,
 } from "@tenure/configuration"
 
@@ -26,6 +27,34 @@ import { textDirectionFor } from "./direction"
  */
 
 export const REGISTRY = ConfigRegistry.of(PLATFORM_DEFINITIONS)
+
+/**
+ * GE-031-002 — every platform key is inside a configuration domain's authority.
+ *
+ * Checked HERE rather than inside `ConfigRegistry.of`, and the distinction is
+ * the whole design. `@tenure/configuration` is the mechanism: layers, merge
+ * strategies, precedence. It is used by modules that own their own namespaces
+ * (`finance.budget.approvalThreshold`) and by tests that build registries out
+ * of throwaway keys, and forcing every one of those through the platform's
+ * fourteen domains would make the mechanism unusable by anything but the
+ * platform.
+ *
+ * `PLATFORM_DEFINITIONS` is different: it is the platform's own configuration
+ * surface, and every key in it must be governed. A new `platform.deployment.*`
+ * key with no domain would be settable by any tenant layer, and would look
+ * exactly like a key that had been thought about.
+ *
+ * At module load, so it is a startup failure rather than a surprise on the
+ * first request that reads the key.
+ */
+const domainProblems = validateDomains(PLATFORM_DEFINITIONS)
+if (domainProblems.length > 0) {
+  throw new Error(
+    `${domainProblems.length} platform configuration key(s) are outside their domain's authority ` +
+      `(GE-031-002):\n  ` +
+      domainProblems.map((p) => `${p.key}: ${p.problem}`).join("\n  "),
+  )
+}
 
 /** Layers for an institution, in precedence order. Exported for tests and the Studio. */
 export function layersFor(institutionSlug: string): ConfigLayer[] {
@@ -123,5 +152,6 @@ export function brandingFor(institutionSlug: string): Branding {
     primaryColor: config.get<string>("platform.branding.primaryColor"),
     primaryTextColor: config.get<string>("platform.branding.primaryTextColor"),
     wordmark: config.get<string>("platform.branding.wordmark"),
+    colorScheme: config.get<Branding["colorScheme"]>("platform.branding.colorScheme"),
   }
 }

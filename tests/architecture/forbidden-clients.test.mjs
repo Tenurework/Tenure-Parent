@@ -231,6 +231,14 @@ const DATABASE_EXEMPT = new Map([
     'apps/web/scripts/ci-two-tenant-fixture.mjs',
     'creates a second tenant, so by definition it writes across both; its own header states this and why the extension is not attached',
   ],
+  [
+    'apps/web/scripts/duplicate-source-report.mjs',
+    'GE-020-005 read-only divergence report across every tenant; the counts it exists to produce are estate-wide, and a scoped client would report one tenant and call it the database',
+  ],
+  [
+    'apps/web/scripts/person-reach.itest.ts',
+    'GE-020-005: it builds one person reaching TWO institutions and asserts a census query sees them, which a client scoped to either one could not set up or observe',
+  ],
 ])
 
 /** No file is exempt from the AWS or provider rules. Both lists exist so growth is visible. */
@@ -403,7 +411,7 @@ test('the exemption lists are reasoned, real, and have not grown silently', () =
   // may act in, and an extended client would answer from the very scope being
   // tested. Raised deliberately, with the reason recorded, which is what this
   // assertion exists to force.
-  assert.equal(DATABASE_EXEMPT.size, 9, 'the raw-database-client exemption list changed')
+  assert.equal(DATABASE_EXEMPT.size, 11, 'the raw-database-client exemption list changed')
   assert.equal(AWS_EXEMPT.size, 0, 'a file was exempted from the AWS client rule')
   assert.equal(PROVIDER_EXEMPT.size, 0, 'a file was exempted from the provider endpoint rule')
 

@@ -83,3 +83,12 @@ export type {
 
 export { SCOPE_FOR_KIND, resolveVersionedLayers } from "./layer-bridge"
 export type { VersionedResolveResult } from "./layer-bridge"
+
+export {
+  CONFIG_DOMAINS,
+  domainOf,
+  getDomain,
+  refusedByDomain,
+  validateDomains,
+} from "./domains"
+export type { ConfigDomain, DomainProblem, DomainRefusal } from "./domains"

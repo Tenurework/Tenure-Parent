@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "24b224f",
+  "commit": "e9986e2",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 59,
-    "done": 47,
+    "total": 60,
+    "done": 49,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -437,8 +437,15 @@
           },
           {
             "id": "GE-020-005",
-            "done": false,
+            "done": true,
             "title": "Consolidate duplicate person/member/role/approval/audit/ finance sources into migration plans; do not delete historical data blindly.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-031-002",
+            "done": true,
+            "title": "Configuration domains for identity, organization/seats, permissions, modules, entities/fields/forms, workflows, reports, connectors, Relay, localization, deployment, recovery, observability and cost.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }
@@ -644,7 +651,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 10,
+      "files": 11,
       "what": "repository and deployment invariants"
     },
     {
@@ -659,7 +666,7 @@
     },
     {
       "name": "end to end",
-      "files": 35,
+      "files": 36,
       "what": "real browser"
     }
   ]

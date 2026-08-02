@@ -101,10 +101,34 @@ node tools/loop/next-batch.mjs --json    # same, machine-readable
 node tools/loop/batch-gate.mjs           # everything CI runs; exit 1 = do not push
 ```
 
-`next-batch.mjs` derives the queue from the execution prompt and the ledger, so
-the answer is a property of the repository. It knows about the two shapes the
-ledger uses — a single item and a `GE-010-002 … 007` range — and it treats
-`PASS`, `BLOCKED_EXTERNAL` and `NOT_APPLICABLE` as decided.
+`next-batch.mjs` derives the queue from the requirement documents and the
+ledger, so the answer is a property of the repository. It knows about the two
+shapes the ledger uses — a single item and a `GE-010-002 … 007` range — and it
+treats `PASS`, `BLOCKED_EXTERNAL` and `NOT_APPLICABLE` as decided.
+
+### The authority, as of 2026-08-02
+
+```
+docs/implementation/Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v2.0.md   GE-*   (658)
+docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md                 EXT-*  (186)
+docs/architecture/Tenure_Global_System_Architecture_Bible_v1.0.md                    target design
+```
+
+**844 items in one queue, not two.** v2.0 requires a single traceable
+verification system and forbids duplicating requirements into divergent
+documents; a second queue would be exactly that, and it would be the one nobody
+ran. The ledger records `GE-*` and `EXT-*` decisions in the same file for the
+same reason.
+
+**v2.0 supersedes the v1.1 execution prompt and invalidated nothing.** Every one
+of v1.1's 534 GE ids survives into v2.0's 658 — verified by set difference, not
+assumed — so the decisions already in the ledger still stand. 141 GE items are
+new. v1.1 stays in the repository as the record of what the first sixty
+decisions were made against.
+
+**Where the Bible and the extension disagree**, v2.0 §"Mandatory document
+ingestion" governs: stop only the conflicting scope, write an ADR quoting both
+exact clauses, keep the stricter invariant, and carry on with everything else.
 
 `batch-gate.mjs` refuses on the first failure and reports what the step
 protects, so the failure is actionable without opening the script. It also fails

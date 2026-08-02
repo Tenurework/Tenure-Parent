@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 
 import "./globals.css"
 import { Nav } from "@/components/Nav"
+import { ThemeToggle } from "@/components/ThemeToggle"
+import { NO_FLASH_SCRIPT } from "@/lib/theme"
 
 export const metadata: Metadata = {
   title: "Tenure System Studio",
@@ -11,11 +13,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
+        {/*
+          First child of <body>, not inside <head>: the App Router does not
+          render an arbitrary <script> placed in <head> — it was silently
+          dropped from the served HTML, which is a flash nobody would have
+          traced back to here. Parsed and executed before any content below it,
+          so the attribute is set before the first paint either way.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
         <header className="masthead">
           <span className="mark">Tenure</span>
           <span className="title">System Studio</span>
+          <ThemeToggle />
           <span className="internal">Internal</span>
         </header>
         <Nav />

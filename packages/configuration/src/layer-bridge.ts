@@ -1,4 +1,5 @@
 import type { ConfigRegistry } from "./definition"
+import { refusedByDomain, type DomainRefusal } from "./domains"
 import {
   orderLayers,
   type LayerKind,
@@ -81,6 +82,17 @@ export interface VersionedResolveResult extends ResolveResult {
    * and only one of those is a bug.
    */
   unmapped: readonly { kind: LayerKind; id: string }[]
+  /**
+   * Keys a layer was not permitted to set, because its kind may not write that
+   * domain (GE-031-002).
+   *
+   * Separate from `refused`, which is the platform-invariant case. Both strip
+   * the value; they are reported apart because the answers to "why did my
+   * change not apply" differ — one is "an invariant pins that key", the other is
+   * "your layer has no authority over that whole namespace", and an operator
+   * acts on them differently.
+   */
+  domainRefused: readonly DomainRefusal[]
 }
 
 /**
@@ -98,6 +110,12 @@ export function resolveVersionedLayers(
 ): VersionedResolveResult {
   const { ordered, skipped, refused } = orderLayers(layers, at)
 
+  // Domain authority is checked against the layers that are actually going to
+  // be applied, not against everything handed in. A layer outside its effective
+  // interval is already skipped, and reporting a refusal for a key that was
+  // never going to apply would send an operator to fix the wrong thing.
+  const domainRefused = refusedByDomain(ordered)
+
   const unmapped: { kind: LayerKind; id: string }[] = []
   const configLayers: ConfigLayer[] = []
 
@@ -109,17 +127,20 @@ export function resolveVersionedLayers(
     }
     // Invariant keys are stripped from later layers rather than left to
     // overwrite. `refused` already records that it happened; dropping the value
-    // here is what makes the refusal true rather than advisory.
-    const pinnedForThisLayer = new Set(refused.filter((r) => r.id === layer.id).map((r) => r.key))
+    // here is what makes the refusal true rather than advisory. Domain refusals
+    // are stripped in the same pass and for the same reason — an access-control
+    // decision that leaves the value in place has not decided anything.
+    const stripped = new Set([
+      ...refused.filter((r) => r.id === layer.id).map((r) => r.key),
+      ...domainRefused.filter((r) => r.id === layer.id).map((r) => r.key),
+    ])
     const values =
-      pinnedForThisLayer.size === 0
+      stripped.size === 0
         ? layer.values
-        : Object.fromEntries(
-            Object.entries(layer.values).filter(([key]) => !pinnedForThisLayer.has(key)),
-          )
+        : Object.fromEntries(Object.entries(layer.values).filter(([key]) => !stripped.has(key)))
 
     configLayers.push({ scope, id: layer.id, label: layer.label, values })
   }
 
-  return { ...resolveConfig(registry, configLayers, options), skipped, refused, unmapped }
+  return { ...resolveConfig(registry, configLayers, options), skipped, refused, unmapped, domainRefused }
 }

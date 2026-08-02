@@ -9,6 +9,11 @@ describe("each system carries its own identity", () => {
       primaryColor: "#198052",
       primaryTextColor: "#ffffff",
       wordmark: "Tenure",
+      // Added with the Studio's dark mode. `toEqual` is exact on purpose — a
+      // new field in a tenant's resolved branding should have to be
+      // acknowledged here rather than appearing silently, which is what caught
+      // this.
+      colorScheme: "system",
     })
   })
 
@@ -77,6 +82,7 @@ describe("branding reaches the page as CSS, and cannot escape it", () => {
       primaryColor: "red; } * { display: none } :root {",
       primaryTextColor: "#000000",
       wordmark: "X",
+      colorScheme: "system",
     })
     expect(css).not.toContain("display: none")
     expect(css).not.toContain("red")
@@ -84,7 +90,7 @@ describe("branding reaches the page as CSS, and cannot escape it", () => {
 
   it("keeps the wordmark out of CSS entirely", () => {
     // It is rendered as text, never as markup and never as a CSS value.
-    const css = brandingCss({ primaryColor: "#123456", primaryTextColor: "#ffffff", wordmark: "</style><script>" })
+    const css = brandingCss({ primaryColor: "#123456", primaryTextColor: "#ffffff", wordmark: "</style><script>", colorScheme: "system" })
     expect(css).not.toContain("script")
     expect(css).not.toContain("style")
   })

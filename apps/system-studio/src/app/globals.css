@@ -32,6 +32,37 @@
   color-scheme: light;
 }
 
+/*
+ * ── Dark ───────────────────────────────────────────────────────────────────
+ *
+ * The same discipline inverted, not a different design. Warm-shifted and
+ * desaturated, and still neither pure black nor pure white: #23211e rather than
+ * #000, and the light theme's own #f2f0ed as the text.
+ *
+ * Every pair here was measured rather than eyeballed, and the e2e suite
+ * measures them again on the rendered page — a token can be correct and still
+ * be overridden by a rule nobody remembered. Lowest is muted-on-surface at
+ * 5.26:1, against a 4.5:1 requirement (WCAG 2.2 AA, 1.4.3).
+ *
+ * The status tints are lightened rather than reused. The light theme's #4c6350
+ * on this background is 2.4:1 — legible on paper-coloured surfaces and not on
+ * these, which is the trap in reusing one accent set across both.
+ */
+:root[data-theme="dark"] {
+  --bg: #23211e;
+  --surface: #2b2825;
+  --surface-2: #1c1a17;
+  --border: #3d3934;
+  --border-strong: #55504a;
+  --text: #f2f0ed;
+  --muted: #a09a92;
+  --accent: #b99a63;
+  --ok: #8fae95;
+  --warn: #c4a86a;
+  --bad: #c58f8a;
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -59,8 +90,40 @@ body {
 .masthead .title {
   color: var(--muted);
 }
-.masthead .internal {
+/*
+ * The toggle takes the flexible space, so it and the Internal badge sit
+ * together at the right rather than being pushed apart by two `auto` margins
+ * splitting the gap between them.
+ */
+.masthead .theme-toggle {
   margin-left: auto;
+  font: inherit;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.1rem 0.55rem;
+  cursor: pointer;
+  /* 24px tall including the border. WCAG 2.2 2.5.8 asks for 24x24 CSS pixels,
+     and a control that is only as tall as its 11px text is a miss on a laptop
+     trackpad long before it is an accessibility finding. */
+  min-height: 24px;
+  min-width: 64px;
+}
+.masthead .theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.masthead .theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.masthead .internal {
+  margin-left: 0.6rem;
   color: var(--accent);
   border: 1px solid var(--accent);
   border-radius: 3px;

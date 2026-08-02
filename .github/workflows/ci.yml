@@ -267,6 +267,18 @@ jobs:
         working-directory: apps/web
         run: npx prisma generate && npm run test:isolation
 
+      # GE-020-005. The report a human runs before signing a consolidation
+      # migration — six facts this schema stores twice, and how far apart the
+      # copies have drifted on the database in front of them.
+      #
+      # Run here for one reason: an instrument nobody exercises is broken by the
+      # time it is needed, and the moment it is needed is the moment before a
+      # migration that deletes something. It is read-only and exits 0 whether or
+      # not it finds a blocker, so this step reports and does not gate.
+      - name: Duplicate-source divergence report
+        working-directory: apps/web
+        run: node scripts/duplicate-source-report.mjs >> "$GITHUB_STEP_SUMMARY"
+
   # ── Headless e2e: real Postgres, seeded data, production build ─────────────
   e2e:
     name: E2E · Playwright
