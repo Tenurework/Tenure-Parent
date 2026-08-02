@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "bc606ff",
+  "commit": "c7a858c",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 82,
-    "done": 71,
+    "total": 83,
+    "done": 72,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -602,6 +602,13 @@
             "title": "Implement immediate access invalidation on membership suspension, identity connection disable, session revoke, assignment end, or authorization revision change.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-041-001",
+            "done": true,
+            "title": "Create provider-independent interfaces and isolate Cognito SDK/types in adapter/infrastructure layers.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -616,7 +623,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 85,
+    "decided": 86,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -742,7 +749,7 @@
         "source": "GE",
         "items": 5,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-042: Browser/API authentication",
@@ -1967,7 +1974,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 17,
+      "files": 18,
       "what": "repository and deployment invariants"
     },
     {

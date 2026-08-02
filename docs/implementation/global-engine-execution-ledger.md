@@ -3878,3 +3878,89 @@ worth less than three items that hold.
     the question an operator asks immediately after suspending somebody — *what
     did that just do?* — and it returning an empty list would not grant anybody
     anything. Enforcement is `evaluateSession`, on every request.
+
+### GE-041: Cognito infrastructure
+
+- [x] **GE-041-001** — Create provider-independent interfaces and isolate Cognito SDK/types in adapter/infrastructure layers.
+  - Status: PASS
+  - Code: `packages/identity/src/provider.ts`
+  - Tests: `packages/identity/src/provider.test.ts` (9),
+    `tests/security/provider-independence.test.mjs` (5 guards)
+  - Evidence: 1787/1787 apps/web unit across 80 suites, 126/126 platform guards,
+    type-check clean. **8 mutations, 8 caught**, plus three re-proofs after the
+    guard was corrected.
+
+  Bible §9.1 divides the work — "Amazon Cognito authenticates and federates.
+  Tenure resolves the person, tenant membership, identity connection, active
+  assignments, policies, and session" — and §"Cells" states the consequence:
+  "region, pool, database, bucket, search index, issuer, callback, KMS key, and
+  service endpoint are never globally hard-coded in business modules."
+
+  `IdentityProvider` is that seam. Nothing in it is an AWS concept: no user
+  pool, no app client, no tokens. It returns an `IdentityAssertion` — the type
+  GE-040-002 already defined — so a provider's proof of who somebody is stops at
+  the boundary and Tenure decides what it means.
+
+  **The honest test of a seam is a second implementation**, so `provider.test.ts`
+  implements the port with a SAML provider that touches no AWS concept and
+  drives Tenure's own `resolveAssertion` through it end to end. If that could
+  not be written without an SDK, the port would be wrong.
+
+  **The guard is what is load-bearing today, and that is the point of writing it
+  now.** There is no Cognito adapter — the AWS Organization does not exist — so
+  the rule holds at zero violations and costs nothing. It is expensive to
+  retrofit: GE-041-002 through GE-041-005 add pool strategies, provisioning, MFA
+  and recovery, and each is an opportunity for a `UserPoolId` to reach a page.
+  Once it has, every caller carries Cognito's shape and the sharded/tenant/
+  dedicated-pool strategies become a rewrite rather than a configuration change.
+  The adapter directories are named in advance so the guard does not need
+  editing — and therefore reconsidering — on the day somebody is writing the
+  adapter.
+
+  What it forbids is the provider's *implementation surface*: its SDK, and
+  identifiers only its API has. It does not forbid the word "Cognito". The
+  registry's `COGNITO_LOCAL` connection kind is Tenure's own vocabulary for a
+  provider family, and the Studio's platform page counts Cognito user pools
+  because that is what the AWS inventory contains. Naming what you integrate
+  with is not coupling.
+
+  **A provider's opinion about groups is not authority.** Bible: authority comes
+  from "an active, scoped assignment or explicit delegation, not from a title
+  string, email domain, Cognito group, or UI state". `withoutIgnoredClaims`
+  strips them, and a guard refuses any authorization module that reads
+  `claims.groups`. The failure this prevents is not somebody deciding groups
+  should be authoritative — it is somebody reading the claim because it is right
+  there in the token and saves a query.
+
+  **The guard flagged its own test file, and the fix was the guard.**
+  `provider.test.ts` necessarily writes `cognito:groups` in order to assert that
+  it is stripped. Use versus mention — the same distinction that has now caught
+  four guards in this repository. Test files are excluded from the *vocabulary*
+  check only; the SDK-import check still applies to them, because a test that
+  imports a provider SDK is a real dependency on it whatever it is asserting.
+  Re-proven: an SDK import from a `.test.ts` file is still caught.
+
+  **A three-time flake fixed at the root.** `operator-plane-content.test.mjs`
+  writes a probe file into the Studio's source tree to prove its own grep
+  matches something, then deletes it. `test:platform` runs guards in parallel,
+  so every guard that enumerates files and then reads them has raced it,
+  producing an `ENOENT` that looks exactly like a real guard failure. It cost
+  three separate debugging sessions. The four guards written this session now
+  treat a vanished file as empty — which is correct regardless, since any
+  untracked file can disappear between `git ls-files` and `readFileSync`.
+
+  **Honest limits.**
+
+  * **There is no adapter.** `IdentityProvider` has one implementation and it is
+    a SAML fake in a test file. That is deliberate — building a Cognito adapter
+    against an AWS Organization that does not exist would be the speculative
+    package this repository forbids — but it means this item delivers a
+    contract and its enforcement, not a working provider. GE-041-002 onwards are
+    BLOCKED_EXTERNAL on the same AWS Organization as GE-010 and GE-GATE-1.
+  * **`apps/web` still authenticates through NextAuth** with Okta and dev-login,
+    neither of which goes through this port. Migrating them is not free and is
+    not this item: it is the cutover that GE-041-004 and the Simon absorption
+    plan together.
+  * The port's optional SCIM methods (`readAccount`, `disableAccount`) are
+    optional because not every connection supports provisioning. Nothing
+    currently calls them.
