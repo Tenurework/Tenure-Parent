@@ -180,6 +180,36 @@ Verify it the way the deploy does:
 docker run --rm -v "//c/Users/satvi/Tenure-Parent://w" -w //w node:22-alpine   sh -c "npm ci --ignore-scripts --dry-run"
 ```
 
+**Never type a control character into source. Write the escape, and fix it at
+the byte level.** A NUL or a newline typed into a string literal — a map-key
+separator, a header-splitting test fixture — lands as a raw byte. The code
+works, every test passes, and `git diff`, `grep` and code review all stop
+working on the file because git treats it as binary. `no-binary-source` catches
+it at the gate, which is late.
+
+This has now happened **five times** here: `integrity.ts`, `rejections.ts`,
+`keying.ts`, a ledger entry describing the `keying.ts` fix, and
+`authorization-request.test.ts`. Two of those were mutation runs failing to
+*apply*, which looks exactly like a guard that works.
+
+The fix must be byte-level. A text-mode read/modify/write round trip
+re-encodes the escape back into a raw byte and reports success — it did that
+twice before I stopped trying:
+
+```python
+d = open(path, "rb").read()
+BS = bytes([92])
+for b in list(range(0, 9)) + [11, 12] + list(range(14, 32)) + [127]:
+    d = d.replace(bytes([b]), BS + ("u%04X" % b).encode("ascii"))
+open(path, "wb").write(d)
+```
+
+**Backslashes do not survive bash → python argv.** A mutation anchored on
+`/^\/[/\]/` will report ANCHOR MISSING however it is quoted. Locate the
+edit by index (`s.index(...)`, `s.rindex(...)`) and splice, or build the
+replacement from `chr(92)`. An anchor that never matches reports the mutation
+as surviving, which is indistinguishable from a test that does not catch it.
+
 **Never write a commit message with Python's `open("/tmp/...")`.** Git Bash's
 `/tmp` and Windows' `C:	mp` are different directories, and Python resolves the
 POSIX-looking path to the Windows one. The script reports success, `git commit -F

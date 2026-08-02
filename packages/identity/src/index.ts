@@ -185,3 +185,24 @@ export {
   type RateLimitState,
   type SafeBranding,
 } from "./discovery"
+
+export {
+  CHALLENGE_METHOD,
+  SAFE_CALLBACK_MESSAGE,
+  VERIFIER_MAX_LENGTH,
+  VERIFIER_MIN_LENGTH,
+  beginAuthorization,
+  bindCallback,
+  validateReturnPath,
+  validateVerifier,
+  type AuthorizationRequest,
+  type AuthorizationTransaction,
+  type BeginInput,
+  type BeginOutcome,
+  type CallbackInput,
+  type CallbackOutcome,
+  type CallbackRefusal,
+  type ReturnPathRefusal,
+  type ReturnPathVerdict,
+  type Sha256Base64Url,
+} from "./authorization-request"

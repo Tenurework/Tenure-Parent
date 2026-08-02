@@ -4359,3 +4359,92 @@ worth less than three items that hold.
   * Branding is assumed already contrast-checked. The resolver returns colours
     it is given and does not verify the pair — that check lives with the
     configuration engine's branding domain, which owns those keys.
+
+- [x] **GE-042-002** — Implement Authorization Code + PKCE, state, nonce, single-use transaction, validated relative return path, and expected connection binding.
+  - Status: PASS
+  - Code: `packages/identity/src/authorization-request.ts`
+  - Tests: `packages/identity/src/authorization-request.test.ts` (34)
+  - Evidence: 1918/1918 apps/web unit across 85 suites, type-check clean.
+    **16 mutations, 16 caught** — after the first run exposed three real gaps.
+
+  Bible §9.1: "Web authentication uses Authorization Code + PKCE and a
+  backend-for-frontend session… Every callback validates state, nonce, PKCE,
+  issuer, signature, time, token use, client/audience, scopes, connection,
+  return path, and single use."
+
+  This is the half that happens *before* the redirect. A callback can only
+  verify what the request committed to, which is why the transaction is the unit
+  rather than a bag of loose parameters.
+
+  **Three values, three jobs, and sharing them collapses the protection.**
+  `state` binds the callback to this browser's request; `nonce` binds the
+  eventual ID token to it and is checked *inside* the signed token, which state
+  cannot do because it never enters one; the PKCE verifier proves the party
+  redeeming the code started it. Generating one random value and using it for
+  all three is the simplification somebody makes while tidying, and it removes
+  two of the three protections — so `beginAuthorization` refuses it.
+
+  **S256, never `plain`.** RFC 7636 permits `plain`, where the challenge *is*
+  the verifier, which defends against nothing: anyone who can intercept the
+  authorization request can read it. `CHALLENGE_METHOD` is a constant and there
+  is no parameter to change it. The verifier stays in the transaction and never
+  reaches the request — asserted, because sending it would make PKCE a
+  formality.
+
+  **The return path is where open redirects actually ship.** It is a denylist of
+  shapes rather than a URL parse, because the browser's parser is the one that
+  matters and it is more forgiving than any library: `//evil.example` is
+  protocol-relative and looks like a path; `/\evil.example` is the same attack
+  wearing a character browsers normalise; `javascript:alert(1)` is missed
+  entirely by a check that looks for `://`; and `..` is a *segment*, not a
+  substring — rejecting `/report..pdf` would be a guard firing on correct input,
+  which is how guards get removed.
+
+  **Single-use, expiry and connection binding, checked in that order.**
+  Consumed and expired come before the state comparison so a spent transaction
+  cannot be used to grind at `state`, and the comparison itself is constant-time
+  (`digestsEqual`) because it is a secret compared against attacker-supplied
+  input. Connection binding matters because a tenant with two connections would
+  otherwise let an assertion minted by the weaker one satisfy a request that
+  chose the stronger. Every refusal returns one message; the causes stay
+  distinct in the `reason` for the log.
+
+  **Three real gaps the mutation run found.**
+
+  * **Skipping the decode survived.** Every encoded fixture I had —
+    `%2F%2Fevil.example` — is rejected either way, because it does not start
+    with a slash. The case that needs the decode is `/%2F%2Fevil.example`, which
+    *does* start with a slash and without decoding passes every check and
+    redirects off-site. Added, along with `/%5C…` and `/%2e%2e/`.
+  * **Moving the expiry check below the state comparison survived**, because the
+    ordering test used a *consumed* transaction and never reached expiry. An
+    expired transaction has to be an equally poor oracle; now asserted
+    separately.
+  * **Replacing `digestsEqual` with `!==` survived**, and always will from a
+    unit test — timing is not observable there. Asserted on the compiled source
+    instead: `digestsEqual` must appear and a direct comparison of the two
+    secrets must not.
+
+  A fourth was my own fixture: the fake SHA-256 returned `s256(${input})`, and
+  the assertion that the verifier never reaches the request caught it correctly.
+  A fake hash containing its input is not a hash, and using one would have made
+  that assertion untestable while looking like it passed.
+
+  **Honest limits.**
+
+  * **Nothing calls `beginAuthorization`.** `apps/web` signs in through NextAuth,
+    which runs its own PKCE for Okta and none for dev-login. This is the
+    transaction the Cognito cutover will use, and every rule GE-042-003 checks
+    is now committed to somewhere it can be verified against. Wiring it is
+    GE-041-003's cutover, BLOCKED_EXTERNAL.
+  * **The transaction has no store.** `AuthorizationTransaction` is returned for
+    the caller to persist; nothing does, so single-use is enforceable but not
+    yet enforced. Same persistence gap recorded under GE-040-001.
+  * **Hashing and randomness are injected**, not implemented: `node:crypto` here
+    would drag into any browser bundle importing this package, and
+    `packages/platform-config` already records that lesson twice. This module
+    owns the rules — S256 only, 43–128 unreserved characters, three distinct
+    values — and validates what it is handed.
+  * `validateReturnPath` decodes exactly once. A caller that decodes again
+    before using the value re-opens the hole, which is a property of the caller
+    this function cannot check.

@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "4ec82fa",
+  "commit": "9974ecc",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 88,
-    "done": 76,
+    "total": 89,
+    "done": 77,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -644,6 +644,13 @@
             "title": "Implement tenant/login discovery with safe branding/methods, opaque transaction, rate limiting, and enumeration resistance.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-042-002",
+            "done": true,
+            "title": "Implement Authorization Code + PKCE, state, nonce, single-use transaction, validated relative return path, and expected connection binding.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -658,7 +665,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 91,
+    "decided": 92,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -791,7 +798,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "GE · GE-043: Enterprise federation and lifecycle",
