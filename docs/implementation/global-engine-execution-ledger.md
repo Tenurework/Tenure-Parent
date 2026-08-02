@@ -2967,3 +2967,61 @@ worth less than three items that hold.
     table would misreport the requirement. There is still no tenant-admin
     identity — this enforces what such an identity would be refused, and
     GE-033's identity work is what creates one to refuse.
+
+- [x] **GE-032-003** — Preview, validation errors, dependency graph,
+  impact/cost, test fixture results, approval, schedule, publish, history,
+  compare and rollback UX.
+  - Status: PASS
+  - Code: `apps/system-studio/src/lib/revisions.ts` (compare, summarise,
+    dependency graph, blast radius), `rollback` and `activationFrom` in the
+    configuration actions, `RollbackControls.tsx`, history/comparison/graph
+    sections on the configuration page, schedule and fixture-result rendering
+    in `ConfigurationEditor`
+  - Tests: `e2e/revisions-logic.spec.ts` — 15 cases. Studio **150 passed,
+    3 skipped** with layout geometry; `apps/web` **1545/1545**; 88 guards.
+  - Five of the eleven already existed from GE-032-001/002 — preview,
+    validation errors, impact, approval and publish. This adds the other six:
+    dependency graph, fixture results, schedule, history, compare, rollback.
+  - **Rolling back publishes forward.** A rollback republishes the target
+    revision's values as a NEW revision and never rewinds the history: the
+    record of what was live has to survive the decision to stop living with it,
+    or an incident review asking "what was the configuration at 14:20" gets a
+    confident wrong answer. The control says so before it is pressed — "roll
+    back to 3" reads as though 3 becomes live again, and an operator who
+    believes that will look for 3 at the top of the list and not find it.
+  - A rollback goes through `planPublication` and `commit` like any other
+    change, so four-eyes, the invariants and the immutability check all apply.
+    A rollback that skipped review would be the one change nobody looked at,
+    which is a poor property for the change made under pressure.
+  - Its layers cannot be reused verbatim: their versions are already published,
+    and `commit` refuses a version that now says something different — which,
+    after later edits, they would. The values are republished under a new
+    version instead.
+  - **Compare works on resolved values, not layers.** Two different layer stacks
+    can resolve to the same configuration; an operator comparing revisions asks
+    what the system does differently, and `provenance` answers how the answer
+    was assembled. Key order is normalised, so a value reserialised by a
+    different writer does not read as a change.
+  - The dependency graph is **text, not a canvas**. A drawn graph has no
+    keyboard path, no screen-reader description, no selectable labels and
+    nothing the layout suite can measure; Bible §26.4 requires an equivalent
+    non-pointer path for every graph view, and at this size the accessible
+    rendering is simply the better one. Each module shows what it depends on and
+    what disabling it would break — transitively, because a list that stopped at
+    direct dependants would under-report exactly when the blast radius matters.
+  - A past activation instant is **passed through, not clamped**.
+    `planPublication` refuses it with a reason; silently moving it to now would
+    publish something the operator did not ask for.
+  - Proven by mutation, **4 of 4 caught**: comparing with raw equality so key
+    order reads as a change FAILS; blast radius stopping at direct dependants
+    FAILS; roots and leaves swapped FAILS; `rollbackTo` defaulting to 0 rather
+    than null in the summary FAILS.
+  - Honest limits: **compare is fixed to the last two revisions** — the
+    comparison logic takes any pair, and there is no picker, so "compare 2 with
+    7" needs one. Fixture results render whatever the plan carries and the
+    editor passes **no fixtures**, so the section is empty until GE-032-004 or a
+    later item supplies them; the rendering is wired so it appears the moment
+    they exist rather than being added later and forgotten. Cost is still keys
+    and named modules, not currency (GE-042). The blast-radius walk terminates
+    on a cyclic catalogue — asserted — but the graph itself is not drawn in
+    dependency order.

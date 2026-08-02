@@ -81,6 +81,12 @@ export function ConfigurationEditor({
       </div>
 
       <div className="field">
+        <label htmlFor="activateAt">Take effect</label>
+        <input id="activateAt" name="activateAt" type="datetime-local" />
+        <p className="hint">Empty means now. A past instant is refused rather than quietly moved to now.</p>
+      </div>
+
+      <div className="field">
         <label htmlFor="approvedBy">Approved by</label>
         <input id="approvedBy" name="approvedBy" type="email" placeholder="a second operator" required />
         <p className="hint">Must not be you. An approval by the author is not a second pair of eyes.</p>
@@ -148,6 +154,23 @@ export function ConfigurationEditor({
               rollback to <b>{reviewed.plan.rollbackTo ?? "nothing — this is the first"}</b>
             </span>
           </div>
+
+          {reviewed.plan.simulations.length > 0 && (
+            <>
+              <h4>Fixture results</h4>
+              <table className="grid">
+                <tbody>
+                  {reviewed.plan.simulations.map((sim) => (
+                    <tr key={sim.fixture}>
+                      <td className="id">{sim.fixture}</td>
+                      <td className="slug">{sim.checksum ?? "did not resolve"}</td>
+                      <td className="slug">{sim.problems.join("; ")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
 
           {reviewed.plan.lint.length > 0 && (
             <>

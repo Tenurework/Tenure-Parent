@@ -115,11 +115,17 @@ appending an entry after staging produces a real, material diff (not the
 tolerated commit-line-only one) and the gate correctly fails. The order that
 works:
 
+The `generate` between them is not optional, and leaving it out is what has
+actually failed: the gate runs `npm run generate` as its FIRST step, so a
+regeneration triggered by the ledger append lands unstaged and the gate rejects
+its own output. Generate before staging and the gate's own run is a no-op.
+
 ```bash
 cat entry.md >> docs/implementation/global-engine-execution-ledger.md
+npm run generate                 # the ledger append changed the item counts
 git add -A
 node tools/loop/batch-gate.mjs > /tmp/gate.out || { tail -20 /tmp/gate.out; exit 1; }
-git add -A && git commit -F message.txt && git push origin main
+git commit -F message.txt && git push origin main
 ```
 
 ---

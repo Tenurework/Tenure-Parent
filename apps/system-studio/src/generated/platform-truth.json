@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "3dd104f",
+  "commit": "832a745",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 70,
-    "done": 59,
+    "total": 71,
+    "done": 60,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -518,6 +518,13 @@
             "title": "Enforce entitlements and immutable platform invariants; tenant admins cannot alter physical placement, operator access, audit integrity, core schemas, or unrestricted code execution.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-032-003",
+            "done": true,
+            "title": "Preview, validation errors, dependency graph, impact/cost, test fixture results, approval, schedule, publish, history, compare and rollback UX.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -736,7 +743,7 @@
     },
     {
       "name": "end to end",
-      "files": 41,
+      "files": 42,
       "what": "real browser"
     }
   ]

@@ -31,6 +31,20 @@ import { editableDomains, parseField } from "@/lib/editable-config"
 
 const store = new DynamoConfigStore()
 
+/**
+ * When the change takes effect (GE-032-003).
+ *
+ * Empty means now. A past instant is passed through unchanged rather than
+ * clamped, because `planPublication` refuses it with a reason and silently
+ * moving it to now would publish something the operator did not ask for.
+ */
+function activationFrom(form: FormData): Date {
+  const raw = String(form.get("activateAt") ?? "").trim()
+  if (!raw) return new Date()
+  const parsed = new Date(raw)
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed
+}
+
 export interface ReviewResult {
   plan?: PublicationPlan
   layer?: VersionedLayer
@@ -104,7 +118,7 @@ export async function review(_prev: ReviewResult | null, form: FormData): Promis
       publishedBy,
       // Immediate. A scheduled activation is a separate control, and defaulting
       // to one would hide that this takes effect now.
-      activateAt: new Date(),
+      activateAt: activationFrom(form),
       now: new Date(),
       // GE-032-002. Without these the entitlement check never runs and a plan
       // can enable a module the contract does not cover — a console showing a
@@ -147,7 +161,7 @@ export async function publish(_prev: PublishResult | null, form: FormData): Prom
       current: latest ? { values: latest.values, revision: latest.revision } : null,
       proposed: [layer],
       publishedBy,
-      activateAt: new Date(),
+      activateAt: activationFrom(form),
       now: new Date(),
       modules: MODULES.map((m) => ({ key: m.key, dependsOn: m.dependsOn, entitlement: m.requiresEntitlement })),
       enabledModules: [],
@@ -169,6 +183,108 @@ export async function publish(_prev: PublishResult | null, form: FormData): Prom
 
     const resolved = resolveVersionedLayers(REGISTRY, [layer], new Date(), { collectProblems: true })
     if (!resolved.config) return { error: "The proposed configuration does not resolve." }
+
+    const record = await commit({
+      store,
+      tenantId: slug,
+      plan,
+      layers: [layer],
+      values: resolved.config.values,
+      checksum: resolved.config.checksum,
+      publishedBy,
+      publishedAt: new Date(),
+    })
+
+    revalidatePath(`/tenants/${slug}/configuration`)
+    return { revision: record.revision }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+export interface RollbackResult {
+  revision?: number
+  error?: string
+}
+
+/**
+ * GE-032-003 — roll back by publishing forward.
+ *
+ * The target revision's layers are republished as a NEW revision. History is
+ * never rewound: the record of what was live has to survive the decision to
+ * stop living with it, or an incident review asking "what was the configuration
+ * at 14:20" gets a confident wrong answer.
+ *
+ * It goes through `planPublication` and `commit` like any other change, so the
+ * four-eyes check, the invariants and the immutability check all apply. A
+ * rollback is a publication, and treating it as a special case that skips them
+ * is how the one change nobody reviewed becomes the one that breaks things.
+ */
+export async function rollback(_prev: RollbackResult | null, form: FormData): Promise<RollbackResult> {
+  try {
+    const publishedBy = await requireOperator()
+    const slug = String(form.get("slug") ?? "")
+    const to = Number(form.get("toRevision"))
+    const approvedBy = String(form.get("approvedBy") ?? "").trim()
+    if (!approvedBy) return { error: "A rollback needs an approver, like any other publication." }
+    if (!Number.isInteger(to)) return { error: "No revision to roll back to." }
+
+    const history = await store.history(slug)
+    const target = history.find((r) => r.revision === to)
+    if (!target) return { error: `Revision ${to} is not in this tenant's history.` }
+
+    const latest = history[history.length - 1]
+    if (latest.revision === to) return { error: `Revision ${to} is already live.` }
+
+    // The target's values, republished under a new layer version. Its own
+    // layers cannot be reused verbatim: their versions are already published,
+    // and `commit` refuses a version that says something different — which,
+    // after later edits, this would.
+    const layer: VersionedLayer = {
+      kind: "tenantOverlay",
+      id: slug,
+      label: `${slug} overlay`,
+      values: target.layers.flatMap((l) => Object.entries(l.values)).reduce<Record<string, unknown>>(
+        (acc, [k, v]) => ({ ...acc, [k]: v }),
+        {},
+      ),
+      metadata: {
+        version: latest.revision + 1,
+        schemaVersion: "1.0.0",
+        signer: `operator:${approvedBy}`,
+        origin: "system-studio/rollback",
+        compatibility: { minEngine: "2026.7.0", maxEngine: null },
+        effectiveFrom: new Date().toISOString(),
+        effectiveUntil: null,
+        changeReason: `Roll back to revision ${to}.`,
+        approvedBy,
+      },
+    }
+
+    const plan = planPublication({
+      registry: REGISTRY,
+      current: { values: latest.values, revision: latest.revision },
+      proposed: [layer],
+      publishedBy,
+      activateAt: activationFrom(form),
+      now: new Date(),
+      modules: MODULES.map((m) => ({ key: m.key, dependsOn: m.dependsOn, entitlement: m.requiresEntitlement })),
+      enabledModules: [],
+      entitlements: [],
+    })
+
+    if (plan.blocked) {
+      return {
+        error: [
+          ...plan.blockers,
+          ...plan.violations.map((v) => v.detail),
+          ...plan.rejections.map((r) => r.detail),
+        ].join(" "),
+      }
+    }
+
+    const resolved = resolveVersionedLayers(REGISTRY, [layer], new Date(), { collectProblems: true })
+    if (!resolved.config) return { error: "The rolled-back configuration does not resolve." }
 
     const record = await commit({
       store,
