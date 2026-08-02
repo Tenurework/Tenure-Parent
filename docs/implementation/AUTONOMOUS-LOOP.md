@@ -91,6 +91,26 @@ builds on it.
 whose marker has drifted, proves nothing — and looks identical to a guard that
 works. Record it and re-anchor.
 
+Two further things a mutation can mean, and both have happened:
+
+- **The test was weak, not the code.** Three items running, a mutation found a
+  defective assertion rather than a defective implementation — a rank test that
+  never exercised rank, a four-eyes check whose lint copy nothing asserted, a
+  simulation test that never reached the `catch`. The fix is the test.
+- **The mutant is equivalent.** In GE-031-007, recomputing `rollbackTo` as
+  `revision - 1` is provably the same value as the plan's, given the stale-plan
+  invariant. Unkillable because the code is the same function. Say so; do not
+  invent an assertion to make a number look better.
+
+**Never pipe a gate into `tail`.** A pipeline's exit status is the LAST
+command's, so `node tools/loop/batch-gate.mjs | tail -2` always succeeds and
+`&& git push` runs regardless of the verdict. This has now masked a failing
+gate once and a failing `terraform fmt` once. Redirect and check instead:
+
+```bash
+node tools/loop/batch-gate.mjs > /tmp/gate.out 2>&1; echo "exit=$?"; tail -2 /tmp/gate.out
+```
+
 ---
 
 ## The scripts
