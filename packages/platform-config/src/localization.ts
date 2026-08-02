@@ -1,6 +1,9 @@
 import { z } from "zod"
 import { defineConfig, type ConfigDefinition } from "@tenure/configuration"
 
+import type { BusinessCalendar } from "./business-calendar"
+import type { TextDirection } from "./direction"
+
 /**
  * Locale, currency and calendar, as configuration rather than as literals.
  *
@@ -106,11 +109,52 @@ export const fiscalYearStartMonth = defineConfig({
     "Month the fiscal year opens. 7 = July, which is the academic year most universities budget on.",
 })
 
+export const workingDays = defineConfig({
+  key: "platform.localization.workingDays",
+  owner: "platform",
+  type: z
+    .array(z.number().int().min(0).max(6))
+    .min(1, "an institution that works no days has no deadlines")
+    .max(7)
+    .refine((days) => new Set(days).size === days.length, {
+      message: "each day may appear once",
+    }),
+  default: [1, 2, 3, 4, 5],
+  // Not a user preference: it decides whether a deadline has passed, which has
+  // to be the same answer for the person waiting and the person approving.
+  allowedScopes: ["blueprint", "tenant", "legalEntity"],
+  mergeStrategy: "replace",
+  sensitivity: "public",
+  overridable: true,
+  description:
+    "Days the institution works, 0 = Sunday. A list, because a four-day week and a Friday–Saturday weekend are both real.",
+})
+
+export const holidays = defineConfig({
+  key: "platform.localization.holidays",
+  owner: "platform",
+  type: z
+    .array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD"))
+    .max(400, "more closures than days in a year"),
+  default: [],
+  allowedScopes: ["blueprint", "tenant", "legalEntity"],
+  // `replace`, not a merge: a tenant that states its closures means those and
+  // not those plus whatever a blueprint listed. Merging would silently keep a
+  // holiday somebody deliberately removed.
+  mergeStrategy: "replace",
+  sensitivity: "public",
+  overridable: true,
+  description:
+    "Dates the institution is closed, YYYY-MM-DD. Plain dates, because a closure is a date rather than an instant.",
+})
+
 export const LOCALIZATION_DEFINITIONS: readonly ConfigDefinition[] = [
   locale,
   currency,
   firstDayOfWeek,
   fiscalYearStartMonth,
+  workingDays,
+  holidays,
 ] as ConfigDefinition[]
 
 export interface Localization {
@@ -118,6 +162,13 @@ export interface Localization {
   currency: string
   firstDayOfWeek: number
   fiscalYearStartMonth: number
+  /**
+   * Derived from `locale`, never configured — see `direction.ts`. Present on
+   * the resolved object so no caller has to remember to compute it, and so
+   * there is one answer rather than one per call site.
+   */
+  direction: TextDirection
+  businessCalendar: BusinessCalendar
 }
 
 /**
@@ -137,3 +188,20 @@ export interface Localization {
  * client components.
  */
 export { formatMoney, DEFAULT_MONEY_FORMAT, type MoneyFormat } from "./money"
+
+/**
+ * Same shape as the money formatter above: pure, dependency-free modules that a
+ * client component can import without pulling `node:crypto` in behind them.
+ */
+export {
+  textDirectionFor,
+  type TextDirection,
+} from "./direction"
+export {
+  DEFAULT_BUSINESS_CALENDAR,
+  addBusinessDays,
+  businessDaysBetween,
+  dateKey,
+  isWorkingDay,
+  type BusinessCalendar,
+} from "./business-calendar"

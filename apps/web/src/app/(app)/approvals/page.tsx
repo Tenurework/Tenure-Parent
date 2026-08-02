@@ -8,6 +8,7 @@ import { withTenantScope } from "@/lib/tenant-scope"
 import { Card } from "@/components/ui/Card"
 import { ApprovalBadge } from "@/components/ui/Badge"
 import { approvalSla, slaColor } from "@/lib/approvals-sla"
+import { documentLocalization } from "@/lib/tenancy/locale-cookie"
 
 export const dynamic = "force-dynamic"
 
@@ -57,6 +58,9 @@ export default async function ApprovalsPage() {
 
     const canCreate = ctx.orgRoles.some((r) => r.status === "ACTIVE")
     const now = new Date()
+    // The institution's own working days and closures, not Mon–Fri by
+    // assumption (GE-022-004).
+    const { businessCalendar } = await documentLocalization()
 
     return (
       <div className="w-full">
@@ -88,7 +92,7 @@ export default async function ApprovalsPage() {
           <Card padding="none">
             <ul className="divide-y divide-border">
               {approvals.map((a) => {
-                const sla = approvalSla(a.status, a.updatedAt, now)
+                const sla = approvalSla(a.status, a.updatedAt, now, businessCalendar)
                 return (
                   <li key={a.id}>
                     <Link

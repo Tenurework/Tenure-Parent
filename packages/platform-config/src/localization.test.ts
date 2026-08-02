@@ -1,6 +1,6 @@
 import { resolveConfig } from "@tenure/configuration"
 
-import { formatMoney } from "./index"
+import { businessDaysBetween, formatMoney } from "./index"
 import { REGISTRY, layersFor, localizationFor } from "./index"
 
 describe("two systems, two sets of conventions, one code path", () => {
@@ -11,6 +11,9 @@ describe("two systems, two sets of conventions, one code path", () => {
       currency: "USD",
       firstDayOfWeek: 0,
       fiscalYearStartMonth: 7,
+      // Derived, never configured — see direction.ts.
+      direction: "ltr",
+      businessCalendar: { workingDays: [1, 2, 3, 4, 5], holidays: [] },
     })
   })
 
@@ -23,7 +26,42 @@ describe("two systems, two sets of conventions, one code path", () => {
       currency: "GBP",
       firstDayOfWeek: 1,
       fiscalYearStartMonth: 4,
+      // Derived, never configured — see direction.ts.
+      direction: "ltr",
+      businessCalendar: { workingDays: [1, 2, 3, 4, 5], holidays: [] },
     })
+  })
+
+  it("gives the Gulf fixture a right-to-left document and a Sunday–Thursday week", () => {
+    // GE-022-004. Both real bindings are English, Monday-to-Friday and
+    // left-to-right, so every localization claim the engine makes would
+    // otherwise be true by accident. This is the binding that can fail.
+    const l = localizationFor("fixture-rtl")
+    expect(l.locale).toBe("ar-AE")
+    expect(l.currency).toBe("AED")
+    // Derived from the locale, not configured — nobody can set Arabic to ltr.
+    expect(l.direction).toBe("rtl")
+    expect(l.businessCalendar.workingDays).toEqual([0, 1, 2, 3, 4])
+    expect(l.businessCalendar.holidays).toEqual(["2026-12-02", "2026-12-03"])
+  })
+
+  it("counts a deadline on the fixture's week, not on the pilot's", () => {
+    // Over a whole week the two agree — both work five days — so the span has
+    // to end inside one weekend and not the other for the difference to show.
+    // Friday 2026-08-07 to Sunday 2026-08-09 does: nothing ages for the pilot,
+    // whose weekend that is, and Sunday is a working day for the fixture.
+    const friday = new Date("2026-08-07T09:00:00Z")
+    const sunday = new Date("2026-08-09T09:00:00Z")
+    expect(businessDaysBetween(friday, sunday, localizationFor("rochester").businessCalendar)).toBe(0)
+    expect(businessDaysBetween(friday, sunday, localizationFor("fixture-rtl").businessCalendar)).toBe(1)
+
+    // And across the fixture's own closures. Tuesday 2026-12-01 to Sunday the
+    // 6th is Wed/Thu/Fri for the pilot; for the fixture, Wednesday and Thursday
+    // are closed and Friday and Saturday are its weekend, leaving Sunday alone.
+    const dec1 = new Date("2026-12-01T09:00:00Z")
+    const dec6 = new Date("2026-12-06T09:00:00Z")
+    expect(businessDaysBetween(dec1, dec6, localizationFor("rochester").businessCalendar)).toBe(3)
+    expect(businessDaysBetween(dec1, dec6, localizationFor("fixture-rtl").businessCalendar)).toBe(1)
   })
 
   it("falls back to platform defaults for an unbound institution", () => {
@@ -32,6 +70,9 @@ describe("two systems, two sets of conventions, one code path", () => {
       currency: "USD",
       firstDayOfWeek: 0,
       fiscalYearStartMonth: 7,
+      // Derived, never configured — see direction.ts.
+      direction: "ltr",
+      businessCalendar: { workingDays: [1, 2, 3, 4, 5], holidays: [] },
     })
   })
 })

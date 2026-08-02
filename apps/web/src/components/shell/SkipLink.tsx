@@ -17,7 +17,7 @@ export function SkipLink() {
       className="
         sr-only
         focus:not-sr-only
-        focus:fixed focus:left-3 focus:top-3 focus:z-[100]
+        focus:fixed focus:start-3 focus:top-3 focus:z-[100]
         focus:rounded-md focus:border focus:border-border-control
         focus:bg-surface focus:px-4 focus:py-2
         focus:text-sm focus:font-semibold focus:text-text-1

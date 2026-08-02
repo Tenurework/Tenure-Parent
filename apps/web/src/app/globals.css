@@ -292,6 +292,14 @@
       visibility: hidden;
     }
 
+    /* `transform` has no logical form — translateX(-100%) is left in every
+       direction. Under dir="rtl" the nav is anchored to the right by `start-0`,
+       so parking it off-canvas means moving it the other way; without this it
+       slides across the page instead of off it. */
+    [dir="rtl"] nav[aria-label="Primary navigation"] {
+      transform: translateX(100%);
+    }
+
     html.nav-open nav[aria-label="Primary navigation"] {
       transform: translateX(0);
       visibility: visible;

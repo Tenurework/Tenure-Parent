@@ -21,7 +21,7 @@ export function MainRegion({ children }: { children: React.ReactNode }) {
       className={`min-h-screen bg-base outline-none transition-[padding] duration-200 ease-out ${open ? "lg:pr-[26rem]" : ""}`}
       style={{
         paddingTop: "var(--shell-height)",
-        paddingLeft: "var(--sidenav-current-width)",
+        paddingInlineStart: "var(--sidenav-current-width)",
         paddingBottom: "var(--footer-height)",
       }}
     >

@@ -10,8 +10,23 @@
 export { PLATFORM_DEFINITIONS } from "./definitions"
 export { BRANDING_DEFINITIONS, brandingCss } from "./branding"
 export type { Branding } from "./branding"
-export { LOCALIZATION_DEFINITIONS, formatMoney, DEFAULT_MONEY_FORMAT } from "./localization"
-export type { Localization, MoneyFormat } from "./localization"
+export {
+  LOCALIZATION_DEFINITIONS,
+  formatMoney,
+  DEFAULT_MONEY_FORMAT,
+  textDirectionFor,
+  DEFAULT_BUSINESS_CALENDAR,
+  addBusinessDays,
+  businessDaysBetween,
+  dateKey,
+  isWorkingDay,
+} from "./localization"
+export type {
+  Localization,
+  MoneyFormat,
+  TextDirection,
+  BusinessCalendar,
+} from "./localization"
 
 export {
   FLAG_DEFINITIONS,

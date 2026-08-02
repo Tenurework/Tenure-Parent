@@ -6,6 +6,7 @@ import { withTenantScope } from "@/lib/tenant-scope"
 import { availableActions, ACTION_LABELS } from "@/lib/approvals"
 import { formatCents } from "@/lib/finance"
 import { approvalSla, slaColor } from "@/lib/approvals-sla"
+import { documentLocalization } from "@/lib/tenancy/locale-cookie"
 import { effectiveApprovalContext } from "@/lib/delegation"
 import Link from "next/link"
 import { Card, CardHeader, Attribute } from "@/components/ui/Card"
@@ -58,6 +59,8 @@ export default async function ApprovalDetailPage({
         ? delegators[0]
         : null
     const actWithId = actOnApproval.bind(null, approval.id)
+    // The institution's own working days and closures (GE-022-004).
+    const { businessCalendar } = await documentLocalization()
 
     const actorIds = [
       ...new Set([approval.submittedById, ...approval.steps.map((s) => s.actorId)]),
@@ -98,7 +101,7 @@ export default async function ApprovalDetailPage({
             <h1 className="text-text-1">{approval.title}</h1>
             <p className="text-sm text-text-2 mt-1">{approval.organization.name}</p>
             {(() => {
-              const sla = approvalSla(approval.status, approval.updatedAt)
+              const sla = approvalSla(approval.status, approval.updatedAt, new Date(), businessCalendar)
               if (sla.level === "none") return null
               return (
                 <p

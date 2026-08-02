@@ -65,6 +65,34 @@ export const TENANT_BINDINGS: readonly TenantBinding[] = [
       "platform.terminology.staffOfficeShortName": "MPO",
     },
   },
+  {
+    // A fixture, like `midtown-arts` and for the same reason — not a customer,
+    // and deliberately not seeded into any database.
+    //
+    // Both real bindings are English, Monday-to-Friday and left-to-right, so
+    // every localization claim the engine makes is currently true by accident.
+    // This one is written in a right-to-left script, works Sunday to Thursday,
+    // and closes on dates neither other tenant observes. It exists so that
+    // "the engine handles a locale and a working week that are not the pilot's"
+    // is a statement a test can FAIL rather than one a comment asserts
+    // (GE-022-004).
+    slug: "fixture-rtl",
+    blueprintId: "nonprofit-program-operations",
+    displayName: "Right-to-left conventions fixture",
+    entitlements: [],
+    values: {
+      "platform.localization.locale": "ar-AE",
+      "platform.localization.currency": "AED",
+      "platform.localization.firstDayOfWeek": 6,
+      // Friday and Saturday are the weekend across much of the Gulf. This is
+      // not a rotation of Monday-to-Friday, which is why `workingDays` is a
+      // list rather than an index.
+      "platform.localization.workingDays": [0, 1, 2, 3, 4],
+      "platform.localization.holidays": ["2026-12-02", "2026-12-03"],
+      "platform.terminology.staffOfficeName": "Programme Office",
+      "platform.terminology.staffOfficeShortName": "PO",
+    },
+  },
 ]
 
 const BY_SLUG = new Map(TENANT_BINDINGS.map((t) => [t.slug, t]))

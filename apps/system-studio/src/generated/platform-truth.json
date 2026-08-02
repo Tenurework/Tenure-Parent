@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "64aabfe",
+  "commit": "b1b14ba",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 41,
-    "done": 34,
+    "total": 43,
+    "done": 35,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -281,7 +281,7 @@
           {
             "id": "GE-GATE-2",
             "done": false,
-            "title": "Status: FAIL — GE-020 and GE-021 complete (12 of 17); GE-022 is 3 of 5 (001 shell + switching proof, 002 dense-ERP states, 003 WCAG 2.2 AA + responsive). 004 (localization) and 005 (flags/kill switches) remain.",
+            "title": "Status: FAIL — GE-020 and GE-021 complete (12 of 17); GE-022 is 4 of 5 (001 shell + switching proof, 002 dense-ERP states, 003 WCAG 2.2 AA + responsive, 004 localization + RTL + business calendar). 005 (flags / kill switches) remains.",
             "phase": "Phase 2 — Monorepo boundaries and common runtime",
             "isGate": true
           },
@@ -303,6 +303,20 @@
             "id": "GE-022-003",
             "done": true,
             "title": "Responsive PWA and WCAG 2.2 AA engineering targets for keyboard, focus, semantics, reflow, contrast, status/error announcements, reduced motion, captions, and screen readers.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
+            "id": "GE-022-004",
+            "done": true,
+            "title": "Localization infrastructure for BCP 47 language, IANA time zone, locale formats, currencies, fiscal/business calendars, RTL, and tenant terminology.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
+            "id": "GE-022-005",
+            "done": false,
+            "title": "Status: FAIL — not started.",
             "phase": "Phase 2 — Monorepo boundaries and common runtime",
             "isGate": false
           }
@@ -523,7 +537,7 @@
     },
     {
       "name": "end to end",
-      "files": 33,
+      "files": 34,
       "what": "real browser"
     }
   ]

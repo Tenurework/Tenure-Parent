@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { Inter, Plus_Jakarta_Sans } from "next/font/google"
+import { documentLocalization } from "@/lib/tenancy/locale-cookie"
 import "./globals.css"
 
 const inter = Inter({
@@ -44,13 +45,22 @@ export const viewport: Viewport = {
 // <html> before first paint.
 const themeInit = `(function(){try{var t=localStorage.getItem("tenure-theme")||"system";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d);var n=localStorage.getItem("tenure-nav");document.documentElement.classList.toggle("nav-collapsed",n==="collapsed")}catch(e){}})()`
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // The tenant's language and direction, resolved before first paint. Correcting
+  // them afterwards would flash the whole page the wrong way round for a
+  // right-to-left reader, and `<html>` cannot be set from a nested layout.
+  const { locale: lang, direction: dir } = await documentLocalization()
   return (
-    <html lang="en" className={`${inter.variable} ${displayFace.variable}`} suppressHydrationWarning>
+    <html
+      lang={lang}
+      dir={dir}
+      className={`${inter.variable} ${displayFace.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>

@@ -190,7 +190,7 @@ export function SideNav({ sections }: SideNavProps) {
   return (
     <nav
       id="primary-navigation"
-      className="fixed left-0 z-40 flex w-sidenav-current flex-col border-r border-border bg-[--shell-bg] transition-[width] duration-200 ease-out"
+      className="fixed start-0 z-40 flex w-sidenav-current flex-col border-e border-border bg-[--shell-bg] transition-[width] duration-200 ease-out"
       style={{ top: "var(--shell-height)", bottom: "var(--footer-height)" }}
       aria-label="Primary navigation"
     >

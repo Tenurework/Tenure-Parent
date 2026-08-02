@@ -857,9 +857,9 @@ for progress:
 ## GE-GATE-2
 
 - [ ] **GE-GATE-2** — Status: FAIL — GE-020 and GE-021 complete (12 of 17);
-  GE-022 is 3 of 5 (001 shell + switching proof, 002 dense-ERP states,
-  003 WCAG 2.2 AA + responsive). 004 (localization) and 005 (flags/kill
-  switches) remain.
+  GE-022 is 4 of 5 (001 shell + switching proof, 002 dense-ERP states,
+  003 WCAG 2.2 AA + responsive, 004 localization + RTL + business calendar).
+  005 (flags / kill switches) remains.
 
 ## GE-022: Common UX/runtime
 
@@ -1036,5 +1036,87 @@ for progress:
     Installability was already met, so the work here was the responsive and
     assistive-technology half of the item.
 
-- [ ] **GE-022-004 … 005** — Status: FAIL — not started.
+- [x] **GE-022-004** — Localization infrastructure for BCP 47 language, IANA
+  time zone, locale formats, currencies, fiscal/business calendars, RTL, and
+  tenant terminology.
+  - Status: PASS
+  - Already existed and is cited rather than re-claimed: **BCP 47 language**
+    (`localization.ts`, validated by asking `Intl` rather than by a regex that
+    would be wrong about some real tag), **currency** (ISO 4217, with
+    `money.ts` reading each currency's minor-unit exponent — JPY has none, KWD
+    has three, and a hardcoded divide-by-100 is a hundredfold error either
+    way), **fiscal year start**, **first day of week**, **IANA time zone**
+    (`Institution.timeZone` + `institution-time.ts`), and **tenant
+    terminology** (`definitions.ts`).
+  - New here: **RTL**, the **business calendar**, and the wiring that makes any
+    of it reach a page.
+  - Code: `packages/platform-config/src/direction.ts`,
+    `packages/platform-config/src/business-calendar.ts`,
+    `apps/web/src/lib/tenancy/locale-cookie.ts`, plus `blueprints/index.ts`
+  - Tests: `direction.test.ts`, `business-calendar.test.ts`, updated
+    `localization.test.ts` and `approvals-sla.test.ts`, and
+    `e2e/localization.spec.ts`. Full e2e **152/152** on a recreated database.
+
+  **RTL.** There was no `dir` anywhere in the product and `<html lang="en">`
+  was a literal, so every tenant declared English to every screen reader
+  regardless of configuration — a WCAG 3.1.1 failure no amount of correct
+  configuration would have fixed. Direction is now **derived, never
+  configured**: there is deliberately no `platform.localization.direction` key,
+  because a setting that let an administrator disagree with the writing system
+  would only ever be used to get it wrong. It is computed from the script, not
+  the language — `az-Arab` is right-to-left and `az-Latn` is not, and any list
+  of "RTL languages" gets that pair wrong whichever way it is written.
+  - The shell's frame moved to logical properties (`start-0`, `border-e`,
+    `padding-inline-start`) so a right-to-left reader does not get a
+    left-to-right layout with the words turned round. `transform` has no
+    logical form, so the off-canvas drawer needs an explicit `[dir="rtl"]`
+    rule — without it the nav slides across the page instead of off it.
+
+  **Business calendar.** `approvals-sla.ts` carried a comment saying
+  calendar-day counting was "a documented follow-on". It was also a live
+  defect: a request submitted Friday afternoon was two days old on Sunday and
+  flagged for attention on Monday morning, before anyone could have looked at
+  it. The SLA was measuring the weekend. `workingDays` is a **list** rather
+  than a "weekend starts here" index because Friday–Saturday is not a rotation
+  of Monday–Friday, and `holidays` are plain `YYYY-MM-DD` dates rather than
+  instants, because a closure is a date and storing an instant lands it on the
+  wrong day for half the users.
+
+  **The wiring, which is where the first attempt was wrong.** The document's
+  language is resolved in the root layout, because `<html>` cannot be set from
+  a nested layout and correcting it after paint would flash the whole page the
+  wrong way round. The first version read a slug cookie written on tenant
+  switch — and the e2e caught that this leaves every user who has never
+  switched, i.e. most of them, rendering `lang="en"` forever. It now falls back
+  to one indexed database lookup, with the cookie as a cache. Reading a cookie
+  at all is safe for one reason: it decides **nothing** — a forged value
+  changes date formatting and text direction and cannot reach a row, which
+  `tenant-switching.itest.ts` covers from the other side.
+
+  **A fixture that can fail.** Both real bindings are English, Monday-to-Friday
+  and left-to-right, so every localization claim the engine makes was true by
+  accident. `blueprints/index.ts` gains `fixture-rtl` — the same device as the
+  existing `midtown-arts` fixture and labelled as one — written right-to-left,
+  working Sunday to Thursday, closing on dates neither other tenant observes.
+  The e2e drives a real page to it and asserts `lang`, `dir`, the *computed*
+  direction, and that the nav has moved to the other side.
+
+  - Proven by mutation, 9 of 9 caught. **Two initially survived**, and the
+    reason is the useful part: this runtime has
+    `Intl.Locale.prototype.getTextInfo()`, so the script-table fallback never
+    ran and no test touched it — replacing the table with a list of "RTL
+    languages" and deleting the `maximize()` call both left the suite green.
+    The fallback exists precisely for runtimes *without* the standard API,
+    which is exactly where a silent wrong answer goes unnoticed. It is now
+    exported and tested directly rather than through the function that shadows
+    it.
+  - Honest limits: the shell is direction-aware, **page-level content is not
+    audited for physical properties** — a full logical-property sweep of every
+    page is a larger change than this item and is not claimed. The RTL fixture
+    is a registry binding with no database row, so the e2e reaches it through
+    the presentation cookie rather than a real tenant switch. And no shipped
+    tenant is right-to-left today; what is proven is that the engine would
+    render one correctly.
+
+- [ ] **GE-022-005** — Status: FAIL — not started.
 

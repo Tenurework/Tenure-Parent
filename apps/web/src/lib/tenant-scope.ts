@@ -9,6 +9,7 @@ import {
   TenantContextError,
   type TenantScope,
 } from "@/lib/tenancy/context"
+import { ACTING_TENANT_SLUG_COOKIE, LOCALE_COOKIE_OPTIONS } from "@/lib/tenancy/locale-cookie"
 
 /**
  * Where a request acquires its tenant.
@@ -261,6 +262,12 @@ export async function chooseActingInstitution(
     secure: process.env.NODE_ENV === "production",
     maxAge: CHOICE_MAX_AGE_SECONDS,
   })
+
+  // The slug beside the id, for the root layout's `lang` and `dir` (GE-022-004).
+  // Written here, from `chosen`, so it can only ever name a tenant this user was
+  // just proved to be a member of. It still decides nothing — see
+  // `lib/tenancy/locale-cookie.ts` for why a forged value is harmless.
+  jar.set(ACTING_TENANT_SLUG_COOKIE, chosen.slug, LOCALE_COOKIE_OPTIONS)
 
   return chosen
 }

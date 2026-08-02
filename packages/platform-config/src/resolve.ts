@@ -9,6 +9,7 @@ import { getBlueprint, getTenantBinding } from "@tenure/blueprints"
 import { PLATFORM_DEFINITIONS } from "./definitions"
 import type { Branding } from "./branding"
 import type { Localization } from "./localization"
+import { textDirectionFor } from "./direction"
 
 /**
  * The effective configuration for one institution.
@@ -106,6 +107,12 @@ export function localizationFor(institutionSlug: string): Localization {
     currency: config.get<string>("platform.localization.currency"),
     firstDayOfWeek: config.get<number>("platform.localization.firstDayOfWeek"),
     fiscalYearStartMonth: config.get<number>("platform.localization.fiscalYearStartMonth"),
+    // Derived here rather than stored, so it cannot disagree with the locale.
+    direction: textDirectionFor(config.get<string>("platform.localization.locale")),
+    businessCalendar: {
+      workingDays: config.get<number[]>("platform.localization.workingDays"),
+      holidays: config.get<string[]>("platform.localization.holidays"),
+    },
   }
 }
 
