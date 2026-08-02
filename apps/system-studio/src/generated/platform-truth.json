@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "9c96a62",
+  "commit": "bc606ff",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 81,
-    "done": 70,
+    "total": 82,
+    "done": 71,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -595,6 +595,13 @@
             "title": "Implement high-assurance link/unlink, collision handling, merge review, and deny unlinking the last recovery path.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-040-005",
+            "done": true,
+            "title": "Implement immediate access invalidation on membership suspension, identity connection disable, session revoke, assignment end, or authorization revision change.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -609,7 +616,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 84,
+    "decided": 85,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -728,7 +735,7 @@
         "source": "GE",
         "items": 5,
         "gates": 0,
-        "done": 4
+        "done": 5
       },
       {
         "phase": "GE · GE-041: Cognito infrastructure",
@@ -1960,7 +1967,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 16,
+      "files": 17,
       "what": "repository and deployment invariants"
     },
     {

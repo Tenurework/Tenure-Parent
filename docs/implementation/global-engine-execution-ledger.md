@@ -3794,3 +3794,87 @@ worth less than three items that hold.
     because the record is kept. Following the pointer everywhere is a data
     migration with a reconciliation step, and it belongs with the Simon
     absorption where duplicate people will actually be found.
+
+- [x] **GE-040-005** — Implement immediate access invalidation on membership suspension, identity connection disable, session revoke, assignment end, or authorization revision change.
+  - Status: PASS
+  - Code: `packages/identity/src/invalidation.ts`
+  - Tests: `packages/identity/src/invalidation.test.ts` (19),
+    `tests/security/authority-is-not-cached.test.mjs` (5 guards)
+  - Evidence: 1778/1778 apps/web unit across 79 suites, 67/67 integration
+    against real Postgres, type-check clean. **13 mutations, 13 caught on the
+    first pass.**
+
+  Five triggers, and only one is a clock event. The other four are somebody
+  *deciding* something, which is why "immediate" is the hard word in the
+  requirement: a session minted an hour ago carries a snapshot of authority that
+  was true when it was minted, and every one of these makes that snapshot wrong
+  while the token itself stays perfectly valid.
+
+  **The mechanism is re-evaluation, not a revocation list.** There is no
+  allowlist, no cache to invalidate and no fan-out to publish. `evaluateSession`
+  recomputes from current state on every ask, and the whole of "immediate" falls
+  out of that: a membership suspended at 14:03 stops granting at 14:03 because
+  the 14:04 request asks again. A revocation list is where this usually goes
+  wrong, because it has to be *published* to be true — whatever publishes it is
+  a job, a queue or a TTL, and the window in which it has not published is
+  exactly the window somebody is trying to use.
+
+  **The five triggers do not all mean the same thing.** Collapsing them would be
+  wrong in both directions:
+
+  * A revoked session, a suspended membership, a disabled connection and an
+    unlinked credential all mean *this person cannot act here at all* →
+    `valid: false`, with the trigger named. A revocation is never reported as an
+    expiry, because somebody did that and an operator reading the log needs to
+    know which.
+  * An **ended assignment** means one seat's authority is gone while the person
+    remains a legitimate member. Signing them out would be punishing them for a
+    term ending on schedule → the session survives, `staleAuthority` is set.
+  * An **authorization revision change** means the snapshot is stale, not that
+    anything was taken away. Killing every session on every policy edit would be
+    hostile and would make operators reluctant to edit policy → re-resolve, do
+    not sign out. Any difference counts, not merely a newer revision: a rollback
+    is a change too.
+
+  An assignment that ended *before* the session was issued is not news, and
+  reporting it would make every session of a former treasurer permanently
+  "stale" — a flag that is always on is one nobody reads.
+
+  **What makes it immediate in the running application is not in the engine.**
+  `getUserContext` uses React's `cache()`, scoped to a single render pass, so
+  authority is recomputed per request rather than held between them. No unit
+  test can see that property, so `authority-is-not-cached.test.mjs` asserts it:
+  no authority module may keep a module-level store it writes to, none may carry
+  a TTL, `getUserContext` must stay wrapped in React's `cache`, and the liveness
+  engines must keep taking an instant rather than reading a stored `isActive`.
+
+  The tempting regression is specific and it is why the guard exists:
+  `getUserContext` runs several times per request, so memoising it in a
+  module-level `Map` keyed by user id looks free. It converts all five triggers
+  from immediate into "immediate, once the cache expires".
+
+  **The guard's first version flagged two immutable lookup constants** —
+  `new Set(["ACTIVE"])` — as caches. A guard that fires on correct code gets an
+  exemption list rather than a fix, so it now tests whether the store is
+  *written to* after construction, and a test asserts the detector itself can
+  tell a lookup table from a cache. Its failure mode is silence: a regex that
+  matches nothing reports every file as clean.
+
+  **Honest limits.**
+
+  * **`evaluateSession` has no caller.** `AuthSession` is not persisted (the
+    same gap recorded under GE-040-001 — only `TenantMembership` has storage),
+    and `apps/web` sessions are NextAuth's, which carry no
+    `authorizationRevision`. The five rules are specified and proven; the
+    session store they will run against arrives with GE-041.
+  * **What *is* live is the per-request property**, and it is now guarded rather
+    than incidental. Membership suspension and assignment end already invalidate
+    immediately in the running application, because `getUserContext` re-reads
+    both on every request through `liveMembershipWhere()` (GE-040-001) and
+    `seatState` (GE-040-003). Connection disable, session revoke and revision
+    change do not, because none of those exists yet to disable, revoke or
+    change.
+  * **`sessionsEndedBy` is a reporting function, not enforcement.** It answers
+    the question an operator asks immediately after suspending somebody — *what
+    did that just do?* — and it returning an empty list would not grant anybody
+    anything. Enforcement is `evaluateSession`, on every request.

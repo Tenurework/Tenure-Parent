@@ -105,3 +105,13 @@ export {
   type UnlinkRefusal,
   type UnlinkRequest,
 } from "./linking"
+
+export {
+  evaluateSession,
+  sessionsEndedBy,
+  type InvalidationTrigger,
+  type SessionContext,
+  type SessionEvaluation,
+  type SessionInvalid,
+  type SessionValid,
+} from "./invalidation"
