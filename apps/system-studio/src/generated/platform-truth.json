@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "f499957",
+  "commit": "76357c0",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 69,
-    "done": 58,
+    "total": 70,
+    "done": 59,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -509,6 +509,13 @@
             "id": "GE-032-001",
             "done": true,
             "title": "Guarded tenant-admin editors for organization types/graph, seats, terminology, roles/policies, delegations, forms/fields, workflows, reports, automations, branding, locale, connectors, retention and Relay policy.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-032-002",
+            "done": true,
+            "title": "Enforce entitlements and immutable platform invariants; tenant admins cannot alter physical placement, operator access, audit integrity, core schemas, or unrestricted code execution.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }

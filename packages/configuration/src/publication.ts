@@ -2,6 +2,7 @@ import type { ConfigRegistry } from "./definition"
 import { resolveVersionedLayers } from "./layer-bridge"
 import type { VersionedLayer } from "./layer-schema"
 import { stableStringify } from "./merge"
+import { authorityViolations, type AuthorityViolation } from "./authority"
 import { allRejections, type ModuleLike, type Rejection } from "./rejections"
 import type { ConfigDiffEntry } from "./version"
 
@@ -218,6 +219,15 @@ export interface PublicationPlan {
   blocked: boolean
   blockers: readonly string[]
   rejections: readonly Rejection[]
+  /**
+   * Platform invariants a tenant-authored change may not touch (GE-032-002).
+   *
+   * Separate from `rejections` because the answer differs: a rejection is
+   * "this configuration is wrong", a violation is "this is not yours to
+   * change". Both block, and an operator needs to know which they are looking
+   * at before deciding whether to fix it or to ask.
+   */
+  violations: readonly AuthorityViolation[]
   lint: readonly LintFinding[]
   diff: readonly ConfigDiffEntry[]
   humanDiff: string
@@ -250,6 +260,18 @@ export function planPublication(input: PublicationInput): PublicationPlan {
   } = input
 
   const rejections = allRejections({ layers: proposed, modules, enabledModules, entitlements })
+
+  // GE-032-002. Without this the domain refusal happened at RESOLUTION: the
+  // value was stripped, the plan showed no blockers, and the change published
+  // cleanly and quietly did nothing. An operator who submits a residency change
+  // and sees it accepted has been told their data moved.
+  const violations = authorityViolations({
+    layers: proposed,
+    knownKeys: new Set(registry.keys()),
+    enabledModules,
+    entitlements,
+    moduleEntitlements: Object.fromEntries(modules.map((m) => [m.key, m.entitlement])),
+  })
   const lintFindings = lint(proposed, registry, publishedBy)
 
   const blockers: string[] = []
@@ -315,9 +337,10 @@ export function planPublication(input: PublicationInput): PublicationPlan {
     // Rejections and blockers only. Lint is absent from this expression on
     // purpose, and `publication.test.ts` asserts that a lint-heavy proposal
     // with no rejections is publishable.
-    blocked: rejections.length > 0 || blockers.length > 0,
+    blocked: rejections.length > 0 || blockers.length > 0 || violations.length > 0,
     blockers,
     rejections,
+    violations,
     lint: lintFindings,
     diff,
     humanDiff: renderDiff(diff),

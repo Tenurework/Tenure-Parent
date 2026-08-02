@@ -133,3 +133,6 @@ export type { Fixture, Impact, LintFinding, PublicationInput, PublicationPlan, S
 
 export { ConfigStoreError, InMemoryConfigStore, commit, rollbackTarget } from "./store"
 export type { CommitInput, ConfigRecord, ConfigStore } from "./store"
+
+export { INVARIANT_DOMAINS, authorityViolations, tenantAdminMayWrite } from "./authority"
+export type { AuthorityInput, AuthorityViolation, Invariant } from "./authority"

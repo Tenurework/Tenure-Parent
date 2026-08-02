@@ -2904,3 +2904,66 @@ worth less than three items that hold.
     in the Studio**, not tenant-admin-facing in the tenant app: enforcing
     entitlements and invariants for a real tenant administrator is GE-032-002,
     and no tenant-admin identity exists yet to hold the permission.
+
+- [x] **GE-032-002** — Enforce entitlements and immutable platform invariants;
+  tenant admins cannot alter physical placement, operator access, audit
+  integrity, core schemas, or unrestricted code execution.
+  - Status: PASS
+  - Code: `packages/configuration/src/authority.ts`, `violations` on
+    `PublicationPlan`, entitlements wired into the Studio's editor actions,
+    violations surfaced in `ConfigurationEditor`
+  - Tests: `authority.test.ts` — 17 cases. Configuration **249/249**;
+    `apps/web` **1545/1545**; 88 platform guards; Studio **135 passed,
+    3 skipped** with layout geometry.
+  - **The hole this closes is one the previous item left open.** `domains.ts`
+    already refused a `tenantOverlay` writing the `deployment` domain — at
+    RESOLUTION, by stripping the value and reporting it in `domainRefused`. But
+    `planPublication` never looked at `domainRefused`, so a change carrying
+    `platform.deployment.region` produced a plan with **no blockers**, published
+    cleanly, and then quietly did nothing. An operator who submits a residency
+    change, sees it accepted and gets no error has been told their data moved.
+    It did not. Silently discarding half a submission is worse than refusing all
+    of it.
+  - The five invariants are **named, not inferred**. `INVARIANT_DOMAINS` maps
+    `deployment → physical-placement`, `identity → operator-access`,
+    `observability → audit-integrity`; a key with no definition is
+    `core-schemas`, because a tenant that can define a configuration key can
+    define its own meaning for a value the platform later reads; and a value
+    containing an expression is `unrestricted-code-execution`, because the
+    expression language exists (GE-031-005) and is deliberately not reachable
+    from tenant values — an evaluated value is one nobody has bounded.
+  - Authority is decided by layer **kind**, not by who is typing. A
+    `tenantOverlay` is tenant-scoped configuration whoever authored it, so an
+    operator hand-writing one is refused identically. That also means the check
+    holds for an API caller, an import, or a future tenant-admin surface without
+    any of them being anticipated here.
+  - `violations` is separate from `rejections` on the plan and shown first in
+    the editor, labelled. "This configuration is wrong" and "this is not yours
+    to change" need different answers, and an operator should know which they
+    are looking at before deciding whether to fix it or to ask.
+  - Every violation is reported, not the first: an operator who fixes one,
+    resubmits and is told about the next has lost a cycle to a list that was
+    already known.
+  - **Entitlements now actually run.** The editor never passed `modules` or
+    `entitlements`, so `unentitledFeatures` had nothing to check. The module
+    catalogue is passed at both plan sites — `requiresEntitlement`, not
+    `entitlement`, which the type checker caught — so the check is live the
+    moment the editor gains a module-enablement surface rather than being wired
+    later and forgotten.
+  - Proven by mutation, **6 of 6 caught**: the withheld-domain scan removed
+    FAILS 5 tests (placement, operator access, audit integrity all at once);
+    unknown keys accepted FAILS; expressions accepted FAILS; the expression scan
+    stopping at the top level FAILS; the entitlement check removed FAILS; and
+    the plan no longer blocking on violations FAILS — that last one is the
+    original hole, and it is now the thing a test would notice.
+  - Honest limits: `entitlements` is passed as `[]` because nothing yet resolves
+    a tenant's contract into a list at this point — `entitlementsFor` exists in
+    `@tenure/provisioning` and needs the tenant's plan and contract, which the
+    editor does not load. The check is therefore live and always passes today;
+    it is wired so that it starts mattering when the contract is threaded
+    through, and that thread is GE-042's. `recovery` and `cost` are withheld
+    domains covered by the catch-all `withheld-domain` rather than by a named
+    invariant, because the item names five and inventing a sixth to tidy the
+    table would misreport the requirement. There is still no tenant-admin
+    identity — this enforces what such an identity would be refused, and
+    GE-033's identity work is what creates one to refuse.

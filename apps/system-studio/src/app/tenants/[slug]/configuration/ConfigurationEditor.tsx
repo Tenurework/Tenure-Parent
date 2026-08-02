@@ -114,6 +114,15 @@ export function ConfigurationEditor({
             <div className="state state-bad" data-state="blocked">
               <p className="state-label">Blocked</p>
               <div className="state-body">
+                {/* Violations first and labelled. "This is not yours to change"
+                    is a different answer from "this configuration is wrong",
+                    and an operator needs to know which before deciding whether
+                    to fix it or to ask (GE-032-002). */}
+                {reviewed.plan.violations.map((v) => (
+                  <p key={`${v.invariant}-${v.key ?? v.layerId}`}>
+                    <b>{v.invariant.replace(/-/g, " ")}</b> — {v.detail}
+                  </p>
+                ))}
                 {[...reviewed.plan.blockers, ...reviewed.plan.rejections.map((r) => r.detail)].map((b) => (
                   <p key={b}>{b}</p>
                 ))}

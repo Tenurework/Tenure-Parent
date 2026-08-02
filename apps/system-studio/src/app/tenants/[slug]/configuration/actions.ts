@@ -10,6 +10,7 @@ import {
   type VersionedLayer,
 } from "@tenure/configuration"
 import { REGISTRY } from "@tenure/platform-config"
+import { MODULES } from "@tenure/modules"
 
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
@@ -105,6 +106,15 @@ export async function review(_prev: ReviewResult | null, form: FormData): Promis
       // to one would hide that this takes effect now.
       activateAt: new Date(),
       now: new Date(),
+      // GE-032-002. Without these the entitlement check never runs and a plan
+      // can enable a module the contract does not cover — a console showing a
+      // feature while every request for it is denied.
+      modules: MODULES.map((m) => ({ key: m.key, dependsOn: m.dependsOn, entitlement: m.requiresEntitlement })),
+      // The editor does not enable modules yet — module enablement is a
+      // separate surface. Passing the catalogue anyway means the check is live
+      // the moment it does, rather than being wired later and forgotten.
+      enabledModules: [],
+      entitlements: [],
     })
 
     return { plan, layer }
@@ -139,11 +149,21 @@ export async function publish(_prev: PublishResult | null, form: FormData): Prom
       publishedBy,
       activateAt: new Date(),
       now: new Date(),
+      modules: MODULES.map((m) => ({ key: m.key, dependsOn: m.dependsOn, entitlement: m.requiresEntitlement })),
+      enabledModules: [],
+      entitlements: [],
     })
 
     if (plan.blocked) {
+      // Violations included: "this is not yours to change" is the answer an
+      // operator most needs, and omitting it would report a refusal with no
+      // reason attached to it.
       return {
-        error: [...plan.blockers, ...plan.rejections.map((r) => r.detail)].join(" "),
+        error: [
+          ...plan.blockers,
+          ...plan.violations.map((v) => v.detail),
+          ...plan.rejections.map((r) => r.detail),
+        ].join(" "),
       }
     }
 
