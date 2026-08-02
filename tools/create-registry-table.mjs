@@ -45,7 +45,19 @@ if (!endpoint) {
   process.exit(1)
 }
 
-const client = new DynamoDBClient({})
+/**
+ * The endpoint is passed EXPLICITLY, not left to the SDK to resolve from
+ * `AWS_ENDPOINT_URL_DYNAMODB`.
+ *
+ * CI proved why: the SDK ignored the variable and the request went to the
+ * real regional service, which answered `UnrecognizedClientException`. That
+ * is a create-table call arriving at a real account because an environment
+ * variable was read on one machine and not another — the failure mode this
+ * script exists to prevent, arriving through the mechanism meant to prevent
+ * it. Reading it here means the endpoint is a property of the code rather
+ * than of the SDK version.
+ */
+const client = new DynamoDBClient({ endpoint })
 
 try {
   await client.send(new DescribeTableCommand({ TableName: table }))

@@ -58,9 +58,17 @@ function client(): DynamoDBDocumentClient {
     )
   }
   if (!cached) {
-    cached = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
-      marshallOptions: { removeUndefinedValues: true },
-    })
+    cached = DynamoDBDocumentClient.from(
+      // The endpoint is read here rather than left to the SDK's own resolution
+      // of AWS_ENDPOINT_URL_DYNAMODB. CI showed that resolution is not reliable
+      // across SDK/runtime combinations — a request meant for a local container
+      // reached the real regional service instead — and "which account did that
+      // write land in" is not a question to leave to a version.
+      //
+      // `undefined` in production, which is exactly the default behaviour.
+      new DynamoDBClient({ endpoint: process.env.AWS_ENDPOINT_URL_DYNAMODB || undefined }),
+      { marshallOptions: { removeUndefinedValues: true } },
+    )
   }
   return cached
 }
