@@ -1,4 +1,5 @@
 import { allowedModelIds, modelIsAllowed } from "@tenure/platform-config"
+import { cellContext } from "@/lib/cell-context"
 import type { ScoredDoc } from "@/lib/search"
 
 /**
@@ -28,7 +29,9 @@ export function aiConfigured(): boolean {
  */
 function resolveModel(): string | null {
   const configured = process.env.ANTHROPIC_MODEL
-  const region = process.env.AWS_REGION ?? "us-east-1"
+  // Not `?? "us-east-1"`. A model invoked from a region nobody set is tenant
+  // content leaving the region its residency permitted, and it does not error.
+  const region = cellContext().region
 
   if (!configured) {
     const fallback = allowedModelIds()[0]

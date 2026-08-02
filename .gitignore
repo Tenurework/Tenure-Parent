@@ -73,3 +73,8 @@ apps/web/scripts/roster-data.mjs
 
 # Run artifact from tools/loop/batch-gate.mjs — a verdict, not a record.
 .loop-gate.json
+
+# GE-011-006 run artifact — a list of every access key id in the account, which
+# is a map of what to go after. Uploaded to a short-retention artifact, never
+# committed to a public repository.
+docs/architecture/key-last-use.json

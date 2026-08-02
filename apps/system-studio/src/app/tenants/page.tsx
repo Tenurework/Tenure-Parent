@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
 import { listTenants, registryConfigured } from "@/lib/registry"
 import { adoptableBindings } from "@/lib/adopt"
+import { placeableRegions } from "@/lib/cells"
 import { PLAN_CATALOG } from "@tenure/provisioning"
 import { AdoptForm } from "./AdoptForm"
 
@@ -165,7 +166,7 @@ export default async function TenantsPage() {
         </table>
 
         {adoptable.length > 0 && registryConfigured() && (
-          <AdoptForm bindings={adoptable} plans={planOptions} />
+          <AdoptForm bindings={adoptable} plans={planOptions} regions={placeableRegions()} />
         )}
       </section>
     </>

@@ -55,6 +55,9 @@ jobs:
     name: Snapshot AWS custom-domain state
     runs-on: ubuntu-latest
     permissions:
+      # Publishes the snapshot to the ops-status branch (see the last step).
+      # A job with this can rewrite the code that runs next time, so the reason
+      # is recorded rather than assumed.
       contents: write
 
     env:

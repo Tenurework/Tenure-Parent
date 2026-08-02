@@ -111,3 +111,15 @@ export function placementFor(tenant: {
 }) {
   return choosePlacement(fleet(), tenant)
 }
+
+/**
+ * Regions the fleet can actually place a tenant in.
+ *
+ * The compose and adopt forms offered a hard-coded list, which let an
+ * operator pick a region no cell serves — placement then refused with "no
+ * cell in your residency", which is a confusing way to learn the list was a
+ * guess. Derived from the fleet so the two cannot disagree.
+ */
+export function placeableRegions(): readonly string[] {
+  return [...new Set(fleet().map((c) => c.region))].sort()
+}

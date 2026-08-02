@@ -16,6 +16,7 @@ export function ComposeForm({
   blueprints,
   modules,
   plans,
+  regions,
 }: {
   blueprints: string[]
   modules: Array<{ key: string; description: string; version: string }>
@@ -24,6 +25,8 @@ export function ComposeForm({
   // component fails the build — which is the build telling the truth about
   // what would otherwise be shipped to a browser.
   plans: Array<{ planId: string; displayName: string; grants: string }>
+  /** From the fleet. A hard-coded list offers a region no cell serves. */
+  regions: readonly string[]
 }) {
   const [result, action, pending] = useActionState<ComposeResult | null, FormData>(
     composeTenant,
@@ -134,10 +137,16 @@ export function ComposeForm({
         </header>
 
         <Field name="region" label="Region">
-          <select id="region" name="region" defaultValue="us-east-1">
-            <option value="us-east-1">us-east-1</option>
-            <option value="us-west-2">us-west-2</option>
-            <option value="eu-west-1">eu-west-1</option>
+          {/* From the fleet, not a literal list. A hard-coded list lets an
+              operator pick a region no cell serves, and placement then
+              refuses with "no cell in your residency" — a confusing way to
+              learn the list was a guess. */}
+          <select id="region" name="region" defaultValue={regions[0]}>
+            {regions.map((r: string) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
           </select>
         </Field>
 

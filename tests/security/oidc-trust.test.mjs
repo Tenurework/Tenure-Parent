@@ -306,3 +306,65 @@ test('every workflow that assumes a role can actually mint a token', () => {
   }
   assert.deepEqual(missing, [], 'assume a role without id-token: write')
 })
+
+/**
+ * GE-011-005 — the environments a trust policy names must exist.
+ *
+ * A role whose trust condition names `environment:engine-production` when no
+ * such environment exists is a role nothing can assume. Nothing errors at
+ * apply time; the failure surfaces as a permissions error at the moment of a
+ * deploy, which is the worst moment to discover it and the furthest point from
+ * the mistake.
+ *
+ * Two halves, because only one of them can be checked without a token:
+ *
+ *   * here — that `environments.json` and `roles.tf` name the same set, so the
+ *     declared list cannot drift from the policy that depends on it
+ *   * `ops-status.yml` — that each declared environment actually exists on
+ *     GitHub, which needs the API
+ */
+const ENVIRONMENTS = 'infrastructure/oidc/environments.json'
+
+test('every environment a trust policy names is declared', () => {
+  const declared = new Set(
+    JSON.parse(fs.readFileSync(ENVIRONMENTS, 'utf8')).environments.map((e) => e.name),
+  )
+
+  // Every `repo:<owner>/<repo>:environment:<name>` subject in the roles file.
+  const named = new Set(
+    [...roles.matchAll(/:environment:([A-Za-z0-9._-]+)"/g)].map((m) => m[1]),
+  )
+
+  assert.ok(named.size > 0, 'no environment subject found in roles.tf — the pattern changed')
+
+  const undeclared = [...named].filter((n) => !declared.has(n))
+  assert.deepEqual(
+    undeclared,
+    [],
+    `roles.tf trusts environments that ${ENVIRONMENTS} does not declare: ${undeclared.join(', ')}.\n` +
+      `Nothing can assume a role whose environment does not exist, and the failure shows up at deploy time.`,
+  )
+
+  const unused = [...declared].filter((d) => !named.has(d))
+  assert.deepEqual(
+    unused,
+    [],
+    `${ENVIRONMENTS} declares environments no trust policy names: ${unused.join(', ')}.\n` +
+      `A declared-but-unused environment is one nobody will notice going missing.`,
+  )
+})
+
+test('the deploy environment is declared as requiring reviewers', () => {
+  // The whole point of binding deployment to an environment rather than a
+  // branch. A branch condition is satisfied by anyone who can push; an
+  // environment condition is only as protective as the environment's rules, so
+  // an environment with no reviewers is a branch condition wearing a hat.
+  const declared = JSON.parse(fs.readFileSync(ENVIRONMENTS, 'utf8')).environments
+  const deploy = declared.find((e) => e.name === 'engine-production')
+  assert.ok(deploy, 'engine-production is not declared')
+  assert.equal(
+    deploy.requiresReviewers,
+    true,
+    'engine-production must require reviewers, or binding the deploy role to it protects nothing',
+  )
+})

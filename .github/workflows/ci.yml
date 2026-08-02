@@ -63,6 +63,27 @@ jobs:
       # production deployment. This repository holds the same AWS credentials as
       # the one that deploys, so that guard is the only thing between a merge to
       # main here and a live ECS rollout. It is asserted, not assumed.
+      # GE-011-005. The OIDC trust policies name GitHub environments, and a
+      # role whose environment does not exist is a role nothing can assume —
+      # a failure that surfaces at deploy time, furthest from the mistake.
+      # The static half is in oidc-trust.test.mjs; this is the half that
+      # needs the API. Read-only: creating the environment here would mean
+      # the check could never fail, which is the same as not having it.
+      - name: Declared GitHub environments exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: node tools/verify-environments.mjs
+      # GE-011-007. The default workflow permission lives in a web form, not
+      # in this repository — flip it to write and the ten workflows that
+      # declare no permissions block silently gain push access, with no diff
+      # and nothing in CI to notice. Read-only; it reports rather than
+      # corrects, because a check that fixes what it finds can never fail.
+      - name: Default workflow permission is read-only
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: node tools/verify-workflow-permissions.mjs
       - name: Platform tests
         run: npm run test:platform
 
@@ -291,6 +312,13 @@ jobs:
       OKTA_ISSUER: ""
       IMAGE_TAG: e2e-local
       JOB_SECRET: e2e-not-a-placeholder-job-4b7d2e9a
+      # GE-012-001. `next start` runs in production mode, and the app now
+      # refuses to construct an AWS client without knowing its region — a
+      # default there silently moves objects to a region a tenant's residency
+      # did not permit. Production sets this (infrastructure/terraform/ecs.tf);
+      # this job is held to the same contract, which is the point of running it
+      # in production mode at all.
+      AWS_REGION: us-east-1
 
     steps:
       - name: Checkout

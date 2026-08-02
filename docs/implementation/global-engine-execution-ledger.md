@@ -1800,3 +1800,212 @@ for progress:
     nobody checked. And adoption is one-way: the conditional write means a
     second attempt fails rather than overwriting, which is right, but there is
     no un-adopt.
+
+---
+
+# Phase 1 completion, and Phase 2 foundations (batch of ten)
+
+Worked as one batch under `docs/implementation/AUTONOMOUS-LOOP.md`: each item
+implemented, mutation-proven and recorded on its own; pushed together.
+
+- [x] **GE-011-005** — Staging and production behind protected human approval.
+  - Status: PASS
+  - Code: `infrastructure/oidc/environments.json`,
+    `tools/verify-environments.mjs`, two new cases in `oidc-trust.test.mjs`,
+    a CI step
+  - The deploy role's trust named `environment:engine-production` and **no such
+    environment existed**, so the role could not be assumed by anything. The
+    failure was silent — nothing errors at apply time, and it surfaces as a
+    permissions error at the moment of a deploy, which is the furthest point
+    from the mistake.
+  - Both environments now exist, created through the API and verified:
+    `engine-production` with **satvikOS as a required reviewer** and
+    protected-branches-only, `aws-read` with protected-branches-only.
+  - Guarded in two halves, because only one can be checked without a token:
+    `oidc-trust.test.mjs` asserts `environments.json` and `roles.tf` name the
+    same set (in both directions — a declared-but-unnamed environment is one
+    nobody will notice going missing); `tools/verify-environments.mjs` asserts
+    they exist **with the protection they claim**. An environment with no
+    reviewers satisfies the AWS trust condition exactly as well as one with
+    them, so binding a deploy role to it would look like human approval and be
+    none. Read-only by design: creating the environment in the check would mean
+    the check could never fail.
+  - Proven by mutation: a trust policy naming an undeclared environment FAILS;
+    the deploy environment dropping its reviewer requirement FAILS. Both
+    failure modes of the API check were driven against the live repository.
+  - **BLOCKED_EXTERNAL on one decision.** `deploy-studio.yml` still
+    authenticates with long-lived keys and does not request the environment, so
+    the human approval is not yet in the deploy path. Binding it converts
+    auto-deploy into approve-then-deploy — every push would wait for a reviewer,
+    which stalls the autonomous loop. That is the operator's call, not a
+    technical gap. The change is:
+    ```yaml
+    # .github/workflows/deploy-studio.yml, in the deploy job
+    environment: engine-production
+    permissions:
+      id-token: write
+      contents: read
+    # then replace the aws-access-key-id/secret pair with:
+    #   role-to-assume: ${{ vars.ENGINE_DEPLOY_ROLE_ARN }}
+    ```
+
+- [x] **GE-011-006** — Legacy key last-use inventory and an approved disable
+  checklist.
+  - Status: PASS
+  - Code: `tools/key-last-use.mjs`, `tools/key-summary.mjs`,
+    `docs/decisions/KEY-RETIREMENT-CHECKLIST.md`, two steps in
+    `aws-inventory.yml`
+  - Tests: `tests/security/key-report.test.mjs` — 3 cases
+  - Deliberately separate from GE-011-004, which moved the read path to OIDC and
+    did **not** revoke what it replaced. Surprise-revoking a credential breaks
+    whatever was quietly depending on it, and the thing quietly depending on it
+    is almost never the thing you were thinking about.
+  - Reads `iam:GetAccessKeyLastUsed` — three calls the read role already holds —
+    and reports which key, whose, how old, when last used, for which service and
+    from which region. **Disables nothing.**
+  - `N/A` from AWS is reported as "no recorded use" and sorted FIRST, not as
+    "never used". AWS began recording in 2015 and does not cover every service;
+    the two are different claims and only one is safe to act on. The report
+    orders the ones most needing a human first, not the ones easiest to act on.
+  - **Key ids never reach the build log.** An access key ID is not a secret —
+    it is the public half, and the report needs it to say which key — but a list
+    of every key in the account, in a public repository's archived and indexed
+    build log, is a map of what to go after. Ids go to a three-day artifact;
+    counts go to the summary; the report is gitignored and a test asserts it is
+    not tracked.
+  - A missing report **fails the step** rather than summarising nothing. A
+    summary that quietly says nothing when the read did not run reads as "no
+    keys", which is the most comfortable possible way to be wrong about
+    credentials.
+
+- [x] **GE-011-007** — Drift detection for OIDC trust, IAM, action pinning,
+  workflow permissions.
+  - Status: PASS
+  - Code: `tests/security/workflow-drift.test.mjs`,
+    `tools/verify-workflow-permissions.mjs`, a CI step
+  - Three of the five surfaces are facts about this repository and are checked
+    on every push with no credentials; the other two need an API and are checked
+    where a token exists. A test that needs a token is a test that does not run
+    when somebody clones the repository.
+  - **Strict where a single instance is the whole risk, ratcheted elsewhere.**
+    Any action from outside `actions`/`aws-actions`/`docker`/`hashicorp` must be
+    SHA-pinned — no ratchet, no grace. A tag move by GitHub is a different kind
+    of event from a tag move by an account registered last week, and the second
+    is what pinning defends against. The 42 trusted-publisher tags and the 10
+    workflows relying on the repository default are ratchets that **may only
+    shrink**, and the assertion fails in both directions — a ratchet not
+    tightened when the debt is paid stops meaning anything.
+  - Found two real things: `ops-status.yml` granted `contents: write` with no
+    stated reason (legitimate — it publishes a snapshot branch — so the reason
+    is now recorded), and `deploy.yml` granted `id-token: write` with the
+    comment *"add when migrating from static keys"*. A capability granted for
+    later is granted now: any step in that job could mint an OIDC token today.
+    Removed; it goes back in the commit that actually assumes a role, which is
+    also the commit where it can be tested.
+  - `tools/verify-workflow-permissions.mjs` checks the repository default is
+    `read` and that workflows cannot approve pull requests. That default lives
+    in a web form and no file records it — flip it and all ten workflows
+    silently gain push access, with no diff and nothing in CI to notice.
+  - Proven by mutation, **6 of 6 caught** across the two guards.
+  - Honest limit: drift against **deployed IAM policy** is not covered. That
+    needs a read against the live account and belongs with the inventory
+    workflow; the repository-side half is what runs on every push.
+
+- [x] **GE-012-001** — Deterministic environment/account/partition/region/cell
+  configuration with schema validation and no business-code hard-coding.
+  - Status: PASS
+  - Code: `apps/web/src/lib/cell-context.ts`,
+    `tests/security/no-hardcoded-estate.test.mjs`,
+    `placeableRegions()` in the Studio's fleet module
+  - Tests: `cell-context.test.ts` — 15 cases. Full web e2e **152/152**.
+  - The guard found **nine** hard-coded estate facts. Three were live defaults —
+    `process.env.AWS_REGION ?? "us-east-1"` in `lib/ai.ts`, `lib/s3.ts` and the
+    Studio's `adopt.ts`. A cell in `eu-west-1` whose region is unset does not
+    fail: it writes objects, invokes models and emits logs in a region the
+    tenant's residency did not permit. GE-030-001 made residency a checked
+    constraint on the registry record, and a `??` in a client constructor walks
+    straight around it. The other six were a hard-coded region list in two
+    forms, which offered an operator a region no cell serves — placement then
+    refused with "no cell in your residency", a confusing way to learn the list
+    was a guess. All nine removed; the list now comes from the fleet.
+  - **The strictness line is drawn at what is actually deployed, and this is the
+    part worth reading.** The first version failed closed on all five fields.
+    That is defensible in the abstract and wrong here: `infrastructure/terraform/
+    ecs.tf` sets `AWS_REGION` and none of the other four, so requiring them would
+    have failed the next deploy of a system currently serving students, to
+    enforce a contract nothing had been updated to meet. Region — the field that
+    is both deployed and dangerous — fails closed. The other four are reported
+    in `unresolved`, named individually, so tightening later is a decision with
+    a list rather than a guess. The correct order is task definition first, then
+    tighten.
+  - The e2e suite caught the regression before CI did: `next start` runs in
+    production mode and the suite did not set `AWS_REGION`, so three
+    document/S3 specs failed. Fixed by giving the e2e environment the variable
+    production already has — which is the point of running that job in
+    production mode at all — rather than by weakening the check.
+  - `lib/s3.ts` also moved from a module-scope client to a lazy one. A
+    module-level `throw` runs during the import graph, before any error boundary
+    exists, and surfaces as a blank page with a digest.
+  - The exemption list is checked: an exemption naming a deleted file silently
+    covers whatever is written at that path next.
+
+- [ ] **GE-012-002** — Foundational KMS, artifact registry, logs, CloudTrail/
+  Config delivery, security services, VPC/network, DNS/certificates, Secrets
+  Manager namespaces, backup policies, cost tags.
+  - Status: **BLOCKED_EXTERNAL** — there is no AWS Organization, no security
+    account and no log-archive account (GE-GATE-0's inventory). Building this
+    into the single existing account would create the thing the item exists to
+    avoid: foundational security services owned by the same account they audit.
+    To unblock:
+    ```
+    aws organizations create-organization --feature-set ALL
+    aws organizations create-account --email <security@…>    --account-name Security
+    aws organizations create-account --email <logarchive@…>  --account-name "Log Archive"
+    aws organizations register-delegated-administrator \
+      --account-id <security-account-id> --service-principal securityhub.amazonaws.com
+    ```
+    Then `infrastructure/foundation/` can be written against real account ids.
+
+- [ ] **GE-012-003** — IaC plan/change-set generation with destructive,
+  replacement, public-access and privilege-expansion detectors, policy scans,
+  cost estimate and immutable evidence.
+  - Status: **BLOCKED_EXTERNAL** — the detectors analyse `terraform plan -json`,
+    and a plan needs credentials and remote state for the stack being planned.
+    `platform-plan.yml` exists and is the place this belongs. To unblock, the
+    plan role needs read access to the state backend:
+    ```
+    gh variable set AWS_PLAN_ROLE_ARN --repo satvikOS/Tenure-Parent \
+      --body arn:aws:iam::<account>:role/tenure-oidc-plan
+    gh workflow run platform-plan.yml --repo satvikOS/Tenure-Parent
+    ```
+    The detector rules themselves are writable now and are the natural first
+    item of the next batch.
+
+- [ ] **GE-012-004** — Deploy and verify the development foundation through
+  OIDC; test rollback and drift detection.
+  - Status: **BLOCKED_EXTERNAL** — depends on GE-012-002. There is no
+    development account to deploy a foundation into.
+
+- [ ] **GE-012-005** — Deploy the verified staging foundation from the same
+  templates and tested artifact/config versions.
+  - Status: **BLOCKED_EXTERNAL** — depends on GE-012-004, and additionally on a
+    staging account that does not exist.
+
+- [ ] **GE-GATE-1** — Multi-account baseline and OIDC deployment identity
+  operational; no long-lived key used routinely.
+  - Status: **BLOCKED_EXTERNAL** — three of its children are blocked on the
+    Organization. What has moved: the OIDC read path is operational and proven
+    (GE-011-004), the deploy environments now exist and are guarded
+    (GE-011-005), the key inventory and retirement checklist exist
+    (GE-011-006), and drift detection covers the repository-side surfaces
+    (GE-011-007). What has not: **fourteen workflows still authenticate with
+    long-lived keys**, and the ratchet in `oidc-trust.test.mjs` lists them. The
+    gate cannot pass while that is true, and moving them is gated on the same
+    Organization work.
+
+- [ ] **GE-020-005** — Consolidate duplicate person/member/role/approval/audit/
+  finance sources into migration plans; do not delete historical data blindly.
+  - Status: FAIL — not started. Carried to the next batch deliberately: it is
+    an analysis of the 40-model schema for duplicate sources of the same fact,
+    and doing it properly needs the schema read end to end rather than
+    sampled. Recorded here rather than rushed to make a count of ten.

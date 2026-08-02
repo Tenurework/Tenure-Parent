@@ -121,6 +121,18 @@ jobs:
         env:
           ACCOUNT: ${{ env.ACCOUNT }}
 
+      # GE-011-006. Which long-lived keys still exist, and when each was last
+      # used — the evidence a retirement decision needs. Reads only; the three
+      # IAM calls it makes are three the read role already holds, and nothing
+      # here disables anything.
+      - name: Long-lived key last use
+        run: node tools/key-last-use.mjs --json > docs/architecture/key-last-use.json
+
+      # Counts only. An access key id is not a secret, but a list of every key
+      # in the account, in a public build log that is archived and indexed, is
+      # a map of what to go after. The ids stay in the artifact.
+      - name: Key summary
+        run: node tools/key-summary.mjs
       # Short retention, because this is a public repository and an inventory is
       # a map of the estate. It is evidence for a review, not a permanent record.
       - name: Upload
@@ -131,6 +143,7 @@ jobs:
             docs/architecture/aws-current-state.md
             docs/architecture/aws-inventory.json
             docs/architecture/resource-reconciliation.md
+            docs/architecture/key-last-use.json
           retention-days: 3
 
       - name: Summary

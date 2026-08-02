@@ -155,7 +155,10 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
     // makes every tenant's commercial state a typing exercise — a typo is a
     // silently missing feature, and nothing reconciles against an invoice.
     entitlements: getPlan(planId)?.entitlements ?? [],
-    region: String(form.get("region") ?? "us-east-1"),
+    // No literal fallback. The form offers only regions the fleet serves, so
+    // an empty value means the form was bypassed — and placement refusing is
+    // the right answer to that, not a guess at which region was meant.
+    region: String(form.get("region") ?? ""),
     isolation: String(form.get("isolation") ?? "pooled") as IsolationTier,
     configuration: {},
     secretRefs: {},

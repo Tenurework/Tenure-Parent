@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "c48c15c",
+  "commit": "faca819",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 49,
-    "done": 43,
+    "total": 59,
+    "done": 47,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -368,6 +368,81 @@
             "isGate": false
           }
         ]
+      },
+      {
+        "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+        "items": [
+          {
+            "id": "GE-011-005",
+            "done": true,
+            "title": "Staging and production behind protected human approval.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-011-006",
+            "done": true,
+            "title": "Legacy key last-use inventory and an approved disable checklist.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-011-007",
+            "done": true,
+            "title": "Drift detection for OIDC trust, IAM, action pinning, workflow permissions.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-012-001",
+            "done": true,
+            "title": "Deterministic environment/account/partition/region/cell configuration with schema validation and no business-code hard-coding.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-012-002",
+            "done": false,
+            "title": "Foundational KMS, artifact registry, logs, CloudTrail/ Config delivery, security services, VPC/network, DNS/certificates, Secrets Manager namespaces, backup policies, cost tags.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-012-003",
+            "done": false,
+            "title": "IaC plan/change-set generation with destructive, replacement, public-access and privilege-expansion detectors, policy scans, cost estimate and immutable evidence.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-012-004",
+            "done": false,
+            "title": "Deploy and verify the development foundation through OIDC; test rollback and drift detection.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-012-005",
+            "done": false,
+            "title": "Deploy the verified staging foundation from the same templates and tested artifact/config versions.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-GATE-1",
+            "done": false,
+            "title": "Multi-account baseline and OIDC deployment identity operational; no long-lived key used routinely.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-020-005",
+            "done": false,
+            "title": "Consolidate duplicate person/member/role/approval/audit/ finance sources into migration plans; do not delete historical data blindly.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          }
+        ]
       }
     ]
   },
@@ -569,12 +644,12 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 7,
+      "files": 10,
       "what": "repository and deployment invariants"
     },
     {
       "name": "application unit",
-      "files": 34,
+      "files": 35,
       "what": "apps/web"
     },
     {

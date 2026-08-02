@@ -1,0 +1,18 @@
+{
+  "//": "GE-011-005. Every GitHub environment the OIDC trust policies name, declared so a test can check they exist. A role whose trust names an environment that does not exist is a role nothing can assume — the failure is silent, and it presents as a permissions error at the moment of a deploy rather than at the moment of the mistake.",
+  "//check": "tests/security/oidc-trust.test.mjs asserts this file and roles.tf agree. .github/workflows/ops-status.yml asserts these exist on GitHub, because only a token can see that.",
+  "environments": [
+    {
+      "name": "aws-read",
+      "why": "The read-only inventory role. Bound to an environment rather than a branch so the subject is stable if the default branch is ever renamed.",
+      "requiresReviewers": false,
+      "protectedBranchesOnly": true
+    },
+    {
+      "name": "engine-production",
+      "why": "The Studio deploy role. An environment condition additionally requires whatever reviewers that environment carries — which is where the human approval GE-011-005 asks for is actually enforced, rather than merely observed by CI.",
+      "requiresReviewers": true,
+      "protectedBranchesOnly": true
+    }
+  ]
+}

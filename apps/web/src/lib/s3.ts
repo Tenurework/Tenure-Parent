@@ -1,8 +1,19 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
+import { cellContext } from "@/lib/cell-context"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
 // Uses the ECS task role in production; local dev needs AWS_* env vars.
-const s3 = new S3Client({ region: process.env.AWS_REGION ?? "us-east-1" })
+// Lazily, and through the cell context.
+//
+// `?? "us-east-1"` at module scope did two wrong things at once: it chose a
+// region nobody asked for, and it chose it at import time, before any error
+// boundary exists. An object written to the wrong region is a residency
+// breach that does not error.
+let client: S3Client | null = null
+function s3Client(): S3Client {
+  if (!client) client = new S3Client({ region: cellContext().region })
+  return client
+}
 
 export const documentsBucket = process.env.S3_DOCUMENTS_BUCKET
 
@@ -17,13 +28,13 @@ export function storageConfigured(): boolean {
  */
 export async function getDocumentBytes(key: string): Promise<Buffer> {
   if (!documentsBucket) throw new Error("Document storage is not configured")
-  const obj = await s3.send(new GetObjectCommand({ Bucket: documentsBucket, Key: key }))
+  const obj = await s3Client().send(new GetObjectCommand({ Bucket: documentsBucket, Key: key }))
   return Buffer.from(await obj.Body!.transformToByteArray())
 }
 
 export async function uploadDocument(key: string, body: Buffer, contentType: string) {
   if (!documentsBucket) throw new Error("Document storage is not configured")
-  await s3.send(
+  await s3Client().send(
     new PutObjectCommand({
       Bucket: documentsBucket,
       Key: key,
@@ -38,7 +49,7 @@ export async function uploadDocument(key: string, body: Buffer, contentType: str
 export async function documentDownloadUrl(key: string, filename: string) {
   if (!documentsBucket) throw new Error("Document storage is not configured")
   return getSignedUrl(
-    s3,
+    s3Client(),
     new GetObjectCommand({
       Bucket: documentsBucket,
       Key: key,
@@ -52,7 +63,7 @@ export async function documentDownloadUrl(key: string, filename: string) {
 export async function documentViewUrl(key: string) {
   if (!documentsBucket) throw new Error("Document storage is not configured")
   return getSignedUrl(
-    s3,
+    s3Client(),
     new GetObjectCommand({
       Bucket: documentsBucket,
       Key: key,

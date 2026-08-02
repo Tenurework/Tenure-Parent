@@ -113,6 +113,9 @@ const DOMAINS = [
       'apps/web/src/lib/tenant-scope',
       'apps/web/src/lib/tenant-switching',
       'apps/web/src/lib/env',
+      // Partition, account, region, environment, cell. The same question
+      // `lib/env` answers, at the level the estate cares about.
+      'apps/web/src/lib/cell-context',
       'apps/web/src/lib/institution-time.ts',
       'apps/web/src/lib/time',
       'packages/configuration/',

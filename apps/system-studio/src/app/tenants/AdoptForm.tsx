@@ -20,9 +20,12 @@ import { adoptTenantAction, type AdoptResult } from "./actions"
 export function AdoptForm({
   bindings,
   plans,
+  regions,
 }: {
   bindings: ReadonlyArray<{ slug: string; displayName: string; blueprintId: string }>
   plans: ReadonlyArray<{ planId: string; displayName: string }>
+  /** What the fleet can actually place into — a starting point, not a rule. */
+  regions: readonly string[]
 }) {
   const [result, action, pending] = useActionState<AdoptResult | null, FormData>(
     adoptTenantAction,
@@ -76,7 +79,7 @@ export function AdoptForm({
           id="adopt-residency"
           name="residency"
           required
-          defaultValue="us-east-1"
+          defaultValue={regions.join(", ")}
           placeholder="us-east-1, us-west-2"
         />
         <span className="hint">

@@ -40,7 +40,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write  # For OIDC (add when migrating from static keys)
+      # No id-token here. It was declared in advance "for when we migrate from
+      # static keys", and a capability granted for later is granted now — any
+      # step in this job could mint an OIDC token with it. It goes back in the
+      # commit that actually assumes a role, which is also the commit where it
+      # can be tested.
 
     env:
       AWS_REGION:      ${{ secrets.AWS_REGION || 'us-east-1' }}

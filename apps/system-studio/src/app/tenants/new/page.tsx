@@ -5,6 +5,8 @@ import { TENANT_BINDINGS } from "@tenure/blueprints"
 import { MODULE_CATALOG } from "@tenure/modules"
 import { PLAN_CATALOG } from "@tenure/provisioning"
 
+import { placeableRegions } from "@/lib/cells"
+
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
 import { ComposeForm } from "./ComposeForm"
@@ -53,7 +55,7 @@ export default async function NewTenantPage() {
         page once you have read its plan.
       </p>
 
-      <ComposeForm blueprints={blueprints} modules={modules} plans={plans} />
+      <ComposeForm blueprints={blueprints} modules={modules} plans={plans} regions={placeableRegions()} />
     </>
   )
 }

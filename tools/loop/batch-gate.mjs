@@ -134,6 +134,16 @@ if (passed) {
     .split("\n")
     .filter(Boolean)
     .filter((l) => /platform-truth\.json|ownership\.md|entry-points\.md/.test(l))
+    // `XY path`: X is the index, Y is the working tree. A STAGED change is
+    // fine — it is about to be committed, which is the whole point of staging
+    // it. What fails the gate is an unstaged change (Y set) or an untracked
+    // file, because those are what would not reach the commit while CI
+    // regenerates and compares.
+    //
+    // Flagging staged changes too made the gate unpassable: `npm run generate`
+    // legitimately rewrites these on every run, so the only way through was to
+    // not stage them, which is exactly the drift being guarded against.
+    .filter((l) => l.startsWith("??") || l[1] !== " ")
     .map((l) => l.trim())
     .filter((l) => {
       const path = l.replace(/^\S+\s+/, "")

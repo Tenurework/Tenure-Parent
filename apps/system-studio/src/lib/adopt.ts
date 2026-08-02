@@ -77,6 +77,12 @@ export class NotAdoptable extends Error {
  * manifest describes a system that can actually be built rather than the
  * blueprint's raw wish list.
  */
+function requireFirstCellRegion(): string {
+  const cell = fleet()[0]
+  if (!cell) throw new NotAdoptable("The fleet has no cell, so there is no region to adopt into.")
+  return cell.region
+}
+
 export function manifestForBinding(slug: string): TenantManifest {
   const binding = TENANT_BINDINGS.find((b) => b.slug === slug)
   if (!binding) throw new NotAdoptable(`No file binding for "${slug}".`)
@@ -100,8 +106,10 @@ export function manifestForBinding(slug: string): TenantManifest {
     blueprintId: binding.blueprintId,
     modules: [...resolvedModules(binding.blueprintId, binding.entitlements ?? []).keys],
     entitlements: [...(binding.entitlements ?? [])],
-    // Where it actually runs, from the fleet, not from a default.
-    region: fleet()[0]?.region ?? "us-east-1",
+    // Where it actually runs, from the fleet. No fallback: a fleet with no
+    // cell is already an error path (`buildAdoption` refuses), and a default
+    // here would place a tenant in a region no cell serves.
+    region: requireFirstCellRegion(),
     isolation: "pooled" as IsolationTier,
     // The overlay this tenant is already configured with.
     configuration: binding.values,
