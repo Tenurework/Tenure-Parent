@@ -102,13 +102,24 @@ Two further things a mutation can mean, and both have happened:
   invariant. Unkillable because the code is the same function. Say so; do not
   invent an assertion to make a number look better.
 
-**Never pipe a gate into `tail`.** A pipeline's exit status is the LAST
-command's, so `node tools/loop/batch-gate.mjs | tail -2` always succeeds and
-`&& git push` runs regardless of the verdict. This has now masked a failing
-gate once and a failing `terraform fmt` once. Redirect and check instead:
+**Never pipe a gate into `tail`, and never follow it with `;`.** A pipeline's
+exit status is the LAST command's, so `node tools/loop/batch-gate.mjs | tail -2`
+always succeeds and `&& git push` runs regardless of the verdict. Writing
+`gate; echo $?; git commit` has the same effect for the same reason — `;` does
+not care what came before it. Between them these have masked a failing gate
+three times and a failing `terraform fmt` once.
+
+**Write the ledger entry BEFORE the final `git add`.** The gate regenerates
+first, and `platform-truth.json` includes the ledger's item counts — so
+appending an entry after staging produces a real, material diff (not the
+tolerated commit-line-only one) and the gate correctly fails. The order that
+works:
 
 ```bash
-node tools/loop/batch-gate.mjs > /tmp/gate.out 2>&1; echo "exit=$?"; tail -2 /tmp/gate.out
+cat entry.md >> docs/implementation/global-engine-execution-ledger.md
+git add -A
+node tools/loop/batch-gate.mjs > /tmp/gate.out || { tail -20 /tmp/gate.out; exit 1; }
+git add -A && git commit -F message.txt && git push origin main
 ```
 
 ---
