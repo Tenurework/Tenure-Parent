@@ -133,6 +133,13 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           <dd>{tenant.createdAt}</dd>
         </dl>
 
+        {/* GE-032-001. The editor is a page rather than a panel here: a
+            configuration change is planned, reviewed and approved, which does
+            not fit beside a state machine. */}
+        <p className="slug">
+          <Link href={`/tenants/${tenant.slug}/configuration`}>Configuration →</Link>
+        </p>
+
         <AdvanceControls
           slug={tenant.slug}
           moves={moves.map((to) => ({

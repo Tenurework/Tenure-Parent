@@ -113,6 +113,60 @@ export interface TenantRecord {
 
 const pk = (slug: string) => `TENANT#${slug}`
 
+/**
+ * The configured table name, or undefined.
+ *
+ * Exported so the configuration-store adapter (GE-032-001) writes to the same
+ * table without duplicating the client setup above — that setup carries a
+ * deliberate endpoint decision, and a second copy would drift from it.
+ */
+export function tableName(): string | undefined {
+  return TABLE
+}
+
+/**
+ * Query the items under one tenant's partition whose sort key has a prefix.
+ *
+ * Exists so the configuration store (GE-032-001) never constructs a DynamoDB
+ * client of its own. `forbidden-clients` refuses that with no exemptions, and
+ * it is right to: a client built at a second call site picks its own region and
+ * credential chain, and cannot be given encryption, retry or audit behaviour
+ * later. This module owns the client; callers get the operations.
+ */
+export async function queryTenantItems(
+  slug: string,
+  sortKeyPrefix: string,
+  options: { newestFirst?: boolean; limit?: number } = {},
+): Promise<Array<Record<string, unknown>>> {
+  const result = await client().send(
+    new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: "pk = :pk AND begins_with(sk, :prefix)",
+      ExpressionAttributeValues: { ":pk": pk(slug), ":prefix": sortKeyPrefix },
+      ScanIndexForward: !options.newestFirst,
+      ...(options.limit ? { Limit: options.limit } : {}),
+    }),
+  )
+  return (result.Items ?? []) as Array<Record<string, unknown>>
+}
+
+/**
+ * Write one item into a tenant's partition, refusing to overwrite.
+ *
+ * The condition is the database's, not this process's: two publishers racing on
+ * the same revision both read the same latest, and only one can win a
+ * conditional put.
+ */
+export async function putTenantItemIfAbsent(item: Record<string, unknown>): Promise<void> {
+  await client().send(
+    new PutCommand({
+      TableName: TABLE,
+      Item: item,
+      ConditionExpression: "attribute_not_exists(pk)",
+    }),
+  )
+}
+
 /** Whether the registry is reachable at all, for pages that degrade rather than 500. */
 export function registryConfigured(): boolean {
   return !!TABLE

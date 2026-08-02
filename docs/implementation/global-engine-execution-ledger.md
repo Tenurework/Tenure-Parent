@@ -2834,3 +2834,73 @@ worth less than three items that hold.
     could pass values that do not match the layers — the honest fix is for
     `commit` to resolve them itself, which needs the registry threaded through
     and is a change to the signature rather than an addition.
+
+- [x] **GE-032-001** — Guarded tenant-admin editors for organization types/graph,
+  seats, terminology, roles/policies, delegations, forms/fields, workflows,
+  reports, automations, branding, locale, connectors, retention and Relay policy.
+  - Status: PASS
+  - Code: `apps/system-studio/src/lib/editable-config.ts` (what is editable,
+    derived), `src/lib/config-store.ts` (the DynamoDB adapter for the
+    GE-031-007 port), `src/lib/config-sort-key.ts`,
+    `app/tenants/[slug]/configuration/` (page, editor, actions), two new
+    operations on `src/lib/registry.ts`
+  - Tests: `e2e/configuration-logic.spec.ts` — 14 cases. Full Studio suite
+    **135 passed, 3 skipped**, layout geometry included; `apps/web`
+    **1528/1528**; 88 platform guards.
+  - **The editable set is derived, never listed.** The item names fourteen
+    surfaces; eleven of their domains are `reserved` with no keys. Building
+    fourteen forms, three of which work, with no way to tell which from the
+    screen, is worse than building the three. `editableDomains()` reads
+    `tenantAdminMayWrite` from the domain registry (GE-031-002) and the
+    definitions from `@tenure/platform-config`, so the day `workflows` gains its
+    first key it appears here with no change to this code.
+  - **Reserved and withheld domains are shown, not hidden.** An administrator
+    looking for where to change data residency gets told it is not theirs to
+    change and why; one who finds a blank page has no way to learn that. Three
+    lists, and a test asserts every declared domain appears in exactly one.
+  - Two steps, deliberately: `review` produces a `PublicationPlan` and writes
+    nothing, `publish` commits. A one-step save would make the diff, the lint,
+    the impact and the four-eyes check into things that happened somewhere the
+    operator did not look. The layer is **re-derived from the form** in both
+    actions rather than carried in a hidden field — a hidden field holding a
+    serialised layer holds whatever the browser sends, and would be the one
+    input on this path that nothing validates.
+  - **This gives GE-031-007's `commit` its first real caller**, and the store
+    its first real adapter. Revisions live in the tenant's own partition as
+    `sk = CONFIG#00000001`, **zero-padded**: DynamoDB sorts sort keys
+    lexicographically, so unpadded, `CONFIG#10` sorts before `CONFIG#9` and a
+    version history silently reorders itself at the tenth revision — invisible
+    until a rollback picks the wrong target. Append-only is the database's
+    conditional write, not a read-then-write check in JavaScript, which loses to
+    two concurrent publishers.
+  - **A guard caught me building a second AWS client, and the fix was the code.**
+    `forbidden-clients` refuses any AWS client outside its owning adapter, with
+    an exemption list asserted to be empty, and the first version of
+    `config-store.ts` imported `@aws-sdk/lib-dynamodb` directly. Exempting it
+    would have been one line. Instead `registry.ts` — which owns the client and
+    carries a hard-won endpoint decision — gained `queryTenantItems` and
+    `putTenantItemIfAbsent`, and the store now builds nothing. A client
+    constructed at a second call site picks its own region and credential chain
+    and cannot be given encryption, retry or audit behaviour later.
+  - Proven by mutation, **5 of 5 caught, after two escaped and the escape was
+    the interesting part.** An empty box publishing `""` FAILS; unpadded sort
+    keys FAIL; a NaN number published FAILS. But **ignoring
+    `tenantAdminMayWrite` passed**, and so did dropping the tenant-scope filter
+    — because every withheld domain is *also* reserved and has no keys, so the
+    empty-domain filter removed them regardless. The authority gate is not
+    load-bearing today; it becomes load-bearing the day `deployment` gains its
+    first key, which is exactly when nobody will be looking at it.
+    `editableDomains` now takes its domains and definitions as parameters, and
+    two tests supply a withheld domain **with** a key and a writable domain with
+    a blueprint-only key. Both mutations are caught.
+  - Honest limits: **three surfaces of fourteen** — organization/terminology,
+    localization and branding. Roles, delegations, forms, workflows, reports,
+    automations, connectors, retention and Relay policy have no keys to edit;
+    they are listed as reserved with the item that fills each. Array and object
+    values (holidays, working days, the flag kill list) render **read-only** —
+    a text box for a JSON array is a way to corrupt configuration by typo.
+    Activation is immediate; the scheduled-activation control that
+    `planPublication` supports is not exposed. The editor is **operator-facing
+    in the Studio**, not tenant-admin-facing in the tenant app: enforcing
+    entitlements and invariants for a real tenant administrator is GE-032-002,
+    and no tenant-admin identity exists yet to hold the permission.
