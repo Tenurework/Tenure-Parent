@@ -7,11 +7,21 @@
  * ever be used to get it wrong. It is computed from the locale that is already
  * configured, so the two cannot drift apart.
  *
- * No dependency on `Intl.Locale.prototype.getTextInfo()`. It is the correct API
- * and it is used when present, but it reached Node only recently and the answer
- * has to be the same on every runtime the engine is deployed to — a shell that
- * lays out left-to-right on one container and right-to-left on the next is worse
- * than one that is consistently wrong.
+ * ## Why this does not ask the runtime
+ *
+ * `Intl.Locale.prototype.getTextInfo()` is the API for exactly this question,
+ * and an earlier version of this file preferred it. CI caught what that costs:
+ * the engine's containers run Node 20, which has only the older `textInfo`
+ * getter — and that getter answers with the LANGUAGE's default direction, not
+ * the tag's. On Node 20 it reports `dv-MV` (Thaana) and `az-Arab` as
+ * left-to-right; on Node 22, `getTextInfo()` gets both right.
+ *
+ * So the standard API is not one answer available in two spellings. It is two
+ * different answers, and the same tenant would lay out one way on a container
+ * and the other way on the next one. Deriving from the script instead makes the
+ * answer a property of this file, identical on every runtime the engine is
+ * deployed to — which is worth more than deferring to an API that disagrees
+ * with itself across versions.
  */
 
 /**
@@ -77,40 +87,9 @@ export function textDirectionFor(locale: string): TextDirection {
     return "ltr"
   }
 
-  // The standard answer, where the runtime has it.
-  const withTextInfo = parsed as Intl.Locale & {
-    getTextInfo?: () => { direction?: string }
-    textInfo?: { direction?: string }
-  }
-  const reported =
-    typeof withTextInfo.getTextInfo === "function"
-      ? withTextInfo.getTextInfo().direction
-      : withTextInfo.textInfo?.direction
-  if (reported === "rtl" || reported === "ltr") return reported
-
-  return directionFromScript(locale)
-}
-
-/**
- * The fallback, exported so it can be tested on its own.
- *
- * On a runtime that has `getTextInfo()` — which this one does — nothing above
- * ever reaches this, so a test that only calls `textDirectionFor` proves
- * nothing about it. Two mutations demonstrated exactly that: replacing the
- * script table with a list of "RTL languages", and dropping the `maximize()`
- * call, both left the whole suite green. The path only runs where the standard
- * API is missing, which is precisely where nobody is watching.
- */
-export function directionFromScript(locale: string): TextDirection {
-  let parsed: Intl.Locale
-  try {
-    parsed = new Intl.Locale(locale)
-  } catch {
-    return "ltr"
-  }
-
   // `maximize()` fills in what the tag left out: "ar" carries no script subtag,
-  // and "ar-Arab-EG" does.
+  // and "ar-Arab-EG" does. An explicit script always wins, which is what makes
+  // az-Arab and az-Latn come out differently.
   let script = parsed.script
   if (!script) {
     try {

@@ -33,6 +33,15 @@ export interface DeploymentManifest {
   modules: readonly string[]
   blueprintId: string
   schemaVersion: string
+  /**
+   * Configuration keys the engine's composed configuration actually sets.
+   *
+   * Optional, because manifests published before GE-022-005 do not carry it and
+   * a cell that refused them would have broken every existing tenant. Absent
+   * means "the engine did not say", which is checked as no requirement rather
+   * than as an empty one — those are different claims.
+   */
+  configKeys?: readonly string[]
   evidenceDigest: string
   digest: string
   createdAt: string
@@ -48,6 +57,14 @@ export interface ReconcileInput {
   initialAdminEmail: string
   /** The schema version THIS cell is at. Compared, never assumed. */
   cellSchemaVersion: string
+  /**
+   * Configuration keys THIS build implements.
+   *
+   * Passed in rather than read from the registry here, for the same reason
+   * `cellSchemaVersion` is: this function compares what it is given and assumes
+   * nothing about its environment, which is what makes it testable without one.
+   */
+  knownConfigKeys: ReadonlySet<string>
   /** Supplied so a run is reproducible in a test. */
   at: string
 }
@@ -64,7 +81,7 @@ export interface ReconcileReport {
 export class ReconcileRefused extends Error {
   constructor(
     message: string,
-    readonly reason: "digest" | "schema" | "input",
+    readonly reason: "digest" | "schema" | "input" | "compatibility",
   ) {
     super(message)
     this.name = "ReconcileRefused"
@@ -153,6 +170,28 @@ export async function reconcile(db: ReconcileClient, input: ReconcileInput): Pro
         `version — do not apply across a schema boundary.`,
       "schema",
     )
+  }
+
+  // GE-022-005. `schemaVersion` above pins the DATABASE and says nothing about
+  // the configuration registry, so an engine that has gained a key and a cell
+  // that has not been rebuilt can agree on the schema and still disagree about
+  // what the configuration means. Ignoring the unknown key is the silent
+  // failure: the Studio shows the setting as published and the cell quietly
+  // does something else, and nobody finds out until someone asks why it had no
+  // effect.
+  //
+  // Absent `configKeys` is "the engine did not say" — a manifest published
+  // before this existed — and is not treated as "it sets nothing".
+  if (manifest.configKeys) {
+    const unimplemented = manifest.configKeys.filter((key) => !input.knownConfigKeys.has(key))
+    if (unimplemented.length > 0) {
+      throw new ReconcileRefused(
+        `Manifest for "${manifest.slug}" sets configuration this build does not implement: ` +
+          `${unimplemented.join(", ")}. Applying it would show the setting as published and ` +
+          `have no effect. Rebuild the cell from an engine that has these keys.`,
+        "compatibility",
+      )
+    }
   }
 
   if (!input.initialAdminEmail.includes("@")) {

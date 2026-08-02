@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "b1b14ba",
+  "commit": "21e0296",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 43,
-    "done": 35,
+    "total": 44,
+    "done": 37,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -280,8 +280,8 @@
           },
           {
             "id": "GE-GATE-2",
-            "done": false,
-            "title": "Status: FAIL — GE-020 and GE-021 complete (12 of 17); GE-022 is 4 of 5 (001 shell + switching proof, 002 dense-ERP states, 003 WCAG 2.2 AA + responsive, 004 localization + RTL + business calendar). 005 (flags / kill switches) remains.",
+            "done": true,
+            "title": "Status: PASS — every child of Phase 2 is complete. GE-020 (5), GE-021 (7) and GE-022 (5) are all checked with evidence: ownership and forbidden-client boundaries, runtime-gate contracts, tenancy resolution and request context, the command bus, bound repositories, the outbox, envelopes and limits, the tenant/seat shell with its switching proof, the ten dense-ERP states, WCAG 2.2 AA measured in a browser, localization with RTL and a business calendar, and flags / experiments / exposure / compatibility / kill switches.",
             "phase": "Phase 2 — Monorepo boundaries and common runtime",
             "isGate": true
           },
@@ -315,10 +315,17 @@
           },
           {
             "id": "GE-022-005",
-            "done": false,
-            "title": "Status: FAIL — not started.",
+            "done": true,
+            "title": "Safe feature flags/experiments, cohort rollout, config compatibility, telemetry, and emergency restrict-only kill switches.",
             "phase": "Phase 2 — Monorepo boundaries and common runtime",
             "isGate": false
+          },
+          {
+            "id": "GE-GATE-2",
+            "done": false,
+            "title": "see above.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": true
           }
         ]
       }

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client"
+import { REGISTRY } from "@tenure/platform-config"
 import { createHash } from "node:crypto"
 
 import { ReconcileRefused, reconcile, verifyDigest, type DeploymentManifest } from "./reconcile"
@@ -57,6 +58,7 @@ const input = (manifest: DeploymentManifest) => ({
   displayName: "Reconcile Integration Test",
   initialAdminEmail: ADMIN,
   cellSchemaVersion: "2026.07.31",
+  knownConfigKeys: new Set(REGISTRY.keys()),
   at: "2026-08-01T00:00:00.000Z",
 })
 
@@ -150,6 +152,41 @@ describe("reconcile", () => {
     await expect(reconcile(db, input(ahead))).rejects.toThrow(/do not apply across a schema boundary/)
   })
 
+  it("refuses configuration this build does not implement", async () => {
+    // GE-022-005. The schema check above pins the DATABASE and says nothing
+    // about the config registry, so an engine that has gained a key and a cell
+    // that has not been rebuilt agree on the schema and still disagree about
+    // what the configuration means. Ignoring it is the silent failure: the
+    // Studio shows the setting as published and the cell quietly does something
+    // else.
+    await cleanup()
+    const future = signed({
+      configKeys: ["platform.localization.locale", "platform.some.key.from.a.later.engine"],
+    })
+    await expect(reconcile(db, input(future))).rejects.toThrow(ReconcileRefused)
+    await expect(reconcile(db, input(future))).rejects.toThrow(
+      /platform\.some\.key\.from\.a\.later\.engine/,
+    )
+    // And nothing was written — a refusal is not a partial apply.
+    expect(await db.institution.count({ where: { slug: SLUG } })).toBe(0)
+  })
+
+  it("applies a manifest whose keys this build does implement", async () => {
+    await cleanup()
+    const known = signed({ configKeys: ["platform.localization.locale"] })
+    const report = await reconcile(db, input(known))
+    expect(report.applied).toBe(true)
+  })
+
+  it("applies a manifest published before configKeys existed", async () => {
+    // Absent is "the engine did not say", not "it sets nothing". A cell that
+    // refused these would have broken every tenant deployed before this check.
+    await cleanup()
+    const old = signed()
+    expect(old.configKeys).toBeUndefined()
+    expect((await reconcile(db, input(old))).applied).toBe(true)
+  })
+
   it("refuses without a usable administrator", async () => {
     await expect(
       reconcile(db, { ...input(signed()), initialAdminEmail: "not-an-address" }),
@@ -202,7 +239,14 @@ describe("engine and cell agree on what a digest covers", () => {
     }
 
     const ctx = {
-      resolveConfiguration: () => ({ checksum: "cfg-cross-check", values: { a: 1 }, problems: [] }),
+      // Real registry keys, not { a: 1 }. The manifest now declares which
+      // configuration it sets, and a stub that invents a key produces an
+      // artifact no engine would publish — which the cell then rightly refuses.
+      resolveConfiguration: () => ({
+        checksum: "cfg-cross-check",
+        values: { "platform.localization.locale": "en-US", "platform.localization.currency": "USD" },
+        problems: [],
+      }),
       resolveModules: () => ({ ordered: [{ key: "organizations", version: "1.0.0" }], problems: [] }),
       validateTopology: () => ({ valid: true, problems: [] }),
       schemaVersion: () => "2026.07.31",
@@ -223,6 +267,7 @@ describe("engine and cell agree on what a digest covers", () => {
       displayName: "Reconcile Integration Test",
       initialAdminEmail: ADMIN,
       cellSchemaVersion: "2026.07.31",
+      knownConfigKeys: new Set(REGISTRY.keys()),
       at: "2026-08-01T00:00:00.000Z",
     })
 

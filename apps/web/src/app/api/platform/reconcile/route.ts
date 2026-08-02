@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto"
 
+import { REGISTRY } from "@tenure/platform-config"
 import { db } from "@/lib/db"
 import { runUnscoped } from "@/lib/tenancy/context"
 import {
@@ -86,6 +87,9 @@ export async function POST(request: Request) {
         // The cell's own version, never taken from the request — an artifact
         // that could declare the schema it is applied against could declare any.
         cellSchemaVersion: process.env.SCHEMA_VERSION ?? "unpinned",
+        // What THIS build implements, from the registry it actually resolves
+        // configuration through — not a hand-kept list that would drift.
+        knownConfigKeys: new Set(REGISTRY.keys()),
         at: new Date().toISOString(),
       }),
     )

@@ -4,6 +4,7 @@ import { cache } from "react"
 import { db } from "@/lib/db"
 import {
   decideFlag,
+  recordFlagExposure,
   resolveSystemConfig,
   terminologyFor,
   type FlagDecision,
@@ -71,6 +72,13 @@ export const flagDecisionForInstitution = cache(
       select: { slug: true },
     })
 
-    return decideFlag(resolveSystemConfig(institution?.slug ?? ""), flag, subjectId)
+    const decision = decideFlag(resolveSystemConfig(institution?.slug ?? ""), flag, subjectId)
+
+    // Counted here rather than at each route, so a new consumer of a flag
+    // cannot forget to. Counts only — (flag, reason) — never who; see
+    // exposure.ts for why an exposure log keyed by person is not built.
+    recordFlagExposure(decision)
+
+    return decision
   },
 )

@@ -321,6 +321,18 @@ export interface DeploymentManifest {
   modules: readonly string[]
   blueprintId: string
   schemaVersion: string
+  /**
+   * Every configuration key this tenant's resolved configuration actually sets.
+   *
+   * Declared so a cell can refuse a key it does not implement.    * pins the DATABASE and says nothing about the config registry, so an engine
+   * that gains a key and a cell that has not been rebuilt would otherwise agree
+   * on the schema and silently disagree about the configuration — the setting
+   * shows as published in the Studio and has no effect in the cell.
+   *
+   * Sorted, so the digest is a property of the content rather than of iteration
+   * order (the same lesson the canonical digest already carries).
+   */
+  configKeys: readonly string[]
   /** Digest of every step's evidence, in order. */
   evidenceDigest: string
   /** The whole thing, digested. What a cell verifies before applying anything. */
@@ -351,6 +363,7 @@ export function deploymentManifest(
     modules: modules.ordered.map((m) => `${m.key}@${m.version}`),
     blueprintId: manifest.blueprintId,
     schemaVersion: ctx.schemaVersion(),
+    configKeys: Object.keys(config.values).sort(),
     evidenceDigest: sha(evidence.map((e) => [e.step, e.ok, e.digest ?? null])),
     createdAt: meta.createdAt,
     createdBy: meta.createdBy,

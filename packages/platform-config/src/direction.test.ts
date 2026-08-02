@@ -1,4 +1,4 @@
-import { directionFromScript, textDirectionFor } from "./direction"
+import { textDirectionFor } from "./direction"
 
 /**
  * GE-022-004 — text direction.
@@ -50,46 +50,49 @@ describe("a bad tag is not an outage", () => {
     // still not take the document down.
     for (const bad of ["", "not a locale", "!!!", "e"]) {
       expect(textDirectionFor(bad)).toBe("ltr")
-      expect(directionFromScript(bad)).toBe("ltr")
     }
   })
 })
 
 /**
- * The fallback, on its own.
+ * The same answer on every runtime.
  *
- * This runtime has `Intl.Locale.prototype.getTextInfo()`, so every case above
- * is answered before the script table is consulted and none of them proves
- * anything about it. Two mutations showed that outright: swapping the table for
- * a list of "RTL languages" and removing the `maximize()` call both left the
- * suite green. The fallback exists for runtimes WITHOUT the standard API, which
- * is exactly where a silent wrong answer would go unnoticed — so it is tested
- * directly rather than through the function that shadows it.
+ * An earlier version of `direction.ts` preferred
+ * `Intl.Locale.prototype.getTextInfo()`, and CI — which runs Node 20 — failed
+ * on exactly these tags. Node 20 has only the older `textInfo` getter, and that
+ * getter reports the LANGUAGE's default direction rather than the tag's: it
+ * calls `dv-MV` and `az-Arab` left-to-right, while Node 22's `getTextInfo()`
+ * gets both right. Two runtimes, two answers, same tenant — and a shell that
+ * lays out one way on a container and the other way on the next.
+ *
+ * These cases are kept together and named so that anyone tempted to reintroduce
+ * the runtime call sees what it costs.
  */
-describe("the script fallback, for runtimes with no getTextInfo", () => {
-  it("answers the same as the standard API on every case above", () => {
-    for (const ltr of ["en-US", "fr-FR", "ja-JP", "zh-Hans-CN", "az-Latn", "pa-Guru"]) {
-      expect(directionFromScript(ltr)).toBe("ltr")
-    }
-    for (const rtl of ["ar", "ar-EG", "he-IL", "fa-IR", "ur-PK", "dv-MV", "az-Arab", "pa-Arab"]) {
-      expect(directionFromScript(rtl)).toBe("rtl")
-    }
+describe("the tags where the runtime APIs disagree with each other", () => {
+  it("reads the script's direction, not the language's default", () => {
+    // Thaana. Node 20's textInfo answers ltr here.
+    expect(textDirectionFor("dv-MV")).toBe("rtl")
+    expect(textDirectionFor("dv")).toBe("rtl")
+    // Azerbaijani in Arabic script. Node 20 answers ltr here too, because
+    // Azerbaijani's default script is Latin.
+    expect(textDirectionFor("az-Arab")).toBe("rtl")
+    expect(textDirectionFor("az-Latn")).toBe("ltr")
+  })
+
+  it("prefers an explicit script subtag over anything inferred", () => {
+    // The subtag is the tag's own statement about itself, and it is the only
+    // thing that can tell these two apart.
+    expect(new Intl.Locale("az-Arab").script).toBe("Arab")
+    expect(new Intl.Locale("az-Latn").script).toBe("Latn")
+    expect(textDirectionFor("az-Arab")).not.toBe(textDirectionFor("az-Latn"))
   })
 
   it("maximizes a tag that carries no script subtag", () => {
     // Anything reading only `parsed.script` gets undefined for these and
     // answers ltr — a right-to-left tenant rendered left to right.
     expect(new Intl.Locale("ar").script).toBeUndefined()
-    expect(directionFromScript("ar")).toBe("rtl")
+    expect(textDirectionFor("ar")).toBe("rtl")
     expect(new Intl.Locale("he").script).toBeUndefined()
-    expect(directionFromScript("he")).toBe("rtl")
-  })
-
-  it("decides by script, not by language", () => {
-    // A list of "RTL languages" cannot express this pair, and gets one wrong
-    // whichever way it is written.
-    expect(directionFromScript("az-Arab")).toBe("rtl")
-    expect(directionFromScript("az-Latn")).toBe("ltr")
-    expect(new Intl.Locale("az-Arab").language).toBe(new Intl.Locale("az-Latn").language)
+    expect(textDirectionFor("he")).toBe("rtl")
   })
 })

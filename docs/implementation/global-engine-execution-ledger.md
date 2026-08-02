@@ -856,10 +856,16 @@ for progress:
 
 ## GE-GATE-2
 
-- [ ] **GE-GATE-2** — Status: FAIL — GE-020 and GE-021 complete (12 of 17);
-  GE-022 is 4 of 5 (001 shell + switching proof, 002 dense-ERP states,
-  003 WCAG 2.2 AA + responsive, 004 localization + RTL + business calendar).
-  005 (flags / kill switches) remains.
+- [x] **GE-GATE-2** — Status: PASS — every child of Phase 2 is complete.
+  GE-020 (5), GE-021 (7) and GE-022 (5) are all checked with evidence:
+  ownership and forbidden-client boundaries, runtime-gate contracts, tenancy
+  resolution and request context, the command bus, bound repositories, the
+  outbox, envelopes and limits, the tenant/seat shell with its switching proof,
+  the ten dense-ERP states, WCAG 2.2 AA measured in a browser, localization
+  with RTL and a business calendar, and flags / experiments / exposure /
+  compatibility / kill switches.
+  - 17 of 17. Each item's evidence, mutation proof and honest limits are
+    recorded above; nothing here is checked on a declaration alone.
 
 ## GE-022: Common UX/runtime
 
@@ -1118,5 +1124,82 @@ for progress:
     tenant is right-to-left today; what is proven is that the engine would
     render one correctly.
 
-- [ ] **GE-022-005** — Status: FAIL — not started.
+- [x] **GE-022-005** — Safe feature flags/experiments, cohort rollout, config
+  compatibility, telemetry, and emergency restrict-only kill switches.
+  - Status: PASS
+  - Already existed and is cited rather than re-claimed: **flags under a
+    restrict-only law** (`flags.ts` — a flag may only ever narrow; a flag that
+    could turn something *on* would be a second authorization system nobody
+    audits, and `assertRestrictOnly` makes a violating declaration a startup
+    failure), **cohort rollout** (FNV-1a bucketing, stable forever, salted per
+    flag so two flags at 10% do not hit the same tenth of people), and
+    **emergency kill switches** (`unionSet`, the one strategy that makes a kill
+    un-revokable from a lower-privileged layer). All three are consumed by real
+    routes, not just declared.
+  - New here: **experiments**, **exposure telemetry**, and **config
+    compatibility**.
+  - Code: `packages/platform-config/src/{experiments,exposure,compatibility}.ts`,
+    the cell-side check in `lib/provisioning/reconcile.ts`, and `configKeys` on
+    the manifest in `packages/provisioning/src/execute.ts`
+  - Tests: `experiments.test.ts`, `exposure.test.ts`, `compatibility.test.ts`
+    (28 cases) plus three new cases in `reconcile.itest.ts` against Postgres
+
+  **Experiments inherit the restrict-only law by having no opinion about
+  access.** An experiment chooses between presentations of something the subject
+  may *already* do; it is gated by a flag, and when that flag is off the
+  assignment is `null`. So there is no path where being in an experiment lets
+  someone do something they otherwise could not — asserted by driving the real
+  kill switch through the real registry, not a hand-made `{enabled: false}`.
+  - Variant assignment uses a **different salt** from rollout. Without it, a
+    flag at 50% admits buckets 0–49 and those are exactly the subjects that fall
+    in the first variant: one arm gets everyone, the other gets nobody, and the
+    experiment reports a clean null result. The test measures the correlation
+    rather than trusting the comment.
+  - Weights must sum to 100 at *definition*. Weights summing to 90 leave a tenth
+    of subjects unassigned, and missing traffic looks exactly like control.
+
+  **Exposure telemetry counts, and holds no identity.** `(flag, reason)` and
+  `(experiment, variant)`, incremented at the single decision point in
+  `lib/config/server.ts` so a new consumer cannot forget to. It deliberately
+  does **not** key by subject or tenant: the question is "did this arm get
+  traffic", not "who was in it", and an exposure log keyed by person is a
+  behavioural record of every user built as a side effect of shipping a feature
+  — and the sort of thing that ends up in a public workflow log, which this
+  repository has already had happen once. Honest limit, stated in the module and
+  not papered over: the counters are **per process** and are lost on restart.
+
+  **Config compatibility closes a gap `schemaVersion` does not cover.** The
+  existing pin compares the *database* schema; it says nothing about the
+  configuration registry. So an engine that gains a key and a cell that has not
+  been rebuilt agree on the schema and still disagree about what the
+  configuration means — and ignoring the unknown key is the silent failure: the
+  Studio shows the setting as published and the cell quietly does something
+  else. The manifest now declares `configKeys`, and a cell refuses any it does
+  not implement. Absent is treated as "the engine did not say", not "it sets
+  nothing", so every manifest published before this still applies.
+  - Honest note on `checkCompatibility`'s version arm: with the schema pinned to
+    *exact* equality, a per-key minimum version can never fail independently, so
+    that arm is redundant today. It is implemented and tested because it becomes
+    load-bearing the moment the pin is relaxed to a range, and because
+    `parseVersion` throwing rather than defaulting to `0.0.0` is what stops the
+    whole guard being silently inert — a version that parses to zero compares
+    older than everything and every check passes.
+  - The engine-side change surfaced a stub that was lying: the cross-check test
+    composed `values: { a: 1 }`, so the manifest declared a key no engine would
+    ever set. The fix was to make the stub realistic, not to widen the check.
+
+  - **CI caught a defect this ledger should record, because it is the kind that
+    passes locally forever.** `direction.ts` (GE-022-004) preferred
+    `Intl.Locale.prototype.getTextInfo()`. The engine's containers run **Node
+    20**, which has only the older `textInfo` getter — and that getter reports
+    the *language's* default direction rather than the tag's, calling `dv-MV`
+    (Thaana) and `az-Arab` left-to-right. Node 22 gets both right. The standard
+    API is not one answer in two spellings; it is two answers, and the same
+    tenant would lay out one way on a container and the other way on the next.
+    Direction is now derived from the script on every runtime, verified by
+    running the logic under `node:20-alpine` — 28 tags, all agreeing. The
+    module's own comment had *claimed* runtime-independence while deferring to
+    the runtime.
+
+- [ ] **GE-GATE-2** — see above.
 

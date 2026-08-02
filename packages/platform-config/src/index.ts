@@ -41,6 +41,21 @@ export {
 } from "./flags"
 export type { FlagDecision, FlagName, FlagReason } from "./flags"
 
+export { ExperimentDefinitionError, assignVariant, defineExperiment } from "./experiments"
+export type { Assignment, Experiment, Variant } from "./experiments"
+
+export {
+  exposureSnapshot,
+  recordExperimentExposure,
+  recordFlagExposure,
+} from "./exposure"
+export type { ExposureCounts } from "./exposure"
+// `resetExposureCounts` is deliberately NOT re-exported. Nothing in production
+// resets a counter, and an export is an invitation.
+
+export { VersionError, checkCompatibility, compareVersions, parseVersion } from "./compatibility"
+export type { CompatibilityVerdict, EngineVersion } from "./compatibility"
+
 export {
   REGISTRY,
   brandingFor,
