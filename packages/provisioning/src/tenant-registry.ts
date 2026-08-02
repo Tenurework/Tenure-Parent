@@ -85,6 +85,20 @@ export interface TenantRegistryRecord {
 
   lifecycle: TenantLifecycle
 
+  /**
+   * How this tenant came to be in the registry.
+   *
+   * `composed` went through the console: DRAFT, validation, provisioning, a
+   * signed manifest. `adopted` was already serving when the control plane was
+   * built and was brought under it — Simon OSE is the reason this exists.
+   *
+   * Required rather than optional, and permanent. Writing a provisioning
+   * history for a tenant that never went through one would be a lie in the
+   * one place the platform's honesty is load-bearing, and an absent field
+   * reads as "composed" to anyone scanning.
+   */
+  provenance: "composed" | "adopted"
+
   /** Who the customer legally is. Distinct from `displayName`, which is chrome. */
   legalName: string
   displayName: string

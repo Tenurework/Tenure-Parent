@@ -7,6 +7,9 @@ import { RESIDUAL_COST, SERVING } from "@tenure/provisioning"
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
 import { listTenants, registryConfigured } from "@/lib/registry"
+import { adoptableBindings } from "@/lib/adopt"
+import { PLAN_CATALOG } from "@tenure/provisioning"
+import { AdoptForm } from "./AdoptForm"
 
 export const dynamic = "force-dynamic"
 
@@ -38,6 +41,13 @@ export default async function TenantsPage() {
       failure = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
     }
   }
+
+  // A binding is adoptable until it is in the registry. Derived from what the
+  // registry actually returned rather than from a flag, so a failed read shows
+  // nothing as adoptable instead of offering to adopt something twice.
+  const registeredSlugs = tenants.map((t) => t.slug)
+  const adoptable = failure ? [] : adoptableBindings(registeredSlugs)
+  const planOptions = PLAN_CATALOG.map((p) => ({ planId: p.planId, displayName: p.displayName }))
 
   return (
     <>
@@ -146,10 +156,17 @@ export default async function TenantsPage() {
                 <td className="id">{b.slug}</td>
                 <td>{b.displayName}</td>
                 <td className="slug">{b.blueprintId}</td>
+                <td className="slug">
+                  {registeredSlugs.includes(b.slug) ? "in the registry" : "not adopted"}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        {adoptable.length > 0 && registryConfigured() && (
+          <AdoptForm bindings={adoptable} plans={planOptions} />
+        )}
       </section>
     </>
   )

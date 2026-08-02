@@ -26,7 +26,15 @@ import { auth } from "@/lib/auth"
 import { registryRecordFor } from "@/lib/registry-record"
 import { placementFor } from "@/lib/cells"
 import { isOperator } from "@/lib/operators"
-import { SlugTaken, advanceTenant, getTenant, registerTenant, takenSlugs } from "@/lib/registry"
+import {
+  SlugTaken,
+  adoptBoundTenant,
+  advanceTenant,
+  getTenant,
+  registerTenant,
+  takenSlugs,
+} from "@/lib/registry"
+import { buildAdoption } from "@/lib/adopt"
 import { deliverToCell } from "@/lib/deliver"
 
 /**
@@ -349,4 +357,85 @@ export async function advanceState(_prev: AdvanceResult | null, form: FormData):
   revalidatePath(`/tenants/${slug}`)
   revalidatePath("/tenants")
   return {}
+}
+
+export interface AdoptResult {
+  problems: Array<{ field: string; reason: string; detail: string }>
+}
+
+/**
+ * Bring a file-bound tenant under the engine.
+ *
+ * Simon OSE has been serving real students since before this control plane
+ * existed. It is bound in `blueprints/` and the console lists it separately
+ * because showing it beside composed tenants would imply a lifecycle it never
+ * went through. This is how that stops being permanent — and the record it
+ * writes says `adopted`, permanently, rather than pretending otherwise.
+ */
+export async function adoptTenantAction(
+  _prev: AdoptResult | null,
+  form: FormData,
+): Promise<AdoptResult> {
+  const principalId = await operator()
+
+  const request = {
+    slug: String(form.get("slug") ?? "").trim(),
+    primaryContactEmail: String(form.get("primaryContactEmail") ?? "").trim(),
+    residency: String(form.get("residency") ?? "")
+      .split(",")
+      .map((r) => r.trim())
+      .filter(Boolean),
+    plan: String(form.get("planId") ?? ""),
+    at: now(),
+  }
+
+  // The operator confirms the institution row exists, because the engine does
+  // not read tenant databases and must not claim to have checked.
+  const institutionExists = form.get("institutionExists") === "on"
+
+  if (!getPlan(request.plan)) {
+    return {
+      problems: [
+        { field: "planId", reason: "unknown-plan", detail: `No plan "${request.plan}".` },
+      ],
+    }
+  }
+
+  let built
+  try {
+    built = buildAdoption(request, { institutionExists })
+  } catch (err) {
+    // AdoptionRefused and NotAdoptable both carry the reason in the message,
+    // and both are operator-fixable — a missing check, a bad residency, a
+    // binding that does not exist. Reported as form problems, not a 500.
+    return {
+      problems: [
+        {
+          field: "slug",
+          reason: "refused",
+          detail: err instanceof Error ? err.message : String(err),
+        },
+      ],
+    }
+  }
+
+  try {
+    await adoptBoundTenant(built.manifest, built.record, { principalId, at: request.at })
+  } catch (err) {
+    if (err instanceof SlugTaken) {
+      return {
+        problems: [
+          {
+            field: "slug",
+            reason: "already-registered",
+            detail: `"${request.slug}" is already in the registry. Adoption is a one-time move.`,
+          },
+        ],
+      }
+    }
+    throw err
+  }
+
+  revalidatePath("/tenants")
+  redirect(`/tenants/${request.slug}`)
 }

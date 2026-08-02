@@ -50,6 +50,47 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
         /{tenant.slug} · {tenant.manifest.legalName} · manifest {tenant.digest}
       </p>
 
+      {tenant.registry && (
+        <section className="system">
+          <header>
+            <h2>Registry</h2>
+            <span className="badge">{tenant.registry.provenance}</span>
+          </header>
+
+          {/* Said plainly, and permanently. An adopted tenant must never present
+              as one this console provisioned — the lifecycle history it does not
+              have is the difference, and a reader who cannot see which is which
+              will assume the steps were run. */}
+          {tenant.registry.provenance === "adopted" && (
+            <p className="refused">
+              Adopted. This system was serving before the registry existed and was brought under
+              it — no provisioning steps were run, and none are recorded.
+            </p>
+          )}
+
+          <dl className="kv">
+            <dt>Tenant id</dt>
+            <dd className="id">{tenant.registry.tenantId}</dd>
+            <dt>Lifecycle</dt>
+            <dd>{tenant.registry.lifecycle}</dd>
+            <dt>Cell</dt>
+            <dd>
+              {tenant.registry.placement.cellId} · {tenant.registry.placement.region}
+            </dd>
+            <dt>Permitted regions</dt>
+            <dd>{tenant.registry.residency.join(", ")}</dd>
+            <dt>Plan</dt>
+            <dd>{tenant.registry.plan}</dd>
+            <dt>Release</dt>
+            <dd>{tenant.registry.release}</dd>
+            <dt>Config revision</dt>
+            <dd>{tenant.registry.configRevision}</dd>
+            <dt>Administrator</dt>
+            <dd>{tenant.registry.primaryContactEmail}</dd>
+          </dl>
+        </section>
+      )}
+
       <section className="system">
         <header>
           <h2>State</h2>

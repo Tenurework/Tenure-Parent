@@ -272,6 +272,124 @@ export async function registerTenant(
 }
 
 /**
+ * Bring a file-bound tenant under the registry.
+ *
+ * The same conditional write as `registerTenant`: the slug is claimed with
+ * `attribute_not_exists`, so adopting twice — or adopting something that has
+ * since been composed — fails rather than overwriting a record.
+ *
+ * The lifecycle STATE is written as ACTIVE with no step history. Not DRAFT,
+ * because the tenant is serving real users right now; and no fabricated
+ * intermediate steps, because nobody ran them. `registry.provenance` is what says how it got here.
+ */
+export async function adoptBoundTenant(
+  manifest: TenantManifest,
+  registry: TenantRegistryRecord,
+  actor: { principalId: string; at: string },
+): Promise<TenantRecord> {
+  const digest = digestOf(manifest)
+  const base = {
+    pk: pk(manifest.slug),
+    slug: manifest.slug,
+    displayName: manifest.displayName,
+    isolation: manifest.isolation,
+  }
+
+  try {
+    await client().send(
+      new TransactWriteCommand({
+        TransactItems: [
+          {
+            Put: {
+              TableName: TABLE,
+              Item: { ...base, sk: "MANIFEST", manifest, digest },
+              ConditionExpression: "attribute_not_exists(pk)",
+            },
+          },
+          {
+            Put: {
+              TableName: TABLE,
+              Item: { ...base, sk: "REGISTRY", registry },
+              ConditionExpression: "attribute_not_exists(pk)",
+            },
+          },
+          {
+            Put: {
+              TableName: TABLE,
+              Item: {
+                ...base,
+                sk: "STATE",
+                state: "ACTIVE" satisfies TenantState,
+                digest,
+                createdAt: actor.at,
+                updatedAt: actor.at,
+              },
+              ConditionExpression: "attribute_not_exists(pk)",
+            },
+          },
+          {
+            // The adoption itself, as the only step there is. An operator
+            // asking "how did this tenant get here" gets one honest answer
+            // instead of a plausible-looking provisioning trail.
+            //
+            // Written as a nested `step` because that is the shape `getTenant`
+            // reads back — a flat row made the tenant page throw on
+            // `a.at.localeCompare`, which Next then rendered as a bare
+            // "Application error" with a digest. A write that does not match
+            // its reader is a write nobody notices until somebody opens the page.
+            Put: {
+              TableName: TABLE,
+              Item: {
+                ...base,
+                sk: `STEP#${actor.at}#1`,
+                step: {
+                  // from === to: nothing transitioned. The tenant was already
+                  // ACTIVE; the registry is what changed.
+                  from: "ACTIVE" satisfies TenantState,
+                  to: "ACTIVE" satisfies TenantState,
+                  at: actor.at,
+                  actor: actor.principalId,
+                  reason:
+                    "Adopted from the file binding in blueprints/. Predates the registry; no provisioning steps were run.",
+                  attempt: 1,
+                } satisfies LifecycleStep,
+              },
+            },
+          },
+        ],
+      }),
+    )
+  } catch (err) {
+    if ((err as { name?: string }).name === "TransactionCanceledException") {
+      throw new SlugTaken(manifest.slug)
+    }
+    throw err
+  }
+
+  return {
+    slug: manifest.slug,
+    manifest,
+    state: "ACTIVE",
+    digest,
+    createdAt: actor.at,
+    updatedAt: actor.at,
+    history: [
+      {
+        from: "ACTIVE",
+        to: "ACTIVE",
+        at: actor.at,
+        actor: actor.principalId,
+        reason:
+          "Adopted from the file binding in blueprints/. Predates the registry; no provisioning steps were run.",
+        attempt: 1,
+      },
+    ],
+    evidence: [],
+    registry,
+  }
+}
+
+/**
  * Move a tenant to the next state, recording the step.
  *
  * The legality of the move is decided by `@tenure/provisioning`, not here, and

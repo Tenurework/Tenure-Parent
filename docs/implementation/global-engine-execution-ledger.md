@@ -1609,3 +1609,95 @@ for progress:
     marketplace controls the bible lists. Nothing verifies a signature
     cryptographically yet — `signatureRef` is required and its absence refuses,
     but the KMS verification is Phase 12 work.
+
+## Tenant adoption — bringing Simon OSE under the engine
+
+- [x] **Adoption of file-bound tenants** (not a numbered GE item; requested
+  directly, and a real gap the numbered items exposed)
+  - Status: PASS
+  - Code: `packages/provisioning/src/adoption.ts`,
+    `apps/system-studio/src/lib/adopt.ts`,
+    `apps/system-studio/src/app/tenants/AdoptForm.tsx`, `adoptBoundTenant` in
+    the Studio registry, a Registry section on the tenant page
+  - Tests: `adoption.test.ts` (10 cases), `e2e/adoption.spec.ts` (3 cases
+    against a real DynamoDB). Studio suite **42/42**.
+
+  **The problem.** Simon OSE — slug `rochester` — has been serving real
+  students since before this control plane existed. It is bound in
+  `blueprints/index.ts`, and the console listed it under "Configured by file"
+  with a note explaining that showing it beside composed tenants would imply a
+  lifecycle it never went through. That was honest and it was also a dead end:
+  no immutable id, no placement, no release, no lifecycle. **Every fleet view
+  that reads the registry did not see the one tenant that matters** — GE-030-001
+  through 005 all built on a registry the pilot was not in.
+
+  **Adopted is not composed, and the record says so permanently.** The tempting
+  shortcut is to write a DRAFT → VALIDATING → PROVISIONING → PROVISIONED history
+  so the tenant looks like every other. That would be a lie in the one place
+  this platform's honesty is load-bearing: an audit trail. Nobody ran those
+  steps; the tenant was built by hand, by people, over months. So `provenance`
+  is a required field on every registry record, it is `adopted` here, and the
+  tenant page says it in prose rather than only in a badge.
+  - The single lifecycle step written records the adoption itself, with
+    `from === to === ACTIVE` — nothing transitioned; the registry is what
+    changed.
+  - `lifecycle: ACTIVE` because it is. Starting at `REGISTERED` would be the
+    mirror-image lie: a record saying nothing has been provisioned, for a system
+    with live users in it.
+  - `configRevision: 0` because the engine has applied nothing. Claiming 1 would
+    make the next reconcile compare against a revision that never existed.
+
+  **Adoption asserts only what was checked.** Four checks, each with an evidence
+  line naming what was looked at, and `adoptTenant` refuses if one is missing or
+  failed. Three are decided from data the engine holds; `institution-exists` is
+  deliberately **not** — the institution row lives in the cell's database and
+  the engine does not read tenant databases. It is an operator's assertion, the
+  checkbox says so, and the evidence line records it as an assertion rather than
+  implying a machine verified it.
+  - Residency is an input, not a default. For an existing customer it is a
+    contract term somebody has to look up, and inferring it from where the
+    tenant happens to run would put a contractual claim in the registry that
+    nobody verified. The e2e proves a residency the placement would violate is
+    refused.
+
+  **Driven end to end, against a real DynamoDB.** `amazon/dynamodb-local` is now
+  a service on the `Studio · Playwright` job, so the registry — a conditional
+  write that claims a slug, a Query across one partition, a Scan filtered to
+  STATE rows — is exercised rather than mocked. Locally the same setup adopted
+  Simon OSE through the form and the record was read straight back out of the
+  table: `provenance: "adopted"`, `lifecycle: "ACTIVE"`, placement
+  `cell-us-east-1-a / us-east-1`, residency `["us-east-1"]`, release
+  `2026.07.31`, twelve resolved modules and the `finance` entitlement.
+
+  **Two real defects found by driving it rather than reasoning about it:**
+  - The adoption wrote a *flat* step row while `getTenant` reads a nested
+    `step` object, so the tenant page threw on `a.at.localeCompare` and Next
+    rendered a bare "Application error" with a digest. A write that does not
+    match its reader is a write nobody notices until somebody opens the page.
+  - Five form controls rendered at `rgb(0,0,0)` — the `.field input[type=…]`
+    rules did not reach them, and an unstyled checkbox additionally draws the OS
+    accent, usually a saturated blue. Both violate the theme. Measured with
+    `getComputedStyle` rather than eyeballed; the palette is now `#33302c`,
+    `#6e6a64` and `#eceae6` with no pure black or white anywhere in the form.
+
+  - **The disarm guard fired, correctly, and was not weakened.** Creating the
+    table with `aws dynamodb create-table --endpoint-url http://localhost:8000`
+    tripped `production-workflows-disarmed`, which decides a workflow can reach
+    production by looking at what it does — and it cannot tell a localhost
+    endpoint from a real account. A guard that tried to would be a guard with an
+    exception in it. `tools/create-registry-table.mjs` uses the SDK instead and
+    **refuses to run without an explicit `AWS_ENDPOINT_URL_DYNAMODB`**, because
+    it creates tables and the SDK would otherwise resolve to the real regional
+    service. Proven: refuses with no endpoint, creates with one, and is
+    idempotent on a second run.
+
+  - Honest limits: adoption writes a registry record and a manifest; it does
+    **not** produce a signed deployment manifest, so drift detection for the
+    pilot still has no baseline to compare against — that needs a real
+    `deploymentManifest` run, which means the pilot's configuration must first
+    resolve through the console's execution context without problems. The
+    `legalName` is the binding's display name, because that is the only name
+    recorded and inventing a legal name for a real organisation is a statement
+    nobody checked. And adoption is one-way: the conditional write means a
+    second attempt fails rather than overwriting, which is right, but there is
+    no un-adopt.

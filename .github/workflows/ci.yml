@@ -352,6 +352,15 @@ jobs:
     name: Studio · Playwright
     runs-on: ubuntu-latest
 
+    services:
+      # DynamoDB Local, not a mock. The registry's access patterns — a
+      # conditional write that claims a slug, a Query across one partition, a
+      # Scan filtered to STATE rows — are properties of DynamoDB, and a fake
+      # would agree with whatever the code did.
+      dynamodb:
+        image: amazon/dynamodb-local:2.5.2
+        ports: ["8000:8000"]
+
     env:
       # Throwaway values for an ephemeral instance, but not the placeholders
       # the environment contract rejects.
@@ -361,6 +370,13 @@ jobs:
       AUTH_TRUST_HOST: "true"
       NEXTAUTH_URL: http://localhost:3100
       PORT: "3100"
+      TENANT_TABLE: tenure-tenants-ci
+      # DynamoDB Local accepts any credentials and ignores them; these exist so
+      # the SDK does not go looking for an instance profile that is not there.
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: dynamodb-local-ignores-this
+      AWS_SECRET_ACCESS_KEY: dynamodb-local-ignores-this
+      AWS_ENDPOINT_URL_DYNAMODB: http://localhost:8000
 
     steps:
       - name: Checkout
@@ -377,6 +393,21 @@ jobs:
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
+
+      # No `aws` CLI here, deliberately. production-workflows-disarmed decides
+      # a workflow can reach production by looking at what it does, and it
+      # cannot tell `--endpoint-url http://localhost:8000` from a real account.
+      # A guard that tried to would be a guard with an exception in it, so the
+      # table is created through the SDK instead — which additionally refuses
+      # to run without an explicit endpoint.
+      - name: Create the registry table
+        run: |
+          for i in $(seq 1 30); do
+            if node tools/create-registry-table.mjs; then exit 0; fi
+            sleep 1
+          done
+          echo "::error::DynamoDB Local never answered"
+          exit 1
 
       - name: Build the Studio
         run: npm run studio:build

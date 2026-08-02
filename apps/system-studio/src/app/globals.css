@@ -427,3 +427,75 @@ form.compose button[type="submit"]:disabled,
   color: var(--muted);
   opacity: 0.8;
 }
+
+/* ─── Adopting a file-bound tenant ──────────────────────────────────────────
+   Reuses .field wholesale rather than inventing a second form language. What
+   it adds is the checkbox row, where the label wraps a long sentence — the
+   operator is asserting something the engine cannot check, and a one-word
+   label would hide that. `align-items: start` keeps the box on the first line
+   of that sentence instead of centring it against a three-line block. */
+.adopt {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.adopt > .hint {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 46rem;
+  margin: 0 0 1rem;
+}
+.field.checkbox > label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: start;
+  /* Not the uppercase caption treatment: this is a sentence, not a field name. */
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text);
+  max-width: 46rem;
+}
+.field.checkbox input {
+  width: auto;
+  margin-top: 0.2rem;
+}
+.adopt .problems {
+  margin: 0.9rem 0 0;
+  padding: 0.7rem 0.9rem 0.7rem 1.7rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  max-width: 46rem;
+}
+.adopt button[type="submit"] {
+  margin-top: 1rem;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 4px;
+  cursor: pointer;
+}
+.adopt button[type="submit"]:disabled { cursor: progress; color: var(--muted); }
+
+/* Every control in the adopt form takes the theme's ink, not the browser's.
+   Measured, not assumed: five inputs were rendering at rgb(0,0,0) — the
+   `.field input[type=...]` rules above did not reach them, and an unstyled
+   checkbox additionally draws the OS accent, which is usually a saturated blue.
+   `accent-color` is what themes the checked state; `color` alone does not. */
+.adopt input,
+.adopt select,
+.adopt option {
+  color: var(--text);
+}
+.adopt input[type="checkbox"] {
+  accent-color: var(--muted);
+}

@@ -20,6 +20,7 @@ const RECORD: TenantRegistryRecord = {
   tenantId: "tnt_01HQ0000000000000000000000",
   slug: "rochester",
   lifecycle: "ACTIVE",
+  provenance: "composed",
   legalName: "University of Rochester",
   displayName: "Simon Business School — Ainslie OSE",
   primaryContactEmail: "ose@example.invalid",

@@ -68,6 +68,7 @@ export function registryRecordFor(
     // that marks a tenant active on registration would route traffic at a cell
     // that has never heard of it.
     lifecycle: "REGISTERED",
+    provenance: "composed",
     legalName: manifest.legalName,
     displayName: manifest.displayName,
     primaryContactEmail: context.primaryContactEmail || manifest.initialAdminEmail,

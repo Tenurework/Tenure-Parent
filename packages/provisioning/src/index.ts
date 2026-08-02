@@ -134,3 +134,6 @@ export type {
   UsabilityReason,
 } from "./catalogs"
 
+
+export { AdoptionRefused, REQUIRED_ADOPTION_CHECKS, adoptTenant } from "./adoption"
+export type { AdoptionCheck, AdoptionEvidence, AdoptionInput } from "./adoption"
