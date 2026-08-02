@@ -13,8 +13,6 @@
  * Read-only; it reports and does not correct, because a check that fixes what
  * it finds can never fail.
  *
- * Usage:
- *   GH_TOKEN=… REPO=satvikOS/Tenure-Parent node tools/verify-workflow-permissions.mjs
  */
 const repo = process.env.REPO ?? "satvikOS/Tenure-Parent"
 const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN

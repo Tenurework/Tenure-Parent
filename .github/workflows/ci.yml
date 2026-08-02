@@ -13,19 +13,14 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
-      # GE-011-007. `administration: read` is what lets this job read the
-      # repository's own Actions settings — the default workflow permission,
-      # which lives in a web form and which no file here records. Flip that to
-      # write and every workflow with no permissions block silently gains push
-      # access, with no diff and nothing to notice.
+      # Explicit rather than inherited. This job needs nothing but the source.
       #
-      # The default GITHUB_TOKEN cannot read it (403), and the alternative was a
-      # personal access token in a secret. Granting a long-lived admin
-      # credential to a public repository in order to check that workflows are
-      # read-only would cost more than the check is worth; a read-only scope on
-      # one job does not.
-      administration: read
+      # It briefly also declared `administration: read`, to let the workflow-
+      # permissions check read the repository's own Actions settings. That is a
+      # GitHub App permission and NOT a GITHUB_TOKEN scope, so GitHub refused to
+      # parse the file and CI stopped existing — a 0-second run with no jobs.
+      # `workflow-drift.test.mjs` now fails on an invalid scope for that reason.
+      contents: read
 
     env:
       AUTH_SECRET: ci-build-secret-not-for-production
@@ -89,16 +84,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: node tools/verify-environments.mjs
-      # GE-011-007. The default workflow permission lives in a web form, not
-      # in this repository — flip it to write and the ten workflows that
-      # declare no permissions block silently gain push access, with no diff
-      # and nothing in CI to notice. Read-only; it reports rather than
-      # corrects, because a check that fixes what it finds can never fail.
-      - name: Default workflow permission is read-only
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: node tools/verify-workflow-permissions.mjs
       - name: Platform tests
         run: npm run test:platform
 

@@ -1907,6 +1907,19 @@ implemented, mutation-proven and recorded on its own; pushed together.
     in a web form and no file records it — flip it and all ten workflows
     silently gain push access, with no diff and nothing in CI to notice.
   - Proven by mutation, **6 of 6 caught** across the two guards.
+  - **The workflow-permission check cannot run in CI, and that is recorded
+    rather than worked around.** Reading a repository Actions setting needs
+    `administration` scope — a GitHub *App* permission, not a `permissions:`
+    key GITHUB_TOKEN can be granted. Declaring it made GitHub refuse to parse
+    ci.yml, and CI **silently stopped existing**: a 0-second run, no jobs, the
+    workflow named by its path. A workflow that stops existing is worse than
+    one that fails, because a failure is at least red for a reason somebody
+    reads. `workflow-drift.test.mjs` now fails on any scope GITHUB_TOKEN does
+    not have, proven against that exact key. The remaining option was a
+    personal access token in a secret, and granting a long-lived admin
+    credential to a public repository to check that its workflows are read-only
+    costs more than the check is worth — so the tool is operator-run and
+    AUTONOMOUS-LOOP.md says so.
   - Honest limit: drift against **deployed IAM policy** is not covered. That
     needs a read against the live account and belongs with the inventory
     workflow; the repository-side half is what runs on every push.

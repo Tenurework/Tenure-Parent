@@ -114,6 +114,17 @@ line is not drift. Any other change in the same file still is.
 
 ---
 
+## Checks an operator runs, because CI cannot
+
+```bash
+# The repository default workflow permission is read-only, and workflows
+# cannot approve pull requests. Needs `administration` scope, which
+# GITHUB_TOKEN cannot be granted — see the note in the tool.
+GH_TOKEN=$(gh auth token) node tools/verify-workflow-permissions.mjs
+```
+
+---
+
 ## What is session-scoped, and what is not
 
 | Durable — survives any session | Session-scoped — dies with the REPL |

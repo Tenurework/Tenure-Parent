@@ -194,3 +194,69 @@ test('every workflow that requests an OIDC token declares id-token: write', () =
     }
   }
 })
+
+/**
+ * Every permission scope named is one GITHUB_TOKEN actually has.
+ *
+ * An invalid scope does not warn — GitHub refuses to parse the whole workflow
+ * file. The run appears in the list having taken **0 seconds**, with no jobs and
+ * the workflow named by its path instead of its `name:`, and nothing says why.
+ * A workflow that silently stops existing is worse than one that fails, because
+ * a failure is at least red for a reason somebody reads.
+ *
+ * That happened here: `administration: read` is a valid GitHub *App* permission
+ * and is not a `permissions:` key, and adding it disabled CI entirely.
+ */
+const GITHUB_TOKEN_SCOPES = new Set([
+  'actions',
+  'attestations',
+  'checks',
+  'contents',
+  'deployments',
+  'discussions',
+  'id-token',
+  'issues',
+  'models',
+  'packages',
+  'pages',
+  'pull-requests',
+  'repository-projects',
+  'security-events',
+  'statuses',
+])
+
+test('every permission scope is one GITHUB_TOKEN has', () => {
+  const invalid = []
+
+  for (const { file, text } of workflows) {
+    const lines = text.split('\n')
+    let inBlock = false
+    let blockIndent = 0
+
+    lines.forEach((line, i) => {
+      const opens = /^(\s*)permissions:\s*$/.exec(line)
+      if (opens) {
+        inBlock = true
+        blockIndent = opens[1].length
+        return
+      }
+      if (!inBlock) return
+
+      const entry = /^(\s*)([a-z-]+):\s*(read|write|none)\s*$/.exec(line)
+      if (entry && entry[1].length > blockIndent) {
+        if (!GITHUB_TOKEN_SCOPES.has(entry[2])) invalid.push(`${file}:${i + 1} ${entry[2]}`)
+        return
+      }
+      if (line.trim() === '' || /^\s*#/.test(line)) return
+      inBlock = false
+    })
+  }
+
+  assert.deepEqual(
+    invalid,
+    [],
+    `A permissions key GITHUB_TOKEN does not have:\n  ${invalid.join('\n  ')}\n` +
+      `GitHub will refuse to parse the workflow — the run takes 0 seconds, has no jobs, ` +
+      `and is named by its path. The workflow stops existing rather than failing.`,
+  )
+})
