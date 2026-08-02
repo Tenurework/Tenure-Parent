@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "44ede72",
+  "commit": "23738cf",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 90,
-    "done": 78,
+    "total": 91,
+    "done": 79,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -658,6 +658,13 @@
             "title": "Validate callback code exchange, issuer, JWKS/signature, algorithm, expiry/not-before, token use, client/audience, scopes, nonce, and transaction replay.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-042-004",
+            "done": true,
+            "title": "Implement BFF/server-side session with secure HttpOnly cookies, CSRF protection, rotation, absolute/idle expiry, tenant binding, session inventory, and immediate revocation.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -672,7 +679,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 93,
+    "decided": 94,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -805,7 +812,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "GE · GE-043: Enterprise federation and lifecycle",

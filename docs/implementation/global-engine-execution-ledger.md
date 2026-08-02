@@ -4543,3 +4543,98 @@ worth less than three items that hold.
     is a parser's job and a parser that this module also owned would be one more
     thing to get wrong; what matters is that nothing in the parsed value is
     trusted before the signature.
+
+- [x] **GE-042-004** — Implement BFF/server-side session with secure HttpOnly cookies, CSRF protection, rotation, absolute/idle expiry, tenant binding, session inventory, and immediate revocation.
+  - Status: PASS
+  - Code: `packages/identity/src/session.ts`
+  - Tests: `packages/identity/src/session.test.ts` (36)
+  - Evidence: 1989/1989 apps/web unit across 87 suites, type-check clean.
+    **26 mutations, 26 caught.**
+
+  Bible §9.1: "a backend-for-frontend session. Browser cookies are `Secure`,
+  `HttpOnly`, appropriately `SameSite`, narrowly scoped, rotated at
+  authentication and privilege changes, and backed by server-side revocation.
+  Tokens are not stored in browser local storage." §21.2 adds "short-lived
+  sessions, rotation, revocation, device/session inventory".
+
+  **What backend-for-frontend actually buys.** The cookie carries an opaque
+  session id and nothing else — no access token, no claims, no tenant — because
+  everything in a cookie is exfiltratable by any XSS, and a session id is the
+  one value that is useless without the server. A JWT in a cookie is a bearer
+  token somewhere JavaScript can be tricked into reading; a session id is a row
+  number. It is also why revocation works at all here: there is no signed claim
+  to outlive a decision, only a row that stops resolving.
+
+  **`SameSite=Lax`, not `Strict`, and the reason is the OIDC callback.** Strict
+  withholds the cookie on a cross-site top-level navigation, which is exactly
+  what the provider's redirect back is — the callback would arrive with no
+  session and sign-in could never complete. Lax alone is not CSRF protection,
+  which is why the double-submit token exists; treating it as sufficient is the
+  common mistake, and it does nothing against a same-site subdomain.
+
+  **The CSRF cookie is deliberately readable by script.** An attacker's site can
+  *cause* a request carrying the cookie but cannot *read* it to set the header —
+  that is what the same-origin policy is. `httpOnly: false` is therefore not an
+  oversight, and a reviewer tightening it would silently break every write in
+  the application. `cookieProblems` asserts both directions so neither drifts.
+
+  GET, HEAD and OPTIONS are exempt from CSRF, because a GET that mutates is the
+  actual bug and CSRF-protecting it would hide that rather than fix it.
+
+  **Two clocks, because they answer different questions.** Idle expiry asks "did
+  they stop?" and slides forward with use, protecting an unattended machine.
+  Absolute expiry asks "how long since we actually checked who this is?" and
+  does not slide — one that did would mean a session used daily never
+  re-authenticates and lives forever. Only idle gives an eternal session; only
+  absolute logs somebody out mid-sentence. Absolute is reported first when both
+  have passed, because reporting idle would suggest that using it sooner would
+  have helped.
+
+  **Rotation defeats session fixation**: somebody plants a known id in a
+  victim's browser, the victim signs in, and the planted id must not be what
+  they end up holding. The old id is revoked in the same value, so a rotation
+  that leaves it live is not a rotation but a second session. The absolute
+  expiry is deliberately **not** extended — extending it on every privilege
+  change would let a session live indefinitely by doing ordinary things, which
+  is the loophole the absolute clock exists to close.
+
+  **Tenant binding is checked, not assumed.** A session id is valid for exactly
+  one tenant, and a person who belongs to two has two sessions. Without it a
+  cookie obtained in one tenant acts in another the moment the path changes —
+  and the path is attacker-chosen.
+
+  **The inventory is something a person can act on.** It marks the current
+  session, because one where you cannot tell which row is you is one where
+  nobody dares click anything, and it excludes dead rows because they make the
+  live ones harder to find. `revokeSessions` takes an exception, because "sign
+  out everywhere else" is the button people actually want after losing a laptop
+  and one that also ended their own session would log them out mid-panic.
+
+  **A mutation found redundant code rather than a gap.** Removing
+  `revokedAt === null` from the inventory filter survived, because
+  `checkSession` already rejects a revoked session — the check changed nothing.
+  Rather than record an equivalent mutant, the duplicate was removed:
+  `checkSession` is now the single authority on liveness, which is how the rest
+  of this package works. Two places deciding the same thing is how they
+  eventually disagree. Re-anchored, 26 of 26.
+
+  **Honest limits.**
+
+  * **Nothing calls any of this.** `apps/web` uses NextAuth's own JWT session
+    with its own cookie, which is not a BFF session — the token *is* the cookie.
+    Replacing it is the Cognito cutover (GE-041-003, BLOCKED_EXTERNAL), and
+    doing it piecemeal would mean two session systems and two answers to "is
+    this person signed in".
+  * **No store, so nothing persists.** `checkSession` returns a `touched`
+    session for the caller to write; nothing writes it, so idle expiry cannot
+    actually slide yet. Same persistence gap recorded under GE-040-001.
+  * **The timeouts are judgement, not measurement.** 30 minutes idle and 12
+    hours absolute are defensible for a staff console handling student records;
+    they should be tenant-configurable through the `identity` configuration
+    domain, and are not yet.
+  * **No anomaly controls.** Bible §21.2 also asks for those — impossible
+    travel, unfamiliar device — and they need a signal source and a history this
+    has neither of. The device label is a field nothing populates.
+  * `rotateSession` returns both records and persisting only one leaves either
+    an orphaned session or a live old id. The contract is stated; nothing
+    enforces it, because there is no store to enforce it in.
