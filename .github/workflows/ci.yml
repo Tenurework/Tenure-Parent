@@ -201,32 +201,34 @@ jobs:
         run: |
           psql "$DATABASE_URL" -c 'CREATE DATABASE tenure_legacy;'
           LEGACY="postgresql://tenure:tenure@localhost:5432/tenure_legacy"
-          DATABASE_URL="$LEGACY" npx prisma db push --skip-generate
-          psql "$LEGACY" -c 'DELETE FROM "_prisma_migrations";' 2>/dev/null || true
+
+          # Build the legacy shape from the BASELINE MIGRATION, not by pushing
+          # today's schema and subtracting.
+          #
+          # `db push` writes today's schema, so the fixture had to be walked
+          # back to the baseline afterwards — and the subtraction only removed
+          # post-baseline TABLES. Anything a later migration adds to a table the
+          # baseline already creates survived, leaving a database in a state no
+          # real one can be in: pre-migrations, yet already holding columns and
+          # types that only a later migration introduces.
+          #
+          # GE-040-001 is what found it. `MembershipStatus` and three columns on
+          # `InstitutionMembership` were left behind, so `migrate deploy` failed
+          # with "type MembershipStatus already exists" and then "column
+          # effectiveFrom already exists" — failures that say nothing about the
+          # migration and everything about the fixture. Each new migration
+          # touching an existing table would have needed this step edited.
+          #
+          # The baseline migration IS the legacy schema. Applying it produces
+          # exactly the shape the live pilot is in, needs no maintenance as
+          # migrations accumulate, and cannot drift from what it is simulating.
+          psql "$LEGACY" -v ON_ERROR_STOP=1 -q -f prisma/migrations/*_baseline/migration.sql
+
+          # No migration ledger — that absence is what makes it "legacy", and
+          # what db-bootstrap.mjs detects in order to baseline rather than
+          # replay over live tables.
           psql "$LEGACY" -c 'DROP TABLE IF EXISTS "_prisma_migrations";'
 
-          # Reconstruct the BASELINE shape, not the current one.
-          #
-          # `db push` writes today's schema, which was indistinguishable from
-          # the baseline while the baseline was the only migration. It no longer
-          # is: a database that is simultaneously pre-migrations AND up to date
-          # cannot exist, and simulating one made bootstrap try to CREATE a
-          # table db push had just created.
-          #
-          # Derived from the baseline migration rather than listed, so the next
-          # migration does not need this step edited — every table the baseline
-          # does not create is dropped, which is what "legacy" means.
-          BASELINE_TABLES=$(grep -ohE 'CREATE TABLE "[A-Za-z_]+"' prisma/migrations/*_baseline/migration.sql | tr -d '"' | awk '{print $3}' | sort -u)
-          ALL_TABLES=$(psql "$LEGACY" -tAc "SELECT tablename FROM pg_tables WHERE schemaname='public';" | sort -u)
-          POST_BASELINE=$(comm -13 <(echo "$BASELINE_TABLES") <(echo "$ALL_TABLES"))
-
-          if [ -n "$POST_BASELINE" ]; then
-            echo "Dropping tables the baseline does not create, to make this database genuinely legacy:"
-            for t in $POST_BASELINE; do
-              echo "  - $t"
-              psql "$LEGACY" -c "DROP TABLE IF EXISTS \"$t\" CASCADE;"
-            done
-          fi
           psql "$LEGACY" -c $'INSERT INTO "Institution" (id,name,slug,domain,"createdAt","updatedAt") VALUES (\'ci_live\',\'CI Live Data\',\'ci-live\',\'ci.test\',NOW(),NOW());'
 
           DATABASE_URL="$LEGACY" node scripts/db-bootstrap.mjs

@@ -160,6 +160,12 @@ cd apps/system-studio && ../../node_modules/.bin/playwright test --config=playwr
 A new route returning **404 while the build output lists it** means the server is
 not the build you just made. It is never a routing bug; check the log first.
 
+**Do not run `npm run test:platform` while the gate is running.** One guard
+writes a probe file into the source tree and deletes it; two concurrent runs
+race on it and the second fails with `ENOENT ... .content-probe.ts`. It looks
+like a real guard failure and is not — re-run it alone before believing it. This
+cost two cycles on 2026-08-02.
+
 **A new package under `packages/` needs `npm install --package-lock-only`.**
 Adding a workspace without regenerating `package-lock.json` passes every local
 check — the workspace symlink already exists in `node_modules`, so type-check,
