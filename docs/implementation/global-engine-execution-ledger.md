@@ -3153,3 +3153,71 @@ worth less than three items that hold.
     is reachable only by a caller holding the secret, and giving the Studio that
     caller is cell-to-control-plane networking that the same Organization work
     gates.
+
+- [x] **GE-033-002** — Fleet tenant/cell health, lifecycle, release/config,
+  migration, connectors, identity, backup, security, cost and incident views
+  without default raw content access.
+  - Status: PASS
+  - Code: `apps/system-studio/src/lib/fleet-health.ts`, a Fleet health section
+    on `/tenants`
+  - Tests: `e2e/fleet-health-logic.spec.ts` — 17 cases;
+    `tests/security/operator-plane-content.test.mjs` — 4 guards. Studio
+    **167 passed, 3 skipped** with layout geometry; `apps/web` **1560/1560**;
+    **96 platform guards**.
+  - **The clause at the end of the item is the item.** Ten views are listed and
+    all of them are qualified by "without default raw content access". An
+    operator answering "is this tenant healthy" must not need to read a
+    student's record to do it — so every signal is derived from operational
+    facts the control plane already owns: lifecycle state, when the tenant last
+    moved, whether a signed manifest exists, which configuration revision the
+    registry and the store each believe is live.
+  - **`cell-independence` guards the cell against the engine; nothing guarded
+    the reverse** — and the reverse is the direction with a customer's data on
+    the other side. An operator console that imported Prisma would be one query
+    away from a student's record while rendering a page about fleet health.
+    `operator-plane-content` now fails on a tenant database client anywhere in
+    the Studio, on a dependency edge to the cell application, and on the health
+    module reaching for content. Its fourth test writes a real Prisma import to
+    a temporary file and asserts the pattern catches it — a guard for an absence
+    has to be shown catching something, or it is indistinguishable from a grep
+    that matches nothing because it is wrong.
+  - The pressure this exists against is worth naming: every fleet view is a
+    request for information about a tenant, and the cheapest way to answer any
+    of them is to read the tenant's database. Each crossing will have a good
+    reason.
+  - **The signals that must NOT fire are most of the tests.** A `DRAFT` sitting
+    for a month is a draft, not a stall — nothing is supposed to be moving it,
+    so `DRAFT` is deliberately absent from `TRANSITIONAL`. An unreadable
+    timestamp is not an outage: "we cannot tell how long this has been here" and
+    "this has been here too long" are different facts, and reporting the first
+    as the second sends an operator to investigate a clock. A tenant that has
+    not reached `CONFIGURING` has nothing to have deployed. A health view that
+    cries wolf is one operators stop opening.
+  - `TRANSITIONAL` is written out rather than derived from an "ends in ING"
+    rule, because that is a spelling convention and this is a claim about
+    behaviour — and the `TenantState` annotation means a renamed state stops
+    compiling rather than silently dropping out of the check.
+  - Attention is counted from the worst signal per tenant, not by summing
+    signals: a tenant that is both failed and never-deployed is one tenant
+    needing attention, and summing would report two.
+  - Proven by mutation, **5 of 5 caught**: an unreadable timestamp counted as
+    stalled FAILS; `DRAFT` made transitional FAILS; `never-deployed` firing
+    before there is anything to deploy FAILS 2; attention counted by summing
+    signals FAILS; urgency order reversed FAILS.
+  - **A guard of mine fired on its own explanation for the third time this
+    session**, and this time the fix was structural rather than another
+    rewording: `operator-plane-content` strips comments before scanning. A guard
+    that cannot tell code from an explanation punishes explaining, and the
+    explanation is usually the most valuable line in the file.
+  - Honest limits: **one of the ten views is built.** Migration, connectors,
+    identity, backup, security, cost and incident views have no data source in
+    this repository — there are no cells deployed, no connectors implemented and
+    no AWS Organization to read security or cost findings from, which is the
+    same blocker as GE-012 and GE-GATE-1. Lifecycle and release/config already
+    existed on the tenant page. What this adds is fleet health and, more
+    importantly, the invariant that governs all ten when they arrive.
+    `hasDeployment` is passed as `true` from the fleet list because the list
+    query projects five attributes and does not fetch the manifest; the signal
+    is therefore inert on that page and correct on any caller that supplies the
+    real value. Widening the projection is a change to the registry's read path
+    rather than to this module.

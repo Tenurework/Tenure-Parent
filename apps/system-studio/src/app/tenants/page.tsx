@@ -12,6 +12,7 @@ import { placeableRegions } from "@/lib/cells"
 import { PLAN_CATALOG } from "@tenure/provisioning"
 import { AdoptForm } from "./AdoptForm"
 import { EmptyState, ErrorState, PartialDataState, PermissionDeniedState } from "@/components/states"
+import { byUrgency, healthOf, summariseFleet } from "@/lib/fleet-health"
 
 export const dynamic = "force-dynamic"
 
@@ -61,6 +62,80 @@ export default async function TenantsPage() {
     <>
 
       <h1>Tenants</h1>
+
+      {/*
+        GE-033-002. Fleet health, derived entirely from the registry — lifecycle
+        state, when it last moved, whether a manifest exists. No tenant content
+        is read to answer any of it, and a guard fails if that changes.
+      */}
+      {!failure && configured && tenants.length > 0 && (() => {
+        const now = new Date()
+        const health = byUrgency(
+          tenants.map((t) =>
+            healthOf(
+              { slug: t.slug, state: t.state, updatedAt: t.updatedAt, hasDeployment: true },
+              now,
+            ),
+          ),
+        )
+        const summary = summariseFleet(health)
+        const needing = health.filter((h) => h.attention !== null)
+
+        return (
+          <section className="system">
+            <header>
+              <h2>Fleet health</h2>
+              <span className={`badge ${summary.needingAttention === 0 ? "ok" : "warn"}`}>
+                {summary.needingAttention === 0
+                  ? "nothing needs attention"
+                  : `${summary.needingAttention} need attention`}
+              </span>
+            </header>
+
+            <div className="chips">
+              <span className="chip">
+                <b>{summary.serving}</b> serving
+              </span>
+              {Object.entries(summary.bySignal)
+                .filter(([signal, count]) => count > 0 && signal !== "serving")
+                .map(([signal, count]) => (
+                  <span className="chip" key={signal}>
+                    <b>{count}</b> {signal.replace(/-/g, " ")}
+                  </span>
+                ))}
+            </div>
+
+            {needing.length > 0 && (
+              <table className="grid">
+                <thead>
+                  <tr>
+                    <th>Tenant</th>
+                    <th>State</th>
+                    <th>Needs</th>
+                    <th className="num">Hours since it moved</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {needing.map((h) => (
+                    <tr key={h.slug}>
+                      <td className="id">
+                        <Link href={`/tenants/${h.slug}`}>{h.slug}</Link>
+                      </td>
+                      <td className="slug">{h.state}</td>
+                      <td>
+                        <span className="badge warn">{h.attention?.replace(/-/g, " ")}</span>
+                      </td>
+                      <td className="num">
+                        {h.hoursSinceChange === null ? "unknown" : h.hoursSinceChange.toFixed(0)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+        )
+      })()}
 
       {failure ? (
         // GE-022-006. This page used to render its own failure block and the
