@@ -1,3 +1,4 @@
+import { allowedModelIds, modelIsAllowed } from "@tenure/platform-config"
 import type { ScoredDoc } from "@/lib/search"
 
 /**
@@ -10,6 +11,47 @@ export function aiConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY
 }
 
+
+/**
+ * The model to invoke, checked against the allowed-model catalog (GE-030-005).
+ *
+ * This used to be `process.env.ANTHROPIC_MODEL ?? "<default>"` with no
+ * allowlist, so whatever that variable held went on the wire. A typo becomes a
+ * 404; a plausible-but-wrong id becomes a silently different model answering
+ * on tenant content; and an unreviewed model becomes one whose data-handling
+ * terms nobody has read.
+ *
+ * Returns null rather than falling back to the default when the configured
+ * model is not allowed. Falling back would mean an operator who set the
+ * variable deliberately gets a different model than they asked for, silently —
+ * and the whole point of an allowlist is that being outside it is visible.
+ */
+function resolveModel(): string | null {
+  const configured = process.env.ANTHROPIC_MODEL
+  const region = process.env.AWS_REGION ?? "us-east-1"
+
+  if (!configured) {
+    const fallback = allowedModelIds()[0]
+    // The catalog is the source of the default too, so there is exactly one
+    // list to keep current rather than a list and a literal that drift.
+    if (!fallback) {
+      console.error("[ai] the allowed-model catalog is empty; refusing to invoke anything")
+      return null
+    }
+    return fallback
+  }
+
+  if (!modelIsAllowed(configured, region)) {
+    console.error(
+      `[ai] ANTHROPIC_MODEL=${configured} is not in the allowed-model catalog for ${region}. ` +
+        `Allowed: ${allowedModelIds().join(", ")}. Refusing rather than substituting.`,
+    )
+    return null
+  }
+
+  return configured
+}
+
 /** Generic best-effort completion — Tenure AI's single entry point. */
 export async function aiComplete(
   system: string,
@@ -18,7 +60,8 @@ export async function aiComplete(
 ): Promise<string | null> {
   if (!aiConfigured()) return null
 
-  const model = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001"
+  const model = resolveModel()
+  if (!model) return null
   const body = JSON.stringify({
     model,
     max_tokens: maxTokens,

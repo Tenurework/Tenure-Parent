@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**359 files · 12 domains with code · 2 declared and unbuilt · 21 shared.**
+**363 files · 12 domains with code · 2 declared and unbuilt · 21 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
@@ -16,11 +16,11 @@ defensible.
 
 | Domain | Files | What it owns |
 |---|---:|---|
-| `control-plane` | 45 | Composing, provisioning and operating tenants. The engine, not any tenant. |
+| `control-plane` | 47 | Composing, provisioning and operating tenants. The engine, not any tenant. |
 | `identity` | 9 | Who someone is: providers, sessions, the sign-in surface. |
 | `authorization` | 15 | What someone may do: capabilities, policy decisions, delegation. |
 | `organization` | 32 | The org graph: institutions, organizations, roles, seats, the directory. |
-| `configuration` | 68 | Layered configuration, blueprints, module resolution, tenancy scoping. |
+| `configuration` | 70 | Layered configuration, blueprints, module resolution, tenancy scoping. |
 | `workflow` | 16 | Approvals, their gates and their state machine. |
 | `files` | 15 | Documents and attachments: storage, retrieval, editing. |
 | `search-memory` | 8 | Retrieval across everything a principal may already see, and org memory. |

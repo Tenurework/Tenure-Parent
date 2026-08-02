@@ -112,3 +112,25 @@ export type {
 } from "./commercial"
 
 export { PLAN_CATALOG, getPlan, planIds } from "./plan-catalog"
+
+export {
+  availableToTenants,
+  canAdvanceCatalog,
+  engineIsCompatible,
+  isUsable,
+  validatePackage,
+  validateRange,
+} from "./catalogs"
+export type {
+  AnyCatalogEntry,
+  CatalogEntry,
+  CatalogLifecycle,
+  CatalogProblem,
+  CompatibilityRange,
+  ConnectorEntry,
+  ExtensionEntry,
+  ModelEntry,
+  PackageVersion,
+  UsabilityReason,
+} from "./catalogs"
+

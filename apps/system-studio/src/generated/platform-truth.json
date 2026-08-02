@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "26b0285",
+  "commit": "b042938",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 48,
-    "done": 41,
+    "done": 42,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -355,8 +355,8 @@
           },
           {
             "id": "GE-030-005",
-            "done": false,
-            "title": "Status: FAIL — not started.",
+            "done": true,
+            "title": "Extension/package/connector/model catalogs with lifecycle and compatibility even when features are not yet externally enabled.",
             "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
             "isGate": false
           }

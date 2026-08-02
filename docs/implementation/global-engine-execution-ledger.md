@@ -1522,4 +1522,90 @@ for progress:
     tests. Both are the commercial *model* being complete ahead of the
     commercial *process*, recorded as such.
 
-- [ ] **GE-030-005** — Status: FAIL — not started.
+- [x] **GE-030-005** — Extension/package/connector/model catalogs with lifecycle
+  and compatibility even when features are not yet externally enabled.
+  - Status: PASS
+  - Code: `packages/provisioning/src/catalogs.ts`,
+    `packages/platform-config/src/model-policy.ts` + `model-entry.ts`;
+    `apps/web/src/lib/ai.ts` now resolves its model through the policy
+  - Tests: `catalogs.test.ts` — 30 cases
+  - The item's "even when features are not yet externally enabled" is the
+    design. Bible §0: the Marketplace is "an intentionally empty, polished
+    Coming soon surface behind a feature flag. No third-party publishing,
+    purchasing, installation, billing, or executable package intake is enabled
+    until certification, sandboxing, entitlement, billing, security review,
+    revocation, and support controls are complete."
+
+  **The marketplace being off is a property of the code, not of nobody having
+  clicked publish.** `availableToTenants` excludes third-party entries
+  unconditionally, whatever their lifecycle — tested across all six states.
+  Gating on `PUBLISHED` instead would mean one mis-set lifecycle opens
+  third-party code intake, and the control that was supposed to be "the
+  marketplace is off" turns out to be "nobody clicked publish yet". Those look
+  identical until the day they do not.
+
+  **Revocation is terminal and is checked first.** `REVOKED` has no outgoing
+  transitions: re-publishing must be a NEW package with a new identity, so the
+  revocation stays true about the artifact that earned it. `isUsable` checks it
+  before compatibility, because a revoked package on an old engine reporting
+  "incompatible" reads as "upgrade and it will work". `DEPRECATED` deliberately
+  still works — collapsing the two would turn a planned retirement into an
+  outage.
+
+  **Unsigned packages are refused.** "We trusted the registry we fetched it
+  from" is the supply-chain assumption that keeps failing.
+
+  **Made live: the model catalog.** `lib/ai.ts` read
+  `process.env.ANTHROPIC_MODEL ?? "<default>"` with **no allowlist**, so
+  whatever that variable held went on the wire — a typo becomes a 404, a
+  plausible-but-wrong id becomes a silently different model answering on tenant
+  content, and an unreviewed model becomes one whose data-handling terms nobody
+  has read. It now resolves through `modelIsAllowed` and returns null rather
+  than substituting: falling back would give an operator who set the variable
+  deliberately a different model than they asked for, silently, and the whole
+  point of an allowlist is that being outside it is visible. The default also
+  comes from the catalog, so there is one list rather than a list and a literal.
+  - Two entries, both already in use. Listing models nobody has reviewed would
+    make the catalog a wish list, and a wish list that gates production looks
+    like a control.
+
+  - Proven by mutation, **18 of 18 caught**. Three initially survived and each
+    exposed a real gap rather than a weak assertion:
+    - "oldest compatible version chosen instead of newest" passed because the
+      test asserted only `usable`. `isUsable` now returns `resolvedVersion` —
+      "usable" and "usable at which version" are different answers, and a caller
+      that re-derives the second will re-derive it differently.
+    - "a revoked model is still allowed" and "a model ignores its region
+      allowlist" passed because every shipped entry is `PUBLISHED` and `["*"]`,
+      making both branches unreachable from a test against a module-level
+      constant. `modelIsAllowed` now takes the catalog as a parameter — which is
+      also the shape a per-cell catalog will need.
+    - Fixing the first of those revealed a genuinely **unreachable line**: an
+      explicit `lifecycle === "REVOKED"` check in `modelIsAllowed` that the
+      `!== PUBLISHED && !== DEPRECATED` check below already subsumed. Deleting
+      it changed no outcome. Removed — a line that cannot change an outcome is
+      one that will be trusted to do something it does not. `isUsable` still
+      checks revocation separately, because it returns a *reason* and "revoked"
+      and "not published" are different things to tell someone.
+
+  - **An architecture guard caught a real boundary violation mid-item.**
+    `cell-independence.test.mjs` refused `apps/web/src/lib/ai.ts imports
+    @tenure/provisioning`: a cell serves one tenant and the engine composes and
+    signs for all of them. The model catalog had been put with the other
+    catalogs, but which model a cell may invoke is **policy distributed to a
+    cell**, like localization and flags — not a control-plane concern. Moved to
+    `@tenure/platform-config`, with `ModelEntry` declared there and re-exported
+    by `provisioning` so there is still one definition. Version comparison moved
+    the same way and for the same reason: it briefly lived in `provisioning`,
+    which put the cell one import away from the control plane for the sake of a
+    comparator. `provisioning` now depends on `platform-config`; never the
+    reverse.
+
+  - Honest limits: the extension, package and connector catalogs have **no
+    entries**, because Tenure publishes no extensions and has no certified
+    connectors. Inventing some so the catalog "looks like a product" would be a
+    catalog of things that do not exist. The types, lifecycle, signing checks
+    and compatibility ranges are real and tested; the contents wait on the
+    marketplace controls the bible lists. Nothing verifies a signature
+    cryptographically yet — `signatureRef` is required and its absence refuses,
+    but the KMS verification is Phase 12 work.

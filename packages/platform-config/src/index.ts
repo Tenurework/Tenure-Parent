@@ -68,3 +68,6 @@ export type { Terminology } from "./resolve"
 
 export { hasModule, modulesFor, navigationForSystem } from "./modules"
 export type { SystemModules } from "./modules"
+
+export { MODEL_CATALOG, allowedModelIds, modelIsAllowed } from "./model-policy"
+export type { ModelEntry, ModelLifecycle } from "./model-entry"

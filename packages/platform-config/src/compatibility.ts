@@ -21,11 +21,22 @@
  */
 
 /**
- * `major.minor.patch`, compared numerically.
+ * `major.minor.patch`, compared numerically, and owned HERE.
+ *
+ * The extension and package catalogs (GE-030-005) need the same comparison, and
+ * two copies of a version comparator is two chances to disagree about whether
+ * 1.10.0 is newer than 1.9.0 — the answer differs between a numeric compare and
+ * a string one, a bug that would only show on the tenth minor. So there is one
+ * copy, and it lives in the package the CELL is allowed to import.
+ *
+ * It briefly lived in `@tenure/provisioning` instead, and
+ * `cell-independence.test.mjs` refused the result: `apps/web/src/lib/ai.ts`
+ * reaching into the engine's control plane for a version comparator is the
+ * boundary eroding one convenience at a time. `provisioning` depends on this
+ * package; never the reverse.
  *
  * Deliberately not semver-with-ranges. A range expression is a small language,
- * and the question here is only ever "is the cell at least this old", so a
- * comparison is the whole requirement and anything more is surface to get wrong.
+ * and every question asked here is "is this at least that".
  */
 export interface EngineVersion {
   major: number
