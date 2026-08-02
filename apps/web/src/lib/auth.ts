@@ -5,14 +5,20 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { db } from "@/lib/db"
 
 import { checkDevLoginGate } from "@/lib/dev-login"
+import { oktaIsUsable } from "@/lib/auth-connections"
 
 // Pilot-only sign-in: pick a seeded demo user by email, no password.
 // Enabled via AUTH_DEV_LOGIN=true — remove once Okta is configured.
 const devLoginEnabled = process.env.AUTH_DEV_LOGIN === "true"
 
-// Only register Okta once real credentials are configured in Secrets Manager
-const oktaConfigured =
-  !!process.env.OKTA_ISSUER && process.env.OKTA_ISSUER.startsWith("https://")
+// Only register Okta when the identity registry considers the connection
+// usable (GE-030-003). This used to be an inline check that the issuer was set
+// and began with https, which is three of the registry's checks and none of
+// the others — a missing
+// client id, a credential pasted as a value rather than referenced, or an
+// expired secret all produced a provider NextAuth registers happily and that
+// fails at the callback: visibly to a user, invisibly to anyone watching.
+const oktaConfigured = oktaIsUsable()
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),

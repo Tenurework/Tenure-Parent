@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "3e2c68e",
+  "commit": "12a8532",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 45,
-    "done": 39,
+    "total": 46,
+    "done": 40,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -338,6 +338,13 @@
             "title": "Cell registry with partition/account/region/environment, capacity, services, versions, health, routing, residency, backup/DR, and migration metadata.",
             "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
             "isGate": false
+          },
+          {
+            "id": "GE-030-003",
+            "done": true,
+            "title": "Identity-connection registry, verified domains, pool/app-client mapping, certificates/secrets references, health, rotation, and expiry.",
+            "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
+            "isGate": false
           }
         ]
       }
@@ -546,7 +553,7 @@
     },
     {
       "name": "application unit",
-      "files": 33,
+      "files": 34,
       "what": "apps/web"
     },
     {

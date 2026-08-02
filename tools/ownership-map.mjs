@@ -60,6 +60,9 @@ const DOMAINS = [
       'apps/web/src/types/next-auth.d.ts',
 
       'apps/web/src/lib/auth.ts',
+      // The cell's own identity connections, described as registry records so
+      // provider selection goes through the same checks a tenant's will.
+      'apps/web/src/lib/auth-connections',
       'apps/web/src/lib/dev-login',
       'apps/web/src/app/api/auth/',
       'apps/web/src/app/signin/',

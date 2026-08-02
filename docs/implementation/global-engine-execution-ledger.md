@@ -1315,4 +1315,94 @@ for progress:
     fleet-health work. `migration` is recorded and validated but nothing writes
     it yet — there is no migration path to write it.
 
-- [ ] **GE-030-003 … 005** — Status: FAIL — not started.
+- [x] **GE-030-003** — Identity-connection registry, verified domains,
+  pool/app-client mapping, certificates/secrets references, health, rotation,
+  and expiry.
+  - Status: PASS
+  - Code: `packages/provisioning/src/identity-registry.ts`,
+    `apps/web/src/lib/auth-connections.ts`; provider selection in
+    `apps/web/src/lib/auth.ts` now runs through it
+  - Tests: `identity-registry.test.ts` (43 cases), `auth-connections.test.ts`
+    (12 cases). Full e2e **152/152**, Studio layout suite **28/28**.
+
+  **The invariant everything else serves** is the bible's §9.1: a work email is
+  a *discovery hint*, and the resolver "never reveals whether a person exists or
+  grants membership from an email domain". Owning `rochester.edu` and having an
+  account at Rochester are different facts, and a system that conflates them
+  lets anyone with an address at a verified domain in. So
+  `discoverTenantByDomain` returns a tenant id and nothing else — there is no
+  shape in the return type that could carry a person.
+
+  **Domain matching is on label boundaries, not string suffixes.** A naive
+  `endsWith` makes `evil-rochester.edu` match `rochester.edu`, handing whoever
+  registers that name a route to Rochester's own sign-in page — branded, and
+  looking exactly right. Three variants of that attack are tested, plus the
+  reverse (verifying `simon.rochester.edu` proves nothing about
+  `rochester.edu`).
+
+  **An ambiguous domain is refused, not resolved.** Two tenants verified for one
+  domain is a state the registry must not have, and silently picking the first
+  would let whichever was written first hijack the other's sign-in — an attack
+  nobody has to attack anything to perform. `findDomainConflicts` exists because
+  the conflict is invisible in any single record: each one validates clean
+  alone, and the problem only exists in the set.
+
+  **Credentials are references, and that is checked.** A `ref` must look like a
+  Secrets Manager ARN or an SSM parameter path, which refuses a pasted
+  certificate before it is stored — in a registry that is read by the console,
+  projected into login discovery, and serialised into artifacts.
+
+  **The sign-in projection carries two fields.** `kind` and `displayName`, with
+  the field list asserted and a second test grepping for the issuer, pool id,
+  app client id, credential ref, tenant id and connection id. An issuer names
+  the customer's own IdP; an app client id is half of what an attacker needs to
+  craft an authorization request that looks like ours.
+
+  **Health checks status before expiry**, because a revoked connection with a
+  fresh certificate is still revoked, and putting "revoked" and "fine" in the
+  same bucket on a fleet health page is how the one that matters gets missed. An
+  unparseable expiry is treated as **expired**: failing closed on a login method
+  is an inconvenience, failing open is an outage discovered by users.
+  `EXPIRING_SOON` is still offered — it works today, and removing it early takes
+  a working tenant offline to prevent a future problem.
+
+  **Made live rather than declared.** `auth.ts` selected the Okta provider with
+  an inline `!!OKTA_ISSUER && startsWith("https://")` — three of the registry's
+  checks and none of the others. It now goes through `oktaIsUsable`, so a
+  missing client id, a secret pasted as a value rather than referenced, and an
+  expired credential are all refused. Each of those previously produced a
+  provider NextAuth registers happily and that fails at the callback: visibly to
+  a user, invisibly to anyone watching. Tests name that explicitly.
+
+  - Proven by mutation, **22 of 22 caught** across both modules (16 + 6). One
+    initially survived: "report the LAST credential rather than the soonest" got
+    the right answer because the fixture happened to list the soonest last. The
+    test now runs both orders — a "take the last one" implementation is correct
+    whenever the list happens to be sorted, which is most of the time.
+  - The type-checker pushed a real improvement: the environment parameter was
+    `NodeJS.ProcessEnv`, which demands `NODE_ENV` and so forced every test to
+    supply it to describe a connection. Narrowed to what the module actually
+    reads, which also stops the surface growing unnoticed.
+
+  - **BLOCKED_EXTERNAL for the Cognito half.** The registry models pool and
+    app-client mapping and validates it, but the estate has no Cognito — the
+    GE-GATE-0 AWS inventory found no user pool, and inventing one so the code
+    "looks wired" would be a record pointing at nothing. No tenant SAML/OIDC
+    connection exists to register either; the only real connections are this
+    cell's own, which is what is wired. To unblock, an operator runs:
+    ```
+    aws cognito-idp create-user-pool --pool-name tenure-platform \
+      --region us-east-1 --profile <engine-account>
+    aws cognito-idp create-user-pool-client --user-pool-id <id> \
+      --client-name tenure-web --generate-secret
+    gh secret set COGNITO_POOL_ID --repo satvikOS/Tenure-Parent
+    gh secret set COGNITO_APP_CLIENT_ID --repo satvikOS/Tenure-Parent
+    ```
+    Domain verification has the same shape: `dns-txt` is modelled and validated,
+    and nothing publishes or polls a TXT record because no tenant has claimed a
+    domain. Both are the *registry* being complete ahead of the estate, recorded
+    as such rather than claimed as integrated.
+  - Honest limit: SCIM tokens are modelled as a credential purpose with expiry
+    and rotation, but no SCIM endpoint exists — that is GE-04x work.
+
+- [ ] **GE-030-004 … 005** — Status: FAIL — not started.

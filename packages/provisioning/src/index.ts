@@ -63,3 +63,27 @@ export type {
   PlacementDecision,
   PlacementRefusal,
 } from "./cell-registry"
+
+export {
+  EXPIRY_WARNING_DAYS,
+  connectionHealth,
+  connectionsNeedingAttention,
+  discoverTenantByDomain,
+  domainMatches,
+  findDomainConflicts,
+  loginMethods,
+  normalizeDomain,
+  validateConnection,
+  validateDomain,
+} from "./identity-registry"
+export type {
+  ConnectionHealth,
+  ConnectionKind,
+  ConnectionStatus,
+  CredentialRef,
+  DomainState,
+  HealthReport,
+  IdentityConnection,
+  OfferedMethod,
+  VerifiedDomain,
+} from "./identity-registry"
