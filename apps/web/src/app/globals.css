@@ -263,6 +263,64 @@
     --sidenav-current-width: var(--sidenav-width-collapsed);
   }
 
+  /* ─── Narrow screens: the nav becomes a drawer (WCAG 1.4.10, Reflow) ──────
+     224px of a 320px viewport is two thirds of the screen spent on navigation,
+     and the page beside it can then only be reached by scrolling sideways —
+     exactly what 1.4.10 forbids. Below the breakpoint the frame follows a width
+     of 0 and the nav parks off-canvas until NavDrawerToggle opens it.
+
+     700px, not a Tailwind breakpoint, because it is where the 224px nav stops
+     leaving a usable column rather than where a type scale changes. */
+  @media (max-width: 700px) {
+    :root {
+      --sidenav-current-width: 0px;
+    }
+    /* Collapsing to the icon rail is meaningless when the nav is off-canvas —
+       without this, `nav-collapsed` from an earlier wide session would put a
+       60px gutter back and the reflow failure with it. */
+    html.nav-collapsed {
+      --sidenav-current-width: 0px;
+    }
+
+    nav[aria-label="Primary navigation"] {
+      width: var(--sidenav-width);
+      transform: translateX(-100%);
+      transition: transform 180ms ease-out;
+      /* Off-canvas means off the layout too: a translated element still counts
+         toward document scroll width, which would fail the very criterion this
+         is here for. */
+      visibility: hidden;
+    }
+
+    html.nav-open nav[aria-label="Primary navigation"] {
+      transform: translateX(0);
+      visibility: visible;
+      box-shadow: var(--shadow-lg);
+    }
+
+    html.nav-open .nav-drawer-scrim {
+      position: fixed;
+      inset: var(--shell-height) 0 0 0;
+      z-index: 39;
+      background: var(--bg-overlay);
+    }
+  }
+
+  /* Above the breakpoint the nav is always there, so a button that toggles
+     nothing is just another Tab stop. */
+  @media (min-width: 701px) {
+    .nav-drawer-toggle {
+      display: none;
+    }
+  }
+
+  .nav-drawer-scrim {
+    display: none;
+  }
+  html.nav-open .nav-drawer-scrim {
+    display: block;
+  }
+
   * {
     box-sizing: border-box;
   }
@@ -283,6 +341,19 @@
   [data-focus-visible] {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
+  }
+
+  /* WCAG 2.4.11, Focus Not Obscured.
+     The header, side nav and footer are fixed. When Tab moves focus to
+     something below the fold the browser scrolls it "into view", which means
+     into the VIEWPORT — and the bottom 38px of the viewport is the footer, the
+     top 52px the header. The control is then focused and invisible, which for a
+     keyboard user is the same as not being there. scroll-margin reserves the
+     shell's own space so the scroll stops short of it.
+     :where() keeps specificity at zero, so any component can still override. */
+  :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])) {
+    scroll-margin-top: calc(var(--shell-height) + var(--space-2));
+    scroll-margin-bottom: calc(var(--footer-height) + var(--space-2));
   }
 
   /* ─── Accessibility ──────────────────────────────────────────────────────

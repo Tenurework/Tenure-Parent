@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "0c8e0f8",
+  "commit": "64aabfe",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 40,
-    "done": 33,
+    "total": 41,
+    "done": 34,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -281,7 +281,7 @@
           {
             "id": "GE-GATE-2",
             "done": false,
-            "title": "Status: FAIL — GE-020 and GE-021 complete (12 of 17); GE-022 is 2 of 5 (001 shell + switching proof, 002 dense-ERP states). 003 (WCAG 2.2 AA), 004 (localization) and 005 (flags/kill switches) remain.",
+            "title": "Status: FAIL — GE-020 and GE-021 complete (12 of 17); GE-022 is 3 of 5 (001 shell + switching proof, 002 dense-ERP states, 003 WCAG 2.2 AA + responsive). 004 (localization) and 005 (flags/kill switches) remain.",
             "phase": "Phase 2 — Monorepo boundaries and common runtime",
             "isGate": true
           },
@@ -296,6 +296,13 @@
             "id": "GE-022-002",
             "done": true,
             "title": "Design tokens/components for dense ERP states: loading, empty, error, permission denied, stale, conflict, offline, archived, partial, high-risk confirmation.",
+            "phase": "Phase 2 — Monorepo boundaries and common runtime",
+            "isGate": false
+          },
+          {
+            "id": "GE-022-003",
+            "done": true,
+            "title": "Responsive PWA and WCAG 2.2 AA engineering targets for keyboard, focus, semantics, reflow, contrast, status/error announcements, reduced motion, captions, and screen readers.",
             "phase": "Phase 2 — Monorepo boundaries and common runtime",
             "isGate": false
           }
@@ -516,7 +523,7 @@
     },
     {
       "name": "end to end",
-      "files": 32,
+      "files": 33,
       "what": "real browser"
     }
   ]

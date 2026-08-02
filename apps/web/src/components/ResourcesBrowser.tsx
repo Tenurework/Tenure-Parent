@@ -243,7 +243,7 @@ export function ResourcesBrowser({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search forms, guides and policies…"
               aria-label="Search resources"
-              className="flex-1 bg-transparent text-sm text-text-1 outline-none placeholder:text-text-3"
+              className="h-6 flex-1 bg-transparent text-sm text-text-1 outline-none placeholder:text-text-3"
             />
           </div>
           {canManage && (

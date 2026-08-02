@@ -297,6 +297,9 @@ export default async function FeedPage() {
                           </select>
                           <input
                             name="note"
+                            // A placeholder is not a label: it disappears the
+                            // moment you type, and it is not reliably announced.
+                            aria-label="Note to send with the collaboration request"
                             placeholder="Add a note (optional)"
                             className="h-8 flex-1 min-w-40 rounded border border-border px-2 text-xs text-text-1 bg-surface placeholder:text-text-3"
                           />
@@ -327,11 +330,12 @@ export default async function FeedPage() {
                             name="body"
                             required
                             autoComplete="off"
+                            aria-label="Write a comment"
                             placeholder="Write a comment…"
-                            className="h-8 flex-1 rounded-full border border-border px-3 text-xs text-text-1 bg-surface placeholder:text-text-3"
+                            className="h-8 min-w-0 flex-1 rounded-full border border-border px-3 text-xs text-text-1 bg-surface placeholder:text-text-3"
                           />
                           <button
-                            className="inline-flex items-center gap-1 h-8 rounded-full border border-border px-3 text-xs font-medium text-text-2 hover:bg-base"
+                            className="inline-flex shrink-0 items-center gap-1 h-8 rounded-full border border-border px-3 text-xs font-medium text-text-2 hover:bg-base"
                             aria-label="Post comment"
                           >
                             <MessageCircle size={12} /> Comment

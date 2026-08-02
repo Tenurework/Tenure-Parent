@@ -12,6 +12,7 @@ import { ChevronDown, LogOut, UserRound } from "@/components/ui/icons"
 import { TenureAIMark, TenureLogo } from "@/components/brand/TenureLogo"
 import { EmailLink } from "@/components/EmailLink"
 import { SearchCommand } from "./SearchCommand"
+import { NavDrawerToggle } from "./NavDrawerToggle"
 import { NotificationBell } from "./NotificationBell"
 import { TenantSwitcher, type TenantOption } from "./TenantSwitcher"
 import { useAI } from "@/components/ai/AIProvider"
@@ -49,6 +50,9 @@ export function ShellHeader({
       className="fixed top-0 left-0 right-0 z-50 flex h-shell items-center gap-2.5 px-3 sm:px-4"
       style={{ background: "var(--shell-bg)", borderBottom: "1px solid var(--shell-border)" }}
     >
+      {/* Below 700px the side nav is off-canvas; this is how it opens. */}
+      <NavDrawerToggle />
+
       {/* Brand — rosette + wordmark */}
       <Link
         href="/dashboard"

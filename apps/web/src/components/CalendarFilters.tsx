@@ -23,12 +23,16 @@ export function CalendarFilters({ clubs }: { clubs: { id: string; name: string }
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    // min-w-0: this row is itself a flex item in PageHeader's action row, and
+    // a flex item defaults to min-width:auto. Without it the row is sized by
+    // the longest club name, `max-w-full` on the select below resolves against
+    // that already-too-wide row, and nothing shrinks (WCAG 1.4.10).
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
       <select
         value={club}
         onChange={(e) => setParam("club", e.target.value)}
         aria-label="Filter calendar by club"
-        className="h-9 rounded-md border border-border bg-surface px-2 text-[13px] text-text-1"
+        className="h-9 min-w-0 max-w-full rounded-md border border-border bg-surface px-2 text-[13px] text-text-1"
       >
         <option value="">All my calendars</option>
         {clubs.map((c) => (

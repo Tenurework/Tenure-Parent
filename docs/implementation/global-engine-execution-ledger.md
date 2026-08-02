@@ -857,8 +857,9 @@ for progress:
 ## GE-GATE-2
 
 - [ ] **GE-GATE-2** — Status: FAIL — GE-020 and GE-021 complete (12 of 17);
-  GE-022 is 2 of 5 (001 shell + switching proof, 002 dense-ERP states).
-  003 (WCAG 2.2 AA), 004 (localization) and 005 (flags/kill switches) remain.
+  GE-022 is 3 of 5 (001 shell + switching proof, 002 dense-ERP states,
+  003 WCAG 2.2 AA + responsive). 004 (localization) and 005 (flags/kill
+  switches) remain.
 
 ## GE-022: Common UX/runtime
 
@@ -957,5 +958,83 @@ for progress:
     papered over: adding a DOM test dependency for this one item is a larger
     change than the item.
 
-- [ ] **GE-022-003 … 005** — Status: FAIL — not started.
+- [x] **GE-022-003** — Responsive PWA and WCAG 2.2 AA engineering targets for
+  keyboard, focus, semantics, reflow, contrast, status/error announcements,
+  reduced motion, captions, and screen readers.
+  - Status: PASS
+  - Code: `lib/a11y/contrast.ts`, `lib/a11y/theme-tokens.ts`,
+    `components/shell/SkipLink.tsx`, `components/shell/NavDrawerToggle.tsx`,
+    plus the token and component fixes listed below
+  - Tests: `lib/a11y/contrast.test.ts` (16 cases, all four themes) and
+    `e2e/a11y.spec.ts` (9 criteria, headless Chromium). Full e2e suite
+    **148/148** on a freshly recreated database.
+  - Two halves, because the criteria split cleanly into what arithmetic can
+    prove and what only a browser can see. Contrast is computed; everything
+    else is measured in a real page.
+
+  **Contrast, computed.** sRGB relative luminance and the ratio per WCAG 1.4.3
+  for every pairing the product renders, in light, dark, and each under
+  `prefers-contrast: more`. Token values are **read from `globals.css`**, not
+  copied: a hand-maintained palette copy passes forever while the stylesheet
+  drifts, and gets more convincing as it gets less true. Six real failures,
+  all fixed — see the commit for the numbers. Alpha compositing is load-bearing
+  rather than decorative: every dark-theme badge background is `rgba()`, and a
+  ratio taken against the raw rgb claims a legible surface that does not exist.
+
+  **The browser half.** Nine criteria, each named for the criterion rather than
+  filed under "accessibility test", because only a criterion can pass or fail.
+  Every one of these was **observed red first**, with the failure it reported —
+  which is a stronger proof than a synthetic mutation, since the defect was
+  real rather than introduced:
+    - **2.4.1 Bypass Blocks** — there was no skip link at all. Thirty-odd Tab
+      stops between arriving on a page and reaching its content, on every
+      navigation. `SkipLink` is now the first Tab stop; the test also presses
+      Enter and asserts `document.activeElement.id === "main"`, because without
+      `tabIndex={-1}` on the target the fragment scrolls and focus stays put —
+      the next Tab walks back into the nav the user just skipped.
+    - **1.4.10 Reflow** — every one of the five pages scrolled sideways at
+      320px. Root cause: the 224px side nav had **no narrow-screen behaviour**,
+      leaving 96px for the page. Below 700px it is now an off-canvas drawer
+      (`NavDrawerToggle`, Escape closes it, widening past the breakpoint
+      dismisses it). Then four content overflows fell out one at a time — a
+      `<select>` sized by its longest club name, a comment input that would not
+      shrink, a 192px date label, and a pill that would not wrap. All four were
+      `min-width: auto` on a flex item.
+    - **2.5.8 Target Size** — 6×6px carousel dots and a 20px-tall search input.
+      The dots keep their 6px of ink inside a 24×24 button: the target has to
+      be 24px, not the ink.
+    - **2.4.11 Focus Not Obscured** — new in 2.2 and the one this shell was most
+      exposed to. Tabbing below the fold scrolled the control into the
+      *viewport*, whose bottom 38px is the fixed footer. Fixed with
+      `scroll-margin` at zero specificity via `:where()`.
+    - **2.4.7 Focus Visible** — `LineAreaChart` and `DonutChart` set
+      `outline: none` inline and put nothing back, so every datum was a Tab stop
+      you could not see. Both now carry `.chart-hit`.
+    - **1.3.1 / 4.1.2** — two unlabelled inputs on `/feed` carrying only a
+      placeholder, which disappears on typing and is not reliably announced.
+    - **2.1.2, 1.4.4, 2.3.3** passed on first run and are kept as regressions.
+  - Three exclusions are stated in the spec rather than left to look covered:
+    the skip link is 1×1 until focused (measuring it hidden fails the one
+    control that exists to help); SVG chart geometry takes 2.5.8's *Essential*
+    exception, since a bar's width is the data — with the keyboard path and the
+    per-datum label as the reason that is acceptable rather than ignored; and
+    the reflow probe skips fixed subtrees, after two rounds of it pointing at a
+    closed drawer parked off-canvas instead of the element actually overflowing.
+  - Contrast proven by mutation, 9 of 9 caught. One initially survived —
+    reducing the theme parser's balanced-brace scan to a first-brace scan
+    changed nothing, because `globals.css` has no nested rules today. The claim
+    that it would "return a partial palette" lived in a comment and nowhere
+    else. Replaced with a fixture that does nest.
+  - Honest limits: **captions and audio description (1.2.x) are NOT_APPLICABLE**
+    — the product ships no time-based media, and this becomes a real gap the
+    first time a video is embedded. The focus checks walk the **Tab order**,
+    which is the keyboard path, not every route to focus. 3.x Understandable is
+    a judgement about copy, not a property a browser can assert. And the SVG
+    focus ring is verified by computed style, not by pixels.
+  - PWA: `manifest.ts` already declared name, `start_url`, `display:
+    standalone` and icons; its `theme_color` moved with the primary token.
+    Installability was already met, so the work here was the responsive and
+    assistive-technology half of the item.
+
+- [ ] **GE-022-004 … 005** — Status: FAIL — not started.
 

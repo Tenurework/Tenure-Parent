@@ -178,7 +178,11 @@ export function LineAreaChart({
                     tabIndex={0} role="img"
                     aria-label={`${c}: ${series.map((s) => `${s.name} ${formatValue(s.values[i] ?? 0)}`).join(", ")}`}
                     onFocus={() => setActive(i)} onBlur={() => setActive(null)}
-                    style={{ outline: "none" }} />
+                    // .chart-hit, not an inline outline:none. The inline rule
+                    // removed the focus ring and put nothing back, so every
+                    // datum in this chart was a Tab stop you could not see
+                    // (WCAG 2.4.7). The class carries the :focus-visible ring.
+                    className="chart-hit" />
                 ))}
 
                 {/* pointer capture layer */}

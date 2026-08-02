@@ -266,7 +266,10 @@ export default async function CalendarPage({
 
           {/* Right — week controls + the hourly time grid. */}
           <div className="min-w-0 flex-1">
-            <div className="mb-4 flex items-center gap-2">
+            {/* flex-wrap: at the 320px reflow target the two arrows, the
+                192px range label and "This week" come to 373px on one line
+                (WCAG 1.4.10). */}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
               <Link
                 href={withFilters(`/calendar?d=${prevKey}`)}
                 aria-label="Previous week"
@@ -274,7 +277,9 @@ export default async function CalendarPage({
               >
                 <ChevronLeft size={16} aria-hidden />
               </Link>
-              <span className="min-w-48 text-center text-sm font-semibold text-text-1">{rangeLabel}</span>
+              {/* The 192px floor centres the label between the arrows on a
+                  real screen; on a phone it is most of the viewport. */}
+              <span className="text-center text-sm font-semibold text-text-1 sm:min-w-48">{rangeLabel}</span>
               <Link
                 href={withFilters(`/calendar?d=${nextKey}`)}
                 aria-label="Next week"

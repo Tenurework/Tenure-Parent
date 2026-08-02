@@ -12,7 +12,13 @@ export function MainRegion({ children }: { children: React.ReactNode }) {
   const { open } = useAI()
   return (
     <main
-      className={`min-h-screen bg-base transition-[padding] duration-200 ease-out ${open ? "lg:pr-[26rem]" : ""}`}
+      // The skip link's target (WCAG 2.4.1). tabIndex={-1} so the browser will
+      // actually move focus here — without it the fragment scrolls the page but
+      // leaves focus on the link, and the next Tab goes back into the nav the
+      // user just skipped.
+      id="main"
+      tabIndex={-1}
+      className={`min-h-screen bg-base outline-none transition-[padding] duration-200 ease-out ${open ? "lg:pr-[26rem]" : ""}`}
       style={{
         paddingTop: "var(--shell-height)",
         paddingLeft: "var(--sidenav-current-width)",

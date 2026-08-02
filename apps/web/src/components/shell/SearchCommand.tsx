@@ -129,7 +129,10 @@ export function SearchCommand() {
               placeholder="Search Tenure…"
               aria-label="Search Tenure"
               autoComplete="off"
-              className="flex-1 bg-transparent text-sm text-[--shell-text] outline-none placeholder:text-[--shell-text-secondary]"
+              // h-6 so the input's own box clears 24px (WCAG 2.5.8). The
+              // surrounding pill is already taller, but the target a pointer
+              // has to hit is this element, and it was 20px.
+              className="h-6 flex-1 bg-transparent text-sm text-[--shell-text] outline-none placeholder:text-[--shell-text-secondary]"
             />
           </div>
         </form>

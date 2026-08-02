@@ -5,6 +5,7 @@ import { getUserContext } from "@/lib/rbac"
 import { ShellHeader } from "@/components/shell/ShellHeader"
 import { SideNav } from "@/components/shell/SideNav"
 import { Footer } from "@/components/shell/Footer"
+import { SkipLink } from "@/components/shell/SkipLink"
 import { MainRegion } from "@/components/shell/MainRegion"
 import { AIProvider } from "@/components/ai/AIProvider"
 import { TenureAIPanel } from "@/components/ai/TenureAIPanel"
@@ -71,6 +72,8 @@ export default async function AppLayout({
   return (
     <AIProvider>
       {brandCss && <style dangerouslySetInnerHTML={{ __html: brandCss }} />}
+      {/* First in the DOM so it is the first thing Tab reaches. */}
+      <SkipLink />
       <ShellHeader
         userName={session.user.name ?? session.user.email ?? "User"}
         userEmail={session.user.email ?? undefined}

@@ -83,17 +83,25 @@ export function QuickLinksRotator({ links }: { links: QuickLink[] }) {
       </ul>
 
       {pages > 1 && (
-        <div className="mt-3 flex items-center justify-center gap-1.5" aria-label="Quick link pages">
+        <div className="mt-1 flex items-center justify-center" aria-label="Quick link pages">
           {Array.from({ length: pages }).map((_, i) => (
+            // The dot stays 6px; the BUTTON is 24x24 around it (WCAG 2.5.8).
+            // Growing the dot itself would trade one accessibility problem for a
+            // row of pills, and the target is what has to be 24px — not the ink.
             <button
               key={i}
               aria-label={`Show quick links page ${i + 1}`}
               aria-current={i === page ? "true" : undefined}
               onClick={() => setPage(i)}
-              className={`h-1.5 rounded-full transition-all ${
-                i === page ? "w-5 bg-[--primary]" : "w-1.5 bg-border-strong hover:bg-text-3"
-              }`}
-            />
+              className="grid h-6 w-6 place-items-center rounded-full"
+            >
+              <span
+                aria-hidden
+                className={`block h-1.5 rounded-full transition-all ${
+                  i === page ? "w-5 bg-[--primary]" : "w-1.5 bg-border-control"
+                }`}
+              />
+            </button>
           ))}
         </div>
       )}

@@ -90,9 +90,11 @@ export function DonutChart({
                       transform: `rotate(${s.startAngleDeg}deg)`,
                       transformOrigin: "center",
                       transition: `stroke-dashoffset 420ms ease-out ${s.i * 40}ms, stroke-width 140ms ease-out`,
-                      outline: "none",
                       cursor: "default",
-                    }} />
+                    }}
+                    // Same as LineAreaChart: outline:none inline left a focused
+                    // segment invisible. .chart-hit carries the ring.
+                    className="chart-hit" />
                 )
               })}
             </svg>

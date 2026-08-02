@@ -235,7 +235,7 @@ export default async function AdminClubDetailPage({
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <select
                         name="status"
-                        className="h-9 rounded-md border border-border bg-surface px-2.5 text-[13px] text-text-1"
+                        className="h-9 min-w-0 max-w-full rounded-md border border-border bg-surface px-2.5 text-[13px] text-text-1"
                       >
                         <option value="ACTIVE">As active holder</option>
                         <option value="SHADOW">As shadow (incoming)</option>
