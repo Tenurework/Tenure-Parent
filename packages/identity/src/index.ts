@@ -166,3 +166,22 @@ export {
   type VerificationOutcome,
   type VerificationRefusal,
 } from "./assurance"
+
+export {
+  DISCOVERY_MAX_PER_WINDOW,
+  DISCOVERY_WINDOW_SECONDS,
+  LOGIN_ENTRY_POINTS,
+  PLATFORM_BRANDING,
+  checkDiscoveryRate,
+  offerLeaks,
+  resolveLogin,
+  tenantForHost,
+  type DiscoverableTenant,
+  type DiscoveryContext,
+  type DiscoveryInput,
+  type LoginEntryPoint,
+  type LoginOffer,
+  type RateLimitDecision,
+  type RateLimitState,
+  type SafeBranding,
+} from "./discovery"

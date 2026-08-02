@@ -4271,3 +4271,91 @@ worth less than three items that hold.
   * `digestsEqual` compares digests, not codes, and does not hash — a hash
     chosen here would be one nobody could change without rewriting every stored
     challenge.
+
+### GE-042: Login discovery
+
+- [x] **GE-042-001** — Implement tenant/login discovery with safe branding/methods, opaque transaction, rate limiting, and enumeration resistance.
+  - Status: PASS
+  - Code: `packages/identity/src/discovery.ts`
+  - Tests: `packages/identity/src/discovery.test.ts` (26)
+  - Evidence: 1884/1884 apps/web unit across 84 suites, type-check clean.
+    **12 mutations, 12 caught.**
+
+  Bible §9.1 specifies this in one sentence: the resolver "starts from verified
+  tenant domain/subdomain, tenant slug, signed invitation, prior secure session,
+  or normalized work email used only as a discovery hint. It returns safe
+  branding and allowed methods through an opaque transaction. It never reveals
+  whether a person exists or grants membership from an email domain."
+
+  **What is secret here, and what is not.** Tenant existence is *not*, and
+  pretending otherwise would be theatre: tenants are served at
+  `platform.tenurework.com/<slug>`, so anybody can learn which slugs resolve by
+  visiting them, and a verified domain is proved by a public DNS TXT record.
+  Hiding either would cost the thing discovery exists for — showing somebody the
+  right sign-in button — and buy nothing.
+
+  **Person existence is secret, absolutely.** Whether an address has an account
+  is the fact an attacker actually wants, and `resolveLogin` never has an
+  opinion about it: it takes no person, queries for none, and returns the same
+  value for an address with an account and one without. That property is easy to
+  hold precisely because the resolver never learns.
+
+  **An unknown identifier gets an answer, not an error.** Returning "no such
+  tenant" for one slug and branding for another is a difference somebody can
+  measure, and it turns discovery into a scanner. Every outcome returns the same
+  `LoginOffer` shape with a freshly minted transaction; an unknown identifier
+  gets platform branding and no connections, which is what a person who mistyped
+  their slug should see.
+
+  **Entry points are tried strongest-evidence-first**: a prior session and a
+  signed invitation are things the server verified, a host and a slug map to
+  public facts, and an email is a hint the person typed. That order means
+  somebody with a live session at one tenant is not moved elsewhere because they
+  also typed an address — the confusing case.
+
+  **The email hint may narrow connections and nothing else.** It never adopts
+  the tenant's branding: showing a university's crest because somebody typed an
+  address ending in its domain confirms the domain is claimed here, to anybody
+  who guesses. It never offers local sign-in either, since local auth is
+  invitation-only (GE-041-004) and offering it on the strength of a typed
+  address invites people to try. A merely-claimed domain hints at nothing, or
+  anybody could enumerate tenants by claiming theirs.
+
+  **Suffix matching is absent everywhere**, deliberately: `notrochester.example`
+  ends with `rochester.example`, and a suffix match would hand a university's
+  branding to anybody who could register that name.
+
+  **The transaction is opaque because a decodable one is a probe.** Not because
+  the tenant is secret, but because a handle an attacker can *construct* turns
+  the callback into a second discovery surface with none of these rules.
+  `offerLeaks` asserts the property rather than leaving it to review, and a test
+  asserts the detector itself catches a leaky offer — its failure mode is
+  silence, and a detector matching nothing reports every offer clean.
+
+  **Rate limiting is keyed on the caller, never on what they asked.** A limiter
+  keyed by email would itself be an oracle: different behaviour for an address
+  asked about before is exactly the signal being denied everywhere else. A
+  refused request still increments, so hammering gains nothing and the caller
+  cannot tell how close they were by watching the response change. A malformed
+  window is treated as expired rather than blocking forever — failing closed on
+  a *rate limiter* locks legitimate people out over a corrupt timestamp.
+
+  **Honest limits.**
+
+  * **Nothing calls `resolveLogin`.** `apps/web`'s sign-in page offers Okta and
+    dev-login unconditionally and does no discovery at all; the Studio's
+    sign-in is an operator allowlist. This is the resolver the Cognito cutover
+    will use, and its rules are enforceable the moment there is a page to
+    enforce them on. Wiring it is GE-041-003's cutover, BLOCKED_EXTERNAL.
+  * **`mintTransaction` is injected and unimplemented here.** Minting an opaque
+    handle needs a CSPRNG and somewhere to store what it refers to, and this
+    package has no storage — the same persistence gap recorded under
+    GE-040-001. The contract is that the handle encodes nothing, and `offerLeaks`
+    checks that whatever the caller mints obeys it.
+  * **The rate limiter has no store.** `checkDiscoveryRate` is a pure
+    transition over a state the caller holds; nothing persists it yet, so today
+    it limits nothing. Wiring it needs the same store, and the decision to key
+    on a hashed source address rather than a raw one belongs with that work.
+  * Branding is assumed already contrast-checked. The resolver returns colours
+    it is given and does not verify the pair — that check lives with the
+    configuration engine's branding domain, which owns those keys.
