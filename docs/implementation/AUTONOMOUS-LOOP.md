@@ -117,6 +117,30 @@ always succeeds and `&& git push` runs regardless of the verdict. Writing
 not care what came before it. Between them these have masked a failing gate
 three times and a failing `terraform fmt` once.
 
+**The gate does not run the Playwright suites. A change under `apps/*/src/app`
+is not verified until you have run them.** `batch-gate.mjs` runs type-check,
+lint, unit tests, the platform guards and both builds — it does not start a
+server or a browser, deliberately, because those need a database and a fresh one
+per run. So a UI change can pass the gate and red CI, which is exactly what
+happened on 2026-08-02: the platform page's badge changed from `ledger.done` to
+`programme.decided`, the gate passed all eight steps, and `platform.spec.ts`
+failed in CI on the number it asserts. Treat "it's only wiring" as the tell — the
+commit that feels too small to test is the one that skips the suite.
+
+**Run the Studio suite against a server you started from the current build.**
+`next start` fails with `EADDRINUSE` if an instance from an earlier session is
+still on :3100, and the failure scrolls past in a backgrounded log. Playwright
+then tests the *old* build and reports failures that were fixed an hour ago. Kill
+the port first, and check the log says `Ready` before trusting a run:
+
+```bash
+node tools/dev/reset-registry-table.mjs      # neither suite is idempotent
+npm run studio:build
+npm run start --workspace apps/system-studio > /tmp/studio.log 2>&1 &
+until curl -sf http://localhost:3100/signin >/dev/null; do sleep 1; done
+cd apps/system-studio && ../../node_modules/.bin/playwright test --config=playwright.config.ts
+```
+
 **Write the ledger entry BEFORE the final `git add`.** The gate regenerates
 first, and `platform-truth.json` includes the ledger's item counts — so
 appending an entry after staging produces a real, material diff (not the

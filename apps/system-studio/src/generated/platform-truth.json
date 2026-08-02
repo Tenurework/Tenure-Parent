@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "1c03db8",
+  "commit": "b8ecfcf",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 76,
-    "done": 65,
+    "total": 77,
+    "done": 66,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -560,6 +560,13 @@
             "title": "Break-glass controls, alarm, post-use review, and no routine use.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-GATE-3",
+            "done": true,
+            "title": "Parent registries, versioned configuration engine, tenant configuration studio, and isolated operator plane are integrated and deployed to development/staging with audit and rollback evidence.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
           }
         ]
       }
@@ -574,7 +581,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 76,
+    "decided": 77,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -686,7 +693,7 @@
         "source": "GE",
         "items": 1,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-040: Canonical identity data",
@@ -1940,7 +1947,7 @@
     },
     {
       "name": "end to end",
-      "files": 43,
+      "files": 44,
       "what": "real browser"
     }
   ]

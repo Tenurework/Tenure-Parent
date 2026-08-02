@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 
 import { publish, review, type PublishResult, type ReviewResult } from "./actions"
 
@@ -16,6 +16,26 @@ import { publish, review, type PublishResult, type ReviewResult } from "./action
  * reviewed plan in a hidden field. A hidden field holding a serialised layer is
  * a hidden field holding whatever the browser sends, and it would be the one
  * input on this path that nothing validates.
+ *
+ * ## Every input is controlled, and that is load-bearing
+ *
+ * React 19 resets a form after an action attached to it completes. With
+ * uncontrolled inputs that meant "Review the change" **wiped every field the
+ * operator had just filled in** — the values, the reason, and the required
+ * approver. The plan still rendered, because the action had already read the
+ * submitted data, so the screen looked correct. Publish then did nothing at
+ * all: it was enabled, but the now-empty `required` approver failed HTML5
+ * validation, which blocks submission silently and shows no message.
+ *
+ * The whole publish path was therefore dead in the real UI while
+ * GE-031-006, GE-032-001 and GE-032-003 were all recorded as passing — every
+ * one of them proven over pure functions and an in-memory store. Nothing
+ * exercised the browser, so nothing noticed. It was GE-GATE-3 that found it,
+ * which is what a phase gate is for.
+ *
+ * Holding the values in state makes the reset a no-op: React restores what the
+ * component says they are, which is what the operator typed. It is not a
+ * styling choice, so it must not be "simplified" back to `defaultValue`.
  */
 
 interface Field {
@@ -36,6 +56,19 @@ export function ConfigurationEditor({
   const [reviewed, doReview, reviewing] = useActionState<ReviewResult | null, FormData>(review, null)
   const [published, doPublish, publishing] = useActionState<PublishResult | null, FormData>(publish, null)
 
+  // Seeded from what is currently published, so the editor opens showing the
+  // tenant's real configuration rather than an empty form that would publish
+  // "unset" for every key the operator did not happen to retype.
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(domains.flatMap((d) => d.fields.map((f) => [f.key, f.current ?? ""]))),
+  )
+  const [changeReason, setChangeReason] = useState("")
+  const [activateAt, setActivateAt] = useState("")
+  const [approvedBy, setApprovedBy] = useState("")
+
+  const set = (key: string) => (event: { target: { value: string } }) =>
+    setValues((previous) => ({ ...previous, [key]: event.target.value }))
+
   return (
     <form className="config-editor">
       <input type="hidden" name="slug" value={slug} />
@@ -49,7 +82,7 @@ export function ConfigurationEditor({
             <div className="field" key={field.key}>
               <label htmlFor={field.key}>{field.key}</label>
               {field.input === "boolean" ? (
-                <select id={field.key} name={field.key} defaultValue={field.current ?? ""}>
+                <select id={field.key} name={field.key} value={values[field.key] ?? ""} onChange={set(field.key)}>
                   {/* Empty means "do not set", which is not the same as false. */}
                   <option value="">unset — the default applies</option>
                   <option value="true">true</option>
@@ -60,7 +93,8 @@ export function ConfigurationEditor({
                   id={field.key}
                   name={field.key}
                   type={field.input === "number" ? "number" : "text"}
-                  defaultValue={field.current ?? ""}
+                  value={values[field.key] ?? ""}
+                  onChange={set(field.key)}
                   placeholder={`default: ${field.defaultValue}`}
                   readOnly={field.input === "unsupported"}
                 />
@@ -76,19 +110,39 @@ export function ConfigurationEditor({
 
       <div className="field">
         <label htmlFor="changeReason">Reason for the change</label>
-        <input id="changeReason" name="changeReason" placeholder="what changed and why" />
+        <input
+          id="changeReason"
+          name="changeReason"
+          value={changeReason}
+          onChange={(e) => setChangeReason(e.target.value)}
+          placeholder="what changed and why"
+        />
         <p className="hint">Recorded on the layer. It is what an incident review reads.</p>
       </div>
 
       <div className="field">
         <label htmlFor="activateAt">Take effect</label>
-        <input id="activateAt" name="activateAt" type="datetime-local" />
+        <input
+          id="activateAt"
+          name="activateAt"
+          type="datetime-local"
+          value={activateAt}
+          onChange={(e) => setActivateAt(e.target.value)}
+        />
         <p className="hint">Empty means now. A past instant is refused rather than quietly moved to now.</p>
       </div>
 
       <div className="field">
         <label htmlFor="approvedBy">Approved by</label>
-        <input id="approvedBy" name="approvedBy" type="email" placeholder="a second operator" required />
+        <input
+          id="approvedBy"
+          name="approvedBy"
+          type="email"
+          value={approvedBy}
+          onChange={(e) => setApprovedBy(e.target.value)}
+          placeholder="a second operator"
+          required
+        />
         <p className="hint">Must not be you. An approval by the author is not a second pair of eyes.</p>
       </div>
 

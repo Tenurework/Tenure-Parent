@@ -28,6 +28,12 @@ export function RollbackControls({
 }) {
   const [result, act, pending] = useActionState<RollbackResult | null, FormData>(rollback, null)
   const [selected, setSelected] = useState<number | "">("")
+  // Controlled for the same reason as the editor's fields: React 19 resets a
+  // form once its action completes, so an uncontrolled `required` approver is
+  // empty on the second rollback while the controlled select still shows a
+  // choice. The button looks armed and submission is refused silently by HTML5
+  // validation, with no message anywhere.
+  const [approvedBy, setApprovedBy] = useState("")
 
   const targets = revisions.filter((r) => r !== live)
   if (targets.length === 0) {
@@ -62,7 +68,15 @@ export function RollbackControls({
 
       <div className="field">
         <label htmlFor="rollbackApprovedBy">Approved by</label>
-        <input id="rollbackApprovedBy" name="approvedBy" type="email" required placeholder="a second operator" />
+        <input
+          id="rollbackApprovedBy"
+          name="approvedBy"
+          type="email"
+          required
+          value={approvedBy}
+          onChange={(event) => setApprovedBy(event.target.value)}
+          placeholder="a second operator"
+        />
         <p className="hint">A rollback is a publication. It needs the same second identity.</p>
       </div>
 

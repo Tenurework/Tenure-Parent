@@ -89,16 +89,31 @@ test.describe("platform console", () => {
     // The denominator is the whole programme, not the phase currently open.
     // Reporting 14/15 would be true of Phase 0 and misleading about the rest,
     // and this is the assertion that stops it drifting back to that.
-    await expect(
-      page.getByText(`${ledger.done} of ${programme.totalItems}`)
-    ).toBeVisible()
+    //
+    // The numerator is `decided`, not `done`. They differ, and the difference
+    // is items settled without being built — blocked on an external dependency,
+    // or not applicable. The page states both; the badge carries the larger,
+    // because a queue that will never return to an item has finished with it.
+    // Scoped to the badge. The paragraph below it states the same two numbers
+    // in a sentence, so an unscoped text match resolves to both and fails on
+    // strict mode — which is the locator telling the truth, not a nuisance.
+    await expect(page.locator(".badge", { hasText: `${programme.decided} of ${programme.totalItems}` })).toBeVisible()
+    expect(programme.decided).toBeGreaterThanOrEqual(ledger.done)
 
-    expect(programme.totalItems).toBeGreaterThan(500)
-    expect(programme.phases.length).toBe(18)
+    // Both numerators are stated, and they are not the same number. The badge
+    // carries `decided`; the sentence separates what is built from what is
+    // merely settled. Publishing only the larger would overstate what exists.
+    await expect(page.getByText(`${ledger.done} implemented`)).toBeVisible()
 
-    // Every phase is listed with its item count.
-    for (const phase of programme.phases.slice(0, 3)) {
-      await expect(page.getByRole("cell", { name: phase.phase, exact: true })).toBeVisible()
+    // Four binding execution prompts, not one. This was `toBe(18)` — the phase
+    // count of the superseded v1.1 prompt, which the console was still parsing.
+    expect(programme.totalItems).toBeGreaterThan(1000)
+    expect(programme.phases.length).toBeGreaterThan(100)
+
+    // Grouped by document, because 178 phase rows is a wall. Each of the four
+    // is named, with its own totals.
+    for (const source of ["GE", "EXT", "STUDIO", "SIMON"]) {
+      await expect(page.getByRole("cell", { name: source, exact: true })).toBeVisible()
     }
   })
 

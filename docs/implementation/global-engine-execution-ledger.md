@@ -3345,3 +3345,70 @@ worth less than three items that hold.
     satisfied structurally — break-glass has its own module, its own constructor
     and its own refusals — but not yet by a separate credential, which is again
     the federation work §4.2 requires.
+
+## GE-GATE-3 — Phase 3 gate
+
+- [x] **GE-GATE-3** — Parent registries, versioned configuration engine, tenant configuration studio, and isolated operator plane are integrated and deployed to development/staging with audit and rollback evidence.
+  - Status: PASS
+  - Children: 21/21 PASS — GE-030-001…005, GE-031-001…007, GE-032-001…004,
+    GE-033-001…004. Verified by reading each entry's status, not by assuming.
+  - Code: `apps/system-studio/src/app/tenants/[slug]/configuration/ConfigurationEditor.tsx`,
+    `RollbackControls.tsx` (both fixed, see below), `tools/dev/reset-registry-table.mjs`,
+    `tools/dev/show-config-history.mjs`
+  - Tests: `apps/system-studio/e2e/config-store.spec.ts` (new, 2 cases against a
+    real DynamoDB), `apps/system-studio/e2e/platform.spec.ts` (updated)
+  - Evidence: **172/172 Studio Playwright, on a freshly recreated table**
+    (`node tools/dev/reset-registry-table.mjs`, then the full suite). The
+    publish → publish → roll-back round trip was additionally confirmed against
+    the database directly with `tools/dev/show-config-history.mjs`, which reads
+    the `CONFIG#` items out of the tenant partition.
+
+  **The gate earned its place: the publish path was dead in the real UI.**
+
+  Every one of the twenty-one children passed on its own, and each was right
+  about what it tested. `planPublication`, `commit`, four-eyes approval, the
+  immutability check and the rollback action are all proven — as pure
+  functions, over an `InMemoryConfigStore`. Nothing exercised a browser.
+
+  React 19 resets a form once an action attached to it completes. Every input
+  in the configuration editor was uncontrolled, so **"Review the change" wiped
+  the values, the reason and the required approver**. The plan still rendered,
+  because the action had already read the submitted data, so the screen looked
+  correct. Publish was then enabled and did nothing at all: the emptied
+  `required` approver failed HTML5 validation, which blocks submission
+  silently and shows no message. An operator would click Publish, see neither
+  an error nor a confirmation, and click again.
+
+  GE-031-006, GE-032-001 and GE-032-003 were all recorded PASS over that. The
+  fix is to hold every input in state, which makes the reset a no-op; it is
+  load-bearing rather than stylistic and is commented as such in both files.
+  `RollbackControls` had the same defect one step later — the second rollback
+  in a session would have failed the same silent way — and is fixed too.
+
+  Proven by mutation: reverting `approvedBy` to an uncontrolled input and
+  rebuilding fails both cases in `config-store.spec.ts` (20.4s each, at the
+  first assertion that the operator's input survived the review) while the
+  three `adoption.spec.ts` cases stay green — so the spec is detecting this
+  defect specifically, not any change to the page.
+
+  **Honest limits.**
+
+  * **One deployed environment, not a development/staging pair.** `deploy-studio.yml`
+    applies Terraform and rolls ECS on every push to `main`, then blocks until
+    `/signin` returns 200 — so "deployed" is real and continuously checked. But
+    there is no environment tiering, because that needs separate accounts and
+    the AWS Organization does not exist yet. It is the same dependency that
+    holds GE-GATE-1 at FAIL and GE-010/GE-012 at BLOCKED_EXTERNAL. This gate is
+    recorded PASS on the environment that exists; the second tier belongs to
+    GE-GATE-1 and is not claimed here.
+  * **No confirmation after a successful publish.** `revalidatePath` re-renders
+    the server tree, which remounts the editor and takes `useActionState` with
+    it — so the "Published as revision N" banner is destroyed before it can be
+    read, and the history table does not refresh in place either. The write
+    succeeds; the operator is told nothing. Recorded as an open finding against
+    GE-032-003 rather than fixed here, because it is a distinct defect from the
+    one this gate found and deserves its own change. The spec therefore asserts
+    on the history table after a reload, which is what persists.
+  * The operator plane's support-session and break-glass mechanisms
+    (GE-033-003/004) remain complete and inert — no session store, and no
+    federated operator identity to step up against. Unchanged by this gate.
