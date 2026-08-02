@@ -23,6 +23,7 @@ import {
 
 import { auth } from "@/lib/auth"
 import { registryRecordFor } from "@/lib/registry-record"
+import { placementFor } from "@/lib/cells"
 import { isOperator } from "@/lib/operators"
 import { SlugTaken, advanceTenant, getTenant, registerTenant, takenSlugs } from "@/lib/registry"
 import { deliverToCell } from "@/lib/deliver"
@@ -184,14 +185,40 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
     // as distinct from the manifest, which is what was asked for. Built here and
     // written in the same transaction, because a tenant the console can show and
     // the fleet cannot place is worse than one that failed to register.
+    // GE-030-002. Placement is decided against the cell registry, not derived
+    // from a naming convention. `cell-${region}` was correct exactly while
+    // there is one cell per region, and silently wrong the day there are two —
+    // wrong in the direction of registering a tenant against a cell that is
+    // full, draining, or in another environment.
+    const placement = placementFor({
+      residency: [manifest.region],
+      environment: (process.env.DEPLOY_ENVIRONMENT ?? "production") as "production",
+    })
+    if (!placement.cellId) {
+      // Reported as a form problem rather than a 500, and with the reason: "no
+      // cell may legally hold this tenant" and "every cell is full" are the
+      // same outcome and completely different problems.
+      return {
+        problems: [
+          {
+            field: "region",
+            reason: placement.reason,
+            detail:
+              placement.reason === "no-cell-in-residency"
+                ? `No cell serves ${manifest.region} in this environment.`
+                : placement.reason === "no-healthy-cell"
+                  ? `Every cell in ${manifest.region} is degraded, upgrading or draining. Nothing to fix here — try again once the fleet is healthy.`
+                  : `Every cell in ${manifest.region} is at capacity.`,
+          },
+        ],
+      }
+    }
+
     await registerTenant(
       manifest,
       { principalId, at },
       registryRecordFor(manifest, {
-        // One cell per region today. When there are several, placement becomes a
-        // decision the cell registry makes (GE-030-002) rather than a naming
-        // convention here — and this is the one line that has to change.
-        cellId: `cell-${manifest.region}`,
+        cellId: placement.cellId,
         release: process.env.SCHEMA_VERSION ?? "unpinned",
         primaryContactEmail: manifest.initialAdminEmail,
         plan: manifest.entitlements.length > 0 ? "institution" : "institution-core",

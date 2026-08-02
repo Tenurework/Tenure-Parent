@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "346527b",
+  "commit": "3e2c68e",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 44,
-    "done": 38,
+    "total": 45,
+    "done": 39,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -329,6 +329,13 @@
             "id": "GE-030-001",
             "done": true,
             "title": "Global tenant registry with immutable ID, lifecycle, legal/customer metadata, plan, region/residency, isolation, cell placement, release, config revision, and safe login projection.",
+            "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
+            "isGate": false
+          },
+          {
+            "id": "GE-030-002",
+            "done": true,
+            "title": "Cell registry with partition/account/region/environment, capacity, services, versions, health, routing, residency, backup/DR, and migration metadata.",
             "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
             "isGate": false
           }

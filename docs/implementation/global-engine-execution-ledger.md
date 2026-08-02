@@ -1268,4 +1268,51 @@ for progress:
     through the existing `TenantState` machine — unifying the two is GE-030-002
     work, not a claim made here.
 
-- [ ] **GE-030-002 … 005** — Status: FAIL — not started.
+- [x] **GE-030-002** — Cell registry with partition/account/region/environment,
+  capacity, services, versions, health, routing, residency, backup/DR, and
+  migration metadata.
+  - Status: PASS
+  - Code: `packages/provisioning/src/cell-registry.ts`,
+    `apps/system-studio/src/lib/cells.ts`; placement wired into `composeTenant`
+  - Tests: `cell-registry.test.ts` — 17 cases
+  - **Health is not a boolean.** A cell mid-upgrade is serving traffic and must
+    not receive a new tenant. A draining cell is serving traffic and must not
+    receive one either, for a completely different reason. Collapsing those into
+    `healthy: false` loses the reason, and the reason is what tells an operator
+    whether to wait or to act. Five states; exactly one is placeable.
+  - **Placement filters in a fixed order and reports where it narrowed to
+    nothing.** Residency is a contract, health is a fact, capacity is a
+    preference — and reporting "no capacity" when the real problem is that no
+    cell may legally hold the tenant sends an operator to add hardware that
+    cannot help. The decision carries counts through each filter for exactly
+    that reason.
+  - Ties break on the emptiest cell, then on cell id. Deterministic, because a
+    placement that depends on map iteration order cannot be reproduced when
+    someone asks why a tenant went where it did — the test runs the same fleet
+    in two orders.
+  - A cell whose residency zones exclude its own region is refused: it would be
+    holding its own data somewhere it is not permitted to. An empty zone list is
+    refused too — "no tenant may be placed here" is a real state, and it is
+    `DRAINING` said explicitly rather than an empty array said by accident.
+  - Registration previously derived the cell id as `cell-<region>` from the
+    manifest. That is correct exactly while there is one cell per region and
+    silently wrong the day there are two, in the direction of registering a
+    tenant against a cell that is full, draining, or in another environment. It
+    is now a decision, and a refusal comes back as a form problem naming which
+    of the three filters rejected it.
+  - Proven by mutation, 10 of 10 caught. Two initially did not, and both were
+    the mutation's fault rather than the test's: one was a no-op
+    (`.reverse().sort()` with the same comparator sorts identically) and one had
+    an escaping error that made its marker match nothing. A mutation that does
+    not reach the code proves nothing about it and looks exactly like a guard
+    that works.
+  - Honest limits: the fleet is **one cell**, read from the environment. That is
+    a fact about the estate — the AWS inventory found a single ECS service in
+    one account and one region — and inventing a second so the code "looks
+    scalable" would mean placing a tenant somewhere that does not exist. The
+    record's `capacity.tenants` is supplied by configuration rather than counted
+    from the tenant registry, so it can drift; wiring that count is GE-033-002's
+    fleet-health work. `migration` is recorded and validated but nothing writes
+    it yet — there is no migration path to write it.
+
+- [ ] **GE-030-003 … 005** — Status: FAIL — not started.

@@ -53,3 +53,13 @@ export type {
   TenantLifecycle,
   TenantRegistryRecord,
 } from "./tenant-registry"
+
+export { choosePlacement, isCellServing, validateCellRecord } from "./cell-registry"
+export type {
+  CellCapacity,
+  CellHealth,
+  CellProblem,
+  CellRecord,
+  PlacementDecision,
+  PlacementRefusal,
+} from "./cell-registry"
