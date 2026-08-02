@@ -54,3 +54,25 @@ export type {
 } from "./decide"
 
 export { SEPARATION_OF_DUTIES, notOwnRequest, notOwnReimbursement } from "./policies"
+
+export {
+  MAX_DURATION_HOURS,
+  STEP_UP_FRESHNESS_MINUTES,
+  SUPPORT_BASES,
+  attributionFor,
+  auditAccess,
+  bannerFor,
+  isActive,
+  permits,
+  validateSession,
+} from "./support-session"
+export type {
+  Attribution,
+  InactiveReason,
+  Liveness,
+  SessionBanner,
+  SessionProblem,
+  SupportAuditEntry,
+  SupportBasis,
+  SupportSession,
+} from "./support-session"

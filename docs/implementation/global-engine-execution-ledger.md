@@ -3221,3 +3221,65 @@ worth less than three items that hold.
     is therefore inert on that page and correct on any caller that supplies the
     real value. Widening the projection is a change to the registry's read path
     rather than to this module.
+
+- [x] **GE-033-003** — Just-in-time support sessions with ticket/reason, tenant
+  approval or incident policy, narrow scope, time limit, step-up, visible
+  banner, dual attribution, automatic revocation and audit.
+  - Status: PASS
+  - Code: `packages/authorization/src/support-session.ts`
+  - Tests: `support-session.test.ts` — 30 cases. `apps/web` **1590/1590**;
+    96 platform guards.
+  - GE-033-002 established that the operator plane has **no default** raw
+    content access. This is the mechanism that legitimises the exception, and
+    Bible §14.6 names all nine parts of it.
+  - **The failure mode of every one of the nine is the same:** a support
+    mechanism that is slightly too convenient becomes the way operators work,
+    and then "no default content access" is a sentence in a document rather than
+    a property of the system. Most of these tests are about it staying
+    inconvenient in the specific ways that matter.
+  - **Revocation is computed, never scheduled.** `isActive` derives liveness
+    from the clock every time it is asked. A session that expires because a job
+    runs is one that stays live when the job does not — and the window where
+    that matters is exactly an incident, when the job queue is the thing that
+    broke. Nothing here needs a sweeper to be correct.
+  - **Dual attribution has no single-actor form.** There is no function
+    returning "the actor"; `attributionFor` returns operator and represented
+    party together, always, because the only way an audit trail loses the
+    operator is if some call site could ask for one name. §14.6: "Impersonation
+    never silently becomes the customer."
+  - Scope is **exact membership**, not a prefix. `startsWith` would let `org-1`
+    reach `org-10`, which is the kind of near-miss that is invisible in a log.
+    Wildcards are refused outright: one character converts a reviewed,
+    time-boxed, attributed grant into ordinary access with paperwork.
+  - Step-up **goes stale** at 30 minutes independently of the session's own
+    expiry. Step-up that lasts as long as the session is step-up once, which is
+    a login with extra words.
+  - There are exactly two bases — tenant approval and incident policy — and a
+    third is refused. An "operational necessity" basis is how the other two stop
+    being used.
+  - The banner's `visible` is the literal `true` rather than a boolean, so a
+    caller cannot construct a banner object with the flag turned off: the type
+    makes the hidden-banner state unwritable. It names the **operator**, not the
+    represented party — a banner saying the customer's own director is viewing
+    tells them nothing.
+  - Refusals are audited as well as grants. A trail containing only successful
+    reads cannot answer "did anyone try", which is the question asked after an
+    incident.
+  - Proven by mutation, **6 of 6 caught**: wildcard scopes accepted FAILS 3;
+    expiry not enforced FAILS 2; step-up freshness ignored FAILS; scope matched
+    by prefix FAILS; the maximum duration unenforced FAILS; refusals not audited
+    FAILS.
+  - My own validation caught two of my test fixtures: a session spanning ten
+    hours is `MALFORMED` before it is `EXPIRED`, so the fixtures meant to prove
+    automatic expiry were tripping the duration maximum instead. Corrected to
+    two hours.
+  - Honest limits: **nothing calls this yet.** It is the decision procedure and
+    its refusals; no route consults a session, no store persists one, and no UI
+    raises or approves a request — the same store gap that GE-031-003/005/006
+    and GE-032-004 are waiting on, now five items deep. **Step-up is modelled as
+    a timestamp, not performed**: real step-up needs the IAM Identity Center
+    federation and phishing-resistant MFA of §4.2, which is blocked on the AWS
+    Organization along with GE-012 and GE-GATE-1. The 8-hour maximum and
+    30-minute step-up freshness are constants here rather than configuration;
+    they belong in the `identity` domain, which is `reserved` until GE-033's
+    identity work lands.

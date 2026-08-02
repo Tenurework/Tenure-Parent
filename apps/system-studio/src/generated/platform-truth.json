@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "66a097f",
+  "commit": "e1cfbe8",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 74,
-    "done": 63,
+    "total": 75,
+    "done": 64,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -544,6 +544,13 @@
             "id": "GE-033-002",
             "done": true,
             "title": "Fleet tenant/cell health, lifecycle, release/config, migration, connectors, identity, backup, security, cost and incident views without default raw content access.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-033-003",
+            "done": true,
+            "title": "Just-in-time support sessions with ticket/reason, tenant approval or incident policy, narrow scope, time limit, step-up, visible banner, dual attribution, automatic revocation and audit.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }
