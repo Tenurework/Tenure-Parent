@@ -26,7 +26,7 @@ const metadata = (kind: VersionedLayer["kind"]): VersionedLayer["metadata"] => (
   schemaVersion: "1.0.0",
   signer: "arn:aws:kms:us-east-1:000000000000:key/test",
   origin: "domains.test.ts",
-  compatibility: { minEngine: "1.0.0", maxEngine: null },
+  compatibility: { minEngine: "2026.7.0", maxEngine: null },
   effectiveFrom: "2020-01-01T00:00:00.000Z",
   effectiveUntil: null,
   changeReason: "exercising domain authority",

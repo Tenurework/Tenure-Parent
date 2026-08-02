@@ -1,6 +1,13 @@
 import type { ConfigRegistry } from "./definition"
 import { refusedByDomain, type DomainRefusal } from "./domains"
 import {
+  ENGINE_VERSION,
+  incompatibleLayers,
+  layerDigest,
+  provenanceDigest,
+  type CompatibilityProblem,
+} from "./integrity"
+import {
   orderLayers,
   type LayerKind,
   type VersionedLayer,
@@ -93,6 +100,25 @@ export interface VersionedResolveResult extends ResolveResult {
    * acts on them differently.
    */
   domainRefused: readonly DomainRefusal[]
+  /**
+   * Layers this engine may not apply (GE-031-003).
+   *
+   * Excluded entirely rather than partially applied. A layer written for a
+   * newer engine may use a field this build cannot read, and applying the parts
+   * it understands produces a configuration nobody authored.
+   */
+  incompatible: readonly CompatibilityProblem[]
+  /**
+   * One digest over the ordered layers that produced this resolution.
+   *
+   * Distinct from `config.checksum`, which covers the resolved VALUES. Two
+   * different layer stacks can resolve to identical values, and "which layers
+   * produced this" is the question asked during an incident — Bible §5.3
+   * requires a deployment manifest to carry both.
+   */
+  provenance: string
+  /** Per-layer digests, in precedence order, so a resolution can cite its inputs. */
+  layerDigests: readonly { kind: LayerKind; id: string; version: number; digest: string }[]
 }
 
 /**
@@ -106,9 +132,17 @@ export function resolveVersionedLayers(
   registry: ConfigRegistry,
   layers: readonly VersionedLayer[],
   at: Date,
-  options: ResolveOptions = {},
+  options: ResolveOptions & { engineVersion?: string } = {},
 ): VersionedResolveResult {
-  const { ordered, skipped, refused } = orderLayers(layers, at)
+  // Compatibility is checked BEFORE ordering, against everything handed in.
+  // A layer this engine cannot read must not reach the fold at all, and
+  // checking after ordering would let an incompatible layer that happens to be
+  // outside its effective interval look like a compatibility pass.
+  const incompatible = incompatibleLayers(layers, options.engineVersion ?? ENGINE_VERSION)
+  const excluded = new Set(incompatible.map((p) => `${p.kind} ${p.id}`))
+  const compatible = layers.filter((l) => !excluded.has(`${l.kind} ${l.id}`))
+
+  const { ordered, skipped, refused } = orderLayers(compatible, at)
 
   // Domain authority is checked against the layers that are actually going to
   // be applied, not against everything handed in. A layer outside its effective
@@ -142,5 +176,19 @@ export function resolveVersionedLayers(
     configLayers.push({ scope, id: layer.id, label: layer.label, values })
   }
 
-  return { ...resolveConfig(registry, configLayers, options), skipped, refused, unmapped, domainRefused }
+  return {
+    ...resolveConfig(registry, configLayers, options),
+    skipped,
+    refused,
+    unmapped,
+    domainRefused,
+    incompatible,
+    provenance: provenanceDigest(ordered),
+    layerDigests: ordered.map((l) => ({
+      kind: l.kind,
+      id: l.id,
+      version: l.metadata.version,
+      digest: layerDigest(l),
+    })),
+  }
 }

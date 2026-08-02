@@ -92,3 +92,13 @@ export {
   validateDomains,
 } from "./domains"
 export type { ConfigDomain, DomainProblem, DomainRefusal } from "./domains"
+
+export {
+  ENGINE_VERSION,
+  compareSemver,
+  immutabilityBreaches,
+  incompatibleLayers,
+  layerDigest,
+  provenanceDigest,
+} from "./integrity"
+export type { CompatibilityProblem, ImmutabilityBreach, PublishedDigest } from "./integrity"

@@ -2480,3 +2480,73 @@ worth less than three items that hold.
     primitive brings the trap and this hand-rolled overlay should be replaced
     rather than extended. Scroll restoration is Next's own on route change,
     which this item does not alter and does not test.
+
+- [x] **GE-031-003** — Deterministic overlay resolution, immutable versions,
+  signatures/digests, semantic schema version, compatibility, effective
+  interval, author/approver, and change reason.
+  - Status: PASS
+  - Code: `packages/configuration/src/integrity.ts`, enforcement wired into
+    `layer-bridge.ts`, exports in `index.ts`
+  - Tests: `integrity.test.ts` — 21 cases. Configuration package **123/123**;
+    `apps/web` **1419/1419**; 82 platform guards.
+  - **GE-031-001 required nine metadata fields and checked one of them.** Every
+    layer carried an immutable version, a semantic schema version, a signer, an
+    origin, a compatibility range, an effective interval, a change reason and an
+    approval record — and apart from the effective interval, none was compared
+    to anything. `compatibility` was format-validated and never measured against
+    an engine version, so a layer declaring `minEngine: "2027.1.0"` resolved
+    fine. `signer` was presence-validated with nothing to bind it to: there was
+    no digest of the content, so "signed by KMS key X" was a string sitting next
+    to values that could be anything. `version` was documented as immutable and
+    nothing detected an edit in place.
+  - **`layerDigest`** covers values plus the identity-bearing metadata — kind,
+    id, version, schema version. A digest over values alone is equal for the
+    same values published under two versions, which is exactly the case it
+    exists to tell apart. It deliberately EXCLUDES signer, origin, change reason
+    and approver: those describe the act of publishing, and correcting a typo in
+    a change reason must not make a layer look like different configuration, or
+    the audit trail becomes noise and people stop reading it.
+  - **`provenanceDigest`** is separate from the resolved-values checksum and
+    both are needed. Two different layer stacks can resolve to identical values,
+    and "which layers produced this" is the question asked during an incident —
+    Bible §5.3 requires the deployment manifest to carry both. Order is part of
+    the digest because precedence changes meaning.
+  - **Compatibility fails closed in both directions.** A layer built for a newer
+    engine may use a field this build cannot read, and applying the parts it
+    understands produces a configuration nobody authored; a layer past its
+    `maxEngine` was explicitly retired by whoever published it. Incompatible
+    layers are **excluded before ordering** and reported — not partially
+    applied — and they do not appear in the provenance, because they did not
+    contribute.
+  - **`immutabilityBreaches`** detects a published version that now says
+    something else. An edit in place is invisible: the version is unchanged, so
+    every cache, audit record and "we ran configuration v4" claim still says v4
+    while v4 means something different. That is how an incident review
+    reconstructs the wrong configuration and concludes the system misbehaved. It
+    also catches one identity appearing twice in a single resolution, which is a
+    merge or replication bug rather than an edit.
+  - **I picked the wrong version scheme and the tests said so immediately.**
+    `ENGINE_VERSION` was `1.0.0`; the fixtures already in this package declare
+    `minEngine: "2026.7.0"`, so every pre-existing layer became incompatible in
+    one step and five tests failed at once. The repository's scheme is calendar
+    versioning, and `ENGINE_VERSION` is now `2026.8.0`. The failure being loud
+    and total is the good case — a scheme mismatch that excluded only SOME
+    layers would have been a silent partial configuration. `domains.test.ts` had
+    `1.0.0` too; that was my own inconsistency from an earlier batch, corrected.
+  - Proven by mutation, **5 of 5 caught**: semantic versions compared as strings
+    FAILS (`1.10.0` sorts below `1.9.0`, which breaks every compatibility check
+    the moment a minor version reaches ten); the digest dropping the version
+    FAILS; incompatible layers reported but still applied FAILS; immutability
+    never firing FAILS; provenance normalising layer order FAILS. The first
+    attempt at that last one sorted by `id` and was **not** caught — both
+    fixtures share an id, so the sort was a no-op. Re-run sorting by `kind`,
+    which genuinely destroys precedence, and caught.
+  - Honest limits: `signer` is now *bindable* — there is a content digest to
+    sign — but **nothing verifies a signature**. Doing so needs a KMS
+    `Verify` call and a key policy, which is estate work blocked on the same
+    Organization as GE-012. `immutabilityBreaches` takes the previously
+    published digests as an argument and nothing yet persists them; the store
+    belongs with the configuration version history in GE-031-006. Neither check
+    is called from `apps/web` yet — the app resolves through
+    `@tenure/platform-config`, which uses the unversioned `ConfigLayer` path,
+    and moving it onto `VersionedLayer` is its own change.

@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "fa83242",
+  "commit": "37d1c8e",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 63,
-    "done": 52,
+    "total": 64,
+    "done": 53,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -467,6 +467,13 @@
             "id": "GE-022-007",
             "done": true,
             "title": "Command search, recent/pinned destinations, universal create, keyboard shortcuts, context-preserving back/forward, and safe scroll/focus restoration.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-031-003",
+            "done": true,
+            "title": "Deterministic overlay resolution, immutable versions, signatures/digests, semantic schema version, compatibility, effective interval, author/approver, and change reason.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }
