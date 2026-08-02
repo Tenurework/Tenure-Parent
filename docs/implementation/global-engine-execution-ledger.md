@@ -1610,6 +1610,105 @@ for progress:
     cryptographically yet — `signatureRef` is required and its absence refuses,
     but the KMS verification is Phase 12 work.
 
+
+## GE-031: Configuration model
+
+- [x] **GE-031-001** — Versioned schemas for platform invariants,
+  partition/region, environment, plan, industry pack, org template, tenant
+  baseline/overlay, org-unit overlay, experiment, and emergency deny.
+  - Status: PASS
+  - Code: `packages/configuration/src/layer-schema.ts`,
+    `packages/configuration/src/layer-bridge.ts`
+  - Tests: `layer-schema.test.ts` (30 cases), `layer-bridge.test.ts` (8 cases)
+  - `ConfigLayer` was a scope, an id and a bag of values — enough to resolve a
+    value and not enough to answer anything asked afterwards: which version is
+    live, who signed it, when it stops applying, why it changed, who approved
+    it. Bible §7.1 requires all of that on **every** layer, and it is now
+    required by the type rather than optional, because "we did not record it"
+    and "there was nothing to record" must not be the same empty field.
+
+  **The two layers that are not layers.** §7.1 lists eleven in precedence order
+  and two of them do not behave like the other nine:
+  - **Platform invariants** are listed *first* — lowest precedence — and
+    described as things tenants cannot override. Those two statements
+    contradict each other: something at the bottom of a precedence order is
+    exactly what everything above it overrides. The resolution is that an
+    invariant is not a competitor but a **constraint**, so a later layer setting
+    an invariant key is **refused and reported**, not silently discarded. The
+    refusal is also *true* rather than advisory — the bridge strips the value —
+    because reporting a conflict that had no consequence is worse than not
+    reporting it. Refusing one key does not refuse the layer: a tenant that
+    renamed itself in the same change keeps the rename.
+  - **Emergency deny** is highest and may only restrict, the same law
+    `flags.ts` establishes. A layer that could grant from the top of the order
+    is a second authorization system answering to whoever can declare an
+    emergency. It is also **not exempt from invariants** — highest precedence is
+    not exemption, or the invariant holds only until someone declares one.
+
+  **Eleven kinds, eight scopes, and the mapping is stated.** `CONFIG_SCOPES` has
+  eight entries; §7.1 names eleven layers. They are two vocabularies that grew
+  for different reasons, and the honest thing is one explicit table rather than
+  each caller inventing a mapping. Collapses are named — both tenant kinds land
+  on `tenant` scope, and they stay separate *kinds* because "what the customer
+  agreed to" and "what they have since changed" must be distinguishable or a
+  rollback has nothing to roll back to. `experiment` and `emergencyDeny` map to
+  `null` deliberately: GE-022-005 already models both as configuration keys with
+  restrict-only merge strategies, and a scope for the kill switch would sit
+  above `user` and could therefore grant. `null` is recorded rather than the key
+  omitted, so adding a twelfth kind without deciding its scope is a type error.
+
+  **Nothing goes missing crossing the bridge.** A layer outside its interval, a
+  layer whose kind has no scope, and a layer refused by an invariant each come
+  back named. A layer that contributes nothing and says nothing is
+  indistinguishable from one that applied and had no effect, and only one of
+  those is a bug.
+
+  **Resolution takes an instant.** "What was this tenant's configuration on the
+  3rd" is a question that gets asked, and a resolver that can only answer for
+  the present cannot answer it. Skips say *which side* of the window they fell
+  on — "not yet" and "no longer" need different operator responses, and a single
+  "skipped" makes an experiment that has not started look like one that finished.
+
+  **Four-eyes is per kind.** Everything reaching a customer's system needs an
+  approver; `partitionRegion` and `environment` do not, because they describe
+  the estate and are changed by the same people who would approve them — a rule
+  that gets worked around is worse than no rule. `approvedBy: null` means
+  approval does not apply and an empty string is refused, so "nobody approved
+  this" and "approval is not required" are different states.
+
+  - Ordering is deterministic: kind rank, then id, then version descending. A
+    precedence that depends on array order cannot be reproduced when somebody
+    asks why a value is what it is — tested by resolving the same layers in two
+    orders.
+  - Proven by mutation, **26 of 26 caught** (19 schema + 7 bridge): invariants
+    overridable, deny exempt from them, invariants read from one layer, an
+    expired invariant still pinning, deny demoted from highest, overlay
+    demoted below baseline, an unknown kind ranked 0 instead of throwing, both
+    interval edges, an unreadable interval read as live, skips losing their
+    reason, ordering falling back to array order, oldest version winning,
+    approval dropped, estate layers demanding approval, provenance fields made
+    optional, version 0 accepted, a backwards interval accepted, validation
+    stopping at the first problem, unmapped layers dropped, the refusal made
+    advisory, one refused key killing the whole layer, deny given a scope, the
+    tenant kinds split across scopes, and the instant ignored.
+  - One mutation SKIPped first time: the marker `"tenantBaseline",
+    "tenantOverlay",` appears in both `LAYER_KINDS` and the approval set, so it
+    would have landed in whichever came first. Re-anchored through `] as const`.
+    A mutation that lands in the wrong place proves nothing and looks identical
+    to a guard that works.
+
+  - Honest limits: this defines and resolves the layer schema; **nothing
+    publishes one yet**. The Studio still builds `ConfigLayer` directly through
+    `layersFor`, and moving it across is GE-031-003's deterministic-resolution
+    work — doing it here would mean changing the resolver's contract in the same
+    change that introduced the schema. `signer` is a reference and nothing
+    verifies a signature cryptographically; that is Phase 12. And the eight
+    `CONFIG_SCOPES` remain the resolver's vocabulary — unifying the two is a
+    refactor across every definition's `allowedScopes`, deliberately not
+    smuggled into this item.
+
+- [ ] **GE-031-002 … 007** — Status: FAIL — not started.
+
 ## Tenant adoption — bringing Simon OSE under the engine
 
 - [x] **Adoption of file-bound tenants** (not a numbered GE item; requested

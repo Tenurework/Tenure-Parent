@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "b9e9f0c",
+  "commit": "9ee67c2",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 48,
-    "done": 42,
+    "total": 49,
+    "done": 43,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -357,6 +357,13 @@
             "id": "GE-030-005",
             "done": true,
             "title": "Extension/package/connector/model catalogs with lifecycle and compatibility even when features are not yet externally enabled.",
+            "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
+            "isGate": false
+          },
+          {
+            "id": "GE-031-001",
+            "done": true,
+            "title": "Versioned schemas for platform invariants, partition/region, environment, plan, industry pack, org template, tenant baseline/overlay, org-unit overlay, experiment, and emergency deny.",
             "phase": "Phase 3 — Tenure Parent control plane and configuration engine",
             "isGate": false
           }

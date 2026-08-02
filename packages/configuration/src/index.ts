@@ -60,3 +60,26 @@ export type {
 
 export { ConfigVersionError, diffVersions, publish, supersede } from "./version"
 export type { ConfigDiffEntry, ConfigVersion, PublicationState, PublishInput } from "./version"
+
+export {
+  LAYER_KINDS,
+  RESTRICT_ONLY_KINDS,
+  invariantKeys,
+  isEffectiveAt,
+  isLayerKind,
+  layerRank,
+  orderLayers,
+  requiresApproval,
+  validateLayer,
+} from "./layer-schema"
+export type {
+  CompatibilityRange,
+  LayerKind,
+  LayerMetadata,
+  LayerProblem,
+  OrderedLayers,
+  VersionedLayer,
+} from "./layer-schema"
+
+export { SCOPE_FOR_KIND, resolveVersionedLayers } from "./layer-bridge"
+export type { VersionedResolveResult } from "./layer-bridge"
