@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "6b9939f",
+  "commit": "cf48c12",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 78,
-    "done": 67,
+    "total": 79,
+    "done": 68,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -574,6 +574,13 @@
             "title": "Implement/migrate `Person`, `ExternalIdentity`, `TenantMembership`, `IdentityConnection`, `Invitation`, `Session`, `AuthenticationEvent`, and recovery/linking entities with effective state and audit.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-040-002",
+            "done": true,
+            "title": "Key external identity by verified connection + issuer + subject. Email is mutable and never auto-merges identities.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -588,7 +595,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 81,
+    "decided": 82,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -707,7 +714,7 @@
         "source": "GE",
         "items": 5,
         "gates": 0,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "GE · GE-041: Cognito infrastructure",
@@ -1939,7 +1946,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 15,
+      "files": 16,
       "what": "repository and deployment invariants"
     },
     {

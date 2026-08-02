@@ -3515,3 +3515,103 @@ worth less than three items that hold.
     the migration instant rather than their true grant date. `createdAt` holds
     the real date; backfilling it is a data migration that belongs with the
     Simon absorption, where the pilot's data is being reconciled anyway.
+
+- [x] **GE-040-002** — Key external identity by verified connection + issuer + subject. Email is mutable and never auto-merges identities.
+  - Status: PASS
+  - Code: `packages/identity/src/keying.ts`
+  - Tests: `packages/identity/src/keying.test.ts` (27),
+    `tests/security/email-is-not-a-key.test.mjs` (6 guards)
+  - Evidence: 1713/1713 apps/web unit (76 suites), 116/116 platform guards,
+    type-check clean. **10 mutations, 10 caught** — after fixing two guards and
+    one real defect that the first run exposed.
+
+  Three rules, and each is something an identity system is tempted to do
+  because it is convenient, and each is an account takeover.
+
+  **The key is (connection, issuer, subject) — all three.** `subject` alone is
+  not unique across providers; `issuer + subject` is unique for a correctly
+  behaving IdP; and `connection` is still required, because a connection is
+  *this tenant's decision to trust that issuer*. Dropping it means one tenant
+  configuring a connection to an issuer another tenant also uses would let an
+  assertion minted for the first resolve inside the second. The tenant boundary
+  is not a property of the IdP — it is a property of the trust relationship.
+
+  Comparison is exact and case-sensitive. SAML NameIDs and Cognito subs are
+  case-sensitive, and normalising case would silently merge two distinct
+  subjects on the one value that decides who someone is.
+
+  **Email is an attribute that moves.** `applyAssertedEmail` updates the address
+  and the verification flag and restates every key part explicitly, so a
+  provider that starts asserting a different subject cannot repoint the row —
+  that is a new identity to be linked under review. A system that keys on email
+  loses the person the day HR does a domain migration.
+
+  **Email never merges anything, verified or not.** `emailCollisions` returns a
+  *report*, and there is deliberately no function in the module that merges,
+  links or prefers one identity over another on the strength of a shared
+  address. Auto-merging on email is the single most common identity
+  vulnerability there is: an attacker who can receive mail at a re-issued
+  departmental alias inherits the account, and a provider-verified address
+  proves only that the provider believes it today. The guard asserts the
+  *absence* of `findByEmail` and friends, because if there is no such function
+  there is no call site to misuse.
+
+  **Enumeration resistance** (Bible §9.1, "never reveals whether a person
+  exists"): a refused identity returns "This credential is not usable" with no
+  person id and no address, and an unknown subject returns exactly
+  `{ outcome: "UNKNOWN" }` — asserted with `toEqual` rather than a field check,
+  because the leak is usually not a message but a *shape*.
+
+  **An email domain is a discovery hint and nothing more.** `connectionsToOffer`
+  returns connection ids and takes no person and no membership, so "grant
+  membership from this domain" is unwritable rather than merely discouraged. A
+  merely-claimed domain hints at nothing, or anyone could enumerate which
+  tenants exist by claiming their domains.
+
+  **What the mutation run found, beyond the tests.**
+
+  * **A literal NUL byte in the source.** The key joins on `\u0000` because that
+    is the one character that cannot appear in an issuer, a subject or a
+    connection id — a printable separator lets an attacker construct a collision
+    by moving it between parts. I wrote the raw byte instead of the escape,
+    which makes git treat the file as binary and defeats `git diff` and
+    `grep`. This is the *second* time in this repository (see the note on
+    `integrity.ts` and `rejections.ts`), which is why `no-binary-source` exists —
+    and it was two mutations failing to apply that surfaced it, not the guard,
+    because the guard runs at the gate and this was caught before that. Fixed at
+    the byte level: a text-mode read/modify/write round trip silently re-encoded
+    it and reported success twice.
+  * **Two guards could not tell use from mention.** The dev-login ordering
+    assertion located the gate with `indexOf("checkDevLoginGate")`, which finds
+    the *import* at the top of the file — so it held no matter where the gate
+    actually ran, and moving the lookup above it left the guard green. Fixed to
+    match the call and strip imports first. That is the third time today this
+    exact shape has bitten a guard here; the pattern to distrust is any guard
+    that locates code by name.
+
+  Mutations, all caught: key drops the connection; key joins on a printable
+  separator; subject compared case-insensitively; any connection status trusted;
+  issuer taken from the assertion rather than the connection; refusal names the
+  person; `applyAssertedEmail` re-keys from the assertion; a cross-person
+  collision reported as one person; pending domain claims hint at connections;
+  dev-login looks a user up before checking its gate.
+
+  **Honest limits.**
+
+  * **`apps/web/src/lib/auth.ts` is exempted from the email-key guard, with the
+    residual risk stated rather than hidden.** The pilot's interim dev-login
+    provider authenticates by email plus a shared passphrase. It is exactly the
+    pattern this rule exists to stop, and it stays until Cognito replaces it
+    (GE-041, BLOCKED_EXTERNAL). Anyone holding the shared passphrase can
+    enumerate which addresses have accounts. The passphrase gate runs *before*
+    the lookup, so someone without it cannot probe at all, and that ordering is
+    now asserted — it is the only part of this that protects anyone.
+  * **Nothing calls `resolveAssertion` yet.** It is the resolver Cognito's
+    callback will use, and there is no Cognito callback: `auth.ts` still runs
+    NextAuth with Okta and dev-login. The module is real, exercised and proven,
+    but this item delivers the *rule* and its enforcement, not a live
+    authentication path. The enforcement is what is load-bearing today — the
+    guard applies to `rbac.ts`, `auth.ts`, `auth-connections.ts` and both
+    identity packages right now.
+  * `connectionsToOffer` is not wired into a sign-in page, because the sign-in
+    page does not yet offer connections per tenant. That is GE-041-004.

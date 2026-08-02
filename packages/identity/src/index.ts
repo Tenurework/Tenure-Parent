@@ -55,3 +55,17 @@ export {
   type RevisionOutcome,
   type RevisionRefused,
 } from "./transitions"
+
+export {
+  applyAssertedEmail,
+  connectionsToOffer,
+  emailCollisions,
+  identityKey,
+  keyOf,
+  resolveAssertion,
+  type ConnectionState,
+  type EmailCollision,
+  type IdentityAssertion,
+  type RefusalReason,
+  type ResolutionOutcome,
+} from "./keying"
