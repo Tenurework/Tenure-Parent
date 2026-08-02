@@ -4,6 +4,7 @@ import "./globals.css"
 import { Nav } from "@/components/Nav"
 import { PreferencesMenu } from "@/components/PreferencesMenu"
 import { OfflineBanner } from "@/components/OfflineBanner"
+import { Launcher } from "@/components/Launcher"
 import { NO_FLASH_SCRIPT } from "@/lib/preferences"
 
 export const metadata: Metadata = {
@@ -31,6 +32,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <span className="internal">Internal</span>
         </header>
         <Nav />
+        {/* GE-022-007. In the layout so Ctrl/Cmd-K reaches it from every route. */}
+        <Launcher />
         <main>
           <OfflineBanner />
           {children}

@@ -852,3 +852,121 @@ form.compose button[type="submit"]:disabled,
 .skeleton span:nth-child(3) {
   width: 40%;
 }
+
+/*
+ * ── Command launcher (GE-022-007) ──────────────────────────────────────────
+ *
+ * The backdrop covers the page WITHOUT setting `overflow: hidden` on the body.
+ * The usual lock collapses the scrollbar and, on a page taller than the
+ * viewport, shifts the content sideways and jumps it — which is the context
+ * loss Bible §26.3.8 names, arriving from the component meant to prevent it.
+ */
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgba(51, 48, 44, 0.35);
+}
+
+.palette {
+  width: min(34rem, calc(100vw - var(--space-5)));
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.palette-input {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-3);
+  min-height: var(--tap);
+}
+.palette-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.palette-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.palette-result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  min-height: var(--tap);
+}
+.palette-result.chosen {
+  background: var(--surface-2);
+}
+
+.palette-go {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  min-height: var(--tap);
+}
+.palette-group,
+.palette-hint,
+.palette-none {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.palette-none,
+.palette-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+}
+.palette-hint {
+  border-top: 1px solid var(--border);
+}
+
+.palette-pin {
+  font: inherit;
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0 var(--space-2);
+  min-height: var(--tap);
+  min-width: var(--tap);
+}
+.palette-pin[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.palette-go:focus-visible,
+.palette-pin:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

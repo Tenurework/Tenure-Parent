@@ -2414,3 +2414,69 @@ worth less than three items that hold.
     the regex is the seam where that would show. The `!configured` case is
     mapped to `partialData` — defensible (the fleet shown really is missing a
     named source) but it is a judgment, not an obvious fit.
+
+- [x] **GE-022-007** — Command search, recent/pinned destinations, universal
+  create, keyboard shortcuts, context-preserving back/forward, and safe
+  scroll/focus restoration.
+  - Status: PASS
+  - Code: `apps/system-studio/src/lib/commands.ts` (ranking, recents, pins),
+    `src/components/CommandPalette.tsx`, `src/components/Launcher.tsx`
+    (server component supplying real tenant destinations), launcher styles in
+    `globals.css`, wired into `app/layout.tsx` so the shortcut reaches every
+    route
+  - Tests: `e2e/commands-logic.spec.ts` — 16 cases (no browser);
+    `e2e/commands.spec.ts` — 14 cases. Full Studio suite **121 passed,
+    3 skipped**.
+  - Bible §26.3.1 makes these first-class paths rather than conveniences. The
+    fastest route to a tenant was: Tenants, find it in a table, click — three
+    decisions for something done forty times a day.
+  - **Ranking is tiered and prefix-based, not fuzzy.** Title-prefix beats
+    word-prefix beats keyword. Fuzzy matching finds `Platform` for `ptf` and
+    also finds four other things, which is worse for a list someone is about to
+    press Enter on without reading. A no-match returns **nothing**, never a
+    fallback to the full list — an unrelated destination under an Enter key that
+    is already being pressed is the worst failure this component has.
+  - Pins outrank score; recency breaks ties only. A pin is an explicit statement
+    about what matters, a score is a guess, and a launcher whose top hit depends
+    on history rather than on what was typed is one nobody can predict.
+  - **The three things a palette usually breaks, each tested in a browser:**
+    focus returns to exactly the element it came from (a palette that drops
+    focus on `<body>` sends a keyboard user to the top of the document, so
+    Escape costs them their place); opening pushes **no history entry**, so Back
+    still goes back rather than closing the palette; and nothing locks page
+    scroll.
+  - **A test of mine looked like proof and was not, and the mutation is what
+    said so.** The scroll test measured `window.scrollY` and the horizontal
+    position of `main`; a mutation adding `body { overflow: hidden }` passed
+    both. `overflow: hidden` does not move `scrollY`, and headless Chromium
+    draws overlay scrollbars of zero width, so removing one shifts nothing —
+    the classic symptom needs a classic scrollbar to exist. The test now asserts
+    the **mechanism** directly (neither `body` nor `documentElement` computes to
+    `overflow: hidden` while open). That is weaker, it guards the implementation
+    rather than the outcome, and it is recorded as such rather than left looking
+    like a symptom test.
+  - A second test was wrong about its own premise: `Platform` and `Platinum
+    Corp` **both** title-prefix on `pl`, so it is a genuine tie and recency
+    correctly wins. The code was right and the assertion was not; it now proves
+    the tie with `score`, and a separate case proves recency does **not** promote
+    a worse match.
+  - `waitForLoadState("networkidle")` after `router.push` resolves before the
+    URL changes, so two navigation tests read the old path and reported a broken
+    launcher that worked perfectly. `waitForURL` throughout.
+  - The launcher degrades to fixed destinations when the registry read fails,
+    silently — a deliberate exception to this repository's fail-closed habit,
+    and narrow: every destination remains reachable by clicking, and the pages
+    themselves render an honest `ErrorState` for the same failure (GE-022-006).
+    Taking the shell down because a shortcut could not load its optional half is
+    the wrong trade.
+  - Proven by mutation, **3 of 3 caught after the scroll test was fixed**: focus
+    not restored FAILS; `body` scroll locked FAILS; a no-match falling back to
+    the whole list FAILS in both the logic and browser suites.
+  - Honest limits: **Studio only**, for the third item running — GE-022-002's
+    Experience System package does not exist, so a second implementation in
+    `apps/web` now would be what that package exists to prevent. There is no
+    focus TRAP: Tab can leave the open palette. Radix (Bible §26.2.1 names it as
+    the accessible behaviour layer) is not adopted here; when it is, the dialog
+    primitive brings the trap and this hand-rolled overlay should be replaced
+    rather than extended. Scroll restoration is Next's own on route change,
+    which this item does not alter and does not test.

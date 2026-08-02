@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "8395d13",
+  "commit": "fa83242",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 62,
-    "done": 51,
+    "total": 63,
+    "done": 52,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -462,6 +462,13 @@
             "title": "Owned components for dense ERP states: loading/skeleton, empty/no results, error, permission denied, stale, offline/syncing, conflict, archived, partial data, pending deletion/purge, high-risk confirmation.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-022-007",
+            "done": true,
+            "title": "Command search, recent/pinned destinations, universal create, keyboard shortcuts, context-preserving back/forward, and safe scroll/focus restoration.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -680,7 +687,7 @@
     },
     {
       "name": "end to end",
-      "files": 38,
+      "files": 40,
       "what": "real browser"
     }
   ]
