@@ -23,7 +23,8 @@
       "@tenure/modules": ["../../modules/index.ts"],
       "@tenure/releases": ["../../packages/releases/src/index.ts"],
       "@tenure/platform-config": ["../../packages/platform-config/src/index.ts"],
-      "@tenure/provisioning": ["../../packages/provisioning/src/index.ts"]
+      "@tenure/provisioning": ["../../packages/provisioning/src/index.ts"],
+      "@tenure/finops": ["../../packages/finops/src/index.ts"]
     }
   },
   "include": [

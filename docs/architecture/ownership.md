@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**410 files · 12 domains with code · 2 declared and unbuilt · 21 shared.**
+**417 files · 13 domains with code · 1 declared and unbuilt · 21 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
@@ -16,7 +16,7 @@ defensible.
 
 | Domain | Files | What it owns |
 |---|---:|---|
-| `control-plane` | 63 | Composing, provisioning and operating tenants. The engine, not any tenant. |
+| `control-plane` | 65 | Composing, provisioning and operating tenants. The engine, not any tenant. |
 | `identity` | 9 | Who someone is: providers, sessions, the sign-in surface. |
 | `authorization` | 19 | What someone may do: capabilities, policy decisions, delegation. |
 | `organization` | 32 | The org graph: institutions, organizations, roles, seats, the directory. |
@@ -28,23 +28,18 @@ defensible.
 | `reporting` | 27 | Reading the estate back: reports, dashboards, the audit trail. |
 | `erp-modules` | 29 | The domain modules a tenant runs: finance, resources, and the module catalog. |
 | `integrations` | 9 | Outbound connections to anything Tenure does not run. |
+| `billing-metering` | 5 | What a tenant consumes and what it is charged for. |
 
 ## Declared, and not built
 
 These have no code. They are listed rather than omitted, because a map showing
-12 domains would read as a complete map of a 12-domain system.
+13 domains would read as a complete map of a 13-domain system.
 
 ### `relay` — GE-090s
 
 Relay by Tenure: multimodal retrieval, drafting and automation.
 
 Today there is one direct call to a vendor API in lib/ai.ts, with no gateway, no per-tenant policy, no cost accounting and no prompt audit. That file is owned by `integrations` below until a gateway exists, because that is what it currently is.
-
-### `billing-metering` — GE-160s
-
-What a tenant consumes and what it is charged for.
-
-Nothing meters anything. Per-tenant cost is attributed by resource tag, which is a convention rather than a boundary — an account per tenant is what makes it exact, and that needs GE-010.
 
 ## Shared
 

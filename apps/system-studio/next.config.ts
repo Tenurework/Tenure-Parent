@@ -41,6 +41,7 @@ const nextConfig: NextConfig = {
     "@tenure/releases",
     "@tenure/platform-config",
     "@tenure/provisioning",
+    "@tenure/finops",
   ],
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }]

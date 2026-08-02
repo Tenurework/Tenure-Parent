@@ -37,7 +37,7 @@ async function signIn(page: Page) {
 }
 
 /** Every page an operator can reach, at the widths they use. */
-const ROUTES = ["/", "/tenants", "/tenants/new", "/platform"]
+const ROUTES = ["/", "/tenants", "/tenants/new", "/platform", "/platform/cost"]
 const WIDTHS = [1440, 1180, 900]
 
 type Box = { x: number; y: number; w: number; h: number; text: string; tag: string }

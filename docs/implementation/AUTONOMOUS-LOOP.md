@@ -133,13 +133,32 @@ still on :3100, and the failure scrolls past in a backgrounded log. Playwright
 then tests the *old* build and reports failures that were fixed an hour ago. Kill
 the port first, and check the log says `Ready` before trusting a run:
 
+**`pkill -f "next start"` does not work here.** Git Bash's `pkill` does not match
+the Windows process, so it exits silently having killed nothing, the new server
+dies with `EADDRINUSE`, and Playwright tests the old build. That is the same
+stale-build trap as above wearing a different hat, and it cost a second hour the
+day after this warning was written. Kill by **port**, from PowerShell, and check
+the log says `Ready`:
+
+```powershell
+Get-NetTCPConnection -LocalPort 3100 -State Listen -ErrorAction SilentlyContinue |
+  Select-Object -Unique OwningProcess |
+  ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
+
 ```bash
 node tools/dev/reset-registry-table.mjs      # neither suite is idempotent
+rm -rf apps/system-studio/.next              # a stale .next 404s new routes
 npm run studio:build
+set -a; . /tmp/studio-env.sh; set +a         # the server needs these EXPORTED
 npm run start --workspace apps/system-studio > /tmp/studio.log 2>&1 &
 until curl -sf http://localhost:3100/signin >/dev/null; do sleep 1; done
+grep -q Ready /tmp/studio.log || { tail -20 /tmp/studio.log; exit 1; }
 cd apps/system-studio && ../../node_modules/.bin/playwright test --config=playwright.config.ts
 ```
+
+A new route returning **404 while the build output lists it** means the server is
+not the build you just made. It is never a routing bug; check the log first.
 
 **Write the ledger entry BEFORE the final `git add`.** The gate regenerates
 first, and `platform-truth.json` includes the ledger's item counts — so

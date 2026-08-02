@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "b8ecfcf",
+  "commit": "7b68818",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 77,
@@ -581,7 +581,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 77,
+    "decided": 80,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -1715,7 +1715,7 @@
         "source": "STUDIO",
         "items": 13,
         "gates": 1,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "STUDIO · 17. API, event, and extension contracts",
@@ -1947,7 +1947,7 @@
     },
     {
       "name": "end to end",
-      "files": 44,
+      "files": 45,
       "what": "real browser"
     }
   ]

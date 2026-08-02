@@ -25,6 +25,7 @@ const config = {
     "^@tenure/releases$": "<rootDir>/../../packages/releases/src/index.ts",
     "^@tenure/workflow$": "<rootDir>/../../packages/workflow/src/index.ts",
     "^@tenure/audit$": "<rootDir>/../../packages/audit/src/index.ts",
+    "^@tenure/finops$": "<rootDir>/../../packages/finops/src/index.ts",
     "^@tenure/metadata$": "<rootDir>/../../packages/metadata/src/index.ts",
     "^@tenure/platform-config$": "<rootDir>/../../packages/platform-config/src/index.ts",
     "^@tenure/platform-config/money$": "<rootDir>/../../packages/platform-config/src/money.ts",

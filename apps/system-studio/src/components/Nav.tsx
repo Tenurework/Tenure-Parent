@@ -19,6 +19,7 @@ const ENTRIES = [
   { href: "/tenants", label: "Tenants", hint: "compose, provision and operate" },
   { href: "/", label: "Systems", hint: "what each configured system currently is" },
   { href: "/platform", label: "Platform", hint: "the engine's own state" },
+  { href: "/platform/cost", label: "Cost", hint: "what the fleet costs, and who it costs it for" },
 ] as const
 
 export function Nav() {
@@ -26,8 +27,19 @@ export function Nav() {
 
   // `/` must match only itself; every other entry matches its subtree, so a
   // tenant detail page keeps Tenants lit rather than dropping the highlight.
-  const isActive = (href: string) =>
+  const matches = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`)
+
+  // The most specific match wins, and only it. Subtree matching alone lit both
+  // "Platform" and "Cost" on /platform/cost — two current pages, which tells a
+  // reader nothing about where they are. This became reachable the moment an
+  // entry sat underneath another one, so it is fixed here rather than by
+  // flattening the nav around the problem.
+  const active = ENTRIES.map((entry) => entry.href)
+    .filter(matches)
+    .sort((left, right) => right.length - left.length)[0]
+
+  const isActive = (href: string) => href === active
 
   // The sign-in page has no sections to navigate between.
   if (pathname.startsWith("/signin")) return null

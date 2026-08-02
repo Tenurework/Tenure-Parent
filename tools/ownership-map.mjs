@@ -233,12 +233,20 @@ const DOMAINS = [
   {
     key: 'billing-metering',
     what: 'What a tenant consumes and what it is charged for.',
-    unbuilt: 'GE-160s',
+    // No longer `unbuilt`: the cost half of this domain is real code with real
+    // tests. Metering — what a tenant consumes, and charging for it — still is
+    // not, and the note says so rather than the marker, because a domain that
+    // owns working code and calls itself unbuilt is a claim nobody can check.
     note:
-      'Nothing meters anything. Per-tenant cost is attributed by resource tag, which is a ' +
-      'convention rather than a boundary — an account per tenant is what makes it exact, ' +
-      'and that needs GE-010.',
-    owns: [],
+      'Metering does not exist: nothing measures what a tenant consumes and nothing bills ' +
+      'for it (GE-160s). Cost allocation does, and is real — packages/finops ' +
+      'attributes CUR lines to tenants by resource tag, splits shared spend by a documented ' +
+      'driver and reports the rest unallocated — but there is no CUR to read, so no figure ' +
+      'has ever been produced from a bill. Per-tenant attribution by tag is a convention ' +
+      'rather than a boundary; an account per tenant is what makes it exact, and that needs ' +
+      'GE-010. The Studio surface at apps/system-studio/src/app/platform/cost belongs to ' +
+      'control-plane, which owns that whole tree — the engine is here, the console is there.',
+    owns: ['packages/finops/'],
   },
 ]
 
