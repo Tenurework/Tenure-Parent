@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "c7a858c",
+  "commit": "aa05d98",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 83,
-    "done": 72,
+    "total": 84,
+    "done": 73,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -609,6 +609,13 @@
             "title": "Create provider-independent interfaces and isolate Cognito SDK/types in adapter/infrastructure layers.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-041-002",
+            "done": true,
+            "title": "Implement configurable shared regional pool, sharded pool, tenant pool, and dedicated-account pool strategies behind cell/tenant resource resolution.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -623,7 +630,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 86,
+    "decided": 87,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -749,7 +756,7 @@
         "source": "GE",
         "items": 5,
         "gates": 0,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "GE · GE-042: Browser/API authentication",

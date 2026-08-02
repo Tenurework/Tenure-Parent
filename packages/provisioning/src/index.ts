@@ -137,3 +137,19 @@ export type {
 
 export { AdoptionRefused, REQUIRED_ADOPTION_CHECKS, adoptTenant } from "./adoption"
 export type { AdoptionCheck, AdoptionEvidence, AdoptionInput } from "./adoption"
+
+export {
+  DEFAULT_POOL_STRATEGY,
+  ISOLATION_CLASSES,
+  POOL_STRATEGIES,
+  poolInvariantBreaches,
+  resolvePool,
+  shardFor,
+  type IsolationClass,
+  type PoolInvariantBreach,
+  type PoolRefusal,
+  type PoolResolution,
+  type PoolStrategy,
+  type PoolStrategyConfig,
+  type PoolTenant,
+} from "./pool-strategy"

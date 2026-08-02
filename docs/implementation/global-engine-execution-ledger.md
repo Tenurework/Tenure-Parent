@@ -3964,3 +3964,83 @@ worth less than three items that hold.
   * The port's optional SCIM methods (`readAccount`, `disableAccount`) are
     optional because not every connection supports provisioning. Nothing
     currently calls them.
+
+- [x] **GE-041-002** — Implement configurable shared regional pool, sharded pool, tenant pool, and dedicated-account pool strategies behind cell/tenant resource resolution.
+  - Status: PASS for the resolution engine. Provisioning the pools is
+    BLOCKED_EXTERNAL and belongs to GE-041-003.
+  - Code: `packages/provisioning/src/pool-strategy.ts`
+  - Tests: `packages/provisioning/src/pool-strategy.test.ts` (23)
+  - Evidence: 1810/1810 apps/web unit across 81 suites, type-check clean.
+    **12 mutations, 12 caught** — after the first run exposed a test that
+    passed by coincidence.
+
+  Bible §5's isolation table gives four shapes — pooled, bridge, silo, dedicated
+  account — plus a regional/sovereign constraint cutting across all of them.
+  Each implies a different answer to "where do this tenant's credentials live",
+  and the answer is not free to change later: moving a tenant between pools
+  invalidates every credential in the old one.
+
+  `resolvePool` returns *why*, always, in the same shape as `choosePlacement`.
+  "Which pool is this tenant in" is an incident question, and an answer that is
+  only an identifier sends somebody to read code to find out whether the
+  isolation class, the residency constraint or the shard function produced it.
+
+  **Two properties carry the item, and both are about things that must not
+  change.**
+
+  *Sharding must be stable, or it is not sharding.* The shard comes from the
+  immutable tenant id through a fixed FNV-1a written out in the file — not
+  imported, because a hash whose implementation can be upgraded underneath us
+  would silently re-shard the fleet on a package bump. `shardCount` is
+  configuration, never a live count of existing pools: deriving it from what
+  exists would re-shard everyone the moment somebody added one.
+
+  *An isolated tenant must never quietly share.* A dedicated-account tenant with
+  no account recorded is **refused**, not fallen back to a shared pool — the
+  fallback would be invisible, because sign-in would work and the isolation they
+  are paying for would silently not exist. `poolInvariantBreaches` catches the
+  fleet-level version, which a per-tenant function structurally cannot see.
+
+  **Residency is checked before anything else**, for the same reason
+  `choosePlacement` checks it first: it is a contract. Credentials are personal
+  data, so a pool outside the permitted regions is a breach rather than a
+  detail, and a stronger isolation class buys no exemption from it.
+
+  **Bridge shares an identity pool with pooled, deliberately.** Bridge separates
+  *data* — a dedicated database, dedicated queues — and Bible §5 does not
+  promise it a separate identity boundary. Giving it one would be a quiet
+  upgrade nobody contracted for, and taking it back later would break every
+  credential in it.
+
+  **A test passed by coincidence, and the mutation run found it.** "Does not
+  move a tenant when the fleet grows" used fleet sizes of 60,000 and 190,000 —
+  both ≡ 0 (mod 8) — so a mutation deriving the shard from `cell.capacity.tenants`
+  produced the same answer for both and survived. The test now uses four sizes
+  landing on different residues, and asserts that they do. A stability test
+  whose two inputs are congruent modulo the thing under test is proving nothing.
+
+  **`tsc` caught what jest did not.** The cell fixture used `health: "serving"`,
+  which is not a `CellHealth` — the suite passed anyway, because pool resolution
+  does not consult health. Fixed to `HEALTHY`. Worth recording because it is the
+  argument for running type-check separately from the tests rather than trusting
+  a green suite.
+
+  **Honest limits.**
+
+  * **Nothing provisions a pool.** This resolves *which* pool a tenant belongs
+    to; creating it is GE-041-003, which is BLOCKED_EXTERNAL on the AWS
+    Organization along with GE-010, GE-012 and GE-GATE-1. The resolution is
+    still worth having first: the pool identifier is what the provisioning IaC
+    will be asked to create, and getting the strategy wrong after pools exist
+    means migrating credentials.
+  * **The pool identifiers are logical, not ARNs.** `tenure-us-east-1-shard-3`
+    is a name this engine chose; mapping it to a real user-pool id belongs to
+    the adapter (GE-041-001's `IdentityProvider`) and cannot be written until
+    there is an account to create pools in.
+  * **`shardAboveTenants` defaults to 50,000 on operational grounds, not a
+    measured limit.** Cognito's per-pool user limits are far higher; the real
+    pressure is blast radius and throttling. The number is configuration
+    precisely because it is a judgement, and it should be revisited against
+    real traffic rather than treated as derived.
+  * Nothing calls `resolvePool` yet — no sign-in path resolves a pool, because
+    no pool exists. It is exercised by its tests and by nothing else.
