@@ -59,12 +59,30 @@ if (!endpoint) {
  */
 const client = new DynamoDBClient({ endpoint })
 
+/**
+ * DynamoDB Local checks that the access key LOOKS like one.
+ *
+ * It does not check that the key is real, so any AWS-shaped value works —
+ * but a key containing hyphens is refused with `UnrecognizedClientException:
+ * The Access Key ID or security token is invalid`, which is the same error
+ * the real service returns for bad credentials. Two very different problems,
+ * one message, and the natural reading is "my endpoint is wrong".
+ */
+function explain(err) {
+  if (err?.name !== "UnrecognizedClientException") return err
+  err.message +=
+    ` (endpoint=${endpoint}. If that is a local DynamoDB, this is usually the` +
+    ` ACCESS KEY SHAPE rather than the endpoint — DynamoDB Local refuses a key` +
+    ` with hyphens in it. Any AWS-shaped value works.)`
+  return err
+}
+
 try {
   await client.send(new DescribeTableCommand({ TableName: table }))
   console.log(`${table} already exists at ${endpoint}`)
   process.exit(0)
 } catch (err) {
-  if (err?.name !== "ResourceNotFoundException") throw err
+  if (err?.name !== "ResourceNotFoundException") throw explain(err)
 }
 
 await client.send(

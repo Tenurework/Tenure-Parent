@@ -371,11 +371,15 @@ jobs:
       NEXTAUTH_URL: http://localhost:3100
       PORT: "3100"
       TENANT_TABLE: tenure-tenants-ci
-      # DynamoDB Local accepts any credentials and ignores them; these exist so
-      # the SDK does not go looking for an instance profile that is not there.
+      # Dummy, but AWS-SHAPED. DynamoDB Local does not accept "any credentials
+      # and ignore them", which is what the first version of this comment said
+      # and what the value chosen to express it then proved false: an access key
+      # containing hyphens is refused with UnrecognizedClientException, which
+      # reads exactly like a request that reached the real service. It does not
+      # check that the key is real; it does check that it looks like one.
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: dynamodb-local-ignores-this
-      AWS_SECRET_ACCESS_KEY: dynamodb-local-ignores-this
+      AWS_ACCESS_KEY_ID: AKIALOCALDYNAMODBXX
+      AWS_SECRET_ACCESS_KEY: localdynamodbsecretnotreal
       AWS_ENDPOINT_URL_DYNAMODB: http://localhost:8000
 
     steps:
