@@ -1722,7 +1722,16 @@ for progress:
     refactor across every definition's `allowedScopes`, deliberately not
     smuggled into this item.
 
-- [ ] **GE-031-002 … 007** — Status: FAIL — not started.
+> **Correction (2026-08-02).** This position previously held
+> `- [ ] **GE-031-002 … 007** — Status: FAIL — not started.` It was a
+> placeholder written when GE-031-001 landed, and it stayed after all six items
+> were completed and recorded individually further down — so the ledger claimed
+> "not started" about work that is PASS a thousand lines below. The queue was
+> never wrong (`next-batch.mjs` reads the later, more specific entries and they
+> win), which is exactly why nobody noticed: the tooling was right and only the
+> document lied. Removed rather than edited, because the six real entries are
+> the record. See GE-031-002 through GE-031-007 below.
+
 
 ## Tenant adoption — bringing Simon OSE under the engine
 
@@ -3698,3 +3707,90 @@ worth less than three items that hold.
     rather than replacing. Moving that path onto `personReach` is a refactor
     across the tenancy layer and belongs with the Simon absorption, where the
     multi-tenant case gets its first real second tenant.
+
+- [x] **GE-040-004** — Implement high-assurance link/unlink, collision handling, merge review, and deny unlinking the last recovery path.
+  - Status: PASS
+  - Code: `packages/identity/src/linking.ts`
+  - Tests: `packages/identity/src/linking.test.ts` (27)
+  - Evidence: 27/27 unit; 12 mutations, **11 caught and 1 provably equivalent**.
+
+  Adding a way to sign in as someone is the highest-risk action in an identity
+  system short of impersonation: an attacker holding a live session and nothing
+  else can, if this is careless, attach their own credential and keep the
+  account after the original is cleaned up. Four rules, each guarding a
+  different way that goes wrong.
+
+  **Recent authentication, not merely a session.** Linking and unlinking both
+  require an authentication within `LINK_STEP_UP_MINUTES` (10). A session may be
+  eight hours old and inherited from a laptop somebody walked away from; the
+  question is not "was this person here today" but "are they here now". Bible
+  §9.1 lists step-up for high-risk actions, and this is one.
+
+  **A collision is never resolved by guessing.** Two people can arrive at the
+  same credential — a shared departmental account, a re-issued subject, a
+  genuine duplicate. Whatever the cause, one of the two records is wrong and
+  picking one has somebody's history on the other side of it. `planLink` refuses
+  and returns which identity and which person, so a reviewer has somewhere to
+  start. `ALREADY_LINKED_HERE` is a separate outcome from `COLLISION` because
+  they need different answers: one is "nothing to do", the other is "a person
+  has to look at this".
+
+  **The last way back in is not removable.** The floor is credentials *plus
+  verified recovery methods*, not credentials alone — somebody with one SSO
+  login and no verified recovery has exactly one way in, and removing it locks
+  them out permanently. The system having done it on request, politely, is not a
+  defence. Unverified methods do not count: an unverified address is one nobody
+  has shown they can receive anything at, or worse, one somebody else can.
+
+  **A merge is reviewed, and a shared address is not evidence.**
+  `validateMergeProposal` refuses a proposal whose entire evidence is an email
+  address, before a reviewer ever sees it — approving on that basis is exactly
+  the auto-merge vulnerability GE-040-002 refuses to perform automatically, just
+  performed by hand. The reviewer may not be the proposer. An approved merge
+  *supersedes*: the merged record is kept with `mergedIntoPersonId` set, because
+  older references still have to resolve and an approval signed by that id must
+  not become unreadable. Identities move by `personId` alone — their keys are
+  untouched, since a merge is a statement about people and changing a key would
+  silently make a credential a different credential.
+
+  **Mutations.** Caught: no step-up freshness; a collision silently moving the
+  credential to the asker; a revoked credential revived rather than re-linked;
+  the floor counting credentials only; unverified recovery methods counting;
+  revoked credentials counting as a way in; another person's credentials
+  counting; a bare address passing as merge evidence; the proposer approving
+  their own merge; a merge clearing `mergedIntoPersonId` instead of setting it;
+  a merge reassigning every identity rather than the merged person's.
+
+  **One equivalent mutant, stated rather than worked around.** Removing the
+  explicit `lastAuthenticatedAt === null` check leaves behaviour identical:
+  `Date.parse(null)` is `NaN`, so the following branch returns the same
+  `STEP_UP_REQUIRED` refusal. Verified at the console rather than assumed. The
+  check stays — behaviour should not rest on a JavaScript coercion quirk, and
+  the branch says what it means — but it is not independently killable and no
+  assertion was invented to pretend otherwise.
+
+  Three mutations initially failed to *apply* rather than surviving (shell
+  escaping in the harness, not the code), and one reported "0 tests" from a
+  type error. Re-run individually; all four caught. A mutation that does not
+  apply looks exactly like a guard that works, which is the reason the harness
+  now asserts its own anchors.
+
+  **Honest limits.**
+
+  * **Nothing calls any of this yet.** There is no link/unlink surface and no
+    merge queue: `apps/web` signs in through NextAuth with Okta and dev-login,
+    and adding a second credential is not something a person can currently do.
+    This item delivers the rules that will govern those flows, fully specified
+    and proven, and a UI built on them cannot get the dangerous cases wrong by
+    accident. It does not deliver the flows, and the ledger should not be read
+    as saying it does — that is GE-041 (Cognito) and the identity surface that
+    follows it.
+  * **`RecoveryMethod` has no storage**, so "verify a recovery method first" is
+    advice the product cannot yet be followed on. The same persistence gap
+    recorded under GE-040-001 applies: only `TenantMembership` is persisted.
+  * **Merge does not move memberships, seats or audit references.**
+    `applyMerge` reassigns identities and supersedes the person; everything else
+    a merged person owns stays pointed at the old id, which still resolves
+    because the record is kept. Following the pointer everywhere is a data
+    migration with a reconciliation step, and it belongs with the Simon
+    absorption where duplicate people will actually be found.

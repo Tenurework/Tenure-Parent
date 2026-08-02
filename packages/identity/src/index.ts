@@ -83,3 +83,25 @@ export {
   type SeatState,
   type SeatStatus,
 } from "./seats"
+
+export {
+  LINK_STEP_UP_MINUTES,
+  applyMerge,
+  planLink,
+  planUnlink,
+  validateMergeProposal,
+  validateMergeReview,
+  type LinkCollision,
+  type LinkGranted,
+  type LinkOutcome,
+  type LinkRefusal,
+  type LinkRefused,
+  type LinkRequest,
+  type MergeProposal,
+  type MergeResult,
+  type MergeReview,
+  type MergeVerdict,
+  type UnlinkOutcome,
+  type UnlinkRefusal,
+  type UnlinkRequest,
+} from "./linking"
