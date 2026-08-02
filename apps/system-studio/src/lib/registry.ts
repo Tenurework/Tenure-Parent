@@ -18,6 +18,7 @@ import {
   type LifecycleStep,
   type StepEvidence,
   type TenantManifest,
+  type TenantRegistryRecord,
   type TenantState,
 } from "@tenure/provisioning"
 
@@ -90,6 +91,16 @@ export interface TenantRecord {
   evidence: StepEvidence[]
   /** The signed artifact a cell reconciles toward, once CONFIGURING has run. */
   deployment?: DeploymentManifest
+  /**
+   * GE-030-001. What is TRUE about the tenant — immutable id, lifecycle,
+   * placement, residency, release, config revision — as opposed to the
+   * manifest, which is what was asked for.
+   *
+   * Optional because tenants registered before this existed do not have one,
+   * and a console that 500ed on them would be a console nobody could use to
+   * fix them.
+   */
+  registry?: TenantRegistryRecord
 }
 
 const pk = (slug: string) => `TENANT#${slug}`
@@ -177,6 +188,7 @@ export async function getTenant(slug: string): Promise<TenantRecord | null> {
       .filter((i) => String(i.sk).startsWith("STEP#") && i.evidence)
       .map((i) => i.evidence as StepEvidence),
     deployment: items.find((i) => i.sk === "DEPLOYMENT")?.deployment as DeploymentManifest | undefined,
+    registry: items.find((i) => i.sk === "REGISTRY")?.registry as TenantRegistryRecord | undefined,
   }
 }
 
@@ -191,6 +203,7 @@ export async function getTenant(slug: string): Promise<TenantRecord | null> {
 export async function registerTenant(
   manifest: TenantManifest,
   actor: { principalId: string; at: string },
+  registry?: TenantRegistryRecord,
 ): Promise<TenantRecord> {
   const digest = digestOf(manifest)
   const base = {
@@ -208,6 +221,16 @@ export async function registerTenant(
             Put: {
               TableName: TABLE,
               Item: { ...base, sk: "MANIFEST", manifest, digest },
+              ConditionExpression: "attribute_not_exists(pk)",
+            },
+          },
+          {
+            // In the SAME transaction as the manifest. A tenant with a manifest
+            // and no registry record is one the console can show and the fleet
+            // cannot place — worse than one that failed to register at all.
+            Put: {
+              TableName: TABLE,
+              Item: { ...base, sk: "REGISTRY", registry },
               ConditionExpression: "attribute_not_exists(pk)",
             },
           },
@@ -244,6 +267,7 @@ export async function registerTenant(
     updatedAt: actor.at,
     history: [],
     evidence: [],
+    registry,
   }
 }
 

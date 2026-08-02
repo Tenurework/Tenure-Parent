@@ -1201,5 +1201,71 @@ for progress:
     module's own comment had *claimed* runtime-independence while deferring to
     the runtime.
 
-- [ ] **GE-GATE-2** — see above.
 
+---
+
+# Phase 3 — Tenure Parent control plane and configuration engine
+
+## GE-030: Global registries
+
+- [x] **GE-030-001** — Global tenant registry with immutable ID, lifecycle,
+  legal/customer metadata, plan, region/residency, isolation, cell placement,
+  release, config revision, and safe login projection.
+  - Status: PASS
+  - Code: `packages/provisioning/src/tenant-registry.ts`,
+    `apps/system-studio/src/lib/registry-record.ts`, wired into
+    `registerTenant` and the Studio's `TenantRecord`
+  - Tests: `tenant-registry.test.ts` — 15 cases
+  - **A manifest is what somebody asked for; this is what is true.** They were
+    one structure before, and a single structure serving both is how an
+    operator comes to edit a field that describes reality. The record carries
+    what the system writes — placement, release, applied config revision,
+    lifecycle — and the manifest keeps carrying intent.
+  - **The id is not the slug.** A slug is a URL and customers ask to change
+    URLs. `tenantId` is generated once and never reused, and every other record
+    points at it, so a rename is a field update rather than a rewrite of every
+    reference — which is how an audit trail ends up pointing at a tenant that
+    no longer exists under that name.
+  - **Residency is a constraint, checked.** `placement.region` is where the
+    tenant runs; `residency` is where it is *allowed* to run. A migration can
+    satisfy capacity and breach a contract at the same time, and that is
+    precisely what one field cannot express. An empty residency list is refused
+    rather than read as "anywhere" — "anywhere" is never what a customer with a
+    residency requirement agreed to, and an empty list is the easiest way to
+    get there by accident.
+  - **The login projection is four fields, asserted rather than described.**
+    The sign-in page is reachable by anyone, so whatever it can read is
+    effectively public — and "which universities use Tenure, in which regions,
+    on which plan" is a customer list. A test names the exact field set and a
+    second one greps the serialized projection for the legal name, contact,
+    plan, tenant id, release and entitlements. It returns `null` for anything
+    not serving, because the difference between "wrong password" and "your
+    institution is suspended" is a fact about that institution's commercial
+    relationship, told to whoever typed the URL.
+  - The lifecycle graph is declared once rather than checked ad hoc: `ARCHIVED`
+    is terminal (restoring a tenant is a new registration against a restored
+    backup — a different operation with a different approval), nothing reaches
+    it without passing through `DEPROVISIONING`, and `SUSPENDED` cannot escape
+    through `MIGRATING`, which would resume service for a tenant somebody
+    deliberately stopped.
+  - Proven by mutation, 10 of 10 caught: residency unchecked, an empty list
+    read as "anywhere", validation stopping at the first problem, the plan
+    added to the projection, a suspended tenant resolving, archived becoming
+    reversible, archiving without deprovisioning, migrating out of a
+    suspension, a suspended tenant counted as serving, and the slug pattern
+    dropped.
+  - The type-checker caught a real modelling error while wiring it: the record
+    declared `isolation: "pooled" | "dedicated"`, a narrower vocabulary than
+    the manifest's four-value `IsolationTier`. Two spellings of "how isolated"
+    is how a record and the manifest that produced it come to disagree about
+    the same tenant. Fixed by using the existing type, not by widening a cast.
+  - Honest limits: placement is `cell-<region>` — one cell per region, and the
+    single line that changes when there are several is marked. There is no
+    migration path yet for the tenants registered before this record existed;
+    `registry` is optional on `TenantRecord` for exactly that reason, and a
+    console that 500ed on them would be a console nobody could use to fix them.
+    Lifecycle transitions are *validated* here but the registry still advances
+    through the existing `TenantState` machine — unifying the two is GE-030-002
+    work, not a claim made here.
+
+- [ ] **GE-030-002 … 005** — Status: FAIL — not started.

@@ -39,3 +39,17 @@ export type {
   ProvisioningPlan,
   TenantManifest,
 } from "./manifest"
+
+export {
+  canTransition,
+  isServing,
+  loginProjection,
+  validateRegistryRecord,
+} from "./tenant-registry"
+export type {
+  CellPlacement,
+  LoginProjection,
+  RegistryProblem,
+  TenantLifecycle,
+  TenantRegistryRecord,
+} from "./tenant-registry"

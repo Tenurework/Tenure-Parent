@@ -22,6 +22,7 @@ import {
 } from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
+import { registryRecordFor } from "@/lib/registry-record"
 import { isOperator } from "@/lib/operators"
 import { SlugTaken, advanceTenant, getTenant, registerTenant, takenSlugs } from "@/lib/registry"
 import { deliverToCell } from "@/lib/deliver"
@@ -177,7 +178,26 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
   }
 
   try {
-    await registerTenant(manifest, { principalId, at: now() })
+    const at = now()
+    // GE-030-001. The registry record is what is TRUE about the tenant —
+    // immutable id, lifecycle, placement, residency, release, config revision —
+    // as distinct from the manifest, which is what was asked for. Built here and
+    // written in the same transaction, because a tenant the console can show and
+    // the fleet cannot place is worse than one that failed to register.
+    await registerTenant(
+      manifest,
+      { principalId, at },
+      registryRecordFor(manifest, {
+        // One cell per region today. When there are several, placement becomes a
+        // decision the cell registry makes (GE-030-002) rather than a naming
+        // convention here — and this is the one line that has to change.
+        cellId: `cell-${manifest.region}`,
+        release: process.env.SCHEMA_VERSION ?? "unpinned",
+        primaryContactEmail: manifest.initialAdminEmail,
+        plan: manifest.entitlements.length > 0 ? "institution" : "institution-core",
+        at,
+      }),
+    )
   } catch (err) {
     if (err instanceof SlugTaken) {
       // Lost the race between validation and the conditional write. Reported as
