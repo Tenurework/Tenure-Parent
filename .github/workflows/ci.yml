@@ -12,6 +12,21 @@ jobs:
     name: Lint · Type Check · Test · Build
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      # GE-011-007. `administration: read` is what lets this job read the
+      # repository's own Actions settings — the default workflow permission,
+      # which lives in a web form and which no file here records. Flip that to
+      # write and every workflow with no permissions block silently gains push
+      # access, with no diff and nothing to notice.
+      #
+      # The default GITHUB_TOKEN cannot read it (403), and the alternative was a
+      # personal access token in a secret. Granting a long-lived admin
+      # credential to a public repository in order to check that workflows are
+      # read-only would cost more than the check is worth; a read-only scope on
+      # one job does not.
+      administration: read
+
     env:
       AUTH_SECRET: ci-build-secret-not-for-production
       NEXTAUTH_URL: http://localhost:3000

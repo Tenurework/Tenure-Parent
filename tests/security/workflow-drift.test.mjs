@@ -17,7 +17,7 @@
  *
  * ## Ratchets, not flag days
  *
- * Forty-two action references are still on tags today, and ten workflows
+ * Forty-two action references are still on tags today, and nine workflows
  * inherit the repository permission default. Failing the build on all of that would mean
  * one enormous change nobody can review, and the realistic outcome is the rule
  * being deleted rather than the debt being paid. So the counts are ratchets:
@@ -155,7 +155,7 @@ test('no workflow grants contents: write without saying why', () => {
  *
  * MAY ONLY SHRINK.
  */
-const WORKFLOWS_WITHOUT_PERMISSIONS = 10
+const WORKFLOWS_WITHOUT_PERMISSIONS = 9
 
 test('the count of workflows relying on the repository default only shrinks', () => {
   const relying = workflows
