@@ -109,6 +109,42 @@ describe("unsafe expressions", () => {
     expect(unsafeExpressions([layer("tenantOverlay", "a", { o: { deep: { x: "${bad}" } } })])).toHaveLength(1)
   })
 
+  it("accepts a well-formed expression once an environment is declared", () => {
+    // The engine (GE-031-005) decides, not a regex. Refusing this would mean
+    // the language exists and cannot be used.
+    expect(
+      unsafeExpressions([layer("tenantOverlay", "a", { greeting: "Seats: ${tenant.seats}" })], {
+        "tenant.seats": "number",
+      }),
+    ).toEqual([])
+  })
+
+  it("refuses reflection with the parser's reason, not an opaque 'unsafe'", () => {
+    const found = unsafeExpressions([layer("tenantOverlay", "a", { x: "${tenant.constructor}" })], {
+      "tenant.seats": "number",
+    })
+    expect(found).toHaveLength(1)
+    expect(found[0].detail).toMatch(/parse: .*Reflection is not part of this language/)
+  })
+
+  it("refuses an expression reading a name nobody declared", () => {
+    const found = unsafeExpressions([layer("tenantOverlay", "a", { x: "${secret}" })], {
+      "tenant.seats": "number",
+    })
+    expect(found[0].detail).toMatch(/type: .*is not declared/)
+  })
+
+  it("still refuses everything when no environment is declared", () => {
+    // An expression that cannot be checked against anything is one nobody can
+    // say anything about.
+    expect(unsafeExpressions([layer("tenantOverlay", "a", { x: "${tenant.seats}" })])).toHaveLength(1)
+  })
+
+  it("finds every expression in one string, not just the first", () => {
+    const found = unsafeExpressions([layer("tenantOverlay", "a", { x: "${bad1} and ${bad2}" })], {})
+    expect(found).toHaveLength(2)
+  })
+
   it("leaves an ordinary string alone, including a lone dollar or brace", () => {
     expect(
       unsafeExpressions([

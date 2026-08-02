@@ -2615,3 +2615,78 @@ worth less than three items that hold.
     with GE-031-006's validation and simulation surface. "Invalid permission
     references" is covered only for module ids; the semantic permission
     catalogue is GE-034's.
+
+- [x] **GE-031-005** — Bounded deterministic expression engine with type
+  checking, dependency/cycle analysis, cost/time limits, no network/file/
+  process/secret access, and reproducible tests.
+  - Status: PASS
+  - Code: `packages/configuration/src/expression.ts`; wired into
+    `rejections.ts` so the GE-031-004 "unsafe expression" verdict is decided by
+    the parser rather than a regular expression
+  - Tests: `expression.test.ts` — 38 cases; 5 more in `rejections.test.ts`.
+    Configuration **191/191**; `apps/web` **1487/1487**; 84 platform guards.
+  - **A tokenizer, parser, type checker and tree-walking evaluator, because
+    every shortcut gives up the first clause of the requirement.** `eval`,
+    `new Function`, a template library or a "safe" sandbox that hands over real
+    objects all lose to one expression — the constructor walk from an object
+    literal to `Function`. No allowlist of global *names* stops it, because
+    nothing global is named. The only defence that holds is never evaluating
+    host code, so this parses to a closed AST of ten node kinds and walks it.
+  - **The environment is a flat map keyed by dotted path, and that is a security
+    decision.** A nested lookup walks properties, and walking properties on a
+    host object is how `constructor` is reached. Here a path is a string key and
+    `Object.hasOwn` decides — there is no traversal to subvert. Reflection names
+    are refused at parse time as well, so both halves would have to fail
+    together, and an attempt is visible in review rather than merely inert.
+  - **Bounded in four dimensions, because one is not enough.** Source length,
+    token count, parse depth and evaluation steps. Depth alone lets `1+1+1+…`
+    past; a step counter alone cannot catch deep nesting at all, because that
+    failure happens during *parsing* and arrives as a blown host stack rather
+    than a rejected configuration.
+  - **Deterministic by construction**: no clock, no randomness, no locale, no
+    iteration over object keys. `lower`/`upper` are locale-independent on
+    purpose — `toLocaleLowerCase` maps a Turkish capital I to a dotless i, so
+    the same expression would resolve differently for two tenants. `round` is
+    half-away-from-zero, stated rather than inherited, because `Math.round`
+    sends -0.5 to -0. Division by zero and any non-finite result are refused: an
+    Infinity in a configuration digest makes every later comparison behave in
+    ways nobody wrote down.
+  - **No truthiness and no cross-type comparison.** An empty string falling back
+    to a default would depend on coercion rules a tenant author has no reason to
+    know, and comparing a number with a string is a mistake rather than a
+    question. Both are type errors at publication, not surprises on the one
+    branch that reaches them.
+  - Unicode and hex string escapes are refused, because they let a reviewer read
+    one string while the parser sees another — which is what makes a review of a
+    tenant-authored expression worth anything.
+  - **Now load-bearing**: `unsafeExpressions` no longer blanket-refuses every
+    template. With a declared environment a well-formed expression is accepted
+    and a bad one is refused *with the parser's reason*; without one, everything
+    is still refused, because an expression that cannot be checked against
+    anything is one nobody can say anything about.
+  - Proven by mutation, **8 of 8 caught**: forbidden path segments allowed (the
+    constructor walk) FAILS; the flat-key lookup replaced by a walk FAILS; the
+    depth limit removed FAILS; the step limit removed FAILS; division by zero
+    allowed through FAILS; dependency analysis stopping at the taken branch
+    FAILS; the engine check skipped in `rejections` FAILS; only the first
+    expression in a string checked FAILS.
+  - **A defect of mine reached `main` two ticks ago and this tick found it.**
+    `integrity.ts` and `rejections.ts` contained **raw NUL bytes** — a separator
+    in a composite map key written as a literal instead of an escape. They
+    type-checked, passed 148 tests, and were correct. What broke was
+    reviewability: `git grep` and `rg` skip such a file with "Binary file
+    matches" and no result, `git diff` refuses a patch, and review sees "Binary
+    files differ". I found it by accident, when a grep for a function I had just
+    written came back empty. `tests/security/no-binary-source.test.mjs` now
+    fails on any tracked source file containing a NUL, and it caught **its own
+    file** on the first run — I had written literal NULs into the comment
+    describing the defect. The separator itself was the right choice and is
+    kept; only the encoding was wrong.
+  - Honest limits: **nothing evaluates expressions in a resolved configuration
+    yet.** The engine validates them at publication; making a config *value* an
+    expression means resolution must evaluate, which changes what a digest
+    covers and belongs with GE-031-006. No bindings, no user-defined functions,
+    no collections — the language has scalars only, and a workflow condition
+    needing a list will need it extended (GE-036). The language version is
+    declared and **not yet recorded alongside stored expressions**; that pairing
+    belongs with the same versioned-store work.

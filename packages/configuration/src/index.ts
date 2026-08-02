@@ -112,3 +112,18 @@ export {
   unsafeExpressions,
 } from "./rejections"
 export type { ModuleLike, Rejection } from "./rejections"
+
+export {
+  DEFAULT_LIMITS,
+  EXPRESSION_LANGUAGE_VERSION,
+  ExpressionError,
+  FUNCTIONS,
+  dependencies,
+  evaluate,
+  expressionCycles,
+  parse as parseExpression,
+  run as runExpression,
+  tokenize,
+  typeOf,
+} from "./expression"
+export type { EvaluationResult, ExprType, Limits, Node as ExpressionNode, TypeEnv, ValueEnv } from "./expression"
