@@ -5,6 +5,8 @@ import { RESIDUAL_COST, needsApproval, nextStates, planFor } from "@tenure/provi
 
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
+import { ArchivedState, PendingDeletionState } from "@/components/states"
+import { ARCHIVED_STATES, PURGE_STATES, riskOf } from "@/lib/tenant-state"
 import { getTenant, registryConfigured } from "@/lib/registry"
 import { AdvanceControls } from "./AdvanceControls"
 
@@ -97,6 +99,23 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           <span className="badge warn">{tenant.state}</span>
         </header>
 
+        {/*
+          GE-022-006. Archived and pending-deletion are read off the lifecycle
+          state rather than a separate flag, so they cannot disagree with it.
+          Both were previously indistinguishable from any other non-serving
+          state: a tenant three days from purge looked exactly like one that was
+          merely paused.
+        */}
+        {ARCHIVED_STATES.has(tenant.state) && (
+          <ArchivedState what={tenant.manifest.displayName} since={tenant.updatedAt ?? tenant.createdAt} />
+        )}
+        {PURGE_STATES.has(tenant.state) && (
+          <PendingDeletionState
+            what={tenant.manifest.displayName}
+            at={tenant.state === "PURGING" ? "now — it is running" : "when an operator advances it to PURGING"}
+          />
+        )}
+
         {residual && <p className="refused">{residual}</p>}
 
         <dl className="kv">
@@ -116,7 +135,14 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
 
         <AdvanceControls
           slug={tenant.slug}
-          moves={moves.map((to) => ({ to, needsApproval: needsApproval(tenant.state, to) }))}
+          moves={moves.map((to) => ({
+            to,
+            needsApproval: needsApproval(tenant.state, to),
+            // Computed here, on the server, from the transition graph itself.
+            // Reversibility especially: a hand-written label saying "this can be
+            // undone" is a claim, and the graph is the fact.
+            risk: riskOf(tenant.slug, tenant.state, to),
+          }))}
         />
       </section>
 

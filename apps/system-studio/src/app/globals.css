@@ -737,3 +737,118 @@ form.compose button[type="submit"]:disabled,
 .adopt input[type="checkbox"] {
   accent-color: var(--muted);
 }
+
+/*
+ * ── Owned states (GE-022-006) ──────────────────────────────────────────────
+ *
+ * One block for all eleven. The WORD carries the meaning — `Empty`, `Denied`,
+ * `Stale` — and tone is a muted border only: Bible §26.3.2 forbids meaning
+ * conveyed by colour alone, and this palette is desaturated enough that a tint
+ * on its own would be nearly invisible in increased-contrast mode.
+ */
+.state {
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  background: var(--surface);
+  border-radius: 4px;
+  padding: var(--space-3) var(--space-4);
+  margin: var(--space-3) 0;
+}
+.state-quiet {
+  border-left-color: var(--border-strong);
+}
+.state-warn {
+  border-left-color: var(--warn);
+}
+.state-bad {
+  border-left-color: var(--bad);
+}
+
+.state-label {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.state-headline {
+  margin: var(--space-1) 0 0;
+  color: var(--text);
+}
+.state-body {
+  margin-top: var(--space-2);
+  color: var(--muted);
+}
+.state-body p {
+  margin: 0 0 var(--space-1);
+}
+.state-actions {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.state-detail {
+  margin: 0;
+  font: inherit;
+  color: var(--muted);
+  /* An error message is the operator's only lead and is frequently long. It
+     wraps rather than scrolling the page sideways, which the layout suite
+     treats as a defect in its own right. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.state-list {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+}
+
+/* The five fields a high-risk confirmation must show. Laid out as pairs so a
+   missing one is visibly missing rather than quietly absent. */
+.state-risk {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+.state-risk dt {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.state-risk dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A placeholder, not a shimmer. Bible §26.3.8: never animate large regions
+ * continuously — and an animated skeleton that keeps moving under
+ * `prefers-reduced-motion` is the most common accessibility defect in this
+ * exact component. There is no animation here at all, so there is none to stop.
+ */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+.skeleton span {
+  height: 10px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.skeleton span:nth-child(1) {
+  width: 60%;
+}
+.skeleton span:nth-child(2) {
+  width: 85%;
+}
+.skeleton span:nth-child(3) {
+  width: 40%;
+}

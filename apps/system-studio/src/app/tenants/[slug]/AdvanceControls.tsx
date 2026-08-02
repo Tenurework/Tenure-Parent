@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react"
 
 import { advanceState, type AdvanceResult } from "../actions"
+import { ConflictState, HighRiskConfirmation, type HighRisk } from "@/components/states"
 
 /**
  * The buttons that move a tenant.
@@ -20,7 +21,7 @@ export function AdvanceControls({
   moves,
 }: {
   slug: string
-  moves: Array<{ to: string; needsApproval: boolean }>
+  moves: Array<{ to: string; needsApproval: boolean; risk: HighRisk }>
 }) {
   const [result, action, pending] = useActionState<AdvanceResult | null, FormData>(
     advanceState,
@@ -51,6 +52,17 @@ export function AdvanceControls({
           </button>
         ))}
       </div>
+
+      {/*
+        GE-022-006. The five things Bible §26.6 requires before a high-risk
+        action runs, shown BEFORE the submit button exists to be pressed rather
+        than in a modal after it. Reversibility is computed from the transition
+        graph — a one-way move says so in the word IRREVERSIBLE, which is the
+        single fact most worth having before the click.
+      */}
+      {chosen?.needsApproval && (
+        <HighRiskConfirmation action={`Move ${slug} to ${chosen.to}`} risk={chosen.risk} />
+      )}
 
       {chosen && (
         <form action={action}>
@@ -85,7 +97,27 @@ export function AdvanceControls({
         </form>
       )}
 
-      {result?.error && <p className="error">{result.error}</p>}
+      {/*
+        A refusal because the tenant moved under you is a conflict, not a
+        failure: another operator did something legitimate and the page is now
+        stale. Told apart by the lifecycle engine's own wording, so a rename of
+        the message is a test failure rather than a silent downgrade to a
+        generic error.
+      */}
+      {result?.error &&
+        (/not a legal transition|no longer in/i.test(result.error) ? (
+          <ConflictState
+            what={slug}
+            theirChange={result.error}
+            actions={
+              <button type="button" className="primary-action" onClick={() => window.location.reload()}>
+                Reload to see the current state
+              </button>
+            }
+          />
+        ) : (
+          <p className="error">{result.error}</p>
+        ))}
     </div>
   )
 }

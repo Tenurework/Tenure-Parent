@@ -11,6 +11,7 @@ import { adoptableBindings } from "@/lib/adopt"
 import { placeableRegions } from "@/lib/cells"
 import { PLAN_CATALOG } from "@tenure/provisioning"
 import { AdoptForm } from "./AdoptForm"
+import { EmptyState, ErrorState, PartialDataState, PermissionDeniedState } from "@/components/states"
 
 export const dynamic = "force-dynamic"
 
@@ -24,7 +25,13 @@ export const dynamic = "force-dynamic"
  */
 export default async function TenantsPage() {
   const session = await auth()
-  if (!isOperator(session?.user?.email)) redirect("/signin")
+  // GE-022-006. Two different facts, told apart. Nobody signed in goes to the
+  // sign-in page; somebody signed in who is NOT an operator is refused, with a
+  // reason and without naming what they were refused. Sending the second case
+  // to /signin told them to go and do the thing they had already done.
+  if (!session?.user?.email) redirect("/signin")
+  if (!isOperator(session.user.email)) return <PermissionDeniedState />
+
 
   const configured = registryConfigured()
 
@@ -56,34 +63,26 @@ export default async function TenantsPage() {
       <h1>Tenants</h1>
 
       {failure ? (
-        <section className="system">
-          <header>
-            <h2>Registry unreadable</h2>
-            <span className="badge bad">error</span>
-          </header>
-          <p>
-            The table is configured but the read failed. The console shows the reason rather than a
-            blank error page, because &ldquo;a server-side exception has occurred&rdquo; is not
-            something anyone can act on.
-          </p>
-          <p className="error">{failure}</p>
-          <p className="slug">
-            Most likely: the task role is missing an action on the table, or the table does not
-            exist in this region.
-          </p>
-        </section>
+        // GE-022-006. This page used to render its own failure block and the
+        // platform page rendered a different one, so "no tenants" and "the
+        // registry could not be read" looked alike — the specific confusion
+        // that gets an operator to act on an empty list as an empty fleet.
+        <ErrorState
+          what="the tenant registry"
+          detail={failure}
+          actions={
+            <span className="slug">
+              Most likely: the task role is missing an action on the table, or the table does not
+              exist in this region.
+            </span>
+          }
+        />
       ) : !configured ? (
-        <section className="system">
-          <header>
-            <h2>Registry unavailable</h2>
-            <span className="badge warn">not configured</span>
-          </header>
-          <p>
-            <code>TENANT_TABLE</code> is not set, so no tenant can be composed or read. The table is
-            declared in <code>infrastructure/studio/dynamodb.tf</code>; this page degrades rather
-            than failing so the rest of the console stays usable.
-          </p>
-        </section>
+        // GE-022-006. Not an error — a deliberate degradation. The file-bound
+        // tenants below are real and complete; what is missing is the registry,
+        // and naming it is the difference between "the fleet is these four" and
+        // "the fleet is these four PLUS whatever the registry holds".
+        <PartialDataState what="The fleet" missing={["TENANT_TABLE — the tenant registry"]} />
       ) : (
         <section className="system">
           <header>
@@ -92,16 +91,15 @@ export default async function TenantsPage() {
           </header>
 
           {tenants.length === 0 ? (
-            <div className="empty">
-              <p>
-                No tenant has been composed through this console yet. Composing one registers it in{" "}
-                <code>DRAFT</code>: nothing is built, nothing is billed, and no routing changes
-                until its plan is read and approved.
-              </p>
-              <Link className="primary-action" href="/tenants/new">
-                Compose a tenant
-              </Link>
-            </div>
+            <EmptyState
+              what="tenants composed through this console"
+              because="Composing one registers it in DRAFT: nothing is built, nothing is billed, and no routing changes until its plan is read and approved."
+              actions={
+                <Link className="primary-action" href="/tenants/new">
+                  Compose a tenant
+                </Link>
+              }
+            />
           ) : (
             <table className="grid">
               <thead>

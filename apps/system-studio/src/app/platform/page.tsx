@@ -2,6 +2,7 @@
 import { auth } from "@/lib/auth"
 import { isOperator, operatorConfigProblems } from "@/lib/operators"
 import truth from "@/generated/platform-truth.json"
+import { StaleState } from "@/components/states"
 
 export const dynamic = "force-dynamic"
 
@@ -42,6 +43,9 @@ export default async function PlatformPage() {
   // the reason, which is the part that matters.
   const denied = Array.isArray(estate.deniedCalls) ? estate.deniedCalls : []
   const percent = ((ledger.done / programme.totalItems) * 100).toFixed(1)
+  // Set by the deploy workflow. Unset locally, which correctly means "cannot
+  // tell" — an unknown build must claim neither freshness nor staleness.
+  const buildCommit = process.env.BUILD_COMMIT
 
   return (
     <>
@@ -51,6 +55,26 @@ export default async function PlatformPage() {
         Compiled from the execution ledger, the execution prompt and the read-only AWS inventory at
         commit <code>{truth.commit}</code>. Every figure is traceable to a file in the repository.
       </p>
+
+      {/*
+        GE-022-006. Every figure below comes from a snapshot compiled at a
+        commit. When the running build knows its own commit and it differs, this
+        page is describing an older repository — which is worse than showing
+        nothing, because the numbers still look authoritative.
+
+        Keyed on a commit mismatch rather than an age threshold: a page whose
+        output changes with the clock cannot be tested deterministically, and a
+        staleness warning that appears on a timer is one people learn to ignore.
+      */}
+      {buildCommit && buildCommit !== truth.commit && (
+        <StaleState
+          asOf={`commit ${truth.commit}`}
+          why={
+            `This console is running commit ${buildCommit}. Run "npm run generate" and redeploy; ` +
+            `until then every figure below describes an older repository.`
+          }
+        />
+      )}
 
       {/* ── Programme ─────────────────────────────────────────────────── */}
       <section className="system">

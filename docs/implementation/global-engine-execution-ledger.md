@@ -2344,3 +2344,73 @@ worth less than three items that hold.
     scaling and chart palette, also named in Bible §26.5, are not built. The
     palette itself remains the warm system that v2.0 flags as possibly obsolete;
     everything here is palette-independent.
+
+- [x] **GE-022-006** — Owned components for dense ERP states: loading/skeleton,
+  empty/no results, error, permission denied, stale, offline/syncing, conflict,
+  archived, partial data, pending deletion/purge, high-risk confirmation.
+  - Status: PASS
+  - Code: `apps/system-studio/src/components/states.tsx` (the vocabulary),
+    `src/lib/tenant-state.ts` (risk computed from the lifecycle graph),
+    `src/components/OfflineBanner.tsx`, `app/tenants/loading.tsx`,
+    `app/tenants/error.tsx`, plus wiring in `app/tenants/page.tsx`,
+    `app/tenants/[slug]/page.tsx`, `app/tenants/[slug]/AdvanceControls.tsx`,
+    `app/platform/page.tsx`, `app/layout.tsx`, and a state block in `globals.css`
+  - Tests: `e2e/states-logic.spec.ts` — 12 cases. Full Studio suite **91 passed,
+    3 skipped**, layout geometry included.
+  - **All eleven are reached by a real path**, which is the part of this item
+    that takes the work. §4 disqualifies a component nobody renders, so each is
+    wired where the condition genuinely occurs: `loading` and `error` are Next
+    route segments; `empty` is an unpopulated registry; `partialData` is
+    `TENANT_TABLE` unset; `permissionDenied` is a signed-in non-operator;
+    `stale` is a snapshot commit that differs from the running build;
+    `offline` is `navigator.onLine`; `conflict` is the lifecycle refusing a move
+    that is no longer legal; `archived` and `pendingDeletion` are read off the
+    tenant's own state; `highRisk` precedes every approval-gated transition.
+  - Bible §26.2 forbids modules inventing their own **status meanings**, and
+    before this the tenants page rendered its own failure block while the
+    platform page rendered a different one — so "no tenants" and "the registry
+    could not be read" looked alike, which is exactly the confusion that gets an
+    operator to act on an empty list as an empty fleet.
+  - **Every state carries a word, not a colour.** §26.3.2 forbids meaning
+    carried by colour alone and this palette is deliberately desaturated, so the
+    label is the signal and tone is a muted left border. A test asserts the
+    eleven labels are distinct — two states sharing a word are two states nobody
+    can tell apart.
+  - **The high-risk confirmation cannot be partial.** §26.6 requires target,
+    impact, policy, approvals and reversibility; all five are required by the
+    type and by `missingRiskFields`, because a confirmation missing one is the
+    one people click through, which is worse than no confirmation.
+  - **Reversibility is computed, not labelled.** `canReachServing` walks the
+    transition graph breadth-first from the target state; if no serving state is
+    reachable the move is one-way and the dialog says **IRREVERSIBLE**. A
+    hand-written "this can be undone" is a claim; the graph is the fact, and it
+    cannot drift from the state machine because it *is* the state machine.
+  - `permissionDenied` takes **no identifier**, and that is a security property
+    rather than an omission: a denial that names what was refused confirms it
+    exists. The component cannot be handed the name. Relatedly, a signed-in
+    non-operator is now refused rather than redirected to `/signin` — telling
+    someone to sign in when they already have is not an answer.
+  - The skeleton has **no animation at all**. §26.3.8 forbids continuously
+    animating large regions, and a shimmer that keeps moving under
+    `prefers-reduced-motion` is the most common accessibility defect in exactly
+    this component. There is nothing to stop because there is nothing moving.
+  - Staleness is keyed on a **commit mismatch, not an age threshold**. A page
+    whose output changes with the clock cannot be tested deterministically, and
+    a warning that appears on a timer is one people learn to ignore. Unset
+    `BUILD_COMMIT` means "cannot tell", and an unknown build claims neither
+    freshness nor staleness.
+  - Proven by mutation, **3 of 3 caught**: reversibility hardcoded to `false`
+    instead of walking the graph FAILS; two states sharing one label FAILS;
+    dropping `reversibility` from the required-field list FAILS.
+  - The type checker caught an invented lifecycle state in my own test —
+    `PLANNING` does not exist; `DRAFT` goes to `VALIDATING`. Recorded because a
+    test asserting against a state the engine does not have would have passed
+    vacuously if the types had been looser.
+  - Honest limits: this is the **Studio only**, for the same reason as
+    GE-022-008 — GE-022-002's Experience System package does not exist, so a
+    second copy in `apps/web` now would be the thing that package exists to
+    prevent. `conflict` is matched on the lifecycle engine's wording rather than
+    a typed error code; a reworded message downgrades it to a generic error, and
+    the regex is the seam where that would show. The `!configured` case is
+    mapped to `partialData` — defensible (the fleet shown really is missing a
+    named source) but it is a judgment, not an obvious fit.

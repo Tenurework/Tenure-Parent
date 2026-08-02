@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { Nav } from "@/components/Nav"
 import { PreferencesMenu } from "@/components/PreferencesMenu"
+import { OfflineBanner } from "@/components/OfflineBanner"
 import { NO_FLASH_SCRIPT } from "@/lib/preferences"
 
 export const metadata: Metadata = {
@@ -30,7 +31,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <span className="internal">Internal</span>
         </header>
         <Nav />
-        <main>{children}</main>
+        <main>
+          <OfflineBanner />
+          {children}
+        </main>
       </body>
     </html>
   )
