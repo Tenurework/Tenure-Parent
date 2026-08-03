@@ -377,3 +377,79 @@ export function connectionHealth(input: {
   if (findings.length > 0) return { state: "DEGRADED", findings }
   return { state: "HEALTHY", findings: [] }
 }
+
+/* ──────────────────────────────────────────────────── secret rotation ── */
+
+export type SecretUsable =
+  | { ok: true; overlapping: boolean }
+  | { ok: false; reason: "NOT_THE_LIVE_VERSION" | "RETIRED" | "NO_VERSION"; detail: string }
+
+/**
+ * How long a superseded client secret keeps working after a rotation.
+ *
+ * A rotation cannot be atomic: token requests are in flight when the new secret
+ * is installed, and a provider that has not yet picked up the change is still
+ * sending the old one. Cutting over instantly rejects both — a short outage that
+ * looks exactly like a misconfiguration, at the moment somebody is least able to
+ * tell the difference. The same reasoning as `ROTATE` in
+ * `connection-lifecycle.ts`; rotation is an overlap, not a swap.
+ */
+export const SECRET_OVERLAP_HOURS = 24
+
+/**
+ * Whether a client secret version may still be used.
+ *
+ * `rotatedAt` existed on `ClientSecretReference` from GE-043-002 and nothing
+ * decided on it, which made it a field that documented an intention rather than
+ * enforcing one. This is the decision it was recording.
+ *
+ * The overlap window is *closed*, not open-ended: a superseded secret that works
+ * forever is not a rotation, it is a second live credential nobody is tracking.
+ */
+export function secretVersionUsable(input: {
+  reference: ClientSecretReference
+  /** The version the token request is presenting. */
+  presented: string
+  at: Date
+}): SecretUsable {
+  const { reference, presented, at } = input
+
+  if (!presented) {
+    return { ok: false, reason: "NO_VERSION", detail: "No secret version was presented." }
+  }
+
+  if (presented === reference.version) {
+    return { ok: true, overlapping: false }
+  }
+
+  // Anything that is not the live version is a superseded one, and it is usable
+  // only inside the overlap window that a rotation opened. With no `rotatedAt`
+  // there was no rotation, so there is no window — the version is simply wrong.
+  if (reference.rotatedAt === null) {
+    return {
+      ok: false,
+      reason: "NOT_THE_LIVE_VERSION",
+      detail: `Version ${presented} is not the live version (${reference.version}), and no rotation is in progress.`,
+    }
+  }
+
+  const rotated = Date.parse(reference.rotatedAt)
+  if (Number.isNaN(rotated)) {
+    return {
+      ok: false,
+      reason: "RETIRED",
+      detail: `The rotation time (${reference.rotatedAt}) is not a time, so the overlap window cannot be computed and the old version is treated as closed.`,
+    }
+  }
+
+  const elapsed = at.getTime() - rotated
+  if (elapsed < 0 || elapsed > SECRET_OVERLAP_HOURS * 3_600_000) {
+    return {
+      ok: false,
+      reason: "RETIRED",
+      detail: `Version ${presented} was superseded at ${reference.rotatedAt}. The ${SECRET_OVERLAP_HOURS}-hour overlap has closed, so it is no longer a credential.`,
+    }
+  }
+
+  return { ok: true, overlapping: true }
+}

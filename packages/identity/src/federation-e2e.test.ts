@@ -475,6 +475,8 @@ describe("SAML federation, through the same two tenants", () => {
       algorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
       digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
       keyId: ok ? "key-1" : null,
+      // The Response element is not signed here. Only the Assertion is.
+      responseSigned: false,
     }
   }
 
@@ -487,6 +489,10 @@ describe("SAML federation, through the same two tenants", () => {
     assertionId: "_e2e-1",
     inResponseTo: "req-e2e",
     recipient: ACS,
+    // Assertion-only signing, which is the common deployment: the Response is
+    // not separately signed, so `Destination` is unprotected and the validator
+    // correctly declines to rely on it.
+    destination: ACS,
     subjectNotOnOrAfter: new Date(NOW.getTime() + 300_000).toISOString(),
     notBefore: new Date(NOW.getTime() - 60_000).toISOString(),
     notOnOrAfter: new Date(NOW.getTime() + 3_600_000).toISOString(),

@@ -35,6 +35,7 @@ const assertion = (over: Partial<SamlAssertionInput> = {}): SamlAssertionInput =
   assertionId: "_a1b2c3",
   inResponseTo: "req-abc123",
   recipient: ACS,
+  destination: ACS,
   subjectNotOnOrAfter: iso(5),
   notBefore: iso(-1),
   notOnOrAfter: iso(60),
@@ -45,6 +46,9 @@ const assertion = (over: Partial<SamlAssertionInput> = {}): SamlAssertionInput =
     algorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
     digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
     keyId: "key-1",
+    // Assertion-only signing by default, which is what most identity providers
+    // send. The Destination tests below turn this on deliberately.
+    responseSigned: false,
   },
   ...over,
 })
@@ -336,5 +340,75 @@ describe("every refusal is distinguishable", () => {
 
     expect(new Set(reasons).size).toBe(reasons.length)
     expect(reasons).not.toContain("VALID")
+  })
+})
+
+/**
+ * GE-044-006 — `Response/@Destination`, and why checking it is conditional.
+ *
+ * This is the check most implementations get backwards. Destination sits on the
+ * Response element, so an Assertion-only signature leaves it completely
+ * unprotected: an attacker replaying an assertion to a different endpoint simply
+ * rewrites it. Checking an unprotected value refuses nothing an attacker cannot
+ * trivially fix, while reading as a defence in the code and in a review.
+ *
+ * When the Response *is* signed, Destination is real evidence.
+ */
+describe("Response/@Destination", () => {
+  const signedResponse = (over: Partial<SamlAssertionInput> = {}) =>
+    assertion({
+      ...over,
+      signature: { ...assertion().signature, responseSigned: true, ...(over.signature ?? {}) },
+    })
+
+  const verdictFor = (input: SamlAssertionInput) =>
+    validateSamlAssertion(input, expected, { at: NOW, seenAssertionIds: new Set() })
+
+  it("refuses a signed Response addressed somewhere else", () => {
+    const verdict = verdictFor(signedResponse({ destination: "https://evil.test/acs" }))
+    expect(verdict.valid).toBe(false)
+    if (verdict.valid) throw new Error("unreachable")
+    expect(verdict.reason).toBe("WRONG_DESTINATION")
+  })
+
+  it("accepts a signed Response addressed to us", () => {
+    // Without this the refusal above could come from a rule that refuses every
+    // signed Response.
+    expect(verdictFor(signedResponse({ destination: ACS })).valid).toBe(true)
+  })
+
+  it("ignores Destination when the Response is unsigned", () => {
+    // The subtle half. An attacker who can rewrite Destination gains nothing
+    // from us checking it, and a validator that refused here would reject
+    // legitimate assertions from every Assertion-only provider — which is most
+    // of them — for a value that proves nothing either way.
+    const verdict = verdictFor(assertion({ destination: "https://evil.test/acs" }))
+    expect(verdict.valid).toBe(true)
+  })
+
+  it("still refuses a wrong Recipient when the Response is unsigned", () => {
+    // Because Recipient lives inside the signed Assertion, it is the check that
+    // carries the weight in that deployment. Ignoring Destination is only safe
+    // because this is not ignored.
+    const verdict = verdictFor(assertion({ recipient: "https://evil.test/acs" }))
+    expect(verdict.valid).toBe(false)
+    if (verdict.valid) throw new Error("unreachable")
+    expect(verdict.reason).toBe("WRONG_RECIPIENT")
+  })
+
+  it("tolerates an absent Destination on a signed Response", () => {
+    // Optional in the standard for an unsolicited response, and refusing an
+    // absent attribute would break providers that omit it legitimately.
+    expect(verdictFor(signedResponse({ destination: null })).valid).toBe(true)
+  })
+
+  it("reports Destination separately from Recipient", () => {
+    // Two attributes, two protections, two diagnoses. An operator told "wrong
+    // recipient" would look inside the assertion for a value that is fine.
+    const destination = verdictFor(signedResponse({ destination: "https://evil.test/acs" }))
+    const recipient = verdictFor(signedResponse({ recipient: "https://evil.test/acs" }))
+    if (destination.valid || recipient.valid) throw new Error("unreachable")
+
+    expect(destination.reason).not.toBe(recipient.reason)
   })
 })

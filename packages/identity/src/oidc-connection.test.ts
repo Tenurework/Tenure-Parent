@@ -1,11 +1,14 @@
 import {
+  SECRET_OVERLAP_HOURS,
   SecretValueError,
   assertSecretReference,
   connectionHealth,
   selectVerificationKey,
   validateClaimsMapping,
+  secretVersionUsable,
   validateDiscovery,
   type ClaimsMapping,
+  type ClientSecretReference,
   type DiscoveryDocument,
   type DiscoveryProblem,
   type JsonWebKey,
@@ -321,5 +324,99 @@ describe("whether a connection would work right now", () => {
     const broken = health({ jwksKeyCount: 0, secretVersionLive: false, jwksFetchedAt: null })
     expect(broken.state).toBe("FAILING")
     expect(broken.findings.length).toBe(3)
+  })
+})
+
+/**
+ * GE-044-006 — secret rotation negatives.
+ *
+ * `rotatedAt` existed on `ClientSecretReference` from GE-043-002 and nothing
+ * decided on it, which made it a field documenting an intention rather than
+ * enforcing one. These are the decisions it was recording.
+ */
+describe("a rotated client secret", () => {
+  const NOW = new Date("2026-08-03T12:00:00Z")
+  const hoursAgo = (n: number) => new Date(NOW.getTime() - n * 3_600_000).toISOString()
+
+  const usable = (
+    reference: Partial<ClientSecretReference>,
+    presented: string,
+  ) =>
+    secretVersionUsable({
+      reference: { secretName: "tenure/oidc/rochester", version: "4", rotatedAt: null, ...reference },
+      presented,
+      at: NOW,
+    })
+
+  it("accepts the live version", () => {
+    const outcome = usable({}, "4")
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) throw new Error(outcome.detail)
+    expect(outcome.overlapping).toBe(false)
+  })
+
+  it("refuses another version when no rotation is in progress", () => {
+    // With no rotation there is no overlap window, so a version that is not the
+    // live one is simply wrong.
+    const outcome = usable({}, "3")
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) throw new Error("unreachable")
+    expect(outcome.reason).toBe("NOT_THE_LIVE_VERSION")
+  })
+
+  it("accepts the superseded version inside the overlap", () => {
+    // A rotation cannot be atomic: token requests are in flight when the new
+    // secret is installed. Cutting over instantly rejects both sides — an
+    // outage that looks exactly like a misconfiguration.
+    const outcome = usable({ rotatedAt: hoursAgo(1) }, "3")
+    expect(outcome.ok).toBe(true)
+    if (!outcome.ok) throw new Error(outcome.detail)
+    expect(outcome.overlapping).toBe(true)
+  })
+
+  it("accepts it at the edge of the window", () => {
+    expect(usable({ rotatedAt: hoursAgo(SECRET_OVERLAP_HOURS) }, "3").ok).toBe(true)
+  })
+
+  it("refuses it once the overlap has closed", () => {
+    // A superseded secret that works forever is not a rotation, it is a second
+    // live credential nobody is tracking.
+    const outcome = usable({ rotatedAt: hoursAgo(SECRET_OVERLAP_HOURS + 1) }, "3")
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) throw new Error("unreachable")
+    expect(outcome.reason).toBe("RETIRED")
+  })
+
+  it("refuses a rotation timestamp in the future rather than extending the window", () => {
+    // A clock skew or a typo would otherwise open an overlap that never closes.
+    const outcome = secretVersionUsable({
+      reference: { secretName: "s", version: "4", rotatedAt: new Date(NOW.getTime() + 3_600_000).toISOString() },
+      presented: "3",
+      at: NOW,
+    })
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) throw new Error("unreachable")
+    expect(outcome.reason).toBe("RETIRED")
+  })
+
+  it("refuses an unparseable rotation time rather than treating the window as open", () => {
+    const outcome = usable({ rotatedAt: "not-a-time" }, "3")
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) throw new Error("unreachable")
+    expect(outcome.reason).toBe("RETIRED")
+  })
+
+  it("refuses a request that presents no version", () => {
+    const outcome = usable({ rotatedAt: hoursAgo(1) }, "")
+    expect(outcome.ok).toBe(false)
+    if (outcome.ok) throw new Error("unreachable")
+    expect(outcome.reason).toBe("NO_VERSION")
+  })
+
+  it("keeps accepting the live version throughout a rotation", () => {
+    // The new secret must work from the moment it is installed, or the overlap
+    // has simply moved the outage rather than removed it.
+    expect(usable({ rotatedAt: hoursAgo(1) }, "4").ok).toBe(true)
+    expect(usable({ rotatedAt: hoursAgo(SECRET_OVERLAP_HOURS + 100) }, "4").ok).toBe(true)
   })
 })

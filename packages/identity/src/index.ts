@@ -318,8 +318,10 @@ export {
 
 export {
   SecretValueError,
+  SECRET_OVERLAP_HOURS,
   assertSecretReference,
   connectionHealth,
+  secretVersionUsable,
   selectVerificationKey,
   validateClaimsMapping,
   validateDiscovery,
@@ -334,6 +336,7 @@ export {
   type KeySelection,
   type MappingFinding,
   type MappingProblem,
+  type SecretUsable,
 } from "./oidc-connection"
 
 export {

@@ -27,8 +27,17 @@ export interface SamlAssertionInput {
   assertionId: string
   /** `SubjectConfirmationData/@InResponseTo`, when the flow was SP-initiated. */
   inResponseTo: string | null
-  /** `SubjectConfirmationData/@Recipient`. */
+  /** `SubjectConfirmationData/@Recipient`, inside the Assertion. */
   recipient: string | null
+  /**
+   * `Response/@Destination` — the endpoint the *Response* says it is for.
+   *
+   * Deliberately separate from `recipient`, which sits inside the Assertion.
+   * SAML carries both on purpose and they are protected differently: Recipient
+   * is covered by the Assertion signature, Destination is covered only if the
+   * Response itself is signed. See `responseSigned` below.
+   */
+  destination: string | null
   /** `SubjectConfirmationData/@NotOnOrAfter`. */
   subjectNotOnOrAfter: string | null
   /** `Conditions/@NotBefore`. */
@@ -59,6 +68,15 @@ export interface SignatureFacts {
   digestAlgorithm: string | null
   /** The id of the connection signing key that verified. */
   keyId: string | null
+  /**
+   * Whether the verified signature covered the `Response` element.
+   *
+   * Not the same question as `signedElements.includes("Response")` being
+   * sufficient — it never is, on its own (see NOT_SIGNED). This says whether
+   * `Response/@Destination` is protected, which decides whether checking it
+   * means anything at all.
+   */
+  responseSigned: boolean
 }
 
 export interface ExpectedAssertion {
@@ -84,6 +102,7 @@ export type AssertionRefusal =
   | "WRONG_ISSUER"
   | "WRONG_AUDIENCE"
   | "WRONG_RECIPIENT"
+  | "WRONG_DESTINATION"
   | "NOT_YET_VALID"
   | "EXPIRED"
   | "SUBJECT_EXPIRED"
@@ -239,6 +258,29 @@ export function validateSamlAssertion(
       `Recipient ${assertion.recipient} is not our assertion consumer service ` +
         `(${expected.assertionConsumerServiceUrl}).`,
     )
+  }
+
+  // `Response/@Destination`, and only when the Response was signed.
+  //
+  // This is the check most implementations get backwards. Destination is on the
+  // Response element, so an Assertion-only signature leaves it completely
+  // unprotected — an attacker replaying an assertion to a different endpoint
+  // simply rewrites it. Checking an unprotected value is theatre: it refuses
+  // nothing an attacker cannot trivially fix, while reading as a defence in the
+  // code and in a review.
+  //
+  // When the Response *is* signed, Destination is real evidence and a mismatch
+  // means this response was addressed elsewhere. When it is not, `Recipient` —
+  // which lives inside the signed Assertion — is the check that carries the
+  // weight, and it ran above.
+  if (assertion.signature.responseSigned && assertion.destination !== null) {
+    if (assertion.destination !== expected.assertionConsumerServiceUrl) {
+      return reject(
+        "WRONG_DESTINATION",
+        `The Response is addressed to ${assertion.destination}, not to our assertion consumer service ` +
+          `(${expected.assertionConsumerServiceUrl}). It was signed, so this is where the issuer meant it to go.`,
+      )
+    }
   }
 
   // ── When ───────────────────────────────────────────────────────────────────

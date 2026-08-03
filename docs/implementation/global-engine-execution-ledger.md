@@ -6023,3 +6023,80 @@ worth less than three items that hold.
     issuer involved at all.
 
   109/1219 decided.
+
+- [x] **GE-044-006** — SAML signature/audience/recipient/destination/time/replay and OIDC discovery/JWKS/secret rotation negative tests pass.
+  - Status: PASS
+  - Code: `packages/identity/src/saml-assertion.ts` (`Destination`,
+    `SignatureFacts.responseSigned`), `packages/identity/src/oidc-connection.ts`
+    (`secretVersionUsable`, `SECRET_OVERLAP_HOURS`)
+  - Tests: `saml-assertion.test.ts` (43, +6), `oidc-connection.test.ts` (49, +9)
+  - Evidence: 2448/2448 apps/web unit across 103 suites, 165/165 platform guards,
+    type-check clean, gate passed 8 steps. **13 mutations, 13 caught.**
+
+  Signature, audience, recipient, time and replay were proved by GE-043-001;
+  discovery and JWKS by GE-043-002. Two of the named dimensions had nothing.
+
+  ## `Response/@Destination`, and why checking it is conditional
+
+  Absent from the module entirely — zero occurrences. Adding it is easy; adding
+  it *correctly* is the interesting part, and it is the check most
+  implementations get backwards.
+
+  `Destination` sits on the `Response` element. `Recipient` sits inside the
+  `Assertion`. Under the common deployment — where the identity provider signs
+  only the Assertion — `Destination` is **completely unprotected**: an attacker
+  replaying an assertion to a different endpoint simply rewrites it. Checking an
+  unprotected value refuses nothing an attacker cannot trivially fix, while
+  reading as a defence in the code and in a review. Worse, a validator that
+  *required* it would reject legitimate assertions from every Assertion-only
+  provider, which is most of them.
+
+  So `SignatureFacts` gained `responseSigned`, and Destination is checked only
+  when it is real evidence. When the Response is unsigned, `Recipient` — inside
+  the signed Assertion — is what carries the weight, and a test asserts it still
+  refuses a wrong one in exactly that configuration. Ignoring Destination is
+  only safe because Recipient is not ignored.
+
+  `responseSigned` is a **required** field, not optional. Every existing caller
+  had to state it, which is why the type-check broke in two test files — the
+  compiler asking each of them what is actually signed. A default would have
+  answered on their behalf.
+
+  ## Secret rotation had a field and no decision
+
+  `ClientSecretReference.rotatedAt` existed from GE-043-002 and nothing read it,
+  which made it a field documenting an intention rather than enforcing one.
+
+  `secretVersionUsable` is the decision it was recording. A rotation cannot be
+  atomic — token requests are in flight when the new secret is installed, and a
+  provider that has not picked up the change is still sending the old one. Same
+  reasoning as `ROTATE` in `connection-lifecycle.ts`: rotation is an overlap, not
+  a swap. But the window is **closed**, at 24 hours: a superseded secret that
+  works forever is not a rotation, it is a second live credential nobody is
+  tracking.
+
+  A rotation timestamp in the *future* retires the old version rather than
+  extending the window — a clock skew or a typo would otherwise open an overlap
+  that never closes. An unparseable timestamp does the same, for the same reason:
+  the safe direction when the window cannot be computed is closed.
+
+  **Honest limits.**
+
+  * **Nothing calls either.** No ACS route parses a Response, no token request
+    presents a secret version. Both are decisions the routes will make, and both
+    wait on the Cognito cutover (GE-041-003).
+  * **`responseSigned` is asserted by the caller, like every other signature
+    fact.** This module validates a signature-verified document and does not
+    verify signatures itself; a caller that sets `responseSigned: true` without
+    the Response actually being covered defeats the Destination check. The type
+    is shaped so the honest answer is the easy one, and `federation-e2e.test.ts`
+    derives every fact from a real `crypto.verify`.
+  * **`SECRET_OVERLAP_HOURS` is 24, which is a judgement.** Long enough that a
+    provider polling for configuration daily will have rotated; short enough that
+    a leaked old secret is not a standing credential. There is no standard to
+    cite, and saying so is more useful than implying one.
+  * **Destination is not checked against a *list* of acceptable endpoints.** One
+    ACS URL per connection is what `ExpectedAssertion` carries. A deployment with
+    several would need it, and inventing that shape now would be speculative.
+
+  110/1219 decided.

@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "f7083f0",
+  "commit": "7f50eda",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 106,
-    "done": 93,
+    "total": 107,
+    "done": 94,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -770,6 +770,13 @@
             "title": "Same email from different issuers does not merge; changed email preserves issuer/subject identity.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-044-006",
+            "done": true,
+            "title": "SAML signature/audience/recipient/destination/time/replay and OIDC discovery/JWKS/secret rotation negative tests pass.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -784,7 +791,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 109,
+    "decided": 110,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -931,7 +938,7 @@
         "source": "GE",
         "items": 6,
         "gates": 0,
-        "done": 5
+        "done": 6
       },
       {
         "phase": "GE · Phase 4 gate",
