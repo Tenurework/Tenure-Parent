@@ -394,6 +394,20 @@ lost the scope until GE-042-006, because `.then` was called by the caller's
 and the reason it was ever unsafe is worth remembering when writing anything
 else that wraps a callback in `AsyncLocalStorage`.
 
+**The NUL-byte guard only scans tracked files, so it fires after `git add`.**
+`test:platform` can report 160/160 on a file that contains raw NUL bytes,
+because `git ls-files` has never heard of it. A run before staging is not a
+clean bill of health for new files — the gate is where it shows up, which is
+late but not too late. When writing a fixture containing spaces or unusual
+characters, check it at byte level immediately:
+
+```bash
+python -c "import io,sys;raw=io.open(sys.argv[1],'rb').read();print(raw.count(bytes([0])))" path
+```
+
+The recurring cause is a literal `" . . "` or similar in a Write payload
+arriving as NULs. Fix at byte level; a text-mode round-trip re-encodes.
+
 **Assert the mutation is actually in the file before trusting the result.** A
 mutation harness reported SURVIVED for a change that provably fails when applied
 by hand — the anchor matched, the replacement was computed, and what reached

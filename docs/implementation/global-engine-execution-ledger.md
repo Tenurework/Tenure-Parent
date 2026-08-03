@@ -5752,3 +5752,92 @@ worth less than three items that hold.
     useful than implying it was derived.
 
   105/1219 decided.
+
+- [x] **GE-044-003** — Wrong issuer/pool/region/client/audience/token use/scope/algorithm/key/signature/time/malformed token deny safely.
+  - Status: PASS
+  - Code: `packages/identity/src/token-parsing.ts` (`parseCompactToken`)
+  - Tests: `packages/identity/src/token-parsing.test.ts` (33), on top of
+    `token-validation.test.ts` (35, GE-042-003) which already covers client,
+    audience, token use, scope, algorithm, key, signature and time
+  - Evidence: 2404/2404 apps/web unit across 102 suites, 160/160 platform guards,
+    type-check clean, gate passed 8 steps. **19 mutations, 19 caught.**
+
+  Most of this matrix was already decided by GE-042-003. Two dimensions were not.
+
+  ## Malformed: there was no parser
+
+  `validateIdToken` takes a `ParsedToken`, so somebody has to parse one, and that
+  somebody was the caller. A callback route doing `JSON.parse(Buffer.from(...))`
+  **throws** on a malformed token, and an unhandled throw is a 500 — which is not
+  denying safely, it is denying loudly and telling the sender their input reached
+  the parser.
+
+  `parseCompactToken` never throws. Every input returns a verdict, and the tests
+  assert that separately from the reasons, because a parser that threw on one
+  input in twenty would still pass a test that only checked reasons.
+
+  The ordering is the design: **size before base64, base64 before JSON, JSON
+  before any field is read.** A ten-megabyte "token" is refused on length, so the
+  cost of a request is not chosen by whoever sent it. A segment that is not
+  base64url never becomes a string somebody parses — and the pattern is checked
+  explicitly because Node's decoder is lenient: it ignores characters outside the
+  alphabet rather than failing, so a lenient parse reads something the signer
+  never signed.
+
+  Three refusals are there for shapes that are *valid JSON* and would otherwise
+  reach the validator as an object whose every claim is `undefined`, quietly
+  passing every check that only rejects a wrong value: `[]`, `null` (which is
+  `typeof "object"`), and a bare number. A five-segment token is named
+  `ENCRYPTED_TOKEN` rather than a count error — JWE is a valid thing that is not
+  a signed token, and "wrong segment count" would send somebody looking for a
+  typo. An empty signature segment is refused at the boundary, which is the exact
+  shape of an `alg: none` token.
+
+  **The parser does not judge which algorithm, only that one is declared.**
+  `alg: none` and `HS256` parse fine and are refused by `validateIdToken`. Policy
+  in two places is policy in neither, and a test drives an `alg: none` token
+  through both halves with a verifier that would accept anything, to prove the
+  algorithm check refuses before verification runs.
+
+  ## Pool and region are inside the issuer
+
+  They are not separate values for a Cognito deployment — the issuer has the
+  shape `https://<service>.<region>.<provider>/<poolId>`. So the question is
+  whether the comparison is exact enough that a different pool in the same
+  region, or the same pool id in another region, is refused. Both would be tokens
+  from a real service signed by a real key. Two mutations — `startsWith` and
+  `includes` — are caught, along with fixtures for an issuer that merely starts
+  with ours, merely contains ours, and differs by a trailing lookalike label.
+
+  ## The exemption ratchet caught me
+
+  The pool/region fixtures first used real Cognito hostnames, and
+  `forbidden-clients` flagged them. Adding a reasoned exemption failed a second
+  assertion: the provider-exemption count is ratcheted at **zero**, and raising
+  it to one is weakening a guard to make a build pass.
+
+  The right answer was to not need the exemption. The property under test is
+  exact string comparison of a structured issuer; the vendor's name is not part
+  of it. Neutral hosts with the same shape prove the same thing, and a comment
+  records why they are neutral. That is the second time this guard has been
+  right about this file's ancestors — GE-043-006 was the first, and there the
+  finding pointed at a real design fault rather than a fixture.
+
+  **Honest limits.**
+
+  * **Nothing calls `parseCompactToken`.** There is no callback route to receive
+    a token. It is the parser that route will use, and the refusals are the ones
+    it will return.
+  * **`MAX_TOKEN_BYTES` is 16 KiB, which is a judgement.** Real ID tokens are one
+    to four kilobytes and one with many group claims might reach eight. The
+    number matters less than the check existing; a deployment whose provider
+    emits larger tokens will need it raised, and a test asserts a 200-group token
+    still parses so the limit does not break a customer rather than an attacker.
+  * **Structure only.** The parser does not check claim *types* — a `sub` that is
+    a number parses, and `validateIdToken` is where that is caught or is not.
+    Splitting the responsibility further would put the same decision in two
+    files.
+  * **No JWE support.** An encrypted token is refused by name rather than
+    decrypted. Nothing in this platform issues or expects one.
+
+  107/1219 decided.

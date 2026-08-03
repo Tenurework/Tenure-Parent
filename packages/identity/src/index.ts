@@ -417,3 +417,12 @@ export {
   type RedeemableTransaction,
   type TokenRequest,
 } from "./code-exchange"
+
+export {
+  MAX_TOKEN_BYTES,
+  parseCompactToken,
+  type ParseAccepted,
+  type ParseOutcome,
+  type ParseRefusal,
+  type ParseRejected,
+} from "./token-parsing"

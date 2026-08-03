@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "f5292ee",
+  "commit": "40b706b",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 103,
-    "done": 90,
+    "total": 104,
+    "done": 91,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -749,6 +749,13 @@
             "title": "State/nonce/PKCE missing, mismatch, downgrade, expiry, replay, and code replay deny safely.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-044-003",
+            "done": true,
+            "title": "Wrong issuer/pool/region/client/audience/token use/scope/algorithm/key/signature/time/malformed token deny safely.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -763,7 +770,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 106,
+    "decided": 107,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -910,7 +917,7 @@
         "source": "GE",
         "items": 6,
         "gates": 0,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "GE · Phase 4 gate",
