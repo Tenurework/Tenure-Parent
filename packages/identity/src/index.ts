@@ -335,3 +335,11 @@ export {
   type MappingFinding,
   type MappingProblem,
 } from "./oidc-connection"
+
+export {
+  authorityFromTenureRecords,
+  proposalFromClaims,
+  type IdentityProposal,
+  type ProposalOutcome,
+  type ProposalRefusal,
+} from "./claims-input"

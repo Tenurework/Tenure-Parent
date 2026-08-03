@@ -4917,7 +4917,27 @@ worth less than three items that hold.
     it on the previous commit. Not fixed here; not caused here.
 
 - [x] **GE-042-007** — Integrate real accessible frontend login, discovery, callback, MFA/recovery, invitation, switcher, logout, and generic error paths.
-  - Status: PARTIAL — the error path is real and shipped; the rest is BLOCKED_EXTERNAL
+  - Status: **BLOCKED_EXTERNAL** — the generic error path is real and shipped;
+    login, discovery, callback, MFA/recovery and invitation cannot be built
+    until there is a provider to build them against.
+  - Unblocked by: the AWS Organization (GE-041-003). Exact operator commands:
+
+    ```bash
+    aws organizations create-organization --feature-set ALL
+    aws organizations create-account --email <identity@…> --account-name Identity
+    # then, in the identity account:
+    aws cognito-idp create-user-pool --pool-name tenure-engine
+    aws cognito-idp create-user-pool-client --user-pool-id <id>       --client-name tenure-web --generate-secret       --allowed-o-auth-flows code --allowed-o-auth-scopes openid email profile
+    gh variable set COGNITO_USER_POOL_ID --body <id> --repo satvikOS/Tenure-Parent
+    gh secret  set COGNITO_CLIENT_SECRET --repo satvikOS/Tenure-Parent
+    ```
+
+    Recorded as BLOCKED_EXTERNAL rather than PARTIAL. `PARTIAL` was a status the
+    loop tooling does not recognise, so `next-batch.mjs` read it as undecided and
+    put the item back at the front of the queue every tick — spinning on work
+    that is waiting for a human, which is the exact failure the parser's own
+    comment describes. `tests/architecture/ledger-statuses.test.mjs` now refuses
+    a status outside the known set.
   - Code: `packages/identity/src/auth-errors.ts` (`signInFailure`,
     `SIGN_IN_FAILED_MESSAGE`, `disclosesCondition`),
     `apps/web/src/app/signin/page.tsx`
@@ -5210,3 +5230,77 @@ worth less than three items that hold.
     to configure, would be the speculative code this repository refuses.
 
   99/1219 decided.
+
+- [x] **GE-043-003** — Treat IdP groups/claims only as mapped inputs; never grant privilege directly without Tenure membership/seat/policy.
+  - Status: PASS
+  - Code: `packages/identity/src/claims-input.ts` (`proposalFromClaims`,
+    `authorityFromTenureRecords`, `IdentityProposal`)
+  - Tests: `packages/identity/src/claims-input.test.ts` (17),
+    `tests/security/claims-are-not-authority.test.mjs` (5 guards)
+  - Evidence: 2213/2213 apps/web unit across 96 suites, 149/149 platform guards,
+    type-check clean, gate passed 8 steps. **11 mutations caught of 12 run**;
+    the survivor is named below rather than papered over.
+
+  **The negative half already existed.**
+  `tests/security/provider-independence.test.mjs` (GE-041) forbids an
+  authorization path from *reading* a group claim. It is worth having and it can
+  only ever catch a spelling somebody thought of. This item is the positive
+  half: what an assertion is actually allowed to contribute, expressed so that
+  contributing anything else is not a thing the code can do.
+
+  **An allowlist, not a denylist.** `withoutIgnoredClaims` strips a named list —
+  `groups`, `cognito:groups`, `roles`. A provider can call the same thing
+  `custom:isAdmin`, `urn:example:entitlements`, or `dept_code` where `OSE-ADMIN`
+  means something to somebody. A denylist has to guess every spelling; the one
+  nobody thought of is the one that leaks. `proposalFromClaims` reads exactly the
+  three claims a mapping names and no others, so it cannot leak a claim it has
+  never heard of — which is the class of claim that leaks.
+
+  **`IdentityProposal` has nowhere to put authority.** No `roles`, no
+  `capabilities`, no `isAdmin` — not stripped, absent. Code that wanted to carry
+  authority from a token would have to change the interface, which is a diff a
+  reviewer sees. A guard asserts the type holds exactly `subject`, `email`,
+  `displayName`: a field called `department` would pass a keyword check and
+  still be a claim reaching further than the mapping allows.
+
+  **`authorityFromTenureRecords` takes no claims, and the signature is the
+  enforcement.** A rule written as "do not read the token here" is a rule
+  somebody breaks by reading the token here; a function with no token parameter
+  cannot. Resolving *which person this is* and *what that person may do* are
+  deliberately not the same call — the first is the assertion's job and ends
+  there.
+
+  **No live membership of the tenant means no authority in it**, whatever a seat
+  or policy says. A seat is scoped to an organization inside a tenant, so a seat
+  surviving the end of the membership that placed it is a seat nobody reviewed.
+  And a live membership on its own grants nothing: being a member is not being
+  able to do anything in particular, and without that test "live membership"
+  would quietly become a capability.
+
+  **An invalid mapping is refused whole**, not applied in the parts that are
+  fine. A mapping that maps `groups` is one somebody wrote intending it to do
+  something; dropping that field silently while honouring the rest leaves them
+  believing it worked.
+
+  **Honest limits.**
+
+  * **One mutation survived, and it is the known class.** Replacing the expected
+    field list with the actual one makes that assertion self-comparing, and the
+    guard passes. No guard catches its own assertion being made vacuous — the
+    same limit recorded for GE-042-005's sweep, and the answer is the same:
+    review and the ratchets, not a self-referential assertion that only looks
+    like one.
+  * **Nothing calls either function.** There is no callback turning an assertion
+    into a person, and `apps/web` still authenticates through NextAuth. The rule
+    and its two structural enforcements are live; the flow they will govern
+    arrives with the Cognito cutover, BLOCKED_EXTERNAL on the missing AWS
+    Organization (GE-041-003).
+  * **`seatCapabilities` and `policyCapabilities` are supplied, not derived
+    here.** Turning live seats and policies into capability strings is
+    `@tenure/authorization`'s job and already exists; duplicating it would give
+    two answers to one question.
+  * **The guard reads source, not behaviour.** It cannot see a claim carried
+    through a variable whose name says nothing, or a proposal widened by a
+    dependency. It catches the shape people actually write.
+
+  100/1219 decided.

@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "2adaddb",
+  "commit": "d4ca75f",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 96,
-    "done": 84,
+    "total": 97,
+    "done": 85,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -700,6 +700,13 @@
             "title": "Implement OIDC enterprise lifecycle with discovery/JWKS, client secret reference/rotation, claims mapping, test, activation, health, and rollback.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-043-003",
+            "done": true,
+            "title": "Treat IdP groups/claims only as mapped inputs; never grant privilege directly without Tenure membership/seat/policy.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -714,7 +721,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 98,
+    "decided": 100,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -847,14 +854,14 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 6
+        "done": 7
       },
       {
         "phase": "GE · GE-043: Enterprise federation and lifecycle",
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "GE · GE-044: Authentication security tests",
@@ -2065,7 +2072,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 20,
+      "files": 21,
       "what": "repository and deployment invariants"
     },
     {
