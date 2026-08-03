@@ -330,7 +330,7 @@ Use this evidence shape:
 ### GE-050: Temporal organization graph
 
 - [x] GE-050-001 — Implement/migrate `OrganizationUnit`, typed effective-dated `OrganizationRelationship`, `Seat`, `SeatAssignment`, `Delegation`, `Team/Cohort`, and resource relationship models.
-- [ ] GE-050-002 — Separate seat, person, membership, identity, and assignment in database, domain, API, UI, imports, and reports.
+- [x] GE-050-002 — Separate seat, person, membership, identity, and assignment in database, domain, API, UI, imports, and reports.
 - [ ] GE-050-003 — Support company/division/department/team/location/project and school/office/club/committee structures with arbitrary configured types and constraints.
 - [ ] GE-050-004 — Support active/future/interim/acting/shadow/delegate/leave/former/alumni/advisor/contractor assignment states through configuration.
 - [ ] GE-050-005 — Preserve bitemporal/effective history sufficient to reconstruct occupant, hierarchy, authority, and policy at any decision time.

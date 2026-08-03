@@ -39,7 +39,7 @@ function seatCode(clubName: string, seatName: string): string {
 }
 
 /**
- * `Role.positionCode` is GLOBALLY @unique, but `seatCode` is derived from a
+ * `Seat.positionCode` is GLOBALLY @unique, but `seatCode` is derived from a
  * club's initials — so two clubs with the same initials (e.g. "Consulting
  * Club" and "Chess Club" both → "CC") generate identical codes and the second
  * charter would hit a P2002 and could never be chartered. Resolve collisions
@@ -52,7 +52,7 @@ export async function uniquePositionCode(
 ): Promise<string> {
   let code = base
   let n = 2
-  while (await tx.role.findUnique({ where: { positionCode: code }, select: { id: true } })) {
+  while (await tx.seat.findUnique({ where: { positionCode: code }, select: { id: true } })) {
     code = `${base}-${n}`
     n++
   }
@@ -97,12 +97,15 @@ export async function chartClub(
     })
     for (const seat of STARTER_SEATS) {
       const positionCode = await uniquePositionCode(tx, seatCode(name, seat.name))
+      // GE-050-002. The role carries the authority; the seat carries the
+      // position. Created together because a starter seat is exactly one of
+      // each, and a role with no seat would be authority attached to no post.
       await tx.role.create({
         data: {
           organizationId: club.id,
           name: seat.name,
           scope: seat.scope,
-          positionCode,
+          seat: { create: { organizationId: club.id, positionCode } },
         },
       })
     }

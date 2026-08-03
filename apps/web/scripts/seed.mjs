@@ -152,33 +152,36 @@ async function main() {
     // Position codes are globally unique. A renamed seat ("VP Casing" ->
     // "VP of Casing") reduces to the same code, so release the code from the
     // old row before the new one claims it.
-    const stale = await db.role.findMany({
+    // GE-050-002. The position code lives on Seat now; the release still has
+    // to happen before the new row claims it.
+    const stale = await db.seat.findMany({
       where: { organizationId: org.id, positionCode: { in: [...desiredCodes] } },
+      include: { role: { select: { name: true } } },
     })
-    for (const role of stale) {
-      if (!desiredNames.has(role.name)) {
-        await db.role.update({ where: { id: role.id }, data: { positionCode: null } })
+    for (const seat of stale) {
+      if (!desiredNames.has(seat.role.name)) {
+        await db.seat.update({ where: { id: seat.id }, data: { positionCode: null } })
       }
     }
 
     for (const [index, seat] of club.seats.entries()) {
+      const position = {
+        positionCode: seat.positionCode,
+        positionNote: seat.positionNote,
+        vacancyNote: seat.holder ? null : seat.vacancyNote || null,
+        seatOrder: index,
+      }
       const role = await db.role.upsert({
         where: { organizationId_name: { organizationId: org.id, name: seat.name } },
         update: {
-          positionCode: seat.positionCode,
-          positionNote: seat.positionNote,
-          vacancyNote: seat.holder ? null : seat.vacancyNote || null,
           scope: scopeFor(seat.basePosition),
-          seatOrder: index,
+          seat: { upsert: { update: position, create: { organizationId: org.id, ...position } } },
         },
         create: {
           organizationId: org.id,
           name: seat.name,
-          positionCode: seat.positionCode,
-          positionNote: seat.positionNote,
-          vacancyNote: seat.holder ? null : seat.vacancyNote || null,
           scope: scopeFor(seat.basePosition),
-          seatOrder: index,
+          seat: { create: { organizationId: org.id, ...position } },
         },
       })
 
@@ -209,9 +212,14 @@ async function main() {
         organizationId: org.id,
         name: "Member",
         scope: "MEMBER",
-        // club.code, not the legacy helper: initials alone collide
-        // (Simon Says and Simon Sports both reduce to "SS")
-        positionCode: `${club.code}-MEMB`,
+        seat: {
+          create: {
+            organizationId: org.id,
+            // club.code, not the legacy helper: initials alone collide
+            // (Simon Says and Simon Sports both reduce to "SS")
+            positionCode: `${club.code}-MEMB`,
+          },
+        },
       },
     })
 

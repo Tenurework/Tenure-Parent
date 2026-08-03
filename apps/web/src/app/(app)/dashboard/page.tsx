@@ -59,7 +59,9 @@ export default async function DashboardPage() {
     const mySeats = await db.roleAssignment.findMany({
       where: { userId: ctx.userId, status: { in: ["ACTIVE", "SHADOW"] } },
       include: {
-        role: { include: { organization: { select: { id: true, name: true, slug: true } } } },
+        role: {
+          include: { seat: true, organization: { select: { id: true, name: true, slug: true } } },
+        },
       },
       orderBy: { startDate: "desc" },
     })
@@ -317,7 +319,9 @@ export default async function DashboardPage() {
                   </span>
                 )}
               </div>
-              {s.role.positionCode && <p className="mt-0.5 text-meta text-text-3">{s.role.positionCode}</p>}
+              {s.role.seat?.positionCode && (
+                <p className="mt-0.5 text-meta text-text-3">{s.role.seat.positionCode}</p>
+              )}
               <div className="mt-1.5 flex flex-wrap gap-3 text-[13px]">
                 <Link href={`/orgs/${s.role.organization.slug}/members`} className="text-[--primary] no-underline hover:underline">
                   Members

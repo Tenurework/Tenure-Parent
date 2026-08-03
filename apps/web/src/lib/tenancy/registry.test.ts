@@ -100,8 +100,14 @@ describe("the registry matches prisma/schema.prisma", () => {
     // behaviour it was written for.
     expect(TENANT_SCOPED).toHaveLength(16)
     expect(PLATFORM_GLOBAL).toHaveLength(5)
-    expect(Object.keys(UNENFORCEABLE)).toHaveLength(19)
-    expect(schemaModels).toHaveLength(40)
+    //
+    // 19 → 20 on 2026-08-03: Seat (GE-050-002). The durable position left Role
+    // so that renaming a seat no longer edits the row authorization reads. It
+    // reaches its tenant through Organization, exactly as Role does, so it is
+    // unenforceable by column rather than tenant-scoped. The tripwire fired on
+    // the migration, which is the behaviour it was written for.
+    expect(Object.keys(UNENFORCEABLE)).toHaveLength(20)
+    expect(schemaModels).toHaveLength(41)
   })
 })
 

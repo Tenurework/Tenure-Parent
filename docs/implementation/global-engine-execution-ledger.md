@@ -6283,75 +6283,97 @@ worth less than three items that hold.
 
   112/1219 decided.
 
-- [ ] **GE-050-002** — Separate seat, person, membership, identity, and assignment in database, domain, API, UI, imports, and reports.
-  - Status: FAIL — scoped and measured, not implemented. Stays queued.
-  - Evidence: the survey below is real and was run; no code changed.
+- [x] **GE-050-002** — Separate seat, person, membership, identity, and assignment in database, domain, API, UI, imports, and reports.
+  - Status: PASS
+  - Code: `apps/web/prisma/migrations/20260803070000_seat_is_not_a_role/`,
+    `apps/web/prisma/schema.prisma` (new `Seat` model),
+    `apps/web/src/lib/clubs.ts`, `apps/web/src/app/(app)/admin/actions.ts`,
+    four page components, `apps/web/scripts/seed.mjs`,
+    `apps/web/scripts/census.mjs`, `apps/web/src/lib/tenancy/registry.ts`
+  - Tests: `apps/web/src/lib/seat-is-not-a-role.itest.ts` (7, real PostgreSQL)
+  - Evidence: 2481/2481 apps/web unit across 104 suites, 92/92 isolation,
+    **152/152 Playwright** on a freshly created and seeded database under the CI
+    environment (`TENANCY_ENFORCE=true`), type-check clean, gate passed.
+    **4 mutations on the migration, 4 caught**, against fresh databases with a
+    verified-green baseline first.
 
-  ## Four of the five are already separate
+  Four of the five were already separate. The item reduced to one fusion, and
+  the previous tick measured it: `Role` carried a permission scope, an
+  organization-scoped record, **and** a durable position — `positionCode`,
+  whose own schema comment read "Permanent position ID — the seat's identity
+  outlives every holder", in the same row every authorization check reads.
 
-  `User`, `InstitutionMembership`, `RoleAssignment` and the identity engine's
-  `ExternalIdentity` are distinct records with distinct lifecycles. The item
-  reduces to one fusion, and it is the important one.
+  ## One migration, because two would be worse
 
-  ## `Role` is doing three jobs
+  Create `Seat`, backfill one per `Role`, drop the four columns — in a single
+  file. Splitting it would leave a window where both tables carry the position:
+  two records of one fact, which is the drift this repository repaired in
+  `prompt-matches-ledger` three ticks ago.
 
-  `apps/web/prisma/schema.prisma:218`. One table carries:
+  The backfill preserves each role's `createdAt` on its new seat rather than
+  stamping migration time. A position is as old as the row it was lifted out of,
+  and a seat claiming to have been created during a migration would misdate every
+  history that hangs off it.
 
-  1. **A seat** — `positionCode` ("Permanent position ID — the seat's identity
-     outlives every holder"), `positionNote`, `vacancyNote`, `seatOrder`.
-  2. **A permission scope** — `scope: RoleScope`, which is what every
-     authorization check reads.
-  3. **An organization-scoped record** — `organizationId`.
+  **Proved on the upgrade path, not just a fresh database.** A fresh database
+  never exercises a backfill — there are no rows to carry. So the migration was
+  applied to a database built from the *previous* migrations with a `Role` row
+  carrying all four columns, and the resulting `Seat` was inspected: every value
+  carried across, `createdAt` preserved at 2020-01-01, and `Role` left with only
+  `id`, `organizationId`, `name`, `description`, `scope`, `createdAt`,
+  `updatedAt`.
 
-  The schema comment already states the seat concept correctly; the model does
-  not implement it. Consequences that are live today: two positions with the same
-  scope in one organization need two Role rows that differ only by name; renaming
-  a position edits the row authorization reads; and a seat's history attaches to a
-  record that also defines permissions, so it cannot be retired without
-  considering who that would deauthorise.
+  ## What the split buys
 
-  GE-050-001 modelled `Seat` properly in `@tenure/organization-model`. This item
-  is making the database agree with it.
+  Renaming a position no longer edits the row authorization reads — an
+  integration test renames a role and asserts the seat's id, position code and
+  scope are untouched. A seat cascades with its role, so a deleted role cannot
+  leave a position pointing at nothing. Position codes stay globally unique,
+  which is what stops the second club with the same initials silently taking the
+  first one's identity.
 
-  ## Measured blast radius
+  ## The registry tripwire fired, as designed
 
-  | Surface | Files | Notes |
-  |---|---:|---|
-  | `apps/web/src` reads of seat columns | 7 files, 21 references | `admin/actions.ts`, `admin/clubs/[slug]`, `dashboard`, `orgs/[slug]/handoff`, `orgs/[slug]/members`, `settings`, `lib/clubs.ts` |
-  | Scripts and imports | 6 | `seed.mjs`, `generate-roster.mjs`, `census.mjs`, `roster-data.mjs`, `clubs-data.mjs`, `ci-two-tenant-fixture.mjs` |
-  | Schema and migrations | 2 | `schema.prisma`, the baseline migration |
-  | `role` references in the schema | 34 | the relation is load-bearing across the model |
+  A new model must be classified for tenant isolation, and `registry.test.ts`
+  refused the build until it was. `Seat` reaches its tenant through
+  `Organization` exactly as `Role` does and has no `institutionId` of its own,
+  so it is `UNENFORCEABLE` by column rather than `TENANT_SCOPED` — the same
+  classification, for the same reason, as the row it came out of. The count
+  ratchet moved 19 → 20 with that reasoning recorded beside it.
 
-  ## Why this tick stopped here
+  ## The first mutation run was wrong, and said so loudly
 
-  A schema split needs the migration, the backfill, all 21 read sites, the seed,
-  the roster generator, the two-tenant fixture and a full Playwright run on a
-  freshly created database — verified together, because a half-migrated tree with
-  duplicated columns is two records of one fact, which is the failure this
-  repository fixed in `prompt-matches-ledger` one tick ago.
+  Six mutations, 0 caught. Not a coverage gap: editing `schema.prisma` does not
+  change database constraints — the migration SQL does, and the database was
+  already migrated. Three of the six were testing the wrong artefact entirely,
+  and the other three sat on code paths (`chartClub`, the seed) that the
+  integration test never calls.
 
-  That did not fit the room left in the session, and starting it would have left
-  the tree worse than not starting. The survey is the useful artefact: the next
-  tick begins with the blast radius known rather than discovering it.
+  Redone against the right artefact: each mutation applied to the migration SQL,
+  a fresh database created and migrated, and a **green baseline verified first**
+  so a run that fails for an unrelated reason cannot be counted as a catch. A
+  migration that will not apply counts as caught, because a constraint that
+  cannot be created is not a constraint. `chartClub` is exercised by
+  `e2e/admin.spec.ts` — a director chartering a club through the console — which
+  is a better proof than a unit test of the same call.
 
-  ## The plan, so the next tick does not re-derive it
+  **Honest limits.**
 
-  1. **Migration** — add `Seat` (`id`, `organizationId`, `positionCode` unique,
-     `positionNote`, `vacancyNote`, `seatOrder`, effective dates, `retiredAt`);
-     add `RoleAssignment.seatId`.
-  2. **Backfill in the same migration** — one `Seat` per existing `Role`,
-     carrying the four columns; set every `RoleAssignment.seatId` from its
-     role's new seat. One statement each, no application code involved.
-  3. **Move the reads** — the 7 src files and 6 scripts read `seat.*` instead of
-     `role.*`. `Role` keeps `name`, `description`, `scope`.
-  4. **Drop the moved columns from `Role`** in the same migration, so there is
-     never a moment with two copies.
-  5. **Verify** — `test:isolation` on real PostgreSQL, the full Playwright suite
-     on a freshly created and seeded database under the CI environment, and the
-     legacy-database fixture in CI which applies the baseline migration and would
-     catch a migration that only works forward from today's schema.
+  * **One seat per role, enforced by a unique index.** That is what the backfill
+    produced and what the product needs today. Two seats sharing a role — a
+    department with two identical positions — is a real future case, and lifting
+    the constraint is a deliberate migration rather than something that happens
+    by accident.
+  * **`SeatHolding` still points at `Role`.** It records a directory person
+    holding a position for a term, so it arguably belongs against `Seat`. It
+    carries none of the four moved columns, so leaving it is not a second copy of
+    anything; moving it is a separate migration with its own read sites, and
+    bundling it here would have widened a schema change that is already broad.
+  * **`RoleAssignment` was deliberately not given a `seatId`.** At 1:1,
+    assignment → role → seat is unambiguous, and a direct edge would be a second
+    path to the same fact. It becomes necessary the day a role has two seats,
+    and that is the migration that should add it.
+  * **`generate-roster.mjs` was not changed.** It emits the roster *data* shape,
+    which is unchanged — only where the seed persists those fields moved.
 
-  Steps 1, 2 and 4 are one migration. Splitting them across two would create the
-  duplicated-column window this plan exists to avoid.
-
-  112/1219 decided.
+  113/1219 decided.

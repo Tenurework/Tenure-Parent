@@ -289,7 +289,13 @@ export async function adminCreateSeat(formData: FormData) {
     // collide (P2002) — dedupe by suffixing a counter, same as the charter path.
     const positionCode = await uniquePositionCode(db, `${clubCode(org.name)}-${suffix}`)
     await db.role.create({
-      data: { organizationId: org.id, name, scope, positionCode },
+      // GE-050-002. Role carries the authority, Seat carries the position.
+      data: {
+        organizationId: org.id,
+        name,
+        scope,
+        seat: { create: { organizationId: org.id, positionCode } },
+      },
     })
     revalidateAdmin(org.slug)
   })

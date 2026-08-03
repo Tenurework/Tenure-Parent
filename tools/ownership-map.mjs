@@ -100,6 +100,9 @@ const DOMAINS = [
 
       'apps/web/src/lib/org/',
       'apps/web/src/lib/clubs.ts',
+      // GE-050-002. Proves the seat/role split against a real database, which
+      // is an organization-graph claim rather than a tenancy one.
+      'apps/web/src/lib/seat-is-not-a-role.itest.ts',
       'apps/web/src/lib/directory.ts',
       'apps/web/src/app/(app)/orgs/',
       'apps/web/src/app/api/org-image/',

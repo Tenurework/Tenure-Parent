@@ -40,8 +40,9 @@ export default async function AdminClubDetailPage({
       where: { slug },
       include: {
         roles: {
-          orderBy: [{ seatOrder: "asc" }, { scope: "asc" }],
+          orderBy: [{ seat: { seatOrder: "asc" } }, { scope: "asc" }],
           include: {
+            seat: true,
             assignments: {
               where: { status: { not: "ALUMNI" } },
               include: { user: { select: { name: true, email: true } } },
@@ -148,8 +149,8 @@ export default async function AdminClubDetailPage({
                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h3 className="font-display text-base font-semibold text-text-1">{role.name}</h3>
-                    {role.positionCode && (
-                      <p className="text-[13px] text-text-3">Position ID {role.positionCode}</p>
+                    {role.seat?.positionCode && (
+                      <p className="text-[13px] text-text-3">Position ID {role.seat.positionCode}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">

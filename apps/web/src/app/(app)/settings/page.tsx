@@ -26,7 +26,7 @@ export default async function SettingsPage() {
 
     const seats = await db.roleAssignment.findMany({
       where: { userId: user.id, status: { in: ["ACTIVE", "SHADOW"] } },
-      include: { role: { include: { organization: { select: { name: true } } } } },
+      include: { role: { include: { seat: true, organization: { select: { name: true } } } } },
       orderBy: { startDate: "desc" },
     })
 
@@ -145,9 +145,9 @@ export default async function SettingsPage() {
                       <p className="text-sm font-medium text-text-1">
                         {s.role.name} · {s.role.organization.name}
                       </p>
-                      {s.role.positionCode && (
+                      {s.role.seat?.positionCode && (
                         <p className="text-xs text-text-3 mt-0.5">
-                          Position ID {s.role.positionCode}
+                          Position ID {s.role.seat.positionCode}
                         </p>
                       )}
                     </div>

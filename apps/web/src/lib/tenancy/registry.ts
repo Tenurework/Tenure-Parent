@@ -95,6 +95,11 @@ export const UNENFORCEABLE: Record<string, { reachableVia: string; note?: string
   NotificationPreference: { reachableVia: "User (per-user; no tenant column)" },
   // organizationId only — the tenant is one join away
   Role: { reachableVia: "Organization.institutionId" },
+  // GE-050-002. A seat is a durable position inside an organization, so it is
+  // tenant-owned and reaches its tenant exactly as its Role does — through the
+  // Organization. It has no institutionId of its own to filter on, which puts
+  // it here rather than in TENANT_SCOPED.
+  Seat: { reachableVia: "Organization.institutionId" },
   OrganizationAdvisor: { reachableVia: "Organization.institutionId" },
   BudgetLine: { reachableVia: "Organization.institutionId" },
   LedgerEntry: { reachableVia: "Organization.institutionId" },

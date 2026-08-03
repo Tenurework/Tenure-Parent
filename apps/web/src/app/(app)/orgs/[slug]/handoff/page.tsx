@@ -47,8 +47,9 @@ export default async function HandoffPage({
       include: {
         advisors: { include: { person: true } },
         roles: {
-          orderBy: [{ seatOrder: "asc" }, { scope: "asc" }],
+          orderBy: [{ seat: { seatOrder: "asc" } }, { scope: "asc" }],
           include: {
+            seat: true,
             holdings: { include: { person: true }, orderBy: { term: "desc" } },
             assignments: {
               where: { status: { in: ["ACTIVE", "SHADOW"] } },
@@ -146,8 +147,8 @@ export default async function HandoffPage({
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-text-1">{role.name}</p>
-                      {role.positionCode && (
-                        <p className="text-meta text-text-3">Position ID {role.positionCode}</p>
+                      {role.seat?.positionCode && (
+                        <p className="text-meta text-text-3">Position ID {role.seat.positionCode}</p>
                       )}
                     </div>
                     <Link

@@ -186,6 +186,7 @@ model Organization {
 
   advisors       OrganizationAdvisor[]
   roles          Role[]
+  seats          Seat[]
   approvals      ApprovalRequest[]
   events         Event[]
   conversations  Conversation[]
@@ -222,25 +223,57 @@ model Role {
   name           String       // "President", "VP Finance & Operations", etc.
   description    String?
   scope          RoleScope    @default(FUNCTIONAL)
-  // Permanent position ID — the seat's identity outlives every holder.
-  // Knowledge, history, and accomplishments attach to this, not to people.
-  positionCode   String?      @unique
-  // Editorial note from the roster, e.g. "Interim oversee marketing and Comms"
-  positionNote   String?
-  // Why a seat is empty, e.g. "Opening in the fall". Only meaningful when the
-  // seat has no current holder.
-  vacancyNote    String?
-  // Preserves the seat order as published by OSE
-  seatOrder      Int?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  // GE-050-002. The position identity moved to Seat. What is left here is what
+  // authorization reads, so renaming a position no longer edits this row.
+  seat          Seat?
   assignments   RoleAssignment[]
   memoryRecords MemoryRecord[]
   holdings      SeatHolding[]
 
   @@unique([organizationId, name])
   @@index([organizationId, scope])
+}
+
+/// The durable organizational position, separate from the authority it carries.
+///
+/// GE-050-001 named this the platform's primary continuity primitive: work,
+/// decisions, files and history attach to the position "without becoming the
+/// personal property of an occupant". GE-050-002 is the database agreeing —
+/// until then these four columns lived on `Role`, in the same row every
+/// authorization check reads.
+///
+/// One seat per role today, which is what the backfill produced. A second seat
+/// sharing a role is a real future case; lifting the unique constraint is a
+/// deliberate migration rather than something that happens by accident.
+model Seat {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleId         String       @unique
+  role           Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  /// Permanent position ID — the seat's identity outlives every holder.
+  positionCode   String?      @unique
+  /// Editorial note from the roster, e.g. "Interim oversee marketing and Comms"
+  positionNote   String?
+  /// Why a seat is empty, e.g. "Opening in the fall". Only meaningful when the
+  /// seat has no current holder.
+  vacancyNote    String?
+  /// Preserves the seat order as published by OSE
+  seatOrder      Int?
+
+  /// Effective-dated: a position is created and can be retired. A retired seat
+  /// is not deleted — its history stays answerable.
+  effectiveFrom  DateTime     @default(now())
+  effectiveUntil DateTime?
+  retiredAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
 }
 
 /// An institution-wide club deadline: audits, evaluations, event submission

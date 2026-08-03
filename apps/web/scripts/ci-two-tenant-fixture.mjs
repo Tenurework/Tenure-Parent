@@ -40,7 +40,7 @@ const B = {
  * Names that currently MUST NOT collide with tenant A, because the constraints
  * that would allow it are still global:
  *
- *   Organization.slug, Role.positionCode, Deliverable.key, DirectoryPerson.email
+ *   Organization.slug, Seat.positionCode, Deliverable.key, DirectoryPerson.email
  *
  * After ADR-0004's M2-M4 these become tenant-scoped composites, and this fixture
  * should switch to values that deliberately DO collide — that is the assertion

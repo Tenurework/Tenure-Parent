@@ -39,8 +39,9 @@ export default async function MembersPage({
         roles: {
           // seatOrder preserves the order OSE publishes; nulls (e.g. the generic
           // Member seat) sort last
-          orderBy: [{ seatOrder: "asc" }, { scope: "asc" }],
+          orderBy: [{ seat: { seatOrder: "asc" } }, { scope: "asc" }],
           include: {
+            seat: true,
             assignments: {
               orderBy: { startDate: "desc" },
               include: { user: { select: { name: true, email: true } } },
@@ -134,8 +135,8 @@ export default async function MembersPage({
               <CardHeader
                 title={role.name}
                 subtitle={
-                  role.positionCode
-                    ? `Position ID ${role.positionCode} — permanent seat, knowledge stays with the job`
+                  role.seat?.positionCode
+                    ? `Position ID ${role.seat.positionCode} — permanent seat, knowledge stays with the job`
                     : role.description ?? undefined
                 }
                 action={
@@ -146,8 +147,8 @@ export default async function MembersPage({
                 }
               />
 
-              {role.positionNote && (
-                <p className="mb-3 text-xs text-text-2">Note: {role.positionNote}</p>
+              {role.seat?.positionNote && (
+                <p className="mb-3 text-xs text-text-2">Note: {role.seat.positionNote}</p>
               )}
 
               {/* Current holders from the OSE roster */}
@@ -173,7 +174,7 @@ export default async function MembersPage({
               {isVacant && (
                 <p className="mb-3 text-sm text-text-3">
                   {VACANT_LABEL}
-                  {role.vacancyNote ? ` — ${role.vacancyNote}` : ""}
+                  {role.seat?.vacancyNote ? ` — ${role.seat.vacancyNote}` : ""}
                 </p>
               )}
 

@@ -167,8 +167,8 @@ h("(4) COLLISION PRESSURE ON THE FIVE GLOBAL UNIQUES", "A composite is safe to a
 const uniques = await db.$queryRaw`
   SELECT 'Organization.slug' AS constraint_, count(*) AS rows, count(DISTINCT slug) AS distinct_,
          count(*) FILTER (WHERE slug IS NULL) AS nulls FROM "Organization"
-  UNION ALL SELECT 'Role.positionCode', count(*), count(DISTINCT "positionCode"),
-         count(*) FILTER (WHERE "positionCode" IS NULL) FROM "Role"
+  UNION ALL SELECT 'Seat.positionCode', count(*), count(DISTINCT "positionCode"),
+         count(*) FILTER (WHERE "positionCode" IS NULL) FROM "Seat"
   UNION ALL SELECT 'Deliverable.key', count(*), count(DISTINCT key),
          count(*) FILTER (WHERE key IS NULL) FROM "Deliverable"
   UNION ALL SELECT 'DirectoryPerson.email', count(*), count(DISTINCT email),

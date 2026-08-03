@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "da0a6b4",
+  "commit": "66dbf83",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 110,
-    "done": 95,
+    "done": 96,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -794,7 +794,7 @@
           },
           {
             "id": "GE-050-002",
-            "done": false,
+            "done": true,
             "title": "Separate seat, person, membership, identity, and assignment in database, domain, API, UI, imports, and reports.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
@@ -812,7 +812,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 112,
+    "decided": 113,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -973,7 +973,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "GE · GE-051: Authorization engine",
@@ -2173,7 +2173,7 @@
     },
     {
       "name": "tenant isolation",
-      "files": 9,
+      "files": 10,
       "what": "cross-tenant reads must fail"
     },
     {
