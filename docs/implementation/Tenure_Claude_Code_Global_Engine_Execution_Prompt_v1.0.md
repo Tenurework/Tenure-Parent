@@ -278,7 +278,7 @@ Use this evidence shape:
 ### GE-043: Enterprise federation and lifecycle
 
 - [x] GE-043-001 — Implement SAML draft → validate → test → activate → rotate → disable → rollback lifecycle with SP metadata and strict assertion validation.
-- [ ] GE-043-002 — Implement OIDC enterprise lifecycle with discovery/JWKS, client secret reference/rotation, claims mapping, test, activation, health, and rollback.
+- [x] GE-043-002 — Implement OIDC enterprise lifecycle with discovery/JWKS, client secret reference/rotation, claims mapping, test, activation, health, and rollback.
 - [ ] GE-043-003 — Treat IdP groups/claims only as mapped inputs; never grant privilege directly without Tenure membership/seat/policy.
 - [ ] GE-043-004 — Implement domain verification and certificate/secret/JWKS expiry monitoring.
 - [ ] GE-043-005 — Implement SCIM 2.0 tenant-bound `/Users` and `/Groups`, filtering, pagination, ETag/version, PATCH, idempotency, external IDs, deactivate/reactivate, group mapping policy, immediate session revocation, rate limits, audit, and interoperability fixtures—or complete the precise compatible boundary and tests if full SCIM is a later milestone.

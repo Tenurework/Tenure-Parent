@@ -315,3 +315,23 @@ export {
   type SamlAssertionInput,
   type SignatureFacts,
 } from "./saml-assertion"
+
+export {
+  SecretValueError,
+  assertSecretReference,
+  connectionHealth,
+  selectVerificationKey,
+  validateClaimsMapping,
+  validateDiscovery,
+  type ClaimsMapping,
+  type ClientSecretReference,
+  type DiscoveryDocument,
+  type DiscoveryFinding,
+  type DiscoveryProblem,
+  type HealthReport,
+  type HealthState,
+  type JsonWebKey,
+  type KeySelection,
+  type MappingFinding,
+  type MappingProblem,
+} from "./oidc-connection"

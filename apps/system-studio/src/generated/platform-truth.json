@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "2de79fe",
+  "commit": "2adaddb",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 95,
-    "done": 83,
+    "total": 96,
+    "done": 84,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -693,6 +693,13 @@
             "title": "Implement SAML draft → validate → test → activate → rotate → disable → rollback lifecycle with SP metadata and strict assertion validation.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-043-002",
+            "done": true,
+            "title": "Implement OIDC enterprise lifecycle with discovery/JWKS, client secret reference/rotation, claims mapping, test, activation, health, and rollback.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -707,7 +714,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 97,
+    "decided": 98,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -847,7 +854,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "GE · GE-044: Authentication security tests",

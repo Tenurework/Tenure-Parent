@@ -5120,3 +5120,93 @@ worth less than three items that hold.
     rather than renamed as a drive-by.
 
   98/1219 decided.
+
+- [x] **GE-043-002** — Implement OIDC enterprise lifecycle with discovery/JWKS, client secret reference/rotation, claims mapping, test, activation, health, and rollback.
+  - Status: PASS (engine); the HTTP binding is BLOCKED_EXTERNAL
+  - Code: `packages/identity/src/oidc-connection.ts` (`validateDiscovery`,
+    `selectVerificationKey`, `assertSecretReference`, `validateClaimsMapping`,
+    `connectionHealth`)
+  - Tests: `packages/identity/src/oidc-connection.test.ts` (40)
+  - Evidence: 2196/2196 apps/web unit across 95 suites, 139/139 platform guards,
+    type-check clean, gate passed 8 steps. **22 mutations, 22 caught.**
+
+  **Draft → validate → test → activate → rotate → disable → rollback is
+  GE-043-001's state machine, reused rather than rewritten.** Those states are
+  the same whatever the protocol, and two copies would mean two places for a
+  tenant to lock itself out of. This module is the OIDC-specific content of
+  `VALIDATE` and of health.
+
+  **Discovery is checked against the issuer we configured, exactly.** Not a
+  normalised or prefix comparison: `https://idp.test` and `https://idp.test/`
+  are different issuers to a token validator, so accepting either here
+  guarantees every token is later refused for a mismatch nobody can explain.
+  Endpoints must be HTTPS and on the issuer's origin — a document fetched from
+  the issuer that sends authorization somewhere else is either a
+  misconfiguration or a tampered document.
+
+  It returns **every** problem rather than the first. An operator pasting a URL
+  wants the whole list; fix-one-run-again through a slow form is the loop where
+  people give up and disable the checks.
+
+  **`none` and `HS256` are not in the acceptable-algorithm set.** `none` is the
+  algorithm-confusion attack offered as a feature. `HS256` is symmetric — the
+  verification key *is* the client secret, so anyone who has read our
+  configuration can mint tokens we accept. Neither is something a tenant may
+  configure. A provider that declares no algorithm list is not failed, though:
+  absent is not the same as empty, and rejecting on a metadata omission would
+  reject working deployments.
+
+  **A `kid` names one key or nothing.** Falling back to trying every published
+  key is how a rotated-out key keeps working long after it was withdrawn, which
+  makes rotation something that never actually takes effect. A token naming no
+  `kid` against several published keys is ambiguous and refused — guessing lets
+  a token signed by any of them pass as any other.
+
+  **The client secret is a reference with a version.** Bible §11: connector
+  setup uses secret references, never raw long-lived credentials in UI state. A
+  value that reaches this record reaches every backup, export and log line that
+  touches it. `assertSecretReference` is a shape check that fails the obvious
+  paste — a 40-character base64 run is a secret, not a name — and cannot be
+  exhaustive; the obvious paste is the one that actually happens. Rotation is a
+  version change rather than an edit, so the old version stays resolvable while
+  the new one is proven.
+
+  **Claims may say who somebody is and never what they may do.** Bible §9.1:
+  authority "comes from an active, scoped assignment or explicit delegation, not
+  from a title string, email domain, Cognito group, or UI state." The pressure
+  to map `groups` is real — the provider already knows who the directors are and
+  it is one line. What it buys is a system where anyone who can edit a group at
+  the identity provider grants themselves authority inside Tenure, with no
+  assignment record, no approval, and nothing in the audit trail but a
+  successful login. `email` as the subject claim is refused for GE-040-002's
+  reason: an address is a label, so a renamed mailbox becomes a new person and a
+  reassigned one inherits the old person's history.
+
+  The guard does not fire on `department`, and that matters: a guard that flags
+  ordinary descriptive claims gets switched off.
+
+  **`DEGRADED` is a real state, not a hedge.** A connection whose JWKS was last
+  fetched two days ago still verifies tokens from its cached keys, and will
+  until the provider rotates — then stops all at once. That is worth a warning
+  and not an alarm, and reporting it as `FAILING` is how an operator learns to
+  ignore the alarm.
+
+  **Honest limits.**
+
+  * **Nothing calls this.** There is no discovery fetch, no JWKS cache, no
+    connection table, no secret-store client. OIDC arrives with the Cognito
+    cutover, BLOCKED_EXTERNAL on the missing AWS Organization (GE-041-003).
+  * **`connectionHealth` takes facts, it does not gather them.** Whether the
+    JWKS was fetched, and whether a secret version is live, are questions for a
+    caller with network and IAM access. Faking either here would make a health
+    report that is always healthy.
+  * **`assertSecretReference` is heuristic.** It refuses whitespace, empty
+    names, over-long names and high-entropy runs. A short secret that looks like
+    a path would pass, and no shape check can fix that — the real protection is
+    that the field is typed as a name and resolved through a store.
+  * **Claims *mapping* is validated; claims *transformation* is not
+    implemented.** Providers that need a prefix stripped or a domain rewritten
+    will need it, and writing a transformation language now, with no connection
+    to configure, would be the speculative code this repository refuses.
+
+  99/1219 decided.
