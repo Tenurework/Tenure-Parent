@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "dad4c10",
+  "commit": "a621bb0",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 108,
-    "done": 94,
+    "total": 109,
+    "done": 95,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -784,6 +784,13 @@
             "title": "Deployed Cognito authentication, BFF sessions, enterprise federation lifecycle, identity model, tenant discovery, and negative security tests pass; Simon package contains real Tenure outputs and explicit external inputs only.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": true
+          },
+          {
+            "id": "GE-050-001",
+            "done": true,
+            "title": "Implement/migrate `OrganizationUnit`, typed effective-dated `OrganizationRelationship`, `Seat`, `SeatAssignment`, `Delegation`, `Team/Cohort`, and resource relationship models.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -798,7 +805,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 111,
+    "decided": 112,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -959,7 +966,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-051: Authorization engine",

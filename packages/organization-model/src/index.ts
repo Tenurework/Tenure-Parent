@@ -39,3 +39,26 @@ export type {
 
 export { OrgGraph, OrgGraphError, OrgSnapshot, buildOrgGraph } from "./graph"
 export type { OrgRelationInput, OrgUnitInput, Parentage, ResolvedUnit } from "./graph"
+
+export {
+  attachmentSurvivesTurnover,
+  delegationAllows,
+  inTeam,
+  mayRedelegate,
+  redelegate,
+  seatIsOpen,
+  succeedsTo,
+  teamConfers,
+  type Dated,
+  type Delegation,
+  type DelegationRefusal,
+  type DelegationVerdict,
+  type InheritanceClass,
+  type ResourceOwnerKind,
+  type ResourceRelationship,
+  type Seat,
+  type SeatOwnedResource,
+  type SuccessionOutcome,
+  type Team,
+  type TeamMembership,
+} from "./continuity"

@@ -6178,3 +6178,107 @@ worth less than three items that hold.
   rather than maintained.
 
   110/1219 decided.
+
+- [x] **GE-050-001** — Implement/migrate `OrganizationUnit`, typed effective-dated `OrganizationRelationship`, `Seat`, `SeatAssignment`, `Delegation`, `Team/Cohort`, and resource relationship models.
+  - Status: PASS for the models; the persistence is honestly limited below
+  - Code: `packages/organization-model/src/continuity.ts` (`Seat`, `succeedsTo`,
+    `seatIsOpen`, `Delegation`, `delegationAllows`, `mayRedelegate`,
+    `redelegate`, `Team`, `teamConfers`, `inTeam`, `ResourceRelationship`,
+    `attachmentSurvivesTurnover`)
+  - Tests: `packages/organization-model/src/continuity.test.ts` (33)
+  - Evidence: 2481/2481 apps/web unit across 104 suites, 173/173 platform guards,
+    type-check clean, gate passed 8 steps. **21 mutations, 20 caught**; the
+    survivor is behaviourally equivalent and named below.
+
+  An audit found three of the seven already present: `OrganizationUnit` and the
+  typed effective-dated `OrganizationRelationship` in `graph.ts`, and
+  `SeatAssignment` in `@tenure/identity`. Four were missing.
+
+  ## `Seat` did not exist, and it is the product's primary primitive
+
+  Bible §"Executive summary": "The durable organizational position — called a
+  seat in the product — is Tenure's primary continuity primitive. Work,
+  authority, decisions, relationships, policies, files, financial history, and
+  operational knowledge can attach to the seat **without becoming the personal
+  property of an occupant**."
+
+  The closest thing was `SeatAssignment.roleId` — an occupancy pointing at a
+  role. That cannot own anything, cannot outlive its occupant, and gives a
+  successor nothing to inherit. The whole product rests on a sentence that was
+  not modelled.
+
+  **Succession is decided per resource, never per seat.** Bible §341: "Seat
+  ownership never means a successor automatically receives secrets." So a
+  resource carries an `InheritanceClass` — `SEAT_RECORD` passes on, `PERSONAL`
+  never does, `CONTROLLED` waits for a transition workflow — and the two
+  refusals are distinct because they send somebody to different places. "Transfer
+  the seat's things" is the shape of the mistake: one decision standing in for
+  hundreds that are not alike, and the version of it that hands a successor the
+  predecessor's mailbox.
+
+  ## `Delegation` is bounded on every axis, and re-checked every time
+
+  `sourceActions` is what the delegating seat itself holds, and it is checked on
+  every request rather than at creation. A delegator whose own access ended must
+  not keep lending what they no longer have — a delegation validated once and
+  trusted afterwards is exactly that. `EXCEEDS_SOURCE` is the refusal: authority
+  is derived, never invented.
+
+  **A delegation with no end is refused outright.** Bible §649 asks for automatic
+  expiry, and an unbounded one is not authority somebody granted for a reason; it
+  is a second permanent account with no review. So is one with no stated reason —
+  a delegation nobody can review outlives the situation that justified it.
+
+  **Onward delegation is off by default.** Each hop looks reasonable, and the
+  person at the end holds authority the original delegator never met. The budget
+  is finite, visible, and spent on use; a hop cannot widen the action list,
+  because a hop that could add an action is a new grant wearing a delegation's
+  name.
+
+  ## A `Team` confers nothing, and that is the entire implementation
+
+  Bible entity table: a Team/Cohort is "a dynamic or static group for
+  collaboration, **not an automatic security principal unless policy binds it**."
+
+  `teamConfers()` returns `[]`, always. It is a function rather than a comment
+  because the pressure to make team membership grant something is constant and
+  reasonable-sounding — the team already exists, everyone in it needs the same
+  access, it is one line. What that buys is authority that changes when somebody
+  edits a group, with no assignment record and nothing in the audit trail but the
+  edit. The same rule as GE-043-003, applied to a group we own rather than one a
+  directory asserts. `inTeam` still answers who is in it, because that decides
+  who a thing is *shown* to — a different question from what anybody may do.
+
+  ## Resource attachment names the continuity risk
+
+  `attachmentSurvivesTurnover` is false for `PERSON` ownership. That is sometimes
+  right — somebody's own notes and drafts — and it is the default people reach
+  for because it needs no thought. Naming it at the point of attachment is the
+  only moment anybody reconsiders.
+
+  **Honest limits.**
+
+  * **These are models, not tables.** No Prisma migration adds `Seat`,
+    `Delegation`, `Team` or `ResourceRelationship`; nothing persists or queries
+    them. The item says "implement/migrate … models" and this implements the
+    models with their rules. The schema work belongs with GE-050-002, which
+    separates seat from person from membership from identity *in the database*,
+    and doing it before the rules were decided would have produced tables whose
+    constraints were guesses.
+  * **`Dated` is defined locally rather than imported from `@tenure/identity`.**
+    A structurally identical `EffectiveInterval` exists there, and an
+    organization model that depended on the identity package would point the
+    dependency the wrong way — units and seats exist whether or not anybody signs
+    in. Structural typing keeps them interchangeable for a caller holding both.
+  * **One mutation survived, by equivalence.** Replacing
+    `resourceId === null || !includes(resourceId)` with
+    `!includes(String(resourceId))` changes no outcome: `"null"` is in no
+    resource list either. The null check is TypeScript narrowing rather than a
+    decision, and contorting the code to make an equivalent form fail would be
+    writing for the mutation harness instead of for the reader.
+  * **`Delegation.resourceIds` empty means "the delegator's whole scope"**, which
+    the source-action check bounds but does not enumerate. A delegation over
+    every resource a seat can reach is a wide grant, and the model permits it —
+    narrowing that is a policy decision this item does not carry.
+
+  112/1219 decided.
