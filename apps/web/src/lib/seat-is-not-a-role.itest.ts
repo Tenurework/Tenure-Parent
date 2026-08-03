@@ -154,12 +154,19 @@ describe("the position lives on the seat", () => {
 describe("the seeded database keeps them one to one", () => {
   it("gives every role exactly one seat", async () => {
     return runUnscoped("migration", "assert", async () => {
-    // The backfill produced one seat per role and the seed maintains it. A role
-    // with no seat is authority attached to no post, which is the state the
-    // split exists to make impossible to reach by accident.
-    const roles = await db.role.count()
-    const seats = await db.seat.count()
-    const orphanRoles = await db.role.count({ where: { seat: null } })
+    // The backfill produced one seat per role and the seed maintains it.
+    //
+    // Scoped to the seeded pilot institution rather than the whole database.
+    // "Every role has a seat" is not an invariant the schema can enforce — the
+    // relation is optional in that direction — and other integration tests
+    // legitimately create bare roles to exercise other rules. Asserting it
+    // globally made this fail in CI on somebody else's fixture, which is a
+    // defect in the test rather than in the split.
+    const seeded = { organization: { institution: { slug: "rochester" } } }
+
+    const roles = await db.role.count({ where: seeded })
+    const seats = await db.seat.count({ where: seeded })
+    const orphanRoles = await db.role.count({ where: { ...seeded, seat: null } })
 
     expect(roles).toBeGreaterThan(0)
     expect(orphanRoles).toBe(0)
@@ -171,7 +178,9 @@ describe("the seeded database keeps them one to one", () => {
     return runUnscoped("migration", "assert", async () => {
     // Proves the seed writes through to the new table rather than silently
     // dropping the columns it used to set.
-    const coded = await db.seat.count({ where: { positionCode: { not: null } } })
+    const coded = await db.seat.count({
+      where: { positionCode: { not: null }, organization: { institution: { slug: "rochester" } } },
+    })
     expect(coded).toBeGreaterThan(0)
     })
   })

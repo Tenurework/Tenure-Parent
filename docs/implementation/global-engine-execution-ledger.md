@@ -6376,4 +6376,13 @@ worth less than three items that hold.
   * **`generate-roster.mjs` was not changed.** It emits the roster *data* shape,
     which is unchanged — only where the seed persists those fields moved.
 
+  **A red build, and what it was.** The first push failed CI on this file's own
+  assertion: `expect(orphanRoles).toBe(0)` counted across the whole database and
+  found one. Not a defect in the split — `isolation.itest.ts` legitimately
+  creates a bare `Role` to exercise a different rule, and "every role has a seat"
+  is not an invariant the schema can enforce, because the relation is optional in
+  that direction. The assertion now scopes to the seeded pilot institution, which
+  is what it always meant. A test that fails on somebody else's fixture is a
+  defect in the test.
+
   113/1219 decided.
