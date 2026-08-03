@@ -5304,3 +5304,102 @@ worth less than three items that hold.
     dependency. It catches the shape people actually write.
 
   100/1219 decided.
+
+- [x] **GE-043-004** — Implement domain verification and certificate/secret/JWKS expiry monitoring.
+  - Status: PASS
+  - Code: `packages/identity/src/domain-verification.ts` (`claimDomain`,
+    `checkDomainChallenge`, `domainIsAuthoritative`, `tenantForDomain`,
+    `expiryReport`, `expiriesNeedingAttention`)
+  - Tests: `packages/identity/src/domain-verification.test.ts` (41)
+  - Evidence: 2254/2254 apps/web unit across 97 suites, 149/149 platform guards,
+    type-check clean, gate passed 8 steps. **20 mutations, 20 caught** — after
+    the first run's single survivor turned out to be unreachable code.
+
+  ## What a verified domain is actually for
+
+  Bible §9.1: the login resolver starts from a verified domain, and "never
+  reveals whether a person exists or **grants membership from an email domain**."
+  So this is narrower than it looks. A verified domain decides which tenant's
+  branding and login methods a visitor is offered — discovery. It never decides
+  who anybody is or what they may do. The question is not "does this prove the
+  person belongs here" but "does this prove the organization controls this name",
+  and the answer is a DNS record only the controller could publish.
+
+  **A pending claim is exclusive.** Without it two tenants race to publish the
+  TXT record and whoever we poll first takes the domain. It expires after 14
+  days, so exclusivity cannot become squatting.
+
+  **A public suffix cannot be claimed**, and neither can a single label. Nobody
+  controls `edu`, so nobody can prove they do — and a tenant holding it would
+  answer discovery for every institution beneath it. This is *not* the public
+  suffix list: that is thousands of entries maintained elsewhere, and vendoring
+  a stale copy would be worse than a short honest one. `rochester.ac.uk` is
+  claimable and `ac.uk` is not.
+
+  **A vanished record lapses the domain rather than leaving it verified.** A
+  domain that stops proving itself may have changed hands, and a verified claim
+  on a name somebody else now owns hands them a tenant's login page. The proof
+  also goes stale on the clock after 30 days — computed, never a stored flag,
+  for GE-040-001's reason: a sweeper that failed last night must not be what
+  keeps a lapsed domain authoritative.
+
+  **The challenge is matched against the whole record value, not `includes`.** A
+  token embedded in somebody else's TXT record is not proof of control, and a
+  resolver that concatenates values would otherwise make it one.
+
+  **Exact match only — a verified `rochester.edu` does not resolve
+  `lab.rochester.edu`.** Subdomain delegation is common in universities: a
+  department, a lab, a student society may control one. Treating a parent's
+  proof as covering all of them hands a tenant discovery for names it does not
+  control. Each is claimed separately.
+
+  ## Expiry monitoring
+
+  **Not one threshold.** A certificate needs weeks — somebody has to raise a
+  ticket with an identity team that does not work weekends. A JWKS cache needs
+  hours, because refreshing it is automatic and a stale one means the automation
+  stopped. Warning about both at thirty days makes the certificate warning
+  arrive too late and the cache warning arrive constantly, and an operator who
+  sees a constant warning stops reading warnings.
+
+  **Expired is its own state, not the top of urgent** — the action is different,
+  and so is the conversation. **Something with no expiry recorded is reported,
+  not skipped**: a credential without one is a decision somebody made, and it
+  should be visible rather than looking like a healthy row.
+
+  **The list drops healthy rows.** Burying four urgent entries in two hundred
+  fine ones is how the four get missed.
+
+  ## The survivor was unreachable code
+
+  One mutation survived the first run: flipping how undated rows sort within an
+  urgency group changed nothing. It could not — `daysRemaining` is null exactly
+  when the urgency is `UNKNOWN`, so a group is either all-dated or all-undated
+  and the null branches never run. They read as careful and were doing nothing.
+  Removed rather than tested around: code a mutation cannot kill is code that is
+  not deciding anything, and a comment claiming otherwise would be untrue. The
+  simplified comparator is caught by two mutations.
+
+  **Honest limits.**
+
+  * **Nothing calls this.** There is no DNS resolver, no claim table, no
+    scheduled re-verification, and no screen showing expiries. `discovery.ts`
+    already *consumes* verified domains from `@tenure/provisioning`'s registry;
+    this is the lifecycle that would populate it, and it lands with the tenant
+    control plane. The DNS lookup is deliberately the caller's: keeping it out
+    makes this decidable and makes an empty result mean *not proved* rather than
+    *unchanged*.
+  * **The unclaimable list is short and hand-maintained.** It covers the
+    suffixes this product's customers use. A tenant claiming an unusual public
+    suffix — `k12.ny.us`, say — would not be refused. The real fix is the public
+    suffix list as a dependency, which is a decision about vendoring and
+    updating that belongs with the control plane rather than smuggled in here.
+  * **Re-verification is a policy, not a job.** `domainIsAuthoritative` stops
+    counting a proof after 30 days, which fails *closed* — discovery stops
+    resolving the domain until it is proved again. Nothing re-checks
+    automatically yet, so today that would be a silent stop; the scheduler is
+    part of the same control-plane work.
+  * **`expiresAt` for a JWKS cache is the caller's computation**, from its fetch
+    time and max-age. This module ranks and reports; it does not fetch.
+
+  101/1219 decided.

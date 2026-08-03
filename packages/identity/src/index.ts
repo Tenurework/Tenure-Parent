@@ -343,3 +343,26 @@ export {
   type ProposalOutcome,
   type ProposalRefusal,
 } from "./claims-input"
+
+export {
+  CHALLENGE_PREFIX,
+  CLAIM_EXPIRY_DAYS,
+  DOMAIN_CLAIM_STATES,
+  REVERIFY_AFTER_DAYS,
+  checkDomainChallenge,
+  claimDomain,
+  claimIsStale,
+  domainIsAuthoritative,
+  expiriesNeedingAttention,
+  expiryReport,
+  tenantForDomain,
+  type ClaimOutcome,
+  type ClaimRefusal,
+  type DomainClaim,
+  type DomainClaimState,
+  type ExpiringKind,
+  type ExpiringThing,
+  type ExpiryReport,
+  type ExpiryUrgency,
+  type DomainCheckOutcome,
+} from "./domain-verification"

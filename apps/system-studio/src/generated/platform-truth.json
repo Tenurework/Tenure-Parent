@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "d4ca75f",
+  "commit": "267ebe8",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 97,
-    "done": 85,
+    "total": 98,
+    "done": 86,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -707,6 +707,13 @@
             "title": "Treat IdP groups/claims only as mapped inputs; never grant privilege directly without Tenure membership/seat/policy.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-043-004",
+            "done": true,
+            "title": "Implement domain verification and certificate/secret/JWKS expiry monitoring.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -721,7 +728,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 100,
+    "decided": 101,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -861,7 +868,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "GE · GE-044: Authentication security tests",
