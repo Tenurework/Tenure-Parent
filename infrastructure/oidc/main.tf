@@ -1,8 +1,8 @@
 /**
  * GitHub Actions OIDC deployment identity.
  *
- * GE-011. Replaces the long-lived access keys that both `satvikOS/Tenure` and
- * `satvikOS/Tenure-Parent` currently hold, with short-lived credentials minted
+ * GE-011. Replaces the long-lived access keys that both `Tenurework/Tenure` and
+ * `Tenurework/Tenure-Parent` currently hold, with short-lived credentials minted
  * per job and scoped to an exact repository, branch and audience.
  *
  * ── Why this is worth doing before the AWS Organization exists ──────────────
@@ -64,10 +64,10 @@ locals {
   # The exact repositories permitted to assume anything here, in the form
   # GitHub actually signs.
   #
-  # This is NOT `satvikOS/Tenure-Parent`. GitHub issues this repository an
+  # This is NOT `Tenurework/Tenure-Parent`. GitHub issues this repository an
   # immutable-ID-qualified subject:
   #
-  #   repo:satvikOS@228056784/Tenure-Parent@1316219596:ref:refs/heads/main
+  #   repo:Tenurework@312546530/Tenure-Parent@1316219596:ref:refs/heads/main
   #
   # A trust policy naming the plain path never matches, and the failure is
   # "Not authorized to perform sts:AssumeRoleWithWebIdentity" — which says only
@@ -77,8 +77,18 @@ locals {
   # The ID form is stricter, not a workaround: the numbers are immutable, so
   # renaming or recreating a repository at the same path does not inherit this
   # trust. The names are kept alongside for readability.
-  engine_repo = "satvikOS@228056784/Tenure-Parent@1316219596"
-  pilot_repo  = "satvikOS/Tenure"
+  #
+  # 2026-08-03: the repository moved from the `satvikOS` owner to `Tenurework`,
+  # and this is the one string in the rename that could not be edited by
+  # substituting the owner's name. The OWNER id changed — 228056784 became
+  # 312546530 — while the REPO id did not, because a transfer moves a repository
+  # rather than recreating it. Both were read from the API
+  # (`gh api orgs/Tenurework --jq .id`), never inferred: an owner id somebody
+  # guessed is a trust policy that either matches nothing or matches somebody
+  # else, and the first failure mode looks exactly like the second until you
+  # print the claim.
+  engine_repo = "Tenurework@312546530/Tenure-Parent@1316219596"
+  pilot_repo  = "Tenurework/Tenure"
 }
 
 # ── The provider ────────────────────────────────────────────────────────────

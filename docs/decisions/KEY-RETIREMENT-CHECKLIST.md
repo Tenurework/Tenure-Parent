@@ -39,8 +39,8 @@ Last-use tells you a key was used; it does not tell you by what. Check at least:
 - `.github/workflows/*.yml` — every job naming `secrets.ACCESSKEYID` or
   `secrets.SECRETACCESSKEY`. `tests/security/oidc-trust.test.mjs` carries a
   ratchet listing exactly these, and the list may only shrink.
-- Repository and environment secrets: `gh secret list --repo satvikOS/Tenure-Parent`
-- The pilot repository, separately: `gh secret list --repo satvikOS/Tenure`
+- Repository and environment secrets: `gh secret list --repo Tenurework/Tenure-Parent`
+- The pilot repository, separately: `gh secret list --repo Tenurework/Tenure`
 - Any operator machine, CI outside GitHub, or third-party service that was ever
   given a key. This one cannot be enumerated from here and is why step 4 exists.
 

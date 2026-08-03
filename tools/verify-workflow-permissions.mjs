@@ -14,7 +14,7 @@
  * it finds can never fail.
  *
  */
-const repo = process.env.REPO ?? "satvikOS/Tenure-Parent"
+const repo = process.env.REPO ?? "Tenurework/Tenure-Parent"
 const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN
 
 if (!token) {

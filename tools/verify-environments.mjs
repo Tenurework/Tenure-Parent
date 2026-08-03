@@ -15,12 +15,12 @@
  * not having it.
  *
  * Usage:
- *   GH_TOKEN=… REPO=satvikOS/Tenure-Parent node tools/verify-environments.mjs
+ *   GH_TOKEN=… REPO=Tenurework/Tenure-Parent node tools/verify-environments.mjs
  */
 import fs from "node:fs"
 
 const DECLARED = "infrastructure/oidc/environments.json"
-const repo = process.env.REPO ?? "satvikOS/Tenure-Parent"
+const repo = process.env.REPO ?? "Tenurework/Tenure-Parent"
 const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN
 
 if (!token) {

@@ -17,7 +17,7 @@ effect and less structure: the answer baked in. `"Ainslie OSE"` is a literal in
 **eight files**. A second institution does not call its staff office that, and
 there is nowhere to say so.
 
-`satvikOS/Tenure` is not "the product" that this repository abstracts over. It is
+`Tenurework/Tenure` is not "the product" that this repository abstracts over. It is
 **one tenant's system** — the Ainslie Office of Student Engagement at Simon
 Business School. The platform has to be able to produce that system as
 configuration, rather than as the thing it was built around. Until it can, tenant

@@ -3,8 +3,8 @@
  * Disarm the production-operations workflows in every repository except the one
  * that owns the production deployment.
  *
- * Why this exists: `satvikOS/Tenure-Parent` holds the same `ACCESSKEYID` and
- * `SECRETACCESSKEY` secrets as `satvikOS/Tenure`. Importing the application
+ * Why this exists: `Tenurework/Tenure-Parent` holds the same `ACCESSKEYID` and
+ * `SECRETACCESSKEY` secrets as `Tenurework/Tenure`. Importing the application
  * brought `deploy.yml` — `on: push: branches: [main]` — with it. Without a guard,
  * the merge that makes this repository canonical would itself build a container,
  * push it to ECR, run `terraform apply` and roll production ECS, against a live
@@ -26,7 +26,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const PRODUCTION_OWNER = 'satvikOS/Tenure'
+export const PRODUCTION_OWNER = 'Tenurework/Tenure'
 
 /**
  * The repository that owns the platform engine — the System Studio and its
@@ -36,14 +36,14 @@ export const PRODUCTION_OWNER = 'satvikOS/Tenure'
  * **a repository may only deploy what it owns**, and that distinction only
  * became visible once there were two things to own:
  *
- *   satvikOS/Tenure         owns the pilot   -> deploy.yml is armed there
- *   satvikOS/Tenure-Parent  owns the engine  -> deploy-studio.yml is armed here
+ *   Tenurework/Tenure         owns the pilot   -> deploy.yml is armed there
+ *   Tenurework/Tenure-Parent  owns the engine  -> deploy-studio.yml is armed here
  *
  * They share an AWS account and nothing else. Separate Terraform state above
  * all: two repositories applying different code against one state file means
  * whichever runs second destroys the other's resources.
  */
-export const ENGINE_OWNER = 'satvikOS/Tenure-Parent'
+export const ENGINE_OWNER = 'Tenurework/Tenure-Parent'
 
 /** Jobs that deploy the engine, and are therefore armed HERE and nowhere else. */
 export const ENGINE_JOBS = {

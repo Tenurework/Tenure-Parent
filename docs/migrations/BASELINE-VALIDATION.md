@@ -7,7 +7,7 @@ found later can be attributed: pre-existing, or caused by the import.
 Every line below is the result of a command that was executed. Nothing is inferred
 from CI configuration or from a previous claim.
 
-- **Source repository:** `https://github.com/satvikOS/Tenure`
+- **Source repository:** `https://github.com/Tenurework/Tenure`
 - **Branch:** `main`
 - **Commit:** `8d11204` — *feat(tenancy): enforce isolation, and refuse a create that names another tenant*
 - **Run on:** Windows 11, Node v22.21.0, npm 10.9.4, Docker 29.4.3, git 2.51.2
@@ -59,8 +59,8 @@ Actions, and has been since it was introduced:
 
 | Run | Commit | `Migrations · Drift + Apply + Isolation` |
 |---|---|---|
-| [30601682322](https://github.com/satvikOS/Tenure/actions/runs/30601682322) | `8d11204` | failure — this assertion |
-| [30599825012](https://github.com/satvikOS/Tenure/actions/runs/30599825012) | `8f5f151` | failure — this assertion |
+| [30601682322](https://github.com/Tenurework/Tenure/actions/runs/30601682322) | `8d11204` | failure — this assertion |
+| [30599825012](https://github.com/Tenurework/Tenure/actions/runs/30599825012) | `8f5f151` | failure — this assertion |
 | 30599084639 | `cba9fa3` | success (predates the assertion) |
 
 `deploy.yml` runs `ci.yml` as a required gate, so **both deploys after `8f5f151`

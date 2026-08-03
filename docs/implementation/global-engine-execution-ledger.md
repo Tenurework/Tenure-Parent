@@ -43,7 +43,7 @@ than what was built.
 - [x] **GE-000-001** — Worktree, branch, remotes, default branch, protection, unrelated changes.
   - Status: PASS
   - Evidence: worktree clean at time of writing; branch `main`; remotes
-    `origin` → `satvikOS/Tenure-Parent`, `live` → `satvikOS/Tenure`; default
+    `origin` → `Tenurework/Tenure-Parent`, `live` → `Tenurework/Tenure`; default
     branch `main`; no branch protection rulesets configured (recorded as a gap,
     see GE-170). Unrelated changes preserved: the two uploaded documents in
     commit `35087fa` were merged, not overwritten, and moved rather than edited.
@@ -155,7 +155,7 @@ than what was built.
     university addresses for 172 named students and advisors — was committed to
     **two public repositories**, served by `raw.githubusercontent.com` with
     HTTP 200, and shipped inside the production container image. Untracked and
-    gitignored here (`b5edb93`); `satvikOS/Tenure` PR #1 does the same there.
+    gitignored here (`b5edb93`); `Tenurework/Tenure` PR #1 does the same there.
     The mechanism to prevent it already existed — `roster-source.mjs` and its
     three-source fallback — and had never been used, because nothing failed
     while the file sat there. The fix therefore landed as a failing test rather
@@ -271,7 +271,7 @@ than what was built.
 
   Done:
   - untracked and gitignored here (`b5edb93`); the API returns 404 for the path
-  - `satvikOS/Tenure` PR #1 does the same there — that repository cannot be
+  - `Tenurework/Tenure` PR #1 does the same there — that repository cannot be
     pushed to directly
   - three specs and one comment that named real people now derive them from
     `roster-source.mjs` (`d2d40b1`), verified 14/14 against both rosters
@@ -300,8 +300,8 @@ than what was built.
   point is that the new value never passes through me or through a transcript:
 
   ```
-  gh secret set PLATFORM_OPERATOR_SECRET --repo satvikOS/Tenure-Parent
-  gh workflow run deploy-studio.yml --repo satvikOS/Tenure-Parent
+  gh secret set PLATFORM_OPERATOR_SECRET --repo Tenurework/Tenure-Parent
+  gh workflow run deploy-studio.yml --repo Tenurework/Tenure-Parent
   ```
 
   The value must clear the checks in `apps/system-studio/src/lib/operators.ts`:
@@ -364,7 +364,7 @@ for progress:
   AI routes call an external API directly, which §2 forbids for customer records.
 - Tenant configuration is file-backed (`blueprints/tenants.ts`), not stored,
   versioned and published through the control plane.
-- `apps/web` is a duplicate of `satvikOS/Tenure` and does not belong in the
+- `apps/web` is a duplicate of `Tenurework/Tenure` and does not belong in the
   engine repository (PD-008).
 
 ---
@@ -1410,8 +1410,8 @@ for progress:
       --region us-east-1 --profile <engine-account>
     aws cognito-idp create-user-pool-client --user-pool-id <id> \
       --client-name tenure-web --generate-secret
-    gh secret set COGNITO_POOL_ID --repo satvikOS/Tenure-Parent
-    gh secret set COGNITO_APP_CLIENT_ID --repo satvikOS/Tenure-Parent
+    gh secret set COGNITO_POOL_ID --repo Tenurework/Tenure-Parent
+    gh secret set COGNITO_APP_CLIENT_ID --repo Tenurework/Tenure-Parent
     ```
     Domain verification has the same shape: `dns-txt` is modelled and validated,
     and nothing publishes or polls a TXT record because no tenant has claimed a
@@ -2011,9 +2011,9 @@ implemented, mutation-proven and recorded on its own; pushed together.
     `platform-plan.yml` exists and is the place this belongs. To unblock, the
     plan role needs read access to the state backend:
     ```
-    gh variable set AWS_PLAN_ROLE_ARN --repo satvikOS/Tenure-Parent \
+    gh variable set AWS_PLAN_ROLE_ARN --repo Tenurework/Tenure-Parent \
       --body arn:aws:iam::<account>:role/tenure-oidc-plan
-    gh workflow run platform-plan.yml --repo satvikOS/Tenure-Parent
+    gh workflow run platform-plan.yml --repo Tenurework/Tenure-Parent
     ```
     The detector rules themselves are writable now and are the natural first
     item of the next batch.
@@ -4928,8 +4928,8 @@ worth less than three items that hold.
     # then, in the identity account:
     aws cognito-idp create-user-pool --pool-name tenure-engine
     aws cognito-idp create-user-pool-client --user-pool-id <id>       --client-name tenure-web --generate-secret       --allowed-o-auth-flows code --allowed-o-auth-scopes openid email profile
-    gh variable set COGNITO_USER_POOL_ID --body <id> --repo satvikOS/Tenure-Parent
-    gh secret  set COGNITO_CLIENT_SECRET --repo satvikOS/Tenure-Parent
+    gh variable set COGNITO_USER_POOL_ID --body <id> --repo Tenurework/Tenure-Parent
+    gh secret  set COGNITO_CLIENT_SECRET --repo Tenurework/Tenure-Parent
     ```
 
     Recorded as BLOCKED_EXTERNAL rather than PARTIAL. `PARTIAL` was a status the
@@ -5680,8 +5680,8 @@ worth less than three items that hold.
       --client-name tenure-web-dev --generate-secret \
       --allowed-o-auth-flows code --allowed-o-auth-scopes openid email profile \
       --callback-urls https://platform.tenurework.com/api/auth/callback
-    gh variable set COGNITO_USER_POOL_ID_DEV --body <id> --repo satvikOS/Tenure-Parent
-    gh secret  set COGNITO_CLIENT_SECRET_DEV --repo satvikOS/Tenure-Parent
+    gh variable set COGNITO_USER_POOL_ID_DEV --body <id> --repo Tenurework/Tenure-Parent
+    gh secret  set COGNITO_CLIENT_SECRET_DEV --repo Tenurework/Tenure-Parent
     node tools/aws-inventory.mjs && node tools/simon-sso-handoff.mjs
     ```
 
@@ -7648,13 +7648,13 @@ immediately, which is the guard working.
   - Discovered: 2026-08-03, when a push printed
     `remote: This repository moved. Please use the new location:
     https://github.com/Tenurework/Tenure-Parent.git`
-  - Evidence: `gh repo view satvikOS/Tenure-Parent` resolves to
-    `Tenurework/Tenure-Parent`; `gh repo view satvikOS/Tenure` resolves to
+  - Evidence: `gh repo view Tenurework/Tenure-Parent` resolves to
+    `Tenurework/Tenure-Parent`; `gh repo view Tenurework/Tenure` resolves to
     `Tenurework/Tenure`. Both are still **public**.
 
   ## What this changes
 
-  Every AWS-touching job carries `if: github.repository == 'satvikOS/Tenure'`.
+  Every AWS-touching job carries `if: github.repository == 'Tenurework/Tenure'`.
   That string now matches **nothing**, in either repository.
 
   * **In Tenure-Parent this is the safe direction.** The condition is false, so
@@ -7666,12 +7666,64 @@ immediately, which is the guard working.
     green having done nothing. That is the failure mode worth catching early,
     because the first symptom is a deploy that "succeeded" and changed nothing.
   * `bootstrap-oidc.yml` in this repository carries the mirror condition
-    `github.repository == 'satvikOS/Tenure-Parent'`, so that operator workflow
+    `github.repository == 'Tenurework/Tenure-Parent'`, so that operator workflow
     is now inert here too.
 
-  ## Why the rename is the next tick's first work rather than this one's
+  ## Done, 2026-08-03 — with one string that could not be renamed by name
 
-  There are 20 files carrying `satvikOS/`, and they are the most
+  43 tracked files carried `satvikOS/`; all now read `Tenurework/`. The
+  substitution was on the **owner prefix**, which is correct for both names at
+  once: `satvikOS/Tenure-Parent` contains `satvikOS/Tenure`, so the same edit
+  produces `Tenurework/Tenure-Parent` and `Tenurework/Tenure` without either
+  needing a separate pass.
+
+  Verified by what is armed where, not by the diff: 12 jobs guarded to
+  `Tenurework/Tenure` (never true here, so still disarmed) and 2 to
+  `Tenurework/Tenure-Parent` — `bootstrap-oidc.yml` and `deploy-studio.yml`, the
+  same two that were armed before the move. The disarm guard's substring trap
+  survives unchanged in shape:
+  `'Tenurework/Tenure-Parent'.includes('Tenurework/Tenure')` is true for the new
+  names exactly as it was for the old, which is why that guard compares exactly
+  and never with `includes`.
+
+  **The empirical confirmation arrived on its own.** Deploy Studio reported
+  `skipped` rather than `success` on the two pushes after the move — the silent
+  no-op described below, happening here. It is armed again.
+
+  ### The one string the rename could not touch
+
+  `infrastructure/oidc/main.tf` pinned
+  `repo:satvikOS@228056784/Tenure-Parent@1316219596`. GitHub signs OIDC subjects
+  with immutable numeric ids, and `satvikOS@228056784` has no `/` after the
+  owner, so the substitution correctly left it alone.
+
+  The **owner** id changed and the **repo** id did not — a transfer moves a
+  repository rather than recreating it. Both were read from the API rather than
+  inferred:
+
+      gh api orgs/Tenurework --jq .id          # 312546530
+      gh api repos/Tenurework/Tenure-Parent --jq .id   # 1316219596, unchanged
+
+  An owner id somebody guessed is a trust policy that either matches nothing or
+  matches somebody else, and the first failure mode looks exactly like the
+  second — `sts:AssumeRoleWithWebIdentity` says only that the policy did not
+  match, never what was received.
+
+  **BLOCKED_EXTERNAL: the trust policy is code here and not yet applied in
+  AWS.** Until an operator applies it, the OIDC roles still trust
+  `satvikOS@228056784/...`, which GitHub will never send again, so every
+  OIDC-authenticating workflow from this repository fails to assume its role.
+  That is the safe direction — no access rather than wrong access — and it is
+  not a state to leave sitting:
+
+      cd infrastructure/oidc
+      terraform init
+      terraform plan    # expect: three trust policies change, no role recreated
+      terraform apply
+
+  ## Why the production half is still not fixed here
+
+  There are 20 files carrying `Tenurework/`, and they are the most
   safety-critical strings in the repository: the conditions that decide whether
   a workflow may touch AWS. The current state is *safe* — every condition is
   false, so everything stays disarmed — and a half-finished rename is the one
@@ -7683,7 +7735,7 @@ immediately, which is the guard working.
   clean first item rather than an interrupted last one.
 
   **The trap to keep.** `production-workflows-disarmed` reasons explicitly about
-  `'satvikOS/Tenure-Parent'.includes('satvikOS/Tenure')` being true — which is
+  `'Tenurework/Tenure-Parent'.includes('Tenurework/Tenure')` being true — which is
   why the guard uses exact equality and not `includes`. The new names have the
   identical property: `'Tenurework/Tenure-Parent'.includes('Tenurework/Tenure')`
   is also true. The rename must carry that reasoning across intact, not just the
@@ -7707,21 +7759,21 @@ immediately, which is the guard working.
   pull requests against it):
 
       # every AWS-touching job, currently guarded on a name that no longer exists
-      rg -n "github.repository == 'satvikOS/Tenure'" .github/workflows/
+      rg -n "github.repository == 'Tenurework/Tenure'" .github/workflows/
       # replace with the new owner
-      rg -l "satvikOS/Tenure'" .github/workflows/ \
-        | xargs sed -i "s|satvikOS/Tenure'|Tenurework/Tenure'|g"
+      rg -l "Tenurework/Tenure'" .github/workflows/ \
+        | xargs sed -i "s|Tenurework/Tenure'|Tenurework/Tenure'|g"
 
   And in this repository, once that is settled, the same rename for
   `bootstrap-oidc.yml` and the strings pinned in
   `tests/security/production-workflows-disarmed.test.mjs`
   (`THIS_REPOSITORY`) — the guard's substring reasoning about
-  `'satvikOS/Tenure-Parent'.includes('satvikOS/Tenure')` holds identically for
+  `'Tenurework/Tenure-Parent'.includes('Tenurework/Tenure')` holds identically for
   the new names, so it moves across unchanged in shape.
 
   Local `origin` was re-pointed at `https://github.com/Tenurework/Tenure-Parent.git`
   so pushes stop relying on GitHub's redirect. `live` still points at
-  `satvikOS/Tenure`, which also redirects, and is left alone: it is the
+  `Tenurework/Tenure`, which also redirects, and is left alone: it is the
   production remote and this repository must never push to it.
 
   123/1219 decided.

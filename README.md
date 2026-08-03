@@ -4,14 +4,14 @@ The Tenure platform engine: the codebase from which the Tenure team configures,
 provisions, deploys, operates and supports organization-specific systems.
 
 **This repository is the engine. It is not a tenant** (PD-008). A tenant's
-system — the Simon OSE pilot — lives and deploys from `satvikOS/Tenure`. The
+system — the Simon OSE pilot — lives and deploys from `Tenurework/Tenure`. The
 two share an AWS account and nothing else: separate Terraform state, separate
 cluster, separate load balancer, separate CloudFront distribution.
 
 | | URL | Deploys from |
 |---|---|---|
 | **System Studio** (this engine) | https://d2kj4iy5i37kfd.cloudfront.net | this repository |
-| Simon OSE (tenant #1) | https://d1n6mdis7bs02g.cloudfront.net | `satvikOS/Tenure` |
+| Simon OSE (tenant #1) | https://d1n6mdis7bs02g.cloudfront.net | `Tenurework/Tenure` |
 
 Signing in to the Studio needs an address in `PLATFORM_OPERATORS` and the
 operator secret, which Terraform generates and never prints — this repository is
@@ -27,7 +27,7 @@ aws secretsmanager get-secret-value --secret-id tenure-studio/app   --query Secr
 |---|---|
 | `apps/system-studio/` | **The engine.** The internal console: every tenant's blueprint, topology, modules, resolved configuration and release checksum. |
 | `infrastructure/studio/` | The engine's own stack — cluster, ALB, ECR, secret, CloudFront. Separate Terraform state from the pilot's, deliberately. |
-| `apps/web/` | The tenant application, and a **duplicate** of `satvikOS/Tenure`. Here only as the integration proof for the engines until they are consumable by version — see PD-008. |
+| `apps/web/` | The tenant application, and a **duplicate** of `Tenurework/Tenure`. Here only as the integration proof for the engines until they are consumable by version — see PD-008. |
 | `apps/web/prisma/` | 40-model schema, versioned migrations. |
 | `packages/` | The platform engines — see below. Each is used by the application, not shelved beside it. |
 | `modules/` | The module catalog: 12 manifests describing capability the application already has. |
@@ -119,11 +119,11 @@ Two things to know before trusting a red result:
 
 `test:isolation` needs a database but no longer needs a *seeded* one — the suite
 supplies its own fixtures, which is what fixed the failure that had been blocking
-deploys on `satvikOS/Tenure`.
+deploys on `Tenurework/Tenure`.
 
 ## Deployment
 
-**Production deploys from `satvikOS/Tenure`, not from here.** That is deliberate
+**Production deploys from `Tenurework/Tenure`, not from here.** That is deliberate
 and temporary: this repository is canonical for development first, and canonical
 for deployment only after a staging equivalence proof and an approved cutover.
 
@@ -134,7 +134,7 @@ holds the same deploy credentials as the one that deploys:
    `schedule` here, only `workflow_dispatch`. A guarded job still *creates* a run
    that then reports `skipped`, and a repository where half the runs are neither
    success nor failure teaches everyone to stop reading them.
-2. **A job-level guard**, `if: github.repository == 'satvikOS/Tenure'`, so
+2. **A job-level guard**, `if: github.repository == 'Tenurework/Tenure'`, so
    dispatching one here still does nothing.
 
 `npm run test:platform` asserts both in CI, and asserts that the one read-only

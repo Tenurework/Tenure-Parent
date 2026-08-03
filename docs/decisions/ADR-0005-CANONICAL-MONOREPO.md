@@ -7,7 +7,7 @@
 
 > **On the number.** The build directive names this file `ADR-0001-CANONICAL-MONOREPO.md`.
 > `ADR-0001-versioned-migrations-and-boot-safety.md` already existed and was imported with
-> the application, so this was first written as ADR-0004. `satvikOS/Tenure` then added its
+> the application, so this was first written as ADR-0004. `Tenurework/Tenure` then added its
 > own ADR-0004 — the tenant-scoped schema programme — while the import was in flight. That
 > one is upstream and deployed, so this one moved to 0005 rather than asking it to.
 >
@@ -18,28 +18,28 @@
 ## Context
 
 PD-001 decided in the abstract that the platform is built in `Tenure-Parent` and
-that `satvikOS/Tenure` migrates into it. ADR-0003 then did half the work — but in
+that `Tenurework/Tenure` migrates into it. ADR-0003 then did half the work — but in
 the wrong repository. It relocated the application to `apps/web` inside an
-npm-workspaces monorepo *within `satvikOS/Tenure`*, and even named the root
+npm-workspaces monorepo *within `Tenurework/Tenure`*, and even named the root
 package `tenure-parent`, while leaving the actual `Tenure-Parent` repository
 holding five Markdown files. Its own Consequences section says so.
 
 So on 2026-07-31 the state was:
 
-- `satvikOS/Tenure` — the whole working product, correctly monorepo-shaped, 344
+- `Tenurework/Tenure` — the whole working product, correctly monorepo-shaped, 344
   files, deploying production, CI red on the two most recent commits.
-- `satvikOS/Tenure-Parent` — `ARCHITECTURE.md`, `CLAUDE.md`,
+- `Tenurework/Tenure-Parent` — `ARCHITECTURE.md`, `CLAUDE.md`,
   `CURRENT-STATE-INVENTORY.md`, `README.md`, `REVIEW-FINDINGS.md`. Nothing that runs.
 
 Two repositories, one of which is named as the platform and contains no platform.
 
 ## Decision
 
-Merge `satvikOS/Tenure` into `satvikOS/Tenure-Parent` **at the root**, with full
+Merge `Tenurework/Tenure` into `Tenurework/Tenure-Parent` **at the root**, with full
 history, and treat the result as canonical.
 
 ```
-git remote add live https://github.com/satvikOS/Tenure.git
+git remote add live https://github.com/Tenurework/Tenure.git
 git fetch live main
 git merge --allow-unrelated-histories --no-ff live/main
 ```
@@ -65,7 +65,7 @@ those citations would dangle.
 asset most worth keeping — `git blame` on a tenancy file is how the next person
 learns why the chokepoint is shaped the way it is.
 
-**Evolve `satvikOS/Tenure` in place and rename it.** Already rejected in PD-001.
+**Evolve `Tenurework/Tenure` in place and rename it.** Already rejected in PD-001.
 It also does not survive contact with the deploy pipeline: that repository's
 `main` builds a container and rolls production ECS on every push, so it is the
 worst possible place to do exploratory platform work.
@@ -86,10 +86,10 @@ worst possible place to do exploratory platform work.
 
 **Deliberately not yet true.**
 
-- **Production still deploys from `satvikOS/Tenure`.** This repository has no
+- **Production still deploys from `Tenurework/Tenure`.** This repository has no
   deployment. That is the safe order: canonical for development first, canonical
   for deployment only after a staging equivalence proof and an approved cutover.
-- **`satvikOS/Tenure` is untouched and stays that way.** It is the rollback source.
+- **`Tenurework/Tenure` is untouched and stays that way.** It is the rollback source.
   It is not archived, not made read-only, not branched from here. The one change
   worth making there — the isolation test that reds its CI — goes as a pull request
   for a human to merge, never as a push to its `main`, because that deploys.

@@ -8,7 +8,7 @@
  * repository can mint credentials in this account.
  *
  * The failure mode is quiet and plausible. `StringEquals` → `StringLike`, or
- * `repo:satvikOS/Tenure-Parent:ref:refs/heads/main` → `repo:satvikOS/*`, both
+ * `repo:Tenurework/Tenure-Parent:ref:refs/heads/main` → `repo:Tenurework/*`, both
  * read like a small generalisation, both apply cleanly, and neither produces a
  * symptom until it is used against you. So the tests below are written as
  * refusals rather than as descriptions.
@@ -103,16 +103,16 @@ test('subject conditions use StringEquals, never a pattern match', () => {
 })
 
 test('no subject value contains a wildcard', () => {
-  // `repo:satvikOS/*` trusts any repository someone can create under that
+  // `repo:Tenurework/*` trusts any repository someone can create under that
   // owner. `repo:*/Tenure-Parent` trusts every fork. Both are one character.
   const subjectLists = [...rolesCode.matchAll(/^\s*(\w*_subjects)\s*=\s*\[([\s\S]*?)\]/gm)]
   assert.ok(subjectLists.length >= 3, 'could not find the subject lists')
 
   // GitHub signs this repository's subject with immutable numeric ids appended
-  // to the owner and repo — `satvikOS@228056784/Tenure-Parent@1316219596`. The
+  // to the owner and repo — `Tenurework@312546530/Tenure-Parent@1316219596`. The
   // ids are stripped before comparison so the check reads the same either way,
   // and a wildcard is still rejected above regardless of form.
-  const ALLOWED_REPOS = ['satvikOS/Tenure-Parent', 'satvikOS/Tenure']
+  const ALLOWED_REPOS = ['Tenurework/Tenure-Parent', 'Tenurework/Tenure']
   const withoutIds = (repo) => repo.replace(/@\d+/g, '')
 
   for (const [, name, body] of subjectLists) {

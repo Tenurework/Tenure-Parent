@@ -30,7 +30,7 @@ export function getBlueprint(id: string): SystemBlueprint | undefined {
  */
 export const TENANT_BINDINGS: readonly TenantBinding[] = [
   {
-    // Simon OSE — the live pilot, and the system that `satvikOS/Tenure` deploys.
+    // Simon OSE — the live pilot, and the system that `Tenurework/Tenure` deploys.
     //
     // Worth being exact about what that repository is, because it changes how to
     // read this whole directory: it is not "the product" with Tenure-Parent as

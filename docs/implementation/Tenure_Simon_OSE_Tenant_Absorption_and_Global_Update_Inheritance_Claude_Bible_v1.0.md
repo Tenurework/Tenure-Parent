@@ -5,8 +5,8 @@
 Version: 1.0  
 Date: 2026-08-02  
 Status: Binding execution prompt for absorbing the Simon OSE implementation into Tenure Parent  
-Source repository: `https://github.com/satvikOS/Tenure`  
-Target repository: `https://github.com/satvikOS/Tenure-Parent`  
+Source repository: `https://github.com/Tenurework/Tenure`  
+Target repository: `https://github.com/Tenurework/Tenure-Parent`  
 Tenant: Simon Business School Office of Student Engagement (OSE), Tenant #1  
 Pilot target: Fall 2026  
 Product thesis: **The person changes. The seat remembers.**
@@ -55,7 +55,7 @@ Do not assume either repository is authoritative merely because it contains work
 ### 1. Binding invariants
 
 - Tenure Parent is the complete global platform and operational source of truth.
-- `satvikOS/Tenure` is the current Simon-shaped source to be forensically absorbed, not a second product that remains independently enhanced.
+- `Tenurework/Tenure` is the current Simon-shaped source to be forensically absorbed, not a second product that remains independently enhanced.
 - Simon is Tenant #1, never the global data model, default terminology, authorization model, AWS topology, workflow ceiling, or product navigation.
 - Simon must run on Tenure-controlled AWS infrastructure and be deployed/operated through Tenure Parent/System Studio.
 - No user personal AWS account or unrelated customer AWS estate.

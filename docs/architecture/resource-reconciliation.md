@@ -9,7 +9,7 @@ the AWS API cannot report which tool owns a resource.
 
 | Stack | State key | Owns |
 |---|---|---|
-| `infrastructure/terraform` | `pilot/terraform.tfstate` | The Simon OSE pilot. Deployed from `satvikOS/Tenure`, **not** from here. |
+| `infrastructure/terraform` | `pilot/terraform.tfstate` | The Simon OSE pilot. Deployed from `Tenurework/Tenure`, **not** from here. |
 | `infrastructure/studio` | `studio/terraform.tfstate` | The System Studio engine. Deployed from this repository. |
 
 Two stacks, two state files, one account. The separation is the safety property: two

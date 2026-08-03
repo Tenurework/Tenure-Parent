@@ -11,16 +11,16 @@ Superseding an entry means adding a new one, not editing the old.
 **Date:** 2026-07-30 · **Status:** Accepted
 
 **Question.** The build directive names this repository as the complete platform
-monorepo, but `satvikOS/Tenure-Parent` holds only documentation, while the
-working, deployed system is a separate repository (`satvikOS/Tenure`). Where
+monorepo, but `Tenurework/Tenure-Parent` holds only documentation, while the
+working, deployed system is a separate repository (`Tenurework/Tenure`). Where
 does the platform get built?
 
-**Decision.** Migrate `satvikOS/Tenure` into `Tenure-Parent` as `apps/web`,
+**Decision.** Migrate `Tenurework/Tenure` into `Tenure-Parent` as `apps/web`,
 preserving git history, and build `packages/` around it there.
 
 **Rejected alternatives.**
 
-- *Evolve `satvikOS/Tenure` in place.* Lower risk — the deploy pipeline never
+- *Evolve `Tenurework/Tenure` in place.* Lower risk — the deploy pipeline never
   moves — but it leaves the repository the directive names as the platform
   holding nothing that runs.
 - *Build `packages/` in Tenure-Parent first, integrate later.* Rejected on the
@@ -123,10 +123,10 @@ Okta lands, without leaving a second sign-in path behind.
 
 ---
 
-## PD-009 — `satvikOS/Tenure` keeps deploying production; Tenure-Parent stays disarmed
+## PD-009 — `Tenurework/Tenure` keeps deploying production; Tenure-Parent stays disarmed
 
 > **Renumbered from PD-004 on 2026-07-31.** It collided with an upstream PD-004
-> ("SSO will be AWS Cognito"), written in `satvikOS/Tenure` while this one was
+> ("SSO will be AWS Cognito"), written in `Tenurework/Tenure` while this one was
 > written here — the same independent-numbering collision ADR-0005 hit with
 > ADR-0004, and for the same reason. The upstream one keeps the number because
 > `infrastructure/terraform/edge-access.tf` cites it in two places; this one had
@@ -139,13 +139,13 @@ Okta lands, without leaving a second sign-in path behind.
 with it, and Tenure-Parent already holds the same `ACCESSKEYID` /
 `SECRETACCESSKEY` secrets. Both repositories therefore reach one AWS account, one
 Terraform state file (`pilot/terraform.tfstate`) and one ECS service. Meanwhile a
-second working session is actively committing to `satvikOS/Tenure` and deploying
+second working session is actively committing to `Tenurework/Tenure` and deploying
 from it — three successful deploys in the hour the import was running. Which
 repository owns production?
 
-**Decision.** `satvikOS/Tenure` continues to deploy production. Every
+**Decision.** `Tenurework/Tenure` continues to deploy production. Every
 AWS-touching job in Tenure-Parent carries
-`if: github.repository == 'satvikOS/Tenure'` and is inert here. Tenure-Parent is
+`if: github.repository == 'Tenurework/Tenure'` and is inert here. Tenure-Parent is
 canonical for platform development and re-syncs from Tenure.
 
 **Basis.** Exactly one deployer. Two pipelines against one Terraform state can
@@ -193,20 +193,20 @@ running count afterwards, roll back on failure, and report what happened.
   Worth revisiting before tenant #2 is provisioned.
 
 **Commits us to.** CI actually being the gate it claims to be. The isolation test
-that had been failing on `satvikOS/Tenure` since `8f5f151` — blocking every
+that had been failing on `Tenurework/Tenure` since `8f5f151` — blocking every
 deploy — is the worked example of what happens when it is not: six commits sat
 undeployed behind an assertion that depended on data nothing seeded.
 
 ---
 
-## PD-006 — `satvikOS/Tenure` is tenant #1, not the product
+## PD-006 — `Tenurework/Tenure` is tenant #1, not the product
 
 **Date:** 2026-07-31 · **Status:** Accepted
 
-**Question.** How should the relationship between `satvikOS/Tenure` and the
+**Question.** How should the relationship between `Tenurework/Tenure` and the
 platform be modelled?
 
-**Decision.** The system `satvikOS/Tenure` deploys **is one tenant's system** —
+**Decision.** The system `Tenurework/Tenure` deploys **is one tenant's system** —
 Simon OSE, the Ainslie Office of Student Engagement at Simon Business School. It
 is not "the product" that Tenure-Parent abstracts over.
 
@@ -317,7 +317,7 @@ a customer's origin.
 
 **What is not yet true, and is the remaining work.**
 
-`apps/web` is still here. It is a **duplicate** of `satvikOS/Tenure`, which is
+`apps/web` is still here. It is a **duplicate** of `Tenurework/Tenure`, which is
 where it is developed and from which it deploys. Keeping it has cost a merge on
 every sync and will keep costing them.
 
@@ -334,7 +334,7 @@ So the sequence is:
    `releases`, `metadata`, `audit`, `platform-config` are consumed by path today.
    A tenant in another repository needs them by version.
 2. **Move the integrations to the tenant.** The navigation, approval-flow,
-   resource-form and terminology wirings belong in `satvikOS/Tenure`, as pull
+   resource-form and terminology wirings belong in `Tenurework/Tenure`, as pull
    requests — never pushes, because that repository deploys production on push
    to `main`.
 3. **Then remove `apps/web` from here**, once its integrations live where the
@@ -343,6 +343,6 @@ So the sequence is:
 Doing (3) first would delete the evidence that (1) and (2) work.
 
 **Commits us to.** Not adding new tenant-application features here. Work that
-belongs to the tenant goes to `satvikOS/Tenure`; work that belongs to the engine
+belongs to the tenant goes to `Tenurework/Tenure`; work that belongs to the engine
 stays. `apps/web` remains only as the integration proof until it is no longer
 needed for that.

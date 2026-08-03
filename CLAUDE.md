@@ -1,9 +1,9 @@
 # Tenure-Parent
 
-`github.com/satvikOS/Tenure-Parent` — the canonical Tenure platform monorepo.
+`github.com/Tenurework/Tenure-Parent` — the canonical Tenure platform monorepo.
 
 As of 2026-07-31 this repository contains the working product, not just documents
-about it. `satvikOS/Tenure` was merged in whole, with history
+about it. `Tenurework/Tenure` was merged in whole, with history
 (`docs/decisions/ADR-0005-CANONICAL-MONOREPO.md`).
 
 ```
@@ -20,7 +20,7 @@ docs/migrations/          import plan, baseline validation
 
 ## Two rules that are not negotiable
 
-**1. Never push to `github.com/satvikOS/Tenure`.**
+**1. Never push to `github.com/Tenurework/Tenure`.**
 
 A push to its `main` builds a container, applies Terraform and rolls production ECS
 for a live pilot carrying real student data. It remains the rollback source until
@@ -35,7 +35,7 @@ that deploys. `deploy.yml` triggers on `push: branches: [main]`. Every AWS-touch
 job therefore carries:
 
 ```yaml
-if: github.repository == 'satvikOS/Tenure'
+if: github.repository == 'Tenurework/Tenure'
 ```
 
 Without it, merging to `main` here rolls production. `npm run test:platform`

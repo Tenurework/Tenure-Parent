@@ -8,12 +8,12 @@ what happened rather than what was intended.
 
 Checked by cloning both, not by reading a previous description of them.
 
-**`satvikOS/Tenure-Parent`** — 5 files, all Markdown, 227 KB, 2 commits.
+**`Tenurework/Tenure-Parent`** — 5 files, all Markdown, 227 KB, 2 commits.
 `ARCHITECTURE.md`, `CLAUDE.md`, `CURRENT-STATE-INVENTORY.md`, `README.md`,
 `REVIEW-FINDINGS.md`. No application, no `package.json`, no tests, no
 infrastructure. A repository of documents about a product that lived elsewhere.
 
-**`satvikOS/Tenure`** — 344 files, 4.4 MB, deep history, 7 live branches.
+**`Tenurework/Tenure`** — 344 files, 4.4 MB, deep history, 7 live branches.
 The working product, and already monorepo-shaped:
 
 ```
@@ -36,7 +36,7 @@ wrong repository.
 ## Import method
 
 ```
-git remote add live https://github.com/satvikOS/Tenure.git
+git remote add live https://github.com/Tenurework/Tenure.git
 git fetch live main
 git merge --allow-unrelated-histories --no-ff live/main
 ```
@@ -96,7 +96,7 @@ b932e7d 2026-07-10 feat(rbac): Week 2 - RBAC core, roster views, pilot sign-in, 
 `git log --follow` on a file inside `apps/web` walks back through the rename to
 its original creation in the source repository three weeks before the monorepo
 existed. `git blame` resolves to the original authoring commits. Commit SHAs are
-unchanged — `8d11204` in this repository is `8d11204` in `satvikOS/Tenure` — so
+unchanged — `8d11204` in this repository is `8d11204` in `Tenurework/Tenure` — so
 every commit citation in the imported ADRs and runbook still resolves.
 
 ## Verified after the merge, from this repository
@@ -128,7 +128,7 @@ to require no repairs.** That is a finding, not an omission.
 
 ## What was deliberately not done
 
-- **`satvikOS/Tenure` is untouched.** No push, no branch, no force, no archive. It
+- **`Tenurework/Tenure` is untouched.** No push, no branch, no force, no archive. It
   still holds `main`, still deploys production on push, and is the rollback source
   until cutover completes.
 - **No production anything.** No DNS, no secrets, no Terraform apply, no migration
@@ -150,7 +150,7 @@ git branch -D platform/import-live-tenure
 # Already merged:
 git revert -m 1 <merge-sha>
 
-# Total abandonment: satvikOS/Tenure is unmodified and still deploys production.
+# Total abandonment: Tenurework/Tenure is unmodified and still deploys production.
 # Nothing needs to be undone there.
 ```
 

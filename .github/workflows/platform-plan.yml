@@ -4,7 +4,7 @@ name: Platform · Terraform plan (read-only)
 #
 # `deploy.yml` here is disarmed (see ADR-0004), so nothing in this repository can
 # change infrastructure. But "disarmed" is not the same as "known-safe to arm".
-# Before cutover moves production deployment from satvikOS/Tenure to this
+# Before cutover moves production deployment from Tenurework/Tenure to this
 # repository, the question that has to be answered with evidence is: does this
 # repository's infrastructure/terraform describe the same infrastructure that is
 # actually running?

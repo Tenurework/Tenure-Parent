@@ -75,7 +75,7 @@ There is no `PARTIAL`. Unfinished is unchecked.
 **One workflow at a time.** If anything is not green, fixing it is the whole
 tick. Not "after this item" — before.
 
-**Push to `main` in this repository only.** Never to `satvikOS/Tenure`; a push
+**Push to `main` in this repository only.** Never to `Tenurework/Tenure`; a push
 to its main rolls production for a live pilot carrying real student data. Open
 a pull request there instead.
 

@@ -58,8 +58,8 @@ jobs:
 
     # This repository owns the engine's deployment identity. The guard is the
     # same one every AWS-touching job here carries: it must be impossible for a
-    # fork, or for satvikOS/Tenure, to run this against the same account.
-    if: github.repository == 'satvikOS/Tenure-Parent'
+    # fork, or for Tenurework/Tenure, to run this against the same account.
+    if: github.repository == 'Tenurework/Tenure-Parent'
 
     env:
       AWS_REGION: us-east-1

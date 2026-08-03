@@ -10,7 +10,7 @@
  * Backend key `studio/terraform.tfstate`, NOT `pilot/terraform.tfstate`.
  *
  * Two repositories already apply Terraform against this AWS account:
- * satvikOS/Tenure owns the pilot, and this repository owns the engine. If both
+ * Tenurework/Tenure owns the pilot, and this repository owns the engine. If both
  * wrote the same state file, whichever applied second would see the other's
  * resources as "not in my configuration" and DESTROY them. That is not a
  * theoretical hazard — it is the default behaviour of `terraform apply` against

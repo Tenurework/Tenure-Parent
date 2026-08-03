@@ -5,7 +5,7 @@ absorption bible, with evidence.
 
 **Source of the checklist:**
 [`Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md`](./Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md)
-**Source repository being absorbed:** `satvikOS/Tenure`
+**Source repository being absorbed:** `Tenurework/Tenure`
 **Target:** this repository
 **Pilot target:** Fall 2026
 
@@ -36,14 +36,14 @@ The same rules as the global engine ledger, plus one the absorption adds.
 6. Baseline failures are recorded separately from new ones.
 7. No credentials, tokens, raw customer data or secret-bearing output as evidence.
 8. **Nothing recorded here may contain Simon student, staff, or applicant data.**
-   `satvikOS/Tenure` carries a live pilot's real records. This repository is
+   `Tenurework/Tenure` carries a live pilot's real records. This repository is
    public, and everything a workflow prints is world-readable and archived. Row
    counts, table names and schema shapes are evidence; a single real row is not,
    whatever it is being used to demonstrate.
 
 ## Two constraints that govern every item below
 
-**`satvikOS/Tenure` is never pushed to.** A push to its `main` builds a
+**`Tenurework/Tenure` is never pushed to.** A push to its `main` builds a
 container, applies Terraform and rolls production ECS for a live pilot carrying
 real student data. It remains the rollback source until cutover completes. Where
 an item requires a change there, it is a pull request for a human to merge.

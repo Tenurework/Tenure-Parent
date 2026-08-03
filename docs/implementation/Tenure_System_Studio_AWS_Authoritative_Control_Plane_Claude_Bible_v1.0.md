@@ -5,7 +5,7 @@
 Version: 1.0  
 Date: 2026-08-02  
 Status: Binding execution prompt for the Tenure Global Distribution Engine and Tenure System Studio  
-Primary repository: `https://github.com/satvikOS/Tenure-Parent`  
+Primary repository: `https://github.com/Tenurework/Tenure-Parent`  
 Product thesis: **The person changes. The seat remembers.**  
 Control-plane thesis: **System Studio is the “best man” between organizational intent and AWS reality.**
 

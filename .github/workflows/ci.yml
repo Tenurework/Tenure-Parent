@@ -115,7 +115,7 @@ jobs:
             echo "| Custom domain | https://platform.tenurework.com |"
             echo
             echo "This is **tenant #1's system**, not the platform engine."
-            echo "It serves Simon OSE and deploys from satvikOS/Tenure."
+            echo "It serves Simon OSE and deploys from Tenurework/Tenure."
             echo
             echo "The Tenure platform engine — the System Studio and control plane —"
             echo "has no URL: it has no deployment yet. See docs/decisions/ADR-0005-CANONICAL-MONOREPO.md."

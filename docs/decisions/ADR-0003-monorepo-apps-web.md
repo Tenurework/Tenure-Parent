@@ -9,7 +9,7 @@
 The build directive requires one platform monorepo containing applications,
 packages, modules, infrastructure and tooling. What existed was a single Next.js
 application at the root of its own repository, plus a separate documentation-only
-repository (`satvikOS/Tenure-Parent`) holding the architecture specification.
+repository (`Tenurework/Tenure-Parent`) holding the architecture specification.
 
 Nothing can be added around an application that *is* the repository root. There
 is no `packages/` for a platform kernel to live in, no place for a second
@@ -89,7 +89,7 @@ is exactly what the container does, so CI keeps exercising the real path rather
 than a flagged approximation.
 
 **The repo-identity half of PD-001 is not done.** PD-001 says the application
-ends up inside `Tenure-Parent`. The restructure happened inside `satvikOS/Tenure`,
+ends up inside `Tenure-Parent`. The restructure happened inside `Tenurework/Tenure`,
 so the monorepo and the specification repository are still two repositories. What
 remains is no longer a restructure — the history is already monorepo-shaped — but
 a repository move, and it is blocked on operational bindings rather than code:

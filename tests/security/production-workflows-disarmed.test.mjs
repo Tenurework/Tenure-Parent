@@ -2,8 +2,8 @@
  * The production-operations workflows must not be able to run from this
  * repository.
  *
- * `satvikOS/Tenure-Parent` holds the same `ACCESSKEYID` and `SECRETACCESSKEY`
- * secrets as `satvikOS/Tenure`. Importing the application brought `deploy.yml`
+ * `Tenurework/Tenure-Parent` holds the same `ACCESSKEYID` and `SECRETACCESSKEY`
+ * secrets as `Tenurework/Tenure`. Importing the application brought `deploy.yml`
  * with it, whose trigger is `on: push: branches: [main]`. Nothing about the
  * import made those credentials unreachable — so without a job-level guard, the
  * merge that makes this repository canonical would build a container, push it to
@@ -25,7 +25,7 @@ import { parse } from 'yaml'
 
 import { PRODUCTION_OWNER, WORKFLOW_DIR } from '../../tools/disarm-production-workflows.mjs'
 
-const THIS_REPOSITORY = 'satvikOS/Tenure-Parent'
+const THIS_REPOSITORY = 'Tenurework/Tenure-Parent'
 
 const files = fs
   .readdirSync(WORKFLOW_DIR)
@@ -51,7 +51,7 @@ const guardOf = (job) => (typeof job?.if === 'string' ? job.if : null)
  * The repository a guard pins to, or null.
  *
  * Extracted and compared exactly, never with `includes`. That is not
- * fastidiousness: `'satvikOS/Tenure-Parent'.includes('satvikOS/Tenure')` is
+ * fastidiousness: `'Tenurework/Tenure-Parent'.includes('Tenurework/Tenure')` is
  * true, so a substring test reads every ENGINE-guarded job as
  * disarmed-for-production and skips it — including any AWS-mutating one added
  * later. This test had that bug, and a `terraform apply` workflow guarded to

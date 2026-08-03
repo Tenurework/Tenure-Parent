@@ -409,7 +409,7 @@ r(`Generated ${inventory.generatedAt}. Terraform ownership is read from the repo
 r('the AWS API cannot report which tool owns a resource.', '')
 
 r('## Terraform stacks in this repository', '', '| Stack | State key | Owns |', '|---|---|---|')
-r('| `infrastructure/terraform` | `pilot/terraform.tfstate` | The Simon OSE pilot. Deployed from `satvikOS/Tenure`, **not** from here. |')
+r('| `infrastructure/terraform` | `pilot/terraform.tfstate` | The Simon OSE pilot. Deployed from `Tenurework/Tenure`, **not** from here. |')
 r('| `infrastructure/studio` | `studio/terraform.tfstate` | The System Studio engine. Deployed from this repository. |')
 r('')
 r('Two stacks, two state files, one account. The separation is the safety property: two')

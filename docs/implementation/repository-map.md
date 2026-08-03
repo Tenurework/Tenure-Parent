@@ -29,19 +29,19 @@ Tracked files: **470**. Workspace globs: `apps/*`, `packages/*`, `blueprints`, `
 | File | Name | Triggers | Reaches AWS | Guarded to |
 | --- | --- | --- | --- | --- |
 | `ci.yml` | CI | push, pull_request, workflow_call | — | — |
-| `custom-domain.yml` | Custom Domain Status | workflow_dispatch | **yes** | `satvikOS/Tenure` |
-| `db-recovery.yml` | Database recovery and census | workflow_dispatch | **yes** | `satvikOS/Tenure` |
-| `debug-logs.yml` | Debug Logs | — | **yes** | `satvikOS/Tenure` |
-| `deploy-studio.yml` | Deploy Studio | push, workflow_dispatch | **yes** | `satvikOS/Tenure-Parent` |
-| `deploy.yml` | Deploy | workflow_dispatch | **yes** | `satvikOS/Tenure` |
-| `force-redeploy.yml` | Force Redeploy | — | **yes** | `satvikOS/Tenure` |
-| `ops-status.yml` | Ops Status | workflow_dispatch | **yes** | `satvikOS/Tenure` |
+| `custom-domain.yml` | Custom Domain Status | workflow_dispatch | **yes** | `Tenurework/Tenure` |
+| `db-recovery.yml` | Database recovery and census | workflow_dispatch | **yes** | `Tenurework/Tenure` |
+| `debug-logs.yml` | Debug Logs | — | **yes** | `Tenurework/Tenure` |
+| `deploy-studio.yml` | Deploy Studio | push, workflow_dispatch | **yes** | `Tenurework/Tenure-Parent` |
+| `deploy.yml` | Deploy | workflow_dispatch | **yes** | `Tenurework/Tenure` |
+| `force-redeploy.yml` | Force Redeploy | — | **yes** | `Tenurework/Tenure` |
+| `ops-status.yml` | Ops Status | workflow_dispatch | **yes** | `Tenurework/Tenure` |
 | `platform-plan.yml` | Platform · Terraform plan (read-only) | workflow_dispatch | **yes** | — |
-| `probe-debug.yml` | Probe Debug | — | — | `satvikOS/Tenure` |
-| `replace-acm-cert.yml` | Replace ACM Certificate | workflow_dispatch | **yes** | `satvikOS/Tenure` |
-| `rotate-auth-secret.yml` | Rotate Auth Secret | — | **yes** | `satvikOS/Tenure` |
-| `seed-reference-data.yml` | Seed reference data | workflow_dispatch | **yes** | `satvikOS/Tenure` |
-| `verify-reminders.yml` | Verify Reminders | — | **yes** | `satvikOS/Tenure` |
+| `probe-debug.yml` | Probe Debug | — | — | `Tenurework/Tenure` |
+| `replace-acm-cert.yml` | Replace ACM Certificate | workflow_dispatch | **yes** | `Tenurework/Tenure` |
+| `rotate-auth-secret.yml` | Rotate Auth Secret | — | **yes** | `Tenurework/Tenure` |
+| `seed-reference-data.yml` | Seed reference data | workflow_dispatch | **yes** | `Tenurework/Tenure` |
+| `verify-reminders.yml` | Verify Reminders | — | **yes** | `Tenurework/Tenure` |
 
 ## Infrastructure stacks
 

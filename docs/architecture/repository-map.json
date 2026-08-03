@@ -188,7 +188,7 @@
         "workflow_dispatch"
       ],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     },
     {
       "file": ".github/workflows/db-recovery.yml",
@@ -197,14 +197,14 @@
         "workflow_dispatch"
       ],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     },
     {
       "file": ".github/workflows/debug-logs.yml",
       "name": "Debug Logs",
       "triggers": [],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     },
     {
       "file": ".github/workflows/deploy-studio.yml",
@@ -214,7 +214,7 @@
         "workflow_dispatch"
       ],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure-Parent"
+      "guardedTo": "Tenurework/Tenure-Parent"
     },
     {
       "file": ".github/workflows/deploy.yml",
@@ -223,14 +223,14 @@
         "workflow_dispatch"
       ],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     },
     {
       "file": ".github/workflows/force-redeploy.yml",
       "name": "Force Redeploy",
       "triggers": [],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     },
     {
       "file": ".github/workflows/ops-status.yml",
@@ -239,7 +239,7 @@
         "workflow_dispatch"
       ],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     },
     {
       "file": ".github/workflows/platform-plan.yml",
@@ -255,7 +255,7 @@
       "name": "Probe Debug",
       "triggers": [],
       "reachesAws": false,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     },
     {
       "file": ".github/workflows/replace-acm-cert.yml",
@@ -264,14 +264,14 @@
         "workflow_dispatch"
       ],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     },
     {
       "file": ".github/workflows/rotate-auth-secret.yml",
       "name": "Rotate Auth Secret",
       "triggers": [],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     },
     {
       "file": ".github/workflows/seed-reference-data.yml",
@@ -280,14 +280,14 @@
         "workflow_dispatch"
       ],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     },
     {
       "file": ".github/workflows/verify-reminders.yml",
       "name": "Verify Reminders",
       "triggers": [],
       "reachesAws": true,
-      "guardedTo": "satvikOS/Tenure"
+      "guardedTo": "Tenurework/Tenure"
     }
   ],
   "terraformStacks": [

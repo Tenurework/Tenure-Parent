@@ -137,7 +137,7 @@ production container image, since the Dockerfile copies `apps/web/scripts`
 wholesale.
 
 It is now untracked and gitignored here, and a pull request does the same for
-`satvikOS/Tenure` (which cannot be pushed to directly). `tests/security/no-personal-data.test.mjs`
+`Tenurework/Tenure` (which cannot be pushed to directly). `tests/security/no-personal-data.test.mjs`
 fails the build if a real-domain address is committed again.
 
 **Removal is not remediation.** The blob remains reachable by commit SHA in both

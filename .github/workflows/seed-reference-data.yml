@@ -26,7 +26,7 @@ jobs:
     # that importing this file cannot deploy as a side effect. Flipping the
     # repository name is the cutover, and is a reviewed change — see
     # docs/decisions/ADR-0005-CANONICAL-MONOREPO.md and the cutover plan.
-    if: github.repository == 'satvikOS/Tenure'
+    if: github.repository == 'Tenurework/Tenure'
 
     name: Run seed as a one-off ECS task
     runs-on: ubuntu-latest

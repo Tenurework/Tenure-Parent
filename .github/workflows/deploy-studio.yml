@@ -6,8 +6,8 @@ name: Deploy Studio
 # the rule stated properly. The rule was never "this repository may not deploy".
 # It is: **a repository may only deploy what it owns.**
 #
-#   satvikOS/Tenure         owns the pilot        -> deploy.yml is armed there
-#   satvikOS/Tenure-Parent  owns the engine       -> this is armed here
+#   Tenurework/Tenure         owns the pilot        -> deploy.yml is armed there
+#   Tenurework/Tenure-Parent  owns the engine       -> this is armed here
 #
 # The two stacks share an AWS account and nothing else. In particular they use
 # SEPARATE Terraform state (`studio/terraform.tfstate`, not
@@ -38,7 +38,7 @@ jobs:
 
     # Armed for the repository that OWNS the engine. Inert anywhere else, so a
     # fork or a mirror cannot deploy it.
-    if: github.repository == 'satvikOS/Tenure-Parent'
+    if: github.repository == 'Tenurework/Tenure-Parent'
 
     env:
       AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
@@ -194,5 +194,5 @@ jobs:
             echo
             echo "---"
             echo
-            echo "Tenant systems are elsewhere: the Simon OSE pilot is at https://d1n6mdis7bs02g.cloudfront.net and deploys from \`satvikOS/Tenure\`. This engine and that tenant share an AWS account and nothing else — separate Terraform state, separate cluster, separate load balancer, separate distribution."
+            echo "Tenant systems are elsewhere: the Simon OSE pilot is at https://d1n6mdis7bs02g.cloudfront.net and deploys from \`Tenurework/Tenure\`. This engine and that tenant share an AWS account and nothing else — separate Terraform state, separate cluster, separate load balancer, separate distribution."
           } >> "$GITHUB_STEP_SUMMARY"
