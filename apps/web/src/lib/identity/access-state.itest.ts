@@ -78,12 +78,44 @@ describe("the access state a person is actually told", () => {
           email: `access-${RUN}-unplaced@example.invalid`,
         },
       })
+
+      // A club member: a live seat and NO institution membership. The most
+      // common shape in this application and the one missing from these
+      // fixtures, which is why every test here passed while `/api/me` told
+      // every club member they were not a member of any organization yet.
+      const seatHolder = await db.user.create({
+        data: {
+          id: `user-access-${RUN}-seat`,
+          name: "seat holder",
+          email: `access-${RUN}-seat@example.invalid`,
+        },
+      })
+      await db.organization.create({
+        data: {
+          id: `org-access-${RUN}`,
+          institutionId,
+          name: `Access fixture club ${RUN}`,
+          slug: `access-club-${RUN}`,
+          category: "PROFESSIONAL",
+          roles: {
+            create: {
+              name: "President",
+              scope: "PRESIDENT",
+              assignments: { create: { userId: seatHolder.id, status: "ACTIVE" } },
+            },
+          },
+        },
+      })
     })
   })
 
   afterAll(async () => {
     await runUnscoped("seed", "access-state teardown", async () => {
       await db.institutionMembership.deleteMany({ where: { institutionId } })
+      // Role cascades from Organization and RoleAssignment from Role, so
+      // deleting the club takes the seat with it — and the seat has to go
+      // before its holder, which the User delete below would otherwise trip on.
+      await db.organization.deleteMany({ where: { institutionId } })
       await db.user.deleteMany({ where: { id: { startsWith: `user-access-${RUN}-` } } })
       await db.institution.deleteMany({ where: { id: institutionId } })
     })
@@ -119,5 +151,23 @@ describe("the access state a person is actually told", () => {
       expect(report.state).not.toBe("ACTIVE")
       expect(report.detail.length).toBeGreaterThan(20)
     }
+  })
+
+  it("reports a club member with a seat and no membership as ACTIVE", async () => {
+    // The regression this file shipped. Every fixture above creates an
+    // InstitutionMembership, and most people in this application have none —
+    // they hold a seat in one student organization, which is how
+    // `institutionCandidates` has always resolved their acting tenant. Reading
+    // memberships alone told all of them "you are not a member of any
+    // organization yet", on a page showing their own organization.
+    const report = await stateFor(`user-access-${RUN}-seat`)
+    expect(report.state).toBe("ACTIVE")
+  })
+
+  it("still tells a seatless account it has never been placed", async () => {
+    // So the fix cannot be "report ACTIVE for everybody": the onboarding path
+    // has to stay reachable by the account that genuinely needs it.
+    const report = await stateFor(`user-access-${RUN}-unplaced`)
+    expect(report.state).toBe("NEVER_PLACED")
   })
 })

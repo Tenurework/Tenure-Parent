@@ -257,8 +257,32 @@ export interface AccessReport {
  * because the report exists to tell somebody what to do — a person suspended at
  * one tenant and revoked at another should hear about the suspension, which
  * somebody can lift, rather than the revocation, which needs a new grant.
+ *
+ * ## Membership is not the only way in
+ *
+ * `otherLiveAccess` says the caller knows of access this function cannot see.
+ * In `apps/web` that is a club seat: a member of one student organization holds
+ * a role assignment and no institution membership at all, and is a perfectly
+ * ordinary signed-in user. Deciding from memberships alone reported
+ * `NEVER_PLACED` — *you are not a member of any organization yet* — to somebody
+ * looking at their own organization's page.
+ *
+ * It is a boolean rather than a second list because this function has no
+ * business knowing what a club seat is. The caller owns that question, answers
+ * it with the same authority the rest of the application uses, and passes the
+ * answer.
  */
-export function accessState(memberships: readonly TenantMembership[], at: Date): AccessReport {
+export function accessState(
+  memberships: readonly TenantMembership[],
+  at: Date,
+  options: { otherLiveAccess?: boolean } = {},
+): AccessReport {
+  // Checked first, and before the empty-memberships case: the person this
+  // exists for has no memberships at all.
+  if (options.otherLiveAccess) {
+    return { state: "ACTIVE", detail: "", waitingOnTheClock: false }
+  }
+
   if (memberships.length === 0) {
     return {
       state: "NEVER_PLACED",

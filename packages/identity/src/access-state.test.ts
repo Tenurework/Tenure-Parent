@@ -108,6 +108,43 @@ describe("waiting is not the same obstacle as being blocked", () => {
   })
 })
 
+describe("membership is not the only way in", () => {
+  it("is ACTIVE when the caller knows of access this cannot see", () => {
+    // A club member holds a role assignment and no institution membership at
+    // all. Deciding from memberships alone told every one of them "you are not
+    // a member of any organization yet", on a page showing their own
+    // organization. The end-to-end suite caught it; nothing here did, because
+    // the fixtures all create membership rows.
+    const report = accessState([], NOW, { otherLiveAccess: true })
+    expect(report.state).toBe("ACTIVE")
+  })
+
+  it("is checked before the empty-memberships case", () => {
+    // The person it exists for has no memberships, so an ordering that asked
+    // "any memberships?" first would answer NEVER_PLACED and never reach it.
+    expect(accessState([], NOW, { otherLiveAccess: true }).state).toBe("ACTIVE")
+    expect(accessState([], NOW, { otherLiveAccess: false }).state).toBe("NEVER_PLACED")
+  })
+
+  it("outranks a revoked membership", () => {
+    // Somebody removed from staff who still holds a club seat has access
+    // through the seat. Reporting REVOKED would be true of the membership and
+    // false about them.
+    const report = accessState(
+      [membership({ status: "REVOKED", statusReason: "left" })],
+      NOW,
+      { otherLiveAccess: true },
+    )
+    expect(report.state).toBe("ACTIVE")
+  })
+
+  it("changes nothing when absent", () => {
+    // Otherwise every assertion in this file is really testing the default.
+    expect(accessState([], NOW).state).toBe(accessState([], NOW, {}).state)
+    expect(accessState([], NOW, { otherLiveAccess: false }).state).toBe("NEVER_PLACED")
+  })
+})
+
 describe("data that makes no sense is not access", () => {
   it("does not report ACTIVE for a membership whose window will not parse", () => {
     // `membershipLiveness` calls this MALFORMED, which is none of the four

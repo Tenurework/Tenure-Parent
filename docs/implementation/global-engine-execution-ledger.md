@@ -4875,3 +4875,43 @@ worth less than three items that hold.
     unpopulated fields would be a specification pretending to be code.
 
   96/1219 decided.
+
+  ### Correction — GE-042-006 shipped red, and the e2e is what said so
+
+  The first push turned CI red. `/api/me` reported `NEVER_PLACED` for
+  `member@tenure.demo` — and would have for most people in this application.
+
+  **An institution membership is not the only way in.** A club member holds a
+  *seat* — a `RoleAssignment` on a `Role` in an `Organization` — and no
+  `InstitutionMembership` row at all. `institutionCandidates` has always unioned
+  both, which is why the switcher works for them. `accessReportFor` read only
+  memberships, so every one of them was told *you are not a member of any
+  organization yet*, on a page showing their own organization. Precisely the
+  false sentence this item exists to remove, delivered to a larger group than
+  the one it fixed.
+
+  `accessState` now takes `otherLiveAccess`, checked before the
+  empty-memberships case because the person it exists for has none. A boolean
+  rather than a second list: the engine has no business knowing what a club seat
+  is. `accessReportFor` answers it from `getUserContext`, whose `orgRoles` are
+  already filtered to live seats by the same engine rule every capability check
+  uses — authority read from where authority lives, not restated.
+
+  **Why nothing local caught it.** Every fixture in `access-state.itest.ts`
+  creates a membership row, so the file tested five states of a shape that most
+  users do not have. The fixture now includes a club member with a live seat and
+  no membership, and a seatless account beside them so the fix cannot be
+  "report ACTIVE for everybody". Two mutations, both caught in both directions.
+
+  The general lesson, worth more than the fix: **a fixture built from the
+  entity the code reads will not find the entity it forgot.** The e2e caught it
+  because it signs in as a real seeded person rather than one the test invented.
+
+  - Evidence: 2064/2064 apps/web unit across 91 suites, 81/81 isolation,
+    132/132 platform guards, gate passed 8 steps, **151/152 Playwright** on a
+    freshly created and seeded database under the CI environment
+    (`TENANCY_ENFORCE=true`).
+  - The single Playwright failure — `resources.spec.ts` "OSE can retire a
+    resource and restore it", a `locator.click` timeout — is **pre-existing and
+    local only**. It fails identically with these changes stashed, and CI passed
+    it on the previous commit. Not fixed here; not caused here.
