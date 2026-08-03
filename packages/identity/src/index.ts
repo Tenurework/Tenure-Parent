@@ -279,3 +279,13 @@ export {
   type ProviderMetadata,
   type UpstreamLogout,
 } from "./logout"
+
+export {
+  DISCLOSING_TERMS,
+  FAILURE_OUTCOMES,
+  NotAFailureError,
+  SIGN_IN_FAILED_MESSAGE,
+  disclosesCondition,
+  signInFailure,
+  type SignInFailure,
+} from "./auth-errors"

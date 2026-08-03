@@ -273,7 +273,7 @@ Use this evidence shape:
 - [ ] GE-042-004 — Implement BFF/server-side session with secure HttpOnly cookies, CSRF protection, rotation, absolute/idle expiry, tenant binding, session inventory, and immediate revocation.
 - [ ] GE-042-005 — Never place access/refresh tokens in local storage or accept ID tokens as API access tokens.
 - [x] GE-042-006 — Implement `/me`, tenant switch with revalidation/rotation, logout/local revocation/upstream behavior, and expired/revoked/disabled states.
-- [ ] GE-042-007 — Integrate real accessible frontend login, discovery, callback, MFA/recovery, invitation, switcher, logout, and generic error paths.
+- [x] GE-042-007 — Integrate real accessible frontend login, discovery, callback, MFA/recovery, invitation, switcher, logout, and generic error paths.
 
 ### GE-043: Enterprise federation and lifecycle
 

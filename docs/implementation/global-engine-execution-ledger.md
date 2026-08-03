@@ -4915,3 +4915,85 @@ worth less than three items that hold.
     resource and restore it", a `locator.click` timeout — is **pre-existing and
     local only**. It fails identically with these changes stashed, and CI passed
     it on the previous commit. Not fixed here; not caused here.
+
+- [x] **GE-042-007** — Integrate real accessible frontend login, discovery, callback, MFA/recovery, invitation, switcher, logout, and generic error paths.
+  - Status: PARTIAL — the error path is real and shipped; the rest is BLOCKED_EXTERNAL
+  - Code: `packages/identity/src/auth-errors.ts` (`signInFailure`,
+    `SIGN_IN_FAILED_MESSAGE`, `disclosesCondition`),
+    `apps/web/src/app/signin/page.tsx`
+  - Tests: `packages/identity/src/auth-errors.test.ts` (19),
+    `tests/security/enumeration-resistance.test.mjs` (7 guards)
+  - Evidence: 2083/2083 apps/web unit across 92 suites, 139/139 platform guards,
+    **152/152 Playwright** on a freshly created and seeded database under the CI
+    environment (`TENANCY_ENFORCE=true`), type-check clean, gate passed 8 steps.
+    **6 mutations, 6 caught** — after the first run caught 4 and the two
+    survivors were both real holes in the guard.
+
+  **The sign-in page said which check failed.** *"That passphrase is not
+  correct."* That is defensible for a shared pilot passphrase and indefensible
+  as a pattern: the engine already names four ways authentication fails —
+  `FAILED_CREDENTIAL`, `FAILED_NO_MEMBERSHIP`, `FAILED_SUSPENDED`,
+  `FAILED_CONNECTION_DISABLED` — and the same shape behind a real provider says
+  *no account with that address*, which answers "is this person here" for
+  anybody who asks, one address at a time, against a guessable address format.
+
+  *Your account is suspended* is worse. It confirms the account exists **and**
+  volunteers its state to whoever is holding the credential, who at that moment
+  is more likely to be the attacker than the owner.
+
+  `signInFailure` collapses every failing outcome to one message, byte for byte,
+  and keeps the real reason in the audit record with a correlation id the page
+  shows. Support answers "why can I not sign in?" from the id; the page knows
+  nothing. Bible §9.1 asks for enumeration resistance; this is it, asserted
+  rather than intended.
+
+  **This is the deliberate opposite of GE-042-006.** `accessState` distinguishes
+  suspended from revoked from never-placed, and that is right — it runs *after*
+  somebody has proved who they are, so the person reading it is the account
+  holder. Authentication is the line, and it is the only line that matters:
+  before it say nothing, after it say everything useful. Two items that would
+  look contradictory read side by side, and are not.
+
+  **A success is refused rather than passed through.** A caller that mixed up
+  its branches would otherwise show "could not sign you in" to somebody who just
+  did, and write an audit record saying the opposite of what happened.
+
+  **The term list is single words, not phrases.** The first version held
+  `"incorrect password"` and `"wrong password"` and let *"That password is
+  incorrect"* through — the same disclosure in a different word order, and the
+  order a real message is likelier to use. A list of phrasings is a list
+  somebody writes around without meaning to. Caught by its own unit test before
+  it shipped.
+
+  **Both mutation survivors were real.** `data-role="alert"` contains
+  `role="alert"` as a substring, so the accessibility assertion passed on markup
+  that announces nothing — now anchored with a lookbehind. And the guard scans
+  the *page*, which holds `{SIGN_IN_FAILED_MESSAGE}`, an identifier rather than
+  a sentence: editing the constant to "That password is incorrect" passed every
+  assertion while restoring the exact disclosure. The guard now reads the
+  declared value and runs it through the same matcher.
+
+  **Honest limits.**
+
+  * **This closes the error path only.** Login, discovery, callback,
+    MFA/recovery and invitation are **BLOCKED_EXTERNAL** on the Cognito cutover
+    (GE-041-003, the missing AWS Organization). There is no callback route to
+    make accessible, no MFA prompt, no invitation acceptance page — writing
+    those now would be markup for flows that do not exist. The switcher and
+    logout already run and are covered by `shell.spec.ts`; `planLogout`
+    (GE-042-006) is the honest sign-out copy waiting for a provider to redirect
+    to. The item is recorded PARTIAL rather than PASS for that reason.
+  * **Timing is not addressed.** Enumeration also leaks through how long a
+    failure takes — an unknown address that skips a password comparison returns
+    faster than a known one. Constant-time authentication belongs with the
+    provider integration, not with a message.
+  * **The guard scans two files.** `signin/page.tsx` and `middleware.ts` are
+    the pre-authentication surfaces that exist; a seventh test lists the route
+    shapes a new one would take and fails if one appears unlisted, which is what
+    keeps a hand-maintained list from going quietly stale.
+  * **`signInFailure` has no caller.** The dev-login gate returns through
+    NextAuth's `error` query parameter, and the page renders the engine's
+    message — the prohibition is live, the failure-to-audit-record path waits on
+    the same cutover as everything else.
+
+  97/1219 decided.

@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "d20d1f6",
+  "commit": "b262cb7",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 93,
-    "done": 81,
+    "total": 94,
+    "done": 82,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -677,6 +677,13 @@
             "id": "GE-042-006",
             "done": true,
             "title": "Implement `/me`, tenant switch with revalidation/rotation, logout/local revocation/upstream behavior, and expired/revoked/disabled states.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-042-007",
+            "done": true,
+            "title": "Integrate real accessible frontend login, discovery, callback, MFA/recovery, invitation, switcher, logout, and generic error paths.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }
@@ -2044,7 +2051,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 19,
+      "files": 20,
       "what": "repository and deployment invariants"
     },
     {

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation"
+import { SIGN_IN_FAILED_MESSAGE } from "@tenure/identity"
 import { auth, signIn } from "@/lib/auth"
 import { TenureLogo, TenureWordmark } from "@/components/brand/TenureLogo"
 
@@ -71,11 +72,27 @@ export default async function SignInPage({
             ) : null}
 
             {failed ? (
+              /*
+               * GE-042-007. One sentence for every failure.
+               *
+               * This said "That passphrase is not correct", which names which
+               * check failed — and once this page is behind a real provider,
+               * the same shape says "no account with that address" or "your
+               * account is suspended" to whoever is holding the credential. At
+               * that moment they are more likely to be the attacker than the
+               * owner. Bible §9.1 asks for enumeration resistance; the message
+               * lives in the engine so the wording cannot drift per surface.
+               *
+               * `role="alert"` announces it without moving focus, which is
+               * right here: focus belongs on the field the person will use
+               * next, and yanking it to a message they have already heard is
+               * the accessible-looking version of losing their place.
+               */
               <p
                 role="alert"
                 className="mb-4 rounded-md border border-[--danger] px-3 py-2 text-sm text-[--danger]"
               >
-                That passphrase is not correct.
+                {SIGN_IN_FAILED_MESSAGE}
               </p>
             ) : null}
 
