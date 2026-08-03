@@ -92,3 +92,22 @@ export {
   type TemporalQuery,
   type ValidPeriod,
 } from "./bitemporal"
+
+export {
+  archivePosition,
+  freezePosition,
+  mergePositions,
+  planTermTransition,
+  positionMayBeFilled,
+  splitPosition,
+  transferPosition,
+  unfreezePosition,
+  type LivePosition,
+  type OperationContext,
+  type PositionOperation,
+  type PositionRefusal,
+  type PositionRefused,
+  type SplitPart,
+  type TermTransition,
+  type TransitionPlan,
+} from "./position-lifecycle"

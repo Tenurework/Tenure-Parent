@@ -6676,3 +6676,102 @@ worth less than three items that hold.
     reconstruction are different, and the second one is not this module's.
 
   116/1219 decided.
+
+- [x] **GE-050-006** — Implement position create/change/freeze/transfer/split/merge/archive, vacancy, succession, and joiner/mover/leaver/term transition workflows.
+  - Status: PASS for the operations and their refusals; the approval workflow and
+    persistence are limited below
+  - Code: `packages/organization-model/src/position-lifecycle.ts`
+    (`freezePosition`, `unfreezePosition`, `positionMayBeFilled`,
+    `transferPosition`, `splitPosition`, `mergePositions`, `archivePosition`,
+    `planTermTransition`)
+  - Tests: `packages/organization-model/src/position-lifecycle.test.ts` (33)
+  - Evidence: 2606/2606 apps/web unit across 107 suites, 173/173 platform guards,
+    type-check clean, gate passed. **23 mutations, 23 caught.**
+
+  Most of these read like CRUD and are not. A seat is the platform's continuity
+  primitive — decisions, files, financial history and operational knowledge
+  attach to it — so every operation is really a question about where that
+  history goes, and the wrong answer is usually the tidy one.
+
+  ## Freeze stops a position being filled, not being held
+
+  A hiring freeze that evicted incumbents would be a redundancy programme wearing
+  a budget decision's name, and the two need very different approvals. So
+  `freezePosition` succeeds on an occupied seat and `positionMayBeFilled` returns
+  false — one flag, two different questions.
+
+  ## Transfer keeps the seat's id
+
+  An id that changed on a reorganisation would detach every decision, file and
+  financial record that referenced it — the exact thing a durable position exists
+  to prevent, and reorganisations are frequent enough that the detaching would be
+  routine. The occupant is untouched too: somebody whose department was renamed
+  has not changed job, and a transfer that vacated the seat would make every
+  reorganisation look like a wave of resignations.
+
+  Refused into a unit type that holds no seats, which is GE-050-003's
+  `holdsSeats` doing work: a seat at a location is authority attached to an
+  address.
+
+  ## Split and merge are where history actually breaks
+
+  The obvious split gives each new seat a copy of the old one's history. It is
+  wrong: two seats each claiming the same past leave a reader unable to tell
+  which decision belonged to which successor, and a financial history duplicated
+  across two cost centres is a reconciliation nobody can close. So the original
+  is **archived, not deleted**, its history stays with it whole and attributable,
+  and each part carries `splitFromSeatId` — a reference back. "Where did this
+  seat come from" is answerable; "which of you owns that decision" never has to
+  be. The parts start today rather than inheriting a start date that would claim
+  a history they do not have.
+
+  A **merge is refused while more than one position has a live holder**. A merge
+  that quietly kept one occupant and dropped the other is a dismissal recorded as
+  a data change, and the person who lost their seat would find out from an org
+  chart. One holder across the whole merge is the ordinary case and is allowed.
+
+  **Archive is refused while occupied**, for the same reason: it would end
+  somebody's assignment silently. Ending it first is one extra step and one extra
+  record, and the record is the point.
+
+  ## Every operation needs a stated reason
+
+  An org chart that moved and nobody can say why is one nobody can put back.
+
+  ## A term turnover is not a bulk update
+
+  The failure a bulk update invites is reassigning every seat and nobody noticing
+  that four have nobody named and two of the incoming holders have no predecessor
+  to learn from. `planTermTransition` separates **vacancies** (find somebody)
+  from **cold starts** (somebody is arriving with nobody to hand over from, which
+  is where the seat's accumulated memory is the only continuity there is) — two
+  outcomes needing different action, which a single "unassigned" count would
+  merge. A re-election is not listed as a handover: a checklist with meaningless
+  tasks is one nobody finishes.
+
+  **Honest limits.**
+
+  * **No approval workflow.** The Bible lists "approval" alongside these
+    operations, and `packages/workflow` exists. Wiring a position change through
+    it needs to know which changes require whose approval, which is tenant
+    configuration nobody has declared. The refusals here are the preconditions an
+    approval step would run *after*, not a substitute for it.
+  * **Nothing persists.** `frozenAt`, `splitFromSeatId` and `mergedFromSeatIds`
+    are not columns; `Seat` (GE-050-002) has none of them. Each is a migration,
+    and adding them before the operations were decided would have produced
+    columns whose meaning was a guess — the sequencing that worked for
+    GE-050-001 → 002.
+  * **"Create" and "change" are not here.** Creating a seat is
+    `db.seat.create` and renaming one is an update; neither carries a decision
+    this module could add beyond the reason requirement. Wrapping them to look
+    symmetrical with the others would be ceremony.
+  * **`planTermTransition` takes the transitions as given.** Deciding *who*
+    succeeds whom — succession candidates, readiness, risk — is the "succession"
+    half of this item and is not built. What is built is what happens once the
+    names are known, which is the part that goes wrong quietly.
+  * **`occupied` is supplied by the caller.** It comes from GE-050-004's
+    `seatIsVacant` over the assignment catalog, and passing it in keeps this
+    module free of the assignment store. A caller that computed it wrongly would
+    defeat the occupancy refusals, which is why that function has its own tests.
+
+  117/1219 decided.
