@@ -7197,3 +7197,85 @@ worth less than three items that hold.
     primitive, and building a shape for it here would be a guess.
 
   121/1219 decided.
+
+- [x] **GE-051-004** — Implement centralized authorization decision interface and policy revision/cache invalidation.
+  - Status: PASS for the interface, the revision and the invalidation rule; the
+    callers are limited below
+  - Code: `packages/authorization/src/service.ts` (`authorizationService`,
+    `validUntil`, `decisionKey`, `memoryCache`, `PolicyRevision`)
+  - Tests: `packages/authorization/src/service.test.ts` (33)
+  - Evidence: 2833/2833 apps/web unit across 114 suites, 185/185 platform
+    guards, type-check clean, gate passed. **26 mutations, 26 caught.**
+
+  ## Caching a decision is the one thing that can undo this platform's model
+
+  Authority here is computed from the clock rather than stored: a grant that
+  ends at noon confers nothing at 12:00:01, with no revocation job and nothing
+  to forget to run. A cache is exactly what turns that back into stored
+  authority — a decision remembered at 11:59 is a grant that outlives its own
+  end date, wearing a different name.
+
+  So a cached decision carries **the instant at which it could change**, and
+  that instant is computed from the facts the decision rested on: every
+  effective-date boundary in front of it — memberships, grants, delegations,
+  relationships — and the moment the session's assurance goes stale. **Never a
+  fixed TTL.** A TTL is a guess about how long the world stays still, and this
+  world has exact answers.
+
+  The horizon includes boundaries that *start* as well as end. A grant beginning
+  at 14:00 changes the answer at 14:00 just as surely as one ending then, and a
+  horizon that only looked at ends would keep a denial past the moment it became
+  an allowance.
+
+  It is deliberately **conservative**: the earliest boundary among the relevant
+  facts, whether or not that boundary would have changed the answer. Working out
+  which boundaries actually matter is the same reasoning as the decision itself,
+  done twice, and the second copy is the one that goes wrong quietly.
+
+  ## A revision change voids, it does not stale
+
+  Policies, role definitions and assurance requirements are configuration. When
+  any of it changes, every remembered decision made under the old version is
+  void — the rule it applied no longer exists, so there is no version of it
+  worth keeping. `revision()` is read on **every** call rather than captured at
+  construction: a service that captured it would keep answering under the old
+  rules until something restarted it, which is an emergency deny that does not
+  take effect.
+
+  ## Smaller decisions that each prevent something
+
+  * **The key carries the session.** The same request from a stepped-up session
+    and an ordinary one are different questions; sharing a key is how a step-up
+    requirement is satisfied once and then never again. It carries the owning
+    org unit too, because scope is checked against the unit.
+  * **Denials are cached.** Not caching them sounds cautious and is the
+    opposite: an unauthorized caller in a retry loop then costs a full world
+    build every attempt, which is a denial-of-service the authorization layer
+    performs on itself.
+  * **Oldest-inserted is evicted, not least-recently-used.** LRU on an
+    authorization cache keeps whichever entry a loop happens to touch, which
+    means the hottest principal never expires.
+  * **An unreadable horizon fails closed.** Treating a date nobody can parse as
+    "no expiry" turns one corrupt entry into a permanent grant.
+
+  **Honest limits.**
+
+  * **`apps/web` does not call it.** The application still authorizes through
+    session role checks, and `navigation-capabilities.ts` calls `decide()`
+    directly with a world it builds itself. Routing it through the service needs
+    a `worldFor` that reads the database, which is GE-051-005's work — putting
+    every path through this interface.
+  * **Nothing supplies a revision.** `PolicyRevision` is read from a callback
+    the caller provides. The configuration engine has publication and versions
+    (`packages/configuration`); connecting them is a small piece of wiring that
+    belongs with the first real caller, not ahead of it.
+  * **The cache is in-process.** A second instance has its own, so a revision
+    change takes effect per process rather than fleet-wide. `DecisionCache` is
+    an interface precisely so a shared implementation can replace it, and the
+    "entry recorded under another revision" case is tested because a shared
+    cache is where two revisions meet.
+  * **No decision audit.** Recording sensitive allow/deny with the policy
+    version is GE-051-007. `ServiceDecision` carries the revision so that
+    audit has something to record; nothing records it yet.
+
+  122/1219 decided.

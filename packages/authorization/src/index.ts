@@ -182,3 +182,18 @@ export type {
   ThresholdRung,
   LadderProblem,
 } from "./controls"
+
+export {
+  authorizationService,
+  memoryCache,
+  decisionKey,
+  validUntil,
+} from "./service"
+export type {
+  AuthorizationService,
+  AuthorizationServiceOptions,
+  ServiceDecision,
+  PolicyRevision,
+  DecisionCache,
+  CachedDecision,
+} from "./service"

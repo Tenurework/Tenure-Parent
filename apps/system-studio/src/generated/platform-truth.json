@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "ba06ef0",
+  "commit": "637c425",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 118,
-    "done": 104,
+    "total": 119,
+    "done": 105,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -854,6 +854,13 @@
             "title": "Implement no-self-approval, maker-checker, separation of duties, quorum/consensus, amount/risk threshold, conflict declaration, and recusal primitives.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-051-004",
+            "done": true,
+            "title": "Implement centralized authorization decision interface and policy revision/cache invalidation.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -868,7 +875,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 121,
+    "decided": 122,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -1036,7 +1043,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "GE · GE-052: Generality fixtures",

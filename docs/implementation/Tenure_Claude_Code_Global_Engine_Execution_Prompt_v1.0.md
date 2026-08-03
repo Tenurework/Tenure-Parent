@@ -315,7 +315,7 @@ Use this evidence shape:
 - [x] GE-051-001 — Create stable semantic permission catalog independent of tenant labels and role titles.
 - [x] GE-051-002 — Implement reusable roles/policies, scoped grants, explicit deny precedence, attributes, relationships, temporal rules, delegation, risk/session assurance, and policy explanations.
 - [x] GE-051-003 — Implement no-self-approval, maker-checker, separation of duties, quorum/consensus, amount/risk threshold, conflict declaration, and recusal primitives.
-- [ ] GE-051-004 — Implement centralized authorization decision interface and policy revision/cache invalidation.
+- [x] GE-051-004 — Implement centralized authorization decision interface and policy revision/cache invalidation.
 - [ ] GE-051-005 — Enforce authorization in every controller, service, repository/query, file, search, export, report, analytics, event/job, websocket, connector, support, admin, and Relay path.
 - [ ] GE-051-006 — Add architecture/lint tests preventing direct role-string/email-domain/Cognito-group/frontend-state authorization.
 - [ ] GE-051-007 — Add decision audit for sensitive allow/deny with policy/config version and safe explanation.
