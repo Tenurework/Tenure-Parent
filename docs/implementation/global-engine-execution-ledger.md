@@ -7543,3 +7543,87 @@ worth less than three items that hold.
   on a freshly created database, the suite that was red.
 
   123/1219 decided.
+
+- [ ] **GE-051-005** — *(continued)* Enforce authorization in every path.
+  - Status: FAIL — **30 mutating paths, down from 31.** The first one is
+    converted and the shape the rest follow now exists.
+  - Code: `apps/web/src/lib/authz/seat-world.ts` (`seatGrants`, `seatWorld`,
+    `decideFromSeats`), `submitReimbursement` in
+    `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts`,
+    `finance.reimbursement.create` added to `unit.member` and `unit.lead`,
+    `decideFromSeats` taught to `tools/entry-point-inventory.mjs`
+  - Tests: `apps/web/src/lib/authz/seat-world.test.ts` (17)
+  - Evidence: 2869/2869 apps/web unit across 117 suites, 196/196 platform
+    guards, 102/102 isolation on a fresh database, **151/152 e2e on a freshly
+    created database** (1 flaky, green on retry, `resources.spec.ts`
+    retire/restore — unrelated, seen flaky for three ticks), type-check clean,
+    gate passed. **10 mutations, 10 caught.**
+
+  ## A seat is a grant, which is what the column was for
+
+  `Role.templateKey` (last tick) turns a seat into exactly the shape `decide()`
+  already takes: a grant of a role template at an org unit. No second model had
+  to be invented for the application — `seatGrants` is nine lines because the
+  work was done by getting the data right.
+
+  Two decisions inside it:
+
+  * **Grants are scoped to the club, not the tenant.** Tenant scope would make a
+    seat in one club a seat in all of them, and the engine's scope check is what
+    replaces a `where` clause somebody has to remember to write.
+  * **A `SHADOW` seat becomes a `PENDING` grant rather than being dropped.** Both
+    refuse. The difference is what the person is told: "your term has not begun"
+    instead of "you have no role here", and the second is the one that generates
+    a support ticket.
+
+  ## What the conversion changed
+
+  `submitReimbursement` asked "does this person hold an ACTIVE seat in this
+  club?" and treated yes as permission to file. Every seat answered the same, so
+  a club that gave somebody a read-only advisory seat had given them a spending
+  claim. And every refusal — no seat, term not started, system does not run
+  reimbursements — arrived as one sentence: *"You need an active role in this
+  club to request a reimbursement."* Two of those three are wrong, and the
+  SHADOW one is wrong in a way that wastes somebody's afternoon.
+
+  Filing is now `finance.reimbursement.create`, decided by the engine, and the
+  refusal says which refusal it is.
+
+  **`finance.reimbursement.create` was missing from `unit.member` and
+  `unit.lead`.** Wiring the permission is what found it: the templates gave a
+  member `approvals.request.create` and no way to claim back money they had
+  spent. Any member may file; approving is the controlled act, and
+  `INCOMPATIBLE_DUTIES` already forbids one person doing both — checked, and no
+  template now holds both.
+
+  ## The ratchet caught its own slack
+
+  Lowering it was not a choice. `every-path-authorizes` asserts in both
+  directions, so once the inventory reported `submitReimbursement` as guarded by
+  a capability, the test failed saying 30 ≠ 31 and told me to tighten it. A
+  ratchet that is not tightened when the debt is paid stops meaning anything,
+  and this one does not rely on anybody remembering that.
+
+  **Honest limits.**
+
+  * **30 to go**, including the approval gate itself (`actOnApproval`),
+    delegation, the roster and the three role-transfer actions.
+  * **Institution (OSE) roles are not modelled.** They are not seats and they do
+    not map onto the shipped templates: the three differ from each other in the
+    existing predicates — a Director may manage a roster, Staff may not, an
+    Advisor may not publish resources — and no template reproduces those shapes.
+    Inventing templates to fit would be a permission change wearing a
+    refactor's clothes. `submitReimbursement` excludes OSE by design, so this
+    conversion did not need them; most of the remaining 30 will.
+  * **The decision does not go through GE-051-004's service.** `decideFromSeats`
+    calls `decide()` directly, so there is no cache and no policy revision
+    recorded. Wiring the service needs a revision source, which is
+    `platform.permissions.*` — still `reserved` in the configuration engine.
+  * **The seat is still read twice.** Once by the engine through
+    `getUserContext`, once directly for two facts the decision does not carry:
+    whether the requester is the club's president (which changes the approval
+    chain) and what to record as their role on the immutable trail. Those are
+    attributes of the seat, not authority, and collapsing them into the decision
+    would put presentation into an authorization answer.
+
+  123/1219 decided.

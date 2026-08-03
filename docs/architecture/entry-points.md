@@ -190,7 +190,7 @@ otherwise report `capability` for all twenty-one.
 | `importBudget` | `tenant` + `session` + `capability` |
 | `postLedgerEntry` | `tenant` + `session` + `capability` |
 | `deleteLedgerEntry` | `tenant` + `session` + `capability` |
-| `submitReimbursement` | `tenant` + `session` |
+| `submitReimbursement` | `capability` + `tenant` + `session` |
 
 ### `(app)/orgs/[slug]/members/actions.ts`
 

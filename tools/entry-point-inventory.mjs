@@ -37,7 +37,11 @@ const OUT = 'docs/architecture/entry-points.md'
 const GUARDS = [
   { key: 'session', label: 'signed in', pattern: /\bauth\(\)|requireSession|getServerSession/ },
   { key: 'operator', label: 'platform operator', pattern: /isPlatformOperator|requireOperator/ },
-  { key: 'capability', label: 'capability', pattern: /requireCapability|assertCapability|\bcan[A-Z]\w*\(|guardAdmin|requireAdmin/ },
+  // `decideFromSeats` is GE-051-005's shape: the authorization engine answering
+  // from the bundle a seat carries. It belongs in this row because it makes the
+  // same claim the others do — that something beyond "signed in" was checked —
+  // and leaving it out would report a converted path as unauthorized debt.
+  { key: 'capability', label: 'capability', pattern: /requireCapability|assertCapability|\bcan[A-Z]\w*\(|guardAdmin|requireAdmin|decideFromSeats/ },
   { key: 'tenant', label: 'tenant scope', pattern: /withTenant|resolveTenantScope|forEachInstitution|tenantScope/ },
   // Any bearer-secret comparison, not two names someone thought of once. The
   // reconcile endpoint was correctly guarded by PLATFORM_RECONCILE_SECRET and

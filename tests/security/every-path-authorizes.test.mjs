@@ -38,7 +38,7 @@ const INVENTORY = "docs/architecture/entry-points.md"
  * MAY ONLY SHRINK. Raising it to make a build pass is the failure this number
  * exists to prevent, and the assertion says so in both directions.
  */
-const UNAUTHORIZED_MUTATORS = 31
+const UNAUTHORIZED_MUTATORS = 30
 
 /**
  * Mutating paths that legitimately have no guard, and why.

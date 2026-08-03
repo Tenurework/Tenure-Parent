@@ -1,5 +1,7 @@
 "use server"
 
+import { modulesFor } from "@tenure/platform-config"
+import { decideFromSeats } from "@/lib/authz/seat-world"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
@@ -328,16 +330,32 @@ export async function deleteLedgerEntry(slug: string, formData: FormData) {
 export async function submitReimbursement(slug: string, formData: FormData) {
   const userId = await requireUserId()
   await withTenantScope(userId, async () => {
-    const org = await db.organization.findUnique({ where: { slug } })
+    const org = await db.organization.findUnique({
+      where: { slug },
+      include: { institution: { select: { slug: true } } },
+    })
     if (!org) throw new Error("Organization not found")
 
-    // Must hold an ACTIVE seat in THIS club to file (not OSE) — a requester then
-    // never sits on their own approval gate, closing the self-approval path.
-    const seat = await db.roleAssignment.findFirst({
-      where: { userId, status: "ACTIVE", role: { organizationId: org.id } },
-      include: { role: true },
+    // GE-051-005. A permission decision, not a row count.
+    //
+    // Still a seat in THIS club and not OSE — a requester then never sits on
+    // their own approval gate, which is what closes the self-approval path. What
+    // changed is that "may I file" is now answered by the authorization engine
+    // from the bundle the seat carries, so the club that gives somebody a
+    // read-only advisory seat gets a refusal instead of a claim.
+    //
+    // The refusal also says which one it is. The old check answered every case
+    // with "you need an active role in this club", including the SHADOW holder
+    // whose term has not begun and the system that does not run reimbursements
+    // at all.
+    const ctx = await getUserContext(userId)
+    const decision = decideFromSeats(ctx, {
+      permission: "finance.reimbursement.create",
+      organizationId: org.id,
+      tenantId: org.institutionId,
+      enabledModules: modulesFor(org.institution.slug).keys,
     })
-    if (!seat) throw new Error("You need an active role in this club to request a reimbursement")
+    if (!decision.allowed) throw new Error(decision.detail)
 
     const budgetLineId = String(formData.get("budgetLineId") ?? "")
     const line = await db.budgetLine.findFirst({
@@ -378,8 +396,16 @@ export async function submitReimbursement(slug: string, formData: FormData) {
       documentId = doc.id
     }
 
+    // The seat is read again here for two facts the decision above does not
+    // carry: whether this requester is the club's president (which changes the
+    // approval chain) and what to record as their role on the immutable trail.
+    // Authorization is the engine's answer; these are attributes of the seat.
+    const seat = await db.roleAssignment.findFirst({
+      where: { userId, status: "ACTIVE", role: { organizationId: org.id } },
+      include: { role: true },
+    })
     const isPresident =
-      seat.role.scope === "PRESIDENT" ||
+      seat?.role.scope === "PRESIDENT" ||
       (await db.roleAssignment.findFirst({
         where: { userId, status: "ACTIVE", role: { organizationId: org.id, scope: "PRESIDENT" } },
         select: { id: true },
