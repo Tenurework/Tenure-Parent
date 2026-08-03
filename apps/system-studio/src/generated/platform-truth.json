@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "267ebe8",
+  "commit": "3f32bc8",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 98,
-    "done": 86,
+    "total": 99,
+    "done": 87,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -714,6 +714,13 @@
             "title": "Implement domain verification and certificate/secret/JWKS expiry monitoring.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-043-005",
+            "done": true,
+            "title": "Implement SCIM 2.0 tenant-bound `/Users` and `/Groups`, filtering, pagination, ETag/version, PATCH, idempotency, external IDs, deactivate/reactivate, group mapping policy, immediate session revocation, rate limits, audit, and interoperability fixtures—or complete the precise compatible boundary and tests if full SCIM is a later milestone.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -728,7 +735,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 101,
+    "decided": 102,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -868,7 +875,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 4
+        "done": 5
       },
       {
         "phase": "GE · GE-044: Authentication security tests",

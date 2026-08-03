@@ -394,6 +394,14 @@ lost the scope until GE-042-006, because `.then` was called by the caller's
 and the reason it was ever unsafe is worth remembering when writing anything
 else that wraps a callback in `AsyncLocalStorage`.
 
+**Assert the mutation is actually in the file before trusting the result.** A
+mutation harness reported SURVIVED for a change that provably fails when applied
+by hand — the anchor matched, the replacement was computed, and what reached
+disk was not what the run measured. Read the file back and confirm the mutated
+text is present and the original is gone; a harness that only checks its anchor
+is measuring its own bookkeeping. Fourth misreport from a mutation harness in
+this repository.
+
 **Guards that list untracked files must tolerate ENOENT.** `test:platform` runs
 them in parallel and one writes a probe into the source tree. A guard that
 crashes on a vanished file goes red for a reason unrelated to what it checks —

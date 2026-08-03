@@ -5403,3 +5403,96 @@ worth less than three items that hold.
     time and max-age. This module ranks and reports; it does not fetch.
 
   101/1219 decided.
+
+- [x] **GE-043-005** — Implement SCIM 2.0 tenant-bound `/Users` and `/Groups`, filtering, pagination, ETag/version, PATCH, idempotency, external IDs, deactivate/reactivate, group mapping policy, immediate session revocation, rate limits, audit, and interoperability fixtures—or complete the precise compatible boundary and tests if full SCIM is a later milestone.
+  - Status: PASS — the boundary, which is the branch the item names
+  - Code: `packages/identity/src/scim.ts` (`parseScimFilter`,
+    `normaliseScimPage`, `scimListResponse`, `interpretScimPatch`,
+    `checkScimVersion`, `decideScimCreate`, `scimActiveEffect`)
+  - Tests: `packages/identity/src/scim.test.ts` (47)
+  - Evidence: 2301/2301 apps/web unit across 98 suites, 149/149 platform guards,
+    type-check clean, gate passed 8 steps. **25 mutations, 25 caught** — one
+    after the harness misreported and the mutation was re-applied by hand.
+
+  The item permits "the precise compatible boundary and tests if full SCIM is a
+  later milestone", and that is this. `/Users` and `/Groups` need a connection
+  registry and a SCIM bearer token, both of which arrive with the Cognito
+  cutover. Every decision those routes will have to make is decidable now, and
+  each has a way of being wrong that hands out data or loses it.
+
+  **An unsupported filter is refused, not ignored.** A provisioning agent asks
+  for `userName eq "x"`. A server that does not understand the filter and returns
+  the collection anyway hands over every user in the tenant *and* leaves the
+  agent believing it asked a narrow question. RFC 7644 §3.4.2.2 makes it a
+  `400 invalidFilter` for exactly that reason. Compound filters are refused whole
+  rather than half-honoured — dropping the second term of `userName eq "a" and
+  active eq false` answers a broader question than the one asked, and the answer
+  is a superset.
+
+  The compound check uses word boundaries, because `displayName eq "Brandon"`
+  contains `and`. A guard that refuses correct input is one somebody switches
+  off.
+
+  **`active: false` is a suspension, not a deletion.** An HR system
+  deprovisioning somebody must not take their history with them, and
+  reinstatement must not mean creating a different person with a new id.
+  GE-040-001 made memberships effective-dated so this could be a state change.
+  Deactivation also **ends every session immediately**: a deprovisioning that
+  leaves a live session running has removed the ability to sign in again and
+  nothing else, and the person keeps working until the session expires — which
+  is precisely the window an offboarding exists to close.
+
+  **A retried POST is not a second person.** Agents retry, and the `externalId`
+  is the directory's own identifier and the only thing stable across one —
+  `userName` is not, because it changes when somebody marries. A repeat returns
+  the existing resource rather than a 409, which would send a well-behaved agent
+  into an error path for having done nothing wrong. Two records with *no*
+  externalId are still two records: treating them as one would merge every legacy
+  account into the first.
+
+  **Two agents cannot silently overwrite each other.** An HR system and an
+  identity provider both think they own `active`, and last-write-wins between
+  them deactivates and reactivates somebody on alternate hours. A stale
+  `If-Match` is refused; so is an absent one where matching is required, because
+  "I did not check" and "I checked and it is current" must never be the same
+  input. Weak and strong ETags compare equal (RFC 7232 §2.3.2) — agents differ on
+  emitting `W/`, and treating them as different makes every write from one of
+  them fail forever.
+
+  **`groups`, `roles`, `entitlements` and `members` are refused on PATCH.**
+  GE-043-003 already says a directory's groups are not authority here. Accepting
+  the PATCH and doing nothing would look like it worked, and quiet nothing is
+  worse than a clear no. Every operation is validated before any is applied: a
+  partly-applied deprovisioning leaves somebody locked out for a reason nobody
+  recorded.
+
+  **Pagination is clamped, not refused.** An agent sending `count=10000` is
+  trying to finish, not attacking, and a 400 makes a sync that could have worked
+  fail permanently. `startIndex` below 1 becomes 1 per §3.4.2.4 — treating 0 as 0
+  repeats the first record on every sync that started there, the sort of
+  duplicate somebody chases for a week. `itemsPerPage` reports what was returned,
+  never what was asked for, or a caller pages past the end and reports phantom
+  users.
+
+  **Honest limits.**
+
+  * **There are no routes.** No `/Users`, no `/Groups`, no bearer token, no
+    store. This is the decision layer they will call; it is not a SCIM server,
+    and calling it one would be the claim this repository refuses. Blocked with
+    everything else on the AWS Organization (GE-041-003).
+  * **Rate limits, audit and interoperability fixtures are not built.** Rate
+    limiting belongs at the route with a shared counter; audit needs
+    `@tenure/audit` and a request to attribute; interoperability fixtures need a
+    server to run Okta's and Entra's suites against. All three are route-level
+    and none is decidable without one.
+  * **Filtering answers `eq`, `ne` and `pr` on five attributes.** `co`, `sw`,
+    `gt` and friends are refused explicitly. Supporting an operator badly is
+    worse than refusing it, because a wrong answer to `co` looks like a small
+    result set rather than an error.
+  * **`/Groups` is a policy, not an implementation.** The policy is that a SCIM
+    group cannot confer anything, which is why `members` is immutable here. What
+    a `/Groups` endpoint would usefully *do* — mirror a directory's groups as
+    inert labels — needs a store and a decision about whether they are worth
+    holding at all.
+
+  102/1219 decided.
