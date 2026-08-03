@@ -1,3 +1,4 @@
+import { INCOMPATIBLE_DUTIES, separationViolations } from "./controls"
 import type { RoleDefinition } from "./model"
 import { isPermissionKey, lookupPermission, type PermissionDefinition } from "./permission-catalog"
 
@@ -209,7 +210,7 @@ export const ROLE_TEMPLATES: readonly RoleTemplate[] = [
   ),
   template(
     "platform.administrator",
-    "Administers the system itself: configuration, releases, identity federation, and overrides.",
+    "Administers the system itself: configuration, releases, memberships, and overrides.",
     false,
     [
       "admin.console.read",
@@ -219,11 +220,23 @@ export const ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "identity.membership.invite",
       "identity.membership.suspend",
       "identity.connection.read",
-      "identity.connection.configure",
       "config.setting.read",
       "config.setting.update",
       "config.release.promote",
     ],
+  ),
+  // Split out of the administrator on purpose, by the duties matrix rather than
+  // by taste: `sod.configureIdentityAndAdministerMembership` says whoever
+  // decides which identity provider is trusted must not also be able to add the
+  // accounts it vouches for. The bundle that had both was the first thing the
+  // matrix caught, and splitting it is what the control is for — the
+  // alternative was an exemption, and an exemption mechanism is how a matrix
+  // stops meaning anything.
+  template(
+    "identity.administrator",
+    "Decides how this system federates identity, and nothing about who is in it.",
+    false,
+    ["identity.connection.read", "identity.connection.configure", "identity.membership.read", "admin.audit.read"],
   ),
 ]
 
@@ -285,20 +298,12 @@ export function validateRoleTemplates(
     }
   }
 
-  // Separation of duties, as a property of the shipped set rather than a
-  // convention. A bundle that both files a claim and approves one makes the
-  // policy that forbids self-approval the only thing standing between a person
-  // and their own money.
+  // Separation of duties, read from the shipped matrix rather than restated
+  // here. Two lists of incompatible pairs is two answers to "may one person do
+  // both", and the second one is always the one nobody remembered to update.
   for (const t of templates) {
-    if (
-      t.permissions.includes("finance.reimbursement.create") &&
-      t.permissions.includes("finance.reimbursement.approve")
-    ) {
-      problems.push(
-        `Role template "${t.key}" both files and approves reimbursements. One person holding both ` +
-          `leaves the self-approval policy as the only control, and that policy only sees claims ` +
-          `they filed themselves.`,
-      )
+    for (const violation of separationViolations(t.permissions, INCOMPATIBLE_DUTIES)) {
+      problems.push(`Role template "${t.key}" violates ${violation.id}: ${violation.detail}`)
     }
   }
 

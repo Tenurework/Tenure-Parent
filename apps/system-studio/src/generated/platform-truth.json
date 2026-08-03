@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "42f8563",
+  "commit": "31706cc",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 117,
-    "done": 103,
+    "total": 118,
+    "done": 104,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -847,6 +847,13 @@
             "title": "Implement reusable roles/policies, scoped grants, explicit deny precedence, attributes, relationships, temporal rules, delegation, risk/session assurance, and policy explanations.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-051-003",
+            "done": true,
+            "title": "Implement no-self-approval, maker-checker, separation of duties, quorum/consensus, amount/risk threshold, conflict declaration, and recusal primitives.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -861,7 +868,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 120,
+    "decided": 121,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -1029,7 +1036,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "GE · GE-052: Generality fixtures",

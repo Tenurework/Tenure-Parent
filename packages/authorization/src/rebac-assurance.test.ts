@@ -615,10 +615,10 @@ describe("the template validator catches what a bundle hides", () => {
         permissions: ["finance.reimbursement.create", "finance.reimbursement.approve"],
       }),
     )
-    expect(problems.join(" ")).toMatch(/both files and approves/)
+    expect(problems.join(" ")).toMatch(/sod\.fileAndApproveReimbursement/)
   })
 
   it("finds nothing wrong with the shipped set on that count", () => {
-    expect(validateRoleTemplates().join(" ")).not.toMatch(/both files and approves/)
+    expect(validateRoleTemplates().join(" ")).not.toMatch(/violates sod\./)
   })
 })

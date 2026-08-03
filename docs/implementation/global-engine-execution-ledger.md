@@ -7116,3 +7116,84 @@ worth less than three items that hold.
     team's idea of "high" for everybody.
 
   120/1219 decided.
+
+- [x] **GE-051-003** — Implement no-self-approval, maker-checker, separation of duties, quorum/consensus, amount/risk threshold, conflict declaration, and recusal primitives.
+  - Status: PASS for the primitives; what calls them is limited below
+  - Code: `packages/authorization/src/controls.ts` (`mayDecide`,
+    `separationViolations`, `INCOMPATIBLE_DUTIES`, `quorumMet`, `rungFor`,
+    `ladderProblems`, `conflictHoldsAt`); `role-templates.ts` now validates the
+    shipped bundles against the matrix
+  - Tests: `packages/authorization/src/controls.test.ts` (47)
+  - Evidence: 2800/2800 apps/web unit across 113 suites, 181/181 platform
+    guards, type-check clean, gate passed. **35 mutations, 35 caught.**
+
+  Two of these existed as one-line policies. The rest are the ones every
+  approval system needs, implements four times slightly differently at four call
+  sites, and then misses at the fifth.
+
+  Every one returns a **refusal with a reason**, never a bare boolean. "You
+  cannot approve this" is the answer somebody escalates; "you cannot approve
+  this because you raised it" is the answer they act on.
+
+  ## The decisions inside the decisions
+
+  * **A conflict is declared, not detected.** The platform cannot know that an
+    approver's partner works for the vendor, and a control that only catches
+    what it can detect gives an assurance it has not earned. What it can do is
+    make the declaration binding once made.
+  * **A recusal is not a conflict.** A declared interest is a fact about a
+    person; a recusal is an act about a decision. Collapsing them means either
+    every declaration blocks everything adjacent to it, or a recusal quietly
+    expires when the interest is reviewed.
+  * **A quorum counts people, not casts.** One person approving twice is one
+    approval. Counting casts is how a two-of-three rule is satisfied by one
+    determined person and a page refresh. The **first** cast wins, not the last:
+    the last would let somebody change which unit they counted under after
+    seeing what the quorum was short of.
+  * **An unsatisfiable quorum says so.** Three distinct units from two approvals
+    is `IMPOSSIBLE_RULE`, not "not enough yet" — the second reads as "keep
+    collecting approvals" when no number of them will do.
+  * **A ladder with no floor is refused.** A ladder starting at 50,000 has
+    nothing to say about a 40,000 spend, and "no rung applied" reads as "no
+    approval needed" at every call site that forgets to check. `rungFor` returns
+    nothing from a malformed ladder rather than a guess.
+  * **Duties are pairs, and every pair fires.** A group would report "you hold
+    three of these five", which nobody can act on. All violations are returned,
+    because fixing one may not fix the next.
+
+  ## What the matrix caught immediately
+
+  `INCOMPATIBLE_DUTIES` is validated against the shipped role templates, and the
+  first thing it found was one of them: `platform.administrator` both configured
+  identity federation and invited the accounts that federation vouches for.
+
+  It was split. The alternative was an exemption, and an exemption mechanism is
+  how a duties matrix stops meaning anything — the pair either defends something
+  or it does not belong in the list. `identity.administrator` now decides how
+  the system federates identity and nothing about who is in it.
+
+  The matrix is deliberately short. One that tries to be exhaustive is one
+  nobody reads, and every pair has to be defensible on its own; an indefensible
+  pair is worse than a missing one, because it gets exempted.
+
+  **Honest limits.**
+
+  * **`mayDecide` has no call site.** `decide()` still enforces the two
+    self-approval policies from GE-034; the richer gate is not wired into the
+    approval action, because doing that means deciding where a recusal is
+    *stored* and who may record one — a migration and a UI, not a control.
+  * **Nothing persists.** No conflict register, no recusal record, no quorum
+    state on an approval. The approval chain in `apps/web` is still two named
+    gates in `nextStatus`, not a quorum.
+  * **Thresholds are not configured.** `ThresholdRung` is a shape; no tenant
+    declares a ladder. It belongs in `platform.permissions.*` or the workflow
+    definition, and both are decisions this item does not get to make alone.
+  * **Risk thresholds are amount thresholds only.** The item says "amount/risk";
+    `SessionAssurance.risk` (GE-051-002) gates a session and no ladder reads it,
+    because nothing computes a risk score for a *request* yet.
+  * **Consensus is quorum.** The item names both. What is built is "enough
+    distinct approvals, with breadth and role requirements". Consensus in the
+    sense of unanimity-or-negotiation is a workflow, not an authorization
+    primitive, and building a shape for it here would be a guess.
+
+  121/1219 decided.

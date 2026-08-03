@@ -156,3 +156,29 @@ export {
   validateRoleTemplates,
 } from "./role-templates"
 export type { RoleTemplate } from "./role-templates"
+
+export {
+  INCOMPATIBLE_DUTIES,
+  conflictHoldsAt,
+  mayDecide,
+  separationViolations,
+  quorumMet,
+  ladderProblems,
+  rungFor,
+} from "./controls"
+export type {
+  ConflictDeclaration,
+  Recusal,
+  ControlRefusal,
+  ControlOutcome,
+  ControlWorld,
+  DecisionUnderReview,
+  IncompatibleDuties,
+  DutiesViolation,
+  QuorumRule,
+  CastApproval,
+  QuorumOutcome,
+  QuorumShortfall,
+  ThresholdRung,
+  LadderProblem,
+} from "./controls"
