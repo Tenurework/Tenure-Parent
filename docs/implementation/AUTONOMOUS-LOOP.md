@@ -510,6 +510,16 @@ under `tests/`, which the ownership map does not cover — so a correct hypothes
 came back clean and the real cause survived two more ticks. Test a hypothesis
 with the *same* input that produced the failure.
 
+
+**Run `test:isolation` before pushing anything that adds an `.itest.ts`.**
+`batch-gate` runs type-check, unit, guards and both builds; it runs neither the
+e2e suite nor the isolation suite. A new integration test asserting a property
+*globally* went red in CI beside tests that legitimately create rows breaking
+it — the third time a global assertion in an itest has cost a build. Scope every
+claim to the seeded institution, and rebuild the database first: the isolation
+suite is not idempotent either, so a second run against the same database fails
+on unique constraints and turns any mutation baseline red.
+
 ---
 
 ## What is session-scoped, and what is not

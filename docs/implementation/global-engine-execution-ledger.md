@@ -7525,4 +7525,21 @@ worth less than three items that hold.
     question — does this seat carry finance authority — by asking the catalog.
     The other checks in `rbac.ts` still read `scope` and `status` directly.
 
+  **Red build, and what it was.** The first push failed CI's isolation job. The
+  new integration test asserted "every president holds the lead bundle"
+  *globally*, and `test:isolation` runs it beside tests that legitimately create
+  bare `Role` rows — including presidents, created without a template and
+  therefore carrying the column default. The failure named this migration rather
+  than the test that made the row.
+
+  Scoped to the seeded institution, which is what every claim in the file is
+  actually about. The backfill replay needed a second correction: it runs the
+  migration's statements exactly as written, which means globally, so it now
+  restores every row it touched rather than only the ones it asserts on.
+
+  This is the same mistake as GE-050-002's orphan-role count, made again, and
+  the reason it reached CI is that the isolation suite was never run locally
+  before pushing — `batch-gate` does not run it. It does now, by hand: 102/102
+  on a freshly created database, the suite that was red.
+
   123/1219 decided.

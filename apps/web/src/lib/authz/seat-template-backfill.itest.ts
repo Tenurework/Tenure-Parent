@@ -19,15 +19,28 @@ import { runUnscoped } from "@/lib/tenancy/context"
 
 const TEMPLATE_KEYS = new Set(ROLE_TEMPLATES.map((t) => t.key))
 
+/**
+ * Every claim here is about the seeded institution, and scoping is not
+ * decoration.
+ *
+ * This file runs inside `test:isolation`, alongside tests that legitimately
+ * create bare `Role` rows to prove other properties — including presidents,
+ * created without a template and therefore carrying the column default. A
+ * global "every president holds the lead bundle" is false the moment one of
+ * them runs first, and the failure names this migration rather than the test
+ * that made the row. The same mistake cost a red build on GE-050-002.
+ */
+const SEEDED = { organization: { institution: { slug: "rochester" } } } as const
+
 describe("every seat says what it carries", () => {
   it("has a template key on every row", async () => {
-    const total = await runUnscoped("migration", "count", () => db.role.count())
+    const total = await runUnscoped("migration", "count", () => db.role.count({ where: SEEDED }))
     expect(total).toBeGreaterThan(50)
 
     // `templateKey` is NOT NULL, so an empty string is the only way a row can
     // carry nothing while satisfying the schema.
     const blank = await runUnscoped("migration", "blank", () =>
-      db.role.count({ where: { templateKey: "" } }),
+      db.role.count({ where: { ...SEEDED, templateKey: "" } }),
     )
     expect(blank).toBe(0)
   })
@@ -36,7 +49,7 @@ describe("every seat says what it carries", () => {
     // A key nobody recognises confers nothing, which fails closed and is
     // therefore invisible: the seat simply stops working and nobody is told.
     const distinct = await runUnscoped("migration", "distinct", () =>
-      db.role.findMany({ distinct: ["templateKey"], select: { templateKey: true } }),
+      db.role.findMany({ where: SEEDED, distinct: ["templateKey"], select: { templateKey: true } }),
     )
     const unknown = distinct.map((r) => r.templateKey).filter((k) => !TEMPLATE_KEYS.has(k))
     expect(unknown).toEqual([])
@@ -45,7 +58,7 @@ describe("every seat says what it carries", () => {
   it("gives every president the lead bundle", async () => {
     const wrong = await runUnscoped("migration", "presidents", () =>
       db.role.findMany({
-        where: { scope: "PRESIDENT", NOT: { templateKey: "unit.lead" } },
+        where: { ...SEEDED, scope: "PRESIDENT", NOT: { templateKey: "unit.lead" } },
         select: { name: true, templateKey: true },
       }),
     )
@@ -60,6 +73,7 @@ describe("every seat says what it carries", () => {
     const finance = await runUnscoped("migration", "finance", () =>
       db.role.findMany({
         where: {
+          ...SEEDED,
           scope: { not: "PRESIDENT" },
           OR: [
             { name: { contains: "Financ", mode: "insensitive" } },
@@ -75,7 +89,7 @@ describe("every seat says what it carries", () => {
 
   it("gives an ordinary seat the smallest bundle", async () => {
     const member = await runUnscoped("migration", "member", () =>
-      db.role.findFirst({ where: { name: "Member" }, select: { templateKey: true } }),
+      db.role.findFirst({ where: { ...SEEDED, name: "Member" }, select: { templateKey: true } }),
     )
     expect(member?.templateKey).toBe("unit.member")
   })
@@ -87,7 +101,7 @@ describe("every seat says what it carries", () => {
     // looking like an ordinary member — failing closed, silently, everywhere.
     const holder = await runUnscoped("migration", "holder", () =>
       db.roleAssignment.findFirst({
-        where: { role: { templateKey: "finance.officer" }, status: "ACTIVE" },
+        where: { role: { ...SEEDED, templateKey: "finance.officer" }, status: "ACTIVE" },
         select: { userId: true, role: { select: { id: true } } },
       }),
     )
@@ -103,7 +117,7 @@ describe("every seat says what it carries", () => {
     // omitted; it does nothing about a caller that writes NULL on purpose, and
     // "no seat carries nothing" is the guarantee every check below rests on.
     const org = await runUnscoped("migration", "org", () =>
-      db.organization.findFirstOrThrow({ select: { id: true } }),
+      db.organization.findFirstOrThrow({ where: { institution: { slug: "rochester" } }, select: { id: true } }),
     )
     const name = `GE-051-005 null probe ${Date.now()}`
     await expect(
@@ -122,7 +136,7 @@ describe("every seat says what it carries", () => {
     // the most. Proven against the database default rather than the Prisma
     // client's, because a raw INSERT is what a migration or a script does.
     const org = await runUnscoped("migration", "org", () =>
-      db.organization.findFirstOrThrow({ select: { id: true } }),
+      db.organization.findFirstOrThrow({ where: { institution: { slug: "rochester" } }, select: { id: true } }),
     )
     const name = `GE-051-005 default probe ${Date.now()}`
     try {
@@ -183,8 +197,16 @@ describe("the backfill interprets existing seats correctly", () => {
   })
 
   it("puts every seat back where the migration would", async () => {
+    // Two reads, and the difference matters. The replay below runs the
+    // migration's statements exactly as written, which means globally — so
+    // everything it touches has to be put back, including rows other isolation
+    // tests created. The assertions stay on the seeded rows, because those are
+    // the ones whose names a real roster wrote.
+    const everything = await runUnscoped("migration", "all", () =>
+      db.role.findMany({ select: { id: true, templateKey: true } }),
+    )
     const before = await runUnscoped("migration", "before", () =>
-      db.role.findMany({ select: { id: true, name: true, scope: true, templateKey: true } }),
+      db.role.findMany({ where: SEEDED, select: { id: true, name: true, scope: true, templateKey: true } }),
     )
     expect(before.length).toBeGreaterThan(50)
 
@@ -205,7 +227,7 @@ describe("the backfill interprets existing seats correctly", () => {
       }
 
       const after = await runUnscoped("migration", "after", () =>
-        db.role.findMany({ select: { id: true, templateKey: true } }),
+        db.role.findMany({ where: SEEDED, select: { id: true, templateKey: true } }),
       )
       const byId = new Map(after.map((r) => [r.id, r.templateKey]))
 
@@ -229,7 +251,7 @@ describe("the backfill interprets existing seats correctly", () => {
       expect(counts.get("finance.officer") ?? 0).toBeGreaterThan(0)
       expect(counts.get("unit.member") ?? 0).toBeGreaterThan(0)
     } finally {
-      for (const row of before) {
+      for (const row of everything) {
         await runUnscoped("migration", "restore", () =>
           db.role.update({ where: { id: row.id }, data: { templateKey: row.templateKey } }),
         )
