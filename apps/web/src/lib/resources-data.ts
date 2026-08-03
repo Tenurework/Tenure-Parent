@@ -1,7 +1,10 @@
 import "server-only"
 import type { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
-import { canManageResources, getUserContext, type UserContext } from "@/lib/rbac"
+import { modulesFor } from "@tenure/platform-config"
+import { resourceWriteRefusal } from "@/lib/authz/resource-write-refusal"
+import { decideAcrossInstitution } from "@/lib/authz/seat-world"
+import { getUserContext, type UserContext } from "@/lib/rbac"
 import { terminologyForInstitution } from "@/lib/config/server"
 import { validateResourceForm } from "@/lib/forms/resource-form"
 import {
@@ -195,15 +198,52 @@ async function audit(
   })
 }
 
+/**
+ * GE-051-005. May this person write to the board, and why not if not?
+ *
+ * `canManageResources` answered "is this an OSE Director or Staff?" — a role
+ * check standing in for a permission. `institution.staff` and
+ * `institution.director` carry the resource permissions and
+ * `institution.advisor` does not, which reproduces that answer exactly
+ * (`institution-equivalence.test.ts` compares the two role by role) while
+ * making it something the engine decides rather than something this file knows.
+ *
+ * The message is unchanged when the answer is "wrong role", because it is a
+ * good message: it names the office rather than the permission, which is what
+ * the person reading it can act on. What changes is that a system with the
+ * resource module switched off now says so instead of blaming the reader's role.
+ */
+async function refuseResourceWrite(
+  ctx: UserContext,
+  institutionId: string,
+  permission: string,
+  verb: string,
+): Promise<WriteResult | null> {
+  const institution = await db.institution.findUnique({
+    where: { id: institutionId },
+    select: { slug: true },
+  })
+  if (!institution) return { error: "That institution no longer exists." }
+
+  const decision = decideAcrossInstitution(ctx, {
+    permission,
+    tenantId: institutionId,
+    enabledModules: modulesFor(institution.slug).keys,
+  })
+  if (decision.allowed) return null
+
+  const staffOffice = (await terminologyForInstitution(institutionId)).staffOffice
+  return { error: resourceWriteRefusal(decision, staffOffice, verb)! }
+}
+
 export async function createResource(
   userId: string,
   institutionId: string,
   input: ResourceInput
 ): Promise<WriteResult> {
   const ctx = await getUserContext(userId)
-  if (!canManageResources(ctx, institutionId)) {
-    return { error: `Only ${(await terminologyForInstitution(institutionId)).staffOffice} can publish board resources.` }
-  }
+  const refusal = await refuseResourceWrite(ctx, institutionId, "resources.resource.create", "publish")
+  if (refusal) return refusal
   const invalid = validate(input)
   if (invalid) return { error: invalid }
 
@@ -254,11 +294,8 @@ export async function updateResource(
   if (!existing) return { error: "That resource no longer exists." }
 
   const ctx = await getUserContext(userId)
-  if (!canManageResources(ctx, existing.institutionId)) {
-    return {
-      error: `Only ${(await terminologyForInstitution(existing.institutionId)).staffOffice} can edit board resources.`,
-    }
-  }
+  const refusal = await refuseResourceWrite(ctx, existing.institutionId, "resources.resource.update", "edit")
+  if (refusal) return refusal
   const invalid = validate(input)
   if (invalid) return { error: invalid }
 
@@ -302,11 +339,8 @@ export async function setResourceArchived(
   if (!existing) return { error: "That resource no longer exists." }
 
   const ctx = await getUserContext(userId)
-  if (!canManageResources(ctx, existing.institutionId)) {
-    return {
-      error: `Only ${(await terminologyForInstitution(existing.institutionId)).staffOffice} can retire board resources.`,
-    }
-  }
+  const refusal = await refuseResourceWrite(ctx, existing.institutionId, "resources.resource.archive", "retire")
+  if (refusal) return refusal
 
   await db.resource.update({
     where: { id: resourceId },

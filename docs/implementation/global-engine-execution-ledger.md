@@ -7790,3 +7790,81 @@ immediately, which is the guard working.
   production remote and this repository must never push to it.
 
   123/1219 decided.
+
+- [ ] **GE-051-005** — *(continued)* Enforce authorization in every path.
+  - Status: FAIL — the ratchet stays at **30**, and honestly so: three resource
+    writes are now decided by the engine, but the inventory cannot see it (below)
+  - Code: `institution.advisor` / `.staff` / `.director` role templates,
+    `INSTITUTION_TEMPLATES` + `institutionGrants` + `institutionWorld` +
+    `decideAcrossInstitution` in `apps/web/src/lib/authz/seat-world.ts`,
+    `resourceWriteRefusal`, and the three `canManageResources` call sites in
+    `apps/web/src/lib/resources-data.ts`
+  - Tests: `apps/web/src/lib/authz/institution-equivalence.test.ts` (23),
+    `apps/web/src/lib/authz/resource-write-refusal.test.ts` (5)
+  - Evidence: 2901/2901 apps/web unit across 119 suites, 196/196 platform
+    guards, 102/102 isolation on a fresh database, 151/152 e2e on a freshly
+    created database (1 flaky, green on retry, the same `resources.spec.ts`
+    retire/restore seen for four ticks), type-check clean, gate passed.
+    **18 mutations, 18 caught.**
+
+  ## The institution roles, modelled without changing what anybody may do
+
+  Last tick's honest limit was that OSE roles are not seats and do not map onto
+  the shipped templates. They now have three of their own, and the point is how
+  they were derived: **from the predicates in `rbac.ts`, not from what the roles
+  ought to confer.** `institution-equivalence.test.ts` compares the two answer
+  by answer across every role. If they disagree anywhere that is not a nicer
+  implementation, it is a permission change nobody asked for, going in whichever
+  direction nobody notices.
+
+  Three templates rather than one, because the roles genuinely differ — a
+  Director manages rosters and budgets, Staff does not, an Advisor cannot
+  publish resources. Mapping all three to one template would have been tidier
+  and would have widened two of them.
+
+  **The comparison caught a narrowing immediately.** `approvals.request.decide`
+  was given to the Director alone, which reads sensibly and is wrong:
+  `actorRoles` sets `isOseGate: isOse(ctx, institutionId)`, so *any* institution
+  role decides at the second gate, Advisor included. That is a permission change
+  in the direction nobody complains about — until the Advisor on duty cannot
+  clear the queue. It was found by a mutation surviving, not by reading.
+
+  Every comparison is paired with a "not vacuous" assertion, because an engine
+  that allowed everything, or nothing, would pass a matrix of equality checks
+  without saying anything at all.
+
+  ## Why the ratchet does not move
+
+  The three resource writes — publish, edit, retire — are decided by the engine
+  now. The count stays at 30 because `entry-point-inventory.mjs` attributes a
+  guard from the action module and its layout chain, and these decisions live
+  one call away in `resources-data.ts`, which is the right place for them:
+  authorization at the data access point rather than at the door.
+
+  Left at 30 rather than adjusted. The ratchet over-reports debt here, which is
+  the safe direction for a number whose job is to only shrink, and inflating it
+  by teaching the inventory a special case for one file would make it report
+  something other than what it measures. Following a call one level into
+  `@/lib/*` is a real improvement to the inventory and is its own piece of work.
+
+  **Honest limits.**
+
+  * **The predicates are still there.** `canManageResources` is no longer called
+    by the write paths, but `resources/page.tsx` still uses it to decide whether
+    to render the editor — correctly, since hiding a control is a UI concern and
+    the server is authoritative either way. `canManageRoster`, `canViewOrg` and
+    the rest are untouched and still the specification the templates are
+    measured against.
+  * **The equivalence test is the specification, and it is not complete.** It
+    compares five predicates. `canContribute`, `canManageOrg` and
+    `canViewFinance` are not compared, so the institution templates' permissions
+    for those are asserted by nothing — they were derived by reading, which is
+    exactly the standard this test exists to replace.
+  * **Still not through GE-051-004's service.** `decideAcrossInstitution` calls
+    `decide()` directly: no cache, no policy revision recorded.
+  * **The e2e flake is now four ticks old.** `resources.spec.ts` retire/restore
+    fails and passes on retry. It is unrelated to this change — it predates the
+    conversion — but it is no longer reasonable to keep calling it noise, and it
+    touches the code this entry changed. Worth its own tick.
+
+  123/1219 decided.
