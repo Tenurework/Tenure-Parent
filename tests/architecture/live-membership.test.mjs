@@ -131,6 +131,16 @@ const UNFILTERED_BY_DESIGN = [
     why: "Revoking and transferring must read a membership whatever its state, in order to change it.",
   },
   {
+    file: "apps/web/src/lib/provisioning/reconcile.ts",
+    method: "count",
+    why:
+      "GE-044-005. This counts how many institutions an administrator's address has EVER been placed " +
+      "at, to warn an operator who is about to reuse it. History, not live access: an account whose " +
+      "membership elsewhere was revoked last year still belongs to a person from elsewhere, and a live " +
+      "filter would go quiet on exactly the case worth confirming. The message says \"has been placed " +
+      "at\" rather than \"belongs to\" so the number and the words agree.",
+  },
+  {
     file: "apps/web/src/lib/identity/access-report.ts",
     method: "findMany",
     why:

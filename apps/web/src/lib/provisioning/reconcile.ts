@@ -223,11 +223,56 @@ export async function reconcile(db: ReconcileClient, input: ReconcileInput): Pro
       update: {},
       create: { email, name: email.split("@")[0] },
     })
+
     if (!existingUser) changes.push("created the administrator account")
 
     const existingMembership = await tx.institutionMembership.findUnique({
       where: { userId_institutionId: { userId: user.id, institutionId: institution.id } },
     })
+
+    if (existingUser && !existingMembership) {
+      // GE-044-005. Attaching an existing account to a new institution is not
+      // silent.
+      //
+      // The upsert keys on email, and an address is a label rather than a
+      // person (GE-040-002). Two institutions provisioned with one address is
+      // sometimes right — an IT contractor working with both — and sometimes a
+      // typo that has just handed director rights over one tenant to somebody
+      // who belongs to another. The upsert cannot tell those apart and neither
+      // can this; what it can do is refuse to let the difference pass unseen.
+      //
+      // Reported with the count of institutions the account already holds,
+      // because "reused an existing account" is easy to skim past and "already
+      // belongs to 1 other institution" is not.
+      //
+      // Conditioned on the membership being new, so a re-run of the same
+      // manifest still reports nothing — the account was already this
+      // institution's director, and nothing was attached.
+      // Deliberately NOT filtered to live memberships, and deliberately worded
+      // as history rather than as current access.
+      //
+      // The question is "has this address ever been placed somewhere else",
+      // which is what makes an operator stop and check. An account whose
+      // membership at another institution was revoked last year still belongs
+      // to a person from that institution, and reusing it is still the thing to
+      // confirm — a live filter would go quiet on exactly that case. A false
+      // alarm costs a moment's thought; a missed one costs a wrong director.
+      //
+      // No `institutionId: { not: … }` filter either: this runs before the
+      // membership upsert below, so the institution being provisioned is not in
+      // the count yet. An exclusion would be a clause that decides nothing — a
+      // mutation removing it changed no outcome, which is how it was found. The
+      // ordering is what makes the number right, and the integration test pins
+      // that number at one rather than trusting the reading.
+      const priorPlacements = await tx.institutionMembership.count({
+        where: { userId: user.id },
+      })
+      changes.push(
+        priorPlacements === 0
+          ? `reused the existing account for ${email}`
+          : `reused the existing account for ${email}, which has been placed at ${priorPlacements} other institution${priorPlacements === 1 ? "" : "s"} — confirm this is the same person`,
+      )
+    }
     await tx.institutionMembership.upsert({
       where: { userId_institutionId: { userId: user.id, institutionId: institution.id } },
       update: { role: "OSE_DIRECTOR" },

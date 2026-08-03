@@ -18,6 +18,8 @@ import { ReconcileRefused, reconcile, verifyDigest, type DeploymentManifest } fr
 const db = new PrismaClient({ log: ["error"] })
 
 const SLUG = `itest-recon-${process.pid}`
+/** A second tenant, provisioned with the SAME administrator address. */
+const SLUG_B = `itest-recon-b-${process.pid}`
 const ADMIN = `admin-${process.pid}@example.invalid`
 
 /** Build a manifest whose digest actually verifies, the way the engine does. */
@@ -63,11 +65,13 @@ const input = (manifest: DeploymentManifest) => ({
 })
 
 async function cleanup() {
-  const inst = await db.institution.findUnique({ where: { slug: SLUG } })
-  if (inst) {
-    await db.auditEvent.deleteMany({ where: { institutionId: inst.id } })
-    await db.institutionMembership.deleteMany({ where: { institutionId: inst.id } })
-    await db.institution.delete({ where: { id: inst.id } })
+  for (const slug of [SLUG, SLUG_B]) {
+    const inst = await db.institution.findUnique({ where: { slug } })
+    if (inst) {
+      await db.auditEvent.deleteMany({ where: { institutionId: inst.id } })
+      await db.institutionMembership.deleteMany({ where: { institutionId: inst.id } })
+      await db.institution.delete({ where: { id: inst.id } })
+    }
   }
   await db.user.deleteMany({ where: { email: ADMIN } })
 }
@@ -310,5 +314,73 @@ describe("the digest survives a round trip through a store", () => {
       Object.entries(tampered).reverse(),
     ) as unknown as DeploymentManifest
     expect(await verifyDigest(reordered)).toBe(false)
+  })
+})
+
+/**
+ * GE-044-005 — an address is a label, and reusing an account is not silent.
+ *
+ * `reconcile` upserts the administrator by email, because a person genuinely
+ * does hold seats at more than one institution and `User` is platform-global by
+ * design. That is right, and it is also how a typo hands director rights over
+ * one tenant to somebody who belongs to another.
+ *
+ * The upsert cannot tell those apart. Nothing can, from an address alone —
+ * which is GE-040-002's whole point. What the operator gets instead is the fact
+ * stated plainly, at the moment it happens, with the number of institutions that
+ * account has ever been placed at. History, not live access: an account revoked
+ * elsewhere last year still belongs to a person from elsewhere.
+ */
+describe("provisioning a second tenant with an existing administrator's address", () => {
+  it("says the account was reused, and how many institutions it already holds", async () => {
+    // The first tenant already exists from the tests above, with ADMIN as its
+    // director. This provisions a second one with the same address.
+    const report = await reconcile(db, {
+      ...input(signed({ slug: SLUG_B })),
+      displayName: "Reconcile Integration Test B",
+    })
+
+    expect(report.applied).toBe(true)
+    const reuse = report.changes.find((change) => change.startsWith("reused the existing account"))
+
+    expect(reuse).toBeDefined()
+    expect(reuse).toContain(ADMIN)
+    expect(reuse).toContain("placed at 1 other institution")
+    expect(reuse).toContain("confirm this is the same person")
+  })
+
+  it("does not report creating an account it did not create", async () => {
+    const report = await reconcile(db, {
+      ...input(signed({ slug: SLUG_B })),
+      displayName: "Reconcile Integration Test B",
+    })
+    expect(report.changes).not.toContain("created the administrator account")
+  })
+
+  it("attaches to the same person rather than making a second one", async () => {
+    // The behaviour is deliberate — one human, two institutions — and the
+    // reporting exists because it is indistinguishable from the mistake.
+    expect(await db.user.count({ where: { email: ADMIN } })).toBe(1)
+
+    const user = await db.user.findUniqueOrThrow({ where: { email: ADMIN } })
+    const memberships = await db.institutionMembership.findMany({
+      where: { userId: user.id },
+      include: { institution: true },
+    })
+
+    expect(memberships.map((m) => m.institution.slug).sort()).toEqual([SLUG, SLUG_B].sort())
+    for (const membership of memberships) expect(membership.role).toBe("OSE_DIRECTOR")
+  })
+
+  it("stays quiet on a re-run, because nothing is attached the second time", async () => {
+    // Reuse is news when an account is attached to an institution it did not
+    // belong to. Re-running the same manifest attaches nothing, so a report
+    // that still announced a reuse would be noise — and a report that is noise
+    // is one nobody reads.
+    const report = await reconcile(db, {
+      ...input(signed({ slug: SLUG_B })),
+      displayName: "Reconcile Integration Test B",
+    })
+    expect(report.changes).toEqual([])
   })
 })

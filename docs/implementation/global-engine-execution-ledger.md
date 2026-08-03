@@ -5937,3 +5937,89 @@ worth less than three items that hold.
     ledger names which file covers which dimension so the claim is checkable.
 
   108/1219 decided.
+
+- [x] **GE-044-005** — Same email from different issuers does not merge; changed email preserves issuer/subject identity.
+  - Status: PASS
+  - Code: `apps/web/src/lib/provisioning/reconcile.ts` — a live change, not a rule
+    waiting for a cutover
+  - Tests: `apps/web/src/lib/provisioning/reconcile.itest.ts` (+4, real
+    PostgreSQL). The engine properties were already proved:
+    `keying.test.ts` covers "does not match the same subject from a different
+    issuer", "updates the address without changing who the identity points to",
+    "still resolves after the address changes" and "reports two people asserting
+    one address without resolving it"; `linking.test.ts` covers a merge proposal
+    whose evidence is an address being refused before a reviewer sees it.
+  - Evidence: 2433/2433 apps/web unit across 103 suites, 85/85 isolation against
+    real PostgreSQL, 165/165 platform guards, type-check clean, gate passed 8
+    steps. **6 mutations, 6 caught** — after the first run's survivor turned out
+    to be a redundant clause.
+
+  The audit found both named properties already covered in the identity engine.
+  Adding more tests for them would have been motion. Following the same question
+  into **running code** found something that was not.
+
+  ## `reconcile` upserts a director by email, and said nothing when it reused one
+
+  Provisioning a tenant takes an `initialAdminEmail` and upserts a `User` on it.
+  That is deliberate and right: `User` is platform-global by design because one
+  person genuinely holds seats at more than one institution.
+
+  It is also how a typo hands director rights over one tenant to somebody who
+  belongs to another. The report said `created the administrator account` when
+  the account was new and **nothing at all** when it was reused — so the operator
+  saw `granted director rights to the administrator` without learning that the
+  administrator was a pre-existing person from somewhere else.
+
+  The upsert cannot tell a shared contractor from a typo. Nothing can, from an
+  address alone — that is GE-040-002's whole point. What it can do is refuse to
+  let the difference pass unseen, so the report now says which address was
+  reused and how many other institutions that account has been placed at.
+
+  **Reported only when the membership is new.** A re-run of the same manifest
+  attaches nothing, and a report that still announced a reuse would be noise — a
+  report that is noise is one nobody reads. The idempotency requirement
+  (GE-102-011) holds: a second run still reports an empty list, and a mutation
+  making the message unconditional is caught by that test.
+
+  ## History, not live access
+
+  The `live-membership` guard flagged the new count, correctly. Making it a live
+  read would have been the quick answer and the wrong one: an account whose
+  membership elsewhere was revoked last year still belongs to a person from
+  elsewhere, and that is *exactly* the case worth confirming. A live filter would
+  go quiet on it.
+
+  So the count stays unfiltered and the wording changed to match — "has been
+  placed at" rather than "belongs to", so the number and the words agree. The
+  exemption is registered with that reasoning. A false alarm costs a moment's
+  thought; a missed one costs a wrong director.
+
+  ## The survivor was a redundant clause
+
+  The count first excluded the institution being provisioned. It runs before the
+  membership upsert, so that institution is not in the count yet and the
+  exclusion decided nothing — a mutation removing it changed no outcome, which is
+  how it was found. Removed, with the ordering documented, and a replacement
+  mutation that adds one to the count is caught by the test pinning it at one.
+
+  **Honest limits.**
+
+  * **The report warns; it does not refuse.** Provisioning proceeds. Refusing
+    would break the legitimate case — an administrator who genuinely runs two
+    tenants — and there is no signal here that distinguishes it. The operator is
+    the one who can know, so the operator is who is told.
+  * **Nobody reads the report automatically.** It is returned from
+    `reconcile` and surfaced by `/api/platform/reconcile`. Whether an operator
+    acts on the sentence is outside what this can enforce.
+  * **The engine's cross-issuer property is proved in `keying.test.ts`, not
+    end to end.** A federated sign-in through two issuers with one address is
+    covered structurally — the key is `(connectionId, issuer, subject)` and email
+    is not in it — and `federation-e2e.test.ts` (GE-043-007) already drives two
+    issuers through the real chain. A third scenario re-proving the same
+    mechanism would repeat rather than add.
+  * **Dev-login still authenticates by email** (`apps/web/src/lib/auth.ts`).
+    That is the demo account picker, not federation, and it disappears with the
+    Cognito cutover. It is not covered by this item's rule because there is no
+    issuer involved at all.
+
+  109/1219 decided.

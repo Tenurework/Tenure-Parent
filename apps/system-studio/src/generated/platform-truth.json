@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "da30318",
+  "commit": "f7083f0",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 105,
-    "done": 92,
+    "total": 106,
+    "done": 93,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -763,6 +763,13 @@
             "title": "Open redirect, callback host poisoning, login CSRF, session fixation, cookie, Origin/CORS, logout, refresh/session replay, and tenant-switch tests pass.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-044-005",
+            "done": true,
+            "title": "Same email from different issuers does not merge; changed email preserves issuer/subject identity.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -777,7 +784,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 108,
+    "decided": 109,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -924,7 +931,7 @@
         "source": "GE",
         "items": 6,
         "gates": 0,
-        "done": 4
+        "done": 5
       },
       {
         "phase": "GE · Phase 4 gate",
