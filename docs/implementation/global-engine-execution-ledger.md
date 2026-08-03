@@ -6476,3 +6476,103 @@ worth less than three items that hold.
     prompted a ceiling in the first place.
 
   114/1219 decided.
+
+- [x] **GE-050-004** — Support active/future/interim/acting/shadow/delegate/leave/former/alumni/advisor/contractor assignment states through configuration.
+  - Status: PASS for the catalog and its decisions; persistence is limited below
+  - Code: `packages/organization-model/src/assignment-states.ts`
+    (`PLATFORM_ASSIGNMENT_STATES`, `stateAuthorityAt`, `seatIsVacant`,
+    `assignmentProblems`, `validateAssignmentCatalog`)
+  - Tests: `packages/organization-model/src/assignment-states.test.ts` (40)
+  - Evidence: 2542/2542 apps/web unit across 105 suites, 173/173 platform guards,
+    type-check clean, gate passed. **18 mutations, 18 caught.**
+
+  ## "Through configuration" rules out a longer enum
+
+  `SEAT_STATUSES` held three values and the database enum holds the same three.
+  The tempting reading of this item is to make both eleven. It is wrong twice
+  over: a twelfth state would then need a code change *and* a migration, which is
+  what configuration exists to avoid — and an enum says nothing about what a
+  state means.
+
+  **`interim` and `acting` are the proof.** Both hold a seat temporarily. They
+  differ in exactly one respect, and no reader can recover it from the name: an
+  **interim** holder is in a post that is genuinely empty, so the seat is no
+  longer vacant; an **acting** holder is covering a post that is still somebody
+  else's, so it is. Code switching on the name has to encode that somewhere else,
+  where it drifts from the name it belongs to.
+
+  So a state is a record of decisions: what authority it carries, whether its
+  holder *occupies* the seat, whether it is live before its window, and whether
+  it must be bounded.
+
+  ## Occupancy is not authority, and they point opposite ways
+
+  Somebody **on leave** occupies their seat and can do nothing in it. The seat is
+  not vacant, no successor is appointed, and a vacancy report counting them as a
+  gap would send somebody to fill a post that is taken.
+
+  An **acting** holder is the mirror image: full authority, no occupancy. Both
+  halves are asserted, in the same test, pointing opposite ways — which is the
+  only way to show the two questions are genuinely separate rather than one
+  question with two names.
+
+  ## A temporary arrangement has to end
+
+  `requiresEnd` on interim, acting, shadow, delegate and contractor. The failure
+  it catches is invisible afterwards: an interim appointment with no end date
+  looks exactly like a substantive one, and that is how a temporary arrangement
+  becomes the org chart. Checked at write time, because by read time there is
+  nothing left to notice.
+
+  History is exempt. A `former` or `alumni` record with no end is the record
+  standing, not an unbounded grant — they hold nothing.
+
+  ## Failing closed, in both directions
+
+  An unknown state grants `NONE`. A key the catalog does not declare is a typo, a
+  state removed while rows still carry it, or a value written by an older
+  version; resolving it to the catalog's most common answer would grant authority
+  on the strength of a spelling mistake.
+
+  It also does not *occupy*, so a seat holding only an unknown state reads as
+  vacant and somebody is prompted to look at it. Failing closed on authority and
+  open on vacancy is deliberate: both directions surface the problem rather than
+  hiding it.
+
+  ## A tenant's catalog is validated before it decides anything
+
+  Two states sharing an id means the second silently wins, and which one that is
+  depends on array order — a decision nobody made. Explicitly unbounded full
+  authority (`requiresEnd: false`) is refused while leaving it *unset* is a
+  substantive appointment; the distinction matters because the first is somebody
+  saying a temporary arrangement need not end. A preview state that carries full
+  authority is refused outright: live before its window and able to act is acting
+  before the term it was granted for.
+
+  **Honest limits.**
+
+  * **Nothing stores these states yet.** `AssignmentStatus` in the schema is
+    still the three-value Postgres enum, and `SeatAssignment.status` in
+    `@tenure/identity` still types to `SEAT_STATUSES`. Moving the column to a
+    catalog key is a migration with its own read sites — the same shape as
+    GE-050-002, which is the item that should carry it. Deciding the rules first
+    is deliberate: GE-050-001 → GE-050-002 worked that way, and the alternative
+    produces a column whose permitted values are guesses.
+  * **`seatState` in `@tenure/identity` still switches on its own three-value
+    enum.** Pointing it at a catalog means crossing a package boundary that
+    `organization-model` deliberately does not have — units and seats exist
+    whether or not anybody signs in. Which side owns the catalog is a real
+    decision and it belongs with the migration, not smuggled in here.
+  * **The catalog is not yet blueprint-configurable.** `PLATFORM_ASSIGNMENT_STATES`
+    is the shipped default and `validateAssignmentCatalog` accepts a narrowed or
+    extended one, but no blueprint declares a catalog and nothing resolves a
+    tenant's. That wiring belongs with `packages/configuration`, and adding a
+    key nothing reads would be the speculative code this repository refuses.
+  * **`delegate` as an assignment state overlaps `Delegation`** (GE-050-001).
+    The state says somebody is exercising lent authority; the `Delegation` record
+    says exactly what was lent and for how long. The state alone confers `FULL`
+    here, which is only safe because `delegationAllows` bounds it — and nothing
+    yet enforces that a `delegate` assignment has a matching `Delegation`. That
+    join is real and is not built.
+
+  115/1219 decided.

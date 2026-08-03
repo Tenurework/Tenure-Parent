@@ -63,3 +63,16 @@ export {
   type Team,
   type TeamMembership,
 } from "./continuity"
+
+export {
+  PLATFORM_ASSIGNMENT_STATES,
+  assignmentProblems,
+  findAssignmentState,
+  seatIsVacant,
+  stateAuthorityAt,
+  validateAssignmentCatalog,
+  type AssignmentState,
+  type AssignmentStateCatalog,
+  type CatalogProblem,
+  type StateAuthority,
+} from "./assignment-states"
