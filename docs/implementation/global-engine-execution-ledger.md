@@ -7341,3 +7341,80 @@ worth less than three items that hold.
      there is one permission vocabulary rather than two.
 
   122/1219 decided.
+
+- [x] **GE-051-006** — Add architecture/lint tests preventing direct role-string/email-domain/Cognito-group/frontend-state authorization.
+  - Status: PASS
+  - Code: none — this item is the test
+  - Tests: `tests/security/authority-comes-from-assignments.test.mjs` (6)
+  - Evidence: 195/195 platform guards (up from 189), 2833/2833 apps/web unit,
+    type-check clean, gate passed. **13 mutations, 13 caught.**
+
+  Bible §"Decisions" 3: authority "comes from an active, scoped assignment or
+  explicit delegation, not from a title string, email domain, Cognito group, or
+  UI state."
+
+  Every one of those four is a shortcut that **works**, which is what makes them
+  dangerous — none is a bug on the day it is written. A title string works until
+  a tenant renames Treasurer to Finance Lead. An email domain works until an
+  address changes, a partner institution shares one, or somebody registers a
+  lookalike. A Cognito group works until it is edited in a console with
+  different approvals and no effective dating. UI state works until the request
+  is sent without the UI.
+
+  They also share a property that matters more than any of those: the grant they
+  produce has no start date, no end date, and no record of who conferred it. It
+  cannot be reviewed, cannot expire, and does not appear in any answer to "what
+  could this person do in March".
+
+  The codebase is clean on all four. This is the test that keeps it that way,
+  which is the whole of what the item asks.
+
+  ## Three false positives, each a flaw in the detector rather than the code
+
+  Writing it turned up three things the first version called violations, and
+  every one was the test being wrong:
+
+  * **`email.split("@")[0]`** in four places — the *local part*, used as a
+    default display name when creating a person. The rule is about the domain,
+    which is `[1]`.
+  * **`formData.get("role")`** in the admin actions — a form saying *which role
+    to grant somebody*, which is the ordinary shape of an assignment screen. The
+    caller's authority to make that grant is checked separately. What is never
+    legitimate is the browser telling the server what the browser may do, so the
+    detector now names `capabilities`, `permissions`, `isAdmin` and not `role`.
+  * **An exemption for `claims-input.ts`** that was not needed: it names the
+    forbidden claims only in prose, and the scanner already skips comments.
+    Removed rather than kept "just in case" — an unnecessary exemption is one
+    that will quietly cover the next real violation, and a test asserts none of
+    them is unnecessary.
+
+  ## What the mutations found
+
+  Anchoring the browser-supplied-capability detector on `formData|searchParams|
+  body|query` made it depend on a naming convention nobody agreed to: a mutation
+  writing `f.get("capabilities")` walked straight past it. It now matches any
+  receiver.
+
+  Two more survivors were the exemption checks, which nothing exercised — the
+  same blind spot found twice before in this session. Extracted into
+  `exemptionProblems` and self-tested against synthetic inputs, so a missing
+  file, a thin reason and a stale entry are each proven to fail.
+
+  **Honest limits.**
+
+  * **It is a text scan.** `roleName === "President"` assigned through an
+    intermediate variable, or a domain check spread over two lines, passes. The
+    scan catches the shape people actually write, which is the shape that gets
+    written when somebody is in a hurry — that is most of the value and it is
+    not all of it.
+  * **It does not prove the positive.** "Authority comes from an assignment" is
+    the other half, and it is GE-051-005's ratchet: 31 mutating paths still make
+    no permission decision at all. Nothing here changes that number.
+  * **An unexplained intermittent remains.** `npm run test:platform` reported a
+    single failure three times in this session, always in the run immediately
+    following a mutation batch, and could not be reproduced in 14 consecutive
+    runs afterwards. The probe-file cause found earlier was real and is fixed
+    and mutation-proven; this residual is separate, rarer, and not diagnosed.
+    Recorded rather than claimed resolved.
+
+  123/1219 decided.

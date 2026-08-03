@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "f33b08d",
+  "commit": "7c1a47c",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 120,
-    "done": 105,
+    "total": 121,
+    "done": 106,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -868,6 +868,13 @@
             "title": "Enforce authorization in every controller, service, repository/query, file, search, export, report, analytics, event/job, websocket, connector, support, admin, and Relay path.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-051-006",
+            "done": true,
+            "title": "Add architecture/lint tests preventing direct role-string/email-domain/Cognito-group/frontend-state authorization.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -882,7 +889,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 122,
+    "decided": 123,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -1050,7 +1057,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 4
+        "done": 5
       },
       {
         "phase": "GE · GE-052: Generality fixtures",
@@ -2233,7 +2240,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 24,
+      "files": 25,
       "what": "repository and deployment invariants"
     },
     {
