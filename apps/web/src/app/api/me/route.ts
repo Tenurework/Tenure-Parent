@@ -5,6 +5,7 @@ import { getUserContext } from "@/lib/rbac"
 import { actingInstitutions } from "@/lib/tenant-scope"
 import { modulesFor } from "@tenure/platform-config"
 import { navigationCapabilitiesFor } from "@/lib/authz/navigation-capabilities"
+import { accessReportFor } from "@/lib/identity/access-report"
 
 /**
  * Who is signed in, which tenant they are acting in, and what that tenant runs.
@@ -37,7 +38,7 @@ export async function GET() {
   }
   const userId = session.user.id
 
-  const [ctx, tenants, me] = await Promise.all([
+  const [ctx, tenants, me, access] = await Promise.all([
     getUserContext(userId),
     actingInstitutions(userId),
     // The session is a JWT minted at sign-in, so name and image in it are as
@@ -46,6 +47,10 @@ export async function GET() {
       where: { id: userId },
       select: { name: true, email: true, image: true },
     }),
+    // GE-042-006. Why this person has no access, when they have none — see
+    // `accessReportFor`, which reads memberships that are deliberately not
+    // filtered to live ones and is the only read in the application that does.
+    accessReportFor(userId),
   ])
 
   const enabledModules = modulesFor(tenants.active?.slug ?? "").keys
@@ -71,6 +76,14 @@ export async function GET() {
        * onboarding path instead of an empty dashboard.
        */
       activeInstitution: tenants.active,
+      /**
+       * Why there is no active institution, when there is none.
+       *
+       * `ACTIVE` when they have one. Otherwise the state says which of the four
+       * ways access can be absent applies, so a client can show the right
+       * sentence instead of assuming everybody with no tenant is new.
+       */
+      access,
       institutions: tenants.options.map((institution) => ({
         ...institution,
         active: institution.id === tenants.active?.id,

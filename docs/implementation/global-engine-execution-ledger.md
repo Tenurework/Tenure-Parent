@@ -4716,3 +4716,162 @@ worth less than three items that hold.
     refresh, and a refresh flow written now would be the speculative code this
     repository refuses; the prohibition on storing one is what this item
     delivers.
+
+- [x] **GE-042-006** — Implement `/me`, tenant switch with revalidation/rotation, logout/local revocation/upstream behavior, and expired/revoked/disabled states.
+  - Status: PASS
+  - Code: `apps/web/src/lib/identity/access-report.ts` (`accessReportFor`, wired into
+    `apps/web/src/app/api/me/route.ts`), `packages/identity/src/effective-state.ts`
+    (`accessState`), `packages/identity/src/tenant-switch.ts` (`planTenantSwitch`),
+    `packages/identity/src/logout.ts` (`planLogout`),
+    `apps/web/src/lib/tenancy/context.ts` (`settleInsideContext`),
+    `packages/identity/src/session.ts` (`rotationReason` recorded)
+  - Tests: `packages/identity/src/access-state.test.ts` (16),
+    `tenant-switch.test.ts` (16), `logout.test.ts` (19),
+    `apps/web/src/lib/identity/access-state.itest.ts` (9, real PostgreSQL),
+    `apps/web/src/lib/tenancy/isolation.itest.ts` (+4),
+    `tests/architecture/live-membership.test.mjs` (6),
+    `apps/web/e2e/shell.spec.ts` (`/api/me` ACTIVE)
+  - Evidence: 2060/2060 apps/web unit across 91 suites, 79/79 isolation against
+    real PostgreSQL, 132/132 platform guards, type-check clean, build clean.
+    **33 mutations, 33 caught** — after two runs exposed real gaps rather than
+    confirming the code, and after one harness result turned out to be a lie.
+
+  Four clauses, and the first one is where the bug was.
+
+  **`/me` could not say why.** `activeInstitution: null` was the only answer for
+  everybody with no access. That was fine while a revoked person had no row at
+  all — but GE-040-001 made memberships effective-dated, so that single `null`
+  now covers a suspended director, a term that ended, a revocation and a
+  genuinely new account. A suspended director opens the application and sees the
+  onboarding path a new account sees, *welcome, let's get you started*, an hour
+  after somebody suspended them. Collapsing every reason into `null` is not a
+  neutral simplification; it tells one specific lie to the person least able to
+  work out that it is one.
+
+  `accessState` names six states and gives each its own sentence. Precedence
+  when memberships disagree is **most actionable wins**: a person suspended at
+  one tenant and revoked at another hears about the suspension, which somebody
+  can lift, rather than the revocation, which needs a new grant.
+
+  **The one read in this application that must not filter to live rows.** Every
+  other membership query filters, and `tests/architecture/live-membership.test.mjs`
+  enforces it. This one cannot: a live filter returns nothing for a suspended
+  person, nothing for an ended term and nothing for a new account, so all three
+  would report `NEVER_PLACED` — the exact confusion the state exists to end. The
+  exemption is registered with that reason, and a second guard asserts the exempt
+  file holds *exactly one* query, so the exemption cannot widen silently.
+
+  It is `accessReportFor` rather than a query inside the route because the
+  integration test would otherwise assert against its own copy: a regression
+  filtering the route's rows would leave the copy, and the test, untouched.
+
+  **A tenant switch is a privilege change.** `checkSession` binds a session to
+  one tenant, so the identifier in the browser cannot serve the new one — the
+  switch must rotate. `planTenantSwitch` revalidates live membership *at the
+  moment of the switch* rather than trusting the list the browser was sent when
+  the page rendered, because the interval between rendering a switcher and
+  clicking it is exactly when somebody gets suspended. It rebinds the rotated
+  session to the target (`rotateSession` spreads the old one, so a rotation that
+  forgot this yields a fresh id still bound to the tenant just left), does not
+  extend the absolute expiry, and refuses a switch to where you already are
+  rather than rotating on a double-click and racing an in-flight request.
+
+  Refusals are named, not collapsed: a dead session and a missing membership
+  need different answers, and one `false` for both tells a suspended person to
+  sign in again — which they can do, successfully, to no effect, forever.
+
+  **Logout, including the half nobody implements.** Clearing the local session
+  is the part every application does. The provider's session is still live, so
+  the person clicks *sign out*, clicks *sign in*, and is back in without being
+  asked for anything. On the shared machine in a school office that means sign
+  out did not do what the person read it as doing.
+
+  `planLogout` builds an RP-initiated logout when the provider advertises
+  `end_session_endpoint`, and when it does not, says so — *you are signed out of
+  Tenure, your school account is still signed in on this device*. That sentence
+  is the deliverable. "You have been signed out" while the upstream session
+  stands is not a smaller version of signing out; it is the misleading one.
+  Local revocation happens either way: the part we control is not conditional on
+  the part we do not.
+
+  `post_logout_redirect_uri` is checked by exact equality against the registered
+  set — not `startsWith`, which accepts `https://tenure.example.edu.evil.test`
+  for a registered `https://tenure.example.edu`. The provider performs that
+  redirect on our behalf, so an unchecked value is an open redirect immediately
+  after a real sign-out: the most credible phishing hop there is.
+
+  ## The defect this item found, which was not in this item
+
+  `runInTenantScope(scope, () => db.organization.findMany())` **lost the tenant
+  scope.** A Prisma query is a lazy thenable — it builds an object and runs
+  nothing until `.then`, and written that way the `.then` is the caller's
+  `await`, after `storage.run` has already returned. The extension found no
+  scope and, in the observe mode this application actually runs in, returned
+  every tenant's rows.
+
+  It type-checks. It reads as obviously correct. `withTenantScope` and
+  `withSystemTenantScope` both type their callback as returning a `Promise`, and
+  a `PrismaPromise` satisfies that. Nothing caught it because the suite's other
+  bare-shaped calls are all on models a scope does not filter anyway, so they
+  were true either way — the assertions were `scoped === unscoped`.
+
+  Fixed in `runInTenantScope`/`runUnscoped` rather than by requiring every
+  caller to write `async () => await ...`: an idiom whose necessity is invisible
+  is one the next call site forgets, and that call site is silently unfiltered.
+  Four tests in `isolation.itest.ts` now pin it, in **observe** mode on purpose —
+  enforcing turns a lost context into a throw, which is loud, and observe turns
+  it into another tenant's data, which is what would have shipped.
+
+  ## Two tests that were not proving what they claimed
+
+  A mutation making the malformed-data fall-through return `ACTIVE` **survived**:
+  nothing exercised a membership whose window will not parse, and that branch is
+  the only one that could fail *open* — a row nobody can evaluate reported as
+  access somebody has. Now tested in both directions, because one unreadable row
+  must also not take away access a readable one grants.
+
+  `rotateSession` **took a `reason` and dropped it.** A mutation changing
+  `PRIVILEGE_CHANGE` to `AUTHENTICATION` broke nothing, because nothing read it.
+  `rotationReason` is now recorded on the session: an incident asks *why* an id
+  changed at 02:14, and a chain of `rotatedFromId` answers only that it did.
+
+  `selfResolvable` was dropped from `AccessReport` before it shipped. It was
+  `false` in every state, so the field carried no information and the test
+  asserting it asserted nothing. `waitingOnTheClock` replaces it and is true for
+  exactly one state — the wait resolves by itself, so the call to action is
+  "check back" rather than "go and ask somebody".
+
+  ## The mutation harness reported a CAUGHT that was not one
+
+  The first run over tenant-switch and logout said 18/18. One of those —
+  rotation reason — provably survives in isolation, which is how the dropped
+  `reason` was found. A single red run is not evidence on Windows, so the
+  harness now confirms every CAUGHT with a second run. The numbers above are
+  from confirmed runs. This is the second time a mutation harness has misreported
+  in this repository; the first grepped for a character jest does not emit.
+
+  **Honest limits.**
+
+  * **`planTenantSwitch` and `planLogout` are not called by anything.** There is
+    no server-side session store to rotate and no `end_session_endpoint` to
+    redirect to: `apps/web` authenticates through NextAuth with Okta and
+    dev-login, and the session is a JWT cookie with no rotatable identifier.
+    They are the rules the BFF will run, and they wait on the Cognito cutover
+    blocked by the missing AWS Organization (GE-041-003).
+  * **The tenant switch that *does* run revalidates but does not rotate.**
+    `switchTenantAction` proves live membership through `resolveTenantScope`,
+    and `actingInstitutionChoice` re-proves it on every later request against
+    `getUserContext`'s live-filtered list — so a suspension takes effect on the
+    next request. That is the revalidation clause, working today. The rotation
+    clause is not, for the reason above.
+  * **`/me`'s ACTIVE branch is the only one the e2e reaches.** Every account the
+    dev sign-in offers is a seeded demo account holding a live membership, and
+    adding a fake unplaced account to the product's sign-in page to make a test
+    possible would be the wrong trade. The other five states are proved against
+    real PostgreSQL through `accessReportFor` — the function the route calls,
+    not a copy of its query — and four mutations there confirm it.
+  * **The `ProviderMetadata` type carries two fields**, not a whole
+    `openid-configuration`. Nothing reads a discovery document yet, and thirty
+    unpopulated fields would be a specification pretending to be code.
+
+  96/1219 decided.

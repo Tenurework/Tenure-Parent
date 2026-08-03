@@ -201,3 +201,120 @@ export function liveMemberships(
 export function usableRecoveryCount(methods: readonly RecoveryMethod[], at: Date): number {
   return methods.filter((method) => recoveryLiveness(method, at).live).length
 }
+
+export type AccessState =
+  /** Has a live membership somewhere. */
+  | "ACTIVE"
+  /** Never had one. A genuinely new account, and the onboarding case. */
+  | "NEVER_PLACED"
+  /** Every membership was suspended. Liftable by whoever suspended it. */
+  | "SUSPENDED"
+  /** Every membership was revoked. A new grant is needed. */
+  | "REVOKED"
+  /** Every membership's term has ended. */
+  | "ENDED"
+  /** A membership exists but has not started yet. */
+  | "NOT_YET_STARTED"
+
+export interface AccessReport {
+  state: AccessState
+  /** What to tell the person. Different states need different sentences. */
+  detail: string
+  /**
+   * True when waiting is the whole obstacle.
+   *
+   * Only `NOT_YET_STARTED` qualifies: the date arrives and access begins with
+   * nobody doing anything. Every other blocked state needs a person to act —
+   * an invitation, a lifted suspension, a renewed term, a fresh grant — so the
+   * call to action is "go and ask somebody" rather than "check back".
+   *
+   * Deliberately not `selfResolvable`, which would be false in every state and
+   * therefore carry no information at all: nothing here is resolvable by the
+   * person reading it.
+   */
+  waitingOnTheClock: boolean
+}
+
+/**
+ * Why somebody has no access, when they have none.
+ *
+ * GE-042-006 asks `/me` to report "expired/revoked/disabled states", and
+ * GE-040-001 is what made them distinguishable: before memberships were
+ * effective-dated a revoked person had no row at all, so "no membership" and
+ * "membership ended" were the same fact. They are not the same fact to the
+ * person.
+ *
+ * The failure this prevents is small and real. A suspended director opens the
+ * application and sees the onboarding path a brand-new account sees — *welcome,
+ * let's get you started* — when the truth is that somebody suspended them an
+ * hour ago and they should go and ask why. Collapsing every reason into `null`
+ * is not a neutral simplification; it tells one specific lie to the person
+ * least able to work out that it is one.
+ *
+ * ## Precedence, when several memberships disagree
+ *
+ * Any live membership wins: ACTIVE. Otherwise the most *actionable* state wins,
+ * because the report exists to tell somebody what to do — a person suspended at
+ * one tenant and revoked at another should hear about the suspension, which
+ * somebody can lift, rather than the revocation, which needs a new grant.
+ */
+export function accessState(memberships: readonly TenantMembership[], at: Date): AccessReport {
+  if (memberships.length === 0) {
+    return {
+      state: "NEVER_PLACED",
+      detail: "This account is not a member of any organization yet.",
+      waitingOnTheClock: false,
+    }
+  }
+
+  if (memberships.some((membership) => membershipLiveness(membership, at).live)) {
+    return { state: "ACTIVE", detail: "", waitingOnTheClock: false }
+  }
+
+  const reasons = new Set(
+    memberships.map((membership) => {
+      const state = membershipLiveness(membership, at)
+      return state.live ? "LIVE" : state.reason
+    }),
+  )
+
+  // Most actionable first. A person suspended somewhere and revoked elsewhere
+  // should hear about the suspension.
+  if (reasons.has("NOT_YET_EFFECTIVE")) {
+    return {
+      state: "NOT_YET_STARTED",
+      detail: "Access to this organization has not started yet. It will begin on the date you were given.",
+      waitingOnTheClock: true,
+    }
+  }
+  if (reasons.has("SUSPENDED")) {
+    return {
+      state: "SUSPENDED",
+      detail: "Access to this organization is suspended. Whoever suspended it can lift it.",
+      waitingOnTheClock: false,
+    }
+  }
+  if (reasons.has("EXPIRED")) {
+    return {
+      state: "ENDED",
+      detail: "Membership of this organization has ended. Ask an administrator if it should be renewed.",
+      waitingOnTheClock: false,
+    }
+  }
+  if (reasons.has("REVOKED")) {
+    return {
+      state: "REVOKED",
+      detail: "Access to this organization has been removed. An administrator would need to grant it again.",
+      waitingOnTheClock: false,
+    }
+  }
+
+  // A membership that is neither live nor any recognised not-live reason is
+  // malformed data, and saying "no access" without a reason is the honest
+  // answer rather than guessing at one.
+  return {
+    state: "NEVER_PLACED",
+    detail: "This account has no usable membership.",
+    waitingOnTheClock: false,
+  }
+}

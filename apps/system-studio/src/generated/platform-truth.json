@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "e467ce8",
+  "commit": "5f63486",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 92,
-    "done": 80,
+    "total": 93,
+    "done": 81,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -672,6 +672,13 @@
             "title": "Never place access/refresh tokens in local storage or accept ID tokens as API access tokens.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-042-006",
+            "done": true,
+            "title": "Implement `/me`, tenant switch with revalidation/rotation, logout/local revocation/upstream behavior, and expired/revoked/disabled states.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -686,7 +693,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 95,
+    "decided": 96,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -819,7 +826,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 5
+        "done": 6
       },
       {
         "phase": "GE · GE-043: Enterprise federation and lifecycle",
@@ -2047,7 +2054,7 @@
     },
     {
       "name": "tenant isolation",
-      "files": 8,
+      "files": 9,
       "what": "cross-tenant reads must fail"
     },
     {

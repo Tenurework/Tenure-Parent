@@ -130,7 +130,34 @@ const UNFILTERED_BY_DESIGN = [
     method: "findUnique",
     why: "Revoking and transferring must read a membership whatever its state, in order to change it.",
   },
+  {
+    file: "apps/web/src/lib/identity/access-report.ts",
+    method: "findMany",
+    why:
+      "GE-042-006. `accessReportFor` reports WHY somebody has no access, and a live filter would " +
+      "leave it unable to tell a suspended director from a brand-new account — which is exactly the " +
+      "confusion the state exists to end. It reads non-live memberships in order to explain them, " +
+      "returns a reason rather than a tenant, and grants nothing.",
+  },
 ]
+
+test("the one exempt read is the whole of it, in a file that does nothing else", () => {
+  // An exemption is a file-and-method pair, so anything else added to
+  // `access-report.ts` inherits permission to read memberships unfiltered.
+  // Keeping the file to that single query is what stops the exemption widening
+  // silently — the reviewer sees a new query in an exempt file, not a new line
+  // in a long one.
+  const source = code("apps/web/src/lib/identity/access-report.ts")
+  const reads = readCalls(source)
+
+  assert.equal(reads.length, 1, `access-report.ts should hold exactly one membership read, found ${reads.length}`)
+  assert.equal(reads[0].method, "findMany")
+  assert.match(
+    source,
+    /runUnscoped\("auth-bootstrap"/,
+    "the read must state its unscoped reason: it runs before a tenant is known",
+  )
+})
 
 test("every membership read that means 'now' uses the one live filter", () => {
   const offenders = []

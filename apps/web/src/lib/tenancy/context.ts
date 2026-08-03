@@ -52,12 +52,40 @@ type Store =
 
 const storage = new AsyncLocalStorage<Store>()
 
+/**
+ * Start a lazy thenable before the context closes.
+ *
+ * A Prisma query is not a running promise. `db.application.findMany()` builds a
+ * thenable and does nothing; the query — and with it the extension that applies
+ * the tenant filter — runs when somebody calls `.then`. Written as
+ *
+ *     runInTenantScope(scope, () => db.application.findMany())
+ *
+ * that `.then` is called by the *caller's* `await`, after `storage.run` has
+ * already returned. The extension then finds no scope and, in observe mode,
+ * returns every tenant's rows: the exact leak this module exists to prevent,
+ * produced by a call shape that reads as obviously correct and type-checks.
+ *
+ * `Promise.resolve` on the result schedules that `.then` here, while the store
+ * is still active. A non-thenable is passed through untouched so a synchronous
+ * callback keeps returning synchronously.
+ *
+ * The alternative — requiring every caller to write `async () => await ...` —
+ * makes safety depend on remembering an idiom whose necessity is invisible, and
+ * the one call site that forgets is silently unfiltered.
+ */
+function settleInsideContext<T>(result: T): T {
+  const thenable = result as { then?: unknown } | null | undefined
+  if (typeof thenable?.then !== "function") return result
+  return Promise.resolve(result) as T
+}
+
 /** Run `fn` with an active tenant. Nested calls may narrow but not widen. */
 export function runInTenantScope<T>(scope: TenantScope, fn: () => T): T {
   if (!scope.institutionId) {
     throw new TenantContextError("Refusing to open a tenant scope with an empty institutionId.")
   }
-  return storage.run({ kind: "scoped", scope }, fn)
+  return storage.run({ kind: "scoped", scope }, () => settleInsideContext(fn()))
 }
 
 /**
@@ -67,7 +95,7 @@ export function runInTenantScope<T>(scope: TenantScope, fn: () => T): T {
  * unscoped reads as a list of specific operations rather than a count.
  */
 export function runUnscoped<T>(reason: UnscopedReason, detail: string, fn: () => T): T {
-  return storage.run({ kind: "unscoped", reason, detail }, fn)
+  return storage.run({ kind: "unscoped", reason, detail }, () => settleInsideContext(fn()))
 }
 
 /** The active tenant, or undefined when there is none. */

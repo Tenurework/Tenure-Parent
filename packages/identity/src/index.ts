@@ -39,7 +39,10 @@ export {
   personLiveness,
   recoveryLiveness,
   sessionLiveness,
+  accessState,
   usableRecoveryCount,
+  type AccessReport,
+  type AccessState,
   type Live,
   type Liveness,
   type NotLive,
@@ -258,3 +261,21 @@ export {
   type SessionRefusal,
   type SessionSummary,
 } from "./session"
+
+export {
+  planTenantSwitch,
+  type SwitchAccepted,
+  type SwitchOutcome,
+  type SwitchRefusal,
+  type SwitchRefused,
+  type SwitchRequest,
+} from "./tenant-switch"
+
+export {
+  LogoutConfigurationError,
+  planLogout,
+  type LogoutPlan,
+  type LogoutRequest,
+  type ProviderMetadata,
+  type UpstreamLogout,
+} from "./logout"

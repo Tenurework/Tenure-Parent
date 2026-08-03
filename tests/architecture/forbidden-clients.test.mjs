@@ -76,6 +76,24 @@ function sourceFiles() {
  * and in the safe direction: it under-strips, so a comment might be read as
  * code, never the reverse.
  */
+/**
+ * A source file's text, or "" if it has vanished.
+ *
+ * `sourceFiles()` lists untracked files too, and another guard writes a probe
+ * into the source tree while these run in parallel. A guard that crashes when
+ * a file it was told about disappears is a guard that fails for a reason
+ * unrelated to what it checks — this one went red roughly half the time under
+ * `npm run test:platform` and never once on its own.
+ */
+function readSource(file) {
+  try {
+    return fs.readFileSync(file, 'utf8')
+  } catch (error) {
+    if (error.code === 'ENOENT') return ''
+    throw error
+  }
+}
+
 function code(text) {
   let out = ''
   let state = 'code'
@@ -285,7 +303,7 @@ test('no module outside lib/db.ts constructs a raw database client', () => {
 
   for (const file of sourceFiles()) {
     if (OWNERS.database.has(file) || DATABASE_EXEMPT.has(file)) continue
-    const text = code(fs.readFileSync(file, 'utf8'))
+    const text = code(readSource(file))
 
     for (const at of hits(file, text, /\bnew\s+PrismaClient\s*\(/)) {
       offenders.push(`${at} — constructs PrismaClient`)
@@ -311,7 +329,7 @@ test('no module outside its adapter imports or constructs an AWS client', () => 
 
   for (const file of sourceFiles()) {
     if (OWNERS.aws.has(file) || AWS_EXEMPT.has(file)) continue
-    const text = code(fs.readFileSync(file, 'utf8'))
+    const text = code(readSource(file))
 
     for (const ref of moduleRefs(text)) {
       if (!ref.spec.startsWith('@aws-sdk/')) continue
@@ -339,7 +357,7 @@ test('no module outside its adapter holds a literal provider endpoint', () => {
 
   for (const file of sourceFiles()) {
     if (OWNERS.provider.has(file) || PROVIDER_EXEMPT.has(file)) continue
-    const text = code(fs.readFileSync(file, 'utf8'))
+    const text = code(readSource(file))
     for (const at of hits(file, text, PROVIDER_URL)) {
       offenders.push(`${at} — calls a provider endpoint directly`)
     }
@@ -369,7 +387,7 @@ test('every owning adapter exists and still holds the client it owns', () => {
   for (const [file, re] of proof) {
     assert.ok(fs.existsSync(file), `${file} owns a client but does not exist`)
     assert.match(
-      code(fs.readFileSync(file, 'utf8')),
+      code(readSource(file)),
       re,
       `${file} is listed as an owner but no longer holds the client — move the ownership, or drop it`
     )

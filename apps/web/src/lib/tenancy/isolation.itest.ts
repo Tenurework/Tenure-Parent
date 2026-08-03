@@ -329,3 +329,71 @@ describe("concurrent tenants do not bleed into each other", () => {
     expect(bRows.map((o) => o.slug)).toEqual([`b-club-${SUFFIX}`])
   })
 })
+
+/**
+ * A Prisma query is a lazy thenable, and that makes the callback's shape matter.
+ *
+ * `db.organization.findMany()` builds an object and runs nothing. The query —
+ * and with it the extension that applies the tenant filter — starts when
+ * somebody calls `.then`. Written as
+ *
+ *     runInTenantScope(scope, () => db.organization.findMany())
+ *
+ * that `.then` is the caller's `await`, which happens after `storage.run` has
+ * returned and the context has closed. The extension found no scope and, in the
+ * mode this application actually runs in, returned every tenant's rows.
+ *
+ * It type-checks, it reads as obviously correct, and until GE-042-006 nothing
+ * caught it: the suite's other bare-shaped calls are all on models a scope does
+ * not filter anyway, so they were true either way.
+ */
+describe("the tenant context does not depend on how the callback is written", () => {
+  // Observe mode on purpose. Enforcing turns a lost context into a throw, which
+  // is loud; observe turns it into another tenant's data, which is the failure
+  // that would have shipped — apps/web runs in observe until the coverage
+  // report is empty.
+  const observing = new PrismaClient({ log: ["error"] }).$extends(tenancyExtension("observe"))
+
+  afterAll(async () => {
+    await observing.$disconnect()
+  })
+
+  // Both fixture orgs, one per tenant, so a scoped read has something to
+  // exclude. Filtering by suffix keeps it independent of whatever else the
+  // database holds.
+  const bothTenantsOrgs = { where: { slug: { endsWith: SUFFIX } }, select: { slug: true } }
+
+  it("filters a query returned bare from the callback", async () => {
+    const rows = await runInTenantScope(scopeA, () => observing.organization.findMany(bothTenantsOrgs))
+    expect(rows.map((o) => o.slug)).toEqual([`a-club-${SUFFIX}`])
+  })
+
+  it("filters it identically to the awaited idiom", async () => {
+    // The control: the shape that always worked, so a fixture that stopped
+    // producing two rows cannot make the test above pass for the wrong reason.
+    const rows = await runInTenantScope(scopeA, async () => observing.organization.findMany(bothTenantsOrgs))
+    expect(rows.map((o) => o.slug)).toEqual([`a-club-${SUFFIX}`])
+  })
+
+  it("really is excluding a row it can otherwise see", async () => {
+    // Without this, `toEqual([a])` above would also hold if B's club had never
+    // been created — an assertion about filtering, passing on nothing to filter.
+    const rows = await runUnscoped("migration", "assert", async () =>
+      observing.organization.findMany(bothTenantsOrgs),
+    )
+    expect(rows.map((o) => o.slug).sort()).toEqual([`a-club-${SUFFIX}`, `b-club-${SUFFIX}`])
+  })
+
+  it("carries an unscoped grant into a bare query too", async () => {
+    // The other direction, and the one GE-042-006 depends on: `/me` reads
+    // memberships before any tenant is known. Under enforcement a grant that
+    // did not survive the return is indistinguishable from no grant at all, so
+    // this would throw rather than leak — the auth-bootstrap path failing shut
+    // for every user at the moment enforcement is switched on.
+    await expect(
+      runUnscoped("auth-bootstrap", "bare-shaped read", () =>
+        db.organization.count({ where: { slug: { endsWith: SUFFIX } } }),
+      ),
+    ).resolves.toBe(2)
+  })
+})

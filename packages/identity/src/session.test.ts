@@ -42,6 +42,7 @@ const session = (over: Partial<ServerSession> = {}): ServerSession => ({
   lastSeenAt: minutes(-1),
   deviceLabel: "Chrome on macOS",
   rotatedFromId: null,
+  rotationReason: null,
   ...over,
 })
 
@@ -247,6 +248,25 @@ describe("rotation defeats session fixation", () => {
   it("keeps the rotated session usable", () => {
     const rotated = rotateSession(session(), { sessionId: "s2", csrfToken: "c", reason: "AUTHENTICATION", at: NOW })
     expect(checkSession(rotated.session, { tenantId: "rochester", at: NOW }).live).toBe(true)
+  })
+
+  it("records why it rotated", () => {
+    // GE-042-006. `reason` was accepted and dropped: a mutation changing
+    // PRIVILEGE_CHANGE to AUTHENTICATION at a call site broke nothing, because
+    // nothing read it. An incident asks *why* an id changed, and a chain of
+    // `rotatedFromId` answers only that it did.
+    for (const reason of ["AUTHENTICATION", "PRIVILEGE_CHANGE", "STEP_UP"] as const) {
+      const rotated = rotateSession(session(), { sessionId: "s2", csrfToken: "c", reason, at: NOW })
+      expect(rotated.session.rotationReason).toBe(reason)
+    }
+  })
+
+  it("leaves the reason alone on the session it replaced", () => {
+    // The old session did not rotate; it was ended. Stamping this rotation's
+    // reason onto it would say it changed identifier, which it did not.
+    const before = session({ rotationReason: null })
+    const rotated = rotateSession(before, { sessionId: "s2", csrfToken: "c", reason: "STEP_UP", at: NOW })
+    expect(rotated.previous.rotationReason).toBeNull()
   })
 })
 

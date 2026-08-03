@@ -153,6 +153,15 @@ export interface ServerSession extends AuthSession {
   deviceLabel: string | null
   /** The session this one replaced, so a rotation chain is followable. */
   rotatedFromId: string | null
+  /**
+   * Why the identifier last changed. `null` for a session that never rotated.
+   *
+   * Recorded rather than merely passed. An incident asks "why did this session
+   * id change at 02:14?", and a chain of `rotatedFromId` answers *that it did*
+   * while leaving the question open — re-authentication, a tenant switch and a
+   * step-up are three different stories, and only one of them is alarming.
+   */
+  rotationReason: RotationReason | null
 }
 
 export type SessionRefusal = "IDLE_EXPIRED" | "ABSOLUTE_EXPIRED" | "REVOKED" | "WRONG_TENANT"
@@ -237,6 +246,7 @@ export function rotateSession(
       csrfToken: next.csrfToken,
       lastSeenAt: next.at.toISOString(),
       rotatedFromId: session.id,
+      rotationReason: next.reason,
       revokedAt: null,
     },
     // The old id stops working immediately. A rotation that leaves it live is

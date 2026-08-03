@@ -155,6 +155,22 @@ test.describe("acting institution", () => {
     // Bootstrap, not authorization: it reports the enabled modules so a client
     // can render truthfully, and every route still decides for itself.
     expect(me.modules).toContain("dashboard")
+
+    // GE-042-006. Somebody with a live membership is ACTIVE, and the state is
+    // carried alongside `activeInstitution` rather than inferred from it —
+    // `activeInstitution: null` used to be the only answer for every way of
+    // having no access, so a suspended director saw the onboarding path a new
+    // account sees.
+    //
+    // Only the ACTIVE branch is reachable from here: every account the dev
+    // sign-in offers is a seeded demo account holding a live membership, and
+    // adding a fake unplaced account to the product's sign-in page to make a
+    // test possible would be the wrong trade. The other five states are proved
+    // against real PostgreSQL in `src/lib/identity/access-state.itest.ts`,
+    // through `accessReportFor` — the same function this route calls, not a
+    // copy of its query.
+    expect(me.access.state).toBe("ACTIVE")
+    expect(me.access.waitingOnTheClock).toBe(false)
   })
 
   test("/api/me refuses a request with no session", async ({ request }) => {
