@@ -354,6 +354,53 @@ GH_TOKEN=$(gh auth token) node tools/verify-workflow-permissions.mjs
 
 ---
 
+## Lessons that cost a red build
+
+**Run the e2e locally when a response shape changes.** GE-042-006 shipped a
+`/api/me` field that was wrong for most users and went red on the first push.
+The gate does not run Playwright. The environment CI uses is in `ci.yml` under
+the `E2E · Playwright` job — copy the whole `env:` block, including
+`TENANCY_ENFORCE=true`, or the local run is a weaker test than CI.
+
+Use a **separate database**: `prisma migrate reset` is refused by a safety
+guard, and the e2e suite is not idempotent.
+
+```bash
+docker exec tenure-pg psql -U tenure -d postgres   -c "DROP DATABASE IF EXISTS tenure_e2e" -c "CREATE DATABASE tenure_e2e OWNER tenure"
+# then DATABASE_URL=...tenure_e2e, prisma migrate deploy, seed.mjs, npm run build
+```
+
+`next start` serves whatever is in `.next`. A code change with no rebuild
+produces a local pass that means nothing.
+
+**A fixture built from the entity the code reads will not find the entity it
+forgot.** `access-state.itest.ts` created `InstitutionMembership` rows and
+tested five states of a shape most users do not have — club members hold a
+`RoleAssignment` and no membership at all. The e2e caught it because it signs in
+as a real seeded person rather than one the test invented. When a query decides
+who somebody is, check the fixture covers every way of *being* that somebody.
+
+**`gh run watch <id> | tail` reports `tail`'s exit code.** `$?` after a pipe is
+the last command in it. Read the status from `gh run list` instead.
+
+**Confirm every mutation CAUGHT with a second run.** A tenant-switch mutation
+reported CAUGHT on Windows and provably survives in isolation; that survivor was
+a real defect (`rotateSession` accepted a `reason` and dropped it). One red run
+is not evidence. This is the second harness in this repository to misreport.
+
+**A Prisma query is a lazy thenable.** `runInTenantScope(scope, () => db.x.findMany())`
+lost the scope until GE-042-006, because `.then` was called by the caller's
+`await` after the context closed. Fixed in `context.ts`; the shape is safe now,
+and the reason it was ever unsafe is worth remembering when writing anything
+else that wraps a callback in `AsyncLocalStorage`.
+
+**Guards that list untracked files must tolerate ENOENT.** `test:platform` runs
+them in parallel and one writes a probe into the source tree. A guard that
+crashes on a vanished file goes red for a reason unrelated to what it checks —
+`forbidden-clients` did so in roughly half of all runs and never once alone.
+
+---
+
 ## What is session-scoped, and what is not
 
 | Durable — survives any session | Session-scoped — dies with the REPL |
