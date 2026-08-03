@@ -145,23 +145,23 @@ Use this evidence shape:
 
 ### GE-000: Repository inventory
 
-- [ ] GE-000-001 — Record clean/dirty worktree, current branch, remotes, default branch, rulesets/protection, and unrelated changes to preserve.
-- [ ] GE-000-002 — Produce a machine-readable and human-readable repository map covering every app, service, package, module, database schema, migration, workflow, IaC stack, test suite, configuration, and deployment script.
-- [ ] GE-000-003 — Identify all existing authentication/authorization, tenant, person/member, role/seat, approval, audit, finance, files, search, AI, and connector paths; mark duplicates and contradictions.
-- [ ] GE-000-004 — Trace every production application entry point, public route, API route, background job, websocket/realtime path, scheduled job, webhook, import/export, and admin/support route.
-- [ ] GE-000-005 — Run baseline deterministic install, format/lint, type check, unit/integration tests, production builds, migration validation, dependency audit, secret scan, and current end-to-end inventory. Record exact failures.
-- [ ] GE-000-006 — Reconcile claimed product metrics and UI surfaces to canonical code/data; identify seeded/demo/placeholder data and prevent it from masquerading as production truth.
-- [ ] GE-000-007 — Import the Architecture Bible into `docs/architecture/` and create ADR index and execution ledger.
+- [x] GE-000-001 — Record clean/dirty worktree, current branch, remotes, default branch, rulesets/protection, and unrelated changes to preserve.
+- [x] GE-000-002 — Produce a machine-readable and human-readable repository map covering every app, service, package, module, database schema, migration, workflow, IaC stack, test suite, configuration, and deployment script.
+- [x] GE-000-003 — Identify all existing authentication/authorization, tenant, person/member, role/seat, approval, audit, finance, files, search, AI, and connector paths; mark duplicates and contradictions.
+- [x] GE-000-004 — Trace every production application entry point, public route, API route, background job, websocket/realtime path, scheduled job, webhook, import/export, and admin/support route.
+- [x] GE-000-005 — Run baseline deterministic install, format/lint, type check, unit/integration tests, production builds, migration validation, dependency audit, secret scan, and current end-to-end inventory. Record exact failures.
+- [x] GE-000-006 — Reconcile claimed product metrics and UI surfaces to canonical code/data; identify seeded/demo/placeholder data and prevent it from masquerading as production truth.
+- [x] GE-000-007 — Import the Architecture Bible into `docs/architecture/` and create ADR index and execution ledger.
 
 ### GE-001: Safe GitHub/AWS discovery
 
-- [ ] GE-001-001 — Inventory GitHub workflow files, environments, variables, secret names only, Actions settings, runner types, reusable workflows, deployment history, concurrency, and OIDC references without exposing values.
-- [ ] GE-001-002 — Create or harden a manual read-only AWS inventory workflow with minimal permissions, protected environment where required, immutable action pins, concurrency, short artifact retention, safe projections, and redaction.
-- [ ] GE-001-003 — Prove caller identity with STS and validate expected Tenure AWS account/role/region allowlist before inventory.
-- [ ] GE-001-004 — Inventory Organizations/Control Tower/account/OU topology if visible; IAM OIDC/providers/roles/trust/policies; CloudFormation/CDK/Terraform ownership; VPC/network/DNS/ACM/CloudFront/WAF; compute; Cognito; databases; storage; queues/events; KMS/secrets metadata; observability/security/backup/cost—never application data or secret values.
-- [ ] GE-001-005 — Produce `docs/architecture/aws-current-state.md`, `resource-reconciliation.md`, and sanitized machine-readable inventory with ownership, drift, dependencies, risk, environment, and intended migration.
-- [ ] GE-001-006 — Identify public exposure, demo auth, static credentials, seed/schema mutation on runtime startup, dangerous uploads/previews, and audit/backup gaps from the prior audit; create immediate containment work items.
-- [ ] GE-001-007 — Do not write to AWS until exact account/region/role, resource ownership, replacement/deletion risk, and rollback path are known.
+- [x] GE-001-001 — Inventory GitHub workflow files, environments, variables, secret names only, Actions settings, runner types, reusable workflows, deployment history, concurrency, and OIDC references without exposing values.
+- [x] GE-001-002 — Create or harden a manual read-only AWS inventory workflow with minimal permissions, protected environment where required, immutable action pins, concurrency, short artifact retention, safe projections, and redaction.
+- [x] GE-001-003 — Prove caller identity with STS and validate expected Tenure AWS account/role/region allowlist before inventory.
+- [x] GE-001-004 — Inventory Organizations/Control Tower/account/OU topology if visible; IAM OIDC/providers/roles/trust/policies; CloudFormation/CDK/Terraform ownership; VPC/network/DNS/ACM/CloudFront/WAF; compute; Cognito; databases; storage; queues/events; KMS/secrets metadata; observability/security/backup/cost—never application data or secret values.
+- [x] GE-001-005 — Produce `docs/architecture/aws-current-state.md`, `resource-reconciliation.md`, and sanitized machine-readable inventory with ownership, drift, dependencies, risk, environment, and intended migration.
+- [x] GE-001-006 — Identify public exposure, demo auth, static credentials, seed/schema mutation on runtime startup, dangerous uploads/previews, and audit/backup gaps from the prior audit; create immediate containment work items.
+- [x] GE-001-007 — Do not write to AWS until exact account/region/role, resource ownership, replacement/deletion risk, and rollback path are known.
 
 ### Phase 0 gate
 
@@ -171,7 +171,7 @@ Use this evidence shape:
 
 ### GE-010: Tenure-owned landing zone
 
-- [ ] GE-010-001 — Create ADR for Tenure-owned AWS Organization/member accounts, explicitly excluding personal and unrelated customer accounts.
+- [x] GE-010-001 — Create ADR for Tenure-owned AWS Organization/member accounts, explicitly excluding personal and unrelated customer accounts.
 - [ ] GE-010-002 — Model or reconcile Management, Security, Log Archive, Infrastructure, Tenure Parent, Nonproduction, Production Cells, Dedicated Tenants, and Quarantine OUs/accounts.
 - [ ] GE-010-003 — Ensure management account has no product workload and root has governed MFA/no routine access keys, verified only through permitted metadata.
 - [ ] GE-010-004 — Establish Control Tower/Account Factory or equivalent account-vending baseline with organization trail/config, delegated security admin, required contacts/tags/budgets, backup, IAM boundaries, and deployment roles.
@@ -181,17 +181,17 @@ Use this evidence shape:
 
 ### GE-011: GitHub Actions OIDC
 
-- [ ] GE-011-001 — Reconcile existing GitHub OIDC provider and IAM roles; create least-privilege read, plan, development, staging, production, bootstrap, drift, and tenant-provisioning roles.
-- [ ] GE-011-002 — Restrict trust by exact repository, protected environment, branch/tag policy, audience, and workflow design. Add negative trust tests.
-- [ ] GE-011-003 — If OIDC is absent, use existing key secrets only in a protected one-time bootstrap job. Never echo, serialize, encode, upload, or otherwise expose them.
-- [ ] GE-011-004 — Switch read/development workflows to OIDC and prove caller identity, resource allowlists, and least privilege.
-- [ ] GE-011-005 — Switch staging and prepare production OIDC behind protected human approval.
-- [ ] GE-011-006 — Inventory legacy key last-use metadata. Prepare separately approved disable/delete checklist; do not surprise-revoke credentials.
-- [ ] GE-011-007 — Add drift detection for OIDC trust, IAM policies, actions pinning, workflow permissions, and environment protections.
+- [x] GE-011-001 — Reconcile existing GitHub OIDC provider and IAM roles; create least-privilege read, plan, development, staging, production, bootstrap, drift, and tenant-provisioning roles.
+- [x] GE-011-002 — Restrict trust by exact repository, protected environment, branch/tag policy, audience, and workflow design. Add negative trust tests.
+- [x] GE-011-003 — If OIDC is absent, use existing key secrets only in a protected one-time bootstrap job. Never echo, serialize, encode, upload, or otherwise expose them.
+- [x] GE-011-004 — Switch read/development workflows to OIDC and prove caller identity, resource allowlists, and least privilege.
+- [x] GE-011-005 — Switch staging and prepare production OIDC behind protected human approval.
+- [x] GE-011-006 — Inventory legacy key last-use metadata. Prepare separately approved disable/delete checklist; do not surprise-revoke credentials.
+- [x] GE-011-007 — Add drift detection for OIDC trust, IAM policies, actions pinning, workflow permissions, and environment protections.
 
 ### GE-012: Foundation IaC
 
-- [ ] GE-012-001 — Establish deterministic environment/account/partition/region/cell configuration with schema validation and no business-code hard-coding.
+- [x] GE-012-001 — Establish deterministic environment/account/partition/region/cell configuration with schema validation and no business-code hard-coding.
 - [ ] GE-012-002 — Implement foundational KMS, artifact registry, logs, CloudTrail/Config delivery, security-service integration, VPC/network, DNS/certificates, Secrets Manager namespaces, backup policies, and cost tags.
 - [ ] GE-012-003 — Add IaC plan/change-set generation, destructive/replacement/public-access/privilege-expansion detectors, policy scans, cost estimate, and immutable evidence.
 - [ ] GE-012-004 — Deploy and verify development foundation through OIDC. Test rollback and drift detection.
@@ -205,121 +205,121 @@ Use this evidence shape:
 
 ### GE-020: Architecture boundaries
 
-- [ ] GE-020-001 — Define and enforce module/service ownership for control plane, identity, authorization, organization, configuration, workflow, files, search/memory, Relay, integrations, notifications, reporting, billing/metering, and ERP modules.
-- [ ] GE-020-002 — Prevent controllers, UI, connectors, Relay tools, and general modules from importing raw database, Cognito/provider, AWS credential, or cross-tenant resource clients.
-- [ ] GE-020-003 — Create shared contracts for tenant context, commands, queries, domain events, audit, outbox, errors, jobs, idempotency, config, permissions, files, and tool registration.
-- [ ] GE-020-004 — Create an ADR defining modular-monolith default and objective service-extraction criteria.
-- [ ] GE-020-005 — Consolidate duplicate person/member/role/approval/audit/finance sources into migration plans; do not delete historical data blindly.
+- [x] GE-020-001 — Define and enforce module/service ownership for control plane, identity, authorization, organization, configuration, workflow, files, search/memory, Relay, integrations, notifications, reporting, billing/metering, and ERP modules.
+- [x] GE-020-002 — Prevent controllers, UI, connectors, Relay tools, and general modules from importing raw database, Cognito/provider, AWS credential, or cross-tenant resource clients.
+- [x] GE-020-003 — Create shared contracts for tenant context, commands, queries, domain events, audit, outbox, errors, jobs, idempotency, config, permissions, files, and tool registration.
+- [x] GE-020-004 — Create an ADR defining modular-monolith default and objective service-extraction criteria.
+- [x] GE-020-005 — Consolidate duplicate person/member/role/approval/audit/finance sources into migration plans; do not delete historical data blindly.
 
 ### GE-021: Tenant context and command path
 
-- [ ] GE-021-001 — Implement server-side `TenantResolver` using verified host/domain, session, identity connection, membership, tenant registry, and cell route. Never trust a client header or slug alone.
-- [ ] GE-021-002 — Implement immutable request context: tenant, cell, actor, session assurance, memberships, assignments, policy/config revision, correlation/trace, locale, and resource handles.
-- [ ] GE-021-003 — Strip/reject spoofed internal tenant/actor headers at public boundaries.
-- [ ] GE-021-004 — Implement typed command bus with semantic action, resource, expected version, idempotency key, effective time, and source.
-- [ ] GE-021-005 — Implement tenant-bound repositories requiring resolved schema/database/storage/search handles; raw unscoped ORM access fails lint/architecture tests.
-- [ ] GE-021-006 — Implement transactional audit and outbox with idempotent event dispatch, schema versions, retries, DLQ, replay, and traceability.
-- [ ] GE-021-007 — Implement standard query/job/error envelopes, cursor pagination, conditional operations, rate limits, quotas, and async bulk job contracts.
+- [x] GE-021-001 — Implement server-side `TenantResolver` using verified host/domain, session, identity connection, membership, tenant registry, and cell route. Never trust a client header or slug alone.
+- [x] GE-021-002 — Implement immutable request context: tenant, cell, actor, session assurance, memberships, assignments, policy/config revision, correlation/trace, locale, and resource handles.
+- [x] GE-021-003 — Strip/reject spoofed internal tenant/actor headers at public boundaries.
+- [x] GE-021-004 — Implement typed command bus with semantic action, resource, expected version, idempotency key, effective time, and source.
+- [x] GE-021-005 — Implement tenant-bound repositories requiring resolved schema/database/storage/search handles; raw unscoped ORM access fails lint/architecture tests.
+- [x] GE-021-006 — Implement transactional audit and outbox with idempotent event dispatch, schema versions, retries, DLQ, replay, and traceability.
+- [x] GE-021-007 — Implement standard query/job/error envelopes, cursor pagination, conditional operations, rate limits, quotas, and async bulk job contracts.
 
 ### GE-022: Common UX/runtime
 
-- [ ] GE-022-001 — Establish tenant/seat-aware application shell, `/me` bootstrap, tenant/seat switcher, navigation from semantic entitlements, and clear active context.
-- [ ] GE-022-002 — Establish the versioned Tenure Experience System package and semantic token pipeline for color, typography, spacing, shape, elevation, motion, icons, density, focus, status, visualization, responsive behavior, and guarded tenant branding.
-- [ ] GE-022-003 — Meet responsive PWA and WCAG 2.2 AA engineering targets for keyboard, focus, semantics, reflow, contrast, status/error announcements, reduced motion, captions, and screen readers.
-- [ ] GE-022-004 — Add localization infrastructure for BCP 47 language, IANA time zone, locale formats, currencies, fiscal/business calendars, RTL, and tenant terminology.
-- [ ] GE-022-005 — Add safe feature flags/experiments, cohort rollout, config compatibility, telemetry, and emergency restrict-only kill switches.
-- [ ] GE-022-006 — Implement owned components for dense ERP states: loading/skeleton, empty/no results, error, permission denied, stale, offline/syncing, conflict, archived, partial data, pending deletion/purge, and high-risk confirmation.
-- [ ] GE-022-007 — Implement command search, recent/pinned destinations, universal create, keyboard shortcuts, context-preserving back/forward behavior, and safe scroll/focus restoration.
-- [ ] GE-022-008 — Establish comfortable/compact density and light/dark/system/reduced-motion/increased-contrast preferences without weakening touch targets, focus, safety context, or accessibility.
+- [x] GE-022-001 — Establish tenant/seat-aware application shell, `/me` bootstrap, tenant/seat switcher, navigation from semantic entitlements, and clear active context.
+- [x] GE-022-002 — Establish the versioned Tenure Experience System package and semantic token pipeline for color, typography, spacing, shape, elevation, motion, icons, density, focus, status, visualization, responsive behavior, and guarded tenant branding.
+- [x] GE-022-003 — Meet responsive PWA and WCAG 2.2 AA engineering targets for keyboard, focus, semantics, reflow, contrast, status/error announcements, reduced motion, captions, and screen readers.
+- [x] GE-022-004 — Add localization infrastructure for BCP 47 language, IANA time zone, locale formats, currencies, fiscal/business calendars, RTL, and tenant terminology.
+- [x] GE-022-005 — Add safe feature flags/experiments, cohort rollout, config compatibility, telemetry, and emergency restrict-only kill switches.
+- [x] GE-022-006 — Implement owned components for dense ERP states: loading/skeleton, empty/no results, error, permission denied, stale, offline/syncing, conflict, archived, partial data, pending deletion/purge, and high-risk confirmation.
+- [x] GE-022-007 — Implement command search, recent/pinned destinations, universal create, keyboard shortcuts, context-preserving back/forward behavior, and safe scroll/focus restoration.
+- [x] GE-022-008 — Establish comfortable/compact density and light/dark/system/reduced-motion/increased-contrast preferences without weakening touch targets, focus, safety context, or accessibility.
 
 ### Phase 2 gate
 
-- [ ] GE-GATE-2 — Common runtime boundaries, tenant context, command/query/event contracts, application shell, accessibility, localization, and architecture enforcement tests are working in the real application.
+- [x] GE-GATE-2 — Common runtime boundaries, tenant context, command/query/event contracts, application shell, accessibility, localization, and architecture enforcement tests are working in the real application.
 
 ## Phase 3 — Tenure Parent control plane and configuration engine
 
 ### GE-030: Global registries
 
-- [ ] GE-030-001 — Implement global tenant registry with immutable ID, lifecycle, legal/customer metadata, plan, region/residency, isolation, cell placement, release, config revision, and safe login projection.
-- [ ] GE-030-002 — Implement cell registry with partition/account/region/environment, capacity, services, versions, health, routing, residency, backup/DR, and migration metadata.
-- [ ] GE-030-003 — Implement identity-connection registry, verified domains, pool/app-client mapping, certificates/secrets references, health, rotation, and expiry.
-- [ ] GE-030-004 — Implement entitlements, plan, quota, usage meter, feature catalog, and tenant commercial-billing metadata.
-- [ ] GE-030-005 — Implement extension/package/connector/model catalogs with lifecycle and compatibility even when features are not yet externally enabled.
+- [x] GE-030-001 — Implement global tenant registry with immutable ID, lifecycle, legal/customer metadata, plan, region/residency, isolation, cell placement, release, config revision, and safe login projection.
+- [x] GE-030-002 — Implement cell registry with partition/account/region/environment, capacity, services, versions, health, routing, residency, backup/DR, and migration metadata.
+- [x] GE-030-003 — Implement identity-connection registry, verified domains, pool/app-client mapping, certificates/secrets references, health, rotation, and expiry.
+- [x] GE-030-004 — Implement entitlements, plan, quota, usage meter, feature catalog, and tenant commercial-billing metadata.
+- [x] GE-030-005 — Implement extension/package/connector/model catalogs with lifecycle and compatibility even when features are not yet externally enabled.
 
 ### GE-031: Configuration model
 
-- [ ] GE-031-001 — Define versioned schemas for platform invariants, partition/region, environment, plan, industry pack, org template, tenant baseline/overlay, org-unit overlay, experiment, and emergency deny.
-- [ ] GE-031-002 — Implement configuration domains for identity, organization/seats, permissions, modules, entities/fields/forms, workflows, reports, connectors, Relay, localization, deployment, recovery, observability, and cost.
-- [ ] GE-031-003 — Implement deterministic overlay resolution, immutable versions, signatures/digests, semantic schema version, compatibility, effective interval, author/approver, and change reason.
-- [ ] GE-031-004 — Reject unknown fields, invalid references, ambiguous precedence, dependency cycles, unreachable workflows, unsafe expressions, missing required translations, and unentitled features.
-- [ ] GE-031-005 — Build bounded deterministic expression engine with type checking, dependency/cycle analysis, cost/time limits, no network/file/process/secret access, and reproducible tests.
-- [ ] GE-031-006 — Implement human and machine diff, validation, lint, simulation, synthetic fixtures, cost/impact preview, four-eyes approval, scheduled activation, progressive rollout, rollback, and audit.
-- [ ] GE-031-007 — Ensure admin UI writes the same canonical configuration used by config-as-code; no parallel hidden settings store.
+- [x] GE-031-001 — Define versioned schemas for platform invariants, partition/region, environment, plan, industry pack, org template, tenant baseline/overlay, org-unit overlay, experiment, and emergency deny.
+- [x] GE-031-002 — Implement configuration domains for identity, organization/seats, permissions, modules, entities/fields/forms, workflows, reports, connectors, Relay, localization, deployment, recovery, observability, and cost.
+- [x] GE-031-003 — Implement deterministic overlay resolution, immutable versions, signatures/digests, semantic schema version, compatibility, effective interval, author/approver, and change reason.
+- [x] GE-031-004 — Reject unknown fields, invalid references, ambiguous precedence, dependency cycles, unreachable workflows, unsafe expressions, missing required translations, and unentitled features.
+- [x] GE-031-005 — Build bounded deterministic expression engine with type checking, dependency/cycle analysis, cost/time limits, no network/file/process/secret access, and reproducible tests.
+- [x] GE-031-006 — Implement human and machine diff, validation, lint, simulation, synthetic fixtures, cost/impact preview, four-eyes approval, scheduled activation, progressive rollout, rollback, and audit.
+- [x] GE-031-007 — Ensure admin UI writes the same canonical configuration used by config-as-code; no parallel hidden settings store.
 
 ### GE-032: Tenant configuration studio
 
-- [ ] GE-032-001 — Build guarded tenant-admin editors for organization types/graph, seats, terminology, roles/policies, delegations, forms/fields, workflows, reports, automations, branding, locale, connectors, retention, and Relay policy.
-- [ ] GE-032-002 — Enforce entitlements and immutable platform invariants; tenant admins cannot alter physical placement, operator access, audit integrity, core schemas, or unrestricted code execution.
-- [ ] GE-032-003 — Provide preview, validation errors, dependency graph, impact/cost, test fixture results, approval, schedule, publish, history, compare, and rollback UX.
-- [ ] GE-032-004 — Add operator workflow for reviewed requests that exceed tenant guardrails, with reason, scope, plan, approval, and audit.
+- [x] GE-032-001 — Build guarded tenant-admin editors for organization types/graph, seats, terminology, roles/policies, delegations, forms/fields, workflows, reports, automations, branding, locale, connectors, retention, and Relay policy.
+- [x] GE-032-002 — Enforce entitlements and immutable platform invariants; tenant admins cannot alter physical placement, operator access, audit integrity, core schemas, or unrestricted code execution.
+- [x] GE-032-003 — Provide preview, validation errors, dependency graph, impact/cost, test fixture results, approval, schedule, publish, history, compare, and rollback UX.
+- [x] GE-032-004 — Add operator workflow for reviewed requests that exceed tenant guardrails, with reason, scope, plan, approval, and audit.
 
 ### GE-033: Operator plane
 
-- [ ] GE-033-001 — Create a separate Tenure operator application/identity boundary; do not hide operator superpowers in tenant UI.
-- [ ] GE-033-002 — Implement fleet tenant/cell health, lifecycle, release/config, migration, connectors, identity, backup, security, cost, and incident views without default raw content access.
-- [ ] GE-033-003 — Implement just-in-time support sessions with ticket/reason, tenant approval or incident policy, narrow scope, time limit, step-up, visible banner, dual attribution, automatic revocation, and audit.
-- [ ] GE-033-004 — Implement break-glass controls, alarm, post-use review, and no routine use.
+- [x] GE-033-001 — Create a separate Tenure operator application/identity boundary; do not hide operator superpowers in tenant UI.
+- [x] GE-033-002 — Implement fleet tenant/cell health, lifecycle, release/config, migration, connectors, identity, backup, security, cost, and incident views without default raw content access.
+- [x] GE-033-003 — Implement just-in-time support sessions with ticket/reason, tenant approval or incident policy, narrow scope, time limit, step-up, visible banner, dual attribution, automatic revocation, and audit.
+- [x] GE-033-004 — Implement break-glass controls, alarm, post-use review, and no routine use.
 
 ### Phase 3 gate
 
-- [ ] GE-GATE-3 — Parent registries, versioned configuration engine, tenant configuration studio, and isolated operator plane are integrated and deployed to development/staging with audit and rollback evidence.
+- [x] GE-GATE-3 — Parent registries, versioned configuration engine, tenant configuration studio, and isolated operator plane are integrated and deployed to development/staging with audit and rollback evidence.
 
 ## Phase 4 — Identity, SSO, SCIM, sessions, and security
 
 ### GE-040: Canonical identity data
 
-- [ ] GE-040-001 — Implement/migrate `Person`, `ExternalIdentity`, `TenantMembership`, `IdentityConnection`, `Invitation`, `Session`, `AuthenticationEvent`, and recovery/linking entities with effective state and audit.
-- [ ] GE-040-002 — Key external identity by verified connection + issuer + subject. Email is mutable and never auto-merges identities.
-- [ ] GE-040-003 — Support one person with multiple identities, memberships, tenants, and simultaneous seat assignments.
-- [ ] GE-040-004 — Implement high-assurance link/unlink, collision handling, merge review, and deny unlinking the last recovery path.
-- [ ] GE-040-005 — Implement immediate access invalidation on membership suspension, identity connection disable, session revoke, assignment end, or authorization revision change.
+- [x] GE-040-001 — Implement/migrate `Person`, `ExternalIdentity`, `TenantMembership`, `IdentityConnection`, `Invitation`, `Session`, `AuthenticationEvent`, and recovery/linking entities with effective state and audit.
+- [x] GE-040-002 — Key external identity by verified connection + issuer + subject. Email is mutable and never auto-merges identities.
+- [x] GE-040-003 — Support one person with multiple identities, memberships, tenants, and simultaneous seat assignments.
+- [x] GE-040-004 — Implement high-assurance link/unlink, collision handling, merge review, and deny unlinking the last recovery path.
+- [x] GE-040-005 — Implement immediate access invalidation on membership suspension, identity connection disable, session revoke, assignment end, or authorization revision change.
 
 ### GE-041: Cognito infrastructure
 
-- [ ] GE-041-001 — Create provider-independent interfaces and isolate Cognito SDK/types in adapter/infrastructure layers.
-- [ ] GE-041-002 — Implement configurable shared regional pool, sharded pool, tenant pool, and dedicated-account pool strategies behind cell/tenant resource resolution.
+- [x] GE-041-001 — Create provider-independent interfaces and isolate Cognito SDK/types in adapter/infrastructure layers.
+- [x] GE-041-002 — Implement configurable shared regional pool, sharded pool, tenant pool, and dedicated-account pool strategies behind cell/tenant resource resolution.
 - [ ] GE-041-003 — Provision domains, app clients, callbacks, logout URLs, scopes, Lambda triggers, logs, threat protection/WAF where justified, messaging, and alarms through IaC.
-- [ ] GE-041-004 — Disable self-sign-up by default; implement invitation-only local auth where tenant policy allows.
-- [ ] GE-041-005 — Use secure MFA/recovery/verification and generic errors that resist enumeration.
+- [x] GE-041-004 — Disable self-sign-up by default; implement invitation-only local auth where tenant policy allows.
+- [x] GE-041-005 — Use secure MFA/recovery/verification and generic errors that resist enumeration.
 
 ### GE-042: Browser/API authentication
 
-- [ ] GE-042-001 — Implement tenant/login discovery with safe branding/methods, opaque transaction, rate limiting, and enumeration resistance.
-- [ ] GE-042-002 — Implement Authorization Code + PKCE, state, nonce, single-use transaction, validated relative return path, and expected connection binding.
-- [ ] GE-042-003 — Validate callback code exchange, issuer, JWKS/signature, algorithm, expiry/not-before, token use, client/audience, scopes, nonce, and transaction replay.
-- [ ] GE-042-004 — Implement BFF/server-side session with secure HttpOnly cookies, CSRF protection, rotation, absolute/idle expiry, tenant binding, session inventory, and immediate revocation.
-- [ ] GE-042-005 — Never place access/refresh tokens in local storage or accept ID tokens as API access tokens.
-- [ ] GE-042-006 — Implement `/me`, tenant switch with revalidation/rotation, logout/local revocation/upstream behavior, and expired/revoked/disabled states.
+- [x] GE-042-001 — Implement tenant/login discovery with safe branding/methods, opaque transaction, rate limiting, and enumeration resistance.
+- [x] GE-042-002 — Implement Authorization Code + PKCE, state, nonce, single-use transaction, validated relative return path, and expected connection binding.
+- [x] GE-042-003 — Validate callback code exchange, issuer, JWKS/signature, algorithm, expiry/not-before, token use, client/audience, scopes, nonce, and transaction replay.
+- [x] GE-042-004 — Implement BFF/server-side session with secure HttpOnly cookies, CSRF protection, rotation, absolute/idle expiry, tenant binding, session inventory, and immediate revocation.
+- [x] GE-042-005 — Never place access/refresh tokens in local storage or accept ID tokens as API access tokens.
+- [x] GE-042-006 — Implement `/me`, tenant switch with revalidation/rotation, logout/local revocation/upstream behavior, and expired/revoked/disabled states.
 - [ ] GE-042-007 — Integrate real accessible frontend login, discovery, callback, MFA/recovery, invitation, switcher, logout, and generic error paths.
 
 ### GE-043: Enterprise federation and lifecycle
 
-- [ ] GE-043-001 — Implement SAML draft → validate → test → activate → rotate → disable → rollback lifecycle with SP metadata and strict assertion validation.
-- [ ] GE-043-002 — Implement OIDC enterprise lifecycle with discovery/JWKS, client secret reference/rotation, claims mapping, test, activation, health, and rollback.
-- [ ] GE-043-003 — Treat IdP groups/claims only as mapped inputs; never grant privilege directly without Tenure membership/seat/policy.
-- [ ] GE-043-004 — Implement domain verification and certificate/secret/JWKS expiry monitoring.
-- [ ] GE-043-005 — Implement SCIM 2.0 tenant-bound `/Users` and `/Groups`, filtering, pagination, ETag/version, PATCH, idempotency, external IDs, deactivate/reactivate, group mapping policy, immediate session revocation, rate limits, audit, and interoperability fixtures—or complete the precise compatible boundary and tests if full SCIM is a later milestone.
-- [ ] GE-043-006 — Generate Simon SSO handoff package from deployed nonsecret endpoints, leaving exact external IdP fields `BLOCKED_EXTERNAL` rather than inventing them.
-- [ ] GE-043-007 — Prove federation end to end with a controlled test IdP and a second synthetic tenant.
+- [x] GE-043-001 — Implement SAML draft → validate → test → activate → rotate → disable → rollback lifecycle with SP metadata and strict assertion validation.
+- [x] GE-043-002 — Implement OIDC enterprise lifecycle with discovery/JWKS, client secret reference/rotation, claims mapping, test, activation, health, and rollback.
+- [x] GE-043-003 — Treat IdP groups/claims only as mapped inputs; never grant privilege directly without Tenure membership/seat/policy.
+- [x] GE-043-004 — Implement domain verification and certificate/secret/JWKS expiry monitoring.
+- [x] GE-043-005 — Implement SCIM 2.0 tenant-bound `/Users` and `/Groups`, filtering, pagination, ETag/version, PATCH, idempotency, external IDs, deactivate/reactivate, group mapping policy, immediate session revocation, rate limits, audit, and interoperability fixtures—or complete the precise compatible boundary and tests if full SCIM is a later milestone.
+- [x] GE-043-006 — Generate Simon SSO handoff package from deployed nonsecret endpoints, leaving exact external IdP fields `BLOCKED_EXTERNAL` rather than inventing them.
+- [x] GE-043-007 — Prove federation end to end with a controlled test IdP and a second synthetic tenant.
 
 ### GE-044: Authentication security tests
 
 - [ ] GE-044-001 — Positive code+PKCE browser/API flow works against deployed development Cognito.
-- [ ] GE-044-002 — State/nonce/PKCE missing, mismatch, downgrade, expiry, replay, and code replay deny safely.
-- [ ] GE-044-003 — Wrong issuer/pool/region/client/audience/token use/scope/algorithm/key/signature/time/malformed token deny safely.
-- [ ] GE-044-004 — Open redirect, callback host poisoning, login CSRF, session fixation, cookie, Origin/CORS, logout, refresh/session replay, and tenant-switch tests pass.
-- [ ] GE-044-005 — Same email from different issuers does not merge; changed email preserves issuer/subject identity.
-- [ ] GE-044-006 — SAML signature/audience/recipient/destination/time/replay and OIDC discovery/JWKS/secret rotation negative tests pass.
+- [x] GE-044-002 — State/nonce/PKCE missing, mismatch, downgrade, expiry, replay, and code replay deny safely.
+- [x] GE-044-003 — Wrong issuer/pool/region/client/audience/token use/scope/algorithm/key/signature/time/malformed token deny safely.
+- [x] GE-044-004 — Open redirect, callback host poisoning, login CSRF, session fixation, cookie, Origin/CORS, logout, refresh/session replay, and tenant-switch tests pass.
+- [x] GE-044-005 — Same email from different issuers does not merge; changed email preserves issuer/subject identity.
+- [x] GE-044-006 — SAML signature/audience/recipient/destination/time/replay and OIDC discovery/JWKS/secret rotation negative tests pass.
 
 ### Phase 4 gate
 

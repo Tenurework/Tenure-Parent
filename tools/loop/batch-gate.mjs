@@ -133,7 +133,7 @@ if (passed) {
   generatedDrift = porcelain
     .split("\n")
     .filter(Boolean)
-    .filter((l) => /platform-truth\.json|ownership\.md|entry-points\.md/.test(l))
+    .filter((l) => /platform-truth\.json|ownership\.md|entry-points\.md|Execution_Prompt|Master_Prompt/.test(l))
     // `XY path`: X is the index, Y is the working tree. A STAGED change is
     // fine — it is about to be committed, which is the whole point of staging
     // it. What fails the gate is an unstaged change (Y set) or an untracked

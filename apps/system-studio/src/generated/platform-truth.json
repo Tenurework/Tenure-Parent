@@ -1,9 +1,9 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "7f50eda",
+  "commit": "dad4c10",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 107,
+    "total": 108,
     "done": 94,
     "phases": [
       {
@@ -777,6 +777,13 @@
             "title": "SAML signature/audience/recipient/destination/time/replay and OIDC discovery/JWKS/secret rotation negative tests pass.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-GATE-4",
+            "done": false,
+            "title": "Deployed Cognito authentication, BFF sessions, enterprise federation lifecycle, identity model, tenant discovery, and negative security tests pass; Simon package contains real Tenure outputs and explicit external inputs only.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
           }
         ]
       }
@@ -791,7 +798,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 110,
+    "decided": 111,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -945,7 +952,7 @@
         "source": "GE",
         "items": 1,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-050: Temporal organization graph",
