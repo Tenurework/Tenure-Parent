@@ -7627,3 +7627,101 @@ worth less than three items that hold.
     would put presentation into an authorization answer.
 
   123/1219 decided.
+
+### Operational finding — both repositories moved to the `Tenurework` organization
+
+**Confirmed by the operator the same day: "all work now routed to
+https://github.com/Tenurework/Tenure-Parent and https://github.com/Tenurework".**
+So the move is intended, and the half of this that lives in Tenure-Parent is
+ordinary work rather than blocked — it is queued as the next tick's first item,
+not deferred. The half that lives in `Tenurework/Tenure` stays pull-request-only.
+
+Not a GE item and deliberately not written as one: the
+execution ledger's items come from the execution prompt, and inventing an id
+for an operational finding makes the queue disagree with the document it is
+derived from. `tests/architecture/prompt-matches-ledger.test.mjs` said so
+immediately, which is the guard working.
+
+  - Status: BLOCKED_EXTERNAL — the fix is a decision about production, not a
+    refactor, and one half of it lives in a repository this one may only send
+    pull requests to
+  - Discovered: 2026-08-03, when a push printed
+    `remote: This repository moved. Please use the new location:
+    https://github.com/Tenurework/Tenure-Parent.git`
+  - Evidence: `gh repo view satvikOS/Tenure-Parent` resolves to
+    `Tenurework/Tenure-Parent`; `gh repo view satvikOS/Tenure` resolves to
+    `Tenurework/Tenure`. Both are still **public**.
+
+  ## What this changes
+
+  Every AWS-touching job carries `if: github.repository == 'satvikOS/Tenure'`.
+  That string now matches **nothing**, in either repository.
+
+  * **In Tenure-Parent this is the safe direction.** The condition is false, so
+    the production jobs stay disarmed, which is exactly what they are supposed
+    to be. Nothing here is more dangerous than it was yesterday.
+  * **In `Tenurework/Tenure` it means production deploys have silently
+    stopped.** A push to `main` there still builds, and every job that would
+    apply Terraform or roll ECS is skipped. Nothing fails; the workflow goes
+    green having done nothing. That is the failure mode worth catching early,
+    because the first symptom is a deploy that "succeeded" and changed nothing.
+  * `bootstrap-oidc.yml` in this repository carries the mirror condition
+    `github.repository == 'satvikOS/Tenure-Parent'`, so that operator workflow
+    is now inert here too.
+
+  ## Why the rename is the next tick's first work rather than this one's
+
+  There are 20 files carrying `satvikOS/`, and they are the most
+  safety-critical strings in the repository: the conditions that decide whether
+  a workflow may touch AWS. The current state is *safe* — every condition is
+  false, so everything stays disarmed — and a half-finished rename is the one
+  state that is not. Doing it as the last act of a tick, in a rush, is how
+  `github.repository == 'Tenurework/Tenure-Parent'` ends up on a job that
+  applies Terraform.
+
+  It is mechanical, and the reasoning is already written down here, so it is a
+  clean first item rather than an interrupted last one.
+
+  **The trap to keep.** `production-workflows-disarmed` reasons explicitly about
+  `'satvikOS/Tenure-Parent'.includes('satvikOS/Tenure')` being true — which is
+  why the guard uses exact equality and not `includes`. The new names have the
+  identical property: `'Tenurework/Tenure-Parent'.includes('Tenurework/Tenure')`
+  is also true. The rename must carry that reasoning across intact, not just the
+  strings.
+
+  ## Why the production half is not fixed here
+
+  Re-pointing the strings is a two-line edit and it re-arms production. Which
+  repository is allowed to deploy is a decision with a blast radius, the
+  guard tests pin the old names deliberately, and the half that matters lives
+  in a repository these rules allow only pull requests to. Changing it
+  unilaterally is the exact move `CLAUDE.md` forbids: *"Do not remove a guard to
+  make the workflow work — it working is the failure mode."*
+
+  **Exact commands for the operator.** Confirm first:
+
+      gh repo view Tenurework/Tenure --json nameWithOwner,visibility
+      gh workflow list --repo Tenurework/Tenure
+
+  Then, in `Tenurework/Tenure` (not from here — this repository may only open
+  pull requests against it):
+
+      # every AWS-touching job, currently guarded on a name that no longer exists
+      rg -n "github.repository == 'satvikOS/Tenure'" .github/workflows/
+      # replace with the new owner
+      rg -l "satvikOS/Tenure'" .github/workflows/ \
+        | xargs sed -i "s|satvikOS/Tenure'|Tenurework/Tenure'|g"
+
+  And in this repository, once that is settled, the same rename for
+  `bootstrap-oidc.yml` and the strings pinned in
+  `tests/security/production-workflows-disarmed.test.mjs`
+  (`THIS_REPOSITORY`) — the guard's substring reasoning about
+  `'satvikOS/Tenure-Parent'.includes('satvikOS/Tenure')` holds identically for
+  the new names, so it moves across unchanged in shape.
+
+  Local `origin` was re-pointed at `https://github.com/Tenurework/Tenure-Parent.git`
+  so pushes stop relying on GitHub's redirect. `live` still points at
+  `satvikOS/Tenure`, which also redirects, and is left alone: it is the
+  production remote and this repository must never push to it.
+
+  123/1219 decided.
