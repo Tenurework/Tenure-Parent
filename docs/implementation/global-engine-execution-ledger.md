@@ -7711,10 +7711,23 @@ immediately, which is the guard working.
 
   **BLOCKED_EXTERNAL: the trust policy is code here and not yet applied in
   AWS.** Until an operator applies it, the OIDC roles still trust
-  `satvikOS@228056784/...`, which GitHub will never send again, so every
-  OIDC-authenticating workflow from this repository fails to assume its role.
-  That is the safe direction — no access rather than wrong access — and it is
-  not a state to leave sitting:
+  `satvikOS@228056784/...`, which GitHub will never send again.
+
+  **Scope, checked rather than assumed.** This was first written as "every
+  OIDC-authenticating workflow fails to assume its role", and then Deploy Studio
+  went green on the very next push, which the claim said should not happen. It
+  authenticates with the static `ACCESSKEYID` / `SECRETACCESSKEY` secrets, not
+  OIDC. Exactly **one** workflow here uses `role-to-assume`:
+  `aws-inventory.yml`, and it is `workflow_dispatch` only — so nothing is
+  failing on a schedule and nothing is failing on push. The next operator who
+  runs an inventory is the one who finds it.
+
+  That the deploy path still runs on long-lived keys rather than the OIDC roles
+  this stack exists to provide is a separate and larger gap, and it is GE-011's,
+  not this note's.
+
+  The safe direction — no access rather than wrong access — but not a state to
+  leave sitting:
 
       cd infrastructure/oidc
       terraform init
