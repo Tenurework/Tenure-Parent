@@ -4997,3 +4997,126 @@ worth less than three items that hold.
     the same cutover as everything else.
 
   97/1219 decided.
+
+- [x] **GE-043-001** — Implement SAML draft → validate → test → activate → rotate → disable → rollback lifecycle with SP metadata and strict assertion validation.
+  - Status: PASS (engine); the HTTP binding is BLOCKED_EXTERNAL
+  - Code: `packages/identity/src/connection-lifecycle.ts` (`applyConnectionAction`,
+    `servingConfigurationId`, `hasStagedChange`, `verificationKeys`),
+    `packages/identity/src/saml-assertion.ts` (`validateSamlAssertion`)
+  - Tests: `packages/identity/src/connection-lifecycle.test.ts` (36),
+    `packages/identity/src/saml-assertion.test.ts` (37)
+  - Evidence: 2156/2156 apps/web unit across 94 suites, 139/139 platform guards,
+    type-check clean, gate passed 8 steps. **29 mutations, 29 caught.**
+
+  Two halves: where a connection *is*, and whether an assertion is *ours*.
+
+  ## The lifecycle exists so a tenant cannot lock itself out
+
+  Somebody pastes an identity provider's metadata into a form, saves, and the
+  tenant's entire staff cannot sign in — the certificate was for the wrong
+  environment, or the entity id had a trailing slash, or the IdP's clock is an
+  hour out. The people who could fix it are the people locked out.
+
+  So `ACTIVE` requires a passing test **against the configuration being
+  activated**. That last clause is the whole thing: a test proving an older
+  configuration works is not evidence about this one, and `TEST_IS_STALE` is a
+  distinct refusal from `NO_PASSING_TEST` because they need different actions.
+  Changing the configuration discards the evidence rather than carrying it
+  forward — a new certificate must not inherit the test of the one it replaced.
+
+  **Safety comes from the evidence, not from the state name.** A first draft
+  refused `ACTIVATE` from `VALIDATED` on principle, which meant a connection
+  re-validated with an unchanged configuration — keeping a genuine passing test
+  — was refused with "wrong state" when the honest answer was that it was fine.
+  Worse, a *failed* test also landed in `VALIDATED`, so the operator was told
+  "wrong state" when the answer was "your test failed". Now `ACTIVATE` is
+  reachable and the evidence check is what refuses, with the reason that is
+  actually true.
+
+  **Rotation is an overlap, not a swap.** Assertions signed with the outgoing
+  key are on the wire while the new one is installed. Replacing immediately
+  rejects every one of them — a short outage that looks exactly like a
+  misconfiguration, at the moment somebody is least able to tell the difference.
+
+  **A live connection stages a change without going out of service.** An IdP
+  rotating its metadata is routine; requiring `DISABLE` first would make every
+  routine rotation an outage, and an outage nobody schedules is one somebody
+  skips — which is how the certificate expires instead. `configurationId` is
+  what an operator is editing and `activeConfigurationId` is what is serving;
+  they differ exactly while a change is staged, and `servingConfigurationId`
+  makes sure live traffic is checked against the tested one.
+
+  **A real design bug, found by writing the sequence as a sequence.** Activation
+  recorded `previousConfigurationId = configurationId` — the configuration being
+  activated, not the one it replaces, because `configurationId` had already been
+  overwritten when the metadata was edited. Rollback would have returned to
+  exactly where it started. Eight independent per-transition tests all passed;
+  the end-to-end walk did not. `activeConfigurationId` is what fixes it, and the
+  first activation now correctly has nothing to roll back to.
+
+  ## Strict assertion validation
+
+  This validates a **parsed and signature-verified** assertion. XML
+  canonicalisation belongs to a hardened library, not to code written here. What
+  this owns is the decision the library cannot make: given a document whose
+  signature checked out, is *this* assertion, from *this* provider, addressed to
+  *us*, right now, and not one we have already accepted.
+
+  Every check is a documented, repeatedly-exploited class:
+
+  * **XML signature wrapping.** A signed `Response` does not protect the
+    `Assertion` inside it. The attack leaves the signed element intact and adds
+    an unsigned one the application reads instead — so "the document was signed"
+    is the wrong question. The signature check runs *first*, and a test asserts
+    an assertion that is both unsigned and expired reports `NOT_SIGNED`: every
+    field below is attacker input until it is covered.
+  * **Weak algorithms.** SHA-1 signatures and SHA-1 digests are refused, and an
+    absent algorithm is refused rather than assumed. A strong signature over a
+    weak digest inherits the digest's collisions.
+  * **Audience.** Without it, an assertion minted for any other service that
+    federates with the same IdP is accepted here. The provider signed it; it was
+    not for us.
+  * **Timing**, with configured skew in both directions and `NotOnOrAfter`
+    exclusive — an inclusive comparison grants one extra instant on every
+    assertion. The subject window is reported separately from the `Conditions`
+    window because they are minutes and hours respectively, and an operator
+    needs to know which clock to look at.
+  * **`InResponseTo`**, and unsolicited assertions refused unless IdP-initiated
+    was deliberately enabled. An assertion nobody asked for cannot be tied to a
+    browser that started at our door, which is what makes login CSRF possible.
+    Enabling IdP-initiated permits a *missing* `InResponseTo`; it does not
+    permit one carrying somebody else's request id.
+  * **Replay.** A bearer assertion is a credential until it expires, and its
+    window is long enough to reuse. `repeatableAfter` gives a cache an eviction
+    time from the later of the two windows, so a short subject window cannot
+    evict an id the `Conditions` window still honours.
+  * **The NameID comment-truncation class** (Ruby SAML / GitHub Enterprise).
+    Some parsers strip XML comments and others treat them as text-node
+    boundaries, so `admin@corp.test<!---->.evil.test` reads as one identity to
+    the signature check and another to the application. Refused rather than
+    normalised: normalising picks one of the two readings, and the problem is
+    that there are two.
+
+  **Honest limits.**
+
+  * **Nothing calls either module.** There is no ACS route, no metadata
+    endpoint, no connection table — SAML arrives with the Cognito cutover, which
+    is BLOCKED_EXTERNAL on the missing AWS Organization (GE-041-003). These are
+    the decisions that cutover will need, written and proven now because they
+    are decidable now.
+  * **SP metadata generation is not implemented.** The item names it, and it is
+    a document built from an entity id, an ACS URL and a signing certificate —
+    all of which come from infrastructure that does not exist yet. Emitting XML
+    with placeholder URLs would be a document nobody can use.
+  * **Signature verification is delegated, by design.** `SignatureFacts` is what
+    the caller's library proved. A caller that lies to it — passing
+    `signedElements: ["Assertion"]` without verifying — defeats everything here,
+    and no amount of validation downstream can catch that. The type is shaped so
+    the honest answer is the easy one: `signedElements: []` is a refusal, not a
+    pass.
+  * **`ConnectionLifecycleState`**, not `ConnectionState`, because `keying.ts`
+    already uses that name for a connection reduced to what identity resolution
+    needs. Two genuinely different concepts; the existing name was left alone
+    rather than renamed as a drive-by.
+
+  98/1219 decided.

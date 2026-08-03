@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "b262cb7",
+  "commit": "2de79fe",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 94,
-    "done": 82,
+    "total": 95,
+    "done": 83,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -686,6 +686,13 @@
             "title": "Integrate real accessible frontend login, discovery, callback, MFA/recovery, invitation, switcher, logout, and generic error paths.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-043-001",
+            "done": true,
+            "title": "Implement SAML draft → validate → test → activate → rotate → disable → rollback lifecycle with SP metadata and strict assertion validation.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -700,7 +707,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 96,
+    "decided": 97,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -840,7 +847,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-044: Authentication security tests",

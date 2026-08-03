@@ -277,7 +277,7 @@ Use this evidence shape:
 
 ### GE-043: Enterprise federation and lifecycle
 
-- [ ] GE-043-001 — Implement SAML draft → validate → test → activate → rotate → disable → rollback lifecycle with SP metadata and strict assertion validation.
+- [x] GE-043-001 — Implement SAML draft → validate → test → activate → rotate → disable → rollback lifecycle with SP metadata and strict assertion validation.
 - [ ] GE-043-002 — Implement OIDC enterprise lifecycle with discovery/JWKS, client secret reference/rotation, claims mapping, test, activation, health, and rollback.
 - [ ] GE-043-003 — Treat IdP groups/claims only as mapped inputs; never grant privilege directly without Tenure membership/seat/policy.
 - [ ] GE-043-004 — Implement domain verification and certificate/secret/JWKS expiry monitoring.

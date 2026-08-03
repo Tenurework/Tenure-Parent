@@ -289,3 +289,29 @@ export {
   signInFailure,
   type SignInFailure,
 } from "./auth-errors"
+
+export {
+  CONNECTION_STATES,
+  applyConnectionAction,
+  connectionServesSignIn,
+  hasStagedChange,
+  servingConfigurationId,
+  verificationKeys,
+  type Connection,
+  type ConnectionAction,
+  type ConnectionLifecycleState,
+  type SigningKey,
+  type TransitionOutcome,
+  type TransitionRefusal,
+} from "./connection-lifecycle"
+
+export {
+  validateSamlAssertion,
+  type AssertionAccepted,
+  type AssertionRefusal,
+  type AssertionRejected,
+  type AssertionVerdict,
+  type ExpectedAssertion,
+  type SamlAssertionInput,
+  type SignatureFacts,
+} from "./saml-assertion"
