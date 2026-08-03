@@ -7279,3 +7279,65 @@ worth less than three items that hold.
     audit has something to record; nothing records it yet.
 
   122/1219 decided.
+
+- [ ] **GE-051-005** — Enforce authorization in every controller, service, repository/query, file, search, export, report, analytics, event/job, websocket, connector, support, admin, and Relay path.
+  - Status: FAIL — **31 mutating paths still prove only that somebody is signed
+    in.** The gap is now measured and held shut; closing it is the work.
+  - Code: none yet in `apps/web`
+  - Tests: `tests/security/every-path-authorizes.test.mjs` (5)
+  - Evidence: 189/189 platform guards, 2833/2833 apps/web unit, gate passed.
+    **12 mutations, 12 caught.**
+
+  ## What the measurement says
+
+  GE-000-004 already proves every handler has *a* guard, and that claim is
+  weaker than it reads. `session` proves somebody is signed in; `tenant` proves
+  which tenant they are acting in. Neither proves they may do this. A server
+  action guarded by `session` + `tenant` is reachable by **every member of the
+  tenant**, and for `submitReimbursement`, `actOnApproval`, `setDelegation` or
+  `setClubStatus` that is the whole vulnerability.
+
+  Counting the paths that change something and make no permission decision:
+  **31**. They include the approval gate itself (`actOnApproval`), delegation
+  (`setDelegation`, `revokeDelegation`), money (`submitReimbursement`), the
+  roster (`setClubStatus`), and the three role-transfer actions.
+
+  The number is a ratchet that may only shrink, asserted in both directions —
+  raising it to make a build pass is the failure it exists to prevent, and a
+  ratchet not tightened when the debt is paid stops meaning anything.
+
+  ## Two judgements inside the measurement
+
+  * **A shared secret counts as an authorization.** There is no principal to
+    decide about on a cron or control-plane path, and the secret proves the
+    caller is the specific machine that holds it. Counting `/api/jobs/reminders`
+    and `/api/platform/reconcile` as debt would mean this number can never reach
+    zero, which is how a ratchet stops being read.
+  * **A path with no guard at all is not debt.** It is either defended by name
+    with a stated reason or it is a finding, and it is kept off the ratchet so
+    it cannot be paid down slowly. One is defended: `signOutAction`, because
+    requiring a guard would mean a session too broken to pass one is a session
+    nobody can end — a bad cookie becoming a locked account. The exemption check
+    fails in both directions, so an exemption outliving the thing it excused is
+    also a failure.
+
+  **Why this is FAIL and not PASS.** Nothing was authorized that was not
+  authorized before. What exists is an honest count and a guard that stops it
+  growing. Recording it as PASS because a measurement shipped would be exactly
+  the kind of claim this ledger exists to prevent.
+
+  **What closing it needs**, in the order it should happen:
+
+  1. A `requireAuthorization(permission, resource)` helper in `apps/web` that
+     goes through GE-051-004's service — one call site shape, so the conversion
+     is mechanical and reviewable.
+  2. A `worldFor` that reads memberships, seats and relationships from the
+     database. This is the piece that does not exist: `navigation-capabilities.ts`
+     builds a world by hand for two capabilities, and nothing builds one for a
+     real resource.
+  3. The 31 paths, highest-consequence first: the approval gate, delegation,
+     money, then the rest.
+  4. `CapabilityId` (the 25 paths already guarded) folded onto catalog keys, so
+     there is one permission vocabulary rather than two.
+
+  122/1219 decided.

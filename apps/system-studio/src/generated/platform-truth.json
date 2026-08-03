@@ -1,9 +1,9 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "637c425",
+  "commit": "f33b08d",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 119,
+    "total": 120,
     "done": 105,
     "phases": [
       {
@@ -859,6 +859,13 @@
             "id": "GE-051-004",
             "done": true,
             "title": "Implement centralized authorization decision interface and policy revision/cache invalidation.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-051-005",
+            "done": false,
+            "title": "Enforce authorization in every controller, service, repository/query, file, search, export, report, analytics, event/job, websocket, connector, support, admin, and Relay path.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }
@@ -2226,7 +2233,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 23,
+      "files": 24,
       "what": "repository and deployment invariants"
     },
     {
