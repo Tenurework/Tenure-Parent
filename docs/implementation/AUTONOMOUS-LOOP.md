@@ -450,6 +450,28 @@ whole timeout on a number that already changed in the database. An assertion
 that proves a write landed must be one the pre-write page cannot satisfy —
 otherwise the test's own navigation is the race.
 
+**`npm run start` serves the last build, not your working tree.** Playwright's
+`webServer` runs `next start`, which does not compile. Two consecutive local e2e
+runs reproduced a failure I had already fixed, because the fix was in TypeScript
+and the server was serving `.next` from a build made before it. Run
+`npm run build --workspace apps/web` first, or the run is a test of whatever was
+last compiled. CI is safe here — it builds — which is why this only ever wastes
+local time, and it wastes a lot of it.
+
+**Run the e2e suite before pushing anything that changes a shared package.**
+`batch-gate` runs type-check, unit, guards and both builds; it does not run e2e.
+GE-051-001 passed all of that and broke the admin console, because the only
+caller of the authorization engine in `apps/web` had no unit test at all. The
+gate is not a substitute for the suite when the change is in `packages/`.
+
+**A string that three places agree on is not a contract; it is a coincidence.**
+The admin nav link needed one permission and it was spelled three ways in three
+files: the capability the layout computed, the `requiresCapability` on the nav
+entry, and the module manifest's `permissions` list. All three matched each
+other and nothing else, so every one of them looked right in isolation. When a
+change makes one authoritative, expect the other two, and go and find them —
+`grep` for the old string across the whole repo, not just the file you edited.
+
 ---
 
 ## What is session-scoped, and what is not

@@ -134,6 +134,7 @@ export const PERMISSION_RESOURCES = [
   "budget",
   "conflict",
   "connection",
+  "comment",
   "console",
   "delegation",
   "event",
@@ -296,6 +297,7 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   define("communications", "message", "read", "messaging", "Read messages in a conversation."),
   define("communications", "message", "create", "messaging", "Post a message to a conversation."),
   define("communications", "thread", "create", "messaging", "Start a new conversation."),
+  define("communications", "comment", "create", "feed", "Comment on something in the feed."),
   define("communications", "announcement", "create", "feed", "Draft an announcement."),
   define("communications", "announcement", "publish", "feed", "Publish an announcement to a unit's feed."),
 

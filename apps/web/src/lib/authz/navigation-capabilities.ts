@@ -34,15 +34,24 @@ import type { UserContext } from "@/lib/rbac"
  * a request may actually do, and are untouched.
  */
 
-/** Capabilities that decide what appears in the menu. */
+/**
+ * Capabilities that decide what appears in the menu.
+ *
+ * Catalog keys (GE-051-001), not strings invented here. They used to be
+ * `administration.access` and `budgeting.viewReports` — namespaced under the
+ * contributing module, on the assumption that a permission was
+ * `<module>.<action>` and the module was the text before the dot. Neither key
+ * was declared anywhere, and nothing could tell: `decide()` looked up a module
+ * called "administration", found it enabled, and allowed a permission no role
+ * definition outside this file had ever heard of.
+ *
+ * Module gating still works and now comes from the catalog: `admin.console.read`
+ * declares `administration` and `finance.report.read` declares `budgeting`, so
+ * the link cannot appear in a system without the console behind it.
+ */
 export const NAV_CAPABILITIES = {
-  // Namespaced under the module that contributes the entry, not under a made-up
-  // "institution" module. That is what makes module gating real: a permission is
-  // `<module>.<action>`, so `administration.access` is denied outright when the
-  // administration module is not enabled, and the link cannot appear in a system
-  // that does not have the console behind it.
-  administer: "administration.access",
-  viewReports: "budgeting.viewReports",
+  administer: "admin.console.read",
+  viewReports: "finance.report.read",
 } as const
 
 /**

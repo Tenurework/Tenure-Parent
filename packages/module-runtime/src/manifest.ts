@@ -1,3 +1,5 @@
+import { lookupPermission } from "@tenure/authorization"
+
 /**
  * What a module declares about itself.
  *
@@ -127,12 +129,33 @@ export function validateManifest(m: ModuleManifest): void {
     }
   }
 
-  // A permission that is not namespaced under its module cannot be traced back
-  // to whoever is responsible for it. The architecture states this rule and
-  // then breaks it in its own finance example.
+  // A module may only declare permissions the catalog declares, gated on this
+  // module.
+  //
+  // The rule used to be that a permission had to start with `<key>.`, on the
+  // assumption that a permission *is* `<module>.<action>`. The architecture
+  // states that rule and then breaks it in its own finance example, and so does
+  // the platform: `finance.budget.read` is the budgeting module and
+  // `finance.reimbursement.approve` is the reimbursements one. Prefix-matching
+  // could only be satisfied by inventing a key per module, which is how three
+  // parts of this platform ended up gating the same link on three strings none
+  // of which existed anywhere else.
+  //
+  // Checking against the catalog is strictly stronger: it catches the typo the
+  // prefix rule caught, and also the permission that is spelled plausibly and
+  // means nothing.
   for (const p of m.permissions ?? []) {
-    if (!p.startsWith(`${m.key}.`)) {
-      problems.push(`${where} declares permission "${p}", which is not namespaced under "${m.key}.".`)
+    const definition = lookupPermission(p)
+    if (!definition) {
+      problems.push(
+        `${where} declares permission "${p}", which is not in the permission catalog. A module ` +
+          `cannot confer a capability nothing can grant.`,
+      )
+    } else if (definition.module !== null && definition.module !== m.key) {
+      problems.push(
+        `${where} declares permission "${p}", which the catalog gates on module ` +
+          `"${definition.module}". Turning "${m.key}" on would not grant it.`,
+      )
     }
   }
 

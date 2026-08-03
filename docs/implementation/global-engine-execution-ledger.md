@@ -6883,9 +6883,12 @@ worth less than three items that hold.
     `decide.ts` now resolves the module from the catalog; `UNKNOWN_PERMISSION`
     added to `DENY_REASONS`
   - Tests: `packages/authorization/src/permission-catalog.test.ts` (29),
+    `apps/web/src/lib/authz/navigation-capabilities.test.ts` (11),
+    `packages/platform-config/src/module-permissions.test.ts` (6),
     `tests/architecture/permission-catalog-is-tenant-blind.test.mjs` (5)
-  - Evidence: 2665/2665 apps/web unit across 109 suites, 181/181 platform guards
-    (up from 176), type-check clean. **29 mutations, 29 caught.**
+  - Evidence: 2686/2686 apps/web unit across 111 suites, 181/181 platform
+    guards (up from 176), **152/152 e2e on a freshly created database**,
+    type-check clean, gate passed. **33 mutations, 33 caught.**
 
   Bible §9.3. "Independent of tenant labels and role titles" is the whole item,
   and it is easy to assert and easy to lose.
@@ -6950,12 +6953,38 @@ worth less than three items that hold.
 
   **Honest limits.**
 
-  * **Almost nothing calls it.** `decide()` enforces the catalog and the SoD
-    policies name catalog keys, but `apps/web` authorizes through session role
-    checks, not through `decide()`. GE-051-005 is the item that puts this in
-    every controller, service, query, export and job path; until then the
-    catalog is correct and largely unreached. The one place it is load-bearing
-    today is the authorization package's own decisions.
+  * **Almost nothing calls it.** `decide()` enforces the catalog, the SoD
+    policies name catalog keys, and the module manifests and navigation
+    capabilities now declare them — but `apps/web` still authorizes *routes*
+    through session role checks. GE-051-005 is the item that puts this in every
+    controller, service, query, export and job path; until then the catalog is
+    correct and reached in one place: what appears in the menu.
+
+  **What enforcing it found.** Turning the catalog on broke the admin console,
+  and the way it broke is worth recording. One nav link needed one permission,
+  and it was spelled three ways in three files — the capability the layout
+  computed (`administration.access`), the `requiresCapability` on the nav entry
+  (`administration.access`), and the module manifest's `permissions` list
+  (`administration.access`). All three agreed with each other and with nothing
+  else in the platform; no role definition, no policy, no test outside those
+  files had ever named the string. Each looked right in isolation and the set of
+  them was a closed loop.
+
+  `validateManifest` was enforcing the assumption underneath it: a permission
+  must start with `<moduleKey>.`. The platform's own domains break that —
+  `finance.budget.read` is the budgeting module and
+  `finance.reimbursement.approve` is the reimbursements one — so satisfying the
+  prefix rule required inventing a key per module, which is exactly what had
+  happened. That rule is now "the catalog declares it, gated on this module",
+  which catches the typo the prefix rule caught and also the permission that is
+  spelled plausibly and means nothing.
+
+  Two tests were added where there were none:
+  `navigation-capabilities.test.ts` (11) covers the only place `apps/web` asks
+  the engine anything — it had no test, which is why 2665 unit tests stayed
+  green while the link vanished — and `module-permissions.test.ts` (6) asserts
+  every module-declared permission and every `requiresCapability` is a catalog
+  key gated on that module.
   * **Role titles are checked by shape, not against data.** Nothing in the
     engine declares seat titles — a seat carries its title as tenant data, which
     is exactly why a permission must not be named after one. So

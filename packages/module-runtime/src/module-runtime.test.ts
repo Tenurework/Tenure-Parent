@@ -35,7 +35,7 @@ const CATALOG = ModuleCatalog.of([
   }),
   mod("approvals", {
     dependsOn: ["organizations"],
-    permissions: ["approvals.decide", "approvals.submit"],
+    permissions: ["approvals.request.decide", "approvals.request.create"],
     navigation: [
       {
         id: "approvals.inbox",
@@ -74,7 +74,7 @@ const CATALOG = ModuleCatalog.of([
         sectionOrder: 10,
         order: 20,
         icon: "BarChart3",
-        requiresCapability: "institution.viewReports",
+        requiresCapability: "finance.report.read",
       },
     ],
   }),
@@ -88,11 +88,34 @@ const CATALOG = ModuleCatalog.of([
 // ── manifests ───────────────────────────────────────────────────────────────
 
 describe("a manifest is checked when it is declared", () => {
-  it("refuses a permission not namespaced under its module", () => {
-    // Otherwise a permission cannot be traced to whoever is responsible for it.
-    expect(() => validateManifest(mod("finance", { permissions: ["budget.read"] }))).toThrow(
-      /not namespaced under "finance\."/,
+  it("refuses a permission the catalog does not declare", () => {
+    // A module cannot confer a capability nothing can grant. This replaced a
+    // rule that a permission must start with `<key>.`, which the platform's own
+    // domains break: `finance.budget.read` is the budgeting module.
+    expect(() => validateManifest(mod("budgeting", { permissions: ["budget.read"] }))).toThrow(
+      /not in the permission catalog/,
     )
+  })
+
+  it("refuses a permission the catalog gates on a different module", () => {
+    // Declaring it would advertise a capability that turning this module on
+    // cannot actually give.
+    expect(() =>
+      validateManifest(mod("budgeting", { permissions: ["finance.reimbursement.approve"] })),
+    ).toThrow(/gates on module "reimbursements"/)
+  })
+
+  it("accepts a permission whose domain is not its module key", () => {
+    // The case the old prefix rule could not express.
+    expect(() =>
+      validateManifest(mod("budgeting", { permissions: ["finance.budget.read"] })),
+    ).not.toThrow()
+  })
+
+  it("accepts a platform-level permission from any module", () => {
+    expect(() =>
+      validateManifest(mod("budgeting", { permissions: ["admin.audit.read"] })),
+    ).not.toThrow()
   })
 
   it("refuses a nav entry not namespaced under its module", () => {
@@ -288,7 +311,7 @@ describe("navigation is contributed by modules, not hardcoded", () => {
     const nav = navigationFor(enabled, new Set<string>())
     expect(nav.map((s) => s.label)).not.toContain("Overview")
 
-    const withCap = navigationFor(enabled, new Set(["institution.viewReports"]))
+    const withCap = navigationFor(enabled, new Set(["finance.report.read"]))
     expect(withCap.find((s) => s.label === "Overview")!.items.map((i) => i.label)).toEqual([
       "Reports",
     ])

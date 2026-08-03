@@ -25,7 +25,7 @@ const organizations: ModuleManifest = {
   name: "Organizations",
   description: "The organizations themselves, their rosters, and the seats people hold on them.",
   lifecycle: "available",
-  permissions: ["organizations.view", "organizations.manageRoster", "organizations.edit"],
+  permissions: ["org.unit.read", "org.unit.update", "org.roster.read", "org.roster.update"],
   navigation: [
     {
       id: "organizations.list",
@@ -46,7 +46,7 @@ const feed: ModuleManifest = {
   description: "Announcements and cross-organization posts.",
   lifecycle: "available",
   dependsOn: ["organizations"],
-  permissions: ["feed.post", "feed.comment"],
+  permissions: ["communications.announcement.create", "communications.announcement.publish", "communications.comment.create"],
   navigation: [
     {
       id: "feed.home",
@@ -67,7 +67,7 @@ const messaging: ModuleManifest = {
   description: "Direct and group conversations, scoped to the organizations people belong to.",
   lifecycle: "available",
   dependsOn: ["organizations"],
-  permissions: ["messaging.send", "messaging.readOwn"],
+  permissions: ["communications.message.create", "communications.message.read", "communications.thread.create"],
   navigation: [
     {
       id: "messaging.inbox",
@@ -88,7 +88,7 @@ const approvals: ModuleManifest = {
   description: "Multi-gate approval requests with delegation and an audited decision trail.",
   lifecycle: "available",
   dependsOn: ["organizations"],
-  permissions: ["approvals.submit", "approvals.decide", "approvals.delegate"],
+  permissions: ["approvals.request.create", "approvals.request.read", "approvals.request.decide", "approvals.request.cancel", "approvals.request.assign", "approvals.policy.read"],
   navigation: [
     {
       id: "approvals.inbox",
@@ -109,7 +109,7 @@ const events: ModuleManifest = {
   description: "Event scheduling, conflict detection and a subscribable calendar.",
   lifecycle: "available",
   dependsOn: ["organizations"],
-  permissions: ["events.create", "events.approve", "events.view"],
+  permissions: ["events.event.create", "events.event.read", "events.event.update", "events.event.publish", "events.event.cancel", "events.conflict.read"],
   navigation: [
     {
       id: "events.calendar",
@@ -130,7 +130,7 @@ const resources: ModuleManifest = {
   description: "The staff office's published forms, guides and policies, targeted by seat.",
   lifecycle: "available",
   dependsOn: ["organizations"],
-  permissions: ["resources.publish", "resources.view"],
+  permissions: ["resources.resource.create", "resources.resource.read", "resources.resource.update", "resources.resource.archive"],
   navigation: [
     {
       id: "resources.library",
@@ -151,7 +151,7 @@ const search: ModuleManifest = {
   description: "Assisted search and drafting across everything the principal can already see.",
   lifecycle: "available",
   dependsOn: ["organizations"],
-  permissions: ["search.query"],
+  permissions: ["search.index.query"],
   navigation: [
     {
       id: "search.assistant",
@@ -175,7 +175,7 @@ const memory: ModuleManifest = {
   description: "Knowledge cards and documents that outlive the officers who wrote them.",
   lifecycle: "available",
   dependsOn: ["organizations"],
-  permissions: ["memory.write", "memory.view"],
+  permissions: ["memory.note.create", "memory.note.read", "memory.note.read_sensitive"],
 }
 
 const budgeting: ModuleManifest = {
@@ -186,7 +186,7 @@ const budgeting: ModuleManifest = {
   lifecycle: "available",
   dependsOn: ["organizations"],
   requiresEntitlement: "finance",
-  permissions: ["budgeting.manage", "budgeting.view", "budgeting.viewPortfolio", "budgeting.viewReports"],
+  permissions: ["finance.budget.read", "finance.budget.propose", "finance.budget.approve", "finance.budget.update", "finance.ledger.read", "finance.ledger.post", "finance.ledger.export", "finance.report.read", "finance.report.export"],
   navigation: [
     {
       id: "budgeting.reports",
@@ -196,7 +196,7 @@ const budgeting: ModuleManifest = {
       sectionOrder: 10,
       order: 20,
       icon: "BarChart3",
-      requiresCapability: "budgeting.viewReports",
+      requiresCapability: "finance.report.read",
     },
   ],
 }
@@ -209,7 +209,7 @@ const reimbursements: ModuleManifest = {
   lifecycle: "available",
   dependsOn: ["organizations", "approvals", "budgeting"],
   requiresEntitlement: "finance",
-  permissions: ["reimbursements.file", "reimbursements.approve"],
+  permissions: ["finance.reimbursement.create", "finance.reimbursement.read", "finance.reimbursement.approve"],
 }
 
 const dashboard: ModuleManifest = {
@@ -238,7 +238,7 @@ const administration: ModuleManifest = {
   description: "The staff office's console: people, organizations, overrides and the audit trail.",
   lifecycle: "available",
   dependsOn: ["organizations"],
-  permissions: ["administration.access"],
+  permissions: ["admin.console.read", "admin.override.execute"],
   navigation: [
     {
       id: "administration.console",
@@ -248,7 +248,7 @@ const administration: ModuleManifest = {
       sectionOrder: 5,
       order: 10,
       icon: "ShieldCheck",
-      requiresCapability: "administration.access",
+      requiresCapability: "admin.console.read",
     },
   ],
 }

@@ -103,7 +103,7 @@ describe("navigation is what the enabled modules contribute", () => {
 
     const admin = navigationForSystem(
       "rochester",
-      new Set(["administration.access", "budgeting.viewReports"]),
+      new Set(["admin.console.read", "finance.report.read"]),
     )
     expect(admin.map((s) => s.label)).toContain("Administration")
     expect(admin.flatMap((s) => s.items.map((i) => i.label))).toContain("Reports")
