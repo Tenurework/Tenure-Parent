@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "0a25093",
+  "commit": "0e51ee3",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 112,
-    "done": 98,
+    "total": 113,
+    "done": 99,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -812,6 +812,13 @@
             "title": "Support active/future/interim/acting/shadow/delegate/leave/former/alumni/advisor/contractor assignment states through configuration.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-050-005",
+            "done": true,
+            "title": "Preserve bitemporal/effective history sufficient to reconstruct occupant, hierarchy, authority, and policy at any decision time.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -826,7 +833,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 115,
+    "decided": 116,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -987,7 +994,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 4
+        "done": 5
       },
       {
         "phase": "GE · GE-051: Authorization engine",

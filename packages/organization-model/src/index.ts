@@ -76,3 +76,19 @@ export {
   type CatalogProblem,
   type StateAuthority,
 } from "./assignment-states"
+
+export {
+  correct,
+  decisionDrifted,
+  factHistory,
+  resolveAsOf,
+  type BitemporalVersion,
+  type CorrectionOutcome,
+  type CorrectionRefusal,
+  type HistoryEntry,
+  type RecordPeriod,
+  type Resolution,
+  type ResolutionRefusal,
+  type TemporalQuery,
+  type ValidPeriod,
+} from "./bitemporal"

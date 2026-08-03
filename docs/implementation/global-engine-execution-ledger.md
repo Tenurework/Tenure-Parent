@@ -6576,3 +6576,103 @@ worth less than three items that hold.
     join is real and is not built.
 
   115/1219 decided.
+
+- [x] **GE-050-005** — Preserve bitemporal/effective history sufficient to reconstruct occupant, hierarchy, authority, and policy at any decision time.
+  - Status: PASS for the engine; persistence is limited below
+  - Code: `packages/organization-model/src/bitemporal.ts` (`resolveAsOf`,
+    `correct`, `factHistory`, `decisionDrifted`)
+  - Tests: `packages/organization-model/src/bitemporal.test.ts` (31)
+  - Evidence: 2573/2573 apps/web unit across 106 suites, 173/173 platform guards,
+    type-check clean, gate passed. **17 mutations, 17 caught** — after a first
+    run caught 12 and the five survivors were all real gaps, including one in
+    the module's central claim.
+
+  ## One clock cannot answer the question an audit asks
+
+  Bible §8.2: "All mutable organizational facts requiring historical
+  reconstruction use effective dating **plus transaction time**. Corrections
+  append a superseding version; they do not rewrite history invisibly."
+
+  Everything built so far carries one clock — `effectiveFrom` and
+  `effectiveUntil`, when a fact was true of the world. That answers *who held
+  this seat in March* and cannot answer *when the approval was granted in March,
+  who did we believe held the seat*.
+
+  Those diverge the moment anything is corrected. Somebody discovers in July that
+  a VP's term actually ended in February and fixes the record. With one clock,
+  every report about March silently changes: an approval that was correctly
+  granted now shows an approver with no authority, and the person who granted it
+  looks like they broke a rule that did not exist yet.
+
+  The second clock is `recordedAt` and `supersededAt`. A query takes both
+  instants: what was true at `validAt`, according to what we knew at `knownAt`.
+
+  ## Corrections append, and that is what makes the question answerable
+
+  `correct()` never mutates. The superseded version keeps its `recordedAt`, its
+  validity and **its value**; only `supersededAt` is set. A corrected-in-place
+  row has not made the March-as-of-March query wrong — it has destroyed the
+  evidence that would answer it.
+
+  A correction is refused without a stated reason (a history of unexplained
+  changes is not a history), against a fact nobody has recorded, when every
+  version is already superseded, and when it claims to have been learned *before*
+  something already on file. That last one matters: transaction time is the one
+  axis that is genuinely monotonic — a fact cannot be un-learned — and letting it
+  run backwards makes "as of then" unanswerable.
+
+  `recordedAt` is supplied by the caller rather than stamped from a clock inside,
+  because an import replaying real history needs the times facts were actually
+  learned. A function that stamped `now` would record the migration instead.
+
+  ## Ambiguity is refused rather than ordered
+
+  Two un-superseded versions both covering an instant is a real state, and
+  picking one by array order is a decision nobody made — in the one place where
+  the answer is later used to judge somebody.
+
+  ## `decisionDrifted` is the check an audit needs
+
+  Take a decision's instant, ask what we believed *then*, compare with what we
+  believe *now*. Drift is not a fault — corrections are legitimate — but it is
+  the thing a reviewer must be shown rather than left to discover. A correction
+  that only widened a window changed nothing about who held the seat and does not
+  flag, because a flag that fires on every correction trains a reviewer to
+  ignore it.
+
+  ## The five survivors were all real
+
+  The first mutation run scored 12/17, and not one survivor was an equivalence.
+  Four were untested boundaries — the supersession instant itself, a `validAt`
+  before the period begins, and history ordering under a fixture where
+  transaction order, validity order and array order all happened to agree.
+
+  The fifth was the module's central claim. A mutation that overwrote the
+  superseded version's **value** while leaving its timestamps intact survived
+  every assertion, because the fixture's correction narrowed a date and kept the
+  same holder — so the old value and the new one were identical. A second
+  fixture now corrects *who* the fact names, and asserts the old version still
+  says Dana while the current one says Sam. The test that was supposed to prove
+  "we keep what we used to believe" was proving nothing about the belief.
+
+  **Honest limits.**
+
+  * **Nothing is stored bitemporally.** No table carries `recordedAt` /
+    `supersededAt`; `Seat`, `SeatAssignment`, `InstitutionMembership` and the org
+    graph are all single-clock. This is the engine those tables will use, and
+    adding the columns is a migration per table with a backfill that can only
+    honestly set `recordedAt` to the row's `createdAt` — which is an
+    approximation worth stating rather than papering over.
+  * **`resolveAsOf` takes a version list, not a query.** At real volumes the
+    filtering belongs in SQL with an index on `(factId, recordedAt)`. The
+    decisions are here; the access path is not, and writing one against tables
+    that do not exist would be guessing at their shape.
+  * **The six questions §8.2 lists are not all answered by this.** It answers
+    "who occupied a seat at the time of a decision", "what hierarchy and
+    delegation were effective" and "when did the platform learn or correct a
+    fact" — for facts recorded through it. "Which current actor may view the
+    historical content now" is an authorization question about history, and it is
+    not built: reconstructing a past state and deciding who may *see* that
+    reconstruction are different, and the second one is not this module's.
+
+  116/1219 decided.
