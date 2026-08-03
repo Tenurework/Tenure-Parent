@@ -6775,3 +6775,101 @@ worth less than three items that hold.
     defeat the occupancy refusals, which is why that function has its own tests.
 
   117/1219 decided.
+
+- [x] **GE-050-007** — Ensure ending an assignment removes authority without deleting history; a successor receives only policy-authorized seat content.
+  - Status: PASS for the decision; persistence and the transition workflow itself
+    are limited below
+  - Code: `packages/organization-model/src/succession-release.ts`
+    (`endAssignment`, `releaseToSuccessor`, `planHandover`)
+  - Tests: `packages/organization-model/src/succession-release.test.ts` (28)
+  - Evidence: 2634/2634 apps/web unit across 108 suites, 173/173 platform guards,
+    type-check clean. **20 mutations, 20 caught.**
+
+  Two halves of one sentence in Bible §8.3, and each half has a tempting wrong
+  implementation.
+
+  ## Ending sets a date; it never removes a row
+
+  Deleting the assignment removes authority correctly and destroys the answer to
+  "who approved this in March" in the same statement. The record of who held a
+  seat and when is what the platform exists to keep, so `endAssignment` returns
+  the assignment with `effectiveTo` set and nothing else changed.
+
+  Authority stops at that instant rather than at next sign-in, and this is
+  inherited rather than implemented: GE-050-004's `stateAuthorityAt` reads the
+  window on every call, so there is no cached grant to expire. That is the payoff
+  of computing authority instead of storing it.
+
+  Three refusals. **Ending twice** — the second end would silently overwrite the
+  first, changing when authority stopped. **Ending before it starts** — cancelling
+  an appointment and ending one are different facts, and recording the second as
+  the first loses that somebody was appointed at all. **No stated reason** — a
+  seat that emptied and nobody can say why is a gap nobody can explain to the
+  person who lost it. Bringing a future end date *forward* is allowed: that is an
+  ordinary correction, and refusing it would mean the only way to end early is to
+  leave a wrong date standing.
+
+  ## What a successor actually receives
+
+  GE-050-001 classified seat resources as `SEAT_RECORD` / `PERSONAL` /
+  `CONTROLLED` and left CONTROLLED saying only "released by a transition
+  workflow" — which is where the actual rule usually goes to die. This decides
+  what such a workflow may release.
+
+  Decided **per resource, never per seat**. "Hand over the seat's things" is one
+  decision standing in for hundreds that are not alike, and the tidy version of it
+  is how a successor ends up reading their predecessor's HR file.
+
+  Ordered so the **unconditional refusals come first**. Material under legal hold
+  or in an open investigation is withheld whether or not a transition completed,
+  whether or not the successor holds the seat, and whether or not the policy names
+  it. Putting those checks after the policy lookup would make a misconfigured
+  policy able to reach them — a mutation that moves `NEVER_RELEASABLE` after the
+  allowlist is one of the twenty caught.
+
+  A credential returns **`ROTATE`, not `TRANSFER` and not `WITHHOLD`**. Handing
+  over the predecessor's credential gives the successor the predecessor's
+  *identity*, so every later action is attributed to somebody who has left — and
+  if misused, to somebody who could not have done it. Not `WITHHOLD` either: the
+  successor does need access, they need their own. A two-valued
+  transfer/withhold return type could not express this, which is why the type has
+  three members.
+
+  Everything remaining that is CONTROLLED needs all three of: the successor
+  actually in the seat, a completed transition, and a policy that **names the
+  classification**. The policy is an **allowlist** — a denylist releases anything
+  its author had not thought of, and the material worth restricting is exactly the
+  material nobody anticipated. Unclassified controlled material is denied by
+  default: it is material nobody has decided about, and releasing it treats an
+  omission as permission.
+
+  `Classification` is a named set, not a severity level. `LEGAL_HOLD` is not "more
+  secret" than `HR_RECORD`; it is restricted for a reason no seat transition can
+  satisfy. A numeric level invites somebody to configure a threshold that lets it
+  through.
+
+  `planHandover` returns the whole handover before it happens, and every withheld
+  item carries its reason. A plan reporting only what moved would leave the
+  successor discovering the gaps one confused request at a time, and the
+  predecessor unable to check that what should have stayed did.
+
+  **Honest limits.**
+
+  * **Nothing persists.** There is no resource table with a classification
+    column, no `ReleasePolicy` row, and no `endAssignment` call site — `Seat`
+    (GE-050-002) has no assignments attached to it yet. This is the decision, and
+    it is proven; it is not yet reachable from a request.
+  * **The transition workflow is a boolean.** `transitionCompleted` is supplied
+    by the caller. What that workflow consists of — who signs, what is checked —
+    is tenant configuration nobody has declared, and inventing steps would put a
+    guess where a decision belongs. What is decided here is what the workflow may
+    release *once* it completes, which is the part GE-050-001 deferred.
+  * **`ROTATE` describes, it does not do.** Rotating a credential means calling
+    the system that holds it. Those systems are not connected, and connecting
+    them is GE-041's Cognito work, still BLOCKED_EXTERNAL on the AWS
+    Organization.
+  * **Classification is asserted, not derived.** Nothing scans a document to
+    decide it is an HR record. A resource arrives classified or it is denied by
+    default, which is the safe direction but leaves classification a manual act.
+
+  118/1219 decided.

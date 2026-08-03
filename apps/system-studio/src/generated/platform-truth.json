@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "04edf94",
+  "commit": "14e9ddc",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 114,
-    "done": 100,
+    "total": 115,
+    "done": 101,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -826,6 +826,13 @@
             "title": "Implement position create/change/freeze/transfer/split/merge/archive, vacancy, succession, and joiner/mover/leaver/term transition workflows.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-050-007",
+            "done": true,
+            "title": "Ensure ending an assignment removes authority without deleting history; a successor receives only policy-authorized seat content.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -840,7 +847,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 117,
+    "decided": 118,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -1001,7 +1008,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 6
+        "done": 7
       },
       {
         "phase": "GE · GE-051: Authorization engine",

@@ -335,7 +335,7 @@ Use this evidence shape:
 - [x] GE-050-004 — Support active/future/interim/acting/shadow/delegate/leave/former/alumni/advisor/contractor assignment states through configuration.
 - [x] GE-050-005 — Preserve bitemporal/effective history sufficient to reconstruct occupant, hierarchy, authority, and policy at any decision time.
 - [x] GE-050-006 — Implement position create/change/freeze/transfer/split/merge/archive, vacancy, succession, and joiner/mover/leaver/term transition workflows.
-- [ ] GE-050-007 — Ensure ending an assignment removes authority without deleting history; a successor receives only policy-authorized seat content.
+- [x] GE-050-007 — Ensure ending an assignment removes authority without deleting history; a successor receives only policy-authorized seat content.
 
 ### GE-051: Authorization engine
 

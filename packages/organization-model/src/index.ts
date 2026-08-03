@@ -111,3 +111,19 @@ export {
   type TermTransition,
   type TransitionPlan,
 } from "./position-lifecycle"
+
+export {
+  endAssignment,
+  planHandover,
+  releaseToSuccessor,
+  type Classification,
+  type ClassifiedResource,
+  type EndOutcome,
+  type EndRefusal,
+  type EndableAssignment,
+  type HandoverSummary,
+  type ReleaseAction,
+  type ReleaseDecision,
+  type ReleasePolicy,
+  type SuccessionContext,
+} from "./succession-release"
