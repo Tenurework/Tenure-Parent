@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "3f32bc8",
+  "commit": "24e0ceb",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 99,
-    "done": 87,
+    "total": 100,
+    "done": 88,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -721,6 +721,13 @@
             "title": "Implement SCIM 2.0 tenant-bound `/Users` and `/Groups`, filtering, pagination, ETag/version, PATCH, idempotency, external IDs, deactivate/reactivate, group mapping policy, immediate session revocation, rate limits, audit, and interoperability fixtures—or complete the precise compatible boundary and tests if full SCIM is a later milestone.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-043-006",
+            "done": true,
+            "title": "Generate Simon SSO handoff package from deployed nonsecret endpoints, leaving exact external IdP fields `BLOCKED_EXTERNAL` rather than inventing them.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -735,7 +742,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 102,
+    "decided": 103,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -875,7 +882,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 5
+        "done": 6
       },
       {
         "phase": "GE · GE-044: Authentication security tests",
@@ -2086,7 +2093,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 21,
+      "files": 22,
       "what": "repository and deployment invariants"
     },
     {

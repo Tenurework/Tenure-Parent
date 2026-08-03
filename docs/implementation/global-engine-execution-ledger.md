@@ -5496,3 +5496,83 @@ worth less than three items that hold.
     holding at all.
 
   102/1219 decided.
+
+- [x] **GE-043-006** — Generate Simon SSO handoff package from deployed nonsecret endpoints, leaving exact external IdP fields `BLOCKED_EXTERNAL` rather than inventing them.
+  - Status: PASS
+  - Code: `packages/identity/src/handoff.ts` (`buildHandoffPackage`,
+    `handoffProblems`, `handoffReadiness`, `looksInvented`),
+    `tools/simon-sso-handoff.mjs`, output `docs/handoff/simon-sso.md`
+  - Tests: `packages/identity/src/handoff.test.ts` (27),
+    `tests/security/handoff-invents-nothing.test.mjs` (11 guards)
+  - Evidence: 2328/2328 apps/web unit across 99 suites, 160/160 platform guards,
+    type-check clean, gate passed 8 steps. **14 mutations, 14 caught** — after
+    two survivors exposed untested filters and one guard finding exposed a real
+    design fault.
+
+  **The generated document is real, and mostly blocked.** One field of ten is
+  available: `https://platform.tenurework.com`, read from a CloudFront alias
+  whose certificate actually issued. The other nine say what has to happen first.
+  That is the correct output for the state this platform is in, and the document
+  fills in on its own as infrastructure lands.
+
+  **Why a plausible placeholder is worse than a gap.** The tempting document has
+  every field filled, because holes look unfinished. But a made-up ACS URL is not
+  a smaller version of the real one — it is a value a university's IT team
+  configures, tests, and cannot debug, because both sides believe they are
+  correct. `https://tenure.example.edu/saml/acs` reads exactly like a real
+  endpoint and is not one. A gap is self-describing; a wrong value costs a
+  scheduled cutover. So `buildHandoffPackage` **throws** on a placeholder rather
+  than passing it through: the moment somebody types `example.com` to make the
+  generator produce a complete-looking document is the moment this exists to
+  interrupt.
+
+  **The guard found a real design fault, not a technicality.** `forbidden-clients`
+  flagged `cognito-idp.<region>.amazonaws.com` in the engine. The obvious
+  responses — exempt the file, or compose the same string from pieces — were both
+  wrong. The finding was correct twice over: it put provider-specific host names
+  in a package GE-041 keeps provider-independent, *and* the URLs were **derived
+  from a naming convention rather than read**. Deriving them produces a confident
+  URL for a pool nobody has looked at, which is precisely the guessing this item
+  forbids — the failure the item is about, committed in the code meant to prevent
+  it.
+
+  `DeploymentFacts` now carries `issuer`, `spEntityId`, `hostedDomain` and
+  `appClientId` as **recorded** facts. The engine appends only specification
+  paths (`/.well-known/openid-configuration`) to a host it was told. No provider
+  host literal remains in either the engine or the tool.
+
+  **The SCIM base URL was a promise, not an endpoint.** The first generated
+  document offered `https://platform.tenurework.com/api/scim/v2`, derived from a
+  real origin — and there is no SCIM route. An origin proves the application is
+  served; it does not prove a path answers. Handing over a URL that 404s is the
+  same failure as inventing one. The generator now checks the route exists, and
+  the field is blocked with GE-043-005's status as the reason.
+
+  **Two mutation survivors were untested filters.** "An issued certificate" and
+  "an enabled distribution" happen to be true of the one real inventory, so
+  removing either changed nothing. The tool grew a `--facts --inventory <path>`
+  mode so the guard drives it against synthetic inventories: a FAILED
+  certificate, a disabled distribution, and a mixed set where it must pick the
+  live alias rather than the first.
+
+  **Honest limits.**
+
+  * **The document has one usable field.** That is the truth about this
+    deployment, not a shortcoming of the generator. Everything else is
+    BLOCKED_EXTERNAL on the AWS Organization (GE-041-003).
+  * **The inventory does not yet record `issuer`, `spEntityId` or
+    `hostedDomain`.** `tools/aws-inventory.mjs` collects `cognitoUserPools` and
+    that array is empty, so the fields it would populate do not exist to read.
+    When a pool exists, the inventory tool needs extending to record them — and
+    that is the honest shape: the generator reads facts, and a fact nobody
+    collected is not a fact.
+  * **The generator re-expresses the engine's decisions in `.mjs`.**
+    `packages/identity` is TypeScript consumed without a build step, so a plain
+    script cannot import it. The placeholder pattern — the one rule that must
+    never drift — is read out of the engine's source rather than copied, and a
+    guard asserts the tool defines no pattern of its own. The rest is covered by
+    `--check` comparing rendered output in CI.
+  * **Nothing sends the document.** It is generated and committed; delivering it
+    to Simon is a person's act, and should be.
+
+  103/1219 decided.

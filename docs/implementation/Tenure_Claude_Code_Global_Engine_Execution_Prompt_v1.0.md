@@ -282,7 +282,7 @@ Use this evidence shape:
 - [x] GE-043-003 — Treat IdP groups/claims only as mapped inputs; never grant privilege directly without Tenure membership/seat/policy.
 - [x] GE-043-004 — Implement domain verification and certificate/secret/JWKS expiry monitoring.
 - [x] GE-043-005 — Implement SCIM 2.0 tenant-bound `/Users` and `/Groups`, filtering, pagination, ETag/version, PATCH, idempotency, external IDs, deactivate/reactivate, group mapping policy, immediate session revocation, rate limits, audit, and interoperability fixtures—or complete the precise compatible boundary and tests if full SCIM is a later milestone.
-- [ ] GE-043-006 — Generate Simon SSO handoff package from deployed nonsecret endpoints, leaving exact external IdP fields `BLOCKED_EXTERNAL` rather than inventing them.
+- [x] GE-043-006 — Generate Simon SSO handoff package from deployed nonsecret endpoints, leaving exact external IdP fields `BLOCKED_EXTERNAL` rather than inventing them.
 - [ ] GE-043-007 — Prove federation end to end with a controlled test IdP and a second synthetic tenant.
 
 ### GE-044: Authentication security tests

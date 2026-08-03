@@ -394,3 +394,14 @@ export {
   type ScimPage,
   type ScimPatchOperation,
 } from "./scim"
+
+export {
+  InventedValueError,
+  buildHandoffPackage,
+  handoffProblems,
+  handoffReadiness,
+  looksInvented,
+  type DeploymentFacts,
+  type HandoffField,
+  type HandoffFieldName,
+} from "./handoff"
