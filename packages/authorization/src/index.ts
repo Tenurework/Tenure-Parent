@@ -97,3 +97,24 @@ export type {
   OpenOutcome,
   RefusalReason,
 } from "./break-glass"
+
+export {
+  PERMISSIONS,
+  PERMISSION_DOMAINS,
+  PERMISSION_ACTIONS,
+  PERMISSION_RESOURCES,
+  looksLikeARoleTitle,
+  MODULE_KEYS,
+  lookupPermission,
+  isPermissionKey,
+  permissionKeys,
+  permissionsForModule,
+  validatePermissionCatalog,
+} from "./permission-catalog"
+export type {
+  PermissionDefinition,
+  PermissionDomain,
+  PermissionAction,
+  PermissionResource,
+  ModuleKey,
+} from "./permission-catalog"

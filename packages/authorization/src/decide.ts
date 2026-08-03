@@ -11,6 +11,7 @@ import type {
   RoleGrant,
   TenantEntitlement,
 } from "./model"
+import { lookupPermission } from "./permission-catalog"
 
 /**
  * Everything a decision reads.
@@ -76,17 +77,6 @@ const ts = (iso: ISODate): number => Date.parse(iso)
 
 function effective(from: ISODate, to: ISODate | null | undefined, at: number): boolean {
   return ts(from) <= at && (to == null || ts(to) > at)
-}
-
-/**
- * Does this permission belong to a module the tenant runs?
- *
- * Permissions are namespaced `<module>.<action>`; a permission with no dot is
- * platform-level and not module-gated.
- */
-function moduleOf(permission: string): string | null {
-  const i = permission.indexOf(".")
-  return i > 0 ? permission.slice(0, i) : null
 }
 
 function tierRank(
@@ -166,7 +156,21 @@ export function decide(
   trace.push({ step: "membership", outcome: "pass", detail: `ACTIVE in ${request.tenantId}.` })
 
   // ── 2. module enablement ────────────────────────────────────────────────
-  const mod = moduleOf(request.permission)
+  // The module comes from the catalog, not from the text before the first dot.
+  // Deriving it made the *name* of a permission decide which module had to be
+  // enabled - wrong for `finance.reimbursement.approve`, whose module is
+  // `reimbursements` - and silently mishandled a malformed key: anything with no
+  // dot counted as platform-level and skipped this gate entirely.
+  const definition = lookupPermission(request.permission)
+  if (!definition) {
+    return deny(
+      "UNKNOWN_PERMISSION",
+      `"${request.permission}" is not in the permission catalog. An unrecognised permission is ` +
+        `denied rather than treated as platform-level, because a typo that skipped the module ` +
+        `gate would be indistinguishable from a permission that has none.`,
+    )
+  }
+  const mod = definition.module
   if (mod && world.enabledModules && !world.enabledModules.includes(mod)) {
     return deny(
       "MODULE_NOT_ENABLED",

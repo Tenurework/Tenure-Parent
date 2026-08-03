@@ -19,11 +19,11 @@ const ANCESTORS: Record<string, string[]> = {
 }
 
 const ROLES = [
-  { key: "member", permissions: ["organizations.view"] },
-  { key: "president", permissions: ["organizations.view", "approvals.decide", "organizations.manageRoster"] },
-  { key: "oseDirector", permissions: ["organizations.view", "approvals.decide", "institution.administer"] },
-  { key: "financeOfficer", permissions: ["budgeting.manage"], minTier: "budget" },
-  { key: "ledgerOfficer", permissions: ["budgeting.post"], minTier: "ledger" },
+  { key: "member", permissions: ["org.unit.read"] },
+  { key: "president", permissions: ["org.unit.read", "approvals.request.decide", "org.roster.update"] },
+  { key: "oseDirector", permissions: ["org.unit.read", "approvals.request.decide", "admin.console.read"] },
+  { key: "financeOfficer", permissions: ["finance.budget.update"], minTier: "budget" },
+  { key: "ledgerOfficer", permissions: ["finance.ledger.post"], minTier: "ledger" },
 ]
 
 const base = (over: Partial<AuthorizationWorld> = {}): AuthorizationWorld => ({
@@ -43,7 +43,7 @@ const base = (over: Partial<AuthorizationWorld> = {}): AuthorizationWorld => ({
     { principalId: "gone", tenantId: "t1", roleKey: "president", scope: { kind: "tenant" }, state: "CONFIRMED", effectiveFrom: PAST },
   ],
   ancestorsOf: (id) => ANCESTORS[id] ?? [],
-  enabledModules: ["organizations", "approvals", "budgeting", "institution"],
+  enabledModules: ["organizations", "approvals", "budgeting", "administration"],
   policies: [...SEPARATION_OF_DUTIES],
   ...over,
 })
@@ -57,7 +57,7 @@ describe("membership state and principal status beat every grant", () => {
   it("denies a member who has LEFT, despite a confirmed tenant-wide role", () => {
     // The architecture's `grants` CTE filters on assignment state and dates and
     // never joins membership, so this person keeps every capability there.
-    const d = ask(base(), "gone", "approvals.decide")
+    const d = ask(base(), "gone", "approvals.request.decide")
     expect(d.allowed).toBe(false)
     expect(d.reason).toBe("MEMBERSHIP_NOT_ACTIVE")
   })
@@ -68,28 +68,28 @@ describe("membership state and principal status beat every grant", () => {
     const world = base({
       memberships: [{ principalId: "pres", tenantId: "t1", state: "SUSPENDED", effectiveFrom: PAST }],
     })
-    expect(ask(world, "pres", "organizations.view").reason).toBe("MEMBERSHIP_NOT_ACTIVE")
+    expect(ask(world, "pres", "org.unit.read").reason).toBe("MEMBERSHIP_NOT_ACTIVE")
   })
 
   it("denies a disabled principal everything", () => {
     const world = base({ principals: [{ id: "director", disabledAt: PAST }] })
-    expect(ask(world, "director", "institution.administer").reason).toBe("PRINCIPAL_DISABLED")
+    expect(ask(world, "director", "admin.console.read").reason).toBe("PRINCIPAL_DISABLED")
   })
 
   it("denies a principal who is not a member of the tenant at all", () => {
     const world = base({ memberships: [] })
-    expect(ask(world, "pres", "organizations.view").reason).toBe("NO_MEMBERSHIP")
+    expect(ask(world, "pres", "org.unit.read").reason).toBe("NO_MEMBERSHIP")
   })
 
   it("denies an unknown principal", () => {
-    expect(ask(base(), "nobody", "organizations.view").reason).toBe("NO_PRINCIPAL")
+    expect(ask(base(), "nobody", "org.unit.read").reason).toBe("NO_PRINCIPAL")
   })
 
   it("denies a membership that has not started or has ended", () => {
     const notYet = base({
       memberships: [{ principalId: "pres", tenantId: "t1", state: "ACTIVE", effectiveFrom: FUTURE }],
     })
-    expect(ask(notYet, "pres", "organizations.view").reason).toBe("MEMBERSHIP_NOT_ACTIVE")
+    expect(ask(notYet, "pres", "org.unit.read").reason).toBe("MEMBERSHIP_NOT_ACTIVE")
   })
 })
 
@@ -99,20 +99,20 @@ describe("roles grant, and scope bounds what they grant over", () => {
   const world = base()
 
   it("allows a president to decide on their own club", () => {
-    const d = ask(world, "pres", "approvals.decide", { type: "ApprovalRequest", id: "a1", orgUnitId: "club1" })
+    const d = ask(world, "pres", "approvals.request.decide", { type: "ApprovalRequest", id: "a1", orgUnitId: "club1" })
     expect(d.allowed).toBe(true)
     expect(d.viaRoles).toEqual(["president"])
   })
 
   it("denies the same president on a different club", () => {
-    const d = ask(world, "pres", "approvals.decide", { type: "ApprovalRequest", id: "a2", orgUnitId: "club2" })
+    const d = ask(world, "pres", "approvals.request.decide", { type: "ApprovalRequest", id: "a2", orgUnitId: "club2" })
     expect(d.allowed).toBe(false)
     expect(d.reason).toBe("OUT_OF_SCOPE")
   })
 
   it("inherits downward: a tenant-wide grant reaches every club", () => {
     expect(
-      ask(world, "director", "approvals.decide", { type: "ApprovalRequest", id: "a2", orgUnitId: "club2" }).allowed,
+      ask(world, "director", "approvals.request.decide", { type: "ApprovalRequest", id: "a2", orgUnitId: "club2" }).allowed,
     ).toBe(true)
   })
 
@@ -124,18 +124,18 @@ describe("roles grant, and scope bounds what they grant over", () => {
         { principalId: "pres", tenantId: "t1", roleKey: "president", scope: { kind: "orgUnit", orgUnitId: "school1" }, state: "CONFIRMED", effectiveFrom: PAST },
       ],
     })
-    expect(ask(schoolScoped, "pres", "approvals.decide", { type: "R", id: "1", orgUnitId: "club1" }).allowed).toBe(true)
+    expect(ask(schoolScoped, "pres", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" }).allowed).toBe(true)
 
     const clubScoped = base({
       grants: [
         { principalId: "pres", tenantId: "t1", roleKey: "president", scope: { kind: "orgUnit", orgUnitId: "club1" }, state: "CONFIRMED", effectiveFrom: PAST },
       ],
     })
-    expect(ask(clubScoped, "pres", "approvals.decide", { type: "R", id: "1", orgUnitId: "school1" }).reason).toBe("OUT_OF_SCOPE")
+    expect(ask(clubScoped, "pres", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "school1" }).reason).toBe("OUT_OF_SCOPE")
   })
 
   it("denies a role nobody holds conferring the permission", () => {
-    expect(ask(world, "member", "approvals.decide", { type: "R", id: "1", orgUnitId: "club1" }).reason).toBe(
+    expect(ask(world, "member", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" }).reason).toBe(
       "NO_ROLE_GRANTING",
     )
   })
@@ -146,18 +146,18 @@ describe("roles grant, and scope bounds what they grant over", () => {
         { principalId: "pres", tenantId: "t1", roleKey: "president", scope: { kind: "tenant" }, state: "PENDING", effectiveFrom: PAST },
       ],
     })
-    expect(ask(pending, "pres", "approvals.decide").reason).toBe("GRANT_NOT_CONFIRMED")
+    expect(ask(pending, "pres", "approvals.request.decide").reason).toBe("GRANT_NOT_CONFIRMED")
 
     const expired = base({
       grants: [
         { principalId: "pres", tenantId: "t1", roleKey: "president", scope: { kind: "tenant" }, state: "CONFIRMED", effectiveFrom: PAST, effectiveTo: "2026-01-01T00:00:00Z" },
       ],
     })
-    expect(ask(expired, "pres", "approvals.decide").reason).toBe("GRANT_NOT_CONFIRMED")
+    expect(ask(expired, "pres", "approvals.request.decide").reason).toBe("GRANT_NOT_CONFIRMED")
   })
 
   it("refuses an org-scoped grant to authorise a resource with no org unit", () => {
-    expect(ask(world, "pres", "approvals.decide", { type: "R", id: "1" }).reason).toBe("OUT_OF_SCOPE")
+    expect(ask(world, "pres", "approvals.request.decide", { type: "R", id: "1" }).reason).toBe("OUT_OF_SCOPE")
   })
 })
 
@@ -166,16 +166,46 @@ describe("roles grant, and scope bounds what they grant over", () => {
 describe("a permission from a module the system does not run is denied", () => {
   it("denies it with that reason", () => {
     const world = base({ enabledModules: ["organizations"] })
-    expect(ask(world, "director", "approvals.decide").reason).toBe("MODULE_NOT_ENABLED")
+    expect(ask(world, "director", "approvals.request.decide").reason).toBe("MODULE_NOT_ENABLED")
   })
 
   it("does not module-gate a platform-level permission", () => {
+    // `config.setting.read` is declared with `module: null` — it exists whatever
+    // a tenant runs. Platform-level is now a property of the catalog entry
+    // rather than a consequence of how the key happens to be spelled.
+    const world = base({
+      enabledModules: [],
+      roles: [{ key: "r", permissions: ["config.setting.read"] }],
+      grants: [{ principalId: "pres", tenantId: "t1", roleKey: "r", scope: { kind: "tenant" }, state: "CONFIRMED", effectiveFrom: PAST }],
+    })
+    expect(ask(world, "pres", "config.setting.read").allowed).toBe(true)
+  })
+
+  it("denies a permission the catalog does not declare", () => {
+    // This is the hole the catalog closes. The module used to be the text before
+    // the first dot, so anything without one — a typo, a permission somebody
+    // invented at a call site — counted as platform-level and skipped the gate
+    // above. It was granted here, by a role that also invented it.
     const world = base({
       enabledModules: [],
       roles: [{ key: "r", permissions: ["ping"] }],
       grants: [{ principalId: "pres", tenantId: "t1", roleKey: "r", scope: { kind: "tenant" }, state: "CONFIRMED", effectiveFrom: PAST }],
     })
-    expect(ask(world, "pres", "ping").allowed).toBe(true)
+    const decision = ask(world, "pres", "ping")
+    expect(decision.allowed).toBe(false)
+    expect(decision.reason).toBe("UNKNOWN_PERMISSION")
+  })
+
+  it("denies a near-miss of a real key rather than guessing", () => {
+    // `finance.reimbursement.approve` is real; `reimbursements.approve` is what
+    // it used to be called. A rename that missed a call site has to fail loudly,
+    // because the alternative is a deny policy that silently stops matching.
+    const world = base({
+      enabledModules: ["reimbursements"],
+      roles: [{ key: "r", permissions: ["reimbursements.approve"] }],
+      grants: [{ principalId: "pres", tenantId: "t1", roleKey: "r", scope: { kind: "tenant" }, state: "CONFIRMED", effectiveFrom: PAST }],
+    })
+    expect(ask(world, "pres", "reimbursements.approve").reason).toBe("UNKNOWN_PERMISSION")
   })
 })
 
@@ -195,14 +225,14 @@ describe("tiers compare by rank, so upgrading never revokes", () => {
     })
 
   it("allows a budget-tier permission on the budget tier", () => {
-    expect(ask(financeWorld("budget"), "pres", "budgeting.manage").allowed).toBe(true)
+    expect(ask(financeWorld("budget"), "pres", "finance.budget.update").allowed).toBe(true)
   })
 
   it("STILL allows it after upgrading to a higher tier", () => {
     // String equality — `i.tier = c.min_tier OR i.tier = 'enterprise'` — makes
     // this deny, so selling the upgrade 404s the budgets UI.
-    expect(ask(financeWorld("ledger"), "pres", "budgeting.manage").allowed).toBe(true)
-    expect(ask(financeWorld("consolidation"), "pres", "budgeting.manage").allowed).toBe(true)
+    expect(ask(financeWorld("ledger"), "pres", "finance.budget.update").allowed).toBe(true)
+    expect(ask(financeWorld("consolidation"), "pres", "finance.budget.update").allowed).toBe(true)
   })
 
   it("denies a permission above the tenant's tier, and names both tiers", () => {
@@ -214,7 +244,7 @@ describe("tiers compare by rank, so upgrading never revokes", () => {
         { tenantId: "t1", tiers: { budgeting: ["budget", "ledger"] }, currentTier: { budgeting: "budget" } },
       ],
     })
-    const d = ask(w, "pres", "budgeting.post")
+    const d = ask(w, "pres", "finance.ledger.post")
     expect(d.reason).toBe("TIER_TOO_LOW")
     expect(d.detail).toContain('tier "ledger"')
     expect(d.detail).toContain('"budget"')
@@ -230,14 +260,14 @@ describe("delegation borrows authority and cannot widen it", () => {
     })
 
   it("lets a backup act with the delegator's authority", () => {
-    const d = ask(delegated(), "backup", "approvals.decide", { type: "R", id: "1", orgUnitId: "club1" })
+    const d = ask(delegated(), "backup", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" })
     expect(d.allowed).toBe(true)
     expect(d.viaDelegationFrom).toBe("pres")
   })
 
   it("is bounded by the delegator's own scope, not widened by delegation", () => {
     expect(
-      ask(delegated(), "backup", "approvals.decide", { type: "R", id: "1", orgUnitId: "club2" }).allowed,
+      ask(delegated(), "backup", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club2" }).allowed,
     ).toBe(false)
   })
 
@@ -248,18 +278,18 @@ describe("delegation borrows authority and cannot widen it", () => {
       ],
       delegations: [{ fromPrincipalId: "pres", toPrincipalId: "backup", tenantId: "t1", effectiveFrom: PAST }],
     })
-    expect(ask(revoked, "backup", "approvals.decide", { type: "R", id: "1", orgUnitId: "club1" }).allowed).toBe(false)
+    expect(ask(revoked, "backup", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" }).allowed).toBe(false)
   })
 
   it("respects an expired delegation", () => {
     const expired = delegated({ effectiveTo: "2026-01-01T00:00:00Z" })
-    expect(ask(expired, "backup", "approvals.decide", { type: "R", id: "1", orgUnitId: "club1" }).allowed).toBe(false)
+    expect(ask(expired, "backup", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" }).allowed).toBe(false)
   })
 
   it("respects a delegation narrowed to specific permissions", () => {
-    const narrow = delegated({ permissions: ["organizations.view"] })
-    expect(ask(narrow, "backup", "approvals.decide", { type: "R", id: "1", orgUnitId: "club1" }).allowed).toBe(false)
-    expect(ask(narrow, "backup", "organizations.view", { type: "R", id: "1", orgUnitId: "club1" }).allowed).toBe(true)
+    const narrow = delegated({ permissions: ["org.unit.read"] })
+    expect(ask(narrow, "backup", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" }).allowed).toBe(false)
+    expect(ask(narrow, "backup", "org.unit.read", { type: "R", id: "1", orgUnitId: "club1" }).allowed).toBe(true)
   })
 })
 
@@ -267,7 +297,7 @@ describe("delegation borrows authority and cannot widen it", () => {
 
 describe("separation of duties is declared once, not at four call sites", () => {
   it("stops a president deciding their own request", () => {
-    const d = ask(base(), "pres", "approvals.decide", {
+    const d = ask(base(), "pres", "approvals.request.decide", {
       type: "ApprovalRequest",
       id: "a1",
       orgUnitId: "club1",
@@ -280,7 +310,7 @@ describe("separation of duties is declared once, not at four call sites", () => 
 
   it("still lets them decide someone else's", () => {
     expect(
-      ask(base(), "pres", "approvals.decide", {
+      ask(base(), "pres", "approvals.request.decide", {
         type: "ApprovalRequest",
         id: "a1",
         orgUnitId: "club1",
@@ -291,7 +321,7 @@ describe("separation of duties is declared once, not at four call sites", () => 
 
   it("applies to the director too — authority does not exempt", () => {
     expect(
-      ask(base(), "director", "approvals.decide", {
+      ask(base(), "director", "approvals.request.decide", {
         type: "ApprovalRequest",
         id: "a1",
         orgUnitId: "club1",
@@ -310,7 +340,7 @@ describe("separation of duties is declared once, not at four call sites", () => 
     }
     const world = base({ policies: [alwaysAllow, ...SEPARATION_OF_DUTIES] })
     expect(
-      ask(world, "pres", "approvals.decide", {
+      ask(world, "pres", "approvals.request.decide", {
         type: "ApprovalRequest",
         id: "a1",
         orgUnitId: "club1",
@@ -324,22 +354,22 @@ describe("separation of duties is declared once, not at four call sites", () => 
 
 describe("a decision explains itself", () => {
   it("traces every step that was checked, in order", () => {
-    const d = ask(base(), "director", "approvals.decide", { type: "R", id: "1", orgUnitId: "club1" })
+    const d = ask(base(), "director", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" })
     expect(d.trace.map((s) => s.step)).toEqual(["principal", "membership", "module", "grant", "policy"])
     expect(d.trace.every((s) => s.detail.length > 0)).toBe(true)
   })
 
   it("names the failing step when it denies", () => {
-    const d = ask(base(), "member", "approvals.decide", { type: "R", id: "1", orgUnitId: "club1" })
+    const d = ask(base(), "member", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" })
     expect(d.trace[d.trace.length - 1]).toMatchObject({ step: "NO_ROLE_GRANTING", outcome: "fail" })
   })
 
   it("uses only declared deny reasons", () => {
     const reasons = [
       ask(base(), "nobody", "x"),
-      ask(base(), "gone", "approvals.decide"),
-      ask(base(), "member", "approvals.decide", { type: "R", id: "1", orgUnitId: "club1" }),
-      ask(base({ enabledModules: [] }), "director", "approvals.decide"),
+      ask(base(), "gone", "approvals.request.decide"),
+      ask(base(), "member", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" }),
+      ask(base({ enabledModules: [] }), "director", "approvals.request.decide"),
     ].map((d) => d.reason)
     for (const r of reasons) expect(DENY_REASONS).toContain(r)
   })
@@ -348,14 +378,14 @@ describe("a decision explains itself", () => {
 describe("the capability set is the same engine the routes use", () => {
   it("lists what a director effectively holds", () => {
     const caps = effectivePermissions(base(), "director", "t1", T)
-    expect(caps.has("institution.administer")).toBe(true)
-    expect(caps.has("organizations.view")).toBe(true)
+    expect(caps.has("admin.console.read")).toBe(true)
+    expect(caps.has("org.unit.read")).toBe(true)
   })
 
   it("gives a plain member almost nothing", () => {
     const caps = effectivePermissions(base(), "member", "t1", T)
-    expect(caps.has("institution.administer")).toBe(false)
-    expect(caps.has("approvals.decide")).toBe(false)
+    expect(caps.has("admin.console.read")).toBe(false)
+    expect(caps.has("approvals.request.decide")).toBe(false)
   })
 
   it("gives someone who has left nothing at all", () => {
@@ -367,9 +397,9 @@ describe("the capability set is the same engine the routes use", () => {
     // a resource. decide() answers it per resource; the capability set does not
     // pretend to.
     const caps = effectivePermissions(base(), "pres", "t1", T)
-    expect(caps.has("approvals.decide")).toBe(false)
+    expect(caps.has("approvals.request.decide")).toBe(false)
     expect(
-      ask(base(), "pres", "approvals.decide", { type: "R", id: "1", orgUnitId: "club1" }).allowed,
+      ask(base(), "pres", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" }).allowed,
     ).toBe(true)
   })
 })

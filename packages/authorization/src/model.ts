@@ -134,6 +134,7 @@ export interface TenantEntitlement {
 }
 
 export const DENY_REASONS = [
+  "UNKNOWN_PERMISSION",
   "NO_PRINCIPAL",
   "PRINCIPAL_DISABLED",
   "NO_MEMBERSHIP",

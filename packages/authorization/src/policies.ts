@@ -9,6 +9,12 @@ import type { Policy } from "./model"
  * is declared once, applies wherever the permission does, and produces a deny
  * reason support can read.
  *
+ * The `permission` on each is a catalog key, and that matters more than it
+ * looks. `decide()` matches a policy by exact string equality, so a deny policy
+ * naming a permission nobody enforces is silently inert — separation of duties
+ * switched off with nothing failing. `policies.test` asserts every policy names
+ * a permission the catalog declares.
+ *
  * These are functions, not a DSL. There is no rules engine yet, and a
  * half-finished expression language is worse than TypeScript for something this
  * load-bearing. What matters now is that they are pure and deterministic; when
@@ -18,7 +24,7 @@ import type { Policy } from "./model"
 /** A principal may not decide a request they raised. */
 export const notOwnRequest: Policy = {
   id: "sod.notOwnRequest",
-  permission: "approvals.decide",
+  permission: "approvals.request.decide",
   effect: "deny",
   description: "A request cannot be decided by the person who raised it.",
   condition: (ctx) =>
@@ -29,7 +35,7 @@ export const notOwnRequest: Policy = {
 /** A principal may not approve their own reimbursement claim. */
 export const notOwnReimbursement: Policy = {
   id: "sod.notOwnReimbursement",
-  permission: "reimbursements.approve",
+  permission: "finance.reimbursement.approve",
   effect: "deny",
   description: "A reimbursement cannot be approved by the person claiming it.",
   condition: (ctx) =>

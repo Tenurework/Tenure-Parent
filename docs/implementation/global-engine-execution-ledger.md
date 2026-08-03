@@ -6873,3 +6873,106 @@ worth less than three items that hold.
     default, which is the safe direction but leaves classification a manual act.
 
   118/1219 decided.
+
+- [x] **GE-051-001** — Create stable semantic permission catalog independent of tenant labels and role titles.
+  - Status: PASS for the catalog and its enforcement in `decide()`; the surfaces
+    that call it are limited below
+  - Code: `packages/authorization/src/permission-catalog.ts` (61 permissions,
+    12 domains, 26 resources, 22 verbs, `lookupPermission`, `isPermissionKey`,
+    `permissionsForModule`, `looksLikeARoleTitle`, `validatePermissionCatalog`);
+    `decide.ts` now resolves the module from the catalog; `UNKNOWN_PERMISSION`
+    added to `DENY_REASONS`
+  - Tests: `packages/authorization/src/permission-catalog.test.ts` (29),
+    `tests/architecture/permission-catalog-is-tenant-blind.test.mjs` (5)
+  - Evidence: 2665/2665 apps/web unit across 109 suites, 181/181 platform guards
+    (up from 176), type-check clean. **29 mutations, 29 caught.**
+
+  Bible §9.3. "Independent of tenant labels and role titles" is the whole item,
+  and it is easy to assert and easy to lose.
+
+  ## What the catalog closed in the engine
+
+  `decide()` derived the module a permission belonged to by taking the text
+  before the first dot. Two things were wrong with that, and neither was
+  visible from the outside:
+
+  * **The name decided the gate.** `finance.reimbursement.approve` is in the
+    `finance` domain and the `reimbursements` module — one domain, two modules,
+    which is the ordinary case and not an edge one. Splitting the key looks for
+    a module called "finance" that the platform does not ship, so the permission
+    would be denied in every tenant forever.
+  * **A malformed key skipped the gate entirely.** A permission with no dot was
+    treated as platform-level. A typo, or a permission somebody invented at a
+    call site, went straight past module enablement — and the engine's own test
+    suite asserted this as correct behaviour. That test is now the one that
+    proves it is refused.
+
+  So the module is a declared field, `null` means platform-level on purpose, and
+  an unrecognised key is `UNKNOWN_PERMISSION` rather than a guess.
+
+  The same exactness matters one layer up. `decide()` matches a deny policy by
+  string equality, so a policy naming a permission nobody enforces is **silently
+  inert** — separation of duties switched off with nothing failing. Both SoD
+  policies were still on the old two-segment keys. A test now asserts every
+  policy names a permission the catalog declares.
+
+  ## How independence is enforced rather than asserted
+
+  Three mechanisms, because the property has to be able to fail:
+
+  1. **The catalog cannot reach a tenant.** An architecture test reads its
+     import list and refuses blueprints, the configuration engine,
+     platform-config, Prisma and `next/headers`. A comment asking people not to
+     import configuration is a request; reading the import list is a rule.
+  2. **The same catalog under every blueprint.** The keys, descriptions and
+     modules are compared across all three blueprints' terminology — and the
+     blueprints are asserted to actually disagree with each other, or that
+     comparison is three copies of one vocabulary.
+  3. **No key is named after a job title.** Closed vocabularies for domain,
+     resource and verb, so adding one is a visible edit rather than a string
+     typed at a call site, plus a shape check for the titles themselves.
+
+  ## The distinction that made the first version wrong
+
+  Comparing key segments against *every* terminology value flagged
+  `org.seat.read`, because one blueprint sets `seatSingular: "seat"` — the
+  platform's own word for the concept, which that customer happens to share. It
+  also flagged `finance.ledger.post`, because another sets `seatSingular: "post"`
+  and the platform uses `post` as a verb. Neither key changes when a tenant
+  renames anything, and the Bible names `org.seat.assign` as a good key: a check
+  that rejects its own specification is measuring the wrong thing.
+
+  The line is between a tenant's **word for a platform concept**, which may
+  coincide, and an **instance name** — an org-unit type this customer happens to
+  have, the name of their oversight office, a job title. Those mean nothing at
+  the next customer, so a key built from one has to be renamed, which is the one
+  thing a stable semantic key is defined by not needing.
+
+  **Honest limits.**
+
+  * **Almost nothing calls it.** `decide()` enforces the catalog and the SoD
+    policies name catalog keys, but `apps/web` authorizes through session role
+    checks, not through `decide()`. GE-051-005 is the item that puts this in
+    every controller, service, query, export and job path; until then the
+    catalog is correct and largely unreached. The one place it is load-bearing
+    today is the authorization package's own decisions.
+  * **Role titles are checked by shape, not against data.** Nothing in the
+    engine declares seat titles — a seat carries its title as tenant data, which
+    is exactly why a permission must not be named after one. So
+    `looksLikeARoleTitle` is endings and a short list, and it would miss an
+    invented title that looks like a noun. The closed resource vocabulary is the
+    stronger half of that defence: adding one is a reviewable edit.
+  * **No Relay, records or AI tool permissions.** The Bible lists
+    `ai.tool.finance.create_draft` and `records.hold.place`. The first is four
+    segments and needs the tool catalog; the second needs a records module.
+    Neither exists, and a permission for a module nobody ships would deny in
+    every tenant while looking like coverage.
+  * **The catalog is not configuration.** Tenants cannot add permissions, and
+    nothing yet reads `platform.permissions.*` — that domain is still `reserved`
+    in the configuration engine. Roles and policy bindings are GE-051-002.
+  * **Sensitivity and risk are absent.** GE-051-007 wants a decision audit with
+    a risk level; adding a `sensitivity` field now would have produced a column
+    whose values nothing reads, which is the sequencing this repository has
+    already been wrong about once.
+
+  119/1219 decided.
