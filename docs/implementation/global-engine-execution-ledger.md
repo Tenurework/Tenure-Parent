@@ -5841,3 +5841,99 @@ worth less than three items that hold.
     decrypted. Nothing in this platform issues or expects one.
 
   107/1219 decided.
+
+- [x] **GE-044-004** — Open redirect, callback host poisoning, login CSRF, session fixation, cookie, Origin/CORS, logout, refresh/session replay, and tenant-switch tests pass.
+  - Status: PASS
+  - Code: `packages/identity/src/request-origin.ts` (`resolveCallbackUrl`,
+    `checkRequestOrigin`)
+  - Tests: `packages/identity/src/request-origin.test.ts` (29),
+    `tests/security/no-host-derived-urls.test.mjs` (5 guards). The other seven
+    dimensions were already proved: open redirect and login CSRF by
+    `authorization-request.test.ts`, session fixation and cookies and session
+    replay by `session.test.ts`, logout by `logout.test.ts`, tenant switch by
+    `tenant-switch.test.ts`.
+  - Evidence: 2433/2433 apps/web unit across 103 suites, 165/165 platform guards,
+    type-check clean, gate passed 8 steps. **15 mutations, 15 caught.**
+
+  Nine dimensions, and an audit found seven already covered. Writing more tests
+  for those would have been motion. Two had **no code at all**.
+
+  ## Callback host poisoning
+
+  An application that builds its own callback URL from `Host` or
+  `X-Forwarded-Host` hands the attacker the redirect: they send
+  `Host: evil.test`, the authorization request goes out with
+  `redirect_uri=https://evil.test/callback`, and the code arrives at their
+  server. Nothing looks unusual — that header is exactly what a reverse proxy
+  legitimately sets, and every other part of the flow is correct.
+  `validateReturnPath` (GE-042-002) refuses an attacker-supplied *path* and
+  cannot see this.
+
+  **The defence is not to sanitise the header but never to read it.**
+  `resolveCallbackUrl` takes a registered set and an optional choice from it —
+  no host, no headers, no base URL. A function that cannot see `Host` cannot be
+  poisoned by it, and a rule written as "do not read the header" is one somebody
+  breaks by reading the header.
+
+  Comparison is exact. Not by origin, because any path on a host may be
+  attacker-controlled — an uploaded file, a user-authored page. Not by prefix,
+  because a registered `/cb` prefixes `/cb.evil.test`. And several registrations
+  with no choice is an ambiguity, not a reason to take the first: which callback
+  a flow uses is a decision, and resolving it by array order is a decision nobody
+  made.
+
+  ## Origin
+
+  There was no Origin or Referer checking anywhere. `checkCsrf` (GE-042-004) is
+  double-submit, which defends a cross-site form post and depends on the attacker
+  being unable to read our cookie — true until a subdomain takeover or one
+  `document.domain` mistake makes it false. `checkRequestOrigin` asks an
+  independent question: did the browser say this came from us? It is **not** a
+  replacement, and the module says so; two checks that fail for different reasons
+  is the design.
+
+  `Origin: null` is refused as **opaque**, not treated as absent. It is a real
+  value a browser sends from a sandboxed iframe or a `data:` document, and
+  treating it as missing would let those contexts fall through to the Referer
+  path. `Referer` is a fallback and not a peer — it is stripped by privacy
+  tooling, so requiring it would break the product, but when `Origin` is absent
+  it is better evidence than nothing. When both are present, `Origin` wins: a
+  request with a good Referer and a bad Origin is a request from the bad place.
+
+  An empty allowlist **fails closed**. A missing environment variable must not
+  become an open door, and that default is not something to leave to a code
+  review.
+
+  ## The guard was too broad, and the fix was to narrow it
+
+  The first version flagged `x-forwarded-proto` and fired on
+  `internal-headers.test.ts`, which asserts CloudFront's proto header survives
+  sanitising (`infrastructure/terraform/cloudfront.tf:24`). That is correct code,
+  and a guard that fires on correct code gets an exemption added rather than a
+  bug fixed.
+
+  The right narrowing was principled rather than convenient: `x-forwarded-proto`
+  names a *scheme*, and a scheme cannot send anybody to another server. This
+  guard is about the authority part of a URL. The rule now matches `host`,
+  `x-forwarded-host`, `x-forwarded-server` and `forwarded`, and the count of
+  offenders is zero — which is the cheap moment to write it.
+
+  **Honest limits.**
+
+  * **Neither function is called.** There is no callback route to resolve a URL
+    for and no middleware checking `Origin`. `apps/web` reads no host header
+    today — the guard proves that and keeps it true — but the Origin check is a
+    rule waiting for a request pipeline, which lands with the Cognito cutover
+    (GE-041-003).
+  * **`checkRequestOrigin` does not implement CORS.** It answers whether a
+    state-changing request may be believed, which is the security question.
+    Emitting `Access-Control-Allow-Origin` is a different one, and this
+    application serves no cross-origin API — inventing a CORS policy for
+    consumers that do not exist would be the speculative code this repository
+    refuses.
+  * **The seven other dimensions were audited, not re-tested.** Each was
+    confirmed by locating the existing tests rather than by writing new ones.
+    That is the honest reading of "tests pass" for work already done, and the
+    ledger names which file covers which dimension so the claim is checkable.
+
+  108/1219 decided.

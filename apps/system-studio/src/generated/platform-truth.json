@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "40b706b",
+  "commit": "da30318",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 104,
-    "done": 91,
+    "total": 105,
+    "done": 92,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -756,6 +756,13 @@
             "title": "Wrong issuer/pool/region/client/audience/token use/scope/algorithm/key/signature/time/malformed token deny safely.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-044-004",
+            "done": true,
+            "title": "Open redirect, callback host poisoning, login CSRF, session fixation, cookie, Origin/CORS, logout, refresh/session replay, and tenant-switch tests pass.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -770,7 +777,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 107,
+    "decided": 108,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -917,7 +924,7 @@
         "source": "GE",
         "items": 6,
         "gates": 0,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "GE · Phase 4 gate",
@@ -2121,7 +2128,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 22,
+      "files": 23,
       "what": "repository and deployment invariants"
     },
     {

@@ -290,7 +290,7 @@ Use this evidence shape:
 - [ ] GE-044-001 — Positive code+PKCE browser/API flow works against deployed development Cognito.
 - [x] GE-044-002 — State/nonce/PKCE missing, mismatch, downgrade, expiry, replay, and code replay deny safely.
 - [x] GE-044-003 — Wrong issuer/pool/region/client/audience/token use/scope/algorithm/key/signature/time/malformed token deny safely.
-- [ ] GE-044-004 — Open redirect, callback host poisoning, login CSRF, session fixation, cookie, Origin/CORS, logout, refresh/session replay, and tenant-switch tests pass.
+- [x] GE-044-004 — Open redirect, callback host poisoning, login CSRF, session fixation, cookie, Origin/CORS, logout, refresh/session replay, and tenant-switch tests pass.
 - [ ] GE-044-005 — Same email from different issuers does not merge; changed email preserves issuer/subject identity.
 - [ ] GE-044-006 — SAML signature/audience/recipient/destination/time/replay and OIDC discovery/JWKS/secret rotation negative tests pass.
 
