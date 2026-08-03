@@ -69,7 +69,7 @@ test.describe("calendar + conflicts + publishing", () => {
     await page.getByRole("button", { name: /Check conflicts/ }).click()
     await waitForEventPage(page)
 
-    await expect(page.getByText("Hard conflict").first()).toBeVisible()
+    await expect(page.getByText("Hard conflict", { exact: true }).first()).toBeVisible()
     await expect(page.getByText(/Venue clash/).first()).toBeVisible()
   })
 
@@ -79,7 +79,7 @@ test.describe("calendar + conflicts + publishing", () => {
     await page.goto("/approvals")
     await page.getByText(clashTitle).first().click()
     await expect(page.getByText("Schedule conflicts")).toBeVisible()
-    await expect(page.getByText("Hard conflict").first()).toBeVisible()
+    await expect(page.getByText("Hard conflict", { exact: true }).first()).toBeVisible()
   })
 
   test("approving through both gates publishes the event onto the week grid", async ({ page }) => {

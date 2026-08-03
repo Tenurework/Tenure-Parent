@@ -421,6 +421,35 @@ them in parallel and one writes a probe into the source tree. A guard that
 crashes on a vanished file goes red for a reason unrelated to what it checks —
 `forbidden-clients` did so in roughly half of all runs and never once alone.
 
+**An intermittent e2e failure is a diagnosis, not a verdict.** `reimbursement`
+went red on a click that timed out reading `$1,400.00` from a budget line. The
+failure was four steps downstream of the defect. Take the trace before touching
+anything: `gh api repos/OWNER/REPO/actions/runs/<id>/artifacts`, download
+`playwright-traces`, and read `error-context.md` — it is a snapshot of the page
+at the moment of failure and it answers "what did the user actually see". Here
+it said the ledger read `$1,350.00`, and the retry's said `$1,450.00` — proving
+both attempts had posted, so the write was never the problem. The `.trace` file
+inside the zip is JSONL: every action with its start and end time. It showed the
+first 2.5 seconds normal and 42.7 seconds spent waiting on one locator.
+
+**`getByText("X")` is a case-insensitive SUBSTRING match.** That is what broke
+the run above. The test asserted `getByText("Approved")` right after submitting
+the final approval, and the confirmation dialog it had just submitted read "The
+request is approved for good" — so the assertion was satisfied by the dialog's
+own copy, before the form was submitted at all. The test never waited for the
+approval, navigated away mid-action, and read the page before the transaction
+committed. Locally the write won the race; on a loaded runner it lost. Prove
+what an assertion matches rather than reasoning about it: open the page to the
+state *before* the action and `console.log(await locator.count())`. It should be
+zero. `tests/architecture/status-assertions-are-exact.test.mjs` now fails any
+unscoped, non-exact assertion naming a status label.
+
+**A page rendered once will not correct itself.** Nothing on these pages polls,
+so a stale read is permanent for that navigation and Playwright waits out the
+whole timeout on a number that already changed in the database. An assertion
+that proves a write landed must be one the pre-write page cannot satisfy —
+otherwise the test's own navigation is the race.
+
 ---
 
 ## What is session-scoped, and what is not

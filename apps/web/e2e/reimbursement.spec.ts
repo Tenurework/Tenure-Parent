@@ -29,14 +29,22 @@ test.describe("reimbursements (three-way match)", () => {
     await signIn(page, "Priya Raman") // President, consulting club
     await page.goto(approvalUrl)
     await page.getByRole("button", { name: "Approve", exact: true }).click()
-    await expect(page.getByText("Pending OSE").first()).toBeVisible()
+    await expect(page.getByText("Pending OSE", { exact: true }).first()).toBeVisible()
 
     // 3. OSE gives final approval → the auto-post fires inside that transaction.
     await signIn(page, "Dana Whitfield") // OSE Director
     await page.goto(approvalUrl)
     await page.getByRole("button", { name: "Approve", exact: true }).click()
     await page.getByRole("button", { name: "Approve request" }).click()
-    await expect(page.getByText("Approved").first()).toBeVisible()
+    // Exact, and it matters. `getByText("Approved")` is a case-insensitive
+    // SUBSTRING match, and the confirmation dialog this click submits says "The
+    // request is approved for good" — so the loose form was satisfied by the
+    // dialog's own copy before anything was submitted. The test then navigated
+    // away mid-action and read the ledger below before the write had committed.
+    // The status badge is the only element whose whole text is "Approved", and
+    // it is rendered from the committed row, so waiting for it waits for the
+    // transaction.
+    await expect(page.getByText("Approved", { exact: true }).first()).toBeVisible()
 
     // 4. The ledger now carries the auto-posted spend and the actual is $1,400.
     await signIn(page, "Victor Chen") // VP Finance
