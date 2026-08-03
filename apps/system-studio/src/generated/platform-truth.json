@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "fcc759d",
+  "commit": "16f92ad",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 110,
-    "done": 96,
+    "total": 111,
+    "done": 97,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -798,6 +798,13 @@
             "title": "Separate seat, person, membership, identity, and assignment in database, domain, API, UI, imports, and reports.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-050-003",
+            "done": true,
+            "title": "Support company/division/department/team/location/project and school/office/club/committee structures with arbitrary configured types and constraints.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -812,7 +819,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 113,
+    "decided": 114,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -973,7 +980,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "GE · GE-051: Authorization engine",

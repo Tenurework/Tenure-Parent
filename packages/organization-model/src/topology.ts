@@ -23,12 +23,42 @@ export interface OrgUnitType {
   label: string
   pluralLabel: string
   description?: string
+  /**
+   * Whether a position can exist in a unit of this type. Default true.
+   *
+   * GE-050-003. A `location` is a place, not a body that employs: a warehouse
+   * has people *at* it and no seats *in* it, and a seat placed there is
+   * authority attached to an address. The same is true of a `project` in most
+   * configurations — people are seconded to it from the seats they already
+   * hold, and modelling that as a second seat gives one person two positions
+   * where they have one.
+   *
+   * Configurable rather than assumed, because a tenant that genuinely staffs
+   * projects as posts exists and is not wrong.
+   */
+  holdsSeats?: boolean
 }
 
 /** `parent` may directly contain `child`. Absence is denial. */
 export interface ContainmentRule {
   parent: string
   child: string
+  /**
+   * Fewest children of this type a parent must have. Default 0.
+   *
+   * GE-050-003. "A club has an executive board" is a structural claim, not a
+   * hope: a club with none is a body nobody can be accountable in, and it is
+   * the state a half-finished import leaves behind. Checked against the graph,
+   * because the topology alone cannot know.
+   */
+  minChildren?: number
+  /**
+   * Most children of this type a parent may have. Default unlimited.
+   *
+   * A company with two head offices is a data error somebody will otherwise
+   * discover from a report that double-counts.
+   */
+  maxChildren?: number
 }
 
 export interface OrgTopology {
@@ -53,6 +83,8 @@ export interface OrgTopology {
 export interface OrgRelationType {
   id: string
   label: string
+  /** What the edge means, for the person configuring it. */
+  description?: string
   /** Types a relation of this kind may run from / to. Empty means any. */
   from?: readonly string[]
   to?: readonly string[]
@@ -94,6 +126,26 @@ export function validateTopology(topology: OrgTopology): void {
   }
 
   for (const rule of topology.containment) {
+    if (rule.minChildren !== undefined && (!Number.isInteger(rule.minChildren) || rule.minChildren < 0)) {
+      problems.push(`Containment rule ${rule.parent} -> ${rule.child} has a minChildren that is not a count.`)
+    }
+    if (rule.maxChildren !== undefined && !Number.isInteger(rule.maxChildren)) {
+      // Separate from the below-one check so the message names the actual
+      // problem: an operator told "below one" about 1.5 would go looking for a
+      // number they never wrote.
+      problems.push(`Containment rule ${rule.parent} -> ${rule.child} has a maxChildren that is not a count.`)
+    } else if (rule.maxChildren !== undefined && rule.maxChildren < 1) {
+      problems.push(`Containment rule ${rule.parent} -> ${rule.child} has a maxChildren below one; use containment to forbid a pairing.`)
+    }
+    if (
+      rule.minChildren !== undefined &&
+      rule.maxChildren !== undefined &&
+      rule.minChildren > rule.maxChildren
+    ) {
+      problems.push(
+        `Containment rule ${rule.parent} -> ${rule.child} requires at least ${rule.minChildren} and permits at most ${rule.maxChildren}, which nothing can satisfy.`,
+      )
+    }
     if (!typeIds.has(rule.parent)) problems.push(`Containment rule names unknown parent type "${rule.parent}".`)
     if (!typeIds.has(rule.child)) problems.push(`Containment rule names unknown child type "${rule.child}".`)
     if (rule.child === topology.rootType) {
@@ -161,4 +213,23 @@ export function mayContain(topology: OrgTopology, parent: string, child: string)
 
 export function typeOf(topology: OrgTopology, id: string): OrgUnitType | undefined {
   return topology.types.find((t) => t.id === id)
+}
+
+/**
+ * Whether a position may exist in a unit of this type.
+ *
+ * GE-050-003. Default true, because most unit types are bodies that employ. A
+ * `location` is a place — a warehouse has people *at* it and no seats *in* it —
+ * and a seat placed there is authority attached to an address, which nobody can
+ * succeed to. A `project` is usually the same: people are seconded to it from
+ * the seats they already hold, and modelling that as a second seat gives one
+ * person two positions where they have one.
+ *
+ * A tenant that genuinely staffs projects as posts exists and is not wrong,
+ * which is why this is configuration rather than a rule.
+ */
+export function typeHoldsSeats(topology: OrgTopology, typeId: string): boolean {
+  const type = typeOf(topology, typeId)
+  if (!type) return false
+  return type.holdsSeats !== false
 }

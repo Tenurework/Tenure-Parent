@@ -456,6 +456,58 @@ export function buildOrgGraph(
       }
     }
 
+    // GE-050-003. Cardinality, which only the graph can check.
+    //
+    // The topology can say a club may contain a board; it cannot say a club has
+    // exactly one. A club with none is a body nobody can be accountable in —
+    // the state a half-finished import leaves behind — and a company with two
+    // head offices is a data error somebody discovers from a report that
+    // double-counts.
+    //
+    // Counted per live parent at this instant, so archiving a child is a
+    // structural change the rule sees rather than one it sleeps through.
+    const cardinality = topology.containment.filter(
+      (rule) => rule.minChildren !== undefined || rule.maxChildren !== undefined,
+    )
+    if (cardinality.length > 0) {
+      // Only live units contribute, so archiving a child is a structural change
+      // the rule sees rather than one it sleeps through.
+      //
+      // No `liveIds.has(parentId)` filter: the tally below is read only for
+      // parents that are themselves live, so an entry keyed by a dead parent is
+      // never looked at. A mutation removing that clause changed no outcome,
+      // which is how it was found to be deciding nothing.
+      const childrenByParent = new Map<string, string[]>()
+      for (const u of live) {
+        const parentId = parentAt.get(u.id)
+        if (parentId == null) continue
+        const siblings = childrenByParent.get(parentId) ?? []
+        siblings.push(u.typeId)
+        childrenByParent.set(parentId, siblings)
+      }
+
+      for (const parent of live) {
+        const childTypes = childrenByParent.get(parent.id) ?? []
+        for (const rule of cardinality) {
+          if (rule.parent !== parent.typeId) continue
+          const count = childTypes.filter((t) => t === rule.child).length
+
+          if (rule.minChildren !== undefined && count < rule.minChildren) {
+            problems.push(
+              `At ${date} "${parent.id}" (${parent.typeId}) has ${count} "${rule.child}" children, ` +
+                `and the topology requires at least ${rule.minChildren}.`,
+            )
+          }
+          if (rule.maxChildren !== undefined && count > rule.maxChildren) {
+            problems.push(
+              `At ${date} "${parent.id}" (${parent.typeId}) has ${count} "${rule.child}" children, ` +
+                `and the topology permits at most ${rule.maxChildren}.`,
+            )
+          }
+        }
+      }
+    }
+
     if (topology.maxDepth !== undefined) {
       const snapshot = graph.asOf(date)
       for (const u of snapshot.all()) {

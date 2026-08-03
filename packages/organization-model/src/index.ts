@@ -27,6 +27,7 @@
 export {
   TopologyError,
   mayContain,
+  typeHoldsSeats,
   typeOf,
   validateTopology,
 } from "./topology"

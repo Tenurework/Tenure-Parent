@@ -1,5 +1,6 @@
 import { universityStudentOrganizations } from "./university-student-organizations/blueprint"
 import { nonprofitProgramOperations } from "./nonprofit-program-operations/blueprint"
+import { corporateDivisions } from "./corporate-divisions/blueprint"
 import type { SystemBlueprint, TenantBinding } from "./types"
 
 export type { SystemBlueprint, TenantBinding }
@@ -7,6 +8,7 @@ export type { SystemBlueprint, TenantBinding }
 export const BLUEPRINTS: readonly SystemBlueprint[] = [
   universityStudentOrganizations,
   nonprofitProgramOperations,
+  corporateDivisions,
 ]
 
 const BY_ID = new Map(BLUEPRINTS.map((b) => [b.id, b]))

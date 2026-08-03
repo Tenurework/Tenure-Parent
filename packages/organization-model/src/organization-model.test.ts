@@ -3,10 +3,12 @@ import {
   TopologyError,
   buildOrgGraph,
   mayContain,
+  typeHoldsSeats,
   validateTopology,
   type OrgTopology,
   type OrgUnitInput,
 } from "./index"
+import { BLUEPRINTS } from "@tenure/blueprints"
 
 // ── two structurally different topologies, neither of them in the code ──────
 
@@ -423,5 +425,262 @@ describe("relationships that are not containment", () => {
     ])
     expect(g.relationsAsOf(T1)).toHaveLength(1)
     expect(g.relationsAsOf(NOW)).toHaveLength(0)
+  })
+})
+
+/**
+ * GE-050-003 — arbitrary configured types, and the constraints they need.
+ *
+ * The topology engine already carried arbitrary types and containment. Two
+ * constraint kinds were missing, and both exist because a real structure needs
+ * them: a company has exactly one head office, and a location is a place rather
+ * than a body that employs.
+ */
+describe("cardinality is checked against the graph, because only the graph knows", () => {
+  const topology: OrgTopology = {
+    id: "cardinality",
+    version: "1.0.0",
+    rootType: "company",
+    types: [
+      { id: "company", label: "Company", pluralLabel: "Companies" },
+      { id: "location", label: "Location", pluralLabel: "Locations" },
+      { id: "division", label: "Division", pluralLabel: "Divisions" },
+    ],
+    containment: [
+      { parent: "company", child: "location", minChildren: 1, maxChildren: 1 },
+      { parent: "company", child: "division" },
+    ],
+  }
+
+  const unit = (id: string, typeId: string, parentId?: string): OrgUnitInput => ({
+    id,
+    typeId,
+    name: id,
+    effectiveFrom: "2026-01-01",
+    parentage: parentId ? [{ parentId, effectiveFrom: "2026-01-01" }] : undefined,
+  })
+
+  it("accepts a company with exactly one head office", () => {
+    expect(() =>
+      buildOrgGraph(topology, [unit("c", "company"), unit("hq", "location", "c")]),
+    ).not.toThrow()
+  })
+
+  it("refuses a company with no head office", () => {
+    // The state a half-finished import leaves behind.
+    expect(() => buildOrgGraph(topology, [unit("c", "company")])).toThrow(/requires at least 1/)
+  })
+
+  it("refuses a company with two head offices", () => {
+    // A data error somebody would otherwise discover from a report that
+    // double-counts headcount by site.
+    expect(() =>
+      buildOrgGraph(topology, [
+        unit("c", "company"),
+        unit("hq", "location", "c"),
+        unit("hq2", "location", "c"),
+      ]),
+    ).toThrow(/permits at most 1/)
+  })
+
+  it("does not constrain a child type with no rule", () => {
+    // Cardinality is opt-in. A rule that silently bounded everything would make
+    // every existing topology stricter than its author wrote.
+    expect(() =>
+      buildOrgGraph(topology, [
+        unit("c", "company"),
+        unit("hq", "location", "c"),
+        unit("d1", "division", "c"),
+        unit("d2", "division", "c"),
+        unit("d3", "division", "c"),
+      ]),
+    ).not.toThrow()
+  })
+
+  it("counts per parent, not across the whole graph", () => {
+    // Two companies with one office each is fine; a rule counting globally
+    // would reject the second tenant to onboard.
+    const twoCompanies: OrgTopology = { ...topology, rootType: "company" }
+    expect(() =>
+      buildOrgGraph(twoCompanies, [
+        unit("c1", "company"),
+        unit("hq1", "location", "c1"),
+        unit("c2", "company"),
+        unit("hq2", "location", "c2"),
+      ]),
+    ).not.toThrow()
+  })
+
+  it("sees an archived child as gone", () => {
+    // Archiving the only head office leaves the company without one, and a
+    // check that slept through it would report a structure nobody has.
+    const archived: OrgUnitInput = { ...unit("hq", "location", "c"), archivedAt: "2026-06-01" }
+    expect(() => buildOrgGraph(topology, [unit("c", "company"), archived])).toThrow(
+      /requires at least 1/,
+    )
+  })
+})
+
+describe("a topology cannot ask for the impossible", () => {
+  const base = {
+    id: "t",
+    version: "1.0.0",
+    rootType: "a",
+    types: [
+      { id: "a", label: "A", pluralLabel: "As" },
+      { id: "b", label: "B", pluralLabel: "Bs" },
+    ],
+  }
+
+  it("refuses a minimum above the maximum", () => {
+    expect(() =>
+      buildOrgGraph(
+        { ...base, containment: [{ parent: "a", child: "b", minChildren: 3, maxChildren: 2 }] },
+        [],
+      ),
+    ).toThrow(/nothing can satisfy/)
+  })
+
+  it("refuses a maximum of zero, which containment already expresses", () => {
+    // Removing the rule forbids the pairing. A max of zero says "you may
+    // contain this, but never" — two ways to state one thing.
+    expect(() =>
+      buildOrgGraph({ ...base, containment: [{ parent: "a", child: "b", maxChildren: 0 }] }, []),
+    ).toThrow(/below one/)
+  })
+
+  it("refuses a fractional or negative count", () => {
+    expect(() =>
+      buildOrgGraph({ ...base, containment: [{ parent: "a", child: "b", minChildren: -1 }] }, []),
+    ).toThrow(/not a count/)
+    expect(() =>
+      buildOrgGraph({ ...base, containment: [{ parent: "a", child: "b", maxChildren: 1.5 }] }, []),
+    ).toThrow(/not a count/)
+  })
+})
+
+describe("some unit types are places, not bodies that employ", () => {
+  const topology: OrgTopology = {
+    id: "seats",
+    version: "1.0.0",
+    rootType: "company",
+    types: [
+      { id: "company", label: "Company", pluralLabel: "Companies" },
+      { id: "department", label: "Department", pluralLabel: "Departments" },
+      { id: "location", label: "Location", pluralLabel: "Locations", holdsSeats: false },
+    ],
+    containment: [
+      { parent: "company", child: "department" },
+      { parent: "company", child: "location" },
+    ],
+  }
+
+  it("says a department holds seats", () => {
+    expect(typeHoldsSeats(topology, "department")).toBe(true)
+  })
+
+  it("says a location does not", () => {
+    // A seat there is authority attached to an address, which nobody can
+    // succeed to.
+    expect(typeHoldsSeats(topology, "location")).toBe(false)
+  })
+
+  it("defaults to holding seats, so existing topologies are unchanged", () => {
+    // Every topology written before this field existed must keep working, and
+    // most unit types are bodies that employ.
+    expect(typeHoldsSeats(topology, "company")).toBe(true)
+  })
+
+  it("says an unknown type holds nothing", () => {
+    // Fails closed: a seat in a type the topology does not declare is a seat
+    // nobody configured.
+    expect(typeHoldsSeats(topology, "nonexistent")).toBe(false)
+  })
+})
+
+/**
+ * GE-050-003 — every shipped topology is a real one.
+ *
+ * A blueprint whose topology does not validate is a configuration nobody can
+ * provision into, and the failure would land on the first tenant to choose it
+ * rather than here.
+ */
+describe("the shipped blueprints", () => {
+  it.each(BLUEPRINTS.map((b) => [b.id, b.topology] as const))("%s has a valid topology", (_id, topology) => {
+    expect(() => validateTopology(topology)).not.toThrow()
+  })
+
+  it("ships both structures GE-050-003 names", () => {
+    // Education shipped first; the corporate shape had no representation at
+    // all, which meant "arbitrary configured types" rested on two
+    // configurations that happen to look alike.
+    const byId = new Map(BLUEPRINTS.map((b) => [b.id, b]))
+    const education = byId.get("university-student-organizations")
+    const corporate = byId.get("corporate-divisions")
+
+    expect(education).toBeDefined()
+    expect(corporate).toBeDefined()
+
+    const educationTypes = education!.topology.types.map((t) => t.id)
+    const corporateTypes = corporate!.topology.types.map((t) => t.id)
+
+    expect(educationTypes).toEqual(expect.arrayContaining(["school", "club"]))
+    expect(corporateTypes).toEqual(
+      expect.arrayContaining(["company", "division", "department", "team", "location", "project"]),
+    )
+  })
+
+  it("gives the two structures genuinely different shapes", () => {
+    // The point of a second blueprint. Two topologies with the same root type
+    // and the same depth would prove the engine handles one shape twice.
+    const byId = new Map(BLUEPRINTS.map((b) => [b.id, b]))
+    const education = byId.get("university-student-organizations")!.topology
+    const corporate = byId.get("corporate-divisions")!.topology
+
+    expect(corporate.rootType).not.toBe(education.rootType)
+    expect(corporate.maxDepth).not.toBe(education.maxDepth)
+  })
+
+  it("uses the constraints it needed them for", () => {
+    // The corporate topology is why cardinality and holdsSeats exist. If a
+    // later edit drops them, the constraint kinds lose their only real user and
+    // this says so.
+    const corporate = BLUEPRINTS.find((b) => b.id === "corporate-divisions")!.topology
+
+    const headOffice = corporate.containment.find(
+      (rule) => rule.parent === "company" && rule.child === "location",
+    )
+    expect(headOffice?.minChildren).toBe(1)
+    expect(headOffice?.maxChildren).toBe(1)
+
+    expect(typeHoldsSeats(corporate, "location")).toBe(false)
+    expect(typeHoldsSeats(corporate, "project")).toBe(false)
+    expect(typeHoldsSeats(corporate, "department")).toBe(true)
+  })
+
+  it("accepts a company built to its own rules, and refuses one that is not", () => {
+    // The topology validating is not the same as a graph satisfying it.
+    const corporate = BLUEPRINTS.find((b) => b.id === "corporate-divisions")!.topology
+    const unit = (id: string, typeId: string, parentId?: string): OrgUnitInput => ({
+      id,
+      typeId,
+      name: id,
+      effectiveFrom: "2026-01-01",
+      parentage: parentId ? [{ parentId, effectiveFrom: "2026-01-01" }] : undefined,
+    })
+
+    expect(() =>
+      buildOrgGraph(corporate, [
+        unit("acme", "company"),
+        unit("hq", "location", "acme"),
+        unit("eng", "division", "acme"),
+        unit("platform", "department", "eng"),
+        unit("core", "team", "platform"),
+      ]),
+    ).not.toThrow()
+
+    expect(() =>
+      buildOrgGraph(corporate, [unit("acme", "company"), unit("eng", "division", "acme")]),
+    ).toThrow(/requires at least 1/)
   })
 })

@@ -6386,3 +6386,93 @@ worth less than three items that hold.
   defect in the test.
 
   113/1219 decided.
+
+- [x] **GE-050-003** — Support company/division/department/team/location/project and school/office/club/committee structures with arbitrary configured types and constraints.
+  - Status: PASS
+  - Code: `packages/organization-model/src/topology.ts` (`minChildren`,
+    `maxChildren`, `holdsSeats`, `typeHoldsSeats`),
+    `packages/organization-model/src/graph.ts` (cardinality checked per live
+    parent at every critical date), `blueprints/corporate-divisions/blueprint.ts`
+  - Tests: `packages/organization-model/src/organization-model.test.ts` (83, +26)
+  - Evidence: 2502/2502 apps/web unit across 104 suites, 173/173 platform guards,
+    type-check clean, gate passed. **13 mutations, 12 caught**; the survivor was
+    a redundant clause, removed.
+
+  The topology engine already carried arbitrary unit types, containment rules,
+  relation types and a depth ceiling. An audit found two things it did not.
+
+  ## The corporate structure had no representation at all
+
+  Two blueprints shipped — education and nonprofit — and both are hierarchies of
+  bodies. The claim that the engine supports "arbitrary configured types" rested
+  on two configurations that happen to look alike.
+
+  `corporate-divisions` is the shape the item names first:
+  company / division / department / team / location / project, four levels deep,
+  with matrix reporting, `based-at` and symmetric collaboration edges. Its fiscal
+  year starts in January rather than July, deliberately — a blueprint that copied
+  the other's calendar would prove nothing.
+
+  ## Two constraint kinds, and this is why they exist
+
+  **Cardinality** (`minChildren`, `maxChildren`) on a containment rule. The
+  topology can say a company may contain a location; it cannot say a company has
+  *exactly one head office*. Two is a data error somebody would otherwise
+  discover from a report that double-counts headcount by site; none is the state
+  a half-finished import leaves behind.
+
+  Only the graph can check this, so it runs there — per live parent, at every
+  critical date. Archiving the only head office leaves the company without one,
+  and a check that slept through it would report a structure nobody has. It is
+  opt-in: a rule that silently bounded every child type would make every existing
+  topology stricter than its author wrote.
+
+  **`holdsSeats`** on a unit type. A `location` is a place: a warehouse has
+  people *at* it and no seats *in* it, and a seat there is authority attached to
+  an address, which nobody can succeed to. A `project` is usually the same —
+  people are seconded from the seats they already hold, and modelling that as a
+  second seat gives one person two positions where they have one. Default true,
+  so every topology written before the field keeps working, and configurable
+  because a tenant that genuinely staffs projects as posts exists and is not
+  wrong. Unknown types hold nothing: a seat in a type the topology never declared
+  is a seat nobody configured.
+
+  ## A message that would have sent somebody looking for the wrong number
+
+  `maxChildren: 1.5` reported "has a maxChildren below one". Both checks shared a
+  branch, so a fractional value was described as a small one. Split, so each
+  says what it means.
+
+  ## The shipped blueprints are asserted to be real
+
+  A blueprint whose topology does not validate is a configuration nobody can
+  provision into, and the failure would land on the first tenant to choose it.
+  Every shipped topology now validates in a test, the two named structures are
+  asserted present by type, and the corporate one is built as a graph and then
+  broken — a company with no head office is refused by the constraint that
+  blueprint exists to demonstrate.
+
+  A test also asserts the two structures have genuinely different shapes
+  (different root type, different depth). Two topologies that agreed on both
+  would prove the engine handles one shape twice.
+
+  **Honest limits.**
+
+  * **`typeHoldsSeats` has no enforcement point yet.** `Seat` (GE-050-001,
+    GE-050-002) belongs to an `Organization`, and organizations are not yet
+    typed by topology — `apps/web` runs the flat Institution/Organization model
+    that `graph.ts` exists to replace. The rule is decided and tested; wiring it
+    to seat creation needs the org-unit migration, which is its own item.
+  * **`office` and `committee` are not in the education blueprint.** The item
+    names school/office/club/committee; the shipped topology has
+    institution/school/club/board. `board` is the same thing as `committee` under
+    the pilot's terminology, and adding an `office` type would change the shape
+    the live tenant is provisioned against. That is a data migration for one real
+    customer, not a blueprint edit, and doing it as part of this item would have
+    changed a running tenant's structure to satisfy a word.
+  * **Cardinality is per parent and per direct child type.** "At most three
+    levels of nesting below this unit" or "at most ten descendants of any type"
+    are not expressible. Neither has a caller; `maxDepth` covers the case that
+    prompted a ceiling in the first place.
+
+  114/1219 decided.
