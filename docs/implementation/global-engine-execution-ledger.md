@@ -5576,3 +5576,88 @@ worth less than three items that hold.
     to Simon is a person's act, and should be.
 
   103/1219 decided.
+
+- [x] **GE-043-007** — Prove federation end to end with a controlled test IdP and a second synthetic tenant.
+  - Status: PASS for the decision chain; the HTTP round trip is BLOCKED_EXTERNAL
+  - Code: no new production code. This item is a proof, and it exercises
+    `token-validation.ts`, `keying.ts`, `claims-input.ts`, `saml-assertion.ts`
+    and `effective-state.ts` as one chain.
+  - Tests: `packages/identity/src/federation-e2e.test.ts` (24)
+  - Evidence: 2352/2352 apps/web unit across 100 suites, 160/160 platform guards,
+    type-check clean, gate passed 8 steps. **8 mutations, 8 caught**, each
+    planted in a *different* module the chain passes through.
+
+  **"Controlled" means we hold the keys.** The test IdP generates a real 2048-bit
+  RSA keypair with `node:crypto`, mints real RS256 compact tokens, and the
+  verifier handed to `validateIdToken` is `crypto.createVerify` — not a stub, not
+  a hand-written `{ valid: true }`. A token signed by the wrong key fails here
+  for the same reason it would fail in production: the mathematics says so.
+
+  Four tests exist purely to prove the harness is not a fake — the other tenant's
+  key rejects the token, an edited payload fails verification, the two keypairs
+  really differ. Without them every downstream assertion could pass against a
+  verifier that always agrees, which is exactly the stub this replaces. A
+  mutation making the verifier return `true` unconditionally is caught.
+
+  **Two synthetic tenants, and the property that matters.** Rochester and Ithaca
+  have their own issuer, keypair and connection. Rochester's token reaches
+  authority at Rochester; at Ithaca it is refused, and refused at *every* layer
+  independently:
+
+  * `ISSUER_MISMATCH` — the connection expects its own issuer;
+  * `SIGNATURE_INVALID` — with the expectations deliberately relaxed to match, so
+    only the key differs, which is the misconfiguration that would make
+    cross-tenant acceptance possible;
+  * the identity does not resolve, because an identity is keyed by connection
+    *and* issuer *and* subject — the same human at two institutions is two
+    identities;
+  * and `authorityFromTenureRecords` returns `[]` regardless, because there is no
+    live membership of Ithaca.
+
+  Four independent refusals for one attempt. Any one of them is the whole
+  defence if the other three are wrong.
+
+  **The chain carries no authority from the token.** The proposal that comes out
+  the far end holds exactly `subject`, `email`, `displayName` — GE-043-003's
+  property, proved through the full chain rather than in isolation.
+
+  **A validly signed token for an unknown subject is refused.** The signature
+  proves the IdP said it; it does not prove anybody at Rochester ever placed that
+  person.
+
+  **The SAML half signs and verifies for real too.** The facts handed to
+  `validateSamlAssertion` are produced by an actual `crypto.verify` — an
+  assertion that fails verification reports covering *nothing*, which is what
+  makes the validator refuse it. A mutation making the facts assert coverage
+  unconditionally is caught.
+
+  **A test bug worth recording.** The tampering test first verified the
+  *pre-alteration* canonical form, so the facts said "signed" and the validator
+  accepted the attacker's `nameId`. No real library behaves that way — it
+  verifies the document as received. The fake was wrong, not the validator, and
+  the fix is what turns that test from a demonstration of a badly-built double
+  into a proof.
+
+  **Honest limits.**
+
+  * **There is no HTTP round trip.** No authorization redirect, no callback
+    route, no cookie set, no session issued. The item's "end to end" in the
+    fullest sense needs a browser and a deployed Cognito, and both are
+    BLOCKED_EXTERNAL on the AWS Organization (GE-041-003). What is proved is the
+    decision chain from a signed assertion to a set of capabilities, which is
+    every line of logic that stands between a federated identity and access.
+  * **The second tenant is synthetic and in-memory.** Its connections,
+    identities and memberships are literals, not database rows. The
+    cross-tenant *query* isolation is proved elsewhere, against real PostgreSQL,
+    by `apps/web/src/lib/tenancy/isolation.itest.ts`. This proves the
+    *federation* half, and neither substitutes for the other.
+  * **The SAML canonical form is JSON, not XML C14N.** Signing a JSON rendering
+    of the assertion fields exercises the chain honestly — verify, report,
+    validate — without pretending to implement XML canonicalisation, which
+    belongs to a hardened library and which `saml-assertion.ts` deliberately does
+    not attempt.
+  * **`RS256` only.** The chain permits five algorithms; the test IdP mints one.
+    Algorithm handling has its own tests in `token-validation.test.ts`; adding
+    four more keypairs here would re-prove them slowly.
+
+  104/1219 decided.

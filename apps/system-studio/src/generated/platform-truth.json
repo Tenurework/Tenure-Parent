@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "24e0ceb",
+  "commit": "2b5fc15",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 100,
-    "done": 88,
+    "total": 101,
+    "done": 89,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -728,6 +728,13 @@
             "title": "Generate Simon SSO handoff package from deployed nonsecret endpoints, leaving exact external IdP fields `BLOCKED_EXTERNAL` rather than inventing them.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-043-007",
+            "done": true,
+            "title": "Prove federation end to end with a controlled test IdP and a second synthetic tenant.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -742,7 +749,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 103,
+    "decided": 104,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -882,7 +889,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 6
+        "done": 7
       },
       {
         "phase": "GE · GE-044: Authentication security tests",
