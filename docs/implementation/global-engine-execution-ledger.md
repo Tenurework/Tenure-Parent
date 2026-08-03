@@ -7005,3 +7005,114 @@ worth less than three items that hold.
     already been wrong about once.
 
   119/1219 decided.
+
+- [x] **GE-051-002** — Implement reusable roles/policies, scoped grants, explicit deny precedence, attributes, relationships, temporal rules, delegation, risk/session assurance, and policy explanations.
+  - Status: PASS for all nine; what calls them is limited below
+  - Code: `packages/authorization/src/relationships.ts` (ReBAC),
+    `assurance.ts` (session assurance and risk), `role-templates.ts` (7 reusable
+    bundles), `decide.ts` (relationship-conferred grants, the assurance gate,
+    principal attributes and a relationship reader in `PolicyContext`),
+    `ASSURANCE_TOO_LOW` added to `DENY_REASONS`, `Dated` and
+    `Principal.attributes` added to the model
+  - Tests: `packages/authorization/src/rebac-assurance.test.ts` (67)
+  - Evidence: 2753/2753 apps/web unit across 112 suites, 181/181 platform
+    guards, type-check clean, gate passed. **35 mutations, 35 caught.**
+
+  Five of the nine already worked — scoped grants, explicit deny precedence,
+  temporal rules, delegation and policy explanations were built with the engine.
+  Four could not be expressed at all.
+
+  ## Relationships, because a scope answers the wrong question
+
+  A grant covers a tenant or an org-unit subtree. That answers *where*, and
+  never *to whom*. The questions it cannot phrase are the ordinary ones: a
+  manager may read their report's expenses and nobody else's; an advisor may see
+  the club they advise, which is not a subtree; a participant may read the event
+  they are on, not every event. Modelling those as scopes means minting an org
+  unit per person, which is how an organization chart becomes an access-control
+  list nobody can audit.
+
+  Relationships are directed, typed and **dated**. Dated because every one of
+  them ends, and an advisor who left in June is not an advisor in July. A
+  `RelationshipGrant` confers a role on whoever holds a relationship — one rule
+  covering every advisor including the one appointed tomorrow, revoked the
+  instant the relationship ends rather than whenever somebody remembers.
+
+  Three decisions worth naming:
+
+  * **Exactly one target.** A relationship pointing at both a person and a unit
+    reads as either, so two call sites resolve it two ways and one is wrong. A
+    malformed one is dropped rather than read charitably — taking the first
+    non-null target is precisely how it grants access to the wrong thing.
+  * **Management is not transitive.** Deriving skip-level access from the chart
+    makes it the default, and at the top of an organization that means one
+    person can read everything having been granted nothing.
+  * **`related` scope, not `tenant`.** An advisor of one club is not an advisor
+    of all of them, and the shape makes the wrong version something you have to
+    write on purpose.
+
+  Conferred roles are appended to the direct matches and go through the same
+  scope, tier, assurance and policy steps. A second path that skipped those
+  would be a second, quieter authorization model.
+
+  ## Session assurance, because "who" is not "how sure"
+
+  A decision knew who was asking and nothing about how well they had proved it,
+  so "you may approve payments" and "you may approve payments from a session
+  opened three weeks ago on a device we have never seen" were the same sentence.
+
+  Assurance is **ordered and compared with "at least"**. Equality is the defect
+  the tier check already had in the other direction, and here it produces a
+  step-up prompt that cannot be satisfied: a hardware key refused for want of a
+  one-time code. It also **decays** — a step-up satisfied at 09:00 is not a
+  step-up at 17:00, and recording only the level turns "confirm it is you" into
+  "confirm it was you once today".
+
+  When several requirements name one permission the **strictest wins, not the
+  first**, and a tie keeps the tighter constraint from each. Order-dependence in
+  a security rule means adding a requirement can weaken one already there, and
+  the person adding it has no reason to look.
+
+  The gate sits **after** the grant. Somebody who was never granted the
+  permission is told that, rather than sent to re-authenticate for something
+  they still will not be allowed to do — a step-up prompt is also a disclosure
+  that the action exists and is worth prompting for.
+
+  ## Attributes and reusable bundles
+
+  `Principal.attributes` is separate from `resource.attributes` and deliberately
+  not merged. One bag lets a resource attribute shadow a principal one, and a
+  condition reading `attributes.employment` silently changes meaning depending
+  on what the resource happened to carry.
+
+  Seven role templates, composed of catalog keys and validated to be — a bundle
+  naming a permission nobody declares confers nothing while looking like it
+  confers something, and nobody reads a list of twenty strings. The validator
+  also refuses a bundle that both **files and approves** reimbursements: one
+  person holding both leaves the self-approval policy as the only control, and
+  that policy only sees claims they filed themselves.
+
+  **Honest limits.**
+
+  * **Nothing stores a relationship.** There is no `Relationship` table and no
+    `SessionAssurance` on a session. Both are shapes the engine reads and the
+    application does not yet write; the schema work is a migration each, and
+    adding columns before the semantics were decided is the sequencing this
+    repository has already been wrong about.
+  * **Assurance requirements are supplied, not configured.** They arrive in the
+    world the caller builds. Where they should live is
+    `platform.permissions.*`, still `reserved` in the configuration engine.
+  * **Conditions are still functions.** The Bible's ABAC list — classification,
+    amount, geography, device — is expressible as a policy condition and none is
+    written, because each needs a real attribute source. A rules DSL remains
+    absent on purpose: a half-built expression language is worse than TypeScript
+    for something this load-bearing.
+  * **Templates are not grantable yet.** `ROLE_TEMPLATES` is a shipped set; the
+    application still builds its own `RoleDefinition[]` in
+    `navigation-capabilities.ts`. Wiring templates through to grants needs the
+    grant store, which is GE-051-004's decision interface.
+  * **Risk is a number nobody computes.** `SessionAssurance.risk` is read and
+    enforced; no signal produces it. A band here would have meant inventing one
+    team's idea of "high" for everybody.
+
+  120/1219 decided.

@@ -15,12 +15,33 @@
 
 export type ISODate = string
 
+/**
+ * An effective-dated fact.
+ *
+ * Half-open everywhere in this package: `effectiveFrom` counts, `effectiveTo`
+ * does not. Two facts that meet at the same instant then never both hold, which
+ * is what makes "who held this at 09:00" a question with one answer.
+ */
+export interface Dated {
+  effectiveFrom: ISODate
+  effectiveTo?: ISODate | null
+}
+
 export interface Principal {
   id: string
   /** Set means the account is disabled platform-wide. Beats every grant. */
   disabledAt?: ISODate | null
   /** A support principal's access is time-boxed and always audited. */
   kind?: "user" | "service" | "support" | "system"
+  /**
+   * Attributes a policy condition can read: employment or student status,
+   * geography, anything ABAC needs about who is asking.
+   *
+   * Never used for scope. Scope is grants and relationships, both of which are
+   * dated and revocable; an attribute is a description, and a description that
+   * silently widens access is one nobody audits.
+   */
+  attributes?: Readonly<Record<string, unknown>>
 }
 
 export type MembershipState = "ACTIVE" | "INVITED" | "SUSPENDED" | "LEFT"
@@ -100,6 +121,30 @@ export interface PolicyContext {
   resource?: ResourceRef
   /** Supplied by the caller so a decision is reproducible in a test. */
   at: ISODate
+  /**
+   * Attributes of the *principal* — employment or student status, geography,
+   * anything ABAC needs about who is asking.
+   *
+   * Separate from `resource.attributes` and deliberately not merged with them.
+   * One bag would let a resource attribute shadow a principal one, and a
+   * condition reading `attributes.status` would silently change meaning
+   * depending on what the resource happened to carry.
+   */
+  principalAttributes?: Readonly<Record<string, unknown>>
+  /**
+   * Does this principal hold such a relationship, now?
+   *
+   * A reader rather than the list, so a condition cannot iterate relationships
+   * it was not meant to see, and cannot forget the effective-date check.
+   */
+  relatedTo?: (query: {
+    type?: string
+    toPrincipalId?: string
+    toOrgUnitId?: string
+    toResourceId?: string
+  }) => boolean
+  /** How well this session is authenticated, if the caller could say. */
+  session?: { level: string; establishedAt: ISODate; risk?: number }
 }
 
 /**
@@ -148,6 +193,7 @@ export const DENY_REASONS = [
   "POLICY_DENIED",
   "SEPARATION_OF_DUTIES",
   "DELEGATION_NOT_EFFECTIVE",
+  "ASSURANCE_TOO_LOW",
 ] as const
 
 export type DenyReason = (typeof DENY_REASONS)[number]

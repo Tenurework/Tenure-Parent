@@ -340,7 +340,7 @@ Use this evidence shape:
 ### GE-051: Authorization engine
 
 - [x] GE-051-001 — Create stable semantic permission catalog independent of tenant labels and role titles.
-- [ ] GE-051-002 — Implement reusable roles/policies, scoped grants, explicit deny precedence, attributes, relationships, temporal rules, delegation, risk/session assurance, and policy explanations.
+- [x] GE-051-002 — Implement reusable roles/policies, scoped grants, explicit deny precedence, attributes, relationships, temporal rules, delegation, risk/session assurance, and policy explanations.
 - [ ] GE-051-003 — Implement no-self-approval, maker-checker, separation of duties, quorum/consensus, amount/risk threshold, conflict declaration, and recusal primitives.
 - [ ] GE-051-004 — Implement centralized authorization decision interface and policy revision/cache invalidation.
 - [ ] GE-051-005 — Enforce authorization in every controller, service, repository/query, file, search, export, report, analytics, event/job, websocket, connector, support, admin, and Relay path.

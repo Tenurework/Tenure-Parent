@@ -11,7 +11,20 @@ import type {
   RoleGrant,
   TenantEntitlement,
 } from "./model"
+import {
+  checkAssurance,
+  requirementFor,
+  type AssuranceRequirement,
+  type SessionAssurance,
+} from "./assurance"
 import { lookupPermission } from "./permission-catalog"
+import {
+  hasRelationship,
+  relationshipProblems,
+  relationshipHoldsAt,
+  type Relationship,
+  type RelationshipGrant,
+} from "./relationships"
 
 /**
  * Everything a decision reads.
@@ -38,6 +51,24 @@ export interface AuthorizationWorld {
    * `(id) => snapshot.ancestors(id).map(u => u.id)`.
    */
   ancestorsOf?: (orgUnitId: string) => readonly string[]
+  /**
+   * Directed, dated relationships — GE-051-002's ReBAC half.
+   *
+   * A grant answers "where"; a relationship answers "to whom". An advisor's
+   * access to the club they advise is not a subtree, and modelling it as one
+   * means minting an org unit per person.
+   */
+  relationships?: readonly Relationship[]
+  /**
+   * Roles conferred by holding a relationship rather than by being named.
+   *
+   * One rule covering every advisor, including the one appointed tomorrow, and
+   * revoked the instant the relationship ends rather than whenever somebody
+   * remembers to remove them.
+   */
+  relationshipGrants?: readonly RelationshipGrant[]
+  /** What each permission demands of the session asking for it. */
+  assuranceRequirements?: readonly AssuranceRequirement[]
 }
 
 export interface AuthorizationRequest {
@@ -47,6 +78,13 @@ export interface AuthorizationRequest {
   resource?: ResourceRef
   /** Supplied, never read from a clock, so decisions are reproducible. */
   at: ISODate
+  /**
+   * How well this session is authenticated.
+   *
+   * Absent means the caller could not describe it, which fails any requirement
+   * rather than satisfying it: "we could not tell" is not "yes".
+   */
+  session?: SessionAssurance
 }
 
 export interface TraceStep {
@@ -225,8 +263,57 @@ export function decide(
     return { matches, sawRole, sawScope }
   }
 
+  // Roles conferred by a relationship, resolved the same way a named grant is.
+  //
+  // Appended to the direct matches rather than checked afterwards, so an
+  // advisor's role goes through the same scope, tier and policy steps as a
+  // granted one. A second path that skipped those would be a second, quieter
+  // authorization model.
+  const relationshipMatches = (): Match[] => {
+    const out: Match[] = []
+    for (const conferred of world.relationshipGrants ?? []) {
+      if (conferred.tenantId !== request.tenantId) continue
+      const role = rolesByKey.get(conferred.roleKey)
+      if (!role || !role.permissions.includes(request.permission)) continue
+
+      const held =
+        conferred.scope === "tenant"
+          ? hasRelationship(
+              world.relationships ?? [],
+              { principalId: principal.id, tenantId: request.tenantId, type: conferred.via },
+              request.at,
+            )
+          : // `related` means *this* resource or *its* org unit, not any. An
+            // advisor of one club is not an advisor of the next one.
+            hasRelationship(
+              world.relationships ?? [],
+              {
+                principalId: principal.id,
+                tenantId: request.tenantId,
+                type: conferred.via,
+                ...(request.resource?.id ? { toResourceId: request.resource.id } : {}),
+              },
+              request.at,
+            ) ||
+            (request.resource?.orgUnitId != null &&
+              hasRelationship(
+                world.relationships ?? [],
+                {
+                  principalId: principal.id,
+                  tenantId: request.tenantId,
+                  type: conferred.via,
+                  toOrgUnitId: request.resource.orgUnitId,
+                },
+                request.at,
+              ))
+
+      if (held) out.push({ roleKey: conferred.roleKey, role })
+    }
+    return out
+  }
+
   const direct = matchesFor(principal.id)
-  let matches = direct.matches
+  let matches = [...direct.matches, ...relationshipMatches()]
   let viaDelegationFrom: string | undefined
 
   if (matches.length === 0) {
@@ -302,13 +389,52 @@ export function decide(
     }
   }
 
-  // ── 5. policies. deny always wins. ──────────────────────────────────────
+  // ── 5. session assurance ────────────────────────────────────────────────
+  //
+  // After the grant, deliberately. Someone who was never granted the permission
+  // should be told that, not sent to re-authenticate for something they still
+  // will not be allowed to do — a step-up prompt is also a disclosure that the
+  // action exists and is worth prompting for.
+  const assurance = checkAssurance(
+    requirementFor(world.assuranceRequirements, request.permission),
+    request.session,
+    request.at,
+  )
+  if (!assurance.ok) {
+    return deny("ASSURANCE_TOO_LOW", assurance.detail ?? "This session is not assured enough.")
+  }
+  trace.push({
+    step: "assurance",
+    outcome: "info",
+    detail: request.session
+      ? `session ${request.session.level}`
+      : "no assurance required for this permission",
+  })
+
+  // ── 6. policies. deny always wins. ──────────────────────────────────────
   const ctx: PolicyContext = {
     principal,
     tenantId: request.tenantId,
     permission: request.permission,
     resource: request.resource,
     at: request.at,
+    principalAttributes: principal.attributes,
+    session: request.session,
+    // A reader, not the list: a condition cannot iterate relationships it was
+    // not meant to see, and cannot forget the effective-date check.
+    relatedTo: (query) =>
+      hasRelationship(
+        world.relationships ?? [],
+        {
+          principalId: principal.id,
+          tenantId: request.tenantId,
+          ...(query.type ? { type: query.type as Relationship["type"] } : {}),
+          ...(query.toPrincipalId ? { toPrincipalId: query.toPrincipalId } : {}),
+          ...(query.toOrgUnitId ? { toOrgUnitId: query.toOrgUnitId } : {}),
+          ...(query.toResourceId ? { toResourceId: query.toResourceId } : {}),
+        },
+        request.at,
+      ),
   }
 
   for (const policy of world.policies ?? []) {

@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "ce1a364",
+  "commit": "42f8563",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 116,
-    "done": 102,
+    "total": 117,
+    "done": 103,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -840,6 +840,13 @@
             "title": "Create stable semantic permission catalog independent of tenant labels and role titles.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-051-002",
+            "done": true,
+            "title": "Implement reusable roles/policies, scoped grants, explicit deny precedence, attributes, relationships, temporal rules, delegation, risk/session assurance, and policy explanations.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -854,7 +861,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 119,
+    "decided": 120,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -1022,7 +1029,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "GE · GE-052: Generality fixtures",

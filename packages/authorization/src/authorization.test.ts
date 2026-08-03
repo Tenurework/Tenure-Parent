@@ -355,7 +355,17 @@ describe("separation of duties is declared once, not at four call sites", () => 
 describe("a decision explains itself", () => {
   it("traces every step that was checked, in order", () => {
     const d = ask(base(), "director", "approvals.request.decide", { type: "R", id: "1", orgUnitId: "club1" })
-    expect(d.trace.map((s) => s.step)).toEqual(["principal", "membership", "module", "grant", "policy"])
+    // Assurance sits after the grant on purpose: somebody who was never granted
+    // the permission is told that, rather than sent to re-authenticate for
+    // something they still will not be allowed to do.
+    expect(d.trace.map((s) => s.step)).toEqual([
+      "principal",
+      "membership",
+      "module",
+      "grant",
+      "assurance",
+      "policy",
+    ])
     expect(d.trace.every((s) => s.detail.length > 0)).toBe(true)
   })
 

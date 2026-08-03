@@ -118,3 +118,41 @@ export type {
   PermissionResource,
   ModuleKey,
 } from "./permission-catalog"
+
+export {
+  RELATIONSHIP_TYPES,
+  relationshipProblems,
+  relationshipHoldsAt,
+  hasRelationship,
+  directReportsOf,
+} from "./relationships"
+export type {
+  Relationship,
+  RelationshipType,
+  RelationshipGrant,
+  RelationshipQuery,
+  RelationshipProblem,
+} from "./relationships"
+
+export {
+  ASSURANCE_LEVELS,
+  assuranceRank,
+  meetsAssurance,
+  checkAssurance,
+  requirementFor,
+} from "./assurance"
+export type {
+  AssuranceLevel,
+  SessionAssurance,
+  AssuranceRequirement,
+  AssuranceOutcome,
+  AssuranceFailure,
+} from "./assurance"
+
+export {
+  ROLE_TEMPLATES,
+  lookupRoleTemplate,
+  permissionsOfTemplate,
+  validateRoleTemplates,
+} from "./role-templates"
+export type { RoleTemplate } from "./role-templates"
