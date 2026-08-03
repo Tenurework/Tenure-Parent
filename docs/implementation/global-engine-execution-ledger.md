@@ -6282,3 +6282,76 @@ worth less than three items that hold.
     narrowing that is a policy decision this item does not carry.
 
   112/1219 decided.
+
+- [ ] **GE-050-002** — Separate seat, person, membership, identity, and assignment in database, domain, API, UI, imports, and reports.
+  - Status: FAIL — scoped and measured, not implemented. Stays queued.
+  - Evidence: the survey below is real and was run; no code changed.
+
+  ## Four of the five are already separate
+
+  `User`, `InstitutionMembership`, `RoleAssignment` and the identity engine's
+  `ExternalIdentity` are distinct records with distinct lifecycles. The item
+  reduces to one fusion, and it is the important one.
+
+  ## `Role` is doing three jobs
+
+  `apps/web/prisma/schema.prisma:218`. One table carries:
+
+  1. **A seat** — `positionCode` ("Permanent position ID — the seat's identity
+     outlives every holder"), `positionNote`, `vacancyNote`, `seatOrder`.
+  2. **A permission scope** — `scope: RoleScope`, which is what every
+     authorization check reads.
+  3. **An organization-scoped record** — `organizationId`.
+
+  The schema comment already states the seat concept correctly; the model does
+  not implement it. Consequences that are live today: two positions with the same
+  scope in one organization need two Role rows that differ only by name; renaming
+  a position edits the row authorization reads; and a seat's history attaches to a
+  record that also defines permissions, so it cannot be retired without
+  considering who that would deauthorise.
+
+  GE-050-001 modelled `Seat` properly in `@tenure/organization-model`. This item
+  is making the database agree with it.
+
+  ## Measured blast radius
+
+  | Surface | Files | Notes |
+  |---|---:|---|
+  | `apps/web/src` reads of seat columns | 7 files, 21 references | `admin/actions.ts`, `admin/clubs/[slug]`, `dashboard`, `orgs/[slug]/handoff`, `orgs/[slug]/members`, `settings`, `lib/clubs.ts` |
+  | Scripts and imports | 6 | `seed.mjs`, `generate-roster.mjs`, `census.mjs`, `roster-data.mjs`, `clubs-data.mjs`, `ci-two-tenant-fixture.mjs` |
+  | Schema and migrations | 2 | `schema.prisma`, the baseline migration |
+  | `role` references in the schema | 34 | the relation is load-bearing across the model |
+
+  ## Why this tick stopped here
+
+  A schema split needs the migration, the backfill, all 21 read sites, the seed,
+  the roster generator, the two-tenant fixture and a full Playwright run on a
+  freshly created database — verified together, because a half-migrated tree with
+  duplicated columns is two records of one fact, which is the failure this
+  repository fixed in `prompt-matches-ledger` one tick ago.
+
+  That did not fit the room left in the session, and starting it would have left
+  the tree worse than not starting. The survey is the useful artefact: the next
+  tick begins with the blast radius known rather than discovering it.
+
+  ## The plan, so the next tick does not re-derive it
+
+  1. **Migration** — add `Seat` (`id`, `organizationId`, `positionCode` unique,
+     `positionNote`, `vacancyNote`, `seatOrder`, effective dates, `retiredAt`);
+     add `RoleAssignment.seatId`.
+  2. **Backfill in the same migration** — one `Seat` per existing `Role`,
+     carrying the four columns; set every `RoleAssignment.seatId` from its
+     role's new seat. One statement each, no application code involved.
+  3. **Move the reads** — the 7 src files and 6 scripts read `seat.*` instead of
+     `role.*`. `Role` keeps `name`, `description`, `scope`.
+  4. **Drop the moved columns from `Role`** in the same migration, so there is
+     never a moment with two copies.
+  5. **Verify** — `test:isolation` on real PostgreSQL, the full Playwright suite
+     on a freshly created and seeded database under the CI environment, and the
+     legacy-database fixture in CI which applies the baseline migration and would
+     catch a migration that only works forward from today's schema.
+
+  Steps 1, 2 and 4 are one migration. Splitting them across two would create the
+  duplicated-column window this plan exists to avoid.
+
+  112/1219 decided.

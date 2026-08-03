@@ -1,9 +1,9 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "a621bb0",
+  "commit": "da0a6b4",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 109,
+    "total": 110,
     "done": 95,
     "phases": [
       {
@@ -789,6 +789,13 @@
             "id": "GE-050-001",
             "done": true,
             "title": "Implement/migrate `OrganizationUnit`, typed effective-dated `OrganizationRelationship`, `Seat`, `SeatAssignment`, `Delegation`, `Team/Cohort`, and resource relationship models.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-050-002",
+            "done": false,
+            "title": "Separate seat, person, membership, identity, and assignment in database, domain, API, UI, imports, and reports.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }
