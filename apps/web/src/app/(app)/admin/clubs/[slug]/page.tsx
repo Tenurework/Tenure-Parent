@@ -297,6 +297,21 @@ export default async function AdminClubDetailPage({
                   { value: "MEMBER", label: "Member" },
                 ]}
               />
+              {/* GE-051-005. Chosen, not inferred from the seat's name. A regex
+                  over the title meant renaming a seat silently moved spending
+                  authority; this is the field that replaced it. */}
+              <Select
+                label="Authority"
+                name="templateKey"
+                defaultSelectedKey="unit.member"
+                className="min-w-56"
+                options={[
+                  { value: "unit.member", label: "Member — take part, raise requests" },
+                  { value: "unit.lead", label: "Lead — decide, publish, manage the roster" },
+                  { value: "finance.officer", label: "Finance — budgets and the ledger" },
+                  { value: "oversight.advisor", label: "Advisor — read only" },
+                ]}
+              />
               <button className="inline-flex h-10 items-center gap-2 rounded-md bg-[--accent] px-5 text-sm font-medium text-[--accent-text] hover:bg-[--accent-hover]">
                 <Plus size={16} /> Add seat
               </button>

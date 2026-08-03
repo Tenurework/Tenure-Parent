@@ -24,7 +24,7 @@ import { ActivityChart } from "@/components/charts/panels/ActivityChart"
 import { bucketByWeek, bucketByWeekForward, trendDelta } from "@/components/charts/timeseries"
 import { SeeAllSection } from "@/components/ui/SeeAllSection"
 import { Avatar } from "@/components/ui/Avatar"
-import { isFinanceRole } from "@/lib/rbac"
+import { carriesFinanceAuthority } from "@/lib/rbac"
 import { formatCents } from "@/lib/finance"
 
 export const metadata: Metadata = { title: "Dashboard" }
@@ -75,7 +75,7 @@ export default async function DashboardPage() {
           .filter(
             (s) =>
               s.status === "ACTIVE" &&
-              (s.role.scope === "PRESIDENT" || isFinanceRole(s.role.name))
+              (s.role.scope === "PRESIDENT" || carriesFinanceAuthority(s.role))
           )
           .map((s) => [s.role.organization.id, s.role.organization])
       ).values(),

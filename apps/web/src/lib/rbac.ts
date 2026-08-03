@@ -1,6 +1,7 @@
 import { cache } from "react"
 import type { AssignmentStatus, InstitutionRole, RoleScope } from "@prisma/client"
 import { db } from "@/lib/db"
+import { ROLE_TEMPLATES } from "@tenure/authorization"
 import { seatState } from "@tenure/identity"
 
 import { liveMembershipWhere } from "@/lib/identity/live-membership"
@@ -14,6 +15,14 @@ export interface OrgRole {
   roleName: string
   scope: RoleScope
   status: AssignmentStatus
+  /**
+   * The authority this seat carries (GE-051-005), as a role-template key.
+   *
+   * `roleName` is still here because the UI shows it. Nothing may decide from
+   * it: a tenant renames a seat whenever it likes, and a rename that changes
+   * what somebody may do is a permission change with no record and no date.
+   */
+  templateKey: string
 }
 
 export interface UserContext {
@@ -58,7 +67,7 @@ export const getUserContext = cache(async (userId: string): Promise<UserContext>
           startDate: true,
           endDate: true,
           role: {
-            select: { id: true, name: true, scope: true, organizationId: true },
+            select: { id: true, name: true, scope: true, organizationId: true, templateKey: true },
           },
         },
       }),
@@ -97,6 +106,7 @@ export const getUserContext = cache(async (userId: string): Promise<UserContext>
         roleName: a.role.name,
         scope: a.role.scope,
         status: a.status,
+        templateKey: a.role.templateKey,
       })),
   }
 })
@@ -198,10 +208,30 @@ export function canManageResources(ctx: UserContext, institutionId: string): boo
   )
 }
 
-/** True if a seat name is a finance role (VP of Finance, treasurer, CFO/COO). */
-export function isFinanceRole(roleName: string): boolean {
-  return /financ|treasur|\bcfo\b|chief financ|chief operating|\bcoo\b/i.test(roleName)
+/**
+ * Does this seat carry authority over money?
+ *
+ * Read from the template the seat was given, never from its title. The previous
+ * version tested a regular expression against `roleName`, which meant a club
+ * calling the seat "Budget Lead" had somebody accountable for money who could
+ * not touch it, and a club with a "Financial Inclusion Officer" — a diversity
+ * seat — had somebody who could. Renaming a seat silently moved spending
+ * authority, with no record and no date on either side of the change.
+ */
+export function carriesFinanceAuthority(seat: { templateKey: string }): boolean {
+  return FINANCE_TEMPLATES.has(seat.templateKey)
 }
+
+/**
+ * Templates whose bundle contains budget editing.
+ *
+ * Derived from the catalog rather than listed by hand, so a template that gains
+ * or loses the permission changes this set with it. Two lists would disagree
+ * eventually, and the disagreement would be silent.
+ */
+const FINANCE_TEMPLATES: ReadonlySet<string> = new Set(
+  ROLE_TEMPLATES.filter((t) => t.permissions.includes("finance.budget.update")).map((t) => t.key),
+)
 
 /**
  * See the club's finance dashboard. Read access is scoped to the club's own
@@ -229,6 +259,6 @@ export function canManageFinance(
   return orgRolesFor(ctx, org.id).some(
     (r) =>
       r.status === "ACTIVE" &&
-      (r.scope === "PRESIDENT" || isFinanceRole(r.roleName))
+      (r.scope === "PRESIDENT" || carriesFinanceAuthority(r))
   )
 }

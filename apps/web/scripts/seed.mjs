@@ -31,6 +31,22 @@ function scopeFor(position) {
   return "FUNCTIONAL"
 }
 
+/**
+ * GE-051-005. Which authority bundle a seeded seat carries.
+ *
+ * Seed data is the one place a title may still be read, because interpreting a
+ * position name is exactly what seeding *is* — turning a roster somebody wrote
+ * into rows. The difference from the old `isFinanceRole` is that the answer is
+ * written down in a column afterwards, so a seat renamed next term keeps the
+ * authority it was given rather than silently gaining or losing it.
+ */
+function templateFor(position) {
+  if (scopeFor(position) === "PRESIDENT") return "unit.lead"
+  const p = position.toLowerCase()
+  if (/financ|treasur|cfo|chief operating|coo/.test(p)) return "finance.officer"
+  return "unit.member"
+}
+
 async function main() {
   const institution = await db.institution.upsert({
     where: { slug: "rochester" },
@@ -175,12 +191,14 @@ async function main() {
         where: { organizationId_name: { organizationId: org.id, name: seat.name } },
         update: {
           scope: scopeFor(seat.basePosition),
+          templateKey: templateFor(seat.basePosition),
           seat: { upsert: { update: position, create: { organizationId: org.id, ...position } } },
         },
         create: {
           organizationId: org.id,
           name: seat.name,
           scope: scopeFor(seat.basePosition),
+          templateKey: templateFor(seat.basePosition),
           seat: { create: { organizationId: org.id, ...position } },
         },
       })
@@ -212,6 +230,7 @@ async function main() {
         organizationId: org.id,
         name: "Member",
         scope: "MEMBER",
+        templateKey: "unit.member",
         seat: {
           create: {
             organizationId: org.id,

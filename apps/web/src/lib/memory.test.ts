@@ -13,19 +13,19 @@ const orgCard = { roleId: null }
 const seatCard = { roleId: SEAT }
 
 const activeHolder = ctx("holder", {
-  orgRoles: [{ organizationId: ORG.id, roleId: SEAT, roleName: "VP Finance", scope: "FUNCTIONAL", status: "ACTIVE" }],
+  orgRoles: [{ organizationId: ORG.id, roleId: SEAT, roleName: "VP Finance", templateKey: "finance.officer", scope: "FUNCTIONAL", status: "ACTIVE" }],
 })
 const incomingHolder = ctx("incoming", {
-  orgRoles: [{ organizationId: ORG.id, roleId: SEAT, roleName: "VP Finance", scope: "FUNCTIONAL", status: "SHADOW" }],
+  orgRoles: [{ organizationId: ORG.id, roleId: SEAT, roleName: "VP Finance", templateKey: "finance.officer", scope: "FUNCTIONAL", status: "SHADOW" }],
 })
 const pastHolder = ctx("past", {
-  orgRoles: [{ organizationId: ORG.id, roleId: SEAT, roleName: "VP Finance", scope: "FUNCTIONAL", status: "ALUMNI" }],
+  orgRoles: [{ organizationId: ORG.id, roleId: SEAT, roleName: "VP Finance", templateKey: "finance.officer", scope: "FUNCTIONAL", status: "ALUMNI" }],
 })
 const president = ctx("president", {
-  orgRoles: [{ organizationId: ORG.id, roleId: "role_p", roleName: "President", scope: "PRESIDENT", status: "ACTIVE" }],
+  orgRoles: [{ organizationId: ORG.id, roleId: "role_p", roleName: "President", templateKey: "unit.lead", scope: "PRESIDENT", status: "ACTIVE" }],
 })
 const otherMember = ctx("member", {
-  orgRoles: [{ organizationId: ORG.id, roleId: "role_m", roleName: "Member", scope: "MEMBER", status: "ACTIVE" }],
+  orgRoles: [{ organizationId: ORG.id, roleId: "role_m", roleName: "Member", templateKey: "unit.member", scope: "MEMBER", status: "ACTIVE" }],
 })
 const ose = ctx("ose", { institutionRoles: [{ institutionId: INST, role: "OSE_STAFF" }] })
 

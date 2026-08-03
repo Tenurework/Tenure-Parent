@@ -1,5 +1,6 @@
 "use server"
 
+import { seatTemplateFromForm } from "@/lib/authz/seat-template"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import type { AssignmentStatus, InstitutionRole, OrgCategory, RoleScope } from "@prisma/client"
@@ -274,6 +275,7 @@ export async function adminCreateSeat(formData: FormData) {
     const organizationId = String(formData.get("organizationId") ?? "")
     const name = String(formData.get("name") ?? "").trim()
     const scope = (String(formData.get("scope") ?? "FUNCTIONAL") as RoleScope) || "FUNCTIONAL"
+    const templateKey = seatTemplateFromForm(formData)
     const org = await orgOrThrow(organizationId)
     await requireCapability("seat.manage", {
       institutionId: org.institutionId,
@@ -294,6 +296,7 @@ export async function adminCreateSeat(formData: FormData) {
         organizationId: org.id,
         name,
         scope,
+        templateKey,
         seat: { create: { organizationId: org.id, positionCode } },
       },
     })

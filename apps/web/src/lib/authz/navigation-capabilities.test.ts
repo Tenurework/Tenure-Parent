@@ -24,6 +24,7 @@ const SEAT: OrgRole = {
   organizationId: "club-1",
   roleId: "role-1",
   roleName: "President",
+  templateKey: "unit.lead",
   scope: "PRESIDENT",
   status: "ACTIVE",
 }

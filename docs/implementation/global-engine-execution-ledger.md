@@ -7366,8 +7366,21 @@ worth less than three items that hold.
   cannot be reviewed, cannot expire, and does not appear in any answer to "what
   could this person do in March".
 
-  The codebase is clean on all four. This is the test that keeps it that way,
-  which is the whole of what the item asks.
+  **Correction (2026-08-03, same day).** This entry originally said "the
+  codebase is clean on all four". It was not, and the guard that certified it
+  was the reason nobody could tell.
+
+  `canManageFinance` decided who may edit a budget by testing a regular
+  expression against the seat's name — `/financ|treasur|cfo|chief financ|
+  chief operating|coo/i` — and this detector read straight over it, because
+  it looked only for `===` and `.includes(`. A detector that catches the tidy
+  spelling of a shortcut and not the clever one is worse than none: it certifies
+  the file it just failed to read.
+
+  The detector now also matches a regular expression tested against a
+  title-shaped identifier, and the code it was hiding is fixed under GE-051-005
+  below. The claim that stands is the narrower one: **the four shortcuts are
+  now checked for, in the shapes people write them.**
 
   ## Three false positives, each a flaw in the detector rather than the code
 
@@ -7416,5 +7429,100 @@ worth less than three items that hold.
     runs afterwards. The probe-file cause found earlier was real and is fixed
     and mutation-proven; this residual is separate, rarer, and not diagnosed.
     Recorded rather than claimed resolved.
+
+  123/1219 decided.
+
+- [ ] **GE-051-005** — *(continued)* Enforce authorization in every path.
+  - Status: FAIL — still 31 mutating paths proving only a session. **One real
+    defect removed: a seat's authority is no longer read from its title.**
+  - Code: `apps/web/prisma/migrations/20260803160000_seat_carries_a_role_template/`,
+    `Role.templateKey` in the schema, `carriesFinanceAuthority` +
+    `FINANCE_TEMPLATES` in `apps/web/src/lib/rbac.ts`,
+    `apps/web/src/lib/authz/seat-template.ts`, the Authority field on the
+    admin add-seat form, `templateFor()` in `seed.mjs`
+  - Tests: `apps/web/src/lib/authz/authority-is-not-a-title.test.ts` (13),
+    `apps/web/src/lib/authz/seat-template.test.ts` (6),
+    `apps/web/src/lib/authz/seat-template-backfill.itest.ts` (10)
+  - Evidence: 2852/2852 apps/web unit across 116 suites, 196/196 platform guards
+    (up from 195), **151/152 e2e on a freshly created database** (1 flaky,
+    green on retry, `resources.spec.ts` retire/restore — unrelated and seen
+    flaky before this change), type-check clean. **20 mutations, 20 caught.**
+
+  ## What was actually there
+
+  `canManageFinance` — who may edit a budget, upload a tracker, save a forecast
+  — resolved through:
+
+      /financ|treasur|\bcfo\b|chief financ|chief operating|\bcoo\b/i.test(roleName)
+
+  The failure is not hypothetical in either direction. A club that calls the
+  seat **"Budget Lead"** has somebody accountable for money who cannot touch it.
+  A club with a **"Financial Inclusion Officer"** — a diversity seat — has
+  somebody who can. And renaming a seat moved spending authority with no record
+  that anything changed and no date on either side of it.
+
+  It was found by working GE-051-005 and reading the code the ratchet points at,
+  not by the guard written the tick before to catch exactly this.
+
+  ## The fix is a column, because the question has no other answer
+
+  `Role` is already documented as "what authorization reads" (GE-050-002), so
+  the authority a seat carries became a column on it naming a role template.
+  There was no non-schema fix available: `RoleScope` is PRESIDENT / FUNCTIONAL /
+  MEMBER, so "VP of Finance" is a FUNCTIONAL seat distinguished from every other
+  FUNCTIONAL seat **only by its name**.
+
+  * **The regex survives exactly once**, inside the migration, as a one-time
+    interpretation of data that already existed. That is a different act from
+    consulting it on every request: it ran under review, its result is a column
+    somebody can correct, and a seat renamed tomorrow keeps what it was given.
+  * **NOT NULL, not merely a default.** A default fills in a column somebody
+    omitted and does nothing about a caller that writes NULL on purpose.
+  * **The default is the smallest bundle.** A path not yet taught about
+    templates confers the least, not the most.
+  * **An unrecognised key is refused, not downgraded.** A silent fall-back would
+    look like a working form and produce a finance officer who cannot touch a
+    budget, with nothing anywhere saying why.
+  * **The finance set is derived from the catalog**, not listed beside it. Two
+    lists disagree eventually and the disagreement is silent.
+
+  ## What the mutations found
+
+  The first batch reported 11/11 caught **against a red baseline** — every run
+  returned 255 because `subprocess.run(list, shell=True)` on Windows joins
+  arguments unquoted, so the `|` in `--testPathPattern "a|b"` became a shell
+  pipe. The script prints the baseline for exactly this reason; the results were
+  discarded and redone.
+
+  Redone honestly, three survived, and each was a real gap:
+
+  * The seat's bundle being dropped on the way out of the database was invisible
+    to unit tests, because `getUserContext` reads a database. It has an
+    integration test now.
+  * The admin form's refusal of an unknown key had no test at all. The decision
+    was extracted into `seatTemplateFromForm` — real code the action calls, not
+    a wrapper — and tested.
+  * **The migration's backfill was untested by the test that appeared to test
+    it.** The seeded database is seeded *after* migrating, and `seed.mjs` writes
+    the column itself, so every assertion measured the seed. Dropping the
+    backfill entirely survived. It is now tested by replaying the migration's
+    own UPDATE statements against rows emptied back to the state the migration
+    started from — and reproducing that state matters: scrambling the column to
+    some other value looks equivalent and is not, because the last statement
+    keys off `IS NULL`.
+
+  **Honest limits.**
+
+  * **The ratchet is unchanged at 31.** `canManageFinance` is still a bespoke
+    predicate; it no longer reads a title, but it does not go through
+    `decide()`. Nothing was converted to a permission decision this tick.
+  * **Existing seats keep exactly what the regex gave them.** The backfill
+    reproduces the old behaviour on purpose — a migration that silently removed
+    spending authority from every treasurer would be a worse defect than the one
+    it fixed. Anything the regex got wrong at the pilot is now visible in a
+    column and correctable, which it was not before.
+  * **`templateKey` is not yet what grants permissions.** It answers one
+    question — does this seat carry finance authority — by asking the catalog.
+    The other checks in `rbac.ts` still read `scope` and `status` directly.
 
   123/1219 decided.

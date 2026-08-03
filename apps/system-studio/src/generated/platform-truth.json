@@ -1,9 +1,9 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "7c1a47c",
+  "commit": "5d95f1b",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 121,
+    "total": 122,
     "done": 106,
     "phases": [
       {
@@ -873,6 +873,13 @@
             "id": "GE-051-006",
             "done": true,
             "title": "Add architecture/lint tests preventing direct role-string/email-domain/Cognito-group/frontend-state authorization.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-051-005",
+            "done": false,
+            "title": "*(continued)* Enforce authorization in every path.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }
@@ -2245,12 +2252,12 @@
     },
     {
       "name": "application unit",
-      "files": 35,
+      "files": 37,
       "what": "apps/web"
     },
     {
       "name": "tenant isolation",
-      "files": 10,
+      "files": 11,
       "what": "cross-tenant reads must fail"
     },
     {

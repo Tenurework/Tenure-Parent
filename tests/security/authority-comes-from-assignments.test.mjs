@@ -60,7 +60,14 @@ const PATTERNS = [
     id: "title-string",
     // `roleName === "President"`, `role.name.includes("Treasurer")`. A seat's
     // title is a tenant's word for it and changes without notice.
-    re: /\b(?:roleName|role\.name|seatName|title)\s*(?:===|==|!==|!=)\s*["'`]|\b(?:roleName|role\.name|seatName)\s*\.\s*(?:includes|startsWith|endsWith)\s*\(\s*["'`]/,
+    // Equality, substring, and — the one that got past the first version of
+    // this test — a regular expression tested against the title.
+    // `isFinanceRole(roleName)` decided who could edit a budget with
+    // `/financ|treasur|\bcfo\b/i.test(roleName)` and this guard read straight
+    // over it, because it only looked for `===` and `.includes(`. A detector
+    // that catches the tidy spelling of a shortcut and not the clever one is
+    // worse than none: it certifies the file it just failed to read.
+    re: /\b(?:roleName|role\.name|seatName|title)\s*(?:===|==|!==|!=)\s*["'`]|\b(?:roleName|role\.name|seatName)\s*\.\s*(?:includes|startsWith|endsWith|match)\s*\(|\.test\s*\(\s*(?:\w+\.)?(?:roleName|seatName|roleTitle|seatTitle)\s*\)/,
     why: "authority read from a seat title",
   },
   {
@@ -134,6 +141,11 @@ test("each detector catches its own shortcut and leaves ordinary code alone", ()
   const caught = shortcuts(
     [
       '  if (roleName === "President") return true',
+      '  return /financ|treasur/i.test(roleName)',
+      // Narrowed to title-shaped identifiers: `/\s/.test(name)` validating a
+      // connection name is not authorization, and flagging it made the guard
+      // noise rather than a rule.
+      '  if (/\s/.test(name)) throw new Error("no spaces")',
       '  if (email.endsWith("@rochester.edu")) grant()',
       '  const groups = token["cognito:groups"]',
       '  const allowed = formData.get("capabilities")',
@@ -150,7 +162,7 @@ test("each detector catches its own shortcut and leaves ordinary code alone", ()
   )
   assert.deepEqual(
     caught.map((c) => c.id),
-    ["title-string", "email-domain", "provider-group", "ui-state"],
+    ["title-string", "title-string", "email-domain", "provider-group", "ui-state"],
     `expected one hit per detector and nothing else, got ${JSON.stringify(caught, null, 2)}`,
   )
 })

@@ -486,6 +486,30 @@ tail -3 && git commit` commits whether or not the gate passed, because `tail`
 succeeded. The same shape already burned a `gh run watch | tail`. Redirect to a
 file and check `$?`, or put the command last.
 
+
+**`subprocess.run(list, shell=True)` on Windows joins the arguments unquoted.**
+A mutation batch reported 11/11 caught against a baseline that was red for the
+whole run: `--testPathPattern "a|b"` became a shell pipe and every invocation
+returned 255. Pass one quoted string, and never trust a batch whose baseline
+line does not say `False` — that line exists because this is not detectable any
+other way.
+
+**A seeded database cannot test a backfill.** `seed.mjs` runs after
+`migrate deploy` and upserts the same rows, so a test asserting the column is
+right is measuring the seed. Dropping a migration's backfill entirely survived
+six assertions that looked like they covered it. Replay the migration's own
+statements against rows put back to the state it started from — and put them
+back *exactly*: emptying to NULL and scrambling to some other value look
+equivalent, and a `WHERE ... IS NULL` catch-all tells them apart.
+
+**Regenerate before running the guards after adding a source file.** This is the
+rest of the answer to the flake above, and it took three ticks. The residual
+`test:platform` failure was `ownership-map --check` on a new file under
+`apps/web/src`. It read as unexplained because the hypothesis test added a file
+under `tests/`, which the ownership map does not cover — so a correct hypothesis
+came back clean and the real cause survived two more ticks. Test a hypothesis
+with the *same* input that produced the failure.
+
 ---
 
 ## What is session-scoped, and what is not

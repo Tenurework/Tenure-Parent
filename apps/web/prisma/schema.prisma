@@ -223,6 +223,12 @@ model Role {
   name           String       // "President", "VP Finance & Operations", etc.
   description    String?
   scope          RoleScope    @default(FUNCTIONAL)
+  /// GE-051-005. The authority this seat carries, as a role-template key from
+  /// packages/authorization. Read instead of `name`: a regex over the title
+  /// meant renaming a seat silently granted or removed spending authority.
+  /// Defaults to the smallest bundle so a path that has not been taught about
+  /// templates confers the least, not the most.
+  templateKey    String       @default("unit.member")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -235,6 +241,7 @@ model Role {
 
   @@unique([organizationId, name])
   @@index([organizationId, scope])
+  @@index([templateKey])
 }
 
 /// The durable organizational position, separate from the authority it carries.

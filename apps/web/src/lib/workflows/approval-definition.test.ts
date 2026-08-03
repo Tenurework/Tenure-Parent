@@ -121,6 +121,7 @@ function contextFor(roles: { requester: boolean; president: boolean; ose: boolea
             organizationId: ORG,
             roleId: "r1",
             roleName: "President",
+            templateKey: "unit.lead",
             scope: "PRESIDENT",
             status: "ACTIVE",
           },

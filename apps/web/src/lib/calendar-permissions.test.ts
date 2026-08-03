@@ -31,7 +31,16 @@ const seat = (
   scope: "PRESIDENT" | "FUNCTIONAL" | "MEMBER",
   status: "ACTIVE" | "SHADOW" | "ALUMNI" = "ACTIVE",
   organizationId = ORG
-) => ({ organizationId, roleId, roleName: roleId, scope, status })
+) => ({
+  organizationId,
+  roleId,
+  roleName: roleId,
+  // These fixtures are about scope and status; the bundle is irrelevant to
+  // event editing, so every one takes the smallest.
+  templateKey: "unit.member",
+  scope,
+  status,
+})
 
 describe("canEditEvent", () => {
   it("lets the seat that proposed the event move it while it is still pending", () => {

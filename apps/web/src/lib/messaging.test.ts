@@ -14,13 +14,13 @@ function ctx(userId: string, overrides: Partial<UserContext> = {}): UserContext 
 }
 
 const member = ctx("member", {
-  orgRoles: [{ organizationId: ORG, roleId: "r1", roleName: "Member", scope: "MEMBER", status: "ACTIVE" }],
+  orgRoles: [{ organizationId: ORG, roleId: "r1", roleName: "Member", templateKey: "unit.member", scope: "MEMBER", status: "ACTIVE" }],
 })
 const shadow = ctx("shadow", {
-  orgRoles: [{ organizationId: ORG, roleId: "r2", roleName: "President", scope: "PRESIDENT", status: "SHADOW" }],
+  orgRoles: [{ organizationId: ORG, roleId: "r2", roleName: "President", templateKey: "unit.lead", scope: "PRESIDENT", status: "SHADOW" }],
 })
 const alumni = ctx("alumni", {
-  orgRoles: [{ organizationId: ORG, roleId: "r3", roleName: "President", scope: "PRESIDENT", status: "ALUMNI" }],
+  orgRoles: [{ organizationId: ORG, roleId: "r3", roleName: "President", templateKey: "unit.lead", scope: "PRESIDENT", status: "ALUMNI" }],
 })
 const ose = ctx("ose", { institutionRoles: [{ institutionId: INST, role: "OSE_STAFF" }] })
 const outsider = ctx("outsider")
@@ -82,7 +82,7 @@ describe("OSE_BROADCAST", () => {
 describe("messagingTier", () => {
   it("ranks OSE above club seats and gates non-active users", () => {
     const president = ctx("p", {
-      orgRoles: [{ organizationId: ORG, roleId: "r", roleName: "President", scope: "PRESIDENT", status: "ACTIVE" }],
+      orgRoles: [{ organizationId: ORG, roleId: "r", roleName: "President", templateKey: "unit.lead", scope: "PRESIDENT", status: "ACTIVE" }],
     })
     expect(messagingTier(ose)).toBe("OSE")
     expect(messagingTier(president)).toBe("PRESIDENT")

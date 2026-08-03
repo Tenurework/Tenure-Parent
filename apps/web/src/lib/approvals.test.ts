@@ -20,12 +20,12 @@ function ctx(userId: string, overrides: Partial<UserContext> = {}): UserContext 
 
 const vp = ctx("vp_user", {
   orgRoles: [
-    { organizationId: ORG, roleId: "r_vp", roleName: "VP Finance", scope: "FUNCTIONAL", status: "ACTIVE" },
+    { organizationId: ORG, roleId: "r_vp", roleName: "VP Finance", templateKey: "finance.officer", scope: "FUNCTIONAL", status: "ACTIVE" },
   ],
 })
 const president = ctx("pres_user", {
   orgRoles: [
-    { organizationId: ORG, roleId: "r_p", roleName: "President", scope: "PRESIDENT", status: "ACTIVE" },
+    { organizationId: ORG, roleId: "r_p", roleName: "President", templateKey: "unit.lead", scope: "PRESIDENT", status: "ACTIVE" },
   ],
 })
 const oseDirector = ctx("ose_user", {

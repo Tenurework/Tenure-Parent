@@ -64,6 +64,7 @@ const seat = (organizationId: string, status: "SHADOW" | "ACTIVE" | "ALUMNI" = "
   organizationId,
   roleId: `role_${organizationId}`,
   roleName: "President",
+  templateKey: "unit.lead",
   scope: "PRESIDENT" as const,
   status,
 })
