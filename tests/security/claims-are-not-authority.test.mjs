@@ -31,7 +31,8 @@ function read(file) {
   try {
     return fs.readFileSync(path.join(ROOT, file), "utf8")
   } catch (error) {
-    // Guards run in parallel and one writes a probe into the source tree.
+    // Guards run in parallel; an untracked file can vanish between the
+    // listing and the read.
     if (error.code === "ENOENT") return ""
     throw error
   }

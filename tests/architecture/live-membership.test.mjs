@@ -63,11 +63,13 @@ function sourceFiles() {
  * Returns "" for a file that has vanished. `git ls-files --others` lists
  * untracked files, and an untracked file can disappear between the listing and
  * the read — an editor, a build, or another guard in this same parallel run.
- * `tests/security/operator-plane-content.test.mjs` writes a probe file into the
- * Studio's source tree to prove its own grep matches something, and deletes it
- * again; every guard that enumerates and then reads has raced it. That produced
- * an ENOENT that looks exactly like a real guard failure and cost three
- * separate debugging sessions.
+ * `tests/security/operator-plane-content.test.mjs` used to write a probe file
+ * into the Studio's source tree to prove its own grep matched something, and
+ * every guard that enumerates and then reads raced it — an ENOENT that looks
+ * exactly like a real guard failure, and cost three separate debugging
+ * sessions. That probe is gone and
+ * `tests/architecture/guards-do-not-write-into-the-tree.test.mjs` keeps it
+ * gone. The tolerance stays: the race was never only about that one file.
  *
  * A file that is gone has no content to check, so skipping it is correct as
  * well as convenient.

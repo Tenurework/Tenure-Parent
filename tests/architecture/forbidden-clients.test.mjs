@@ -79,11 +79,16 @@ function sourceFiles() {
 /**
  * A source file's text, or "" if it has vanished.
  *
- * `sourceFiles()` lists untracked files too, and another guard writes a probe
- * into the source tree while these run in parallel. A guard that crashes when
- * a file it was told about disappears is a guard that fails for a reason
- * unrelated to what it checks — this one went red roughly half the time under
- * `npm run test:platform` and never once on its own.
+ * `sourceFiles()` lists untracked files too, and an untracked file can vanish
+ * between the listing and the read — an editor, a build, a generator running
+ * beside this one. A guard that crashes when a file it was told about
+ * disappears is a guard that fails for a reason unrelated to what it checks:
+ * this one went red roughly half the time under `npm run test:platform` and
+ * never once on its own.
+ *
+ * The worst offender was another guard writing a probe file into the source
+ * tree. That is gone, and `guards-do-not-write-into-the-tree` keeps it gone —
+ * but the tolerance stays, because the race was never only about that one.
  */
 function readSource(file) {
   try {

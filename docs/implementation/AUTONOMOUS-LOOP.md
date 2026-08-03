@@ -472,6 +472,20 @@ other and nothing else, so every one of them looked right in isolation. When a
 change makes one authoritative, expect the other two, and go and find them —
 `grep` for the old string across the whole repo, not just the file you edited.
 
+**A flake that accuses the wrong test is the expensive kind.** `test:platform`
+went red in roughly one run in four saying `docs/architecture/ownership.md is
+stale` — a file that was correct. The cause was three tests away: a guard
+proving its own grep worked by writing a probe file into the source tree,
+grepping for it, and deleting it. Sound in isolation, and for the few hundred
+milliseconds it existed, every guard that walks the tree was looking at a
+repository that does not match the one committed. Before regenerating whatever
+an intermittent failure names, ask what else was running.
+
+**A pipeline's exit code is `tail`'s.** `node tools/loop/batch-gate.mjs 2>&1 |
+tail -3 && git commit` commits whether or not the gate passed, because `tail`
+succeeded. The same shape already burned a `gh run watch | tail`. Redirect to a
+file and check `$?`, or put the command last.
+
 ---
 
 ## What is session-scoped, and what is not

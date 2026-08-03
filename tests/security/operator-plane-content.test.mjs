@@ -116,18 +116,33 @@ test("fleet health is derived from operational facts, not from content", () => {
   }
 })
 
-test("the guard would notice a real import", () => {
+test("the pattern matches a genuine Prisma import", () => {
   // A guard for an absence has to be shown catching something, or it is
   // indistinguishable from a grep that matches nothing because it is wrong.
-  const probe = path.join(ROOT, STUDIO, "lib/.content-probe.ts")
-  try {
-    fs.writeFileSync(probe, 'import { PrismaClient } from "@prisma/client"\nexport const x = PrismaClient\n')
-    const found = grep("@prisma/client|from \"@/lib/db\"|PrismaClient", `${STUDIO}/*`)
-    assert.ok(
-      found.length > 0,
-      "the pattern does not match a genuine Prisma import, so the check above proves nothing",
-    )
-  } finally {
-    fs.rmSync(probe, { force: true })
-  }
+  //
+  // Proven against real committed code rather than a probe file written into
+  // the tree. Writing one made every tree-scanning guard that happened to run
+  // beside it intermittently wrong: `ownership-map.mjs --check` sees an extra
+  // file, reports the committed map as stale, and `test:platform` went red in
+  // roughly one run in four with a message pointing at the map. Real code is a
+  // better witness anyway — a synthetic import proves the pattern matches what
+  // this test wrote; this proves it matches what the platform writes.
+  const found = grep("@prisma/client|from \"@/lib/db\"|PrismaClient", "apps/web/src")
+  assert.ok(
+    found.length > 0,
+    "the pattern does not match a genuine Prisma import anywhere in apps/web, so the checks " +
+      "above prove nothing.",
+  )
+})
+
+test("the studio path the checks scan is a live one", () => {
+  // The other half of what the probe used to show: the pattern is right *and*
+  // the pathspec reaches real files. A glob that matched nothing would make
+  // every absence check above vacuously true.
+  const anyImport = grep("^import ", `${STUDIO}/*`)
+  assert.ok(
+    anyImport.length > 10,
+    `"${STUDIO}/*" matched ${anyImport.length} file(s) containing an import. The pathspec has ` +
+      `stopped reaching the studio's sources, which makes every check above pass by finding nothing.`,
+  )
 })
