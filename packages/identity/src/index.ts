@@ -405,3 +405,15 @@ export {
   type HandoffField,
   type HandoffFieldName,
 } from "./handoff"
+
+export {
+  EXCHANGE_WINDOW_SECONDS,
+  exchangeCode,
+  type ExchangeAccepted,
+  type ExchangeInput,
+  type ExchangeOutcome,
+  type ExchangeRefusal,
+  type ExchangeRefused,
+  type RedeemableTransaction,
+  type TokenRequest,
+} from "./code-exchange"

@@ -5661,3 +5661,94 @@ worth less than three items that hold.
     four more keypairs here would re-prove them slowly.
 
   104/1219 decided.
+
+- [ ] **GE-044-001** — Positive code+PKCE browser/API flow works against deployed development Cognito.
+  - Status: **BLOCKED_EXTERNAL** — there is no deployed development Cognito. The
+    item names one, and a flow proved against something else is not this item.
+  - What exists: the decision chain is proved end to end with real keys and two
+    tenants (GE-043-007), and the exchange step is proved here in GE-044-002.
+    What is missing is the deployment and the browser.
+  - Unblocked by: the AWS Organization (GE-041-003). Exact operator commands:
+
+    ```bash
+    aws organizations create-organization --feature-set ALL
+    aws organizations create-account --email <identity-dev@…> --account-name "Identity Dev"
+    # then, in the development account:
+    aws cognito-idp create-user-pool --pool-name tenure-engine-dev
+    aws cognito-idp create-user-pool-domain --domain tenure-engine-dev --user-pool-id <id>
+    aws cognito-idp create-user-pool-client --user-pool-id <id> \
+      --client-name tenure-web-dev --generate-secret \
+      --allowed-o-auth-flows code --allowed-o-auth-scopes openid email profile \
+      --callback-urls https://platform.tenurework.com/api/auth/callback
+    gh variable set COGNITO_USER_POOL_ID_DEV --body <id> --repo satvikOS/Tenure-Parent
+    gh secret  set COGNITO_CLIENT_SECRET_DEV --repo satvikOS/Tenure-Parent
+    node tools/aws-inventory.mjs && node tools/simon-sso-handoff.mjs
+    ```
+
+    The last line matters: the handoff package (GE-043-006) fills itself in from
+    the inventory, so creating the pool is what turns eight blocked fields into
+    values.
+
+- [x] **GE-044-002** — State/nonce/PKCE missing, mismatch, downgrade, expiry, replay, and code replay deny safely.
+  - Status: PASS
+  - Code: `packages/identity/src/code-exchange.ts` (`exchangeCode`)
+  - Tests: `packages/identity/src/code-exchange.test.ts` (19), plus
+    `authorization-request.test.ts` (34, GE-042-002) for state/nonce/PKCE at the
+    redirect and `token-validation.test.ts` for nonce inside the ID token
+  - Evidence: 2371/2371 apps/web unit across 101 suites, 160/160 platform guards,
+    type-check clean, gate passed 8 steps. **14 mutations, 14 caught.**
+
+  Most of this item was already covered: `bindCallback` (GE-042-002) refuses a
+  missing or mismatched state, an unknown transaction, an expired one and a
+  reused one; `validateIdToken` (GE-042-003) refuses a mismatched nonce and every
+  algorithm downgrade. What was missing is the step *after* the callback — taking
+  the code to the token endpoint — and that has its own failures.
+
+  **We are the client, not the authorization server.** A first draft of this
+  module asked a caller to present a `code_verifier` and compared it against a
+  stored challenge, which is what an authorization server does. Tenure is the
+  relying party: `AuthorizationTransaction` already holds `codeVerifier`
+  server-side, deliberately, and the exchange is us sending it onward. There is
+  no client to distrust here, because we are it. Getting that backwards would
+  have produced a module that looked rigorous and validated the wrong side of the
+  protocol.
+
+  **Code replay is not callback replay.** `consumedAt` stops a second *callback*
+  and says nothing about a code lifted from a referrer header, a proxy log or a
+  shared browser and taken straight to the token endpoint. RFC 6749 §4.1.2 makes
+  a code single-use and says a server seeing a second redemption should revoke
+  everything issued for the first — because two redemptions mean two parties hold
+  it and there is no way to tell which was the person.
+
+  So `CODE_REPLAYED` carries `revokeIssuedTokens`, and it is the **only** refusal
+  that does. Refusing the second exchange while leaving the first party's session
+  running protects nobody if the first party was the attacker; firing revocation
+  on an ordinary expiry would teach an operator to ignore it. Replay is checked
+  before every other condition, so a replayed-*and*-expired code still reports
+  the replay — a later refusal masking it would turn an incident into a shrug.
+
+  **PKCE cannot be downgraded at the exchange.** The method comes from the stored
+  transaction and there is no input by which a caller could propose another.
+  Anything other than `S256` is refused, including `s256` — a case-insensitive
+  comparison would accept a spelling no compliant server emits and one an
+  attacker might.
+
+  **A missing verifier is a refusal, not a request without one.** Sending the
+  exchange anyway would very likely succeed, which is worse than failing.
+
+  **Honest limits.**
+
+  * **Nothing calls `exchangeCode`.** There is no token endpoint to POST to and
+    no callback route to reach it from. It is the decision the route will make.
+  * **`RedeemableTransaction` widens `AuthorizationTransaction`** with
+    `codeChallengeMethod`, `redirectUri` and `codeRedeemedAt`. Those fields do
+    not exist on the stored transaction yet because nothing stores one — the
+    persistence lands with the callback route.
+  * **The 60-second exchange window is a judgement**, not a standard. RFC 6749
+    §4.1.2 recommends a maximum code lifetime of ten minutes and says nothing
+    about the gap between redirect and exchange. Sixty seconds is generous for a
+    server-to-server call and tight enough that a copied code is usually already
+    dead; it is a number to revisit against real latency, and saying so is more
+    useful than implying it was derived.
+
+  105/1219 decided.
