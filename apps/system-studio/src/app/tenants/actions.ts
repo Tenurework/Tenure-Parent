@@ -342,7 +342,17 @@ export async function advanceState(_prev: AdvanceResult | null, form: FormData):
     await advanceTenant(
       slug,
       to,
-      { actor: { principalId, at }, approvedBy, reason },
+      {
+        actor: { principalId, at },
+        approvedBy,
+        // Looked up against the same allowlist that admitted the requester.
+        // Before this, `approvedBy` was a free-text field checked only for
+        // being non-empty and not the requester's own id — so one operator
+        // could approve their own irreversible purge by typing any address
+        // that was not theirs.
+        approverIsOperator: approvedBy ? isOperator(approvedBy) : undefined,
+        reason,
+      },
       evidence,
       deployment,
     )

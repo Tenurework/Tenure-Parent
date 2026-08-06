@@ -70,7 +70,7 @@ describe("lifecycle", () => {
       const result = advance(
         state,
         to,
-        { actor: OPERATOR, ...(needsApproval(state, to) ? { approvedBy: SECOND } : {}) },
+        { actor: OPERATOR, ...(needsApproval(state, to) ? { approvedBy: SECOND, approverIsOperator: true } : {}) },
         history,
       )
       history.push(result.step)
@@ -95,7 +95,17 @@ describe("lifecycle", () => {
       ["PURGE_PENDING", "PURGING"],
     ] as const) {
       expect(() => advance(from, to, { actor: OPERATOR })).toThrow(/requires a recorded approver/)
-      expect(advance(from, to, { actor: OPERATOR, approvedBy: SECOND }).state).toBe(to)
+      expect(advance(from, to, { actor: OPERATOR, approvedBy: SECOND, approverIsOperator: true }).state).toBe(to)
+
+      // An approver nobody looked up is a free-text field. Before this check,
+      // `approvedBy="x@y.z"` satisfied PURGE_PENDING → PURGING — one operator
+      // approving their own irreversible purge by naming anyone but themselves.
+      expect(() => advance(from, to, { actor: OPERATOR, approvedBy: SECOND })).toThrow(
+        /not verified as a platform operator/,
+      )
+      expect(() =>
+        advance(from, to, { actor: OPERATOR, approvedBy: SECOND, approverIsOperator: false }),
+      ).toThrow(/not verified as a platform operator/)
     }
   })
 
@@ -103,7 +113,7 @@ describe("lifecycle", () => {
     // Separation of duties, enforced where it cannot be routed around: the
     // person who asked is not the person who agrees.
     expect(() =>
-      advance("PURGE_PENDING", "PURGING", { actor: OPERATOR, approvedBy: OPERATOR.principalId }),
+      advance("PURGE_PENDING", "PURGING", { actor: OPERATOR, approvedBy: OPERATOR.principalId, approverIsOperator: true }),
     ).toThrow(/cannot approve their own/)
   })
 
@@ -131,7 +141,7 @@ describe("lifecycle", () => {
     const { step } = advance(
       "AWAITING_APPROVAL",
       "PROVISIONING",
-      { actor: OPERATOR, approvedBy: SECOND },
+      { actor: OPERATOR, approvedBy: SECOND, approverIsOperator: true },
       history,
     )
     expect(step.attempt).toBe(3)

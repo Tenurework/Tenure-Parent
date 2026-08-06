@@ -164,6 +164,18 @@ export interface AdvanceOptions {
   actor: Actor
   /** Required where `needsApproval` — a second identity, not the same person. */
   approvedBy?: string
+  /**
+   * Whether the caller looked `approvedBy` up and found a platform operator.
+   *
+   * The answer, not the email, because this package must not carry the operator
+   * registry — and passing the answer means there is no way to be "verified"
+   * against the wrong list. Undefined is a refusal.
+   *
+   * This does NOT make the transition two-party. The approver still does not
+   * authenticate: one operator types another operator's address. What it
+   * removes is the ability to type anything at all.
+   */
+  approverIsOperator?: boolean
   reason?: string
 }
 
@@ -218,6 +230,25 @@ export function advance(
       // Separation of duties. The person who asked is not the person who agrees.
       throw new LifecycleError(
         `${options.actor.principalId} cannot approve their own ${from} → ${to}.`,
+        from,
+        to,
+      )
+    }
+    // The approver has to be somebody. Until this existed, the whole check was
+    // "non-empty, and not your own id" — and the value's only source is a
+    // free-text field the requesting operator types. `approvedBy="x@y.z"`
+    // satisfied PURGE_PENDING → PURGING: one person approving their own
+    // irreversible purge by naming an address that was not theirs.
+    //
+    // The caller does the lookup because this package must not depend on the
+    // Studio's operator registry, and it passes the ANSWER rather than the
+    // email so there is no way to be "verified" against the wrong list. Absent
+    // is a refusal, not a pass: a caller that forgets to check fails closed.
+    if (options.approverIsOperator !== true) {
+      throw new LifecycleError(
+        `"${options.approvedBy}" was not verified as a platform operator, so it cannot approve ` +
+          `${from} → ${to}. An unverified approver is a free-text field, and this transition ` +
+          `either spends money, routes real users, or cannot be undone.`,
         from,
         to,
       )
