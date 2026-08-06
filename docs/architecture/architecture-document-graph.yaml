@@ -8,7 +8,7 @@
 generated_from: tools/document-graph.mjs
 document_count: 32
 alias_count: 6
-requirement_statements: 3670
+requirement_statements: 3961
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
 authorities: 23
@@ -58,7 +58,7 @@ documents:
     requirement_prefixes:
       - EXT
       - GE
-    states_requirements: 169
+    states_requirements: 186
     mentions_requirement_ids: 170
   - id: "tenure-global-system-architecture-bible-v1-0"
     title: Tenure Global System Architecture Bible
@@ -157,13 +157,13 @@ documents:
     family: "system-studio-aws-control-plane-execution-ledger"
     superseded_by: null
     supersedes: []
-    sha256: e2134d43fb6846ba85c46521901b4c644b9f0118d98cf88fc6db3d286c5248c2
-    bytes: 12353
+    sha256: "673cb8010a5aeee97d0a0c0099de9e13faa430202f83219eb0e5e8beee2942a9"
+    bytes: 17281
     aliases: []
     requirement_prefixes:
       - GE
       - STUDIO
-    states_requirements: 3
+    states_requirements: 18
     mentions_requirement_ids: 6
   - id: "tenure-claude-code-global-engine-execution-prompt-v1-0"
     title: "Tenure Global Distribution Engine: Master Claude Code Execution Prompt"
@@ -178,7 +178,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - GE
-    states_requirements: 534
+    states_requirements: 552
     mentions_requirement_ids: 534
   - id: "tenure-claude-code-unified-global-engine-master-prompt-v2-0"
     title: "Tenure Global Distribution Engine: Unified Behemoth Claude Code Master Execution Prompt"
@@ -193,7 +193,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - GE
-    states_requirements: 675
+    states_requirements: 709
     mentions_requirement_ids: 675
   - id: "tenure-simon-ose-tenant-absorption-and-global-update-inheritance-claude-bible-v1-0"
     title: "Simon OSE Tenant #1 Absorption into Tenure Parent"
@@ -209,7 +209,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - SIMON
-    states_requirements: 143
+    states_requirements: 157
     mentions_requirement_ids: 143
   - id: "tenure-system-studio-aws-authoritative-control-plane-claude-bible-v1-0"
     title: "Tenure System Studio + AWS-Authoritative Global Distribution Engine"
@@ -225,7 +225,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - STUDIO
-    states_requirements: 152
+    states_requirements: 167
     mentions_requirement_ids: 152
   - id: "universal-work-graph-execution-ledger"
     title: Universal Work Graph and Workspace Connector Cloud — execution ledger
@@ -235,12 +235,12 @@ documents:
     family: "universal-work-graph-execution-ledger"
     superseded_by: null
     supersedes: []
-    sha256: "5963f3835333b87f3a8d0409c7eed63c7915306cbf511f3a83b984664f925c37"
-    bytes: 22366
+    sha256: c5d563835c8457d8980583a8520621b4148955206c3709cf93529036c61cf3de
+    bytes: 25886
     aliases: []
     requirement_prefixes:
       - WRK
-    states_requirements: 74
+    states_requirements: 88
     mentions_requirement_ids: 74
   - id: "tenure-behemoth-capability-completeness-audit-v1-0"
     title: Tenure Behemoth Capability Completeness Audit
@@ -287,7 +287,7 @@ documents:
       - Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0 (1).md
     requirement_prefixes:
       - GE
-    states_requirements: 737
+    states_requirements: 781
     mentions_requirement_ids: 737
   - id: "tenure-declarative-tenant-configurator-and-deployer-ux-claude-bible-v1-0"
     title: "Tenure Declarative Tenant Configurator, Decision Graph, and Deployer Experience Bible"
@@ -303,7 +303,7 @@ documents:
       - Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0 (1).md
     requirement_prefixes:
       - CFG
-    states_requirements: 67
+    states_requirements: 79
     mentions_requirement_ids: 67
   - id: "tenure-enterprise-analytics-reporting-and-visualization-cloud-claude-bible-v1-0"
     title: "Tenure Enterprise Analytics, Reporting, and Visualization Cloud Bible"
@@ -318,7 +318,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - ANL
-    states_requirements: 22
+    states_requirements: 27
     mentions_requirement_ids: 22
   - id: "tenure-erp-archetype-and-specialized-system-pack-factory-claude-bible-v1-0"
     title: "Tenure ERP Archetype, Specialized System Pack, and Capability Certification Factory Bible"
@@ -334,7 +334,7 @@ documents:
       - Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0 (1).md
     requirement_prefixes:
       - PACK
-    states_requirements: 43
+    states_requirements: 53
     mentions_requirement_ids: 43
   - id: "tenure-financial-management-cloud-claude-bible-v1-0"
     title: Tenure Financial Management Cloud Bible
@@ -349,7 +349,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - FIN
-    states_requirements: 28
+    states_requirements: 34
     mentions_requirement_ids: 28
   - id: "tenure-global-deployer-integration-catalog-and-tenant-connection-composer-claude-bible-v1-0"
     title: "Tenure Global Deployer Integration Catalog, Tenant Connection Composer, and Major App Certification Bible"
@@ -364,7 +364,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - CAT
-    states_requirements: 49
+    states_requirements: 59
     mentions_requirement_ids: 49
   - id: "tenure-global-integration-ecosystem-and-connector-certification-claude-bible-v1-0"
     title: "Tenure Global Integration Ecosystem, Internal Pipeline, and Connector Certification Bible"
@@ -380,7 +380,7 @@ documents:
       - Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0 (1).md
     requirement_prefixes:
       - INT
-    states_requirements: 54
+    states_requirements: 65
     mentions_requirement_ids: 54
   - id: "tenure-global-payments-treasury-and-stripe-control-plane-claude-bible-v1-0"
     title: "Tenure Global Payments, Treasury, Cards, and Stripe Control Plane"
@@ -410,7 +410,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - OPS
-    states_requirements: 26
+    states_requirements: 32
     mentions_requirement_ids: 26
   - id: "tenure-people-hr-and-workforce-cloud-claude-bible-v1-0"
     title: "Tenure People, HR, and Workforce Cloud Bible"
@@ -425,7 +425,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - HCM
-    states_requirements: 27
+    states_requirements: 33
     mentions_requirement_ids: 27
   - id: "tenure-planning-epm-and-decision-cloud-claude-bible-v1-0"
     title: "Tenure Planning, EPM, and Decision Cloud Bible"
@@ -440,7 +440,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - PLN
-    states_requirements: 22
+    states_requirements: 27
     mentions_requirement_ids: 22
   - id: "tenure-simon-ose-tenant-absorption-and-global-update-inheritance-claude-bible-v1-0"
     title: "Simon OSE Tenant #1 Absorption into Tenure Parent"
@@ -455,7 +455,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - SIMON
-    states_requirements: 143
+    states_requirements: 157
     mentions_requirement_ids: 143
   - id: "tenure-system-studio-aws-authoritative-control-plane-claude-bible-v1-0"
     title: "Tenure System Studio + AWS-Authoritative Global Distribution Engine"
@@ -470,7 +470,7 @@ documents:
     aliases: []
     requirement_prefixes:
       - STUDIO
-    states_requirements: 152
+    states_requirements: 167
     mentions_requirement_ids: 152
   - id: "tenure-tenant-experience-system-and-product-uiux-claude-bible-v1-0"
     title: Tenure Tenant Experience System and Product UI/UX Bible
@@ -486,7 +486,7 @@ documents:
       - Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0 (1).md
     requirement_prefixes:
       - TTES
-    states_requirements: 28
+    states_requirements: 34
     mentions_requirement_ids: 28
   - id: "tenure-universal-work-graph-and-workspace-connector-cloud-claude-bible-v1-0"
     title: "Tenure Universal Work Graph, Workspace Connector Cloud, and Relay Cross-App Action Bible"
@@ -501,5 +501,5 @@ documents:
     aliases: []
     requirement_prefixes:
       - WRK
-    states_requirements: 74
+    states_requirements: 88
     mentions_requirement_ids: 74

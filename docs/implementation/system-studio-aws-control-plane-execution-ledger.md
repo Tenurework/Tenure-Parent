@@ -205,3 +205,63 @@ exact commands an operator would run.
     enforced at execution time**. Wiring them into the change pipeline is
     STUDIO-060-002/005, which has no pipeline to wire into yet. The page states
     the policy so it is at least visible and reviewable rather than implicit.
+
+- [ ] **STUDIO-GATE-000** — Repository, deployed product, AWS organization, security, cost, identity, and actual-resource truth are documented well enough to plan without guesses.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-010** — AWS authority is split by account and capability; no browser or general application role has organization-wide administrator power.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-020** — No nonlocal System Studio route or backend operation relies on a shared secret, frontend-only guard, long-lived AWS key, or unscoped administrator session.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-030** — System Studio is visually coherent, accessible, low-fatigue, information-dense, and safe under realistic enterprise state—not merely polished on empty fixtures.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-040** — Tenure desired state is deterministic, versioned, signed, explainable, secret-free, and suitable to recreate a tenant without source edits.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-050** — A trained Tenure implementation lead can configure a complex tenant entirely in System Studio and understand every unresolved decision and consequence.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-060** — No material change can bypass typed intent, consequence preview, policy, approval, idempotency, verification, and audit.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-070** — The final approved launch action produces an observable, resumable, verified tenant and leaves no undocumented resources after failure.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-080** — Operators can understand every Tenure-owned tenant resource and dependency without receiving unsafe general AWS mutation access.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-090** — Relay materially accelerates configuration and operations while remaining less authoritative than the ordinary policy/approval system.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-100** — Fleet lifecycle is a real AWS/application state machine with truthful cost and recoverability semantics, not an `active` database flag.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-110** — Security controls remain effective when UI is bypassed, jobs retry, identities change, a tenant is malicious, and an operator account is compromised.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-120** — Every critical action is observable, recoverable to its declared objective, and financially attributable.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-130** — Every integration point is versioned, scoped, replay-safe, observable, and revocable.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **STUDIO-GATE-140** — A protected staging environment demonstrates the complete login → configure → plan → approve → deploy → verify → reconcile → operate → rollback journey.
+  - Status: FAIL
+  - Reason: imported from `docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented

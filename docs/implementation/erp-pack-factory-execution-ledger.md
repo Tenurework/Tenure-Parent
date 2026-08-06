@@ -187,3 +187,43 @@ Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
 - [ ] **PACK-090-004** — Produce final supported-scope matrix with every limitation and blocked external dependency.
   - Status: FAIL
   - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PACK-GATE-000** — Catalog truth matches implemented/certified scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PACK-GATE-010** — Packs extend one secure kernel.
+  - Status: FAIL
+  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PACK-GATE-020** — Tenant systems are multi-axis compositions.
+  - Status: FAIL
+  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PACK-GATE-030** — Pack truth is versioned, contextual and enforced.
+  - Status: FAIL
+  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PACK-GATE-040** — Functional breadth is honest and depth is evidence-gated.
+  - Status: FAIL
+  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PACK-GATE-050** — Industry labels resolve to implemented process/control differences, not branding.
+  - Status: FAIL
+  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PACK-GATE-060** — Modules form coherent business systems.
+  - Status: FAIL
+  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PACK-GATE-070** — Every pack behaves as a secure native Tenure product surface.
+  - Status: FAIL
+  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PACK-GATE-080** — Pack lifecycle is safe across the tenant fleet.
+  - Status: FAIL
+  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PACK-GATE-090** — Specialized systems are deployable by configuration for exact proven scopes.
+  - Status: FAIL
+  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented

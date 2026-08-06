@@ -311,3 +311,59 @@ Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
 - [ ] **WRK-130-005** — Publish an exact supported capability matrix and every limitation/external blocker; remove or label false public/product claims.
   - Status: FAIL
   - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-000** — No existing connector or AI capability is overstated.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-010** — The Work Graph is tenant-safe, source-aware, minimal, and reconcilable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-020** — Connections cannot exceed granted identity, resource, direction, purpose, or tenant authority.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-030** — Relay turns missing access into a secure, honest, low-friction path.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-040** — Authorization is least-privilege, provider-compliant, revocable, and auditable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-050** — Relay accelerates work without becoming an autonomous authority.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-060** — Provider events and APIs converge to known source truth without duplicate business effects.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-070** — Relay answers are access-safe, cited, current enough, and memory-governed.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-080** — Microsoft and Google capabilities are available only at exact product/action/scope/resource certification.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-090** — The four named providers are engineered, not merely displayed.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-100** — Secondary connector breadth grows without weakening exact availability.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-110** — Connector UX is fast, understandable, non-fatiguing, and truthful.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-120** — The Workspace Connector Cloud is secure, operable, scalable, recoverable, and cost-accountable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **WRK-GATE-130** — Tenure may claim a cross-app acceleration only for measured, certified, supportable scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented

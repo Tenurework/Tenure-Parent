@@ -127,3 +127,27 @@ Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
 - [ ] **TTES-050-005** — Block “best” claims until measured release gates pass.
   - Status: FAIL
   - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **TTES-GATE-000** — Tenant experience has a distinct documented architecture.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **TTES-GATE-010** — Visual foundations are original, consistent and accessible.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **TTES-GATE-020** — Domain teams build from stable Tenure-owned patterns.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **TTES-GATE-030** — Users complete work without module/navigation clutter.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **TTES-GATE-040** — Experience is fast, secure, inclusive and low-fatigue.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **TTES-GATE-050** — Tenant UX superiority is evidence-backed and continuously governed.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented

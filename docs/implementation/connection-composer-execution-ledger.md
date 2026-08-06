@@ -211,3 +211,43 @@ Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
 - [ ] **CAT-090-005** — Produce the final tenant Integration Portfolio, exact count/coverage matrix, blocked gaps, cost, certification, and lifecycle report.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **CAT-GATE-000** — The catalog is complete as a planning inventory and honest about implementation.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **CAT-GATE-010** — The Deployer can correctly configure how many of each integration a tenant needs.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **CAT-GATE-020** — Operators can configure complex portfolios safely without hard-coded forms or hidden state.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **CAT-GATE-030** — Integration choices become safe executable desired state, not prose or UI-only configuration.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **CAT-GATE-040** — Global Deployer integration configuration is powerful, fast, understandable, and non-fatiguing.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **CAT-GATE-050** — Major workspace systems are visible for planning and exact when enabled.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **CAT-GATE-060** — Horizontal enterprise breadth is cataloged without bypassing domain depth.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **CAT-GATE-070** — Specialized ERP packs can declare real integration requirements across major industries.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **CAT-GATE-080** — No generic happy path or SDK installation qualifies as a connector.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **CAT-GATE-090** — The Global Deployer can configure, cost, deploy, verify, and operate the right number of integrations for each tenant.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented

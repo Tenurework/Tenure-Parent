@@ -123,3 +123,27 @@ Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
 - [ ] **HCM-050-005** — Publish exact supported capability/jurisdiction/provider matrix and limitations.
   - Status: FAIL
   - Reason: imported from `Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **HCM-GATE-000** — Core people truth is correct and tenant-safe.
+  - Status: FAIL
+  - Reason: imported from `Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **HCM-GATE-010** — Workforce change is effective-dated, controlled and recoverable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **HCM-GATE-020** — Talent lifecycle works without unsafe automated judgment.
+  - Status: FAIL
+  - Reason: imported from `Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **HCM-GATE-030** — Workforce value flows are exact-scope, controlled and reconciled.
+  - Status: FAIL
+  - Reason: imported from `Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **HCM-GATE-040** — People Cloud is safe, humane and memory-first.
+  - Status: FAIL
+  - Reason: imported from `Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **HCM-GATE-050** — Superiority is claimed only where measured evidence passes.
+  - Status: FAIL
+  - Reason: imported from `Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md`; not yet implemented

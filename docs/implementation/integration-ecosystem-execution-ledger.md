@@ -231,3 +231,47 @@ Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
 - [ ] **INT-100-005** — Produce final supported connector/capability matrix and every blocker/limitation.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-000** — Current integration truth and authority are evidenced.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-010** — Runtime is durable, traceable and tenant-safe.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-020** — Only admitted connectors run.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-030** — Auth and credentials are least-privilege and lifecycle-managed.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-040** — Data meaning and lineage survive integration.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-050** — Every transport handles failure and lifecycle explicitly.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-060** — Operational failure is contained, visible and reconcilable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-070** — Operators can configure and operate integrations professionally without provider consoles for routine work.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-080** — Integration breadth is cataloged and enabled only at proven depth.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-090** — Every active connector is certified and operationally owned for exact scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **INT-GATE-100** — Integration Plane is production-ready only for exact evidenced capabilities.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented

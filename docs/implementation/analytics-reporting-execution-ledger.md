@@ -103,3 +103,23 @@ Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
 - [ ] **ANL-040-005** — Publish exact metric/report/analytics limitations and blocked sources.
   - Status: FAIL
   - Reason: imported from `Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **ANL-GATE-000** — Metrics and reports have one governed definition and source.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **ANL-GATE-010** — Analytics is accurate, isolated and scalable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **ANL-GATE-020** — Charts are high-end, truthful, accessible and actionable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **ANL-GATE-030** — Reporting works from operational detail to executive/board outcomes.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **ANL-GATE-040** — “Best analytics” is claimed only for measured released scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md`; not yet implemented

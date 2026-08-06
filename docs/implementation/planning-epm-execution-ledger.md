@@ -103,3 +103,23 @@ Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
 - [ ] **PLN-040-005** — Publish exact model/domain/forecast/country limitations.
   - Status: FAIL
   - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PLN-GATE-000** — Multidimensional planning foundation is correct and tenant-safe.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PLN-GATE-010** — Contributors and reviewers plan efficiently without spreadsheet chaos.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PLN-GATE-020** — Enterprise plans connect strategy, resources, operations and finance.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PLN-GATE-030** — Plans and predictions are transparent, reproducible and governable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **PLN-GATE-040** — “Best” is claimed only for measured released scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented

@@ -119,3 +119,27 @@ Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
 - [ ] **OPS-050-005** — Publish exact industry/mode/site/device/provider limitations.
   - Status: FAIL
   - Reason: imported from `Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **OPS-GATE-000** — Operational foundation preserves quantities, state and tenant isolation.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **OPS-GATE-010** — Supply-to-fulfillment works and reconciles.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **OPS-GATE-020** — Product and asset operations are traceable and controlled.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **OPS-GATE-030** — Service-, project-, network- and site-centric operations work.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **OPS-GATE-040** — Operations is usable, memory-first and integration-resilient.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **OPS-GATE-050** — “Best” is claimed only for measured released scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md`; not yet implemented

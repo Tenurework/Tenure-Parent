@@ -9,27 +9,27 @@
 # point: an unimported requirement used to be invisible, and invisible reads
 # exactly like done.
 
-requirement_count: 1865
+requirement_count: 2046
 by_prefix:
-  ANL: 22
-  CAT: 49
-  CFG: 67
-  EXT: 169
-  FIN: 28
-  GE: 737
-  HCM: 27
-  INT: 54
-  OPS: 26
-  PACK: 43
+  ANL: 27
+  CAT: 59
+  CFG: 79
+  EXT: 186
+  FIN: 34
+  GE: 781
+  HCM: 33
+  INT: 65
+  OPS: 32
+  PACK: 53
   PAY: 224
-  PLN: 22
-  SIMON: 143
-  STUDIO: 152
-  TTES: 28
-  WRK: 74
+  PLN: 27
+  SIMON: 157
+  STUDIO: 167
+  TTES: 34
+  WRK: 88
 by_status:
-  FAIL: 1759
-  PASS: 106
+  FAIL: 1938
+  PASS: 108
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -212,6 +212,46 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/analytics-reporting-execution-ledger.md"
     statement: Publish exact metric/report/analytics limitations and blocked sources.
+  - id: "ANL-GATE-000"
+    prefix: ANL
+    source_document: Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/analytics-reporting-execution-ledger.md"
+    statement: Metrics and reports have one governed definition and source.
+  - id: "ANL-GATE-010"
+    prefix: ANL
+    source_document: Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/analytics-reporting-execution-ledger.md"
+    statement: "Analytics is accurate, isolated and scalable."
+  - id: "ANL-GATE-020"
+    prefix: ANL
+    source_document: Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/analytics-reporting-execution-ledger.md"
+    statement: "Charts are high-end, truthful, accessible and actionable."
+  - id: "ANL-GATE-030"
+    prefix: ANL
+    source_document: Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/analytics-reporting-execution-ledger.md"
+    statement: Reporting works from operational detail to executive/board outcomes.
+  - id: "ANL-GATE-040"
+    prefix: ANL
+    source_document: Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/analytics-reporting-execution-ledger.md"
+    statement: “Best analytics” is claimed only for measured released scope.
   - id: "CAT-000-001"
     prefix: CAT
     source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
@@ -604,6 +644,86 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/connection-composer-execution-ledger.md"
     statement: "Produce the final tenant Integration Portfolio, exact count/coverage matrix, blocked gaps, cost, certification, and lifecycle report."
+  - id: "CAT-GATE-000"
+    prefix: CAT
+    source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/connection-composer-execution-ledger.md"
+    statement: The catalog is complete as a planning inventory and honest about implementation.
+  - id: "CAT-GATE-010"
+    prefix: CAT
+    source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/connection-composer-execution-ledger.md"
+    statement: The Deployer can correctly configure how many of each integration a tenant needs.
+  - id: "CAT-GATE-020"
+    prefix: CAT
+    source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/connection-composer-execution-ledger.md"
+    statement: "Operators can configure complex portfolios safely without hard-coded forms or hidden state."
+  - id: "CAT-GATE-030"
+    prefix: CAT
+    source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/connection-composer-execution-ledger.md"
+    statement: "Integration choices become safe executable desired state, not prose or UI-only configuration."
+  - id: "CAT-GATE-040"
+    prefix: CAT
+    source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/connection-composer-execution-ledger.md"
+    statement: "Global Deployer integration configuration is powerful, fast, understandable, and non-fatiguing."
+  - id: "CAT-GATE-050"
+    prefix: CAT
+    source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/connection-composer-execution-ledger.md"
+    statement: Major workspace systems are visible for planning and exact when enabled.
+  - id: "CAT-GATE-060"
+    prefix: CAT
+    source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/connection-composer-execution-ledger.md"
+    statement: Horizontal enterprise breadth is cataloged without bypassing domain depth.
+  - id: "CAT-GATE-070"
+    prefix: CAT
+    source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/connection-composer-execution-ledger.md"
+    statement: Specialized ERP packs can declare real integration requirements across major industries.
+  - id: "CAT-GATE-080"
+    prefix: CAT
+    source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/connection-composer-execution-ledger.md"
+    statement: No generic happy path or SDK installation qualifies as a connector.
+  - id: "CAT-GATE-090"
+    prefix: CAT
+    source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/connection-composer-execution-ledger.md"
+    statement: "The Global Deployer can configure, cost, deploy, verify, and operate the right number of integrations for each tenant."
   - id: "CFG-000-001"
     prefix: CFG
     source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
@@ -1140,6 +1260,102 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
     statement: "Generate final requirement-to-code/test/deployment/evidence matrix with every failure and blocked input."
+  - id: "CFG-GATE-000"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: "Current truth, authority boundaries and migration plan are evidenced."
+  - id: "CFG-GATE-010"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: "Only admitted, compatible, traceable packages reach tenant configuration."
+  - id: "CFG-GATE-020"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: "Domain behavior is declarative, safe, deterministic and server-authoritative."
+  - id: "CFG-GATE-030"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: "Graph compilation and incremental evaluation are correct, bounded and scalable."
+  - id: "CFG-GATE-040"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: Every effective value and state transition is reconstructable and explainable.
+  - id: "CFG-GATE-050"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: "Multi-session and multi-user configuration preserves work and authority."
+  - id: "CFG-GATE-060"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: "The configurator is fast, professional, low-fatigue, accessible and generated from canonical schemas."
+  - id: "CFG-GATE-070"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: "Reviews receive complete, current and explainable consequences."
+  - id: "CFG-GATE-080"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: "No production or destructive change executes outside current digest-bound approval."
+  - id: "CFG-GATE-090"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: Approved configuration becomes verified actual state through governed execution.
+  - id: "CFG-GATE-100"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: Structurally different tenants are generated by one runtime.
+  - id: "CFG-GATE-110"
+    prefix: CFG
+    source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
+    statement: "The Configurator is production-ready only for the exact enabled scope proven by evidence."
   - id: "EXT-000-001"
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
@@ -2492,6 +2708,142 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: Keep production deployment paused unless the authorized reviewer explicitly approves the exact plan and digest.
+  - id: "EXT-GATE-000"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: Baseline truth and authority are complete enough to design without guessing protected customer/legal/vendor facts.
+  - id: "EXT-GATE-010"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Implementation truth is first-class, temporal, tenant-isolated, permissioned, auditable, and successor-ready."
+  - id: "EXT-GATE-020"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every environment has controlled purpose, data, authority, versions, cost, and end-of-life."
+  - id: "EXT-GATE-030"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Staffing and accounting foundations are generic, effective-dated, reconciled, and historically reconstructable."
+  - id: "EXT-GATE-040"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Localization is governed executable content, not scattered conditionals or permanent prose."
+  - id: "EXT-GATE-050"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Payroll authority is explicit, certified for exact scope, reconciled, private, and never simulated as production capability."
+  - id: "EXT-GATE-060"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Migration is repeatable, lineage-complete, reconciled, rehearsal-proven, and safe to cut over."
+  - id: "EXT-GATE-070"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Integrations are governed, scalable, failure-aware, reconcilable, and tenant-safe."
+  - id: "EXT-GATE-080"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Each enabled bank channel/message is secure, version-exact, bank-accepted, failure-tested, and reconciled."
+  - id: "EXT-GATE-090"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Technical and business acceptance is traceable, representative, evidence-based, and honest."
+  - id: "EXT-GATE-100"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Go-live cannot occur without current conversion, security, business, external, operational, communication, and recovery evidence."
+  - id: "EXT-GATE-110"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: Production is stabilized and operational ownership is demonstrably transferred.
+  - id: "EXT-GATE-120"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "No legacy system is called retired while access, data, dependency, cost, contract, or evidence remains unexplained."
+  - id: "EXT-GATE-130"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Internal and customer implementation work is as coherent, modern, accessible, and fatigue-resistant as the tenant product."
+  - id: "EXT-GATE-140"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Relay accelerates transformation without becoming an authority, source of truth, or privileged bypass."
+  - id: "EXT-GATE-150"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Extension workloads meet the Bible's security, privacy, evidence, reliability, residency, and cost invariants."
+  - id: "EXT-GATE-160"
+    prefix: EXT
+    source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: The extension is complete only when every enabled capability works end to end and the verification record states everything that does not.
   - id: "FIN-000-001"
     prefix: FIN
     source_document: Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md
@@ -2716,6 +3068,54 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/financial-management-execution-ledger.md"
     statement: Publish exact accounting basis/jurisdiction/provider/capability limitations.
+  - id: "FIN-GATE-000"
+    prefix: FIN
+    source_document: Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/financial-management-execution-ledger.md"
+    statement: Accounting foundation passes property and isolation tests.
+  - id: "FIN-GATE-010"
+    prefix: FIN
+    source_document: Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/financial-management-execution-ledger.md"
+    statement: "Record-to-report is complete for declared scope."
+  - id: "FIN-GATE-020"
+    prefix: FIN
+    source_document: Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/financial-management-execution-ledger.md"
+    statement: Major transaction cycles post and reconcile end to end.
+  - id: "FIN-GATE-030"
+    prefix: FIN
+    source_document: Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/financial-management-execution-ledger.md"
+    statement: "Global/specialized finance is truthful and exact-scope."
+  - id: "FIN-GATE-040"
+    prefix: FIN
+    source_document: Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/financial-management-execution-ledger.md"
+    statement: "Finance is controlled, explainable and usable."
+  - id: "FIN-GATE-050"
+    prefix: FIN
+    source_document: Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/financial-management-execution-ledger.md"
+    statement: “Best” is supported only by measured evidence for the released scope.
   - id: "GE-000-001"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
@@ -8612,6 +9012,358 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Keep all production/destructive/customer/legal/payment/payroll/go-live authority paused behind exact current human approvals."
+  - id: "GE-GATE-0"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Baseline truth, safe AWS inventory, containment list, repository map, and execution ledger are complete; no credential or customer data was exposed."
+  - id: "GE-GATE-1"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Tenure-owned multi-account baseline and OIDC deployment identity are operational; development/staging foundations are deployed; production remains protected; no long-lived key is used routinely."
+  - id: "GE-GATE-10"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "A validated manifest can produce, test, activate, suspend, hibernate to zero runtime, truthfully measure residual cost, purge to verified zero incremental tenant cost, reactivate where recoverable, export, migrate, and offboard through one idempotent Tenure Parent workflow with no source fork or personal/customer AWS account."
+  - id: "GE-GATE-11"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Integration Hub is deployed, tenant-isolated, secret-safe, observable, reconcilable, and proves the highest-priority external coexistence flows end to end."
+  - id: "GE-GATE-12"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Declarative/low-code extension paths are governed; SDK sandbox meets security requirements before enablement; Marketplace ships only as an honest empty Coming soon surface."
+  - id: "GE-GATE-13"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every enabled enterprise module family has working end-to-end business flows, invariants, authorization, configuration, migrations, audit, memory, integration, reports, operations, and tests. Unbuilt families remain visibly `PLANNED`, never falsely available."
+  - id: "GE-GATE-14"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Industry-pack delivery, localization, global time/currency behavior, accessibility, PWA/offline foundations, TES conformance, forest-green light/dark ambience, enterprise visualization integrity, Relay interaction quality, performance budgets, and observed long-session comfort are tested across representative tenants, roles, devices, data densities, and locales."
+  - id: "GE-GATE-15"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Threat model, security/privacy controls, evidence map, supply chain, IAM, data lifecycle, and high-risk negative tests are implemented and no false compliance claim exists."
+  - id: "GE-GATE-16"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Approved SLOs, resilience, restore/DR evidence, dashboards/alarms/runbooks, tenant-aware costs, and zero-runtime/zero-incremental-cost verification are operational."
+  - id: "GE-GATE-17"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "CI/CD, immutable promotion, migration, performance, drift, rollback, and production-readiness evidence are complete; production authority remains protected."
+  - id: "GE-GATE-18"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "`GE-*` and `EXT-*` are unified, the live/repository truth is evidenced, insecure/obsolete assumptions are explicit, and implementation can proceed without guessing protected inputs."
+  - id: "GE-GATE-19"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-010-*` item passes and implementation knowledge itself becomes governed institutional memory."
+  - id: "GE-GATE-2"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: PASS
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Common runtime boundaries, tenant context, command/query/event contracts, application shell, accessibility, localization, and architecture enforcement tests are working in the real application."
+  - id: "GE-GATE-20"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-020-*` item passes; environment purpose, data, access, versions, cost, and end-of-life are enforced by the engine."
+  - id: "GE-GATE-21"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-030-*` item passes and enterprise foundation choices are global, effective-dated, reconciled, and historically reconstructable."
+  - id: "GE-GATE-22"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-040-*` item passes; regulatory content is versioned executable evidence, not static prose or scattered code."
+  - id: "GE-GATE-23"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-050-*` item passes for each enabled payroll scope; all other scopes are visibly unavailable or provider-bounded."
+  - id: "GE-GATE-24"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-060-*` item passes; the factory can repeat a failed/restarted migration and prove exactly what moved, changed, failed, reconciled, and remained."
+  - id: "GE-GATE-25"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-070-*` item passes and every production connector is bounded, failure-aware, reconcilable, secure, supportable, and truthfully labeled."
+  - id: "GE-GATE-26"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-080-*` item passes for each enabled bank/channel/message; no XML-generation or transport-only capability is misrepresented as bank certification or settlement."
+  - id: "GE-GATE-27"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-090-*` item passes and the system is accepted by evidence rather than project optimism."
+  - id: "GE-GATE-28"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-100-*` item and rehearsal passes; no real go-live occurs without protected current evidence and recovery authority."
+  - id: "GE-GATE-29"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-110-*` item passes and accepting service owners can operate the tenant without the original implementation team."
+  - id: "GE-GATE-3"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: PASS
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Parent registries, versioned configuration engine, tenant configuration studio, and isolated operator plane are integrated and deployed to development/staging with audit and rollback evidence."
+  - id: "GE-GATE-30"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-120-*` item passes and no system is called retired while data, access, dependency, contract, license, retained copy, or cost remains unexplained."
+  - id: "GE-GATE-31"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-130-*` and `EXT-140-*` item passes; Tenure staff do not work in an inferior side-console and Relay remains a copilot rather than an authority."
+  - id: "GE-GATE-32"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every `EXT-150-*` item passes and extension machinery is held to the same or stronger invariants as the tenant runtime."
+  - id: "GE-GATE-33"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every enabled scope is implemented, deployed where authorized, tested, evidenced, supportable, and honestly classified; protected production/destructive authority remains human."
+  - id: "GE-GATE-34"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every applicable `CFG-*` gate passes; millions of choices are composed by a deterministic generated experience rather than a hard-coded wizard."
+  - id: "GE-GATE-35"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every applicable `PACK-*` gate passes and specialized systems deploy from reusable certified packs without tenant forks."
+  - id: "GE-GATE-36"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every applicable `INT-*` and `PAY-*` gate passes; no provider logo, OAuth success or test ping is represented as production integration/payment readiness."
+  - id: "GE-GATE-37"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every applicable `HCM-*` gate passes and People Cloud is a real first-party core system, not a directory/provider shell."
+  - id: "GE-GATE-38"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every applicable `FIN-*` gate passes with zero unexplained critical monetary variance."
+  - id: "GE-GATE-39"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every applicable `PLN-*` gate passes and published plans reconcile to Finance/HCM/Operations handoffs."
+  - id: "GE-GATE-4"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Deployed Cognito authentication, BFF sessions, enterprise federation lifecycle, identity model, tenant discovery, and negative security tests pass; Simon package contains real Tenure outputs and explicit external inputs only."
+  - id: "GE-GATE-40"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every applicable `OPS-*` gate passes with zero unexplained critical quantity or financial variance."
+  - id: "GE-GATE-41"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every applicable `TTES-*` gate passes; tenant users receive a fast, calm, powerful product rather than the Global Deployer console."
+  - id: "GE-GATE-42"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Every applicable `ANL-*` gate passes; no decorative, stale, inaccessible or client-invented metric/chart remains in production."
+  - id: "GE-GATE-43"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "The Constitution, every mandatory Bible, Simon, the tenant fleet and the release/evidence system converge without skipped or shallow authority."
+  - id: "GE-GATE-5"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Temporal organization/seat engine and centralized authorization are canonical, enforced across the product, and proven by Simon/corporate and tenant-isolation fixtures."
+  - id: "GE-GATE-6"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "No-shared-business-table architecture, object/index isolation, immutable audit, event/outbox, analytics governance, and complete Tenant A/B denial matrix pass in deployed development/staging."
+  - id: "GE-GATE-7"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Workflow/forms, documents/records, messaging/notifications, calendar/events/conflicts, and institutional memory/handoff run end to end with authorization, audit, provenance, and tenant-isolation tests."
+  - id: "GE-GATE-8"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Simon-ready pilot core, canonical finance/procurement/projects/reports/search, and corporate fixture pass end to end without tenant hard-coding or inconsistent metrics."
+  - id: "GE-GATE-9"
+    prefix: GE
+    source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
+    statement: "Relay is a deployed, permission-aware, citation-grounded, multimodal copilot with safe editing/automation, model evaluation/routing, guardrails, budgets, and complete cross-tenant/tool-risk tests."
   - id: "HCM-000-001"
     prefix: HCM
     source_document: Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md
@@ -8828,6 +9580,54 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
     statement: Publish exact supported capability/jurisdiction/provider matrix and limitations.
+  - id: "HCM-GATE-000"
+    prefix: HCM
+    source_document: Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
+    statement: "Core people truth is correct and tenant-safe."
+  - id: "HCM-GATE-010"
+    prefix: HCM
+    source_document: Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
+    statement: "Workforce change is effective-dated, controlled and recoverable."
+  - id: "HCM-GATE-020"
+    prefix: HCM
+    source_document: Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
+    statement: Talent lifecycle works without unsafe automated judgment.
+  - id: "HCM-GATE-030"
+    prefix: HCM
+    source_document: Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
+    statement: "Workforce value flows are exact-scope, controlled and reconciled."
+  - id: "HCM-GATE-040"
+    prefix: HCM
+    source_document: Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
+    statement: "People Cloud is safe, humane and memory-first."
+  - id: "HCM-GATE-050"
+    prefix: HCM
+    source_document: Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
+    statement: Superiority is claimed only where measured evidence passes.
   - id: "INT-000-001"
     prefix: INT
     source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
@@ -9260,6 +10060,94 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
     statement: Produce final supported connector/capability matrix and every blocker/limitation.
+  - id: "INT-GATE-000"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: Current integration truth and authority are evidenced.
+  - id: "INT-GATE-010"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: "Runtime is durable, traceable and tenant-safe."
+  - id: "INT-GATE-020"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: Only admitted connectors run.
+  - id: "INT-GATE-030"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: "Auth and credentials are least-privilege and lifecycle-managed."
+  - id: "INT-GATE-040"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: Data meaning and lineage survive integration.
+  - id: "INT-GATE-050"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: Every transport handles failure and lifecycle explicitly.
+  - id: "INT-GATE-060"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: "Operational failure is contained, visible and reconcilable."
+  - id: "INT-GATE-070"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: Operators can configure and operate integrations professionally without provider consoles for routine work.
+  - id: "INT-GATE-080"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: Integration breadth is cataloged and enabled only at proven depth.
+  - id: "INT-GATE-090"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: Every active connector is certified and operationally owned for exact scope.
+  - id: "INT-GATE-100"
+    prefix: INT
+    source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
+    statement: "Integration Plane is production-ready only for exact evidenced capabilities."
   - id: "OPS-000-001"
     prefix: OPS
     source_document: Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md
@@ -9468,6 +10356,54 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/operations-cloud-execution-ledger.md"
     statement: Publish exact industry/mode/site/device/provider limitations.
+  - id: "OPS-GATE-000"
+    prefix: OPS
+    source_document: Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/operations-cloud-execution-ledger.md"
+    statement: "Operational foundation preserves quantities, state and tenant isolation."
+  - id: "OPS-GATE-010"
+    prefix: OPS
+    source_document: Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/operations-cloud-execution-ledger.md"
+    statement: "Supply-to-fulfillment works and reconciles."
+  - id: "OPS-GATE-020"
+    prefix: OPS
+    source_document: Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/operations-cloud-execution-ledger.md"
+    statement: Product and asset operations are traceable and controlled.
+  - id: "OPS-GATE-030"
+    prefix: OPS
+    source_document: Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/operations-cloud-execution-ledger.md"
+    statement: "Service-, project-, network- and site-centric operations work."
+  - id: "OPS-GATE-040"
+    prefix: OPS
+    source_document: Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/operations-cloud-execution-ledger.md"
+    statement: "Operations is usable, memory-first and integration-resilient."
+  - id: "OPS-GATE-050"
+    prefix: OPS
+    source_document: Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/operations-cloud-execution-ledger.md"
+    statement: “Best” is claimed only for measured released scope.
   - id: "PACK-000-001"
     prefix: PACK
     source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
@@ -9812,6 +10748,86 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Produce final supported-scope matrix with every limitation and blocked external dependency."
+  - id: "PACK-GATE-000"
+    prefix: PACK
+    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    statement: Catalog truth matches implemented/certified scope.
+  - id: "PACK-GATE-010"
+    prefix: PACK
+    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    statement: Packs extend one secure kernel.
+  - id: "PACK-GATE-020"
+    prefix: PACK
+    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    statement: "Tenant systems are multi-axis compositions."
+  - id: "PACK-GATE-030"
+    prefix: PACK
+    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    statement: "Pack truth is versioned, contextual and enforced."
+  - id: "PACK-GATE-040"
+    prefix: PACK
+    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    statement: "Functional breadth is honest and depth is evidence-gated."
+  - id: "PACK-GATE-050"
+    prefix: PACK
+    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    statement: "Industry labels resolve to implemented process/control differences, not branding."
+  - id: "PACK-GATE-060"
+    prefix: PACK
+    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    statement: Modules form coherent business systems.
+  - id: "PACK-GATE-070"
+    prefix: PACK
+    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    statement: Every pack behaves as a secure native Tenure product surface.
+  - id: "PACK-GATE-080"
+    prefix: PACK
+    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    statement: Pack lifecycle is safe across the tenant fleet.
+  - id: "PACK-GATE-090"
+    prefix: PACK
+    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    statement: Specialized systems are deployable by configuration for exact proven scopes.
   - id: "PAY-000-001"
     prefix: PAY
     source_document: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -11780,6 +12796,46 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/planning-epm-execution-ledger.md"
     statement: Publish exact model/domain/forecast/country limitations.
+  - id: "PLN-GATE-000"
+    prefix: PLN
+    source_document: Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/planning-epm-execution-ledger.md"
+    statement: "Multidimensional planning foundation is correct and tenant-safe."
+  - id: "PLN-GATE-010"
+    prefix: PLN
+    source_document: Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/planning-epm-execution-ledger.md"
+    statement: Contributors and reviewers plan efficiently without spreadsheet chaos.
+  - id: "PLN-GATE-020"
+    prefix: PLN
+    source_document: Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/planning-epm-execution-ledger.md"
+    statement: "Enterprise plans connect strategy, resources, operations and finance."
+  - id: "PLN-GATE-030"
+    prefix: PLN
+    source_document: Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/planning-epm-execution-ledger.md"
+    statement: "Plans and predictions are transparent, reproducible and governable."
+  - id: "PLN-GATE-040"
+    prefix: PLN
+    source_document: Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/planning-epm-execution-ledger.md"
+    statement: “Best” is claimed only for measured released scope.
   - id: "SIMON-000-001"
     prefix: SIMON
     source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
@@ -12924,6 +13980,118 @@ requirements:
     reason: "imported into the execution system, not yet decided"
     ledger: null
     statement: Add repository notice pointing all future development to Tenure Parent without exposing internal architecture or credentials.
+  - id: "SIMON-GATE-000"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: "No import or destructive refactor begins until the two codebases, deployed resources, data, and behavioral gaps are evidence-backed."
+  - id: "SIMON-GATE-010"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: "One coherent Parent runtime can represent Simon without Simon-aware core business logic."
+  - id: "SIMON-GATE-020"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: "Simon's complete intended behavior is a reproducible tenant package, not a fork or collection of environment variables."
+  - id: "SIMON-GATE-030"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: People may rotate or hold multiple scoped assignments while authorization and institutional memory remain correct over time.
+  - id: "SIMON-GATE-040"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: "Every Simon user resolves to one governed Tenure identity and exact effective assignments without shared passwords or frontend-only authority."
+  - id: "SIMON-GATE-050"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: Every required Simon pilot capability exists in the Parent runtime or has an explicit approved blocker; no hidden dependency remains in the source application.
+  - id: "SIMON-GATE-060"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: "Migrated Simon data is complete, explainable, authorized, reconciled, restartable, and traceable to immutable source evidence."
+  - id: "SIMON-GATE-070"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: "Simon is a managed Parent tenant with complete desired/actual resource ownership, not a separately deployed application hidden behind the same UI."
+  - id: "SIMON-GATE-080"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: "Relay makes Simon's seat memory useful without creating a second authorization or truth system."
+  - id: "SIMON-GATE-090"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: Simon is fully converged on the Parent experience while remaining recognizably configured for its organization and terminology.
+  - id: "SIMON-GATE-100"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: Future global releases automatically include Simon in compatibility evaluation and governed rollout through the one Parent release train.
+  - id: "SIMON-GATE-110"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: "All pilot-critical business journeys, denial paths, transitions, failure paths, and generality proofs pass in staging."
+  - id: "SIMON-GATE-120"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: "Simon production activates on Parent only through an evidence-backed, approved, rehearsed, and reversible cutover."
+  - id: "SIMON-GATE-130"
+    prefix: SIMON
+    source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
+    statement: "Simon is stable on Parent, support ownership is transferred, and the old system no longer receives traffic, writes, secrets, or recurring cost except explicitly approved retention."
   - id: "STUDIO-000-001"
     prefix: STUDIO
     source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
@@ -14140,6 +15308,126 @@ requirements:
     reason: "imported into the execution system, not yet decided"
     ledger: null
     statement: "Produce a production readiness review with open risks, blocked inputs, SLOs, capacity, cost, security, DR, runbooks, owners, cutover, and rollback."
+  - id: "STUDIO-GATE-000"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "Repository, deployed product, AWS organization, security, cost, identity, and actual-resource truth are documented well enough to plan without guesses."
+  - id: "STUDIO-GATE-010"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "AWS authority is split by account and capability; no browser or general application role has organization-wide administrator power."
+  - id: "STUDIO-GATE-020"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "No nonlocal System Studio route or backend operation relies on a shared secret, frontend-only guard, long-lived AWS key, or unscoped administrator session."
+  - id: "STUDIO-GATE-030"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "System Studio is visually coherent, accessible, low-fatigue, information-dense, and safe under realistic enterprise state—not merely polished on empty fixtures."
+  - id: "STUDIO-GATE-040"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "Tenure desired state is deterministic, versioned, signed, explainable, secret-free, and suitable to recreate a tenant without source edits."
+  - id: "STUDIO-GATE-050"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: A trained Tenure implementation lead can configure a complex tenant entirely in System Studio and understand every unresolved decision and consequence.
+  - id: "STUDIO-GATE-060"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "No material change can bypass typed intent, consequence preview, policy, approval, idempotency, verification, and audit."
+  - id: "STUDIO-GATE-070"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "The final approved launch action produces an observable, resumable, verified tenant and leaves no undocumented resources after failure."
+  - id: "STUDIO-GATE-080"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "Operators can understand every Tenure-owned tenant resource and dependency without receiving unsafe general AWS mutation access."
+  - id: "STUDIO-GATE-090"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: Relay materially accelerates configuration and operations while remaining less authoritative than the ordinary policy/approval system.
+  - id: "STUDIO-GATE-100"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "Fleet lifecycle is a real AWS/application state machine with truthful cost and recoverability semantics, not an `active` database flag."
+  - id: "STUDIO-GATE-110"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "Security controls remain effective when UI is bypassed, jobs retry, identities change, a tenant is malicious, and an operator account is compromised."
+  - id: "STUDIO-GATE-120"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "Every critical action is observable, recoverable to its declared objective, and financially attributable."
+  - id: "STUDIO-GATE-130"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: "Every integration point is versioned, scoped, replay-safe, observable, and revocable."
+  - id: "STUDIO-GATE-140"
+    prefix: STUDIO
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    statement: A protected staging environment demonstrates the complete login → configure → plan → approve → deploy → verify → reconcile → operate → rollback journey.
   - id: "TTES-000-001"
     prefix: TTES
     source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
@@ -14364,6 +15652,54 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/tenant-experience-execution-ledger.md"
     statement: Block “best” claims until measured release gates pass.
+  - id: "TTES-GATE-000"
+    prefix: TTES
+    source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/tenant-experience-execution-ledger.md"
+    statement: Tenant experience has a distinct documented architecture.
+  - id: "TTES-GATE-010"
+    prefix: TTES
+    source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/tenant-experience-execution-ledger.md"
+    statement: "Visual foundations are original, consistent and accessible."
+  - id: "TTES-GATE-020"
+    prefix: TTES
+    source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/tenant-experience-execution-ledger.md"
+    statement: "Domain teams build from stable Tenure-owned patterns."
+  - id: "TTES-GATE-030"
+    prefix: TTES
+    source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/tenant-experience-execution-ledger.md"
+    statement: Users complete work without module/navigation clutter.
+  - id: "TTES-GATE-040"
+    prefix: TTES
+    source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/tenant-experience-execution-ledger.md"
+    statement: "Experience is fast, secure, inclusive and low-fatigue."
+  - id: "TTES-GATE-050"
+    prefix: TTES
+    source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/tenant-experience-execution-ledger.md"
+    statement: "Tenant UX superiority is evidence-backed and continuously governed."
   - id: "WRK-000-001"
     prefix: WRK
     source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
@@ -14956,3 +16292,115 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
     statement: Publish an exact supported capability matrix and every limitation/external blocker; remove or label false public/product claims.
+  - id: "WRK-GATE-000"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: No existing connector or AI capability is overstated.
+  - id: "WRK-GATE-010"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: "The Work Graph is tenant-safe, source-aware, minimal, and reconcilable."
+  - id: "WRK-GATE-020"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: "Connections cannot exceed granted identity, resource, direction, purpose, or tenant authority."
+  - id: "WRK-GATE-030"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: "Relay turns missing access into a secure, honest, low-friction path."
+  - id: "WRK-GATE-040"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: "Authorization is least-privilege, provider-compliant, revocable, and auditable."
+  - id: "WRK-GATE-050"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: Relay accelerates work without becoming an autonomous authority.
+  - id: "WRK-GATE-060"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: Provider events and APIs converge to known source truth without duplicate business effects.
+  - id: "WRK-GATE-070"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: "Relay answers are access-safe, cited, current enough, and memory-governed."
+  - id: "WRK-GATE-080"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: Microsoft and Google capabilities are available only at exact product/action/scope/resource certification.
+  - id: "WRK-GATE-090"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: "The four named providers are engineered, not merely displayed."
+  - id: "WRK-GATE-100"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: Secondary connector breadth grows without weakening exact availability.
+  - id: "WRK-GATE-110"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: "Connector UX is fast, understandable, non-fatiguing, and truthful."
+  - id: "WRK-GATE-120"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: "The Workspace Connector Cloud is secure, operable, scalable, recoverable, and cost-accountable."
+  - id: "WRK-GATE-130"
+    prefix: WRK
+    source_document: "docs/implementation/universal-work-graph-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
+    statement: "Tenure may claim a cross-app acceleration only for measured, certified, supportable scope."

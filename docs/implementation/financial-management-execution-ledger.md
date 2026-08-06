@@ -127,3 +127,27 @@ Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
 - [ ] **FIN-050-005** — Publish exact accounting basis/jurisdiction/provider/capability limitations.
   - Status: FAIL
   - Reason: imported from `Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **FIN-GATE-000** — Accounting foundation passes property and isolation tests.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **FIN-GATE-010** — Record-to-report is complete for declared scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **FIN-GATE-020** — Major transaction cycles post and reconcile end to end.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **FIN-GATE-030** — Global/specialized finance is truthful and exact-scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **FIN-GATE-040** — Finance is controlled, explainable and usable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+
+- [ ] **FIN-GATE-050** — “Best” is supported only by measured evidence for the released scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md`; not yet implemented

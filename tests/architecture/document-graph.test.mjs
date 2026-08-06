@@ -168,10 +168,14 @@ test("every prefix a Bible uses owns at least one requirement", () => {
   const orphans = new Set()
   for (const doc of classify()) {
     for (const prefix of doc.requirement_prefixes) {
-      // GATE ids number release gates rather than requirements, and a document
-      // may reference another domain's prefix without owning it — so an orphan
-      // is a prefix NO document anywhere owns.
-      if (prefix === "GATE") continue
+      // A document may reference another domain's prefix without owning it, so
+      // an orphan is a prefix NO document anywhere owns.
+      //
+      // There used to be a `GATE` skip here. It was wrong twice over: a gate id
+      // is `WRK-GATE-000`, whose prefix is WRK, so `GATE` should never have
+      // appeared — and while it did, the skip was quietly concealing that the
+      // requirement extractor could not read gates at all. 164 of them were
+      // missing from the registry behind that one line.
       if (!owned.has(prefix)) orphans.add(`${prefix} (referenced by ${doc.canonical_path})`)
     }
   }

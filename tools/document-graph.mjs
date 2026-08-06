@@ -76,7 +76,25 @@ const SKIP_DIRS = new Set(["node_modules", ".next", ".git", "dist", "build", "co
  * insisted on the checkbox would silently drop the second kind — the same class
  * of miss this whole file exists to prevent.
  */
-const REQUIREMENT = /^\s*(?:[-*]\s*\[[ xX]\]\s*|[-*]\s+)?\*{0,2}([A-Z]{2,8}-\d{3}-\d{3})\*{0,2}\s*[—–\-:]\s*(.+?)\s*$/
+/**
+ * Gates are requirements too, and leaving them out understated every
+ * denominator this file produces.
+ *
+ * This matched only `\d{3}-\d{3}`, so it was structurally incapable of emitting
+ * `WRK-GATE-000` — while `ledgerStatuses` below happily *read* gate rows, and
+ * `global-engine-execution-ledger.md` already carried `GE-GATE-0` through
+ * `GE-GATE-4` with decided statuses. The extractor and the reader disagreed,
+ * and the extractor was the one nobody checked.
+ *
+ * The cost: the Work Graph Bible states 88 requirements — 74 numbered and 14
+ * gates — and the graph recorded `states_requirements: 74`. Across the root
+ * Bibles, 164 gate requirements existed and the registry carried none of them.
+ * That is exactly the understated-denominator failure this file's header says
+ * it exists to prevent, sitting inside the file that says it.
+ *
+ * Found by an adversarial reviewer instructed to refute, not by reading.
+ */
+const REQUIREMENT = /^\s*(?:[-*]\s*\[[ xX]\]\s*|[-*]\s+)?\*{0,2}([A-Z]{2,8}-(?:\d{3}-\d{3}|GATE-\d+))\*{0,2}\s*[—–\-:]\s*(.+?)\s*$/
 const ANY_ID = /\b([A-Z]{2,8}-\d{3}-\d{3})\b/g
 /**
  * A requirement id, in every shape the Bibles use.

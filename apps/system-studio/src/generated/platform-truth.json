@@ -1,9 +1,9 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "b31210c",
+  "commit": "01fbf67",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 186,
+    "total": 225,
     "done": 106,
     "phases": [
       {
@@ -1330,6 +1330,279 @@
             "title": "Keep all production/destructive/customer/legal/payment/payroll/go-live authority paused behind exact current human approvals.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-GATE-10",
+            "done": false,
+            "title": "A validated manifest can produce, test, activate, suspend, hibernate to zero runtime, truthfully measure residual cost, purge to verified zero incremental tenant cost, reactivate where recoverable, export, migrate, and offboard through one idempotent Tenure Parent workflow with no source fork or personal/customer AWS account.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-11",
+            "done": false,
+            "title": "Integration Hub is deployed, tenant-isolated, secret-safe, observable, reconcilable, and proves the highest-priority external coexistence flows end to end.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-12",
+            "done": false,
+            "title": "Declarative/low-code extension paths are governed; SDK sandbox meets security requirements before enablement; Marketplace ships only as an honest empty Coming soon surface.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-13",
+            "done": false,
+            "title": "Every enabled enterprise module family has working end-to-end business flows, invariants, authorization, configuration, migrations, audit, memory, integration, reports, operations, and tests. Unbuilt families remain visibly `PLANNED`, never falsely available.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-14",
+            "done": false,
+            "title": "Industry-pack delivery, localization, global time/currency behavior, accessibility, PWA/offline foundations, TES conformance, forest-green light/dark ambience, enterprise visualization integrity, Relay interaction quality, performance budgets, and observed long-session comfort are tested across representative tenants, roles, devices, data densities, and locales.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-15",
+            "done": false,
+            "title": "Threat model, security/privacy controls, evidence map, supply chain, IAM, data lifecycle, and high-risk negative tests are implemented and no false compliance claim exists.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-16",
+            "done": false,
+            "title": "Approved SLOs, resilience, restore/DR evidence, dashboards/alarms/runbooks, tenant-aware costs, and zero-runtime/zero-incremental-cost verification are operational.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-17",
+            "done": false,
+            "title": "CI/CD, immutable promotion, migration, performance, drift, rollback, and production-readiness evidence are complete; production authority remains protected.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-18",
+            "done": false,
+            "title": "`GE-*` and `EXT-*` are unified, the live/repository truth is evidenced, insecure/obsolete assumptions are explicit, and implementation can proceed without guessing protected inputs.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-19",
+            "done": false,
+            "title": "Every `EXT-010-*` item passes and implementation knowledge itself becomes governed institutional memory.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-20",
+            "done": false,
+            "title": "Every `EXT-020-*` item passes; environment purpose, data, access, versions, cost, and end-of-life are enforced by the engine.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-21",
+            "done": false,
+            "title": "Every `EXT-030-*` item passes and enterprise foundation choices are global, effective-dated, reconciled, and historically reconstructable.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-22",
+            "done": false,
+            "title": "Every `EXT-040-*` item passes; regulatory content is versioned executable evidence, not static prose or scattered code.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-23",
+            "done": false,
+            "title": "Every `EXT-050-*` item passes for each enabled payroll scope; all other scopes are visibly unavailable or provider-bounded.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-24",
+            "done": false,
+            "title": "Every `EXT-060-*` item passes; the factory can repeat a failed/restarted migration and prove exactly what moved, changed, failed, reconciled, and remained.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-25",
+            "done": false,
+            "title": "Every `EXT-070-*` item passes and every production connector is bounded, failure-aware, reconcilable, secure, supportable, and truthfully labeled.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-26",
+            "done": false,
+            "title": "Every `EXT-080-*` item passes for each enabled bank/channel/message; no XML-generation or transport-only capability is misrepresented as bank certification or settlement.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-27",
+            "done": false,
+            "title": "Every `EXT-090-*` item passes and the system is accepted by evidence rather than project optimism.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-28",
+            "done": false,
+            "title": "Every `EXT-100-*` item and rehearsal passes; no real go-live occurs without protected current evidence and recovery authority.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-29",
+            "done": false,
+            "title": "Every `EXT-110-*` item passes and accepting service owners can operate the tenant without the original implementation team.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-30",
+            "done": false,
+            "title": "Every `EXT-120-*` item passes and no system is called retired while data, access, dependency, contract, license, retained copy, or cost remains unexplained.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-31",
+            "done": false,
+            "title": "Every `EXT-130-*` and `EXT-140-*` item passes; Tenure staff do not work in an inferior side-console and Relay remains a copilot rather than an authority.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-32",
+            "done": false,
+            "title": "Every `EXT-150-*` item passes and extension machinery is held to the same or stronger invariants as the tenant runtime.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-33",
+            "done": false,
+            "title": "Every enabled scope is implemented, deployed where authorized, tested, evidenced, supportable, and honestly classified; protected production/destructive authority remains human.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-34",
+            "done": false,
+            "title": "Every applicable `CFG-*` gate passes; millions of choices are composed by a deterministic generated experience rather than a hard-coded wizard.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-35",
+            "done": false,
+            "title": "Every applicable `PACK-*` gate passes and specialized systems deploy from reusable certified packs without tenant forks.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-36",
+            "done": false,
+            "title": "Every applicable `INT-*` and `PAY-*` gate passes; no provider logo, OAuth success or test ping is represented as production integration/payment readiness.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-37",
+            "done": false,
+            "title": "Every applicable `HCM-*` gate passes and People Cloud is a real first-party core system, not a directory/provider shell.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-38",
+            "done": false,
+            "title": "Every applicable `FIN-*` gate passes with zero unexplained critical monetary variance.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-39",
+            "done": false,
+            "title": "Every applicable `PLN-*` gate passes and published plans reconcile to Finance/HCM/Operations handoffs.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-40",
+            "done": false,
+            "title": "Every applicable `OPS-*` gate passes with zero unexplained critical quantity or financial variance.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-41",
+            "done": false,
+            "title": "Every applicable `TTES-*` gate passes; tenant users receive a fast, calm, powerful product rather than the Global Deployer console.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-42",
+            "done": false,
+            "title": "Every applicable `ANL-*` gate passes; no decorative, stale, inaccessible or client-invented metric/chart remains in production.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-43",
+            "done": false,
+            "title": "The Constitution, every mandatory Bible, Simon, the tenant fleet and the release/evidence system converge without skipped or shallow authority.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-5",
+            "done": false,
+            "title": "Temporal organization/seat engine and centralized authorization are canonical, enforced across the product, and proven by Simon/corporate and tenant-isolation fixtures.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-6",
+            "done": false,
+            "title": "No-shared-business-table architecture, object/index isolation, immutable audit, event/outbox, analytics governance, and complete Tenant A/B denial matrix pass in deployed development/staging.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-7",
+            "done": false,
+            "title": "Workflow/forms, documents/records, messaging/notifications, calendar/events/conflicts, and institutional memory/handoff run end to end with authorization, audit, provenance, and tenant-isolation tests.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-8",
+            "done": false,
+            "title": "Simon-ready pilot core, canonical finance/procurement/projects/reports/search, and corporate fixture pass end to end without tenant hard-coding or inconsistent metrics.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
+          },
+          {
+            "id": "GE-GATE-9",
+            "done": false,
+            "title": "Relay is a deployed, permission-aware, citation-grounded, multimodal copilot with safe editing/automation, model evaluation/routing, guardrails, budgets, and complete cross-tenant/tool-risk tests.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": true
           }
         ]
       }

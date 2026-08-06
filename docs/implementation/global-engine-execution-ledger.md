@@ -8792,3 +8792,227 @@ immediately, which is the guard working.
 - [ ] **GE-430-006** — Keep all production/destructive/customer/legal/payment/payroll/go-live authority paused behind exact current human approvals.
   - Status: FAIL
   - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-000** — Baseline truth and authority are complete enough to design without guessing protected customer/legal/vendor facts.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-010** — Implementation truth is first-class, temporal, tenant-isolated, permissioned, auditable, and successor-ready.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-020** — Every environment has controlled purpose, data, authority, versions, cost, and end-of-life.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-030** — Staffing and accounting foundations are generic, effective-dated, reconciled, and historically reconstructable.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-040** — Localization is governed executable content, not scattered conditionals or permanent prose.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-050** — Payroll authority is explicit, certified for exact scope, reconciled, private, and never simulated as production capability.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-060** — Migration is repeatable, lineage-complete, reconciled, rehearsal-proven, and safe to cut over.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-070** — Integrations are governed, scalable, failure-aware, reconcilable, and tenant-safe.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-080** — Each enabled bank channel/message is secure, version-exact, bank-accepted, failure-tested, and reconciled.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-090** — Technical and business acceptance is traceable, representative, evidence-based, and honest.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-100** — Go-live cannot occur without current conversion, security, business, external, operational, communication, and recovery evidence.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-110** — Production is stabilized and operational ownership is demonstrably transferred.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-120** — No legacy system is called retired while access, data, dependency, cost, contract, or evidence remains unexplained.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-130** — Internal and customer implementation work is as coherent, modern, accessible, and fatigue-resistant as the tenant product.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-140** — Relay accelerates transformation without becoming an authority, source of truth, or privileged bypass.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-150** — Extension workloads meet the Bible's security, privacy, evidence, reliability, residency, and cost invariants.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-GATE-160** — The extension is complete only when every enabled capability works end to end and the verification record states everything that does not.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **GE-GATE-10** — A validated manifest can produce, test, activate, suspend, hibernate to zero runtime, truthfully measure residual cost, purge to verified zero incremental tenant cost, reactivate where recoverable, export, migrate, and offboard through one idempotent Tenure Parent workflow with no source fork or personal/customer AWS account.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-11** — Integration Hub is deployed, tenant-isolated, secret-safe, observable, reconcilable, and proves the highest-priority external coexistence flows end to end.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-12** — Declarative/low-code extension paths are governed; SDK sandbox meets security requirements before enablement; Marketplace ships only as an honest empty Coming soon surface.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-13** — Every enabled enterprise module family has working end-to-end business flows, invariants, authorization, configuration, migrations, audit, memory, integration, reports, operations, and tests. Unbuilt families remain visibly `PLANNED`, never falsely available.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-14** — Industry-pack delivery, localization, global time/currency behavior, accessibility, PWA/offline foundations, TES conformance, forest-green light/dark ambience, enterprise visualization integrity, Relay interaction quality, performance budgets, and observed long-session comfort are tested across representative tenants, roles, devices, data densities, and locales.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-15** — Threat model, security/privacy controls, evidence map, supply chain, IAM, data lifecycle, and high-risk negative tests are implemented and no false compliance claim exists.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-16** — Approved SLOs, resilience, restore/DR evidence, dashboards/alarms/runbooks, tenant-aware costs, and zero-runtime/zero-incremental-cost verification are operational.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-17** — CI/CD, immutable promotion, migration, performance, drift, rollback, and production-readiness evidence are complete; production authority remains protected.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-18** — `GE-*` and `EXT-*` are unified, the live/repository truth is evidenced, insecure/obsolete assumptions are explicit, and implementation can proceed without guessing protected inputs.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-19** — Every `EXT-010-*` item passes and implementation knowledge itself becomes governed institutional memory.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-20** — Every `EXT-020-*` item passes; environment purpose, data, access, versions, cost, and end-of-life are enforced by the engine.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-21** — Every `EXT-030-*` item passes and enterprise foundation choices are global, effective-dated, reconciled, and historically reconstructable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-22** — Every `EXT-040-*` item passes; regulatory content is versioned executable evidence, not static prose or scattered code.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-23** — Every `EXT-050-*` item passes for each enabled payroll scope; all other scopes are visibly unavailable or provider-bounded.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-24** — Every `EXT-060-*` item passes; the factory can repeat a failed/restarted migration and prove exactly what moved, changed, failed, reconciled, and remained.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-25** — Every `EXT-070-*` item passes and every production connector is bounded, failure-aware, reconcilable, secure, supportable, and truthfully labeled.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-26** — Every `EXT-080-*` item passes for each enabled bank/channel/message; no XML-generation or transport-only capability is misrepresented as bank certification or settlement.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-27** — Every `EXT-090-*` item passes and the system is accepted by evidence rather than project optimism.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-28** — Every `EXT-100-*` item and rehearsal passes; no real go-live occurs without protected current evidence and recovery authority.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-29** — Every `EXT-110-*` item passes and accepting service owners can operate the tenant without the original implementation team.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-30** — Every `EXT-120-*` item passes and no system is called retired while data, access, dependency, contract, license, retained copy, or cost remains unexplained.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-31** — Every `EXT-130-*` and `EXT-140-*` item passes; Tenure staff do not work in an inferior side-console and Relay remains a copilot rather than an authority.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-32** — Every `EXT-150-*` item passes and extension machinery is held to the same or stronger invariants as the tenant runtime.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-33** — Every enabled scope is implemented, deployed where authorized, tested, evidenced, supportable, and honestly classified; protected production/destructive authority remains human.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-34** — Every applicable `CFG-*` gate passes; millions of choices are composed by a deterministic generated experience rather than a hard-coded wizard.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-35** — Every applicable `PACK-*` gate passes and specialized systems deploy from reusable certified packs without tenant forks.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-36** — Every applicable `INT-*` and `PAY-*` gate passes; no provider logo, OAuth success or test ping is represented as production integration/payment readiness.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-37** — Every applicable `HCM-*` gate passes and People Cloud is a real first-party core system, not a directory/provider shell.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-38** — Every applicable `FIN-*` gate passes with zero unexplained critical monetary variance.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-39** — Every applicable `PLN-*` gate passes and published plans reconcile to Finance/HCM/Operations handoffs.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-40** — Every applicable `OPS-*` gate passes with zero unexplained critical quantity or financial variance.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-41** — Every applicable `TTES-*` gate passes; tenant users receive a fast, calm, powerful product rather than the Global Deployer console.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-42** — Every applicable `ANL-*` gate passes; no decorative, stale, inaccessible or client-invented metric/chart remains in production.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-43** — The Constitution, every mandatory Bible, Simon, the tenant fleet and the release/evidence system converge without skipped or shallow authority.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-5** — Temporal organization/seat engine and centralized authorization are canonical, enforced across the product, and proven by Simon/corporate and tenant-isolation fixtures.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-6** — No-shared-business-table architecture, object/index isolation, immutable audit, event/outbox, analytics governance, and complete Tenant A/B denial matrix pass in deployed development/staging.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-7** — Workflow/forms, documents/records, messaging/notifications, calendar/events/conflicts, and institutional memory/handoff run end to end with authorization, audit, provenance, and tenant-isolation tests.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-8** — Simon-ready pilot core, canonical finance/procurement/projects/reports/search, and corporate fixture pass end to end without tenant hard-coding or inconsistent metrics.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-GATE-9** — Relay is a deployed, permission-aware, citation-grounded, multimodal copilot with safe editing/automation, model evaluation/routing, guardrails, budgets, and complete cross-tenant/tool-risk tests.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
