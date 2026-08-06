@@ -1,9 +1,9 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "f051bb0",
+  "commit": "a6cf1c1",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 124,
+    "total": 186,
     "done": 106,
     "phases": [
       {
@@ -894,6 +894,440 @@
             "id": "GE-051-005",
             "done": false,
             "title": "*(continued)* Enforce authorization in every path.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-180-011",
+            "done": false,
+            "title": "Import every `STUDIO-*` requirement into the unified ledger and execute the System Studio current-state, identity, authorization and read-only AWS-truth prerequisites before any new write authority.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-310-009",
+            "done": false,
+            "title": "Execute and evidence every remaining `STUDIO-*` requirement, including login/session, desired-state/change governance, AWS orchestration, fleet/lifecycle, security, operations, FinOps, accessibility and release proof.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-340-001",
+            "done": false,
+            "title": "Execute and evidence every `CFG-*` requirement from the Configurator Bible.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-340-002",
+            "done": false,
+            "title": "Implement signed schema packages, bounded typed expressions, dependency graph compilation, cycle detection and incremental affected-subgraph evaluation.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-340-003",
+            "done": false,
+            "title": "Implement field/section states, provenance, cascading options, downstream invalidation, conflict and historical reconstruction.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-340-004",
+            "done": false,
+            "title": "Implement drafts, branches, autosave, save/exit/resume, back/forward, assignments, comments, compare and semantic merge under concurrency/failure.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-340-005",
+            "done": false,
+            "title": "Implement complete impact/validation/review/digest-bound approval and handoff to backend orchestration.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-340-006",
+            "done": false,
+            "title": "Prove Simon, professional-services SMB, global manufacturer and public-sector configurations from one runtime.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-350-001",
+            "done": false,
+            "title": "Execute and evidence every `PACK-*` requirement.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-350-002",
+            "done": false,
+            "title": "Implement multi-axis scale/organization/operating/system-of-record/deployment/geography/module/industry/provider composition.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-350-003",
+            "done": false,
+            "title": "Enforce Tenure vendor-cloud-only runtime and governed external/on-prem ERP coexistence profiles.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-350-004",
+            "done": false,
+            "title": "Implement pack lifecycle, modes, compatibility, process chains, accounting/control, certification, releases and tenant waves.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-350-005",
+            "done": false,
+            "title": "Keep all incomplete capability/industry breadth visibly planned/developing/unavailable.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-350-006",
+            "done": false,
+            "title": "Benchmark Intuit Enterprise Suite plus SAP/Oracle/Workday/Salesforce/Rippling for applicable scenarios.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-360-001",
+            "done": false,
+            "title": "Execute and evidence every `INT-*` and `PAY-*` requirement.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-360-002",
+            "done": false,
+            "title": "Implement canonical envelopes, schemas, connector SDK/registry, mappings, auth/consent/secrets, webhooks/files/APIs/events, limits, errors and reconciliation.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-360-003",
+            "done": false,
+            "title": "Deliver Integration Studio with connection setup, mapping, runs, exceptions, reconciliation, certification and lifecycle.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-360-004",
+            "done": false,
+            "title": "Import the complete Payments Bible for Stripe; enforce merchant/legal-entity mapping, liability, accounts, collections, splits, payouts, cards, treasury, disputes and ledger reconciliation.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-360-005",
+            "done": false,
+            "title": "Keep Simon live payments disabled until separately authorized.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-360-006",
+            "done": false,
+            "title": "Prove connector/provider suspension, tenant hibernation/reactivation/offboarding/purge and residual-resource/cost closure.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-370-001",
+            "done": false,
+            "title": "Execute and evidence every `HCM-*` requirement.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-370-002",
+            "done": false,
+            "title": "Implement person/worker/member/job/position/seat/assignment separation, effective-dated structures and lifecycle.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-370-003",
+            "done": false,
+            "title": "Implement recruiting/onboarding/transitions, time/leave, compensation/benefits, talent/skills/learning/succession, HR cases and exact payroll modes.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-370-004",
+            "done": false,
+            "title": "Enforce person privacy versus eligible seat memory across API/UI/search/export/analytics/Relay/support.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-370-005",
+            "done": false,
+            "title": "Deliver employee/manager/HR/recruiter/candidate experiences and global/provider boundaries.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-370-006",
+            "done": false,
+            "title": "Instrument and pass the HCM superiority scorecard for claimed scope.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-380-001",
+            "done": false,
+            "title": "Execute and evidence every `FIN-*` requirement.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-380-002",
+            "done": false,
+            "title": "Implement universal accounting events, subledgers, balanced immutable journals, ledgers/books/periods/currencies and drill-through.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-380-003",
+            "done": false,
+            "title": "Implement record-to-report, procure-to-pay, order-to-cash, revenue, assets, expenses, cash/banking boundary, budget/funds/grants, intercompany/consolidation and exact tax modes.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-380-004",
+            "done": false,
+            "title": "Enforce finance authorization, limits, SoD, controls, reconciliation and posting finality.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-380-005",
+            "done": false,
+            "title": "Deliver accountant-grade UX, finance memory and governed Relay tools.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-380-006",
+            "done": false,
+            "title": "Instrument and pass Finance/Intuit/SAP/Oracle/Workday benchmark scenarios for claimed scope.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-390-001",
+            "done": false,
+            "title": "Execute and evidence every `PLN-*` requirement.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-390-002",
+            "done": false,
+            "title": "Implement multidimensional models, dimensions/measures, calculation graph, versions/scenarios, workflows, locks and lineage.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-390-003",
+            "done": false,
+            "title": "Implement connected financial, workforce, sales, operational, capital/project, cash and strategic plans.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-390-004",
+            "done": false,
+            "title": "Implement allocations/spreads, scenario/sensitivity and AWS-hosted forecasts with baselines, uncertainty, drift and human review.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-390-005",
+            "done": false,
+            "title": "Preserve decision records through execution and realized outcome.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-390-006",
+            "done": false,
+            "title": "Instrument and pass Planning/Intuit/Workday/SAP/Oracle benchmark scenarios for claimed scope.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-400-001",
+            "done": false,
+            "title": "Execute and evidence every `OPS-*` requirement.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-400-002",
+            "done": false,
+            "title": "Implement master data, demand/supply, inventory, warehouse, order/fulfillment and procurement operations.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-400-003",
+            "done": false,
+            "title": "Implement declared manufacturing, quality, maintenance/asset, project, service/field, logistics and facilities modes.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-400-004",
+            "done": false,
+            "title": "Enforce quantity/UOM/lot/serial/state/concurrency/accounting/reconciliation/safety invariants.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-400-005",
+            "done": false,
+            "title": "Deliver frontline/mobile/offline UX, operational memory, Relay and certified external-system boundaries.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-400-006",
+            "done": false,
+            "title": "Instrument and pass Operations/Intuit Construction/SAP/Oracle/Infor/IFS/Epicor benchmark scenarios for claimed scope.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-410-001",
+            "done": false,
+            "title": "Execute and evidence every `TTES-*` requirement.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-410-002",
+            "done": false,
+            "title": "Implement original forest-green primitive/semantic/component/tenant token pipeline, typography, density, motion and themes.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-410-003",
+            "done": false,
+            "title": "Implement owned component, form, grid, workflow, memory, Relay and page-pattern libraries.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-410-004",
+            "done": false,
+            "title": "Deliver role-aware tenant shell/home/search/inbox/records, distinct from System Studio.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-410-005",
+            "done": false,
+            "title": "Pass responsive/mobile/offline, WCAG 2.2 AA, localization/RTL, security, performance, visual-regression and long-session tests.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-410-006",
+            "done": false,
+            "title": "Benchmark tenant journeys against Granola, Vercel, Brex, Monarch, Perplexity, ChatGPT, Intuit and major ERP products without copied trade dress.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-420-001",
+            "done": false,
+            "title": "Execute and evidence every `ANL-*` requirement.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-420-002",
+            "done": false,
+            "title": "Implement conformed semantic models, versioned metrics, quality, freshness, lineage, authorization-aware queries and projections.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-420-003",
+            "done": false,
+            "title": "Implement transactional, financial, management, exploratory and executive report families.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-420-004",
+            "done": false,
+            "title": "Implement the complete advanced chart grammar, ChartFrame, domain visual minimums, accessible tables, drill/cross-filter/compare/annotations/saved views/alerts/actions.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-420-005",
+            "done": false,
+            "title": "Implement secure self-service authoring, subscriptions/bursting/exports and Relay narratives.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-420-006",
+            "done": false,
+            "title": "Prove the Intuit Enterprise Suite multi-entity/BI/project-profitability benchmark and every other mandatory competitor scenario.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-430-001",
+            "done": false,
+            "title": "Build `architecture-document-graph.yaml` and `capability-completeness-registry.yaml` with documents, versions/digests, dependencies, prefixes, owners, outputs and status.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-430-002",
+            "done": false,
+            "title": "CI fails for missing mandatory Bibles, duplicate/unimported IDs, unresolved references, divergent ledgers and false capability availability.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-430-003",
+            "done": false,
+            "title": "Execute the complete Simon absorption Bible and prove Simon Tenant #1 inherits compatible global releases without a source fork or overwritten explicit configuration.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-430-004",
+            "done": false,
+            "title": "Run one release object through code/IaC/schema/config/pack/connector/payments/core-cloud/TTES/analytics/Relay/migration/test/evidence/rollback compatibility and tenant waves.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-430-005",
+            "done": false,
+            "title": "Re-run the completeness audit under the owning-domain depth contract; report remaining missing/shallow planes without renaming them complete.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-430-006",
+            "done": false,
+            "title": "Keep all production/destructive/customer/legal/payment/payroll/go-live authority paused behind exact current human approvals.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
           }

@@ -7868,3 +7868,927 @@ immediately, which is the guard working.
     touches the code this entry changed. Worth its own tick.
 
   123/1219 decided.
+
+- [ ] **EXT-000-001** — Canonical Bible, this extension, prompt, ADRs, repository rules, contracts, and applicable specialist source documents are located, versioned, and included in the read-order contract.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-000-002** — Current repository, AWS, environment, tenant, data, integration, and release truth is inventoried read-only without exposing secrets.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-000-003** — Existing implementation/migration/localization/payroll/bank/cutover/support artifacts are mapped to canonical objects; conflicting sources of truth are identified.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-000-004** — Current live CloudFront build and authenticated test build are route/role/state/theme/viewport audited through authorized accounts; no production mutation occurs.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-000-005** — Baseline build, test, security, accessibility, visual, migration, and deployment failures are recorded separately from new work.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-000-006** — Extension execution ledger and final verification rows exist for every EXT ID.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-010-001** — Implement tenant-scoped program, workstream, requirement, decision, assumption, dependency, RAID, deliverable, process, mapping, test, readiness, cutover, hypercare, and decommission objects.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-010-002** — Add immutable IDs, version/effective dating, classification, retention, optimistic concurrency, actor/audit, and tenant/program context.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-010-003** — Implement program lifecycle and controlled transitions, permissions, evidence requirements, and blocked/hold/rollback states.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-010-004** — Implement requirement-to-process/config/code/migration/integration/control/test/training/cutover/support traceability.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-010-005** — Implement signed artifact approval, exact-version snapshot, supersession, exception expiry, and scope-change impact.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-010-006** — Implement durable-seat ownership and handoff for every program role and decision.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-010-007** — Implement evidence-derived health/readiness and prevent manual green overrides of failed critical gates.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-010-008** — Enforce cross-tenant implementation-metadata isolation and minimized fleet analytics.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-010-009** — Deliver TES-governed program, workstream, decision, risk, dependency, evidence, and readiness surfaces.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-010-010** — Prove end-to-end program flow with Simon and a structurally different corporate implementation fixture.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-020-001** — Implement environment class registry and schema for every class in Section 4.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-020-002** — Implement environment manifests with AWS placement, versions, data rules, access, connections, cost, expiry, entry/exit, and destruction.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-020-003** — Provision environments through reusable IaC and configuration; block console-only drift and personal/unrelated accounts.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-020-004** — Enforce class-specific allowed/prohibited data, outbound notification suppression, egress, Relay, connector, and export policies.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-020-005** — Implement production-derived-data exception, masking/tokenization, leakage scan, approval, lineage, expiry, and destruction.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-020-006** — Implement code/config/mapping/pack/connector promotion by immutable digest with compatibility, diff, approval, and rollback.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-020-007** — Implement environment compare for release, IaC, schema, config, mappings, packs, connectors, data class, and Relay versions.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-020-008** — Implement automatic expiry, hibernation/teardown, orphan scan, residual cost, and delayed billing verification.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-020-009** — Prove safe gold-to-production promotion without a production database copy.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-020-010** — Prove DR restore-drill environment isolation and mandatory destruction.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-030-001** — Implement effective-dated `POSITION_CONTROLLED`, `JOB_MANAGED_POOLED`, `MIXED`, and `NON_WORKFORCE_SEAT` policies without person/seat conflation.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-030-002** — Separate job, position, headcount/FTE authorization, assignment, employment relationship, compensation, funding, and authority.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-030-003** — Implement vacancy/overfill/capacity/budget reconciliation and matrix/interim/delegated/shared arrangements.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-030-004** — Implement staffing-mode migration simulation, continuity mapping, reconciliation, approval, and rollback.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-030-005** — Implement accounting event, effective-dated rule set, journal header/line, ledger, book, subledger, and posting batch contracts.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-030-006** — Enforce balanced immutable posting, period/currency/dimension/rule validation, idempotency, reversal/correction, and source drill-through.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-030-007** — Implement multiple ledger/book/accounting-basis/valuation views without copying a vendor schema.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-030-008** — Implement intercompany counterpart, balancing, reconciliation, consolidation, and elimination boundaries.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-030-009** — Implement finance migration reconciliation by entity/ledger/book/period/currency/account/dimension/source.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-030-010** — Prove subledger-to-ledger and source-to-report traceability under concurrency, reversal, closed period, and retry.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-040-001** — Implement signed, versioned, effective-dated localization pack schema, dependencies, applicability, sources, certification state, and lifecycle.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-040-002** — Implement authoritative-source snapshot/checksum, specialist interpretation, reviewer/approval, and historical reconstruction.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-040-003** — Implement effective-dated forms/schemas/code lists/calculations/thresholds/workflows/controls/reports/retention and golden tests.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-040-004** — Implement regulatory monitoring intake, impact analysis, simulation, tenant diff, approval, notification, activation, and emergency correction.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-040-005** — Prevent pack availability until exact certification, provider/integration, regression, support, region, and effective-date gates pass.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-040-006** — Implement explicit applicability/evidence for country/subdivision/industry/entity/population and no geography-only activation.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-040-007** — Create New York proving pack catalog for NYS-45 family, PFL, applicable local/employer rules, SHIELD, and conditional DFS Part 500 mappings.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-040-008** — Keep changing rates/dates/forms/file layouts outside core code and prove historic/current/future rule selection.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-040-009** — Add honest product language and block unsupported compliance/certification claims.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-040-010** — Prove a second jurisdiction fixture with conflicting calendars/formats/rules through the same engine.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-050-001** — Implement payroll capability-mode registry and Tenure-controlled entitlement by exact certified scope.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-050-002** — Implement canonical payroll relationships, periods, elements, runs, results, balances, payment/filing/journal/reconciliation states with strict privacy.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-050-003** — Implement payroll state machine, cutoff/freeze, late input, recalculation, retro, off-cycle, correction, reversal, cancellation, and closure.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-050-004** — Enforce effective-date calculation, provider-result distrust/validation, SoD, bank-change protection, and immutable traceability.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-050-005** — Implement provider export/orchestration contracts with input/output control totals, signatures/channel evidence, acknowledgements, errors, and replay safety.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-050-006** — Implement payroll-to-ledger costing/journal and liability/net/cash reconciliation.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-050-007** — Build certification factory with applicability, golden personas/cases, expected results, oracle/provider comparison, parallel runs, tolerances, support, expiry, and revocation.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-050-008** — Implement New York discovery/certification matrix and versioned NYS-45 generation/handoff states without claiming filing when not submitted.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-050-009** — Block release, filing, or native availability for uncertified/expired scope and display `UNAVAILABLE` honestly.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-050-010** — Prove restricted payroll access, audit, export, correction, provider outage, and incident runbooks.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-001** — Implement tenant/program/environment-isolated migration registry, S3 zones, KMS/IAM/network/retention/malware/lifecycle controls, and run state machine.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-002** — Implement source-system inventory, ownership, schema/object/volume/classification/dependency/quality/extract/delta/retirement profile.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-003** — Implement executable canonical mapping schema with lineage, effective dates, transforms, crosswalks, quality, examples, tests, and approval.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-004** — Import/export mapping workbooks safely without executing formulas/macros or making them canonical.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-005** — Implement profiling, cleansing, duplicate resolution, golden-record survivorship, crosswalk, quarantine, remediation, and tolerance governance.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-006** — Implement dependency DAG, precondition validation, bounded parallelism, and reference/master/transaction/content/delta ordering.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-007** — Implement immutable extraction manifests, checksums, encryption, secret suppression/scan, object versioning, and access expiry.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-008** — Implement bounded streaming/chunked transform workers with resource/cost budgets, signed digest, idempotency, checkpoint/restart/cancel, backpressure, and safe logs.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-009** — Load through invariant-enforcing bulk/domain contracts; restrict any direct migration interface to equivalent validation/audit.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-010** — Execute MOCK_1, iterative mocks, and final rehearsal with production-scale volume, timing, roles, delta, reconciliation, rollback, cost, and lessons.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-011** — Implement transport/technical/business/financial/security/content/memory reconciliation with source/target/diff/tolerance/owner/evidence/sign-off.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-012** — Require zero unexplained variance for authority, money, payroll/payment totals, legal holds, and mandatory records.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-013** — Implement baseline/delta gap and duplicate proof, final freeze, integration sequencing, projection rebuild, and sign-off.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-014** — Implement adapter catalog/contracts for SAP, Oracle, Workday, database, file, API, and legacy sources with version/licensing/gap/certification metadata.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-060-015** — Prove failed chunk/retry/restart/poison record/source drift/schema drift/rollback and no cross-tenant access.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-070-001** — Implement canonical integration envelope and large-payload governed references.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-070-002** — Implement API, async event/command, batch/file, managed transfer, webhook, approved CDC, and justified streaming patterns.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-070-003** — Implement resumable/multipart ingest, manifest/signature/checksum/MIME/archive/schema/tenant/sequence/duplicate validation and quarantine.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-070-004** — Implement deterministic splitter/chunk manifest, bounded processing, atomic business unit, aggregation, totals, and temp cleanup.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-070-005** — Implement signed sandboxed transformation packages and compiled low-code contract with no arbitrary credentials/network/filesystem.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-070-006** — Implement explicit delivery semantics, target idempotency, transient retry/backoff/jitter, permanent failure, DLQ/redrive, and replay protection.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-070-007** — Implement stable error taxonomy, circuit breaker, kill switch, maintenance, tenant disable, and provider outage recovery.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-070-008** — Implement schema registry/compatibility/drift detection, mapping impact, consumer contract tests, and version retirement.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-070-009** — Certify each production integration for security, rotation, volume, limits, failure, reconciliation, monitoring, privacy, cutover, support, and rollback.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-070-010** — Prove large-file memory ceilings, backpressure, concurrency fairness, cost limits, archive bomb/XXE/formula injection, and residual cleanup.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-080-001** — Implement protected bank/account/beneficiary master, masked/encrypted fields, verification, effective dates, limits, signatory seats, and change controls.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-080-002** — Implement ISO 20022 registry by exact message version, official source checksum, market/scheme/country/bank/channel/tenant overlay, effective dates, code sets, tests, and certification.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-080-003** — Implement payment lifecycle separating approval, generation, transmission, acknowledgement, acceptance, processing, settlement/return, reconciliation, and closure.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-080-004** — Implement supported `pain.*`, `camt.*`, and explicitly enabled `pacs.*` adapter contracts without assuming universal versions or roles.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-080-005** — Bind immutable approved payment batch to generated artifact/message digest, schema/usage guide, counts/amounts, generator, and approvers.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-080-006** — Implement bank-approved mTLS/API/SFTP/PGP/signature/encryption/host-key/network credential controls, rotation, expiry, and revocation.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-080-007** — Verify inbound signature/source/schema/time/sequence/replay/duplicate/account/tenant and support partial/out-of-order statuses.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-080-008** — Implement request-to-statement-to-ledger reconciliation, deterministic matching, human-reviewed fuzzy suggestions, exceptions, and zero unexplained material differences.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-080-009** — Execute bank certification suite for golden/negative/edge/volume/failure/return/recall/reversal/fee/FX/replay/cutoff/holiday cases.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-080-010** — Keep actual money movement at certified bank/provider boundary and prevent unsupported banking claims.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-090-001** — Implement requirement/risk-driven scenario repository covering system, integration, business, operational, migration, security, accessibility, and visual testing.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-090-002** — Implement full scenario contract with actors, permissions, versions, fixture, expected states/events/accounting/notifications/memory, evidence, and sign-off.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-090-003** — Cover happy, denial, SoD, duplicate, concurrency, partial, timeout, retry, cancel, correction, reversal, boundary, outage, malicious, and recovery paths.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-090-004** — Implement UAT entry/exit, representative least-privilege testers, reconciled data, training, known-defect statement, evidence, retest, and domain sign-off.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-090-005** — Implement defect severity without date-driven downgrades, complete impact/repro/evidence/workaround/cause/fix/regression/verification.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-090-006** — Implement evidence-derived readiness dimensions and non-averageable critical gates.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-090-007** — Implement accepted-risk authority, compensating control, owner, expiry, contingency, and visibility.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-090-008** — Prove end-to-end Simon and corporate critical scenarios through memory, finance/integration, exception, and reporting.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-090-009** — Prove high-risk tenant-isolation, authorization, payment/payroll, migration, and Relay negative scenarios.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-090-010** — Obtain accountable business-owner acceptance; no proxy sign-off without formal delegation.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-100-001** — Implement Cutover Command Center state machine, task/dependency/evidence/decision/communication/rollback model and TES surface.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-100-002** — Define command roles, occupants/backups, time zones, contacts, decision rights, handoff, and escalation by durable seat.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-100-003** — Implement strategy, integrated plan, minute/time-window runbook, contact matrix, communication plan, and decision log.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-100-004** — Implement T-90/T-30/T-7/T-1/T0/T+ horizons with tenant-specific dates and dependencies.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-100-005** — Classify hard/soft freeze, read-only coexistence, approved dual operation, and deferred migration; block unsafe dual writes.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-100-006** — Bind every cutover task to exact version, executor, approver, duration, prerequisites, verification, retry, rollback boundary, and escalation.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-100-007** — Implement evidence-driven go/no-go board and `GO/NO_GO/PAUSE/ROLLBACK` decision record.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-100-008** — Implement protected idempotent activation, progressive routing/feature/connection changes, safe smoke/isolation/auth/business validation, and cleanup.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-100-009** — Implement dynamic last-reversible-point and boundary-specific rollback/forward-recovery plans.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-100-010** — Rehearse command center, communications, failure injection, go/no-go, and rollback with final production candidate.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-110-001** — Implement tenant/tier-specific coverage, schedule, intake, severity/SLA, dashboards, control checks, communications, vendors, change policy, and exit plan.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-110-002** — Enforce purpose-bound JIT support sessions, step-up, masking, audit, expiry, and no local copies.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-110-003** — Implement real-time/command/daily cadence, domain controls, status publication, root cause, permanent fix, and knowledge capture.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-110-004** — Implement hypercare metrics for cases, SLO, auth, workflows, integrations, finance/payroll/bank reconciliation, data, Relay, performance, cost, adoption, and knowledge gaps.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-110-005** — Implement expedited but complete emergency change and governed configuration/data correction packages.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-110-006** — Implement workaround risk/owner/instructions/expiry/communication/permanent-fix lifecycle.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-110-007** — Implement exit criteria and evidence for defects, critical cycles, stability, workarounds, monitoring, runbooks, access, DR, renewals, knowledge, and support simulation.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-110-008** — Obtain customer and Tenure service-owner transition sign-off by immutable manifest.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-110-009** — Transfer unfinished optimization/adoption to a visible success roadmap.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-110-010** — Prove on-call/escalation/handoff when a primary seat occupant is unavailable.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-120-001** — Implement complete legacy asset/dependency/data/owner/cost/contract/license inventory and retirement state machine.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-120-002** — Obtain target-process/data/reconciliation/records/legal-hold acceptance before source retirement.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-120-003** — Implement archive/export manifest, checksum, index/permissions, retrieval documentation, and isolated restore test.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-120-004** — Implement read-only rollback/reference window with monitored access and explicit end.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-120-005** — Revoke credentials/accounts/grants/keys/certificates/tunnels/firewall/DNS/jobs/agents/vendor access and prove revocation.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-120-006** — Dispose of backups/replicas/logs/caches/snapshots/DR copies under retention/hold and record exceptions.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-120-007** — Reconcile all AWS accounts/regions/resources, delete or explicitly retain, then verify residual cost through delayed billing data.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-120-008** — Track approved hardware/media sanitization/destruction certificates without directing autonomous physical destruction.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-120-009** — Terminate/amend licenses, support, contracts, renewals, and processor relationships.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-120-010** — Create non-sensitive retired tombstone and destruction evidence package.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-130-001** — Implement all Section 15 workbench surfaces through TES; no one-off internal console visual language.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-130-002** — Replace conflicting brown/gold/monospace one-off styling only after repository token/source audit; preserve user function while migrating to forest-green TES.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-130-003** — Remove or strictly isolate custom `Operator secret` authentication from production; use Bible-approved Cognito/federated operator identity and support controls.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-130-004** — Audit every authorized route/role/state/theme/density/viewport and maintain route-state visual matrix.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-130-005** — Implement modern program, landscape, migration, integration, pack, test, cutover, hypercare, and decommission information architecture.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-130-006** — Implement governed charts/graphs/timelines/Sankeys/reconciliation visuals with source, freshness, unit, filter, drill, export, and accessible table.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-130-007** — Pass light/dark/high-contrast/reduced-motion, keyboard/screen-reader, responsive/zoom/reflow, RTL/localization, and realistic density.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-130-008** — Pass loading/empty/error/offline/stale/conflict/denied/archived/purge/high-risk states with safe recovery.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-130-009** — Pass accessibility, visual regression, performance, and 30/90/multi-hour comfort evidence required by the Bible.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-130-010** — Prevent fake data, hidden failures, misleading status/color, urgency theater, and screenshot-only completion claims.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-140-001** — Implement permission-aware program/source/environment retrieval with cited versions, freshness, conflict, and scope display.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-140-002** — Implement safe multimodal analysis of authorized mappings, workbooks, documents, screenshots, charts, diagrams, and evidence.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-140-003** — Implement typed read/draft/propose tools for mappings, rules, tests, risks, runbooks, communications, reconciliation, and knowledge.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-140-004** — Route every write through preview, independent authorization, SoD, approval, audit, idempotency, and rollback.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-140-005** — Block self-approval, certification, variance acceptance, go/no-go, payroll/payment release, production bypass, and destruction.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-140-006** — Defend against prompt injection/data poisoning from source/vendor/customer artifacts and tool output.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-140-007** — Evaluate groundedness, mapping accuracy, test quality, permission leakage, tool safety, latency, cost, and abstention.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-140-008** — Record model/prompt/tool/index versions and safe evidence for every material recommendation/action.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-150-001** — Complete extension threat model and mitigations for migration, transformation, localization, payroll, bank, cutover, support, Relay, and decommission.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-150-002** — Enforce tenant/program/environment isolation across IAM/data/files/queues/jobs/cache/search/logs/evidence/Relay/support and prove negative tests.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-150-003** — Implement short-lived identity/JIT/step-up, secret/key/certificate rotation, private networking/egress, and no-secret evidence.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-150-004** — Implement signed/scanned immutable supply chain for code, IaC, transforms, mappings, config, packs, schemas, and bank artifacts.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-150-005** — Implement privacy inventory/purpose/minimization/access-expiry/data-subject/legal-hold/disposition across all extension stores.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-150-006** — Implement immutable safe audit/evidence and no raw payloads/identifiers in general telemetry.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-150-007** — Implement telemetry, alarms, dashboards, runbooks, incident response, restore, DR, provider outage, and independent cutover communication.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-150-008** — Implement cost attribution/estimate/budget/anomaly/concurrency/auto-stop/teardown/orphan/residual verification.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-150-009** — Prove restart, duplicate, partial failure, cancellation, restore, region constraint, and no unauthorized cross-region behavior.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-150-010** — Map NY SHIELD/conditional DFS and other named controls only after applicability and external-assessment boundaries.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-160-001** — Create every required repository deliverable in Section 20 with implemented reality, not empty templates.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-160-002** — Run complete code/config/IaC/schema/mapping/pack/integration/migration/security/accessibility/visual/performance/Relay test suite and report every failure/skip.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-160-003** — Bind final release, environment, config, schema, mapping, localization/payroll/bank/connector, migration, test, and rollback versions into signed manifests.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-160-004** — Prove Simon and corporate fixtures through implementation, migration, UAT, cutover rehearsal, hypercare simulation, and retirement rehearsal.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-160-005** — Prove production authority remains behind protected human approval and destructive/payment/payroll/go-live actions remain separately protected.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-160-006** — Produce final verification matrix for all Bible, original prompt, and EXT IDs with exact evidence and honest unbuilt/blocked scope.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-160-007** — Update ADRs and canonical docs for every material decision; remove stale contradictory instructions.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-160-008** — Provide current live/development-only/implemented-disabled/planned/blocked matrix for every module, pack, adapter, environment, and workbench surface.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-160-009** — Verify no credentials, raw customer data, bank/payroll identifiers, protected source extracts, or sensitive evidence were committed or exposed.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **EXT-160-010** — Keep production deployment paused unless the authorized reviewer explicitly approves the exact plan and digest.
+  - Status: FAIL
+  - Reason: imported from `docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md`; not yet implemented
+
+- [ ] **GE-180-011** — Import every `STUDIO-*` requirement into the unified ledger and execute the System Studio current-state, identity, authorization and read-only AWS-truth prerequisites before any new write authority.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-310-009** — Execute and evidence every remaining `STUDIO-*` requirement, including login/session, desired-state/change governance, AWS orchestration, fleet/lifecycle, security, operations, FinOps, accessibility and release proof.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-340-001** — Execute and evidence every `CFG-*` requirement from the Configurator Bible.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-340-002** — Implement signed schema packages, bounded typed expressions, dependency graph compilation, cycle detection and incremental affected-subgraph evaluation.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-340-003** — Implement field/section states, provenance, cascading options, downstream invalidation, conflict and historical reconstruction.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-340-004** — Implement drafts, branches, autosave, save/exit/resume, back/forward, assignments, comments, compare and semantic merge under concurrency/failure.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-340-005** — Implement complete impact/validation/review/digest-bound approval and handoff to backend orchestration.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-340-006** — Prove Simon, professional-services SMB, global manufacturer and public-sector configurations from one runtime.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-350-001** — Execute and evidence every `PACK-*` requirement.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-350-002** — Implement multi-axis scale/organization/operating/system-of-record/deployment/geography/module/industry/provider composition.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-350-003** — Enforce Tenure vendor-cloud-only runtime and governed external/on-prem ERP coexistence profiles.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-350-004** — Implement pack lifecycle, modes, compatibility, process chains, accounting/control, certification, releases and tenant waves.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-350-005** — Keep all incomplete capability/industry breadth visibly planned/developing/unavailable.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-350-006** — Benchmark Intuit Enterprise Suite plus SAP/Oracle/Workday/Salesforce/Rippling for applicable scenarios.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-360-001** — Execute and evidence every `INT-*` and `PAY-*` requirement.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-360-002** — Implement canonical envelopes, schemas, connector SDK/registry, mappings, auth/consent/secrets, webhooks/files/APIs/events, limits, errors and reconciliation.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-360-003** — Deliver Integration Studio with connection setup, mapping, runs, exceptions, reconciliation, certification and lifecycle.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-360-004** — Import the complete Payments Bible for Stripe; enforce merchant/legal-entity mapping, liability, accounts, collections, splits, payouts, cards, treasury, disputes and ledger reconciliation.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-360-005** — Keep Simon live payments disabled until separately authorized.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-360-006** — Prove connector/provider suspension, tenant hibernation/reactivation/offboarding/purge and residual-resource/cost closure.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-370-001** — Execute and evidence every `HCM-*` requirement.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-370-002** — Implement person/worker/member/job/position/seat/assignment separation, effective-dated structures and lifecycle.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-370-003** — Implement recruiting/onboarding/transitions, time/leave, compensation/benefits, talent/skills/learning/succession, HR cases and exact payroll modes.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-370-004** — Enforce person privacy versus eligible seat memory across API/UI/search/export/analytics/Relay/support.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-370-005** — Deliver employee/manager/HR/recruiter/candidate experiences and global/provider boundaries.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-370-006** — Instrument and pass the HCM superiority scorecard for claimed scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-380-001** — Execute and evidence every `FIN-*` requirement.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-380-002** — Implement universal accounting events, subledgers, balanced immutable journals, ledgers/books/periods/currencies and drill-through.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-380-003** — Implement record-to-report, procure-to-pay, order-to-cash, revenue, assets, expenses, cash/banking boundary, budget/funds/grants, intercompany/consolidation and exact tax modes.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-380-004** — Enforce finance authorization, limits, SoD, controls, reconciliation and posting finality.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-380-005** — Deliver accountant-grade UX, finance memory and governed Relay tools.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-380-006** — Instrument and pass Finance/Intuit/SAP/Oracle/Workday benchmark scenarios for claimed scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-390-001** — Execute and evidence every `PLN-*` requirement.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-390-002** — Implement multidimensional models, dimensions/measures, calculation graph, versions/scenarios, workflows, locks and lineage.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-390-003** — Implement connected financial, workforce, sales, operational, capital/project, cash and strategic plans.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-390-004** — Implement allocations/spreads, scenario/sensitivity and AWS-hosted forecasts with baselines, uncertainty, drift and human review.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-390-005** — Preserve decision records through execution and realized outcome.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-390-006** — Instrument and pass Planning/Intuit/Workday/SAP/Oracle benchmark scenarios for claimed scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-400-001** — Execute and evidence every `OPS-*` requirement.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-400-002** — Implement master data, demand/supply, inventory, warehouse, order/fulfillment and procurement operations.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-400-003** — Implement declared manufacturing, quality, maintenance/asset, project, service/field, logistics and facilities modes.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-400-004** — Enforce quantity/UOM/lot/serial/state/concurrency/accounting/reconciliation/safety invariants.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-400-005** — Deliver frontline/mobile/offline UX, operational memory, Relay and certified external-system boundaries.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-400-006** — Instrument and pass Operations/Intuit Construction/SAP/Oracle/Infor/IFS/Epicor benchmark scenarios for claimed scope.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-410-001** — Execute and evidence every `TTES-*` requirement.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-410-002** — Implement original forest-green primitive/semantic/component/tenant token pipeline, typography, density, motion and themes.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-410-003** — Implement owned component, form, grid, workflow, memory, Relay and page-pattern libraries.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-410-004** — Deliver role-aware tenant shell/home/search/inbox/records, distinct from System Studio.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-410-005** — Pass responsive/mobile/offline, WCAG 2.2 AA, localization/RTL, security, performance, visual-regression and long-session tests.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-410-006** — Benchmark tenant journeys against Granola, Vercel, Brex, Monarch, Perplexity, ChatGPT, Intuit and major ERP products without copied trade dress.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-420-001** — Execute and evidence every `ANL-*` requirement.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-420-002** — Implement conformed semantic models, versioned metrics, quality, freshness, lineage, authorization-aware queries and projections.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-420-003** — Implement transactional, financial, management, exploratory and executive report families.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-420-004** — Implement the complete advanced chart grammar, ChartFrame, domain visual minimums, accessible tables, drill/cross-filter/compare/annotations/saved views/alerts/actions.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-420-005** — Implement secure self-service authoring, subscriptions/bursting/exports and Relay narratives.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-420-006** — Prove the Intuit Enterprise Suite multi-entity/BI/project-profitability benchmark and every other mandatory competitor scenario.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-430-001** — Build `architecture-document-graph.yaml` and `capability-completeness-registry.yaml` with documents, versions/digests, dependencies, prefixes, owners, outputs and status.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-430-002** — CI fails for missing mandatory Bibles, duplicate/unimported IDs, unresolved references, divergent ledgers and false capability availability.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-430-003** — Execute the complete Simon absorption Bible and prove Simon Tenant #1 inherits compatible global releases without a source fork or overwritten explicit configuration.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-430-004** — Run one release object through code/IaC/schema/config/pack/connector/payments/core-cloud/TTES/analytics/Relay/migration/test/evidence/rollback compatibility and tenant waves.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-430-005** — Re-run the completeness audit under the owning-domain depth contract; report remaining missing/shallow planes without renaming them complete.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+- [ ] **GE-430-006** — Keep all production/destructive/customer/legal/payment/payroll/go-live authority paused behind exact current human approvals.
+  - Status: FAIL
+  - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented

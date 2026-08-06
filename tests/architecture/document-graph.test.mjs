@@ -37,12 +37,16 @@ const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8")
 /**
  * Requirements no execution document mentions.
  *
- * MAY ONLY SHRINK. This is the document-wiring defect expressed as a number,
- * and it must reach zero before any completeness claim means anything. Raising
- * it to make a build pass is the exact failure it exists to prevent, and the
- * assertion says so in both directions.
+ * **Zero, and it stays zero.** It was 895 when this was written — twelve whole
+ * domains the queue could not see. `tools/import-requirements.mjs` closed it,
+ * and because the assertion below is an equality rather than a ceiling, the
+ * next Bible somebody uploads without importing it turns this red on the commit
+ * that added it, rather than in six months when the denominator stops adding up.
+ *
+ * MAY ONLY SHRINK. Raising it to make a build pass is the exact failure it
+ * exists to prevent, and the assertion says so in both directions.
  */
-const UNIMPORTED = 895
+const UNIMPORTED = 0
 
 test("the compiled artifacts are current", () => {
   // Generated from the filesystem, so they cannot describe a repository that no
