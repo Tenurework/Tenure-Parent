@@ -507,3 +507,118 @@ describe("the service decides once and remembers correctly", () => {
     expect(other.allowed).toBe(false)
   })
 })
+
+/* ────────────────────────────── borrowed authority and the horizon ── */
+
+describe("a borrowed decision expires when the lender's grant does", () => {
+  // WF-16 finding, confirmed by execution. `decide()` resolves a delegated
+  // answer from the DELEGATOR's grants, but the horizon only looked at the
+  // requester's — and a borrower holds none, so it came back null and the
+  // decision was cached forever. Alice's grant ends at 13:00; Bob kept her
+  // authority at 23:00 and every hour after.
+  const lent = (over = {}) => ({
+    principals: [{ id: "alice" }, { id: "bob" }],
+    memberships: [
+      { principalId: "alice", tenantId: TENANT, state: "ACTIVE" as const, effectiveFrom: PAST },
+      { principalId: "bob", tenantId: TENANT, state: "ACTIVE" as const, effectiveFrom: PAST },
+    ],
+    roles: [{ key: "r", permissions: ["finance.budget.read"] }],
+    grants: [
+      {
+        principalId: "alice",
+        tenantId: TENANT,
+        roleKey: "r",
+        scope: { kind: "tenant" as const },
+        state: "CONFIRMED" as const,
+        effectiveFrom: PAST,
+        effectiveTo: "2026-08-03T13:00:00Z",
+      },
+    ],
+    delegations: [
+      { fromPrincipalId: "alice", toPrincipalId: "bob", tenantId: TENANT, effectiveFrom: PAST },
+    ],
+    enabledModules: ["budgeting"],
+    ...over,
+  })
+
+  const asBob = (over = {}) => ({
+    principalId: "bob",
+    tenantId: TENANT,
+    permission: "finance.budget.read",
+    at: NOON,
+    ...over,
+  })
+
+  it("bounds the horizon by the lender's grant, not the borrower's absence", () => {
+    expect(validUntil(lent(), asBob())).toBe("2026-08-03T13:00:00.000Z")
+  })
+
+  it("stops trusting the remembered decision the moment the lender's grant ends", () => {
+    let builds = 0
+    const service = authorizationService({
+      worldFor: () => {
+        builds += 1
+        return lent()
+      },
+      revision: () => revision("rev-1"),
+    })
+
+    const borrowed = service.authorize(asBob())
+    expect(borrowed.allowed).toBe(true)
+    expect(borrowed.validUntil).toBe("2026-08-03T13:00:00.000Z")
+
+    const after = service.authorize(asBob({ at: "2026-08-03T23:00:00Z" }))
+    expect(after.cached).toBe(false)
+    expect(after.allowed).toBe(false)
+    expect(builds).toBe(2)
+  })
+
+  it("takes a lender's grant that has not started yet", () => {
+    // The same hole in the other direction: a cached DENY outliving the moment
+    // it should have become an allow.
+    const later = lent({
+      grants: [
+        {
+          principalId: "alice",
+          tenantId: TENANT,
+          roleKey: "r",
+          scope: { kind: "tenant" as const },
+          state: "CONFIRMED" as const,
+          effectiveFrom: "2026-08-03T14:00:00Z",
+        },
+      ],
+    })
+    expect(validUntil(later, asBob())).toBe("2026-08-03T14:00:00.000Z")
+  })
+
+  it("ignores a delegation recorded in another tenant", () => {
+    // A delegation is scoped to a tenant. Reading one from elsewhere would let
+    // an unrelated tenant's grant window shorten — or extend — this decision.
+    const elsewhere = lent({
+      delegations: [
+        { fromPrincipalId: "alice", toPrincipalId: "bob", tenantId: "other", effectiveFrom: PAST },
+      ],
+    })
+    expect(validUntil(elsewhere, asBob())).toBeNull()
+  })
+
+  it("ignores the grants of somebody who lends this principal nothing", () => {
+    const stranger = lent({
+      grants: [
+        ...lent().grants,
+        {
+          principalId: "carol",
+          tenantId: TENANT,
+          roleKey: "r",
+          scope: { kind: "tenant" as const },
+          state: "CONFIRMED" as const,
+          effectiveFrom: PAST,
+          effectiveTo: "2026-08-03T12:30:00Z",
+        },
+      ],
+    })
+    // Carol's earlier boundary must not shorten Bob's horizon: she lends to
+    // nobody, so her dates cannot change this answer.
+    expect(validUntil(stranger, asBob())).toBe("2026-08-03T13:00:00.000Z")
+  })
+})

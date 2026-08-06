@@ -8,6 +8,7 @@ import { formatCents } from "@/lib/finance"
 import { approvalSla, slaColor } from "@/lib/approvals-sla"
 import { documentLocalization } from "@/lib/tenancy/locale-cookie"
 import { effectiveApprovalContext } from "@/lib/delegation"
+import { mayBorrowAuthority } from "@/lib/authz/borrowed-authority"
 import Link from "next/link"
 import { Card, CardHeader, Attribute } from "@/components/ui/Card"
 import { BackButton } from "@/components/BackButton"
@@ -45,12 +46,19 @@ export default async function ApprovalDetailPage({
     if (!canView) notFound()
 
     // Delegation-aware: a backup approver sees (and can use) the gates they hold
-    // on someone's behalf, not just their own.
-    const { ctx: effCtx, delegators } = await effectiveApprovalContext(
-      session.user.id,
-      ctx,
-      approval.institutionId
-    )
+    // on someone's behalf, not just their own — except on their own request.
+    //
+    // `actOnApproval` refuses that case, so rendering the button anyway would
+    // offer an action the server always rejects. Hiding a control is not a
+    // security boundary and is not doing the work here; the server is
+    // authoritative either way. This is about not lying to the reader.
+    const borrow = mayBorrowAuthority({
+      actorId: session.user.id,
+      requestedByPrincipalId: approval.submittedById,
+    })
+    const { ctx: effCtx, delegators } = borrow.ok
+      ? await effectiveApprovalContext(session.user.id, ctx, approval.institutionId)
+      : { ctx, delegators: [] as { id: string; name: string }[] }
     const actions = availableActions(effCtx, approval)
     const GATE_ACTIONS = ["approve", "reject", "request_changes"]
     const directGate = availableActions(ctx, approval).some((a) => GATE_ACTIONS.includes(a))

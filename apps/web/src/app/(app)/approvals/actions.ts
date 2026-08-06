@@ -1,5 +1,6 @@
 "use server"
 
+import { mayBorrowAuthority } from "@/lib/authz/borrowed-authority"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import type { ApprovalType, Prisma } from "@prisma/client"
@@ -164,7 +165,26 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
 
     // Delegation: if the actor can't act directly, they may hold an active backup
     // grant from someone who can — borrow that authority and record on whose behalf.
-    if (!allowed) {
+    //
+    // Never on your own request. `effectiveApprovalContext` concatenates the
+    // delegator's seats onto the borrower's context while keeping their identity,
+    // and `workflowRolesFor` then pushes BOTH `requester` and the borrowed
+    // `president` — roles are additive and the engine matches with `some()`, so
+    // acquiring an approving role cannot be cancelled by also being the person
+    // who asked.
+    //
+    // That made a normal, encouraged action into a self-approval: any ACTIVE
+    // member of a club is an eligible backup, so a president naming one hands
+    // that member the ability to approve their own reimbursement at the
+    // president gate. This branch is reached ONLY when the direct check already
+    // refused, so it fired precisely in the case the direct rules had denied.
+    //
+    // Delegation lends authority, not the standing to use it on yourself.
+    const borrow = mayBorrowAuthority({
+      actorId: userId,
+      requestedByPrincipalId: approval.submittedById,
+    })
+    if (!allowed && borrow.ok) {
       const { ctx: effCtx, delegators } = await effectiveApprovalContext(
         userId,
         ctx,

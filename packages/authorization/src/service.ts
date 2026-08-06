@@ -154,8 +154,28 @@ export function validUntil(
     consider(m.effectiveFrom)
     consider(m.effectiveTo)
   }
+  // Whose grants can change this answer: the requester's, and — when they are
+  // borrowing — the grants of everyone lending to them.
+  //
+  // This used to be the requester's alone, and that is wrong for exactly the
+  // case delegation exists for. `decide()` resolves a borrowed decision from the
+  // DELEGATOR's grants (`matchesFor(d.fromPrincipalId)`), so the delegator's
+  // window is a load-bearing input to the answer — but the borrower by
+  // construction holds nothing, so the horizon came back `null` and the decision
+  // was cached forever. Alice's grant ends at 13:00; Bob, delegated from Alice,
+  // kept her authority at 23:00 and every hour after.
+  //
+  // That broke the promise this package makes twice in its own comments as the
+  // reason delegation is safe — "revoking the delegator's role revokes the
+  // delegate's borrowed authority in the same instant, with no second write."
+  // The cache was the second write.
+  const lenders = new Set([request.principalId])
+  for (const d of world.delegations ?? []) {
+    if (d.tenantId !== request.tenantId) continue
+    if (d.toPrincipalId === request.principalId) lenders.add(d.fromPrincipalId)
+  }
   for (const g of world.grants) {
-    if (g.principalId !== request.principalId || g.tenantId !== request.tenantId) continue
+    if (!lenders.has(g.principalId) || g.tenantId !== request.tenantId) continue
     consider(g.effectiveFrom)
     consider(g.effectiveTo)
   }
