@@ -9016,3 +9016,73 @@ immediately, which is the guard working.
 - [ ] **GE-GATE-9** — Relay is a deployed, permission-aware, citation-grounded, multimodal copilot with safe editing/automation, model evaluation/routing, guardrails, budgets, and complete cross-tenant/tool-risk tests.
   - Status: FAIL
   - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+
+### Open findings from the Wave 0 adversarial review — 2026-08-06
+
+Three workflows ran read-only against the repository: 15 domain analysts each
+refuted by a second agent, 8 authorization attack surfaces each refuted per
+finding, and 9 cross-system journeys each challenged for overclaiming. 100
+agents, ~10.3M tokens. Four defects were confirmed by execution; two are fixed
+(`cff8092`, `2575518`) and two are recorded here because they are real, unfixed,
+and would otherwise exist only in a conversation.
+
+Recorded as findings rather than as requirement rows: none of them is a Bible
+requirement, and inventing ids for them would make the queue disagree with the
+documents it is derived from — the mistake `prompt-matches-ledger` caught when
+`GE-OPS-MOVE` was tried.
+
+- [ ] **FINDING: `ACTIVATING` asserts an outcome it does not perform**
+  - Status: FAIL
+  - Source: WF-18 Journey A challenge
+  - Where: `packages/provisioning/src/execute.ts` (the `ACTIVATING` step)
+  - Evidence: the step returns a hardcoded evidence string — *"Routing for
+    /&lt;slug&gt; switched on. This is the first moment a user can reach the
+    system"* — and switches no routing. `PROVISIONING` likewise only hashes a
+    `{slug, routing, placement, region}` literal; nothing is reserved beyond the
+    DynamoDB row written at compose time.
+
+  The terminal act of the tenant-creation journey is the one step that does no
+  work, and it reports success in the operator's own words. Everything before it
+  is unusually real — the digest chain is re-derived independently by the cell
+  and refuses on mismatch, delivery distinguishes a 422 from a transport failure
+  and forces `evidence.ok = false` rather than lying — which is what makes this
+  worth writing down. An engine that is honest for nine steps and asserts the
+  tenth teaches its operators to trust the tenth.
+
+  Related and smaller, from the same review: the `MIGRATING` evidence text still
+  tells operators *"nothing yet delivers this artifact to a cell"*, which became
+  untrue when delivery was implemented. The engine now understates itself to the
+  people reading it.
+
+- [ ] **FINDING: the richer decision gate is built and not wired**
+  - Status: FAIL
+  - Source: WF-16, noted while confirming the delegated self-approval hole
+  - Where: `packages/authorization/src/controls.ts` → the approval path
+  - Evidence: `mayDecide` implements `SELF_APPROVAL`, `SAME_MAKER`, `RECUSED`,
+    `DECLARED_CONFLICT`, `ALREADY_DECIDED` and `INCOMPATIBLE_DUTIES`, each with
+    a reason and 47 tests. `actOnApproval` calls none of it.
+
+  `cff8092` closed the one hole that was reachable — a backup approver acting on
+  their own request — with a purpose-built rule. That is a patch, not the
+  control: nothing today stops the same person clearing two gates in sequence
+  (`ALREADY_DECIDED`), and nothing reads a recusal, because nothing stores one.
+
+  Wiring it needs decisions this finding does not get to make alone: where a
+  recusal is recorded, who may record one, and whether a declared conflict
+  blocks or merely warns.
+
+- [ ] **FINDING: `authorizationService` has no production caller**
+  - Status: FAIL
+  - Source: WF-16, established while bounding the blast radius of the cache defect
+  - Evidence: `apps/web/src/lib/authz/navigation-capabilities.ts` and
+    `seat-world.ts` both call `decide()` directly and uncached; `fromPrincipalId`
+    appears nowhere outside `packages/authorization`.
+
+  This is why the cached-borrowed-authority defect was not exploitable against
+  the running app, and it is also why that defect survived: an exported API with
+  no caller has no pressure on it. GE-051-004 built the service; nothing routes
+  through it. Recorded so the next wiring is done knowing the cache horizon is
+  now correct for delegation — and that it was not, for as long as nothing used it.
+
+  123/1219 → superseded: see `capability-completeness-registry.yaml` for the
+  real figures (2,046 requirements, 106 PASS).
