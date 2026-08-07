@@ -64,7 +64,9 @@ red with `Module not found: Can't resolve '@tenure/finops'`. Cost: one red
 deploy plus a recovery commit (`234f430`).
 
 `git add -A` after any bulk cleanup is how a deletion reaches a commit unnoticed.
-Run `git status --porcelain --diff-filter=D` before committing a cleanup.
+Before committing a cleanup, stage it and then list what is being removed:
+`git add -A && git diff --cached --name-status --diff-filter=D`
+(`--diff-filter` is a `git diff` option — `git status` rejects it.)
 
 ---
 
@@ -316,8 +318,9 @@ npm run build                                       # apps/web
 npm run build --workspace apps/system-studio        # ← the one that was missed
 ```
 
-6. `git status --porcelain --diff-filter=D` — **confirm nothing is being deleted
-   that you did not intend**.
+6. `git add -A && git diff --cached --name-status --diff-filter=D` — **confirm
+   nothing is being deleted that you did not intend**. Empty output is the
+   expected result.
 7. Commit, push to `main`, wait for **green** (not red, not skipped, not cancelled).
 8. Regenerate: `node tools/document-graph.mjs`,
    `node tools/reconcile-execution-checkboxes.mjs`, `node tools/ownership-map.mjs`.
