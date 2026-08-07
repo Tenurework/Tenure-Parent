@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation"
 
 import { TENANT_BINDINGS, getBlueprint } from "@tenure/blueprints"
-import { MODULE_CATALOG } from "@tenure/modules"
 import { resolveConfig } from "@tenure/configuration"
 import { validateTopology } from "@tenure/organization-model"
-import { resolveModules } from "@tenure/module-runtime"
+import { CATALOG_ENTRIES, availabilityDecisions } from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
+import { fleet } from "@/lib/cells"
 import { isOperator, operatorConfigProblems } from "@/lib/operators"
-import { REGISTRY, layersFor } from "@tenure/platform-config"
+import { REGISTRY, layersFor, modulesFor } from "@tenure/platform-config"
 
 export const dynamic = "force-dynamic"
 
@@ -49,6 +49,29 @@ export default async function StudioPage() {
   const session = await auth()
   if (!isOperator(session?.user?.email)) redirect("/signin")
 
+  // The exact scope every availability decision below is made for. Bible §5:
+  // Studio may show `Available` only when a decision passes for the exact
+  // tenant/environment/region/version — so the region comes from the cell that
+  // would actually serve these tenants, and the engine version from the build.
+  // An engine that cannot say what version it is fails every compatibility
+  // range closed, which is the correct answer and not a fallback.
+  const availabilityScope = {
+    region: fleet()[0]?.region ?? "",
+    // The partition too, because an egress restriction is a partition fact
+    // before it is a region one. Read from the cell registry, which reads the
+    // environment and validates it — never a literal here.
+    partition: fleet()[0]?.partition,
+    engineVersion: process.env.ENGINE_VERSION ?? process.env.SCHEMA_VERSION ?? "unpinned",
+    // The marketplace is closed as a property of the code, not of a flag
+    // somebody forgot to set. Passing `false` here is the deliberate act the
+    // parameter exists to require.
+    marketplaceEnabled: false,
+    now: new Date().toISOString(),
+  }
+  const capabilities = availabilityDecisions(CATALOG_ENTRIES, availabilityScope)
+  const offered = capabilities.filter((d) => d.available)
+  const refused = capabilities.filter((d) => !d.available)
+
   const systems = TENANT_BINDINGS.map((binding) => {
     const blueprint = getBlueprint(binding.blueprintId)
     if (!blueprint) {
@@ -58,10 +81,12 @@ export default async function StudioPage() {
     const { config, problems: configProblems } = resolveConfig(REGISTRY, layersFor(binding.slug), {
       collectProblems: true,
     })
-    const modules = resolveModules(MODULE_CATALOG, {
-      requested: blueprint.modules,
-      entitlements: binding.entitlements ?? [],
-    })
+    // Through `modulesFor`, not a second `resolveModules` call of its own. The
+    // second call was already answering a different question: it resolved the
+    // blueprint's raw list, so it ignored the tenant's `moduleEdits` and — once
+    // axes arrived — its `operatingModel`, and the console would have shown a
+    // module set the application does not run. One resolver, one answer.
+    const modules = modulesFor(binding.slug)
 
     let topologyOk = true
     try {
@@ -81,6 +106,53 @@ export default async function StudioPage() {
         {systems.length} configured. Read-only — tenant overlays are files until the configuration
         store lands.
       </p>
+
+      {/* Bible §5. Nothing here is labelled available except what a
+          CapabilityAvailabilityDecision passed for the scope printed below, and
+          nothing is silently missing: what was refused is listed with its
+          reason. One scope rather than one per system because these bindings
+          carry no region of their own — inventing a per-tenant scope out of the
+          same cell region would be three copies of one decision wearing three
+          labels. */}
+      <section className="system">
+        <header>
+          <h2>Extensions, connectors and models</h2>
+          <span className="slug">
+            {availabilityScope.region || "no cell"} · engine {availabilityScope.engineVersion} ·
+            marketplace closed
+          </span>
+        </header>
+
+        <h3>Available — {offered.length} of {capabilities.length}</h3>
+        {offered.length === 0 ? (
+          <p className="refused">Nothing in the catalog passes for this scope.</p>
+        ) : (
+          <div className="chips">
+            {offered.map((d) => (
+              <span className="chip" key={d.entry.key} title={d.disclaimer ?? d.entry.displayName}>
+                <b>{d.entry.key}</b> {d.entry.kind}
+                {d.resolvedVersion ? ` v${d.resolvedVersion}` : ""}
+                {d.certification === "expiring" ? " — re-certification due" : ""}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {refused.length > 0 && (
+          <>
+            <h3>Not available, and why</h3>
+            {refused.map((d) => (
+              <p className="refused" key={d.entry.key}>
+                <b>{d.entry.key}</b> — {d.reason}
+                {/* The disclaimer is carried on the decision, so this cannot
+                    render an availability verdict without the text that
+                    qualifies it. */}
+                {d.disclaimer ? ` — ${d.disclaimer}` : ""}
+              </p>
+            ))}
+          </>
+        )}
+      </section>
 
       {systems.map((s) => (
         <section className="system" key={s.binding.slug}>
@@ -119,7 +191,7 @@ export default async function StudioPage() {
 
               <h3>Modules — {s.modules.keys.length} enabled</h3>
               <div className="chips">
-                {s.modules.ordered.map((m) => (
+                {s.modules.enabled.map((m) => (
                   <span className="chip" key={m.key} title={m.description}>
                     <b>{m.key}</b> v{m.version}
                   </span>

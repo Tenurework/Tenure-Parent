@@ -26,6 +26,9 @@ const SIMON: AdoptionInput["manifest"] = {
   entitlements: ["finance"],
   region: "us-east-1",
   isolation: "pooled",
+  // The pilot writes its own facts; there is no external ERP beside it.
+  coexistence: "TENURE_CLOUD_PRIMARY",
+  systemOfRecord: { finance: "tenure", org: "tenure" },
   configuration: {},
   secretRefs: {},
   initialAdminEmail: "ose@example.invalid",

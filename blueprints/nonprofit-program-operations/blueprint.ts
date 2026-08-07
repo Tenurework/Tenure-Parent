@@ -23,8 +23,8 @@ export const nonprofitProgramOperations: SystemBlueprint = {
   values: {
     "platform.terminology.staffOfficeName": "Program Office",
     "platform.terminology.staffOfficeShortName": "programs",
-    "platform.terminology.organizationSingular": "program",
-    "platform.terminology.organizationPlural": "programs",
+    // organizationSingular/Plural come from the `organization` axis — see the
+    // note in the university blueprint.
     "platform.terminology.leadershipBody": "steering committee",
     "platform.terminology.seatSingular": "post",
     // A UK-registered charity: sterling, ISO weeks starting Monday, and an
@@ -37,10 +37,19 @@ export const nonprofitProgramOperations: SystemBlueprint = {
     "platform.branding.primaryColor": "#7a3fb8",
     "platform.branding.wordmark": "Midtown",
   },
-  // A different system, not the same system renamed: no community feed, no
-  // student-facing messaging, no reimbursements. Programs are coordinated, not
+  // A different system, not the same system renamed: no community suite, no
+  // published library, no assisted search, and `finance` without `expenses` —
+  // programs budget but do not reimburse. Programs are coordinated, not
   // socialised.
-  modules: ["dashboard", "organizations", "approvals", "events", "memory", "budgeting"],
+  //
+  // `federated`: portfolios and delivery sites run themselves, inside a program
+  // office that consolidates and sets standards. Not `decentralized` — there is
+  // a centre, and it is what the funder holds accountable.
+  axes: {
+    organization: "nonprofit-program-operations",
+    operatingModel: "federated",
+    functional: ["operations", "knowledge", "finance"],
+  },
   topology: {
     id: "nonprofit-program-operations",
     version: "1.0.0",

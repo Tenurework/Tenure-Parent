@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**531 files · 13 domains with code · 1 declared and unbuilt · 21 shared.**
+**540 files · 13 domains with code · 1 declared and unbuilt · 21 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
@@ -16,18 +16,18 @@ defensible.
 
 | Domain | Files | What it owns |
 |---|---:|---|
-| `control-plane` | 67 | Composing, provisioning and operating tenants. The engine, not any tenant. |
+| `control-plane` | 68 | Composing, provisioning and operating tenants. The engine, not any tenant. |
 | `identity` | 71 | Who someone is: providers, sessions, the sign-in surface. |
 | `authorization` | 41 | What someone may do: capabilities, policy decisions, delegation. |
 | `organization` | 43 | The org graph: institutions, organizations, roles, seats, the directory. |
-| `configuration` | 95 | Layered configuration, blueprints, module resolution, tenancy scoping. |
+| `configuration` | 99 | Layered configuration, blueprints, module resolution, tenancy scoping. |
 | `workflow` | 16 | Approvals, their gates and their state machine. |
-| `files` | 15 | Documents and attachments: storage, retrieval, editing. |
+| `files` | 16 | Documents and attachments: storage, retrieval, editing. |
 | `search-memory` | 8 | Retrieval across everything a principal may already see, and org memory. |
-| `notifications` | 40 | Telling someone something happened: in-app notices, calendars, messaging. |
+| `notifications` | 41 | Telling someone something happened: in-app notices, calendars, messaging. |
 | `reporting` | 36 | Reading the estate back: reports, dashboards, the audit trail. |
 | `erp-modules` | 29 | The domain modules a tenant runs: finance, resources, and the module catalog. |
-| `integrations` | 9 | Outbound connections to anything Tenure does not run. |
+| `integrations` | 11 | Outbound connections to anything Tenure does not run. |
 | `billing-metering` | 5 | What a tenant consumes and what it is charged for. |
 
 ## Declared, and not built

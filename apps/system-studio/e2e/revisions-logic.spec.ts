@@ -126,6 +126,14 @@ test.describe("the dependency graph, against the real catalogue", () => {
     expect(dependantsOf(MODULES, "organizations")).toContain("feed")
   })
 
+  test("follows a capability to whatever provides it", () => {
+    // `reimbursements` depends on the capability `finance.ledger`, which
+    // `budgeting` provides. A graph that drew the capability as its own node
+    // would answer "what breaks if budgeting goes?" without naming the module
+    // that would actually stop working.
+    expect(dependantsOf(MODULES, "budgeting")).toContain("reimbursements")
+  })
+
   test("a leaf breaks nothing", () => {
     expect(dependantsOf(MODULES, "feed")).toEqual([])
   })
@@ -133,8 +141,8 @@ test.describe("the dependency graph, against the real catalogue", () => {
 
 test.describe("the dependency graph, on shapes the catalogue does not have", () => {
   const chain = [
-    { key: "a", dependsOn: ["b"] },
-    { key: "b", dependsOn: ["c"] },
+    { key: "a", dependsOn: [{ module: "b" }] },
+    { key: "b", dependsOn: [{ module: "c" }] },
     { key: "c" },
   ]
 
@@ -156,8 +164,8 @@ test.describe("the dependency graph, on shapes the catalogue does not have", () 
     // The catalogue has no cycle and GE-031-004 refuses one, but this walk runs
     // on whatever it is given — including a catalogue mid-edit.
     const cyclic = [
-      { key: "x", dependsOn: ["y"] },
-      { key: "y", dependsOn: ["x"] },
+      { key: "x", dependsOn: [{ module: "y" }] },
+      { key: "y", dependsOn: [{ module: "x" }] },
     ]
     expect(dependantsOf(cyclic, "x")).toEqual(["x", "y"])
   })

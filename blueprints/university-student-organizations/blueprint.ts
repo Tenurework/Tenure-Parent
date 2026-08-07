@@ -17,8 +17,9 @@ export const universityStudentOrganizations: SystemBlueprint = {
   values: {
     "platform.terminology.staffOfficeName": "Office of Student Engagement",
     "platform.terminology.staffOfficeShortName": "the office",
-    "platform.terminology.organizationSingular": "club",
-    "platform.terminology.organizationPlural": "clubs",
+    // organizationSingular/Plural are NOT here: they are compiled from the
+    // `organization` axis, which sits above `blueprint` in the scope order, so
+    // a value set here would be overridden without saying so.
     "platform.terminology.leadershipBody": "executive board",
     "platform.terminology.seatSingular": "seat",
     // A US university on an academic year: July opening, weeks starting Sunday.
@@ -27,22 +28,27 @@ export const universityStudentOrganizations: SystemBlueprint = {
     "platform.localization.firstDayOfWeek": 0,
     "platform.localization.fiscalYearStartMonth": 7,
   },
-  // Everything the pilot runs today. reimbursements and budgeting need the
-  // finance entitlement, which the tenant binding grants.
-  modules: [
-    "dashboard",
-    "organizations",
-    "feed",
-    "messaging",
-    "approvals",
-    "events",
-    "resources",
-    "search",
-    "memory",
-    "budgeting",
-    "reimbursements",
-    "administration",
-  ],
+  // Everything the pilot runs today, compiled rather than listed. The `finance`
+  // and `expenses` suites both need the finance entitlement, which the tenant
+  // binding grants; `compileArchetype(...).entitlements` is what says so.
+  //
+  // `centralized`: a single staff office sets policy, holds the budget and
+  // decides every approval for every club. That is what makes budgeting's
+  // portfolio roll-up meaningful here.
+  axes: {
+    organization: "university-student-organizations",
+    operatingModel: "centralized",
+    functional: [
+      "community",
+      "operations",
+      "knowledge",
+      "library",
+      "assistedSearch",
+      "finance",
+      "expenses",
+      "administration",
+    ],
+  },
   topology: {
     id: "university-student-organizations",
     version: "1.0.0",

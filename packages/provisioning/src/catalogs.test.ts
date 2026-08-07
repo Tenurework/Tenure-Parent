@@ -1,10 +1,16 @@
 import {
+  CATALOG_ENTRIES,
+  RECERTIFICATION_WARNING_DAYS,
+  RELAY_ANTHROPIC_CONNECTOR,
+  availabilityDecisions,
   availableToTenants,
   canAdvanceCatalog,
+  certificationState,
   engineIsCompatible,
   isUsable,
   validatePackage,
   validateRange,
+  type CatalogCertification,
   type CatalogLifecycle,
   type ConnectorEntry,
   type ExtensionEntry,
@@ -33,12 +39,25 @@ const pkg = (over: Partial<PackageVersion> = {}): PackageVersion => ({
   ...over,
 })
 
+/**
+ * A certification that is valid at `NOW` and lapses well outside the warning
+ * window, so a test that means to exercise something else is not silently
+ * exercising expiry.
+ */
+const CERTIFIED: CatalogCertification = {
+  scope: ["region:us-east-1", "population:students"],
+  evidenceRefs: ["review:sec-2026-014", "test-run:pack-suite-2026-07-30"],
+  certifiedAt: "2026-07-01T00:00:00.000Z",
+  expiresAt: "2027-07-01T00:00:00.000Z",
+}
+
 const EXTENSION: ExtensionEntry = {
   kind: "extension",
   key: "tenure.finance-export",
   displayName: "Finance export",
   lifecycle: "PUBLISHED",
   publisher: "platform",
+  certification: CERTIFIED,
   versions: [pkg()],
 }
 
@@ -48,6 +67,7 @@ const CONNECTOR: ConnectorEntry = {
   displayName: "Student information system",
   lifecycle: "PUBLISHED",
   publisher: "platform",
+  certification: CERTIFIED,
   egressHosts: ["sis.example.invalid"],
   compatibility: { minEngine: "2026.7.0", maxEngine: null },
 }
@@ -63,7 +83,8 @@ const MODEL: ModelEntry = {
   regions: ["us-east-1"],
 }
 
-const CTX = { engineVersion: "2026.8.0", region: "us-east-1" }
+const NOW = "2026-08-01T00:00:00.000Z"
+const CTX = { engineVersion: "2026.8.0", region: "us-east-1", partition: "aws", now: NOW }
 
 describe("revocation is terminal, and is checked first", () => {
   it("has no way out", () => {
@@ -262,7 +283,7 @@ describe("packages must be signed and digested", () => {
     expect(validatePackage(pkg({ signatureRef: null })).map((p) => p.field)).toContain(
       "signatureRef",
     )
-    expect(isUsable({ ...EXTENSION, versions: [pkg({ signatureRef: null })] }, CTX)).toEqual({
+    expect(isUsable({ ...EXTENSION, versions: [pkg({ signatureRef: null })] }, CTX)).toMatchObject({
       usable: false,
       reason: "unsigned",
       // Named even in refusal: an operator needs to know WHICH version is
@@ -286,7 +307,7 @@ describe("models are checked against the region they would be invoked from", () 
   it("refuses a model not available in this region", () => {
     // A European cell calling a us-east-1-only model either fails or, worse,
     // succeeds by routing tenant content out of the region residency promised.
-    expect(isUsable(MODEL, { engineVersion: "2026.8.0", region: "eu-west-1" })).toEqual({
+    expect(isUsable(MODEL, { engineVersion: "2026.8.0", region: "eu-west-1", now: NOW })).toEqual({
       usable: false,
       reason: "region-not-allowed",
     })
@@ -346,6 +367,254 @@ describe("models are checked against the region they would be invoked from", () 
       expect(model.publisher).toBe("platform")
       expect(model.lifecycle).toBe("PUBLISHED")
     }
+  })
+})
+
+/* ------------------------------------------------------------ PACK-080-003 --
+ * Certification is a dated fact with a scope and evidence, and it lapses.
+ */
+describe("certification has scope, evidence and an end", () => {
+  const DAY = 24 * 60 * 60 * 1000
+  const shift = (from: string, ms: number) => new Date(Date.parse(from) + ms).toISOString()
+
+  it("refuses a published entry that nobody ever certified", () => {
+    // `CERTIFIED` used to be a lifecycle word and nothing else, so an entry
+    // could reach PUBLISHED carrying no record of what was reviewed.
+    const { certification, ...uncertified } = EXTENSION
+    expect(certification).toBeDefined() // the fixture really did carry one
+    expect(isUsable(uncertified, CTX)).toMatchObject({ usable: false, reason: "uncertified" })
+  })
+
+  it("refuses one whose certification has lapsed", () => {
+    const lapsed = {
+      ...EXTENSION,
+      certification: { ...CERTIFIED, expiresAt: shift(NOW, -1000) },
+    }
+    expect(isUsable(lapsed, CTX)).toMatchObject({
+      usable: false,
+      reason: "certification-expired",
+      certification: "expired",
+    })
+  })
+
+  it("expires at the instant, not the day after", () => {
+    // A gate written `>` rather than `>=` leaves an entry usable for the whole
+    // instant it expires, and every off-by-one in a credential check is that.
+    const atExpiry = { ...EXTENSION, certification: { ...CERTIFIED, expiresAt: NOW } }
+    expect(isUsable(atExpiry, CTX).usable).toBe(false)
+  })
+
+  it("treats a certification with no scope or no evidence as none at all", () => {
+    // Both fields are required by the bible and would otherwise be decorative:
+    // a record naming nothing certifies everything, and one citing nothing is
+    // an assertion.
+    expect(certificationState({ ...CERTIFIED, scope: [] }, NOW)).toBe("absent")
+    expect(certificationState({ ...CERTIFIED, evidenceRefs: [] }, NOW)).toBe("absent")
+    expect(certificationState(undefined, NOW)).toBe("absent")
+  })
+
+  it("fails closed on an expiry nobody can read", () => {
+    expect(certificationState({ ...CERTIFIED, expiresAt: "soon" }, NOW)).toBe("expired")
+    expect(certificationState(CERTIFIED, "whenever")).toBe("expired")
+  })
+
+  it("triggers re-certification before the lapse, not on it", () => {
+    // A trigger that fires on expiry is an outage notice.
+    const inside = shift(NOW, (RECERTIFICATION_WARNING_DAYS - 1) * DAY)
+    const outside = shift(NOW, (RECERTIFICATION_WARNING_DAYS + 1) * DAY)
+    expect(certificationState({ ...CERTIFIED, expiresAt: inside }, NOW)).toBe("expiring")
+    expect(certificationState({ ...CERTIFIED, expiresAt: outside }, NOW)).toBe("current")
+    // Still usable while expiring — a warning is not a refusal.
+    expect(
+      isUsable({ ...EXTENSION, certification: { ...CERTIFIED, expiresAt: inside } }, CTX),
+    ).toMatchObject({ usable: true, certification: "expiring" })
+  })
+
+  it("decides from the `now` it is given rather than from a clock", () => {
+    // The whole reason `now` is a parameter: "was this usable when we shipped
+    // it?" has to be answerable, and a gate reading Date.now() cannot answer.
+    const entry = { ...EXTENSION, certification: { ...CERTIFIED, expiresAt: "2026-09-01T00:00:00.000Z" } }
+    expect(isUsable(entry, { ...CTX, now: "2026-07-15T00:00:00.000Z" }).usable).toBe(true)
+    expect(isUsable(entry, { ...CTX, now: "2026-10-15T00:00:00.000Z" }).usable).toBe(false)
+  })
+
+  it("keeps a lapsed entry out of what a tenant is offered", () => {
+    const lapsed = {
+      ...EXTENSION,
+      certification: { ...CERTIFIED, expiresAt: shift(NOW, -1000) },
+    }
+    expect(
+      availableToTenants([lapsed], { ...CTX, marketplaceEnabled: false }).map((e) => e.key),
+    ).toEqual([])
+    expect(
+      availableToTenants([EXTENSION], { ...CTX, marketplaceEnabled: false }).map((e) => e.key),
+    ).toEqual(["tenure.finance-export"])
+  })
+})
+
+/* ------------------------------------------------------------ PACK-050-004 --
+ * Hard availability gates and the disclaimer that has to travel with them.
+ */
+describe("availability is decided per scope and carries its disclaimer", () => {
+  const RESTRICTED: ConnectorEntry = {
+    ...CONNECTOR,
+    key: "tenure.restricted",
+    restrictions: {
+      region: ["us-east-1"],
+      disclaimer: "Reviewed for us-east-1 only; no data-processing review exists for the EU.",
+    },
+  }
+
+  it("refuses a connector outside the regions it was reviewed for", () => {
+    // Region gating used to exist for models and for nothing else, so a
+    // connector was offered in every jurisdiction whatever anybody had reviewed.
+    expect(isUsable(RESTRICTED, { ...CTX, region: "eu-west-1" })).toMatchObject({
+      usable: false,
+      reason: "region-not-allowed",
+    })
+    expect(isUsable(RESTRICTED, CTX).usable).toBe(true)
+  })
+
+  it("drops it out of availableToTenants for that region", () => {
+    expect(
+      availableToTenants([RESTRICTED], {
+        ...CTX,
+        region: "eu-west-1",
+        marketplaceEnabled: false,
+      }),
+    ).toEqual([])
+  })
+
+  it("carries the disclaimer on the decision whether or not it passed", () => {
+    // So a surface cannot render an availability label without the text that
+    // qualifies it — the label and the caveat are one object.
+    for (const region of ["us-east-1", "eu-west-1"]) {
+      const [decision] = availabilityDecisions([RESTRICTED], {
+        ...CTX,
+        region,
+        marketplaceEnabled: false,
+      })
+      expect(decision.disclaimer).toBe(RESTRICTED.restrictions!.disclaimer)
+    }
+  })
+
+  it("records the exact scope the decision was made for", () => {
+    // Bible §5: a module can be available in the US and unavailable for one
+    // German legal entity, and only a scoped decision can say both.
+    const [decision] = availabilityDecisions([RESTRICTED], { ...CTX, marketplaceEnabled: false })
+    expect(decision.scope).toEqual({
+      region: "us-east-1",
+      partition: "aws",
+      engineVersion: "2026.8.0",
+      at: NOW,
+    })
+  })
+
+  it("refuses an egress in a partition it was never reviewed for", () => {
+    // The real shape of the shipped restriction: `api.anthropic.com` does not
+    // exist in GovCloud or China, and sending student records from a GovCloud
+    // cell to a commercial SaaS endpoint is the failure GovCloud was chosen to
+    // prevent.
+    const commercialOnly: ConnectorEntry = {
+      ...CONNECTOR,
+      key: "tenure.egress",
+      restrictions: { partition: ["aws"], disclaimer: "Commercial partition only." },
+    }
+    expect(isUsable(commercialOnly, CTX).usable).toBe(true)
+    expect(isUsable(commercialOnly, { ...CTX, partition: "aws-us-gov" })).toMatchObject({
+      usable: false,
+      reason: "partition-not-allowed",
+    })
+  })
+
+  it("refuses it when the caller cannot say which partition it is in", () => {
+    // Absent is not commercial. Defaulting here is the exact assumption
+    // `partition-services.ts` exists to delete.
+    const commercialOnly: ConnectorEntry = {
+      ...CONNECTOR,
+      key: "tenure.egress",
+      restrictions: { partition: ["aws"] },
+    }
+    const { partition: _dropped, ...noPartition } = CTX
+    expect(isUsable(commercialOnly, noPartition)).toMatchObject({
+      usable: false,
+      reason: "partition-not-allowed",
+    })
+  })
+
+  it("reports the partition before the region, because it is the coarser fact", () => {
+    // "Not in this partition at all" and "not in this region of it" send an
+    // operator to different places.
+    const both: ConnectorEntry = {
+      ...CONNECTOR,
+      key: "tenure.both",
+      restrictions: { partition: ["aws"], region: ["us-east-1"] },
+    }
+    expect(
+      isUsable(both, { ...CTX, partition: "aws-cn", region: "cn-north-1" }).reason,
+    ).toBe("partition-not-allowed")
+  })
+
+  it("says marketplace-closed rather than pretending the entry does not exist", () => {
+    const [decision] = availabilityDecisions(
+      [{ ...EXTENSION, publisher: "third-party" as const }],
+      { ...CTX, marketplaceEnabled: false },
+    )
+    expect(decision).toMatchObject({ available: false, reason: "marketplace-closed" })
+  })
+
+  it("reads a model's '*' as every region, the way modelIsAllowed does", () => {
+    // The two gate the same catalog. A wildcard that means "everywhere" in one
+    // and "a region literally called *" in the other silently stops offering a
+    // model that is perfectly allowed.
+    expect(isUsable({ ...MODEL, regions: ["*"] }, { ...CTX, region: "eu-west-1" }).usable).toBe(true)
+  })
+})
+
+describe("the gate runs over a real catalog", () => {
+  it("holds the connectors that have a call site, and no wish list", () => {
+    // A filter with no list is a control that cannot be wrong. This is the list.
+    expect(CATALOG_ENTRIES.length).toBeGreaterThan(0)
+    expect(CATALOG_ENTRIES.map((e) => e.key)).toContain("tenure.relay-anthropic")
+    expect(RELAY_ANTHROPIC_CONNECTOR.egressHosts).toEqual(["api.anthropic.com"])
+  })
+
+  it("restricts the Relay egress to the partition that can reach it", () => {
+    // Not a region list. `partition-services.ts` is the decision this mirrors,
+    // and an incomplete list of one partition's regions compiled into the
+    // product is what `tests/security/no-hardcoded-estate.test.mjs` refuses.
+    expect(RELAY_ANTHROPIC_CONNECTOR.restrictions?.partition).toEqual(["aws"])
+    expect(RELAY_ANTHROPIC_CONNECTOR.restrictions?.region).toBeUndefined()
+  })
+
+  it("refuses the Relay connector as uncertified, because nobody has certified it", () => {
+    // The honest state, not a placeholder: writing a certifiedAt here would be
+    // a claim about a review that did not happen (PACK-000-004).
+    const decision = availabilityDecisions(CATALOG_ENTRIES, {
+      engineVersion: "2026.8.0",
+      region: "us-east-1",
+      partition: "aws",
+      marketplaceEnabled: false,
+      now: NOW,
+    }).find((d) => d.entry.key === "tenure.relay-anthropic")!
+
+    expect(decision.available).toBe(false)
+    expect(decision.reason).toBe("uncertified")
+    // And the operator is told where the data would go, in the same object.
+    expect(decision.disclaimer).toMatch(/api\.anthropic\.com/)
+  })
+
+  it("still offers the reviewed models, so the gate is not refusing everything", () => {
+    // A gate that refuses its whole catalog proves nothing about the gate.
+    const offered = availableToTenants(CATALOG_ENTRIES, {
+      engineVersion: "2026.8.0",
+      region: "us-east-1",
+      partition: "aws",
+      marketplaceEnabled: false,
+      now: NOW,
+    })
+    expect(offered.length).toBeGreaterThan(0)
+    expect(offered.every((e) => e.kind === "model")).toBe(true)
   })
 })
 

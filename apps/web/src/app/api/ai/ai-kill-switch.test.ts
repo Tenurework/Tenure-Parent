@@ -50,13 +50,52 @@ jest.mock("@/lib/auth", () => ({
 jest.mock("@/lib/tenant-scope", () => ({
   withTenantScope: (
     _userId: string,
-    fn: (scope: { institutionId: string }) => Promise<unknown>,
-  ) => fn({ institutionId: "inst_test" }),
+    fn: (scope: {
+      institutionId: string
+      actor: { principalId: string; principalType: "user" }
+    }) => Promise<unknown>,
+  ) =>
+    fn({
+      institutionId: "inst_test",
+      actor: { principalId: "user_test", principalType: "user" },
+    }),
+}))
+
+/**
+ * The institution role the requester holds, per test.
+ *
+ * `institution.staff` carries `search.index.query`, which is what the
+ * `search.corpus` tool registration requires — so the default here is a
+ * requester the retrieval tool is offered to, and a test that empties it is a
+ * requester it is refused to. Both paths matter: the flag assertions below are
+ * only about the flag if the tool is not silently deciding the outcome.
+ */
+let mockInstitutionRoles: { institutionId: string; role: string }[] = [
+  { institutionId: "inst_test", role: "OSE_STAFF" },
+]
+
+jest.mock("@/lib/rbac", () => ({
+  getUserContext: async (userId: string) => ({
+    userId,
+    institutionRoles: mockInstitutionRoles,
+    orgRoles: [],
+  }),
 }))
 
 jest.mock("@/lib/config/server", () => ({
   flagDecisionForInstitution: async (_institutionId: string, flag: string, subjectId: string) =>
     mockFlagDecision(flag, subjectId),
+  // The id→slug bridge, faked at the database read only: everything the slug
+  // then reaches — the blueprint, the module catalog, the tool registrations —
+  // is the real thing, which is what makes the tool assertions below mean
+  // anything.
+  institutionSlugFor: async () => "rochester",
+  configSnapshotForInstitution: async () => ({
+    tenantId: "inst_test",
+    revision: "university-student-organizations@1.0.0",
+    checksum: "sha256:test",
+    values: {},
+  }),
 }))
 
 jest.mock("@/lib/search-data", () => ({
@@ -78,6 +117,9 @@ jest.mock("@/lib/ai", () => ({
   aiConfigured: () => mockAiConfigured(),
 }))
 
+import { lookupPermission } from "@tenure/authorization"
+
+import { relayToolsFor } from "@/lib/relay-tools"
 import { POST as chat } from "./chat/route"
 import { POST as draft } from "./draft/route"
 
@@ -97,6 +139,7 @@ const draftRequest = () =>
 
 beforeEach(() => {
   mockTenantValues = {}
+  mockInstitutionRoles = [{ institutionId: "inst_test", role: "OSE_STAFF" }]
   mockAiComplete.mockClear()
   mockDraftText.mockClear()
   mockAiConfigured.mockReturnValue(true)
@@ -167,6 +210,61 @@ describe("/api/ai/chat honours the aiAssistant flag", () => {
   })
 })
 
+/**
+ * PACK-070-004. The tool registration is the gate, not documentation.
+ *
+ * `modules/index.ts` declares `search.corpus` on the `search` module with
+ * `requiredPermission: "search.index.query"`. These assert that the declaration
+ * decides what the route does: retrieval runs when the requester holds that
+ * permission and does not when they do not — and that a refusal is reported as
+ * a refusal rather than as an empty result set, which is a different and untrue
+ * statement to make to somebody.
+ */
+describe("/api/ai/chat retrieves only through an authorized tool registration", () => {
+  it("retrieves and answers when the registration's permission is held", async () => {
+    const body = await (await chat(chatRequest())).json()
+
+    expect(body.sources).toHaveLength(1)
+    expect(body.toolRefusal).toBeNull()
+    expect(mockAiComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it("retrieves nothing, and says why, when it is not", async () => {
+    // No institution role and no seat: `decide()` refuses, so the tool is never
+    // offered. The corpus loader is unchanged and would still have returned a
+    // document — which is the point. The refusal is upstream of retrieval.
+    mockInstitutionRoles = []
+
+    const res = await chat(chatRequest())
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.sources).toEqual([])
+    expect(body.answer).toBeNull()
+    expect(body.aiEnabled).toBe(false)
+    // Not the flag. The tenant switched nothing off.
+    expect(body.aiDisabledReason).toBeNull()
+    expect(typeof body.toolRefusal).toBe("string")
+    expect(body.toolRefusal.length).toBeGreaterThan(0)
+    // A model asked to answer from sources it was not allowed to retrieve would
+    // answer from its training instead, so the vendor is not called either.
+    expect(mockAiComplete).not.toHaveBeenCalled()
+  })
+
+  it("names a permission the catalog defines, so the gate is not a private string", () => {
+    // Guards the two tests above: if the registration named a permission no
+    // role could ever hold, the refusal case would pass for the wrong reason
+    // and the allow case would be the only real assertion.
+    const registrations = relayToolsFor("rochester")
+    expect(registrations.map((t) => t.toolKey)).toContain("search.corpus")
+
+    const corpus = registrations.find((t) => t.toolKey === "search.corpus")!
+    expect(corpus.readOnly).toBe(true)
+    expect(corpus.reauthorizesPerCall).toBe(true)
+    expect(lookupPermission(corpus.requiredPermission)?.module).toBe("search")
+  })
+})
+
 describe("/api/ai/draft honours the aiAssistant flag", () => {
   it("drafts when the flag is on", async () => {
     const res = await draft(draftRequest())
@@ -231,7 +329,16 @@ describe("the decision the routes consume is the engine's, not a stub", () => {
   it("resolves through the shipped registry and the pilot's own layers", () => {
     // Guards the test itself: if the bridge stopped running the engine, every
     // assertion above would still pass against a hardcoded answer.
-    expect(layersFor("rochester").map((l) => l.scope)).toEqual(["blueprint", "tenant"])
+    // Three layers now, not two: an archetype layer sits between the blueprint
+    // and the tenant. The exact list is asserted rather than a length or a
+    // subset, because the thing this guards against is the bridge quietly
+    // resolving against something other than the shipped stack, and a loose
+    // assertion would not notice that.
+    expect(layersFor("rochester").map((l) => l.scope)).toEqual([
+      "blueprint",
+      "archetype",
+      "tenant",
+    ])
     expect(mockFlagDecision("aiAssistant", "user_test")).toMatchObject({
       flag: "aiAssistant",
       enabled: true,

@@ -181,9 +181,9 @@ describe("the module graph, against the real catalogue", () => {
 
 describe("the module graph, on shapes the catalogue does not have yet", () => {
   const cyclic: ModuleLike[] = [
-    { key: "a", dependsOn: ["b"] },
-    { key: "b", dependsOn: ["c"] },
-    { key: "c", dependsOn: ["a"] },
+    { key: "a", dependsOn: [{ module: "b" }] },
+    { key: "b", dependsOn: [{ module: "c" }] },
+    { key: "c", dependsOn: [{ module: "a" }] },
   ]
 
   it("reports a cycle as the path that forms it", () => {
@@ -200,7 +200,7 @@ describe("the module graph, on shapes the catalogue does not have yet", () => {
 
   it("reports a self-dependency", () => {
     expect(
-      moduleGraphRejections([{ key: "a", dependsOn: ["a"] }], []).filter((r) => r.rule === "dependency-cycle"),
+      moduleGraphRejections([{ key: "a", dependsOn: [{ module: "a" }] }], []).filter((r) => r.rule === "dependency-cycle"),
     ).toHaveLength(1)
   })
 
@@ -211,9 +211,9 @@ describe("the module graph, on shapes the catalogue does not have yet", () => {
     expect(
       moduleGraphRejections(
         [
-          { key: "a", dependsOn: ["b", "c"] },
-          { key: "b", dependsOn: ["d"] },
-          { key: "c", dependsOn: ["d"] },
+          { key: "a", dependsOn: [{ module: "b" }, { module: "c" }] },
+          { key: "b", dependsOn: [{ module: "d" }] },
+          { key: "c", dependsOn: [{ module: "d" }] },
           { key: "d" },
         ],
         [],
@@ -222,7 +222,7 @@ describe("the module graph, on shapes the catalogue does not have yet", () => {
   })
 
   it("names a dependency that is not in the catalogue", () => {
-    const found = moduleGraphRejections([{ key: "a", dependsOn: ["ghost"] }], [])
+    const found = moduleGraphRejections([{ key: "a", dependsOn: [{ module: "ghost" }] }], [])
     expect(found[0].rule).toBe("invalid-reference")
     expect(found[0].detail).toContain("ghost")
   })

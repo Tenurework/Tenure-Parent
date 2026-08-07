@@ -1,7 +1,7 @@
 import "server-only"
 import type { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
-import { modulesFor } from "@tenure/platform-config"
+import { modulesFor, tiersFor } from "@tenure/platform-config"
 import { resourceWriteRefusal } from "@/lib/authz/resource-write-refusal"
 import { decideAcrossInstitution } from "@/lib/authz/seat-world"
 import { getUserContext, type UserContext } from "@/lib/rbac"
@@ -229,6 +229,9 @@ async function refuseResourceWrite(
     permission,
     tenantId: institutionId,
     enabledModules: modulesFor(institution.slug).keys,
+    // The tier facts the engine's tier gate needs. Absent, `tierRank` returns
+    // null and every `minTier` is skipped — see REVIEW-FINDINGS P0 #5.
+    tiers: tiersFor(institution.slug),
   })
   if (decision.allowed) return null
 

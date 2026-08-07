@@ -98,7 +98,19 @@ export function ambiguousPrecedence(layers: readonly VersionedLayer[]): readonly
 /** The shape this module needs from a module manifest. Structural, so `@tenure/modules` is not a dependency. */
 export interface ModuleLike {
   key: string
-  dependsOn?: readonly string[]
+  /**
+   * What this module needs. `module` names a module key OR a capability some
+   * module `provides`; `optional` means the system works without it.
+   *
+   * It was `readonly string[]` and that made this check quietly wrong once
+   * dependencies gained version ranges and alternatives (PACK-010-002,
+   * PACK-030-003): a dependency on `finance.ledger` would have been reported
+   * here as naming a module that does not exist, because the module that
+   * satisfies it does so by providing the capability rather than by being it.
+   */
+  dependsOn?: readonly { module: string; kind?: string }[]
+  /** Capabilities this module supplies, which another's `dependsOn` may name. */
+  provides?: readonly string[]
   /** The entitlement a plan must grant for this module to be enabled. */
   entitlement?: string
 }
@@ -118,13 +130,20 @@ export function moduleGraphRejections(
   const byKey = new Map(modules.map((m) => [m.key, m]))
   const rejections: Rejection[] = []
 
-  // Every dependency names a module that exists.
+  /** Which modules could satisfy a dependency target — the key itself, or every provider of it. */
+  const satisfiers = (target: string): string[] =>
+    byKey.has(target)
+      ? [target]
+      : modules.filter((m) => (m.provides ?? []).includes(target)).map((m) => m.key)
+
+  // Every dependency names something that exists — a module, or a capability
+  // some module supplies.
   for (const module of modules) {
     for (const dependency of module.dependsOn ?? []) {
-      if (!byKey.has(dependency)) {
+      if (satisfiers(dependency.module).length === 0) {
         rejections.push({
           rule: "invalid-reference",
-          detail: `Module "${module.key}" depends on "${dependency}", which is not in the catalogue.`,
+          detail: `Module "${module.key}" depends on "${dependency.module}", which is not in the catalogue.`,
         })
       }
     }
@@ -152,7 +171,7 @@ export function moduleGraphRejections(
     }
     state.set(key, "visiting")
     for (const dependency of byKey.get(key)?.dependsOn ?? []) {
-      if (byKey.has(dependency)) walk(dependency, [...path, key])
+      for (const satisfier of satisfiers(dependency.module)) walk(satisfier, [...path, key])
     }
     state.set(key, "done")
   }
@@ -171,10 +190,13 @@ export function moduleGraphRejections(
       continue
     }
     for (const dependency of byKey.get(key)!.dependsOn ?? []) {
-      if (!enabledSet.has(dependency)) {
+      // An optional dependency that is switched off is the case it exists for,
+      // not a rejection.
+      if (dependency.kind === "optional") continue
+      if (!satisfiers(dependency.module).some((s) => enabledSet.has(s))) {
         rejections.push({
           rule: "missing-dependency",
-          detail: `"${key}" is enabled but depends on "${dependency}", which is not.`,
+          detail: `"${key}" is enabled but depends on "${dependency.module}", which is not.`,
         })
       }
     }

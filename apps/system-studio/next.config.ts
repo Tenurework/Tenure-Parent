@@ -35,6 +35,10 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@tenure/configuration",
     "@tenure/blueprints",
+    // Reached transitively: `@tenure/platform-config` assembles a system, which
+    // needs the separation-of-duties policies and the process-chain contracts.
+    "@tenure/authorization",
+    "@tenure/contracts",
     "@tenure/organization-model",
     "@tenure/module-runtime",
     "@tenure/modules",

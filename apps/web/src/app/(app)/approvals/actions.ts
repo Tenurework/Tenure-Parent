@@ -1,6 +1,8 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { mayBorrowAuthority } from "@/lib/authz/borrowed-authority";
+import { outboxEventRow } from "@/lib/outbox/outbox";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ApprovalType, Prisma } from "@prisma/client";
@@ -143,6 +145,32 @@ export async function createApproval(formData: FormData) {
           outcome: "ALLOW",
         },
       });
+      // A draft is not a request. It has been raised for nobody, can be edited
+      // freely, and publishing an `ApprovalRequested` for one would tell every
+      // downstream step to start work on something that has not been asked for
+      // yet — which is the same defect as emitting before committing, one level
+      // up.
+      if (target) {
+        await tx.outboxEvent.create({
+          data: outboxEventRow({
+            eventId: randomUUID(),
+            tenantId: org.institutionId,
+            type: "ApprovalRequested",
+            schemaVersion: 1,
+            resourceType: "ApprovalRequest",
+            resourceId: a.id,
+            occurredAt: new Date().toISOString(),
+            correlationId: a.id,
+            causationId: null,
+            payload: {
+              type,
+              organizationId,
+              submittedById: userId,
+              toStatus: target,
+            },
+          }) as Prisma.OutboxEventUncheckedCreateInput,
+        });
+      }
       return a;
     });
 
@@ -392,6 +420,42 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
             reason,
             metadata: onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {},
           },
+        }),
+        // GE-021-006 / PACK-060-001 — the decision, published.
+        //
+        // In this array and not after it, which is the whole property: the
+        // status change and the event either both commit or neither does. An
+        // insert after the transaction leaves a window where the request moved
+        // and nothing downstream can ever learn it did, and the compare-and-swap
+        // above makes that window exactly as wide as a concurrent decision.
+        //
+        // `ApprovalDecided` is what `modules/index.ts` declares the approvals
+        // module emits, and what the `request-to-approval-to-memory` chain
+        // joins on. `outboxEventRow` runs `parseDomainEvent`, so the spelling
+        // in the manifest and the spelling in the row cannot drift apart.
+        db.outboxEvent.create({
+          data: outboxEventRow({
+            eventId: randomUUID(),
+            tenantId: approval.institutionId,
+            type: "ApprovalDecided",
+            schemaVersion: 1,
+            resourceType: "ApprovalRequest",
+            resourceId: approval.id,
+            occurredAt: new Date().toISOString(),
+            // No inbound request id to correlate on, so the request this is
+            // about is the correlation. It is what a support question about
+            // this decision would be asked in terms of.
+            correlationId: approval.id,
+            causationId: null,
+            payload: {
+              action,
+              fromStatus: approval.status,
+              toStatus: target,
+              organizationId: approval.organizationId,
+              decidedById: userId,
+              ...(onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {}),
+            },
+          }) as Prisma.OutboxEventUncheckedCreateInput,
         }),
       ]);
     } catch (error) {

@@ -29,8 +29,8 @@ by_prefix:
   WRK: 88
 by_status:
   BLOCKED_EXTERNAL: 10
-  FAIL: 1918
-  PASS: 118
+  FAIL: 1901
+  PASS: 135
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -11703,8 +11703,8 @@ requirements:
     statement: “Best” is claimed only for measured released scope.
   - id: "PACK-000-001"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-000 — Truth and registry"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11712,17 +11712,17 @@ requirements:
     statement: "Inventory every existing module, route, schema, service, feature flag, integration and tenant customization."
   - id: "PACK-000-002"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-000 — Truth and registry"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Classify each capability using the 17-dimension completeness contract."
   - id: "PACK-000-003"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-000 — Truth and registry"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11730,17 +11730,17 @@ requirements:
     statement: "Import every `PACK-*` requirement into the canonical ledger."
   - id: "PACK-000-004"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-000 — Truth and registry"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Remove or relabel false `Available` claims."
   - id: "PACK-010-001"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-010 — Product-line kernel"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11748,17 +11748,17 @@ requirements:
     statement: "Enforce one platform kernel for tenant, identity, authorization, configuration, workflow, audit, files, events, ledger, integration, Relay and lifecycle."
   - id: "PACK-010-002"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-010 — Product-line kernel"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: Define guarded extension points and dependency rules.
   - id: "PACK-010-003"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-010 — Product-line kernel"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11766,8 +11766,8 @@ requirements:
     statement: "Prevent pack direct access to another pack's private storage or unauthorized tenant context."
   - id: "PACK-010-004"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-010 — Product-line kernel"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11775,8 +11775,8 @@ requirements:
     statement: "Prove no tenant/source fork or hard-coded tenant branch."
   - id: "PACK-020-001"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-020 — Archetype model"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11784,44 +11784,44 @@ requirements:
     statement: "Implement scale, organization, operating, system-of-record, deployment, geography, functional, industry and provider axes."
   - id: "PACK-020-002"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-020 — Archetype model"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Implement presets as editable starting points, not locked tenant types."
   - id: "PACK-020-003"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-020 — Archetype model"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: Compile archetype selection into Configurator schemas/dependencies.
   - id: "PACK-020-004"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-020 — Archetype model"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Preserve Tenure-owned AWS-only runtime and model external on-prem systems through coexistence profiles."
   - id: "PACK-030-001"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-030 — Pack contract and lifecycle"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Implement canonical pack objects, versions, signatures, lifecycle and scope."
   - id: "PACK-030-002"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-030 — Pack contract and lifecycle"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11829,8 +11829,8 @@ requirements:
     statement: Implement capability modes and exact availability decisions.
   - id: "PACK-030-003"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-030 — Pack contract and lifecycle"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11838,17 +11838,17 @@ requirements:
     statement: "Implement dependencies, alternatives, conflicts and compatibility evaluation."
   - id: "PACK-030-004"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-030 — Pack contract and lifecycle"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Implement deprecation, suspension, end-of-support and retirement."
   - id: "PACK-030-005"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-030 — Pack contract and lifecycle"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11856,8 +11856,8 @@ requirements:
     statement: Prove UI/API never labels unsupported scope available.
   - id: "PACK-040-001"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-040 — Functional suites"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11865,17 +11865,17 @@ requirements:
     statement: Create canonical registry entries for all functional capabilities in Section 8.
   - id: "PACK-040-002"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-040 — Functional suites"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Map each entry to owner, objects, states, controls, UI, integrations, tests and lifecycle."
   - id: "PACK-040-003"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-040 — Functional suites"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11883,17 +11883,17 @@ requirements:
     statement: Implement initial complete vertical slices instead of shallow scaffolds across every suite.
   - id: "PACK-040-004"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-040 — Functional suites"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: Track all incomplete planes as planned/developing with explicit gaps.
   - id: "PACK-050-001"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-050 — Industry packs"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11901,8 +11901,8 @@ requirements:
     statement: Implement industry pack internal structure and schema validation.
   - id: "PACK-050-002"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-050 — Industry packs"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11910,8 +11910,8 @@ requirements:
     statement: Create registry taxonomy for Section 9 without claiming implementation.
   - id: "PACK-050-003"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-050 — Industry packs"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11919,26 +11919,26 @@ requirements:
     statement: "Deliver at least education/nonprofit, professional-services and discrete-manufacturing proving packs at declared scope."
   - id: "PACK-050-004"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-050 — Industry packs"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Verify regulated-industry disclaimers and hard availability gates."
   - id: "PACK-060-001"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-060 — Process chains and accounting"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Implement process-chain contracts and cross-pack event composition."
   - id: "PACK-060-002"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-060 — Process chains and accounting"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11946,8 +11946,8 @@ requirements:
     statement: Route all financial effects through universal accounting events and validated journals.
   - id: "PACK-060-003"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-060 — Process chains and accounting"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11955,8 +11955,8 @@ requirements:
     statement: "Implement exceptions, compensation, reconciliation and drill-through."
   - id: "PACK-060-004"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-060 — Process chains and accounting"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11964,8 +11964,8 @@ requirements:
     statement: Pass E2E chain tests across module boundaries and failures.
   - id: "PACK-070-001"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-070 — UI, data, integration and Relay contributions"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11973,8 +11973,8 @@ requirements:
     statement: Implement declarative TES UI contributions and forbid unreviewed pack shells.
   - id: "PACK-070-002"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-070 — UI, data, integration and Relay contributions"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11982,8 +11982,8 @@ requirements:
     statement: Implement canonical data extensions and migration contracts.
   - id: "PACK-070-003"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-070 — UI, data, integration and Relay contributions"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -11991,8 +11991,8 @@ requirements:
     statement: Resolve integration requirements only through the certified integration runtime.
   - id: "PACK-070-004"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-070 — UI, data, integration and Relay contributions"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12000,8 +12000,8 @@ requirements:
     statement: "Implement pack-specific memory, Relay policies, typed tools and evaluations."
   - id: "PACK-070-005"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-070 — UI, data, integration and Relay contributions"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12009,17 +12009,17 @@ requirements:
     statement: "Pass accessibility, performance, security, isolation and long-session UX gates."
   - id: "PACK-080-001"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-080 — Release, upgrade and certification"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: Bind code/config/schema/migrations/process/UI/report/Relay/connector/tests/support into one pack release.
   - id: "PACK-080-002"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-080 — Release, upgrade and certification"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12027,17 +12027,17 @@ requirements:
     statement: "Implement tenant adoption, compatibility, wave, canary, hold, rollback and forward recovery."
   - id: "PACK-080-003"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-080 — Release, upgrade and certification"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Implement certification scope/evidence/expiry and re-certification triggers."
   - id: "PACK-080-004"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-080 — Release, upgrade and certification"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12045,17 +12045,17 @@ requirements:
     statement: Make global updates reach Simon and all compatible tenants without overwriting explicit configuration.
   - id: "PACK-080-005"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-080 — Release, upgrade and certification"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: Block vulnerable unsupported pins and unsafe downgrades.
   - id: "PACK-090-001"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-090 — Proving systems"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12063,8 +12063,8 @@ requirements:
     statement: Prove all ten required E2E scenarios.
   - id: "PACK-090-002"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-090 — Proving systems"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12072,8 +12072,8 @@ requirements:
     statement: "Prove materially different data, authority, workflow, accounting, integration and AWS outcomes from one engine."
   - id: "PACK-090-003"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-090 — Proving systems"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12081,8 +12081,8 @@ requirements:
     statement: "Prove coexistence with an external/on-prem ERP without deploying Tenure outside Tenure AWS."
   - id: "PACK-090-004"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-090 — Proving systems"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12090,17 +12090,17 @@ requirements:
     statement: "Produce final supported-scope matrix with every limitation and blocked external dependency."
   - id: "PACK-GATE-000"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-000 — Truth and registry"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: Catalog truth matches implemented/certified scope.
   - id: "PACK-GATE-010"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-010 — Product-line kernel"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12108,17 +12108,17 @@ requirements:
     statement: Packs extend one secure kernel.
   - id: "PACK-GATE-020"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-020 — Archetype model"
-    status: FAIL
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
     statement: "Tenant systems are multi-axis compositions."
   - id: "PACK-GATE-030"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-030 — Pack contract and lifecycle"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12126,8 +12126,8 @@ requirements:
     statement: "Pack truth is versioned, contextual and enforced."
   - id: "PACK-GATE-040"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-040 — Functional suites"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12135,8 +12135,8 @@ requirements:
     statement: "Functional breadth is honest and depth is evidence-gated."
   - id: "PACK-GATE-050"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-050 — Industry packs"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12144,8 +12144,8 @@ requirements:
     statement: "Industry labels resolve to implemented process/control differences, not branding."
   - id: "PACK-GATE-060"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-060 — Process chains and accounting"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12153,8 +12153,8 @@ requirements:
     statement: Modules form coherent business systems.
   - id: "PACK-GATE-070"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-070 — UI, data, integration and Relay contributions"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12162,8 +12162,8 @@ requirements:
     statement: Every pack behaves as a secure native Tenure product surface.
   - id: "PACK-GATE-080"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-080 — Release, upgrade and certification"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger
@@ -12171,8 +12171,8 @@ requirements:
     statement: Pack lifecycle is safe across the tenant fleet.
   - id: "PACK-GATE-090"
     prefix: PACK
-    source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
-    section: "PACK-090 — Proving systems"
+    source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    section: "docs/implementation/erp-pack-factory-execution-ledger.md"
     status: FAIL
     imported: true
     reason: decided in the execution ledger

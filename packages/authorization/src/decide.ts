@@ -1,3 +1,10 @@
+import {
+  parsePermissionCheck,
+  parsePermissionDecision,
+  type PermissionCheck,
+  type PermissionDecision,
+} from "@tenure/contracts"
+
 import type {
   Delegation,
   DenyReason,
@@ -456,6 +463,100 @@ export function decide(
     trace,
     viaRoles: [...new Set(matches.map((m) => m.roleKey))],
     ...(viaDelegationFrom ? { viaDelegationFrom } : {}),
+  }
+}
+
+/**
+ * The revision of the policy that decided something.
+ *
+ * PACK-010-001. `PermissionDecision.policyRevision` exists so a past decision
+ * stays explainable — "why was this allowed in March" cannot be answered by
+ * re-running today's rules against today's roles. Nothing was producing that
+ * field because nothing produced a `PermissionDecision` at all, and inventing a
+ * constant to fill it would have been worse than leaving it: a revision that
+ * never changes says every decision was made under the same policy, which is
+ * exactly the lie the field exists to prevent.
+ *
+ * So it is derived from the facts the decision actually rested on: the role
+ * definitions consulted, the deny policies that could have fired, and the
+ * modules that were enabled. Change any of those and the revision changes;
+ * change none of them and two decisions a month apart carry the same revision,
+ * which is the true statement.
+ *
+ * FNV-1a over a canonical encoding rather than a cryptographic digest. This
+ * package imports nothing — `node:crypto` is not available to every runtime it
+ * has to work in, and the property needed here is "different inputs, different
+ * label", not collision resistance against an adversary who controls the roles.
+ */
+export function policyRevisionOf(world: AuthorizationWorld): string {
+  const canonical = [
+    ...world.roles
+      .map((r) => `role:${r.key}=${[...r.permissions].sort().join(",")}|${r.minTier ?? ""}`)
+      .sort(),
+    ...(world.policies ?? []).map((p) => `policy:${p.id}:${p.effect}:${p.permission}`).sort(),
+    ...(world.enabledModules ?? []).map((m) => `module:${m}`).sort(),
+  ].join("\n")
+
+  let hash = 0x811c9dc5
+  for (let i = 0; i < canonical.length; i++) {
+    hash ^= canonical.charCodeAt(i)
+    // >>> 0 keeps it an unsigned 32-bit value; the multiply is the FNV prime,
+    // expressed as shifts because 16777619 * hash overflows a double's exact
+    // integer range and silently rounds.
+    hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0
+  }
+  return `pol-${hash.toString(16).padStart(8, "0")}`
+}
+
+/**
+ * Decide a `PermissionCheck`, and answer with a `PermissionDecision`.
+ *
+ * PACK-010-001, and the reason it exists rather than callers reading `Decision`
+ * directly: `Decision` is this package's internal shape — a `DenyReason` union,
+ * a trace, the roles that granted it — and it is not the kernel boundary. Two
+ * shapes for one concern is the drift "one platform kernel" is meant to prevent,
+ * and until this existed the kernel's own `PermissionCheck`/`PermissionDecision`
+ * were declared and produced by nothing.
+ *
+ * The contract earns its place at both ends. `parsePermissionCheck` refuses a
+ * permission that is not `<module>.<action>`, so a caller cannot ask about a
+ * bare word that would skip module gating; `parsePermissionDecision` refuses a
+ * denial with no reason, so a refusal that reached a user as "no" and nothing
+ * else could not be constructed here.
+ *
+ * The rich `Decision` is still returned beside it — the trace is what answers
+ * "why can this person not do this", and throwing it away at the boundary would
+ * make every support question a code-reading exercise.
+ */
+export function decideCheck(
+  world: AuthorizationWorld,
+  check: PermissionCheck,
+  options?: { session?: SessionAssurance },
+): { decision: Decision; permission: PermissionDecision } {
+  const valid = parsePermissionCheck(check)
+
+  const decision = decide(world, {
+    principalId: valid.context.actorId,
+    tenantId: valid.context.tenantId,
+    permission: valid.permission,
+    ...(valid.resourceId
+      ? { resource: { type: valid.resourceType, id: valid.resourceId, orgUnitId: valid.resourceId } }
+      : {}),
+    at: valid.context.at,
+    ...(options?.session ? { session: options.session } : {}),
+  })
+
+  return {
+    decision,
+    permission: parsePermissionDecision({
+      allowed: decision.allowed,
+      // An allow carries its reason too. `PermissionDecision` only *requires*
+      // one on a denial, but "granted by finance.approver" is the answer to the
+      // question somebody asks about an allow, and dropping it would make the
+      // allow path the one with no explanation.
+      reason: decision.detail,
+      policyRevision: policyRevisionOf(world),
+    }),
   }
 }
 

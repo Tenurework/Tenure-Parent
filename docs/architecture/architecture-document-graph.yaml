@@ -6,12 +6,12 @@
 # duplicate upload cannot double-count the requirements it states.
 
 generated_from: tools/document-graph.mjs
-document_count: 32
+document_count: 33
 alias_count: 6
-requirement_statements: 3961
+requirement_statements: 4014
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
-authorities: 23
+authorities: 24
 references: 9
 documents:
   - id: "aws-current-state"
@@ -134,6 +134,21 @@ documents:
       - GE
     states_requirements: 0
     mentions_requirement_ids: 5
+  - id: "erp-pack-factory-execution-ledger"
+    title: ERP Archetype and Specialized System Pack Factory — execution ledger
+    version: unversioned
+    canonical_path: "docs/implementation/erp-pack-factory-execution-ledger.md"
+    role: authority
+    family: "erp-pack-factory-execution-ledger"
+    superseded_by: null
+    supersedes: []
+    sha256: "0bfffa9fb062c1458c96a2e8c5d247069c2a67de27089d445847096fc3cd231a"
+    bytes: 83374
+    aliases: []
+    requirement_prefixes:
+      - PACK
+    states_requirements: 53
+    mentions_requirement_ids: 43
   - id: "payments-treasury-execution-ledger"
     title: "Payments, Treasury, Cards and the Stripe Control Plane — execution ledger"
     version: unversioned

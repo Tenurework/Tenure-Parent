@@ -53,21 +53,54 @@ export type { ExposureCounts } from "./exposure"
 // `resetExposureCounts` is deliberately NOT re-exported. Nothing in production
 // resets a counter, and an export is an invitation.
 
-export { VersionError, checkCompatibility, compareVersions, parseVersion } from "./compatibility"
+export {
+  VersionError,
+  checkCompatibility,
+  compareVersions,
+  compareVersionStrings,
+  parseVersion,
+} from "./compatibility"
 export type { CompatibilityVerdict, EngineVersion } from "./compatibility"
 
 export {
   REGISTRY,
   brandingFor,
+  compatibilityFor,
+  configuredKeysFor,
+  fleetCompatibility,
   layersFor,
   localizationFor,
   resolveSystemConfig,
   terminologyFor,
 } from "./resolve"
-export type { Terminology } from "./resolve"
+export type { TenantCompatibility, Terminology } from "./resolve"
 
-export { hasModule, modulesFor, navigationForSystem } from "./modules"
-export type { SystemModules } from "./modules"
+export {
+  hasModule,
+  moduleAdoption,
+  modulesFor,
+  navigationForSystem,
+  tenantsRunning,
+  tiersFor,
+} from "./modules"
+export type {
+  EnabledModuleOrigin,
+  ModuleAdoption,
+  ModuleCommand,
+  ModuleProvenance,
+  SystemModules,
+  SystemTiers,
+} from "./modules"
 
 export { MODEL_CATALOG, allowedModelIds, modelIsAllowed } from "./model-policy"
 export type { ModelEntry, ModelLifecycle } from "./model-entry"
+
+export { ROLLOUT_PATH, buildSystem, planPromotion, systemUnderValidation } from "./build-system"
+export type {
+  AssembledSystem,
+  BuildSystemOptions,
+  PromotionInput,
+  PromotionPlan,
+  PromotionStep,
+  SystemParts,
+} from "./build-system"

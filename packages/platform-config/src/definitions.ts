@@ -49,7 +49,12 @@ export const organizationTerm = defineConfig({
   owner: "platform",
   type: z.string().min(1).max(40),
   default: "organization",
-  allowedScopes: ["blueprint", "tenant"],
+  // `archetype` because this word IS the organization axis: selecting
+  // `nonprofit-program-operations` is selecting "program". `blueprint` is kept
+  // so a blueprint for a shape the axis does not yet name can still supply it;
+  // `modules.test.ts` refuses a blueprint that sets it while its axis compiles
+  // one, because the archetype layer would silently win.
+  allowedScopes: ["blueprint", "archetype", "tenant"],
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,
@@ -61,7 +66,7 @@ export const organizationTermPlural = defineConfig({
   owner: "platform",
   type: z.string().min(1).max(40),
   default: "organizations",
-  allowedScopes: ["blueprint", "tenant"],
+  allowedScopes: ["blueprint", "archetype", "tenant"],
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,

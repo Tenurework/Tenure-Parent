@@ -312,8 +312,11 @@ export interface DomainProblem {
 /**
  * Scopes some layer kind can actually produce.
  *
- * Derived, never listed. `CONFIG_SCOPES` has eight and only five are reachable
- * — `user`, `legalEntity` and `workspace` have no layer kind. Writing the
+ * Derived, never listed. `CONFIG_SCOPES` has nine and only five are reachable
+ * — `user`, `legalEntity`, `workspace` and `archetype` have no layer kind.
+ * `archetype` is written directly by `layersFor` and the Studio's execution
+ * context rather than through the versioned layer schema, so it is unreachable
+ * here for the same reason `user` is: no `LayerKind` produces one. Writing the
  * reachable set out by hand would be a third copy of the same fact, and it
  * would stop being true the moment a twelfth kind is added, which is exactly
  * when this check needs to be right.

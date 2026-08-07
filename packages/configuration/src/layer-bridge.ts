@@ -25,9 +25,9 @@ import type { ConfigScope } from "./scopes"
  * exists so the schema is what callers actually build rather than a parallel
  * description of the same thing.
  *
- * ## Eleven kinds, eight scopes
+ * ## Eleven kinds, nine scopes
  *
- * The bible names eleven layers; `CONFIG_SCOPES` has eight. That is not a
+ * The bible names eleven layers; `CONFIG_SCOPES` has nine. That is not a
  * mistake in either — they are two vocabularies that grew for different reasons,
  * and the honest thing is to state the mapping rather than let each caller
  * invent one. Where the mapping collapses two kinds onto one scope it is said

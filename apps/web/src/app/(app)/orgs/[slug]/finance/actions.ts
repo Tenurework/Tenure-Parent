@@ -1,6 +1,6 @@
 "use server"
 
-import { modulesFor } from "@tenure/platform-config"
+import { modulesFor, tiersFor } from "@tenure/platform-config"
 import { decideFromSeats } from "@/lib/authz/seat-world"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
@@ -9,7 +9,7 @@ import { db } from "@/lib/db"
 import { canManageFinance, getUserContext } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
 import { nextStatus } from "@/lib/approvals"
-import { uploadDocument, storageConfigured } from "@/lib/s3"
+import { fileRef, uploadDocument, storageConfigured } from "@/lib/s3"
 import { notifyUsers, orgPresidentIds, oseMemberIds } from "@/lib/notify"
 import {
   parseMoneyToCents,
@@ -354,6 +354,11 @@ export async function submitReimbursement(slug: string, formData: FormData) {
       organizationId: org.id,
       tenantId: org.institutionId,
       enabledModules: modulesFor(org.institution.slug).keys,
+      // What each enabled module sells and what this tenant bought. Without it
+      // the engine's tier gate cannot fire at all — `tierRank` returns null for
+      // a world with no entitlements, so every `minTier` on every role is
+      // skipped (REVIEW-FINDINGS P0 #5).
+      tiers: tiersFor(org.institution.slug),
     })
     if (!decision.allowed) throw new Error(decision.detail)
 
@@ -381,7 +386,16 @@ export async function submitReimbursement(slug: string, formData: FormData) {
       if (f.size > 15 * 1024 * 1024) throw new Error("Receipt is larger than the 15 MB limit")
       const safeName = f.name.replace(/[^\w.\-]+/g, "_")
       const objectKey = `${org.institutionId}/${org.id}/${Date.now()}-${safeName}`
-      await uploadDocument(objectKey, Buffer.from(await f.arrayBuffer()), f.type || "application/octet-stream")
+      const bytes = Buffer.from(await f.arrayBuffer())
+      await uploadDocument(
+        fileRef({
+          tenantId: org.institutionId,
+          objectKey,
+          mimeType: f.type || "application/octet-stream",
+          body: bytes,
+        }),
+        bytes,
+      )
       const doc = await db.document.create({
         data: {
           institutionId: org.institutionId,

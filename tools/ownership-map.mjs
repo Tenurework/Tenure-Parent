@@ -156,6 +156,7 @@ const DOMAINS = [
       'apps/web/src/components/documents/',
 
       'apps/web/src/lib/s3.ts',
+      'apps/web/src/lib/s3.test.ts',
       'apps/web/src/app/api/documents/',
       'apps/web/src/app/api/attachment/',
       'apps/web/src/lib/forms/',
@@ -245,7 +246,13 @@ const DOMAINS = [
     owns: [
       'apps/web/src/components/ai/',
       'apps/web/src/components/DraftAssist.tsx',
-'apps/web/src/lib/ai.ts', 'apps/web/src/lib/http/', 'apps/web/src/app/api/ai/'],
+'apps/web/src/lib/ai.ts', 'apps/web/src/lib/http/', 'apps/web/src/app/api/ai/',
+      // The tools an assistant may invoke, and who may invoke them. Here rather
+      // than under `authorization` because the domain question this answers is
+      // "what may we hand to a model vendor", which is this domain's whole
+      // subject — the authorization engine it calls is owned where it lives.
+      'apps/web/src/lib/relay-tools.ts',
+      'apps/web/src/lib/relay-tools.test.ts'],
   },
   {
     key: 'billing-metering',

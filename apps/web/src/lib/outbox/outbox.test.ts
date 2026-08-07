@@ -13,6 +13,7 @@ import {
   MAX_ATTEMPTS,
   backoffMs,
   dispatchOnce,
+  outboxEventRow,
   replay,
   type OutboxPorts,
   type ReplayPorts,
@@ -55,6 +56,48 @@ function ports(over: Partial<OutboxPorts> = {}): OutboxPorts {
     ...over,
   }
 }
+
+/**
+ * Writing one, which is the half that had no production caller at all.
+ *
+ * `outboxEventRow` is what `approvals/actions.ts` spreads into
+ * `db.outboxEvent.create` inside the transaction that moves an approval, so
+ * these assertions are about the only thing standing between a malformed event
+ * and a row that `dispatchOnce` would later dead-letter.
+ */
+describe("recording an event", () => {
+  it("carries the event onto the row, under the event's own tenant", () => {
+    const row = outboxEventRow(event({ payload: { action: "approve" } }))
+
+    expect(row).toMatchObject({
+      institutionId: "t-roch",
+      eventId: "evt-1",
+      type: "ApprovalDecided",
+      schemaVersion: 1,
+      resourceType: "ApprovalRequest",
+      resourceId: "ar-9",
+      correlationId: "corr-1",
+      causationId: "cmd-1",
+      payload: { action: "approve" },
+    })
+    expect(row.occurredAt.toISOString()).toBe(NOW)
+  })
+
+  it("refuses an event the contract refuses, before it can become a row", () => {
+    // The alternative is a row written now and dead-lettered later, by which
+    // time the transaction that caused it has committed and the reason it was
+    // malformed is three deploys ago.
+    expect(() => outboxEventRow(event({ type: "DecideApproval" }))).toThrow(/past tense/)
+    expect(() => outboxEventRow(event({ schemaVersion: 0 }))).toThrow(/positive integer/)
+    expect(() => outboxEventRow(event({ tenantId: "" }))).toThrow(/tenantId/)
+  })
+
+  it("takes the tenant from the event rather than from a second argument", () => {
+    // A row whose institutionId disagreed with the event it carries is an event
+    // delivered under the wrong tenant, and nothing downstream could tell.
+    expect(outboxEventRow(event({ tenantId: "t-midtown" })).institutionId).toBe("t-midtown")
+  })
+})
 
 describe("delivering", () => {
   it("marks dispatched only after the consumer returns", async () => {

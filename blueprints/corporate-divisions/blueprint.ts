@@ -22,8 +22,8 @@ export const corporateDivisions: SystemBlueprint = {
   values: {
     "platform.terminology.staffOfficeName": "People Operations",
     "platform.terminology.staffOfficeShortName": "People Ops",
-    "platform.terminology.organizationSingular": "department",
-    "platform.terminology.organizationPlural": "departments",
+    // organizationSingular/Plural come from the `organization` axis — see the
+    // note in the university blueprint.
     "platform.terminology.leadershipBody": "leadership team",
     "platform.terminology.seatSingular": "role",
     "platform.localization.locale": "en-US",
@@ -34,19 +34,24 @@ export const corporateDivisions: SystemBlueprint = {
     // a blueprint that copied the other's calendar would prove nothing.
     "platform.localization.fiscalYearStartMonth": 1,
   },
-  modules: [
-    "dashboard",
-    "organizations",
-    "feed",
-    "messaging",
-    "approvals",
-    "events",
-    "resources",
-    "search",
-    "memory",
-    "budgeting",
-    "administration",
-  ],
+  // `matrix`: this topology declares `matrix-reports-to` as a relation, so the
+  // operating model is not an opinion about this blueprint — it is the same
+  // fact the topology already states, said on the axis that other subsystems
+  // can read. Every suite except `expenses`: a company budgets centrally and
+  // pays expenses through payroll, which this platform does not run.
+  axes: {
+    organization: "corporate-divisions",
+    operatingModel: "matrix",
+    functional: [
+      "community",
+      "operations",
+      "knowledge",
+      "library",
+      "assistedSearch",
+      "finance",
+      "administration",
+    ],
+  },
   topology: {
     id: "corporate-divisions",
     version: "1.0.0",

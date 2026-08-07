@@ -1,4 +1,4 @@
-import { BLUEPRINTS } from "@tenure/blueprints"
+import { BLUEPRINTS, compileArchetype } from "@tenure/blueprints"
 
 import { decide } from "./decide"
 import { SEPARATION_OF_DUTIES } from "./policies"
@@ -309,9 +309,11 @@ describe("the catalog does not vary with the tenant", () => {
 
   it("declares the same modules whatever a tenant runs", () => {
     // A permission's module is a property of the permission, not of the tenant.
-    // Reimbursements is in some blueprints' module lists and not others, so a
-    // catalog that read the tenant would answer differently per tenant.
-    const runs = BLUEPRINTS.filter((b) => b.modules.includes("reimbursements"))
+    // Reimbursements is in some blueprints' compiled module sets and not others,
+    // so a catalog that read the tenant would answer differently per tenant.
+    const runs = BLUEPRINTS.filter((b) =>
+      compileArchetype(b.axes).modules.includes("reimbursements"),
+    )
     expect(runs.length).toBeGreaterThan(0)
     expect(runs.length).toBeLessThan(BLUEPRINTS.length)
     expect(lookupPermission("finance.reimbursement.approve")?.module).toBe("reimbursements")

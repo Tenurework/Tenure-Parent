@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useMemo, useState } from "react"
 
 import { composeTenant, type ComposeResult } from "../actions"
 
@@ -12,14 +12,42 @@ import { composeTenant, type ComposeResult } from "../actions"
  * rules live in `@tenure/provisioning` and run on the server. A second copy in
  * the browser is a second copy that will disagree.
  */
+export interface ComposeAxis {
+  id: string
+  label: string
+  cardinality: "one" | "many"
+  effect: string
+  values: Array<{ id: string; label: string; description: string }>
+}
+
+export interface ComposeBlueprint {
+  id: string
+  axes: { organization: string; operatingModel: string; functional: readonly string[] }
+}
+
+export interface ComposeModule {
+  key: string
+  description: string
+  version: string
+  /** Where the module is in its life. Shown, not dropped. */
+  lifecycle: string
+  /** Whether the resolver would accept it. Decided by `ENABLEABLE`, on the server. */
+  enableable: boolean
+}
+
 export function ComposeForm({
   blueprints,
   modules,
   plans,
   regions,
+  axes,
+  alwaysOnModules,
+  suiteModules,
+  coexistenceProfiles,
+  businessDomains,
 }: {
-  blueprints: string[]
-  modules: Array<{ key: string; description: string; version: string }>
+  blueprints: ComposeBlueprint[]
+  modules: ComposeModule[]
   // Passed in, not imported. The provisioning package's index reaches
   // `node:crypto` for the manifest digests, and importing it from a client
   // component fails the build — which is the build telling the truth about
@@ -27,11 +55,99 @@ export function ComposeForm({
   plans: Array<{ planId: string; displayName: string; grants: string }>
   /** From the fleet. A hard-coded list offers a region no cell serves. */
   regions: readonly string[]
+  /**
+   * The archetype axes and the values each accepts, from `ARCHETYPE_AXES`.
+   *
+   * A tenant system is a point on these axes, not a blueprint id plus a list of
+   * ticked boxes — the boxes could only ever subtract what a blueprint already
+   * fixed, so "the same blueprint operating differently" had no expression at
+   * all (PACK-GATE-020).
+   */
+  axes: ComposeAxis[]
+  /** Modules every system runs, from `ALWAYS_ON_MODULES`. */
+  alwaysOnModules: string[]
+  /**
+   * What each functional suite contributes, projected out of `compileArchetype`
+   * on the server. Not a second copy of the mapping — see the page.
+   */
+  suiteModules: Record<string, string[]>
+  /**
+   * The coexistence profiles, from `COEXISTENCE_PROFILES`, each with what it
+   * means. Passed in rather than imported for the same reason the plans are:
+   * `@tenure/provisioning` reaches `node:crypto` and cannot be imported from a
+   * client component.
+   */
+  coexistenceProfiles: Array<{ id: string; meaning: string }>
+  /** The closed business-domain vocabulary, from `BUSINESS_DOMAINS`. */
+  businessDomains: readonly string[]
 }) {
   const [result, action, pending] = useActionState<ComposeResult | null, FormData>(
     composeTenant,
     null,
   )
+
+  /* ------------------------------------------------------- PACK-020-002 --
+   * The preset, and the operator's edit over it.
+   *
+   * The module checkboxes used to render with no `defaultChecked` and no
+   * relationship to the blueprint <select> above them, so the preset
+   * contributed nothing to a composition and nothing recorded that the
+   * operator's selection diverged from it. They now START at what the selected
+   * axes compile to, and what is submitted is the DIFF — `moduleAdd` and
+   * `moduleRemove` — so the composition records what was changed rather than an
+   * absolute list that no longer names the preset it came from.
+   *
+   * The server recompiles the preset from the submitted axes and replays the
+   * diff onto it, so this state cannot be the authority. If the two disagree,
+   * the server wins and says so.
+   */
+  const [blueprintId, setBlueprintId] = useState(blueprints[0]?.id ?? "")
+  const blueprint = blueprints.find((b) => b.id === blueprintId) ?? blueprints[0]
+
+  const [organization, setOrganization] = useState(blueprint?.axes.organization ?? "")
+  const [operatingModel, setOperatingModel] = useState(blueprint?.axes.operatingModel ?? "")
+  const [suites, setSuites] = useState<string[]>([...(blueprint?.axes.functional ?? [])])
+
+  /** What the current axis selection compiles to, by the server's own table. */
+  const preset = useMemo(() => {
+    const keys = new Set(alwaysOnModules)
+    for (const suite of suites) for (const key of suiteModules[suite] ?? []) keys.add(key)
+    return keys
+  }, [alwaysOnModules, suiteModules, suites])
+
+  // Explicit divergences only. Everything else follows the preset, so changing
+  // an axis moves the checkboxes with it instead of stranding a stale set —
+  // which is exactly the bug an absolute selection would have.
+  const [added, setAdded] = useState<string[]>([])
+  const [removed, setRemoved] = useState<string[]>([])
+
+  const enableable = new Map(modules.map((m) => [m.key, m.enableable]))
+  const checked = (key: string) =>
+    enableable.get(key) !== false && (added.includes(key) || (preset.has(key) && !removed.includes(key)))
+
+  const toggle = (key: string) => {
+    const inPreset = preset.has(key)
+    if (checked(key)) {
+      setAdded((a) => a.filter((k) => k !== key))
+      if (inPreset) setRemoved((r) => (r.includes(key) ? r : [...r, key]))
+    } else {
+      setRemoved((r) => r.filter((k) => k !== key))
+      if (!inPreset) setAdded((a) => (a.includes(key) ? a : [...a, key]))
+    }
+  }
+
+  const onBlueprint = (id: string) => {
+    const next = blueprints.find((b) => b.id === id)
+    setBlueprintId(id)
+    if (!next) return
+    // A different blueprint is a different preset, and carrying an edit across
+    // it would record a divergence from something the operator never saw.
+    setOrganization(next.axes.organization)
+    setOperatingModel(next.axes.operatingModel)
+    setSuites([...next.axes.functional])
+    setAdded([])
+    setRemoved([])
+  }
 
   const problemsFor = (field: string) => (result?.problems ?? []).filter((p) => p.field === field)
 
@@ -87,29 +203,144 @@ export function ComposeForm({
           <h2>System</h2>
         </header>
 
-        <Field name="blueprintId" label="Blueprint">
-          <select id="blueprintId" name="blueprintId" required defaultValue={blueprints[0]}>
+        <Field
+          name="blueprintId"
+          label="Blueprint"
+          hint="The preset. It supplies the starting position on every axis below and the modules that follow from them — all of which you can then change."
+        >
+          <select
+            id="blueprintId"
+            name="blueprintId"
+            required
+            value={blueprintId}
+            onChange={(e) => onBlueprint(e.target.value)}
+          >
             {blueprints.map((b) => (
-              <option key={b} value={b}>
-                {b}
+              <option key={b.id} value={b.id}>
+                {b.id}
               </option>
             ))}
           </select>
         </Field>
 
-        <Field name="modules" label="Modules" hint="A system with none has no surfaces.">
+        {/* The axes. A blueprint supplies the DEFAULT position on each; what is
+            chosen here is what the engine compiles, and one axis moved is a
+            genuinely different system rather than a fourth blueprint
+            (PACK-020-001, PACK-GATE-020, PACK-020-003). */}
+        {axes.map((axis) =>
+          axis.cardinality === "one" ? (
+            <Field
+              key={axis.id}
+              name={`archetype.${axis.id}`}
+              label={axis.label}
+              hint={axis.effect}
+            >
+              <select
+                id={`archetype.${axis.id}`}
+                name={`archetype.${axis.id}`}
+                required
+                value={axis.id === "organization" ? organization : operatingModel}
+                onChange={(e) =>
+                  axis.id === "organization"
+                    ? setOrganization(e.target.value)
+                    : setOperatingModel(e.target.value)
+                }
+              >
+                {axis.values.map((v) => (
+                  <option key={v.id} value={v.id} title={v.description}>
+                    {v.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : (
+            <Field
+              key={axis.id}
+              name={`archetype.${axis.id}`}
+              label={axis.label}
+              hint={axis.effect}
+            >
+              <div className="checks">
+                {axis.values.map((v) => (
+                  <label key={v.id} className="check" title={v.description}>
+                    <input
+                      type="checkbox"
+                      name={`archetype.${axis.id}`}
+                      value={v.id}
+                      checked={suites.includes(v.id)}
+                      onChange={() =>
+                        setSuites((s) =>
+                          s.includes(v.id) ? s.filter((x) => x !== v.id) : [...s, v.id],
+                        )
+                      }
+                    />
+                    <span>
+                      <b>{v.label}</b>
+                      <span className="slug">{v.description}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </Field>
+          ),
+        )}
+
+        {/* PACK-020-002 / PACK-000-004.
+            Checked from the preset the axes above compile to, and submitted as
+            the DIFF from it. A module outside `ENABLEABLE` is shown with its
+            lifecycle and refused rather than offered as if it were available —
+            which is what dropping `lifecycle` from this list used to do. */}
+        <Field
+          name="modules"
+          label="Modules"
+          hint="Starts at what the axes above compile to. Ticking or unticking one records a per-module edit against that preset, which is what a suite cannot express."
+        >
           <div className="checks">
             {modules.map((m) => (
-              <label key={m.key} className="check" title={m.description}>
-                <input type="checkbox" name="modules" value={m.key} />
+              <label
+                key={m.key}
+                className="check"
+                title={m.enableable ? m.description : `${m.description} — lifecycle "${m.lifecycle}"`}
+              >
+                <input
+                  type="checkbox"
+                  value={m.key}
+                  checked={checked(m.key)}
+                  disabled={!m.enableable}
+                  onChange={() => toggle(m.key)}
+                />
                 <span>
                   <b>{m.key}</b>{" "}
-                  <span className="version">v{m.version}</span>
+                  <span className="version">v{m.version}</span>{" "}
+                  <span className="version">{m.lifecycle}</span>
+                  {!m.enableable && (
+                    <span className="slug">
+                      Cannot be enabled: lifecycle is &ldquo;{m.lifecycle}&rdquo;.
+                    </span>
+                  )}
+                  {m.enableable && preset.has(m.key) && !checked(m.key) && (
+                    <span className="slug">Removed from the preset.</span>
+                  )}
+                  {m.enableable && !preset.has(m.key) && checked(m.key) && (
+                    <span className="slug">Added to the preset.</span>
+                  )}
                   <span className="slug">{m.description}</span>
                 </span>
               </label>
             ))}
           </div>
+          {/* The diff, not the absolute set. The server recompiles the preset
+              from the axes above and replays these onto it. */}
+          {added
+            .filter((key) => enableable.get(key) !== false)
+            .map((key) => (
+              <input key={`add-${key}`} type="hidden" name="moduleAdd" value={key} />
+            ))}
+          {removed
+            .filter((key) => preset.has(key))
+            .map((key) => (
+              <input key={`remove-${key}`} type="hidden" name="moduleRemove" value={key} />
+            ))}
         </Field>
 
         {/* Entitlements are a consequence of the contracted plan, not free
@@ -161,6 +392,49 @@ export function ComposeForm({
             <option value="silo">silo — dedicated resources in the cell</option>
             <option value="dedicated-account">dedicated-account — unavailable, needs GE-010</option>
           </select>
+        </Field>
+      </section>
+
+      {/* PACK-020-004. Separate from Placement on purpose: placement is where
+          Tenure runs, this is who is allowed to write. A `pooled` tenant can be
+          authoritative for everything and a `silo` tenant for nothing. */}
+      <section className="system">
+        <header>
+          <h2>Coexistence</h2>
+        </header>
+
+        <Field
+          name="coexistence"
+          label="Profile"
+          hint="How this system sits beside whatever the customer already runs. Customer on-premise estates and other clouds are external systems, not Tenure deployment targets."
+        >
+          <select id="coexistence" name="coexistence" defaultValue="TENURE_CLOUD_PRIMARY">
+            {coexistenceProfiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.id} — {p.meaning}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field
+          name="systemOfRecord"
+          label="Domains an external system owns"
+          hint="Exactly one system writes a domain's facts. A module that writes a domain ticked here is refused — dual write is prohibited, and buying the entitlement would not change that."
+        >
+          <div className="checks">
+            {businessDomains.map((domain) => (
+              <label key={domain} className="check">
+                <input type="checkbox" name="externalDomains" value={domain} />
+                <span>
+                  <b>{domain}</b>
+                  <span className="slug">
+                    unticked means Tenure is authoritative for {domain}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
         </Field>
       </section>
 

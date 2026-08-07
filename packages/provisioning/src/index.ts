@@ -40,6 +40,28 @@ export type {
   TenantManifest,
 } from "./manifest"
 
+/**
+ * The coexistence vocabulary, re-exported rather than redefined.
+ *
+ * It is declared in `@tenure/module-runtime` because that is the package that
+ * ENFORCES it — `resolveModules` refuses a module whose domain an external
+ * system owns — and because `apps/web` reaches module-runtime and must not
+ * reach this package (`tests/security/cell-independence.test.mjs`). One
+ * definition, two importers, same as `ModelEntry`.
+ */
+export {
+  BUSINESS_DOMAINS,
+  COEXISTENCE_PROFILES,
+  coexistenceProblems,
+  externalDomains,
+} from "@tenure/module-runtime"
+export type {
+  CoexistenceDeclaration,
+  CoexistenceProfile,
+  SystemOfRecordAuthority,
+  SystemOfRecordMap,
+} from "@tenure/module-runtime"
+
 export {
   canTransition,
   isServing,
@@ -127,8 +149,13 @@ export type {
 export { PLAN_CATALOG, getPlan, planIds } from "./plan-catalog"
 
 export {
+  CATALOG_ENTRIES,
+  RECERTIFICATION_WARNING_DAYS,
+  RELAY_ANTHROPIC_CONNECTOR,
+  availabilityDecisions,
   availableToTenants,
   canAdvanceCatalog,
+  certificationState,
   engineIsCompatible,
   isUsable,
   validatePackage,
@@ -136,15 +163,21 @@ export {
 } from "./catalogs"
 export type {
   AnyCatalogEntry,
+  AvailabilityContext,
+  CapabilityAvailabilityDecision,
+  CatalogCertification,
   CatalogEntry,
   CatalogLifecycle,
   CatalogProblem,
+  CatalogRestrictions,
+  CertificationState,
   CompatibilityRange,
   ConnectorEntry,
   ExtensionEntry,
   ModelEntry,
   PackageVersion,
   UsabilityReason,
+  UsabilityVerdict,
 } from "./catalogs"
 
 

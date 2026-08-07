@@ -7,7 +7,7 @@ import { z } from "zod"
 /**
  * GE-031-001 — resolving through the versioned layer schema.
  *
- * The bridge's job is to be the only place the eleven kinds meet the eight
+ * The bridge's job is to be the only place the eleven kinds meet the nine
  * scopes. What matters is that nothing goes missing on the way across: a layer
  * outside its window, a layer whose kind has no scope, and a layer that tried to
  * overwrite an invariant must each come back named.

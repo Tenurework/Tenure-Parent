@@ -1,15 +1,23 @@
 import {
   ConfigRegistry,
+  ENGINE_VERSION,
   resolveConfigOrThrow,
   type ConfigLayer,
   validateDomains,
   type ResolvedConfig,
 } from "@tenure/configuration"
 
-import { getBlueprint, getTenantBinding } from "@tenure/blueprints"
+import {
+  TENANT_BINDINGS,
+  archetypeFor,
+  compileArchetype,
+  getBlueprint,
+  getTenantBinding,
+} from "@tenure/blueprints"
 import { PLATFORM_DEFINITIONS } from "./definitions"
 import type { Branding } from "./branding"
 import type { Localization } from "./localization"
+import { checkCompatibility, type CompatibilityVerdict } from "./compatibility"
 import { textDirectionFor } from "./direction"
 
 /**
@@ -19,6 +27,7 @@ import { textDirectionFor } from "./direction"
  *
  *   platform    the defaults on each definition
  *   blueprint   the kind of system this institution runs
+ *   archetype   what this institution's position on the archetype axes compiles to
  *   tenant      this institution's own words
  *
  * `legalEntity`, `orgUnit`, `workspace` and `user` are supported by the engine
@@ -71,8 +80,26 @@ export function layersFor(institutionSlug: string): ConfigLayer[] {
     )
   }
 
+  // The archetype layer is not decoration. `organizationSingular`/`Plural` are
+  // set NOWHERE else — the blueprints stopped declaring them when the axes
+  // arrived — so a tenant resolving "club" rather than the platform default
+  // "organization" is proof this layer applied. Remove it and every terminology
+  // assertion in resolve.test.ts fails.
+  const archetype = archetypeFor(institutionSlug)
+  const compiled = archetype ? compileArchetype(archetype) : undefined
+
   return [
     { scope: "blueprint", id: blueprint.id, label: blueprint.name, values: blueprint.values },
+    ...(compiled
+      ? [
+          {
+            scope: "archetype" as const,
+            id: `${archetype!.organization}/${archetype!.operatingModel}`,
+            label: "Archetype axes",
+            values: compiled.values,
+          },
+        ]
+      : []),
     { scope: "tenant", id: binding.slug, label: binding.displayName, values: binding.values },
   ]
 }
@@ -143,6 +170,81 @@ export function localizationFor(institutionSlug: string): Localization {
       holidays: config.get<string[]>("platform.localization.holidays"),
     },
   }
+}
+
+/* ------------------------------------- can the cell holding it run its config */
+
+/**
+ * PACK-GATE-080 — the configuration keys one tenant sets, against one engine.
+ *
+ * `checkCompatibility` has existed since GE-022-005 and, until this function,
+ * had no caller outside its own test. A gate nothing calls refuses nothing: the
+ * comment above it describes a cell that is older refusing a release, and no
+ * cell has ever been asked. This is where it is asked — per tenant, against the
+ * engine version the cell holding that tenant reports.
+ *
+ * ## What the requirement per key means, exactly
+ *
+ * Every key this build implements is declared as needing THIS build's engine
+ * version, because that is the only claim the repository can support. Nothing
+ * records when each configuration key was introduced or when its meaning last
+ * moved; `ENGINE_VERSION` is documented in `@tenure/configuration` as moving
+ * when the layer contract moves, so "this build's semantics for this key are
+ * the ones at ENGINE_VERSION" is true by construction. Guessing an earlier
+ * minimum per key would make the gate pass for keys it should refuse, which is
+ * the failure this whole module exists to prevent — so it is deliberately
+ * conservative in the direction that produces a visible refusal rather than a
+ * silent half-application.
+ *
+ * `known` is the running registry's key set, so a tenant whose overlay names a
+ * key this build does not define is refused as `unknown-key` — separately from
+ * "your engine is too old", because they are different mistakes by different
+ * people even though the tenant experiences them identically.
+ */
+export interface TenantCompatibility {
+  slug: string
+  displayName: string
+  /** Configuration keys this tenant's own layers set. */
+  keys: readonly string[]
+  verdict: CompatibilityVerdict
+}
+
+/** The keys a tenant's layers actually set, blueprint and tenant scope together. */
+export function configuredKeysFor(institutionSlug: string): readonly string[] {
+  const keys = new Set<string>()
+  for (const layer of layersFor(institutionSlug)) {
+    for (const key of Object.keys(layer.values)) keys.add(key)
+  }
+  return [...keys].sort()
+}
+
+export function compatibilityFor(
+  institutionSlug: string,
+  runningEngineVersion: string,
+): CompatibilityVerdict {
+  const keys = configuredKeysFor(institutionSlug)
+  return checkCompatibility(
+    runningEngineVersion,
+    Object.fromEntries(keys.map((key) => [key, ENGINE_VERSION])),
+    new Set(REGISTRY.keys()),
+  )
+}
+
+/**
+ * The same question for every bound tenant at once.
+ *
+ * The shape the Studio's fleet view wants: a lifecycle or release decision is
+ * taken across tenants, so the answer has to be available across tenants
+ * without the caller looping over a binding list it would have to keep in step
+ * with `blueprints/index.ts`.
+ */
+export function fleetCompatibility(runningEngineVersion: string): readonly TenantCompatibility[] {
+  return TENANT_BINDINGS.map((binding) => ({
+    slug: binding.slug,
+    displayName: binding.displayName,
+    keys: configuredKeysFor(binding.slug),
+    verdict: compatibilityFor(binding.slug, runningEngineVersion),
+  }))
 }
 
 /** Visual identity for an institution. Beside the registry, for the same reason. */

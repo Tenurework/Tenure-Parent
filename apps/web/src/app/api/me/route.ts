@@ -53,7 +53,8 @@ export async function GET() {
     accessReportFor(userId),
   ])
 
-  const enabledModules = modulesFor(tenants.active?.slug ?? "").keys
+  const system = modulesFor(tenants.active?.slug ?? "")
+  const enabledModules = system.keys
   const capabilities = navigationCapabilitiesFor(
     ctx,
     tenants.active?.id ?? "",
@@ -89,6 +90,24 @@ export async function GET() {
         active: institution.id === tenants.active?.id,
       })),
       modules: enabledModules,
+      /**
+       * What is true of the modules this tenant IS running.
+       *
+       * A deprecated module, one in a read-only mode, and one certified with
+       * declared gaps all used to render exactly like a fully supported one:
+       * `modulesFor` returned keys and nothing else, and every consumer took
+       * `.keys`. Bible §11 says the UI must show the mode and its limitations,
+       * and it cannot show what the bootstrap call does not carry.
+       */
+      moduleAdvisories: system.advisories,
+      /**
+       * And the modules this tenant does NOT get, with the reason.
+       *
+       * "Why is Reports missing?" was answerable only by reading a blueprint, an
+       * entitlement list and a module catalog side by side. The resolver has
+       * always produced the sentence; nothing carried it to anyone.
+       */
+      moduleProblems: system.problems,
       capabilities: [...capabilities].sort(),
     },
     {

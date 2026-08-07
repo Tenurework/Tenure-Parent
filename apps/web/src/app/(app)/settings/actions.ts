@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getUserContext } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
-import { storageConfigured, uploadDocument } from "@/lib/s3"
+import { fileRef, storageConfigured, uploadDocument } from "@/lib/s3"
 
 async function requireUserId() {
   const session = await auth()
@@ -44,24 +44,47 @@ export async function setProfileImageUrl(formData: FormData) {
   bumpProfile()
 }
 
-/** Upload a profile picture to object storage; the /api/profile-image proxy serves it. */
+/**
+ * Upload a profile picture to object storage; the /api/profile-image proxy
+ * serves it.
+ *
+ * Runs inside the acting tenant's scope, which it did not before. The key used
+ * to begin `profile-images/` and belonged to no institution's bucket space —
+ * `parseFileRef` refuses that, because a key with no tenant prefix is a key
+ * that can address another tenant's object. A person can hold seats at more
+ * than one institution and the image is stored under the one they are acting
+ * for, which is the same rule every other row this application writes follows.
+ * Existing images keep working: reads use the key stored on the user row, and
+ * only new uploads are minted here.
+ */
 export async function uploadProfileImage(formData: FormData) {
   const userId = await requireUserId()
-  if (!storageConfigured())
-    throw new Error("File uploads are not configured — paste an image URL instead")
-  const file = formData.get("file")
-  if (!(file instanceof File) || file.size === 0) throw new Error("Choose an image file")
-  if (!file.type.startsWith("image/")) throw new Error("That file is not an image")
-  if (file.size > 5 * 1024 * 1024) throw new Error("Images must be under 5 MB")
+  await withTenantScope(userId, async (scope) => {
+    if (!storageConfigured())
+      throw new Error("File uploads are not configured — paste an image URL instead")
+    const file = formData.get("file")
+    if (!(file instanceof File) || file.size === 0) throw new Error("Choose an image file")
+    if (!file.type.startsWith("image/")) throw new Error("That file is not an image")
+    if (file.size > 5 * 1024 * 1024) throw new Error("Images must be under 5 MB")
 
-  const ext = (file.name.split(".").pop() || "img").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5)
-  const key = `profile-images/${userId}/${Date.now()}.${ext}`
-  await uploadDocument(key, Buffer.from(await file.arrayBuffer()), file.type)
-  await db.user.update({
-    where: { id: userId },
-    data: { imageKey: key, image: `/api/profile-image/${userId}?v=${Date.now()}` },
+    const ext = (file.name.split(".").pop() || "img").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5)
+    const key = `${scope.institutionId}/profile-images/${userId}/${Date.now()}.${ext}`
+    const bytes = Buffer.from(await file.arrayBuffer())
+    await uploadDocument(
+      fileRef({
+        tenantId: scope.institutionId,
+        objectKey: key,
+        mimeType: file.type,
+        body: bytes,
+      }),
+      bytes,
+    )
+    await db.user.update({
+      where: { id: userId },
+      data: { imageKey: key, image: `/api/profile-image/${userId}?v=${Date.now()}` },
+    })
+    bumpProfile()
   })
-  bumpProfile()
 }
 
 export async function removeProfileImage() {

@@ -1,4 +1,5 @@
 import { lookupRoleTemplate } from "@tenure/authorization";
+import { tiersFor, type SystemTiers } from "@tenure/platform-config";
 
 import type { OrgRole, UserContext } from "@/lib/rbac";
 
@@ -18,6 +19,22 @@ const TENANT = "inst-1";
 const CLUB = "club-1";
 const OTHER_CLUB = "club-2";
 const MODULES = ["reimbursements", "budgeting", "approvals", "organizations"];
+
+/**
+ * What `budgeting` sells, and where a tenant sits in it.
+ *
+ * The ordering is the module's own — `modules/index.ts` declares
+ * ["budget", "ledger", "consolidation"] — and `finance.approver` requires
+ * "ledger". A tenant on "budget" therefore holds the bundle and may not use the
+ * half of it that belongs to the higher tier.
+ */
+const onTier = (tier: string): SystemTiers => ({
+  tiers: { budgeting: ["budget", "ledger", "consolidation"] },
+  currentTier: { budgeting: tier },
+});
+
+/** Reimbursements is not a tiered module, so filing is unaffected by any of this. */
+const NO_TIERS: SystemTiers = { tiers: {}, currentTier: {} };
 
 const seat = (over: Partial<OrgRole> = {}): OrgRole => ({
   organizationId: CLUB,
@@ -48,6 +65,18 @@ const file = (
     organizationId,
     tenantId: TENANT,
     enabledModules,
+    tiers: NO_TIERS,
+    at: "2026-08-03T12:00:00Z",
+  });
+
+/** Approve a budget — a permission whose bundle requires the `ledger` tier. */
+const approveBudget = (context: UserContext, tiers: SystemTiers) =>
+  decideFromSeats(context, {
+    permission: "finance.budget.approve",
+    organizationId: CLUB,
+    tenantId: TENANT,
+    enabledModules: MODULES,
+    tiers,
     at: "2026-08-03T12:00:00Z",
   });
 
@@ -158,16 +187,16 @@ describe("the world is built from what the application stores", () => {
   it("offers every shipped template as a role definition", () => {
     // A grant naming a template the world does not carry confers nothing, which
     // fails closed and silently.
-    const world = seatWorld(ctx([seat()]), TENANT, MODULES);
+    const world = seatWorld(ctx([seat()]), TENANT, MODULES, NO_TIERS);
     for (const grant of world.grants) {
       expect(world.roles.some((r) => r.key === grant.roleKey)).toBe(true);
     }
   });
 
   it("counts a seat holder as a member of the tenant", () => {
-    expect(seatWorld(ctx([seat()]), TENANT, MODULES).memberships).toHaveLength(
-      1,
-    );
+    expect(
+      seatWorld(ctx([seat()]), TENANT, MODULES, NO_TIERS).memberships,
+    ).toHaveLength(1);
   });
 
   it("counts an OSE member as one too, even with no seat", () => {
@@ -177,12 +206,89 @@ describe("the world is built from what the application stores", () => {
       ctx([], [{ institutionId: TENANT, role: "OSE_DIRECTOR" }]),
       TENANT,
       MODULES,
+      NO_TIERS,
     );
     expect(world.memberships).toHaveLength(1);
     expect(world.grants).toEqual([]);
   });
 
   it("counts somebody with neither as a member of nothing", () => {
-    expect(seatWorld(ctx([]), TENANT, MODULES).memberships).toEqual([]);
+    expect(seatWorld(ctx([]), TENANT, MODULES, NO_TIERS).memberships).toEqual(
+      [],
+    );
+  });
+});
+
+describe("the tier a tenant bought decides what the same bundle confers", () => {
+  /**
+   * REVIEW-FINDINGS P0 #5, the half that was missing.
+   *
+   * `decide()` has compared tiers by ORDER — not by string equality — since
+   * GE-051, and the comparison could never run: the only production builders of
+   * an AuthorizationWorld never set `entitlements`, so `tierRank` returned null,
+   * `required` was null, and the loop was a no-op on every request. The engine
+   * was right and nothing supplied it facts.
+   *
+   * These two assertions are what prove the WIRING rather than the engine.
+   * Delete the `entitlements` line from `seatWorld` and the second one fails —
+   * the denial disappears and a tenant on the bottom tier approves budgets.
+   */
+  const approver = ctx([seat({ templateKey: "finance.approver" })]);
+
+  it("allows the tenant on the tier the bundle requires", () => {
+    expect(approveBudget(approver, onTier("ledger")).allowed).toBe(true);
+  });
+
+  it("allows a tenant ABOVE it, because tiers are ordered and not equal", () => {
+    // The defect the architecture's own SQL has: `tier = min_tier` revokes every
+    // capability the moment you sell the customer an upgrade.
+    expect(approveBudget(approver, onTier("consolidation")).allowed).toBe(true);
+  });
+
+  it("denies the tenant below it, and names the tier", () => {
+    const decision = approveBudget(approver, onTier("budget"));
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toBe("TIER_TOO_LOW");
+    expect(decision.detail).toContain("ledger");
+  });
+
+  it("denies a tenant with no recorded tier rather than assuming the lowest", () => {
+    // Fail closed. Defaulting an unrecorded tenant to the bottom tier would be a
+    // guess about a commercial fact, made in an authorization decision.
+    const decision = approveBudget(approver, {
+      tiers: { budgeting: ["budget", "ledger", "consolidation"] },
+      currentTier: {},
+    });
+    expect(decision.reason).toBe("TIER_TOO_LOW");
+  });
+
+  it("leaves an untiered module's permissions alone", () => {
+    // finance.approver also carries reimbursement and approvals permissions,
+    // whose modules declare no tiers. A role-wide gate would have taken those
+    // with it; the gate is per permission's owning pack.
+    expect(
+      decideFromSeats(approver, {
+        permission: "finance.reimbursement.approve",
+        organizationId: CLUB,
+        tenantId: TENANT,
+        enabledModules: MODULES,
+        tiers: onTier("budget"),
+        at: "2026-08-03T12:00:00Z",
+      }).allowed,
+    ).toBe(true);
+  });
+
+  it("takes those facts from the real tenant binding, not from a fixture", () => {
+    // The production path: `tiersFor` reads the catalog's declared tiers and the
+    // binding's recorded sale. If either stops being declared this goes empty
+    // and every assertion above becomes a statement about a fixture only.
+    const real = tiersFor("rochester");
+    expect(real.tiers.budgeting).toEqual([
+      "budget",
+      "ledger",
+      "consolidation",
+    ]);
+    expect(real.currentTier.budgeting).toBe("ledger");
+    expect(approveBudget(approver, real).allowed).toBe(true);
   });
 });

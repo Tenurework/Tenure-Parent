@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto"
+import { ContractViolation, parseJobRequest, type JobRequest } from "@tenure/contracts"
 import { db } from "@/lib/db"
 import { forEachInstitution } from "@/lib/tenant-scope"
 import { seatKeysForRole } from "@/lib/resources"
@@ -25,6 +27,47 @@ export const dynamic = "force-dynamic"
 
 const WINDOW_HOURS = 24
 
+const JOB_NAME = "deliverable-reminders"
+
+/**
+ * PACK-010-001 — the run, in the kernel's own shape.
+ *
+ * `JobRequest` is one of the platform's declared contracts and its doc comment
+ * names *this* job as the reason `tenantId` is nullable: "the reminder sweep
+ * runs once per institution and something has to schedule it". Nothing produced
+ * one, so the shape and the job it was written for had never met.
+ *
+ * The scheduler may send an envelope; when it does not, one is derived. Both go
+ * through `parseJobRequest`, and the check that earns its place is the one on
+ * `attempt`: a scheduler that has already burned its retries and asks again is
+ * refused rather than re-running a sweep that mails deadline reminders. The
+ * body is untrusted — the bearer token authenticates the caller, not the
+ * numbers it sends — which is exactly the boundary a runtime contract is for.
+ *
+ * The derived envelope is not a formality either. `idempotencyKey` names the
+ * hour window this run covers, so two invocations of the same schedule carry
+ * the same key and a support question about a duplicate notification has
+ * something to join on.
+ */
+function jobRequestFrom(body: unknown, now: Date): JobRequest {
+  const supplied = body && typeof body === "object" ? (body as Record<string, unknown>) : {}
+  const hourWindow = now.toISOString().slice(0, 13)
+
+  return parseJobRequest({
+    jobId: supplied.jobId ?? randomUUID(),
+    name: JOB_NAME,
+    // Null, and this is the one job for which that is right: it runs once per
+    // institution inside each institution's own scope, so no single tenant owns
+    // the invocation.
+    tenantId: null,
+    idempotencyKey: supplied.idempotencyKey ?? `${JOB_NAME}:${hourWindow}`,
+    scheduledFor: supplied.scheduledFor ?? now.toISOString(),
+    attempt: supplied.attempt ?? 1,
+    maxAttempts: supplied.maxAttempts ?? 3,
+    payload: {},
+  })
+}
+
 export async function POST(request: Request) {
   const expected = process.env.JOB_SECRET
   if (!expected) {
@@ -37,6 +80,19 @@ export async function POST(request: Request) {
   }
 
   const now = new Date()
+
+  let job: JobRequest
+  try {
+    job = jobRequestFrom(await request.json().catch(() => ({})), now)
+  } catch (err) {
+    // The violation names the field and never echoes the value, so this is safe
+    // to return: it is what tells whoever wired the schedule what is wrong.
+    if (err instanceof ContractViolation) {
+      return Response.json({ error: "invalid_job_request", detail: err.message }, { status: 400 })
+    }
+    throw err
+  }
+
   const horizon = new Date(now.getTime() + WINDOW_HOURS * 60 * 60 * 1000)
 
   const perInstitution = await forEachInstitution("deliverable-reminders", async (scope) => {
@@ -123,7 +179,13 @@ export async function POST(request: Request) {
 
   // The response shape is unchanged: one institution's pass produces exactly
   // what the single-pass version returned, and the totals sum across passes.
+  // `jobId` and `attempt` are added rather than substituted — a scheduler that
+  // retried needs to be able to tie the second response to the first, and a
+  // support question about a duplicate notification has nothing else to join on.
   return Response.json({
+    jobId: job.jobId,
+    attempt: job.attempt,
+    idempotencyKey: job.idempotencyKey,
     checked: perInstitution.reduce((n, r) => n + r.checked, 0),
     notified: perInstitution.reduce((n, r) => n + r.notified, 0),
     deliverables: perInstitution.flatMap((r) => r.deliverables),

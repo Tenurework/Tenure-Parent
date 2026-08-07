@@ -3,19 +3,35 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { TENANT_BINDINGS, getBlueprint } from "@tenure/blueprints";
+import {
+  ARCHETYPE_AXIS_VALUES,
+  TENANT_BINDINGS,
+  applyModuleEdits,
+  archetypeProblems,
+  compileArchetype,
+  getBlueprint,
+  moduleEditsBetween,
+  type ArchetypeSelection,
+} from "@tenure/blueprints";
 import { MODULE_CATALOG } from "@tenure/modules";
 import { resolveConfig } from "@tenure/configuration";
 import { resolveModules } from "@tenure/module-runtime";
 import { validateTopology } from "@tenure/organization-model";
-import { REGISTRY, layersFor } from "@tenure/platform-config";
 import {
+  REGISTRY,
+  compareVersionStrings,
+  layersFor,
+} from "@tenure/platform-config";
+import { ENGINE_VERSION } from "@tenure/configuration";
+import {
+  BUSINESS_DOMAINS,
   MANIFEST_VERSION,
   LifecycleError,
   deploymentManifest,
   executeStep,
   getPlan,
   validateManifest,
+  type CoexistenceProfile,
   type ExecutionContext,
   type IsolationTier,
   type TenantManifest,
@@ -74,6 +90,19 @@ function executionContext(): ExecutionContext {
       // used only when one exists (the pilot, which predates the registry).
       const fileLayers = layersFor(manifest.slug);
       const blueprint = getBlueprint(manifest.blueprintId);
+      // The composition, compiled into the layer stack between `blueprint` and
+      // `tenant` — the same position `layersFor` puts it in for a file-bound
+      // tenant, because a tenant composed here and a tenant bound in a file must
+      // resolve through one stack or the console is previewing a system the
+      // engine will not build (PACK-020-003).
+      //
+      // Falls back to the blueprint's own axes when the manifest carries none,
+      // which is what a manifest written before axes existed looks like.
+      const selection = manifest.archetype ?? blueprint?.axes;
+      const compiled =
+        selection && archetypeProblems(selection).length === 0
+          ? compileArchetype(selection as ArchetypeSelection)
+          : undefined;
       const layers =
         fileLayers.length > 0
           ? fileLayers
@@ -85,6 +114,16 @@ function executionContext(): ExecutionContext {
                   label: blueprint.name,
                   values: blueprint.values,
                 },
+                ...(compiled
+                  ? [
+                      {
+                        scope: "archetype" as const,
+                        id: `${selection!.organization}/${selection!.operatingModel}`,
+                        label: "Archetype axes",
+                        values: compiled.values,
+                      },
+                    ]
+                  : []),
                 {
                   scope: "tenant" as const,
                   id: manifest.slug,
@@ -107,6 +146,23 @@ function executionContext(): ExecutionContext {
       const resolved = resolveModules(MODULE_CATALOG, {
         requested: manifest.modules,
         entitlements: manifest.entitlements,
+        // Every manifest now declares `requiresEngine`, and resolve.ts refuses a
+        // module whose caller cannot say which engine is running — "an engine
+        // that cannot say how old it is cannot claim to be new enough". Omitting
+        // these two refuses EVERY module with `engine-too-old`, which is not a
+        // missing test but a broken execution context.
+        runningEngineVersion: ENGINE_VERSION,
+        compareVersions: compareVersionStrings,
+        // From the manifest's own composition, falling back to the blueprint's
+        // default. Omitting it would refuse every operating-model-gated module
+        // at VALIDATING for a tenant whose axis actually accepts it.
+        operatingModel:
+          manifest.archetype?.operatingModel ??
+          getBlueprint(manifest.blueprintId)?.axes.operatingModel,
+        // PACK-020-004. The executor resolves under the same coexistence
+        // declaration the manifest records, so a tenant cannot be verified as
+        // buildable with modules its own system-of-record forbids.
+        systemOfRecord: manifest.systemOfRecord,
       });
       return {
         ordered: resolved.ordered.map((m) => ({
@@ -159,6 +215,77 @@ export async function composeTenant(
 
   const planId = String(form.get("planId") ?? "");
 
+  // The composition, off the form and unvalidated — every axis value is a
+  // string until `validateManifest` checks it against `ARCHETYPE_AXIS_VALUES`,
+  // exactly as `blueprintId` is a string until it is checked against the
+  // blueprints that exist (PACK-GATE-020).
+  const archetype = {
+    organization: String(form.get("archetype.organization") ?? ""),
+    operatingModel: String(form.get("archetype.operatingModel") ?? ""),
+    functional: form.getAll("archetype.functional").map(String),
+  };
+
+  // Every domain the operator marked as owned by an external system. A checkbox
+  // group rather than a free-text list: the domain vocabulary is closed, and a
+  // typo in it would silently mean "no external owner" for the domain meant.
+  const externalOwned = new Set(form.getAll("externalDomains").map(String));
+
+  /* --------------------------------------------------------- PACK-020-002 --
+   * The preset, and the operator's edit over it.
+   *
+   * The form submits a DIFF — which modules were added to the composition and
+   * which were taken out of it — rather than an absolute list. The preset is
+   * recompiled HERE from the submitted axes, so the browser cannot be the
+   * authority on it: a form that sent the wrong absolute set would have been
+   * registered verbatim, and a form that sends the wrong diff produces a
+   * refusal an operator can read.
+   *
+   * `applyModuleEdits` refuses an edit that cannot be applied at all — a module
+   * both added and removed, or a removal of something the preset never listed.
+   * Both are reported against the `modules` field rather than thrown, because
+   * they are things the person at the form can fix.
+   */
+  const moduleEdits = {
+    add: form.getAll("moduleAdd").map(String),
+    remove: form.getAll("moduleRemove").map(String),
+  };
+  // Compiled only when the axes are valid; when they are not, the axis problems
+  // below are the answer and a module set derived from a broken selection would
+  // be a second, misleading message about the same mistake.
+  const compiled =
+    archetypeProblems(archetype).length === 0
+      ? compileArchetype(archetype as ArchetypeSelection)
+      : null;
+
+  let composedModules: readonly string[] = [];
+  const editProblems: Array<{ field: string; reason: string; detail: string }> = [];
+  if (compiled) {
+    try {
+      composedModules = applyModuleEdits(compiled.modules, moduleEdits);
+    } catch (err) {
+      composedModules = compiled.modules;
+      editProblems.push({
+        field: "modules",
+        reason: "invalid-module-edit",
+        detail: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  // What the operator changed, recorded on the artifact an approver reads.
+  // Without it the plan shows a module list and nothing says whether it is the
+  // preset or a departure from it — which is the whole difference between a
+  // starting point and a locked type.
+  // Derived from the two sets rather than echoed from the form, so it describes
+  // what was actually composed even if the browser sent a diff the server
+  // refused part of.
+  const applied = moduleEditsBetween(compiled?.modules ?? [], composedModules);
+  const divergence = [
+    ...applied.add.map((k) => `+${k}`),
+    ...applied.remove.map((k) => `-${k}`),
+  ];
+  const operatorNotes = String(form.get("notes") ?? "").trim();
+
   const manifest: TenantManifest = {
     manifestVersion: MANIFEST_VERSION,
     slug: String(form.get("slug") ?? "")
@@ -167,7 +294,10 @@ export async function composeTenant(
     legalName: String(form.get("legalName") ?? "").trim(),
     displayName: String(form.get("displayName") ?? "").trim(),
     blueprintId: String(form.get("blueprintId") ?? ""),
-    modules: form.getAll("modules").map(String),
+    archetype,
+    // The preset the axes compile to, with the operator's per-module edit
+    // applied — not an absolute list off the form. See above.
+    modules: [...composedModules],
     // From the contracted plan, not from a text box. A typed entitlement list
     // makes every tenant's commercial state a typing exercise — a typo is a
     // silently missing feature, and nothing reconciles against an invoice.
@@ -177,15 +307,37 @@ export async function composeTenant(
     // the right answer to that, not a guess at which region was meant.
     region: String(form.get("region") ?? ""),
     isolation: String(form.get("isolation") ?? "pooled") as IsolationTier,
+    // PACK-020-004. Both come off the form, because both are decisions about a
+    // customer's estate that nothing in the engine could derive. The default in
+    // the markup is TENURE_CLOUD_PRIMARY with no external domain, which is the
+    // arrangement every tenant today has — but it is a value somebody left
+    // selected rather than a field that did not exist.
+    coexistence: String(form.get("coexistence") ?? "") as CoexistenceProfile,
+    systemOfRecord: Object.fromEntries(
+      BUSINESS_DOMAINS.map((domain) => [
+        domain,
+        externalOwned.has(domain) ? ("external" as const) : ("tenure" as const),
+      ]),
+    ),
     configuration: {},
     secretRefs: {},
     initialAdminEmail: String(form.get("initialAdminEmail") ?? "").trim(),
-    notes: String(form.get("notes") ?? "").trim() || undefined,
+    // The operator's own note, plus what they changed about the preset. The
+    // second half is derived, never typed: a plan that lists twelve modules and
+    // does not say which of them were the archetype's choice and which were the
+    // operator's is a plan an approver cannot review (PACK-020-002).
+    notes:
+      [operatorNotes, divergence.length > 0 ? `Preset edited: ${divergence.join(" ")}.` : ""]
+        .filter(Boolean)
+        .join(" ") || undefined,
   };
 
   const { valid, problems } = validateManifest(manifest, {
     knownBlueprints: [...new Set(TENANT_BINDINGS.map((b) => b.blueprintId))],
     knownModules: MODULE_CATALOG.keys(),
+    // The closed axis table, from the engine that will compile the composition.
+    // Passing nothing would make every axis value acceptable.
+    archetypeAxes: ARCHETYPE_AXIS_VALUES,
     // Both sources of truth for an existing slug: registered tenants, and the
     // file-based bindings that predate the registry. Missing the second would
     // let someone register "rochester" over the live pilot.
@@ -202,11 +354,44 @@ export async function composeTenant(
   const moduleProblems = resolveModules(MODULE_CATALOG, {
     requested: manifest.modules,
     entitlements: manifest.entitlements,
+    // As above: without these, composition refuses every module rather than
+    // reporting the ones that genuinely do not fit.
+    runningEngineVersion: ENGINE_VERSION,
+    compareVersions: compareVersionStrings,
+    operatingModel: archetype.operatingModel,
+    // Same declaration the manifest carries, so an operator who marks finance
+    // as externally owned and then ticks budgeting is told at composition
+    // rather than discovering the module missing after provisioning.
+    systemOfRecord: manifest.systemOfRecord,
   }).problems.map((p) => ({
     field: "modules",
     reason: p.reason,
     detail: `${p.moduleKey}: ${p.detail}`,
   }));
+
+  // What the composition needs from the contract, against what the contract
+  // grants.
+  //
+  // Distinct from the module refusal above, and not a second copy of it: that
+  // one names a module and sends an operator to the checkbox, this one names
+  // the SUITE and the PLAN and sends them to the contract. Dropping the suite
+  // and buying the plan are different remedies, and an operator who is only
+  // told "budgeting: requires entitlement finance" cannot tell which one they
+  // are being asked for.
+  const composition =
+    archetypeProblems(archetype).length === 0
+      ? compileArchetype(archetype as ArchetypeSelection)
+      : undefined;
+  const granted = new Set(manifest.entitlements);
+  const entitlementProblems = (composition?.entitlements ?? [])
+    .filter((entitlement) => !granted.has(entitlement))
+    .map((entitlement) => ({
+      field: "planId",
+      reason: "entitlement-not-in-plan",
+      detail:
+        `This composition needs the "${entitlement}" entitlement and plan "${planId}" does not ` +
+        `grant it. Contract a plan that does, or drop the suites that need it.`,
+    }));
 
   // An unknown plan yields no entitlements, which is the right failure but a
   // silent one — the tenant registers, every gated module is refused, and the
@@ -221,8 +406,22 @@ export async function composeTenant(
         },
       ];
 
-  if (!valid || moduleProblems.length > 0 || planProblems.length > 0) {
-    return { problems: [...problems, ...moduleProblems, ...planProblems] };
+  if (
+    !valid ||
+    editProblems.length > 0 ||
+    moduleProblems.length > 0 ||
+    planProblems.length > 0 ||
+    entitlementProblems.length > 0
+  ) {
+    return {
+      problems: [
+        ...problems,
+        ...editProblems,
+        ...moduleProblems,
+        ...planProblems,
+        ...entitlementProblems,
+      ],
+    };
   }
 
   try {

@@ -69,6 +69,14 @@ const listFiles = (glob) =>
   })
     .split('\n')
     .filter(Boolean)
+    // `--cached` is the index, and the index still lists a file that has been
+    // deleted or renamed in the worktree and not yet staged. Such a file is not
+    // an entry point — nothing serves it — and reading it throws ENOENT, which
+    // took down the whole inventory rather than removing one row. Both halves
+    // matter: `tests/architecture/nav-hrefs-are-served.test.mjs` asks this
+    // function which routes the app serves, and answering "the ones git
+    // remembers" would let a module keep advertising a page somebody deleted.
+    .filter((f) => fs.existsSync(f))
 
 const read = (f) => fs.readFileSync(f, 'utf8')
 

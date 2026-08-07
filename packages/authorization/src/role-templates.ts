@@ -45,7 +45,18 @@ const template = (
   description: string,
   scopable: boolean,
   permissions: readonly string[],
-): RoleTemplate => ({ key, description, scopable, permissions })
+  /**
+   * The tier the owning pack must be on for this bundle to apply.
+   *
+   * Ranked by position in that module's declared `tiers`, never compared as a
+   * string — see `RoleDefinition.minTier`. `ModuleCatalog.of` refuses the whole
+   * catalog at boot when this names a tier the owning module does not declare,
+   * because the runtime check fails OPEN: `tierRank` returns null for a tier it
+   * cannot find and the comparison is skipped entirely, so a typo here would be
+   * a requirement that silently requires nothing.
+   */
+  minTier?: string,
+): RoleTemplate => ({ key, description, scopable, permissions, ...(minTier ? { minTier } : {}) })
 
 /**
  * The shipped bundles.
@@ -154,6 +165,15 @@ export const ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "approvals.request.read",
       "approvals.request.decide",
     ],
+    // The first real tier requirement in the platform, and the reason the tier
+    // gate stopped being unreachable code. `budgeting` declares
+    // ["budget", "ledger", "consolidation"]; putting a budget into force and
+    // reading the postings behind it is the ledger tier, so a tenant on
+    // "budget" gets TIER_TOO_LOW naming the tier they need rather than a blank
+    // screen. The reimbursement and approvals permissions in this bundle belong
+    // to untiered modules and are unaffected — the gate is per permission's
+    // pack, not per role.
+    "ledger",
   ),
   template(
     "oversight.staff",

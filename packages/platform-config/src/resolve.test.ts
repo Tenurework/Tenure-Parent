@@ -42,9 +42,27 @@ describe("one code path, two institutions, different words", () => {
 })
 
 describe("the tenant layer overrides the blueprint, not the other way round", () => {
-  it("layers blueprint below tenant", () => {
+  it("layers blueprint below archetype below tenant", () => {
     const layers = layersFor("rochester")
-    expect(layers.map((l) => l.scope)).toEqual(["blueprint", "tenant"])
+    expect(layers.map((l) => l.scope)).toEqual(["blueprint", "archetype", "tenant"])
+  })
+
+  it("resolves the organization's own word from the archetype layer and nowhere else", () => {
+    // PACK-020-003. `organizationSingular` is set by no blueprint and no tenant:
+    // it is compiled from the `organization` axis. So "club" above is not a
+    // string somebody wrote next to `rochester` — it is what that axis compiles
+    // to, and deleting the archetype layer resolves it to the platform default.
+    const why = resolveSystemConfig("rochester").explain(
+      "platform.terminology.organizationSingular",
+    )
+    expect(why.contributors.map((c) => `${c.scope}:${c.value}`)).toEqual(["archetype:club"])
+    expect(why.usedDefault).toBe(false)
+
+    for (const blueprint of BLUEPRINTS) {
+      expect(Object.keys(blueprint.values)).not.toContain(
+        "platform.terminology.organizationSingular",
+      )
+    }
   })
 
   it("attributes the value to the layer that set it", () => {

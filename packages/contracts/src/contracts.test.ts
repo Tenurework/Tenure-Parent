@@ -28,6 +28,7 @@ import {
   parseOutboxRecord,
   parsePermissionCheck,
   parsePermissionDecision,
+  parseProcessChain,
   parseQuery,
   parseTenantContext,
   parseToolRegistration,
@@ -292,6 +293,23 @@ describe("Permissions", () => {
     expect(() => parsePermissionCheck(check({ permission: "viewReports" }))).toThrow(/<module>\.<action>/)
   })
 
+  it("accepts the three-segment keys the permission catalog actually ships", () => {
+    // The rule was two segments exactly, and every key this platform defines
+    // has three — `search.index.query`, `finance.budget.read`. A contract no
+    // real value can satisfy is not strict, it is unused, and that is precisely
+    // why nothing produced a PermissionCheck until PACK-010-001.
+    for (const permission of [
+      "search.index.query",
+      "finance.budget.read",
+      "approvals.request.decide",
+    ]) {
+      expect(parsePermissionCheck(check({ permission })).permission).toBe(permission)
+    }
+    // Still refused: a trailing dot names no action, and a bare word names no
+    // module, which is the property the rule exists for.
+    expect(() => parsePermissionCheck(check({ permission: "finance." }))).toThrow(/<module>\.<action>/)
+  })
+
   it("refuses a denial with no reason", () => {
     expect(() =>
       parsePermissionDecision({ allowed: false, reason: null, policyRevision: "p-1" }),
@@ -378,12 +396,92 @@ describe("ToolRegistration", () => {
   })
 })
 
+describe("ProcessChain", () => {
+  const chain = (over: Record<string, unknown> = {}) => ({
+    chainId: "request-to-approval-to-memory",
+    name: "Request → approval → memory",
+    steps: [
+      { module: "approvals", consumes: null, emits: "ApprovalRequested" },
+      { module: "approvals", consumes: "ApprovalRequested", emits: "ApprovalDecided" },
+      { module: "memory", consumes: "ApprovalDecided", emits: null },
+    ],
+    ...over,
+  })
+
+  it("accepts a chain whose steps join", () => {
+    expect(parseProcessChain(chain()).steps).toHaveLength(3)
+  })
+
+  it("refuses a chain that does not join, which is the whole reason it exists", () => {
+    // A step waiting on an event the step before it never emits is a process
+    // that stops halfway with no error anywhere, and it is spelled identically
+    // to one that works.
+    expect(() =>
+      parseProcessChain(
+        chain({
+          steps: [
+            { module: "approvals", consumes: null, emits: "ApprovalRequested" },
+            { module: "memory", consumes: "ApprovalDecided", emits: null },
+          ],
+        }),
+      ),
+    ).toThrow(/does not join here/)
+  })
+
+  it("refuses a middle step that hands nothing on", () => {
+    expect(() =>
+      parseProcessChain(
+        chain({
+          steps: [
+            { module: "approvals", consumes: null, emits: null },
+            { module: "memory", consumes: null, emits: null },
+          ],
+        }),
+      ),
+    ).toThrow(/only the last step may emit nothing/)
+  })
+
+  it("refuses a chain declared from its middle", () => {
+    expect(() =>
+      parseProcessChain(
+        chain({
+          steps: [
+            { module: "approvals", consumes: "SomethingHappened", emits: "ApprovalDecided" },
+            { module: "memory", consumes: "ApprovalDecided", emits: null },
+          ],
+        }),
+      ),
+    ).toThrow(/consumes nothing/)
+  })
+
+  it("holds event names to the same spelling DomainEvent does", () => {
+    // Otherwise a chain can declare a step waiting on `DecideApproval` while
+    // the emitter publishes `ApprovalDecided`, and neither side notices.
+    expect(() =>
+      parseProcessChain(
+        chain({
+          steps: [
+            { module: "approvals", consumes: null, emits: "DecideApproval" },
+            { module: "memory", consumes: "DecideApproval", emits: null },
+          ],
+        }),
+      ),
+    ).toThrow(/past-tense event type/)
+  })
+
+  it("refuses a one-step chain", () => {
+    expect(() =>
+      parseProcessChain(chain({ steps: [{ module: "approvals", consumes: null, emits: null }] })),
+    ).toThrow(/at least two steps/)
+  })
+})
+
 describe("every contract, uniformly", () => {
   const parsers = [
     parseTenantContext, parseCommand, parseQuery, parseDomainEvent, parseOutboxRecord,
     parseContractError, parseJobRequest, parseIdempotencyRecord, parsePermissionCheck,
     parsePermissionDecision, parseFileRef, parseConfigSnapshot, parseAuditEntry,
-    parseToolRegistration,
+    parseToolRegistration, parseProcessChain,
   ]
 
   it("declares one parser per contract", () => {

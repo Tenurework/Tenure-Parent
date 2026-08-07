@@ -1,7 +1,7 @@
 /**
  * @tenure/contracts — the shapes every module agrees on.
  *
- * GE-020-003. Thirteen contracts, and the thing that makes them contracts
+ * GE-020-003. Fifteen contracts, and the thing that makes them contracts
  * rather than documentation is that each one **refuses**. A TypeScript
  * interface is erased at build time and constrains nothing at a module
  * boundary; a value crossing from a connector, a queue, a job runner or a
@@ -232,13 +232,29 @@ export interface DomainEvent<P = unknown> {
   payload: P
 }
 
+/**
+ * The event-type spelling rule, in one place.
+ *
+ * Exported because a process chain names event types it never carries — a
+ * declaration of "this module emits ApprovalDecided" has to be held to the same
+ * spelling as the event that eventually arrives, or the declaration and the
+ * runtime value can disagree about which event a step is even talking about.
+ * Two copies of this regex is how that drift starts.
+ */
+const EVENT_TYPE =
+  /^[A-Z][A-Za-z0-9]*(ed|Ed)$|^[A-Z][A-Za-z0-9]*(Created|Updated|Deleted|Decided|Published|Reconciled|Failed|Completed|Started|Cancelled)$/
+
+export function isEventType(type: string): boolean {
+  return EVENT_TYPE.test(type)
+}
+
 export function parseDomainEvent<P = unknown>(input: unknown): DomainEvent<P> {
   const C = "DomainEvent"
   if (!input || typeof input !== "object") fail(C, "(root)", "expected an object")
   const o = input as Record<string, unknown>
 
   const type = str(C, "type", o.type, 128)
-  if (!/^[A-Z][A-Za-z0-9]*(ed|Ed)$|^[A-Z][A-Za-z0-9]*(Created|Updated|Deleted|Decided|Published|Reconciled|Failed|Completed|Started|Cancelled)$/.test(type)) {
+  if (!isEventType(type)) {
     fail(C, "type", "must be past tense, such as ApprovalDecided or TenantReconciled")
   }
 
@@ -499,6 +515,25 @@ export interface PermissionCheck {
   resourceId: string | null
 }
 
+/**
+ * A namespaced permission key: at least one dot, and every segment named.
+ *
+ * It used to be exactly two segments, and that made the contract unusable
+ * against the permission catalog this platform actually ships — `search.index.
+ * query`, `finance.budget.read` and `approvals.request.decide` are all three,
+ * and every one of them was refused. That is not a hypothetical: it is why
+ * nothing produced a `PermissionCheck`. A rule that no real value can satisfy
+ * is not a strict rule, it is an unused one.
+ *
+ * The property the rule exists for is unchanged and is still enforced: a
+ * permission must carry a namespace, so `viewReports` — a bare word that would
+ * belong to no module and skip module gating entirely — is still refused.
+ * Which module a key belongs to is the catalog's answer, not the spelling's
+ * (`packages/module-runtime/src/manifest.ts` explains why at length: the
+ * platform's own finance keys break prefix-matching).
+ */
+const PERMISSION_KEY = /^[a-z][\w-]*(\.[a-z][\w-]*)+$/i
+
 export interface PermissionDecision {
   allowed: boolean
   reason: string | null
@@ -512,7 +547,7 @@ export function parsePermissionCheck(input: unknown): PermissionCheck {
   const o = input as Record<string, unknown>
 
   const permission = str(C, "permission", o.permission, 128)
-  if (!/^[a-z][\w-]*\.[a-z][\w-]*$/i.test(permission)) {
+  if (!PERMISSION_KEY.test(permission)) {
     fail(C, "permission", "must be `<module>.<action>`, so a permission belonging to a disabled module is denied outright")
   }
 
@@ -689,7 +724,7 @@ export function parseToolRegistration(input: unknown): ToolRegistration {
   const o = input as Record<string, unknown>
 
   const requiredPermission = str(C, "requiredPermission", o.requiredPermission, 128)
-  if (!/^[a-z][\w-]*\.[a-z][\w-]*$/i.test(requiredPermission)) {
+  if (!PERMISSION_KEY.test(requiredPermission)) {
     fail(C, "requiredPermission", "must be `<module>.<action>`")
   }
 
@@ -718,6 +753,106 @@ export function parseToolRegistration(input: unknown): ToolRegistration {
   }
 }
 
+// ── 15. Process chains ──────────────────────────────────────────────────────
+
+/**
+ * One step of a business process that crosses module boundaries.
+ *
+ * `consumes` and `emits` are event *type names*, not events: a step declares
+ * which `DomainEvent.type` hands work to it and which one it hands on. Held to
+ * `isEventType` for exactly the same spelling as the event itself, so a chain
+ * cannot declare a step waiting on `DecideApproval` while the emitter publishes
+ * `ApprovalDecided` and neither side notices.
+ */
+export interface ProcessChainStep {
+  /** The module that owns this step. Must be enabled for the chain to run. */
+  module: string
+  /** The event type that starts this step. Null only for the first step. */
+  consumes: string | null
+  /** The event type this step hands on. Null only for the last step. */
+  emits: string | null
+}
+
+/**
+ * A named business process, as data.
+ *
+ * The reason this is a contract rather than prose: a process that spans modules
+ * has no owner, so nothing refuses when a system is composed with a step
+ * missing. `request → approval → memory` runs across three modules; disable the
+ * middle one and the first still accepts work it can never finish, which is
+ * worse than the module being off, because the failure surfaces to whoever
+ * raised the request rather than to whoever composed the system.
+ *
+ * The gap check below is the whole point. A chain whose steps do not join —
+ * step 2 waiting on an event step 1 never emits — is a process that stops
+ * halfway with no error anywhere, and it is spelled identically to one that
+ * works.
+ */
+export interface ProcessChain {
+  chainId: string
+  name: string
+  /** Ordered. Step n consumes exactly what step n-1 emits. */
+  steps: readonly ProcessChainStep[]
+}
+
+export function parseProcessChain(input: unknown): ProcessChain {
+  const C = "ProcessChain"
+  if (!input || typeof input !== "object") fail(C, "(root)", "expected an object")
+  const o = input as Record<string, unknown>
+
+  if (!Array.isArray(o.steps)) fail(C, "steps", "expected an array")
+  const raw = o.steps as unknown[]
+  if (raw.length < 2) {
+    fail(C, "steps", "a chain needs at least two steps; one step is a module doing its own work, and needs no chain to say so")
+  }
+
+  const steps: ProcessChainStep[] = raw.map((s, i) => {
+    if (!s || typeof s !== "object") fail(C, `steps[${i}]`, "expected an object")
+    const step = s as Record<string, unknown>
+
+    const eventName = (field: "consumes" | "emits"): string | null => {
+      const v = step[field]
+      if (v === null || v === undefined) return null
+      const name = str(C, `steps[${i}].${field}`, v, 128)
+      if (!isEventType(name)) {
+        fail(C, `steps[${i}].${field}`, "must be a past-tense event type, the same spelling DomainEvent.type requires")
+      }
+      return name
+    }
+
+    return {
+      module: id(C, `steps[${i}].module`, step.module),
+      consumes: eventName("consumes"),
+      emits: eventName("emits"),
+    }
+  })
+
+  // The first step is what starts the chain, so it waits on nothing. A first
+  // step that consumed something would mean the chain has a step before its
+  // first one, which is a chain declared from the middle.
+  if (steps[0].consumes !== null) {
+    fail(C, "steps[0].consumes", "the first step starts the chain and consumes nothing; a chain declared from its middle cannot be checked for the step in front of it")
+  }
+
+  for (let i = 1; i < steps.length; i++) {
+    if (steps[i - 1].emits === null) {
+      fail(C, `steps[${i - 1}].emits`, "only the last step may emit nothing; a step in the middle that hands nothing on ends the process without saying so")
+    }
+    if (steps[i].consumes !== steps[i - 1].emits) {
+      // Named by position, never by value: an event type is not tenant data,
+      // but the rule that violations do not echo their input holds uniformly
+      // and an exception is how the next field's exception gets written.
+      fail(C, `steps[${i}].consumes`, `does not match what step ${i - 1} emits; the chain does not join here`)
+    }
+  }
+
+  return {
+    chainId: id(C, "chainId", o.chainId),
+    name: str(C, "name", o.name, 128),
+    steps,
+  }
+}
+
 /** Every contract, for exhaustive testing and for the ownership map. */
 export const CONTRACTS = [
   "TenantContext",
@@ -734,4 +869,5 @@ export const CONTRACTS = [
   "ConfigSnapshot",
   "AuditEntry",
   "ToolRegistration",
+  "ProcessChain",
 ] as const

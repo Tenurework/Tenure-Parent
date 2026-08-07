@@ -36,6 +36,10 @@ const manifest = (over: Partial<TenantManifest> = {}): TenantManifest => ({
   entitlements: [],
   region: "us-east-1",
   isolation: "pooled",
+  // PACK-020-004. Stated, not omitted: a manifest that says nothing about who
+  // writes a domain is the state this field exists to make impossible.
+  coexistence: "TENURE_CLOUD_PRIMARY",
+  systemOfRecord: { finance: "tenure", org: "tenure" },
   configuration: {},
   secretRefs: {},
   initialAdminEmail: "admin@midtown.example",
@@ -219,6 +223,69 @@ describe("manifest", () => {
     }
   })
 
+  /* --------------------------------------------------------- PACK-GATE-020 --
+   * A tenant system is a composition on axes, and the composition is checked
+   * exactly the way the blueprint id is: against what the engine implements.
+   */
+  describe("the archetype selection", () => {
+    const axes = {
+      organization: ["university-student-organizations", "nonprofit-program-operations"],
+      operatingModel: ["centralized", "federated"],
+      functional: ["operations", "finance"],
+    }
+    const withAxes = { ...context, archetypeAxes: axes }
+    const composed = (over: Record<string, unknown> = {}) =>
+      manifest({
+        archetype: {
+          organization: "nonprofit-program-operations",
+          operatingModel: "federated",
+          functional: ["operations"],
+          ...over,
+        },
+      })
+
+    it("accepts a selection every axis recognises", () => {
+      expect(validateManifest(composed(), withAxes)).toEqual({ valid: true, problems: [] })
+    })
+
+    it("refuses a value no axis declares, naming the axis and what it accepts", () => {
+      const { valid, problems } = validateManifest(
+        composed({ operatingModel: "holacracy" }),
+        withAxes,
+      )
+      expect(valid).toBe(false)
+      const problem = problems.find((p) => p.field === "archetype.operatingModel")!
+      expect(problem.reason).toBe("unknown-value")
+      expect(problem.detail).toContain("centralized, federated")
+    })
+
+    it("refuses a functional suite the engine has no compiler for", () => {
+      const { problems } = validateManifest(composed({ functional: ["payroll"] }), withAxes)
+      expect(problems.map((p) => `${p.field}:${p.reason}`)).toContain(
+        "archetype.functional:unknown-value",
+      )
+    })
+
+    it("refuses a composition with no functional suite at all", () => {
+      const { problems } = validateManifest(composed({ functional: [] }), withAxes)
+      expect(problems.map((p) => `${p.field}:${p.reason}`)).toContain("archetype.functional:empty")
+    })
+
+    it("refuses a composition when no axis table was supplied to check it against", () => {
+      // Fail closed. Accepting it would record a composition nothing verified,
+      // which is indistinguishable from a verified one once it is in a registry.
+      const { valid, problems } = validateManifest(composed(), context)
+      expect(valid).toBe(false)
+      expect(problems.map((p) => p.reason)).toContain("unvalidatable")
+    })
+
+    it("leaves a manifest carrying no archetype alone", () => {
+      // Manifests written before axes existed are in the registry, and a stored
+      // record does not become invalid because a type gained a field.
+      expect(validateManifest(manifest(), withAxes)).toEqual({ valid: true, problems: [] })
+    })
+  })
+
   it("refuses a secret VALUE where a reference belongs, without echoing it", () => {
     const { valid, problems } = validateManifest(
       manifest({ secretRefs: { okta: "sk_live_verysecretvalue" } }),
@@ -264,6 +331,77 @@ describe("manifest", () => {
     const { problems } = validateManifest(manifest({ initialAdminEmail: "not-an-email" }), context)
     expect(problems.map((p) => p.field)).toContain("initialAdminEmail")
   })
+
+  /* --------------------------------------------------------- PACK-020-004 --
+   * The coexistence declaration, checked by the same rules `resolveModules`
+   * enforces — so a manifest cannot be approved under looser rules than the
+   * executor applies.
+   */
+  it("refuses a coexistence profile that is not one", () => {
+    const { valid, problems } = validateManifest(
+      manifest({ coexistence: "WHATEVER" as never }),
+      context,
+    )
+    expect(valid).toBe(false)
+    expect(problems.map((p) => p.reason)).toContain("unknown-profile")
+  })
+
+  it("refuses a system of record for a domain that does not exist", () => {
+    const { problems } = validateManifest(
+      manifest({ systemOfRecord: { procurement: "external" } }),
+      context,
+    )
+    expect(problems.map((p) => p.reason)).toContain("unknown-domain")
+  })
+
+  it("refuses a manifest that records no authoritative writer at all", () => {
+    // An empty map reads as "Tenure owns everything" to anyone who does not
+    // look, which is exactly the unrecorded assumption this field exists to
+    // delete.
+    const { problems } = validateManifest(manifest({ systemOfRecord: {} }), context)
+    expect(problems.map((p) => p.reason)).toContain("empty")
+  })
+
+  it("refuses a profile that contradicts its own system of record", () => {
+    // TENURE_CLOUD_PRIMARY says Tenure is authoritative; an external domain says
+    // otherwise, and whichever a later reader believes decides whether a second
+    // writer is allowed at the ledger.
+    const contradiction = validateManifest(
+      manifest({ systemOfRecord: { finance: "external", org: "tenure" } }),
+      context,
+    )
+    expect(contradiction.valid).toBe(false)
+    expect(contradiction.problems.map((p) => p.reason)).toContain(
+      "contradicts-system-of-record",
+    )
+
+    // And the other way round: a profile claiming an external ERP with no
+    // external domain is a label.
+    const empty = validateManifest(
+      manifest({ coexistence: "EXTERNAL_ERP_PRIMARY" }),
+      context,
+    )
+    expect(empty.problems.map((p) => p.reason)).toContain("contradicts-system-of-record")
+  })
+
+  it("accepts a coherent hybrid split", () => {
+    expect(
+      validateManifest(
+        manifest({
+          coexistence: "HYBRID_PROCESS_SPLIT",
+          systemOfRecord: { finance: "external", org: "tenure" },
+        }),
+        context,
+      ),
+    ).toEqual({ valid: true, problems: [] })
+  })
+
+  it("refuses a version-1 manifest rather than reading it as Tenure-owns-everything", () => {
+    // The bump is the point: a v1 manifest states nothing about who writes what,
+    // and the reading everybody would apply to its absence is the dual write.
+    const { problems } = validateManifest(manifest({ manifestVersion: 1 }), context)
+    expect(problems.map((p) => p.field)).toContain("manifestVersion")
+  })
 })
 
 describe("digest", () => {
@@ -300,6 +438,24 @@ describe("plan", () => {
     const plan = planFor(manifest({ isolation: "pooled" }))
     expect(plan.estimatedMonthlyCostCents).toBe(0)
     expect(plan.warnings.join(" ")).toMatch(/not free/i)
+  })
+
+  it("warns on the plan which domains an external system owns", () => {
+    // The sentence an operator reads before approving. A system short of
+    // features for a reason nobody wrote down gets "fixed" by deleting the
+    // coexistence declaration.
+    const plan = planFor(
+      manifest({
+        coexistence: "HYBRID_PROCESS_SPLIT",
+        systemOfRecord: { finance: "external", org: "tenure" },
+      }),
+    )
+    expect(plan.warnings.join(" ")).toMatch(/HYBRID_PROCESS_SPLIT/)
+    expect(plan.warnings.join(" ")).toMatch(/authoritative for finance/)
+
+    // And says nothing when Tenure owns everything, so the warning means
+    // something when it appears.
+    expect(planFor(manifest()).warnings.join(" ")).not.toMatch(/authoritative for/)
   })
 
   it("prices a non-pooled tenant with a stated basis", () => {

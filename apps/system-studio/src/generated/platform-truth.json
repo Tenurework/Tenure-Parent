@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "0900c8f",
+  "commit": "6846a12",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 241,
@@ -1724,7 +1724,6 @@
     "sources": [
       "Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md",
       "Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md",
-      "Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md",
       "Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md",
       "Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md",
       "Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md",
@@ -1736,13 +1735,14 @@
       "docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md",
       "docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md",
       "docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md",
+      "docs/implementation/erp-pack-factory-execution-ledger.md",
       "docs/implementation/payments-treasury-execution-ledger.md",
       "docs/implementation/system-studio-aws-control-plane-execution-ledger.md",
       "docs/implementation/universal-work-graph-execution-ledger.md"
     ],
     "totalItems": 2046,
     "totalGates": 181,
-    "decided": 128,
+    "decided": 145,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -3348,74 +3348,11 @@
         "done": 0
       },
       {
-        "phase": "PACK · PACK-000 — Truth and registry",
+        "phase": "PACK · docs/implementation/erp-pack-factory-execution-ledger.md",
         "source": "PACK",
-        "items": 5,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "PACK · PACK-010 — Product-line kernel",
-        "source": "PACK",
-        "items": 5,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "PACK · PACK-020 — Archetype model",
-        "source": "PACK",
-        "items": 5,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "PACK · PACK-030 — Pack contract and lifecycle",
-        "source": "PACK",
-        "items": 6,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "PACK · PACK-040 — Functional suites",
-        "source": "PACK",
-        "items": 5,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "PACK · PACK-050 — Industry packs",
-        "source": "PACK",
-        "items": 5,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "PACK · PACK-060 — Process chains and accounting",
-        "source": "PACK",
-        "items": 5,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "PACK · PACK-070 — UI, data, integration and Relay contributions",
-        "source": "PACK",
-        "items": 6,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "PACK · PACK-080 — Release, upgrade and certification",
-        "source": "PACK",
-        "items": 6,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "PACK · PACK-090 — Proving systems",
-        "source": "PACK",
-        "items": 5,
-        "gates": 1,
-        "done": 0
+        "items": 53,
+        "gates": 10,
+        "done": 17
       },
       {
         "phase": "PAY · docs/implementation/payments-treasury-execution-ledger.md",
@@ -3840,7 +3777,7 @@
     },
     {
       "name": "application unit",
-      "files": 50,
+      "files": 55,
       "what": "apps/web"
     },
     {

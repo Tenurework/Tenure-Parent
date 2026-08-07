@@ -8,7 +8,7 @@ import {
   getUserContext,
 } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
-import { storageConfigured, uploadDocument } from "@/lib/s3"
+import { fileRef, storageConfigured, uploadDocument } from "@/lib/s3"
 
 /**
  * Save an in-place edit back to the SAME object key.
@@ -109,8 +109,19 @@ export async function POST(
 
     try {
       // Overwrite in place — keep the original content type so the viewer keeps
-      // rendering it the same way.
-      await uploadDocument(doc.objectKey, bytes, doc.mimeType)
+      // rendering it the same way, and keep the document's own id as the
+      // `fileId` so the two versions are recognisably one file rather than two
+      // unrelated objects that happen to share a key.
+      await uploadDocument(
+        fileRef({
+          fileId: doc.id,
+          tenantId: doc.institutionId,
+          objectKey: doc.objectKey,
+          mimeType: doc.mimeType,
+          body: bytes,
+        }),
+        bytes,
+      )
     } catch {
       return NextResponse.json({ error: "Save failed — try again" }, { status: 500 })
     }

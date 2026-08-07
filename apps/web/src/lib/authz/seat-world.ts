@@ -4,6 +4,7 @@ import {
   type AuthorizationWorld,
   type RoleGrant,
 } from "@tenure/authorization"
+import type { SystemTiers } from "@tenure/platform-config"
 
 import type { InstitutionRole } from "@prisma/client"
 
@@ -70,6 +71,19 @@ export function seatWorld(
   ctx: UserContext,
   tenantId: string,
   enabledModules: readonly string[],
+  /**
+   * The tier ordering each enabled module sells, and where this tenant sits in
+   * it — `tiersFor(slug)` from `@tenure/platform-config`.
+   *
+   * Required, not optional, and that is the point. `decide()` has implemented an
+   * ordered tier comparison since GE-051 and it could never fire, because this
+   * function returned a world with no `entitlements` at all: `tierRank` returned
+   * null, `required` was null, and the entire tier loop was a no-op on every
+   * production call. An optional parameter would have left exactly that hole
+   * open for the next caller — the engine would be correct, the facts would be
+   * absent, and nothing would say so.
+   */
+  tiers: SystemTiers,
 ): AuthorizationWorld {
   return {
     principals: [{ id: ctx.userId, kind: "user" }],
@@ -80,6 +94,7 @@ export function seatWorld(
     roles: ROLE_TEMPLATES,
     grants: seatGrants(ctx, tenantId),
     enabledModules: [...enabledModules],
+    entitlements: [{ tenantId, tiers: tiers.tiers, currentTier: tiers.currentTier }],
   }
 }
 
@@ -89,6 +104,8 @@ export interface SeatPermissionRequest {
   organizationId: string
   tenantId: string
   enabledModules: readonly string[]
+  /** What each enabled module sells, and what this tenant bought. See `seatWorld`. */
+  tiers: SystemTiers
   at?: string
 }
 
@@ -101,7 +118,7 @@ export interface SeatPermissionRequest {
  * and the one that should have said the term has not started.
  */
 export function decideFromSeats(ctx: UserContext, request: SeatPermissionRequest) {
-  return decide(seatWorld(ctx, request.tenantId, request.enabledModules), {
+  return decide(seatWorld(ctx, request.tenantId, request.enabledModules, request.tiers), {
     principalId: ctx.userId,
     tenantId: request.tenantId,
     permission: request.permission,
@@ -157,8 +174,9 @@ export function institutionWorld(
   ctx: UserContext,
   tenantId: string,
   enabledModules: readonly string[],
+  tiers: SystemTiers,
 ): AuthorizationWorld {
-  const base = seatWorld(ctx, tenantId, enabledModules)
+  const base = seatWorld(ctx, tenantId, enabledModules, tiers)
   return { ...base, grants: [...base.grants, ...institutionGrants(ctx, tenantId)] }
 }
 
@@ -171,9 +189,16 @@ export function institutionWorld(
  */
 export function decideAcrossInstitution(
   ctx: UserContext,
-  request: { permission: string; tenantId: string; enabledModules: readonly string[]; organizationId?: string; at?: string },
+  request: {
+    permission: string
+    tenantId: string
+    enabledModules: readonly string[]
+    tiers: SystemTiers
+    organizationId?: string
+    at?: string
+  },
 ) {
-  return decide(institutionWorld(ctx, request.tenantId, request.enabledModules), {
+  return decide(institutionWorld(ctx, request.tenantId, request.enabledModules, request.tiers), {
     principalId: ctx.userId,
     tenantId: request.tenantId,
     permission: request.permission,

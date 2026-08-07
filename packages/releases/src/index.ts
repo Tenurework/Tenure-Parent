@@ -8,10 +8,15 @@
  *
  * A release is that combination, hashed and immutable:
  *
- *   const candidate = createRelease({ tenantId, blueprintId, modules, configurationChecksum, ... })
+ *   const candidate = signRelease(createRelease({ tenantId, modules, schemaVersion, ... }), key)
  *   const { valid, problems } = validateSystem({ input: candidate, ... })
  *   const approved = transition(transition(candidate, "validated"), "approved", { actor, at })
- *   const active   = transition(approved, "active")
+ *   const active   = transition(transition(transition(approved, "scheduled"), "canary"), "active")
+ *
+ * Signing is not optional: `transition(_, "approved")` refuses an unsigned
+ * artifact, because a checksum proves the bytes are consistent and not who
+ * produced them. `active` is reachable only through `canary`, so approval
+ * cannot mean "everyone takes it at once".
  *
  * Rollback publishes the old content as a NEW revision rather than reactivating
  * the old artifact, so history stays append-only and "what was live at 14:05?"
@@ -20,14 +25,27 @@
 
 export {
   ReleaseError,
+  TRANSITIONS,
   breakingChanges,
   checksumOfRelease,
   createRelease,
   diffReleases,
   rollbackTo,
+  signRelease,
   transition,
+  verifyRelease,
 } from "./release"
-export type { ModulePin, ReleaseDiffEntry, ReleaseInput, ReleaseState, SystemRelease } from "./release"
+export type {
+  ModulePin,
+  ReleaseContent,
+  ReleaseDiffEntry,
+  ReleaseInput,
+  ReleaseSignature,
+  ReleaseState,
+  ReleaseVerification,
+  SigningKey,
+  SystemRelease,
+} from "./release"
 
 export { validateSystem } from "./validate"
 export type { SystemUnderValidation, ValidationProblem, ValidationResult } from "./validate"

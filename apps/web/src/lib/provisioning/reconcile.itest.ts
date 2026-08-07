@@ -273,6 +273,8 @@ describe("engine and cell agree on what a digest covers", () => {
       entitlements: [],
       region: "us-east-1",
       isolation: "pooled" as const,
+      coexistence: "TENURE_CLOUD_PRIMARY" as const,
+      systemOfRecord: { org: "tenure" as const },
       configuration: {},
       secretRefs: {},
       initialAdminEmail: ADMIN,

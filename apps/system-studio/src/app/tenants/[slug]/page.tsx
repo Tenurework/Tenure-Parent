@@ -1,12 +1,15 @@
 import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 
+import { getTenantBinding } from "@tenure/blueprints"
+import { buildSystem, compatibilityFor, planPromotion } from "@tenure/platform-config"
 import { RESIDUAL_COST, needsApproval, nextStates, planFor } from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
 import { ArchivedState, PendingDeletionState } from "@/components/states"
 import { ARCHIVED_STATES, PURGE_STATES, riskOf } from "@/lib/tenant-state"
+import { fleet } from "@/lib/cells"
 import { getTenant, registryConfigured } from "@/lib/registry"
 import { AdvanceControls } from "./AdvanceControls"
 
@@ -14,6 +17,87 @@ export const dynamic = "force-dynamic"
 
 const money = (cents: number) =>
   cents === 0 ? "$0 marginal" : `$${(cents / 100).toFixed(2)}/month`
+
+/**
+ * What would happen if this tenant's system were released right now.
+ *
+ * Assembled through `buildSystem` — the same function the cell uses — rather
+ * than re-derived here. The console used to compute its own module and
+ * configuration resolution for a tenant, which is how a preview and a
+ * production system come to differ while both look correct.
+ *
+ * A projection, and nothing more: no artifact is written and no state is
+ * advanced. `planPromotion` walks the real state machine and reports where it
+ * stops, so the gates shown are the gates that would actually refuse — not a
+ * second list maintained beside them.
+ *
+ * Returns null for a tenant with no file binding. Every tenant composed in this
+ * console is one: `buildSystem` reads `blueprints/`, and a tenant that lives
+ * only in the registry has nothing there to read. Saying so beats a caught
+ * exception that renders as an empty panel.
+ */
+function releaseReadiness(slug: string, cellId: string | undefined) {
+  if (!getTenantBinding(slug)) return null
+
+  const cells = fleet()
+  const cell = cells.find((c) => c.cellId === cellId) ?? cells[0]
+  if (!cell) return null
+
+  const at = new Date().toISOString()
+
+  // The console assembled this, not the operator reading the page. Recording
+  // the operator as the author would make them the author AND the approver, and
+  // the release state machine correctly refuses that — producing a gate that
+  // can never be passed by whoever is looking at it.
+  const author = "system-studio@tenure"
+
+  const assembled = buildSystem(slug, {
+    actor: author,
+    at,
+    notes: `Release readiness for ${slug}, computed by the System Studio.`,
+    // What the CELL says it is migrated to. A candidate pinning a migration the
+    // cell has not applied is refused here rather than discovered by the cell.
+    appliedMigrations: [cell.schemaVersion],
+  })
+
+  // The same system as the cell is actually running it: identical in every
+  // respect except the schema it is pinned to. When the cell is behind the
+  // engine, that is the drift an approver has to see before promoting, and it
+  // is invisible in every other panel on this page.
+  const running = buildSystem(slug, {
+    actor: author,
+    at,
+    notes: `The system as ${cell.cellId} is running it.`,
+    schemaVersion: cell.schemaVersion,
+  }).candidate
+
+  /**
+   * The engine version the cell reports.
+   *
+   * `CellRecord.release` is what the fleet records, and in this estate it is
+   * the schema version — which is not an engine version and will not parse.
+   * `checkCompatibility` then fails closed, which is correct and is the point:
+   * a cell that cannot say how old it is cannot claim to be new enough. The
+   * override exists so setting the fact fixes it, rather than the check being
+   * softened until it passes.
+   */
+  const engineVersion = process.env.CELL_ENGINE_VERSION?.trim() || cell.release
+
+  const compatibility = compatibilityFor(slug, engineVersion)
+
+  const plan = assembled.candidate
+    ? planPromotion({
+        candidate: assembled.candidate,
+        validation: assembled.validation,
+        compatibility,
+        approver: "an operator other than the author",
+        at,
+        previous: running,
+      })
+    : null
+
+  return { assembled, cell, engineVersion, compatibility, plan }
+}
 
 /**
  * One tenant: what it is, where it is, how it got there, and what can happen
@@ -36,6 +120,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
   const plan = planFor(tenant.manifest)
   const moves = nextStates(tenant.state)
   const residual = RESIDUAL_COST[tenant.state]
+  const readiness = releaseReadiness(tenant.slug, tenant.registry?.placement.cellId)
 
   return (
     <>
@@ -187,6 +272,146 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           </tbody>
         </table>
       </section>
+
+      {readiness && (
+        <section className="system">
+          <header>
+            <h2>Release</h2>
+            <span className="badge">
+              {readiness.plan ? `reaches ${readiness.plan.reachable}` : "no candidate"}
+            </span>
+          </header>
+          <p>
+            What would happen if this system were released now, assembled by the same function the
+            cell uses. Nothing here publishes anything: the gates are walked, not passed.
+          </p>
+
+          <dl className="kv">
+            <dt>candidate</dt>
+            <dd className="id">{readiness.assembled.candidate?.releaseId ?? "— did not validate"}</dd>
+            <dt>checksum</dt>
+            <dd className="id">{readiness.assembled.candidate?.checksum ?? "—"}</dd>
+            <dt>signature</dt>
+            <dd>
+              {readiness.assembled.candidate?.signature
+                ? `${readiness.assembled.candidate.signature.algorithm} by ${readiness.assembled.candidate.signature.keyId}`
+                : "unsigned — set RELEASE_SIGNING_KEY_ID and RELEASE_SIGNING_SECRET; an unsigned release cannot be approved"}
+            </dd>
+            <dt>schema</dt>
+            <dd>
+              {readiness.assembled.schemaVersion}
+              {readiness.assembled.schemaVersion === readiness.cell.schemaVersion
+                ? ""
+                : ` · ${readiness.cell.cellId} is at ${readiness.cell.schemaVersion}`}
+            </dd>
+            <dt>engine</dt>
+            <dd>
+              {readiness.engineVersion} on {readiness.cell.cellId}
+            </dd>
+            <dt>modules</dt>
+            <dd>{readiness.assembled.moduleKeys.join(", ")}</dd>
+          </dl>
+
+          {readiness.assembled.validation.problems.map((p) => (
+            <p className="refused" key={`${p.area}-${p.detail}`}>
+              [{p.area}] {p.detail}
+            </p>
+          ))}
+
+          {!readiness.compatibility.compatible && (
+            <>
+              <p className="refused">
+                The cell cannot honour this tenant&apos;s configuration, so the release is refused
+                rather than half-applied.
+              </p>
+              <table className="grid">
+                <thead>
+                  <tr>
+                    <th>Key</th>
+                    <th>Needs</th>
+                    <th>Running</th>
+                    <th>Why</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {readiness.compatibility.problems.map((p) => (
+                    <tr key={p.key}>
+                      <td className="id">{p.key}</td>
+                      <td>{p.requires}</td>
+                      <td>{p.running}</td>
+                      <td className="slug">{p.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {readiness.plan && (
+            <table className="grid">
+              <thead>
+                <tr>
+                  <th>State</th>
+                  <th>Reached</th>
+                </tr>
+              </thead>
+              <tbody>
+                {readiness.plan.steps.map((s) => (
+                  <tr key={s.to}>
+                    <td className="id">{s.to}</td>
+                    <td>
+                      {s.reached ? (
+                        "✓"
+                      ) : (
+                        <>
+                          ✗<br />
+                          <span className="slug">{s.refusedBecause}</span>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {readiness.plan && readiness.plan.diff.length > 0 && (
+            <>
+              <h3>
+                Against what {readiness.cell.cellId} is running{" "}
+                <span className="badge">
+                  {readiness.plan.breaking.length} breaking of {readiness.plan.diff.length}
+                </span>
+              </h3>
+              <table className="grid">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Change</th>
+                    <th>Before</th>
+                    <th>After</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {readiness.plan.diff.map((d) => (
+                    <tr key={`${d.field}-${d.change}`}>
+                      <td className="id">{d.field}</td>
+                      <td>
+                        {d.change}
+                        {readiness.plan!.breaking.includes(d) && (
+                          <span className="badge warn"> breaking</span>
+                        )}
+                      </td>
+                      <td className="slug">{String(d.before ?? "—")}</td>
+                      <td className="slug">{String(d.after ?? "—")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </section>
+      )}
 
       {tenant.deployment && (
         <section className="system">

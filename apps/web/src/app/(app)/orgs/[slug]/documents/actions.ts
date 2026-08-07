@@ -9,6 +9,7 @@ import { withTenantScope } from "@/lib/tenant-scope"
 import {
   documentDownloadUrl,
   documentViewUrl,
+  fileRef,
   storageConfigured,
   uploadDocument,
 } from "@/lib/s3"
@@ -42,7 +43,15 @@ export async function uploadDocumentAction(slug: string, formData: FormData) {
     const objectKey = `${org.institutionId}/${org.id}/${Date.now()}-${safeName}`
 
     const bytes = Buffer.from(await file.arrayBuffer())
-    await uploadDocument(objectKey, bytes, file.type || "application/octet-stream")
+    await uploadDocument(
+      fileRef({
+        tenantId: org.institutionId,
+        objectKey,
+        mimeType: file.type || "application/octet-stream",
+        body: bytes,
+      }),
+      bytes,
+    )
 
     await db.$transaction([
       db.document.create({

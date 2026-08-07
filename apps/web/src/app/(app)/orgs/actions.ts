@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { canManageOrg, getUserContext, isOseDirector } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
-import { storageConfigured, uploadDocument } from "@/lib/s3"
+import { fileRef, storageConfigured, uploadDocument } from "@/lib/s3"
 
 async function requireUserId() {
   const session = await auth()
@@ -121,9 +121,17 @@ export async function uploadOrgImage(formData: FormData) {
     if (file.size > 5 * 1024 * 1024) throw new Error("Images must be under 5 MB")
 
     const ext = (file.name.split(".").pop() || "img").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5)
-    const key = `org-images/${org.id}/${Date.now()}.${ext}`
+    // Tenant-prefixed, which it was not: the key used to begin `org-images/`,
+    // so nothing about it said which institution's bucket space it belonged in
+    // and `parseFileRef` refuses it outright. Existing images are unaffected —
+    // reads use the key stored on the row, and only new uploads are minted
+    // here.
+    const key = `${org.institutionId}/org-images/${org.id}/${Date.now()}.${ext}`
     const buffer = Buffer.from(await file.arrayBuffer())
-    await uploadDocument(key, buffer, file.type)
+    await uploadDocument(
+      fileRef({ tenantId: org.institutionId, objectKey: key, mimeType: file.type, body: buffer }),
+      buffer,
+    )
 
     await db.organization.update({
       where: { id: org.id },

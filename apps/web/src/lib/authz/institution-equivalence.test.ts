@@ -14,6 +14,13 @@ import {
 import { decideAcrossInstitution, INSTITUTION_TEMPLATES } from "./seat-world";
 
 /**
+ * No module in this fixture set declares tiers, so no `minTier` can rank and
+ * the tier gate is inert here — which is what these equivalence assertions
+ * need. The tier gate itself is exercised in `seat-world.test.ts`.
+ */
+const NO_TIERS = { tiers: {}, currentTier: {} };
+
+/**
  * GE-051-005 — the institution templates must confer exactly what the
  * predicates already do.
  *
@@ -65,6 +72,7 @@ const allows = (
     permission,
     tenantId: TENANT,
     enabledModules: MODULES,
+    tiers: NO_TIERS,
     organizationId,
     at: "2026-08-03T12:00:00Z",
   }).allowed;
@@ -235,6 +243,7 @@ describe("a module the system does not run still gates the office", () => {
       permission: "resources.resource.create",
       tenantId: TENANT,
       enabledModules: MODULES.filter((m) => m !== "resources"),
+      tiers: NO_TIERS,
       at: "2026-08-03T12:00:00Z",
     });
     expect(decision.allowed).toBe(false);

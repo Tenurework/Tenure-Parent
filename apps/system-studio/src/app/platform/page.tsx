@@ -1,5 +1,8 @@
 
+import { fleetCompatibility, moduleAdoption } from "@tenure/platform-config"
+
 import { auth } from "@/lib/auth"
+import { fleet } from "@/lib/cells"
 import { isOperator, operatorConfigProblems } from "@/lib/operators"
 import truth from "@/generated/platform-truth.json"
 import { StaleState } from "@/components/states"
@@ -38,6 +41,32 @@ export default async function PlatformPage() {
   }
 
   const { programme, ledger, findings, estate, suites } = truth
+
+  /**
+   * PACK-GATE-080 — what a module lifecycle change would actually reach.
+   *
+   * Every lifecycle question the engine could answer used to take one slug, so
+   * deprecating, suspending or retiring a module could not be evaluated against
+   * the fleet before it was done. `moduleAdoption` folds every binding through
+   * the same resolver each tenant runs, so this table cannot disagree with what
+   * those tenants have — in particular it does not list a tenant whose blueprint
+   * asks for a module its entitlement refuses.
+   */
+  const adoption = moduleAdoption()
+
+  /**
+   * And whether the cell holding each tenant can honour its configuration.
+   *
+   * `checkCompatibility` has existed since GE-022-005 with no caller outside its
+   * own test — a gate that refuses nothing. This is the caller. The version
+   * compared against is the cell's own `release`, so a fleet that cannot say
+   * what it is running reports exactly that rather than a reassuring pass.
+   */
+  const cells = fleet()
+  const compatibility = cells.map((cell) => ({
+    cell,
+    tenants: fleetCompatibility(cell.release),
+  }))
 
   // The inventory records denials as {call, reason}; a count alone would lose
   // the reason, which is the part that matters.
@@ -163,6 +192,117 @@ export default async function PlatformPage() {
           </table>
         </section>
       ))}
+
+      {/* ── Module adoption ───────────────────────────────────────────── */}
+      <section className="system">
+        <header>
+          <h2>Module adoption</h2>
+          <span className="badge warn">
+            {adoption.filter((m) => m.tenants.length > 0).length} of {adoption.length} adopted
+          </span>
+        </header>
+        <p>
+          The blast radius of a lifecycle change, before it is made. Each row is a module in the
+          catalog and the tenants that <em>actually run it</em> — resolved the same way each tenant
+          resolves it, so a module a blueprint asks for and an entitlement refuses does not appear
+          here. A row with no tenants is the one that can be retired for nothing.
+        </p>
+        <p>
+          <code>preset</code> means the tenant&rsquo;s archetype compiled to it; <code>edit</code>{" "}
+          means that tenant added it on top. Deprecating a module nobody chose deliberately is a
+          different conversation from deprecating one somebody asked for.
+        </p>
+
+        <table className="grid">
+          <thead>
+            <tr>
+              <th>Module</th>
+              <th>Lifecycle</th>
+              <th>Commands</th>
+              <th>Tenants running it</th>
+            </tr>
+          </thead>
+          <tbody>
+            {adoption.map((module) => (
+              <tr key={module.key}>
+                <td className="id">{module.key}</td>
+                <td>{module.lifecycle}</td>
+                <td>
+                  {module.commands.length === 0 ? (
+                    <span className="slug">—</span>
+                  ) : (
+                    module.commands.map((c) => (
+                      <span className="chip" key={c.id}>
+                        <b>{c.riskClass}</b> {c.label}
+                      </span>
+                    ))
+                  )}
+                </td>
+                <td>
+                  {module.tenants.length === 0 ? (
+                    <span className="slug">nobody</span>
+                  ) : (
+                    module.tenants.map((t) => (
+                      <span className="chip" key={t.slug}>
+                        {t.slug} <b>{t.from === "preset" ? "preset" : "edit"}</b>
+                      </span>
+                    ))
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {/* ── Release compatibility ─────────────────────────────────────── */}
+      <section className="system">
+        <header>
+          <h2>Release compatibility</h2>
+        </header>
+        <p>
+          Each tenant&rsquo;s published configuration against the engine version its cell reports.
+          A cell older than the configuration it is asked to serve <em>refuses</em> rather than
+          half-applying it: ignoring an unknown key would leave a setting the Studio shows as
+          published quietly doing nothing, and applying one whose meaning has moved is worse.
+        </p>
+
+        {compatibility.map(({ cell, tenants }) => (
+          <div key={cell.cellId}>
+            <h3>
+              {cell.cellId} <span className="slug">running {cell.release}</span>
+            </h3>
+            <table className="grid">
+              <thead>
+                <tr>
+                  <th>Tenant</th>
+                  <th className="num">Keys</th>
+                  <th>Verdict</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tenants.map((tenant) => (
+                  <tr key={tenant.slug}>
+                    <td className="id">{tenant.slug}</td>
+                    <td className="num">{tenant.keys.length}</td>
+                    <td>
+                      {tenant.verdict.compatible ? (
+                        "compatible"
+                      ) : (
+                        <>
+                          {tenant.verdict.problems.length} key
+                          {tenant.verdict.problems.length === 1 ? "" : "s"} refused —{" "}
+                          {[...new Set(tenant.verdict.problems.map((p) => p.reason))].join(", ")}
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </section>
 
       {/* ── Findings ──────────────────────────────────────────────────── */}
       <section className="system">

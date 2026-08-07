@@ -45,7 +45,7 @@ export type {
   TenantEntitlement,
 } from "./model"
 
-export { decide, effectivePermissions } from "./decide"
+export { decide, decideCheck, effectivePermissions, policyRevisionOf } from "./decide"
 export type {
   AuthorizationRequest,
   AuthorizationWorld,

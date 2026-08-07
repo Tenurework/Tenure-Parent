@@ -67,6 +67,23 @@ export function compareVersions(a: EngineVersion, b: EngineVersion): number {
   return a.major - b.major || a.minor - b.minor || a.patch - b.patch
 }
 
+/**
+ * The same comparison over raw strings, for callers that hold versions as text.
+ *
+ * Exists so `@tenure/module-runtime` can check a module's declared dependency
+ * range without a second comparator. That package cannot import this one —
+ * platform-config imports IT (see modules.ts) — so it takes the function as an
+ * argument, and this is the adapter every caller passes. Deliberately not a
+ * reimplementation: it is `parseVersion` and `compareVersions`, the same two.
+ *
+ * Throws on an unparseable version, which is what `parseVersion` already does
+ * and for the reason stated there: a version that silently became 0.0.0 would
+ * compare as older than everything and make every check pass.
+ */
+export function compareVersionStrings(a: string, b: string): number {
+  return compareVersions(parseVersion(a), parseVersion(b))
+}
+
 export interface CompatibilityVerdict {
   compatible: boolean
   /** Empty when compatible. One entry per key the running engine cannot honour. */

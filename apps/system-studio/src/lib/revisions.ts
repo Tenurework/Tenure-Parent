@@ -118,12 +118,38 @@ export interface DependencyGraph {
  * for every graph view, and for a graph this small the accessible rendering is
  * simply the better one.
  */
-export function dependencyGraph(
-  modules: readonly { key: string; dependsOn?: readonly string[] }[],
-): DependencyGraph {
+export interface GraphModule {
+  key: string
+  /**
+   * `dependsOn` gained a version range, a kind and the ability to name a
+   * CAPABILITY rather than a module key (PACK-010-002, PACK-030-003).
+   */
+  dependsOn?: readonly { module: string }[]
+  provides?: readonly string[]
+}
+
+/**
+ * Every module that could satisfy a dependency target: the key itself, or every
+ * module declaring it in `provides`.
+ *
+ * Resolving here rather than drawing the capability as a node is what keeps the
+ * blast radius true. `reimbursements` depends on `finance.ledger` and
+ * `budgeting` provides it — an unresolved edge would draw a node nobody can
+ * disable and would answer "what breaks if budgeting goes?" with silence.
+ */
+function satisfiers(modules: readonly GraphModule[], target: string): string[] {
+  if (modules.some((m) => m.key === target)) return [target]
+  return modules.filter((m) => (m.provides ?? []).includes(target)).map((m) => m.key)
+}
+
+export function dependencyGraph(modules: readonly GraphModule[]): DependencyGraph {
   const nodes = modules.map((m) => m.key).sort()
   const edges = modules
-    .flatMap((m) => (m.dependsOn ?? []).map((to) => ({ from: m.key, to })))
+    .flatMap((m) =>
+      (m.dependsOn ?? []).flatMap((dependency) =>
+        satisfiers(modules, dependency.module).map((to) => ({ from: m.key, to })),
+      ),
+    )
     .sort((a, b) => (a.from === b.from ? a.to.localeCompare(b.to) : a.from.localeCompare(b.from)))
 
   const dependedUpon = new Set(edges.map((e) => e.to))
@@ -145,13 +171,15 @@ export function dependencyGraph(
  * under-report exactly when the blast radius matters most.
  */
 export function dependantsOf(
-  modules: readonly { key: string; dependsOn?: readonly string[] }[],
+  modules: readonly GraphModule[],
   moduleKey: string,
 ): readonly string[] {
   const direct = new Map<string, string[]>()
   for (const module of modules) {
     for (const dependency of module.dependsOn ?? []) {
-      direct.set(dependency, [...(direct.get(dependency) ?? []), module.key])
+      for (const satisfier of satisfiers(modules, dependency.module)) {
+        direct.set(satisfier, [...(direct.get(satisfier) ?? []), module.key])
+      }
     }
   }
 

@@ -26,6 +26,63 @@ import { parseDomainEvent, type DomainEvent, type OutboxRecord, type OutboxState
  * dead-letter logic untestable without one.
  */
 
+/**
+ * The columns an `OutboxEvent` row carries, derived from a validated event.
+ *
+ * Deliberately a plain object rather than a Prisma call: this module stays free
+ * of the client (see the note above about transport), and the caller spreads
+ * this into `db.outboxEvent.create({ data })` **inside the transaction that
+ * makes the change**. Anywhere else and the window this whole file exists to
+ * close reopens.
+ *
+ * `parseDomainEvent` runs here rather than at the call site, which is the point
+ * of the mapper existing at all: a row can only be written from a value that
+ * satisfies the contract, so `dispatchOnce`'s "event no longer parses" branch
+ * cannot be reached by something this application wrote. The tenant comes from
+ * `event.tenantId` for the same reason — a row whose `institutionId` disagreed
+ * with the event it carries would be an event delivered under the wrong tenant.
+ */
+export interface OutboxEventRow {
+  institutionId: string
+  eventId: string
+  type: string
+  schemaVersion: number
+  resourceType: string
+  resourceId: string
+  correlationId: string
+  causationId: string | null
+  payload: Record<string, unknown>
+  occurredAt: Date
+}
+
+export function outboxEventRow(event: DomainEvent): OutboxEventRow {
+  const valid = parseDomainEvent(event)
+
+  // The column is a JSON object. A scalar or an array would round-trip through
+  // Prisma and then fail to spread on the consumer side, at delivery time, in
+  // whatever process is reading the queue — a long way from whoever wrote it.
+  const payload = valid.payload ?? {}
+  if (typeof payload !== "object" || Array.isArray(payload)) {
+    throw new TypeError(
+      "An outbox event's payload must be a JSON object. A scalar or an array reaches a consumer " +
+        "as something it cannot read, and it fails there rather than here.",
+    )
+  }
+
+  return {
+    institutionId: valid.tenantId,
+    eventId: valid.eventId,
+    type: valid.type,
+    schemaVersion: valid.schemaVersion,
+    resourceType: valid.resourceType,
+    resourceId: valid.resourceId,
+    correlationId: valid.correlationId,
+    causationId: valid.causationId,
+    payload: payload as Record<string, unknown>,
+    occurredAt: new Date(valid.occurredAt),
+  }
+}
+
 export interface OutboxPorts {
   /**
    * Claim up to `limit` records that are due.

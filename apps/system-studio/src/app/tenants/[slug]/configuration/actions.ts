@@ -123,7 +123,17 @@ export async function review(_prev: ReviewResult | null, form: FormData): Promis
       // GE-032-002. Without these the entitlement check never runs and a plan
       // can enable a module the contract does not cover — a console showing a
       // feature while every request for it is denied.
-      modules: MODULES.map((m) => ({ key: m.key, dependsOn: m.dependsOn, entitlement: m.requiresEntitlement })),
+      // `provides` is not optional decoration. A dependency may name a
+      // CAPABILITY another module supplies rather than a module key —
+      // `reimbursements` depends on `finance.ledger`, which `budgeting`
+      // provides — and without it the graph check cannot find a satisfier
+      // and reports a dangling reference, which blocks EVERY publication.
+      modules: MODULES.map((m) => ({
+        key: m.key,
+        dependsOn: m.dependsOn,
+        provides: m.provides,
+        entitlement: m.requiresEntitlement,
+      })),
       // The editor does not enable modules yet — module enablement is a
       // separate surface. Passing the catalogue anyway means the check is live
       // the moment it does, rather than being wired later and forgotten.
@@ -163,7 +173,17 @@ export async function publish(_prev: PublishResult | null, form: FormData): Prom
       publishedBy,
       activateAt: activationFrom(form),
       now: new Date(),
-      modules: MODULES.map((m) => ({ key: m.key, dependsOn: m.dependsOn, entitlement: m.requiresEntitlement })),
+      // `provides` is not optional decoration. A dependency may name a
+      // CAPABILITY another module supplies rather than a module key —
+      // `reimbursements` depends on `finance.ledger`, which `budgeting`
+      // provides — and without it the graph check cannot find a satisfier
+      // and reports a dangling reference, which blocks EVERY publication.
+      modules: MODULES.map((m) => ({
+        key: m.key,
+        dependsOn: m.dependsOn,
+        provides: m.provides,
+        entitlement: m.requiresEntitlement,
+      })),
       enabledModules: [],
       entitlements: [],
     })
@@ -268,7 +288,17 @@ export async function rollback(_prev: RollbackResult | null, form: FormData): Pr
       publishedBy,
       activateAt: activationFrom(form),
       now: new Date(),
-      modules: MODULES.map((m) => ({ key: m.key, dependsOn: m.dependsOn, entitlement: m.requiresEntitlement })),
+      // `provides` is not optional decoration. A dependency may name a
+      // CAPABILITY another module supplies rather than a module key —
+      // `reimbursements` depends on `finance.ledger`, which `budgeting`
+      // provides — and without it the graph check cannot find a satisfier
+      // and reports a dangling reference, which blocks EVERY publication.
+      modules: MODULES.map((m) => ({
+        key: m.key,
+        dependsOn: m.dependsOn,
+        provides: m.provides,
+        entitlement: m.requiresEntitlement,
+      })),
       enabledModules: [],
       entitlements: [],
     })

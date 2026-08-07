@@ -1,13 +1,16 @@
 import "server-only"
 
-import { TENANT_BINDINGS, getBlueprint } from "@tenure/blueprints"
+import { TENANT_BINDINGS, archetypeFor, getBlueprint } from "@tenure/blueprints"
 import { MODULE_CATALOG } from "@tenure/modules"
-import { resolveModules } from "@tenure/module-runtime"
+import { modulesFor } from "@tenure/platform-config"
 import {
+  BUSINESS_DOMAINS,
   MANIFEST_VERSION,
   adoptTenant,
   type AdoptionEvidence,
+  type CoexistenceDeclaration,
   type IsolationTier,
+  type SystemOfRecordMap,
   type TenantManifest,
   type TenantRegistryRecord,
 } from "@tenure/provisioning"
@@ -35,16 +38,15 @@ import { newTenantId } from "@/lib/registry-record"
 /**
  * What the binding actually resolves to.
  *
- * Through `resolveModules`, the same resolver the console's execution context
- * uses — so the manifest an adoption writes cannot describe a module set the
- * executor would refuse to build.
+ * Through `modulesFor` — the SAME function the application uses to decide what
+ * a tenant runs. It was a second `resolveModules` call of its own, which read
+ * the blueprint's raw list and therefore ignored the tenant's archetype
+ * overrides and its module edits: an adoption would have written a manifest
+ * describing a system the application does not serve, and the registry would
+ * have carried that difference permanently.
  */
-function resolvedModules(blueprintId: string, entitlements: readonly string[]) {
-  const blueprint = getBlueprint(blueprintId)
-  return resolveModules(MODULE_CATALOG, {
-    requested: blueprint?.modules ?? [],
-    entitlements,
-  })
+function resolvedModules(slug: string) {
+  return modulesFor(slug)
 }
 
 export interface AdoptionRequest {
@@ -83,6 +85,26 @@ function requireFirstCellRegion(): string {
   return cell.region
 }
 
+/**
+ * The coexistence a binding declares, or the one its absence means.
+ *
+ * `TenantBinding.coexistence` is optional and its absence has a defined
+ * meaning: every domain is Tenure's. That is a derivation, not a guess — the
+ * same reading `modulesFor` already acts on, so an adopted manifest cannot
+ * describe a coexistence arrangement different from the one the running system
+ * is resolved under.
+ */
+function coexistenceForBinding(declared: CoexistenceDeclaration | undefined): {
+  profile: CoexistenceDeclaration["profile"]
+  systemOfRecord: SystemOfRecordMap
+} {
+  if (declared) return { profile: declared.profile, systemOfRecord: declared.systemOfRecord }
+  return {
+    profile: "TENURE_CLOUD_PRIMARY",
+    systemOfRecord: Object.fromEntries(BUSINESS_DOMAINS.map((d) => [d, "tenure" as const])),
+  }
+}
+
 export function manifestForBinding(slug: string): TenantManifest {
   const binding = TENANT_BINDINGS.find((b) => b.slug === slug)
   if (!binding) throw new NotAdoptable(`No file binding for "${slug}".`)
@@ -104,13 +126,36 @@ export function manifestForBinding(slug: string): TenantManifest {
     legalName: binding.displayName,
     displayName: binding.displayName,
     blueprintId: binding.blueprintId,
-    modules: [...resolvedModules(binding.blueprintId, binding.entitlements ?? []).keys],
+    // The composition this tenant is actually running, so what the registry
+    // records is a point on the axes rather than a blueprint id and a list. A
+    // manifest carrying only the id could not express `fixture-rtl`, which runs
+    // the nonprofit blueprint with its `functional` axis moved.
+    archetype: (() => {
+      const selection = archetypeFor(slug)
+      if (!selection) {
+        throw new NotAdoptable(`"${slug}" has no archetype selection to adopt.`)
+      }
+      return {
+        organization: selection.organization,
+        operatingModel: selection.operatingModel,
+        functional: [...selection.functional],
+      }
+    })(),
+    modules: [...resolvedModules(slug).keys],
     entitlements: [...(binding.entitlements ?? [])],
     // Where it actually runs, from the fleet. No fallback: a fleet with no
     // cell is already an error path (`buildAdoption` refuses), and a default
     // here would place a tenant in a region no cell serves.
     region: requireFirstCellRegion(),
     isolation: "pooled" as IsolationTier,
+    // Read off the binding, not invented. A binding with no coexistence block
+    // means Tenure is authoritative for everything — that is what its type says
+    // and what `modulesFor` acts on, so writing it out here records the same
+    // fact rather than a second one. Written out in full rather than left
+    // implicit because a manifest is the thing that gets diffed: "every domain
+    // is ours" has to be visible to be reviewable.
+    coexistence: coexistenceForBinding(binding.coexistence).profile,
+    systemOfRecord: coexistenceForBinding(binding.coexistence).systemOfRecord,
     // The overlay this tenant is already configured with.
     configuration: binding.values,
     secretRefs: {},
@@ -135,7 +180,7 @@ export function adoptionEvidence(
 ): AdoptionEvidence[] {
   const binding = TENANT_BINDINGS.find((b) => b.slug === slug)
   const cell = fleet().find((c) => c.residencyZones.includes(c.region))
-  const modules = binding ? resolvedModules(binding.blueprintId, binding.entitlements ?? []).keys : []
+  const modules = binding ? resolvedModules(slug).keys : []
 
   return [
     {

@@ -227,7 +227,7 @@ otherwise report `capability` for all twenty-one.
 |---|---|
 | `updateProfile` | `session` |
 | `setProfileImageUrl` | `session` |
-| `uploadProfileImage` | `session` |
+| `uploadProfileImage` | `tenant` + `session` |
 | `removeProfileImage` | `session` |
 | `setDelegation` | `tenant` + `session` |
 | `revokeDelegation` | `tenant` + `session` |

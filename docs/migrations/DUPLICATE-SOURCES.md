@@ -126,16 +126,16 @@ ApprovalRequest + ApprovalStep is a real state machine with an append-only step 
 
 **Three trails. Two are complementary; one is not connected.**
 
-AuditEvent answers who did what (20 writers). ApprovalStep answers how the state machine moved (5 writers) and carries the policy snapshot AuditEvent does not. Those two are complementary and both should stay. OutboxEvent is the third and it has a table, a dispatch loop with retries and a dead-letter path, unit tests, and NO adapter and NO writer anywhere in the repository — so the table is written by nothing and the loop is called by nothing. Measured: 0 rows. GE-021-006 recorded this as PASS; by the standard in AUTONOMOUS-LOOP.md it is not, and the correction is in the ledger.
+AuditEvent answers who did what (20 writers). ApprovalStep answers how the state machine moved (5 writers) and carries the policy snapshot AuditEvent does not. Those two are complementary and both should stay. OutboxEvent was the third and was unwired — a table, a dispatch loop with retries and a dead-letter path, unit tests, and no writer anywhere. PACK-060-001 wired the writing half: approvals/actions.ts publishes ApprovalRequested and ApprovalDecided through outboxEventRow inside the same $transaction as the status change, so the property the table exists for now holds for approval decisions. The READING half is still unwired — dispatchOnce takes a deliver port and no runner supplies one — so an event is written and nothing consumes it yet. That is a narrower gap than before and it is still a gap.
 
 | source | role | holds | writers |
 |---|---|---|---|
 | `AuditEvent` | canonical | who did what, institution-scoped | 0 |
-| `OutboxEvent` | unwired | nothing — no adapter implements the ports and no code writes the table | 0 |
+| `OutboxEvent` | canonical | what downstream should learn, written in the same transaction as the change that caused it | 2 |
 
 ### Plan
 
-- Write the Prisma adapter for the outbox ports and call it inside the same transaction as the change it describes. That is the entire property the table exists for: 'the row changed' and 'the event exists' cannot disagree.
+- DONE for the write half (PACK-060-001): approvals/actions.ts writes the event inside the same transaction as the change it describes, through outboxEventRow, which runs parseDomainEvent. Still to do: an adapter for the dispatch ports and a runner that calls it, so a written event reaches a consumer.
 - 7 of 29 approval steps have no AuditEvent naming the request. The two are written by separate statements with no transaction around them, which is the same failure mode the outbox exists to remove — so fixing the outbox and routing audit through it fixes this too.
 - Do not reconcile the 7 retroactively. An audit row invented later is worse than a missing one.
 

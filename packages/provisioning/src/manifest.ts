@@ -17,7 +17,23 @@
 
 import { createHash } from "node:crypto"
 
-export const MANIFEST_VERSION = 1
+import {
+  coexistenceProblems,
+  externalDomains,
+  type CoexistenceProfile,
+  type SystemOfRecordMap,
+} from "@tenure/module-runtime"
+
+/**
+ * Version 2 adds the coexistence declaration.
+ *
+ * Bumped rather than added quietly. A version-1 manifest states nothing about
+ * which system is authoritative for which domain, and reading one as though it
+ * said "Tenure owns everything" is exactly the unrecorded assumption
+ * PACK-020-004 exists to delete — so a v1 manifest is refused and re-composed
+ * rather than silently reinterpreted.
+ */
+export const MANIFEST_VERSION = 2
 
 /**
  * How much of the estate this tenant has to itself.
@@ -29,6 +45,21 @@ export const MANIFEST_VERSION = 1
  */
 export type IsolationTier = "pooled" | "bridge" | "silo" | "dedicated-account"
 
+/**
+ * One value per single-valued axis, a list per multi-valued one.
+ *
+ * Deliberately `string`/`string[]` rather than the unions
+ * `@tenure/blueprints` declares. A manifest is read back out of DynamoDB, and
+ * a union type does not survive that trip — it would assert a guarantee nothing
+ * checked. `validateManifest` is what checks, against the axis table its caller
+ * passes in.
+ */
+export interface ArchetypeAxisSelection {
+  organization: string
+  operatingModel: string
+  functional: readonly string[]
+}
+
 export interface TenantManifest {
   manifestVersion: number
 
@@ -39,12 +70,55 @@ export interface TenantManifest {
 
   /** What system to build. */
   blueprintId: string
+  /**
+   * Where this tenant sits on each archetype axis.
+   *
+   * A manifest used to carry a `blueprintId` and a flat module list, which is
+   * the locked-tenant-type shape: two customers wanting the same blueprint with
+   * one axis moved were two blueprints. This records the composition, so the
+   * engine can rebuild the module set from the axes rather than trusting a list
+   * somebody typed (PACK-GATE-020).
+   *
+   * Structural rather than imported from `@tenure/blueprints`: this package is
+   * consumed by the cell, which must not depend on the engine's blueprint
+   * catalog. The permitted values arrive through `validateManifest`'s context,
+   * the same way `knownBlueprints` and `knownModules` do.
+   *
+   * Optional because manifests written before axes existed are still in the
+   * registry, and a stored record does not change because a type did.
+   */
+  archetype?: ArchetypeAxisSelection
   modules: readonly string[]
   entitlements: readonly string[]
 
   /** Where, and how isolated. */
   region: string
   isolation: IsolationTier
+
+  /**
+   * PACK-020-004 — which system is authoritative for which business domain.
+   *
+   * Required, where `archetype` above is optional, and the difference is not an
+   * inconsistency. A missing archetype can be recovered: the blueprint declares
+   * the axes and the manifest's module list is what they compiled to. A missing
+   * system of record can be recovered from nothing — there is no fact anywhere
+   * in the engine that says whether this customer's ERP or Tenure writes the
+   * ledger, and the reading everybody would apply to its absence ("Tenure owns
+   * it") is precisely the unrecorded assumption that produces a dual write.
+   *
+   * `isolation` above is deliberately not this. It says how much infrastructure
+   * a tenant has to itself; this says who owns a fact. A `pooled` tenant can be
+   * authoritative for everything and a `silo` tenant for nothing.
+   */
+  coexistence: CoexistenceProfile
+  /**
+   * Exactly one authoritative writer per domain, per bible §2.
+   *
+   * A `Record` rather than a list of claims: a key cannot hold two values, so
+   * "exactly one" is a property of the shape rather than a rule somebody has to
+   * remember to check.
+   */
+  systemOfRecord: SystemOfRecordMap
 
   /** Configuration overlay — values only, never secrets. */
   configuration: Readonly<Record<string, unknown>>
@@ -105,6 +179,15 @@ export function validateManifest(
     knownBlueprints: readonly string[]
     /** Module keys the catalog offers. */
     knownModules: readonly string[]
+    /**
+     * Axis id → the values that axis accepts, from `ARCHETYPE_AXIS_VALUES`.
+     *
+     * Passed in for the same reason `knownBlueprints` is: this package cannot
+     * import the engine's catalogs. Omit it and an archetype on the manifest is
+     * refused outright rather than accepted unchecked — a composition validated
+     * against nothing is the failure this whole function exists to prevent.
+     */
+    archetypeAxes?: Readonly<Record<string, readonly string[]>>
     /** Slugs already taken. GE-102-003 — reserve before provisioning. */
     takenSlugs: readonly string[]
   },
@@ -152,6 +235,61 @@ export function validateManifest(
     )
   }
 
+  // The composition, checked exactly the way the blueprint id is: against the
+  // list of what exists. An axis value nobody implemented compiles to a system
+  // nobody can build, and the failure would surface as a missing module three
+  // lifecycle states later (PACK-GATE-020).
+  if (manifest.archetype) {
+    const axes = context.archetypeAxes
+    if (!axes) {
+      bad(
+        "archetype",
+        "unvalidatable",
+        "This manifest is composed along archetype axes and no axis table was supplied to check " +
+          "it against. Accepting it would record a composition nothing verified.",
+      )
+    } else {
+      const single = [
+        ["organization", manifest.archetype.organization],
+        ["operatingModel", manifest.archetype.operatingModel],
+      ] as const
+      for (const [axis, value] of single) {
+        const permitted = axes[axis]
+        if (!permitted) {
+          bad("archetype", "unknown-axis", `No archetype axis "${axis}" in this engine.`)
+        } else if (!permitted.includes(value)) {
+          bad(
+            `archetype.${axis}`,
+            "unknown-value",
+            `"${value}" is not a value of the ${axis} axis. Available: ${permitted.join(", ")}.`,
+          )
+        }
+      }
+
+      const functional = axes.functional
+      if (!functional) {
+        bad("archetype", "unknown-axis", `No archetype axis "functional" in this engine.`)
+      } else {
+        if (manifest.archetype.functional.length === 0) {
+          bad(
+            "archetype.functional",
+            "empty",
+            "A system with no functional suite compiles to its front door and nothing else.",
+          )
+        }
+        for (const suite of manifest.archetype.functional) {
+          if (!functional.includes(suite)) {
+            bad(
+              "archetype.functional",
+              "unknown-value",
+              `"${suite}" is not a functional suite. Available: ${functional.join(", ")}.`,
+            )
+          }
+        }
+      }
+    }
+  }
+
   if (manifest.modules.length === 0) {
     bad("modules", "empty", "A system with no modules has no surfaces and nothing to do.")
   }
@@ -164,6 +302,19 @@ export function validateManifest(
   // ── Placement ────────────────────────────────────────────────────────────
   if (!/^[a-z]{2}-[a-z]+-\d$/.test(manifest.region)) {
     bad("region", "malformed", `"${manifest.region}" is not an AWS region id.`)
+  }
+
+  // ── Coexistence ──────────────────────────────────────────────────────────
+  //
+  // PACK-020-004. Delegated to the package that enforces it, so a manifest
+  // cannot be accepted under looser rules than `resolveModules` applies — the
+  // failure mode that produces a manifest an operator approved and the executor
+  // then refuses to build.
+  for (const problem of coexistenceProblems({
+    profile: manifest.coexistence,
+    systemOfRecord: manifest.systemOfRecord ?? {},
+  })) {
+    bad(problem.field, problem.reason, problem.detail)
   }
 
   // Stated rather than silently accepted: the tiers above `pooled` need an
@@ -351,6 +502,19 @@ export function planFor(manifest: TenantManifest): ProvisioningPlan {
   }
   if (Object.keys(manifest.secretRefs).length === 0) {
     warnings.push("No secrets referenced. Correct for a pooled tenant with no external integrations.")
+  }
+
+  // PACK-020-004. On the plan, because this is the sentence an operator has to
+  // read before approving: modules that write these domains will be refused,
+  // and a system that looks short of features for a reason nobody wrote down is
+  // how somebody "fixes" it by removing the coexistence declaration.
+  const external = externalDomains(manifest.systemOfRecord ?? {})
+  if (external.length > 0) {
+    warnings.push(
+      `Coexistence profile ${manifest.coexistence}: an external system is authoritative for ` +
+        `${external.join(", ")}. Modules that write ${external.length === 1 ? "that domain" : "those domains"} ` +
+        `are refused, because exactly one system writes a domain's facts.`,
+    )
   }
 
   return {

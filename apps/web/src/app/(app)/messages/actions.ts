@@ -10,10 +10,19 @@ import { withTenantScope } from "@/lib/tenant-scope"
 import { canPostToConversation } from "@/lib/messaging"
 import { getAllowedRecipients } from "@/lib/messaging-data"
 import { notifyUsers } from "@/lib/notify"
-import { storageConfigured, uploadDocument } from "@/lib/s3"
+import { fileRef, storageConfigured, uploadDocument } from "@/lib/s3"
 
-/** Store any files attached to a message. No-op without object storage. */
-async function saveAttachments(messageId: string, formData: FormData) {
+/**
+ * Store any files attached to a message. No-op without object storage.
+ *
+ * `institutionId` is threaded in rather than looked up, because the caller
+ * already holds the conversation it is posting to and a second read could
+ * disagree with it. The key used to begin `message-attachments/` and named no
+ * tenant at all, which `parseFileRef` refuses: a key with no tenant prefix is
+ * one that can address another tenant's object. Attachments already stored keep
+ * working — reads use the key on the Attachment row.
+ */
+async function saveAttachments(messageId: string, institutionId: string, formData: FormData) {
   const files = formData
     .getAll("attachments")
     .filter((f): f is File => f instanceof File && f.size > 0)
@@ -21,8 +30,17 @@ async function saveAttachments(messageId: string, formData: FormData) {
   for (const file of files.slice(0, 10)) {
     if (file.size > 25 * 1024 * 1024) continue // 25 MB per file
     const safe = file.name.replace(/[^\w.\-]+/g, "_").slice(-80)
-    const key = `message-attachments/${messageId}/${Date.now()}-${safe}`
-    await uploadDocument(key, Buffer.from(await file.arrayBuffer()), file.type || "application/octet-stream")
+    const key = `${institutionId}/message-attachments/${messageId}/${Date.now()}-${safe}`
+    const bytes = Buffer.from(await file.arrayBuffer())
+    await uploadDocument(
+      fileRef({
+        tenantId: institutionId,
+        objectKey: key,
+        mimeType: file.type || "application/octet-stream",
+        body: bytes,
+      }),
+      bytes,
+    )
     await db.attachment.create({
       data: {
         messageId,
@@ -346,7 +364,7 @@ export async function sendMessage(conversationId: string, formData: FormData) {
       return m
     })
 
-    await saveAttachments(message.id, formData)
+    await saveAttachments(message.id, convo.institutionId, formData)
 
     revalidatePath(`/messages/${conversationId}`)
     revalidatePath("/messages")

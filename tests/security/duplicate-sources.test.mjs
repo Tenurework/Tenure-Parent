@@ -111,7 +111,25 @@ test("a deprecated, unwired or parallel source has exactly the writers the plan 
 
 test("an unwired source has no writers, because that is what unwired means", () => {
   const unwired = allSources.filter((s) => s.role === "unwired")
-  assert.ok(unwired.length > 0, "the plan should still record OutboxEvent as unwired, or explain what changed")
+
+  // The floor here used to be `unwired.length > 0`, with the message "the plan
+  // should still record OutboxEvent as unwired, or explain what changed". This
+  // is that explanation: PACK-060-001 wired OutboxEvent's write half —
+  // `approvals/actions.ts` publishes inside the same transaction as the status
+  // change — so it is `canonical` now and no source is unwired. The list being
+  // empty is the codebase having improved, not the plan having gone stale.
+  //
+  // The floor is not simply deleted, because a loop over an empty array passes
+  // forever and proves nothing. What it was really protecting against is a
+  // broken `writersOf` reporting every source as writer-free, and that is
+  // asserted directly instead — which is a stronger check than the presence of
+  // a fixture, and it does not go stale the next time a source is wired.
+  assert.ok(
+    writersOf("AuditEvent").length > 0,
+    "writersOf found nothing writing AuditEvent, which many files write. The scan is broken, so " +
+      "the loop below would find no writers for anything and pass emptily.",
+  )
+
   for (const source of unwired) {
     assert.deepEqual(
       writersOf(source.model),
