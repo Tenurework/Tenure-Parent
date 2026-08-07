@@ -58,7 +58,31 @@ import {
 jest.setTimeout(180_000)
 
 const RUN = Date.now().toString(36)
-const institutionId = `inst-money-${RUN}`
+/**
+ * Resolved in `beforeAll`, not fixed here.
+ *
+ * `institutionSlug` below is the pilot's, and `Institution.slug` is unique — so
+ * creating an institution under it means DESTROYING the seeded one first, which
+ * is what this file used to do: it looked the pilot up by slug and deleted it,
+ * its 26 organizations and its memberships, then took the slug for itself. The
+ * suite that then asked "does every seeded role have exactly one seat" answered
+ * zero, and `seat-template-backfill.itest.ts` and `seat-is-not-a-role.itest.ts`
+ * both failed naming the migration rather than the test that had removed the
+ * data.
+ *
+ * That destruction was invisible for as long as the teardown ABORTED partway —
+ * it deleted organizations while a Vendor still pointed at one, hit
+ * `Vendor_organizationId_fkey`, and left the pilot standing. Fixing the FK
+ * ordering is what made the delete succeed and turned a latent bug into two red
+ * suites in CI.
+ *
+ * So the fixture now JOINS the seeded institution rather than replacing it, and
+ * creates one only when there is none to join (a bare `migrate deploy` with no
+ * seed). Everything it makes is `-money-` prefixed and everything it removes is
+ * matched on that prefix, so it can never again reach a row it did not create.
+ */
+let institutionId = `inst-money-${RUN}`
+let institutionWasCreatedHere = false
 // The pilot's slug, because module enablement and entitlements are keyed by it:
 // `budgeting` and `reimbursements` are only on for a bound tenant, and a made-up
 // slug resolves to the front door and nothing else — every finance decision
@@ -138,18 +162,28 @@ async function seat(opts: {
 
 beforeAll(async () => {
   await runUnscoped("seed", "money-path fixture", async () => {
-    // The pilot slug is unique, so a run whose teardown did not finish would
-    // otherwise poison every later run with a constraint violation that has
-    // nothing to do with the code under test.
-    const stale = await db.institution.findUnique({ where: { slug: institutionSlug } })
-    if (stale) {
-      await db.$executeRawUnsafe(`DELETE FROM "AuditEvent" WHERE "institutionId" = $1`, stale.id)
-      await db.outboxEvent.deleteMany({ where: { institutionId: stale.id } })
-      const staleOrgs = await db.organization.findMany({
-        where: { institutionId: stale.id },
-        select: { id: true },
+    // Join the tenant that owns this slug; never take it. `startsWith` on the
+    // fixture prefix is what keeps this run's cleanup off every seeded row —
+    // the previous version matched on the INSTITUTION and so swept up all 26
+    // seeded clubs along with its own two.
+    const host = await db.institution.findUnique({ where: { slug: institutionSlug } })
+    if (host) {
+      institutionId = host.id
+    } else {
+      await db.institution.create({
+        data: { id: institutionId, name: `Money ${RUN}`, slug: institutionSlug, serving: true },
       })
-      const ids = staleOrgs.map((o) => o.id)
+      institutionWasCreatedHere = true
+    }
+
+    // Leftovers from a run whose teardown did not finish. Matched on the
+    // fixture's own id prefixes, so a half-finished run poisons only itself.
+    const staleOrgs = await db.organization.findMany({
+      where: { institutionId, OR: [{ id: { startsWith: "org-money-" } }, { id: { startsWith: "org-money2-" } }] },
+      select: { id: true },
+    })
+    const ids = staleOrgs.map((o) => o.id)
+    if (ids.length > 0) {
       await db.ledgerEntry.deleteMany({ where: { organizationId: { in: ids }, reversesId: { not: null } } })
       await db.ledgerEntry.deleteMany({ where: { organizationId: { in: ids } } })
       await db.receiptAllocation.deleteMany({ where: { organizationId: { in: ids } } })
@@ -163,12 +197,10 @@ beforeAll(async () => {
       await db.roleAssignment.deleteMany({ where: { role: { organizationId: { in: ids } } } })
       await db.seat.deleteMany({ where: { organizationId: { in: ids } } })
       await db.role.deleteMany({ where: { organizationId: { in: ids } } })
-      await db.organization.deleteMany({ where: { institutionId: stale.id } })
-      await db.institutionMembership.deleteMany({ where: { institutionId: stale.id } })
-      await db.institution.delete({ where: { id: stale.id } })
+      await db.organization.deleteMany({ where: { id: { in: ids } } })
     }
-    await db.institution.create({
-      data: { id: institutionId, name: `Money ${RUN}`, slug: institutionSlug, serving: true },
+    await db.institutionMembership.deleteMany({
+      where: { institutionId, userId: { startsWith: "u-ose-" } },
     })
     await db.user.createMany({
       data: [
@@ -244,6 +276,16 @@ beforeAll(async () => {
 afterAll(async () => {
   await runUnscoped("seed", "money-path teardown", async () => {
     const orgs = [organizationId, otherOrganizationId]
+    // Read before the approvals are removed below. `OutboxEvent` carries no
+    // organizationId — only `institutionId` and the `resourceId` of what it is
+    // about — so these ids are the only way to delete this fixture's events
+    // without deleting the host tenant's as well.
+    const approvalIds = (
+      await db.approvalRequest.findMany({
+        where: { organizationId: { in: orgs } },
+        select: { id: true },
+      })
+    ).map((a) => a.id)
     await db.ledgerEntry.deleteMany({ where: { organizationId: { in: orgs }, reversesId: { not: null } } })
     await db.ledgerEntry.deleteMany({ where: { organizationId: { in: orgs } } })
     await db.receiptAllocation.deleteMany({ where: { organizationId: { in: orgs } } })
@@ -254,15 +296,29 @@ afterAll(async () => {
     // extension's refusal points at, and is what a fixture teardown is.
     await db.approvalRequest.deleteMany({ where: { organizationId: { in: orgs } } })
     await db.budgetLine.deleteMany({ where: { organizationId: { in: orgs } } })
-    await db.$executeRawUnsafe(`DELETE FROM "AuditEvent" WHERE "institutionId" = $1`, institutionId)
-    await db.outboxEvent.deleteMany({ where: { institutionId } })
+    // Scoped to this fixture's two organizations, not the whole institution.
+    // When the host is the seeded pilot, an institution-wide statement here
+    // erases the evidence trail of every seeded club as well.
+    await db.$executeRawUnsafe(
+      `DELETE FROM "AuditEvent" WHERE "institutionId" = $1 AND "organizationId" = ANY($2)`,
+      institutionId,
+      orgs,
+    )
+    await db.outboxEvent.deleteMany({ where: { institutionId, resourceId: { in: approvalIds } } })
     await db.notification.deleteMany({ where: { userId: { in: [memberId, presidentId, financeId, oseId] } } })
     await db.roleAssignment.deleteMany({ where: { userId: { in: [memberId, presidentId, financeId, oseId] } } })
     await db.seat.deleteMany({ where: { organizationId: { in: orgs } } })
     await db.role.deleteMany({ where: { organizationId: { in: orgs } } })
-    await db.organization.deleteMany({ where: { institutionId } })
-    await db.institutionMembership.deleteMany({ where: { institutionId } })
-    await db.institution.deleteMany({ where: { id: institutionId } })
+    // `in: orgs`, not `institutionId`. When the fixture joins the seeded pilot
+    // — which is every run that follows a seed, i.e. every CI run — an
+    // institution-wide delete removes the pilot's 26 clubs along with these two.
+    await db.organization.deleteMany({ where: { id: { in: orgs } } })
+    await db.institutionMembership.deleteMany({ where: { institutionId, userId: oseId } })
+    // Only if there was no tenant to join. Deleting a borrowed host is what
+    // destroyed the seeded database.
+    if (institutionWasCreatedHere) {
+      await db.institution.deleteMany({ where: { id: institutionId } })
+    }
     await db.user.deleteMany({ where: { id: { in: [memberId, presidentId, financeId, oseId] } } })
   })
   await db.$disconnect()
