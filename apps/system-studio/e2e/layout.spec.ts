@@ -134,11 +134,32 @@ for (const width of WIDTHS) {
           const bad: string[] = []
           for (const section of Array.from(document.querySelectorAll("section, form, dl, nav"))) {
             const box = section.getBoundingClientRect()
+            const scrolls = (el: Element) =>
+              ["auto", "scroll"].includes(getComputedStyle(el).overflowX)
+
             for (const child of Array.from(section.querySelectorAll("*"))) {
-              const style = getComputedStyle(child)
-              if (style.overflowX === "auto" || style.overflowX === "scroll") continue
-              const parent = child.parentElement
-              if (parent && ["auto", "scroll"].includes(getComputedStyle(parent).overflowX)) continue
+              if (scrolls(child)) continue
+              // Walk to the section, not one step. `table.grid` is
+              // `display:block; overflow-x:auto` (globals.css) precisely so a
+              // wide table scrolls instead of the page — but the elements that
+              // measure wide are `tr`, `th` and `td`, whose immediate parent is
+              // `thead`/`tbody`, and those do not scroll. Checking only
+              // `parentElement` therefore reported every row of a deliberately
+              // scrollable table as a layout defect. It reported none of them on
+              // Windows and ten on Linux, because the tolerance below is 2px and
+              // FreeType sets this table a fraction wider than DirectWrite —
+              // so the bug was invisible until CI ran it.
+              let ancestor: Element | null = child.parentElement
+              let inScroller = false
+              while (ancestor) {
+                if (scrolls(ancestor)) {
+                  inScroller = true
+                  break
+                }
+                if (ancestor === section) break
+                ancestor = ancestor.parentElement
+              }
+              if (inScroller) continue
 
               const r = child.getBoundingClientRect()
               if (r.width === 0) continue

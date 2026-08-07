@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "db95980",
+  "commit": "d6f930f",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 241,
@@ -1742,7 +1742,7 @@
     ],
     "totalItems": 2046,
     "totalGates": 181,
-    "decided": 211,
+    "decided": 210,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -3639,7 +3639,7 @@
         "source": "TTES",
         "items": 5,
         "gates": 1,
-        "done": 4
+        "done": 3
       },
       {
         "phase": "TTES · TTES-030 — Shell and journeys",
@@ -3787,7 +3787,7 @@
     },
     {
       "name": "end to end",
-      "files": 55,
+      "files": 54,
       "what": "real browser"
     }
   ]

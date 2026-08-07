@@ -29,9 +29,9 @@ by_prefix:
   WRK: 88
 by_status:
   BLOCKED_EXTERNAL: 13
-  FAIL: 1835
+  FAIL: 1836
   NOT_APPLICABLE: 1
-  PASS: 197
+  PASS: 196
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -17466,7 +17466,7 @@ requirements:
     prefix: TTES
     source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
     section: "TTES-020 — Components and patterns"
-    status: PASS
+    status: FAIL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/tenant-experience-execution-ledger.md"

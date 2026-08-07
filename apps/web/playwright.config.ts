@@ -101,8 +101,18 @@ export default defineConfig({
    * baselines are committed: CI (ubuntu) would find no `-linux` file next to a
    * developer's `-win32` one and fail with "A snapshot doesn't exist" on every
    * cell, for every change, forever. Pinning the path is one half of the answer
-   * and `visual-baselines.spec.ts` skipping off-platform is the other — see its
-   * header for how to regenerate them in the container.
+   * and `visual-baselines.spec.ts` skipping off-platform is the other.
+   *
+   * THE SPEC IS NOT IN THE TREE RIGHT NOW, and this configuration is kept for
+   * the one that restores it. It shipped in `db95980` with an empty
+   * `__screenshots__` directory and failed 37/37 on its first CI run, because a
+   * screenshot suite with no reference images cannot pass anywhere. It is
+   * withdrawn rather than deleted — the design is sound and the commit holds it
+   * — and TTES-020-004 is FAIL with the blocker measured: capturing the
+   * baselines needs Linux, and from a Windows host every route into a container
+   * either cannot reach the app's loopback or requires weakening the
+   * `NEXTAUTH_URL` https-or-loopback guard in `src/lib/env.ts:176` to do it.
+   * Restore both together: the PNGs and the spec, never one without the other.
    */
   snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}",
   projects: [
@@ -111,7 +121,8 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       // The visual matrix drives its own viewports and colour schemes; running
       // it here as well would double every screenshot under a second project
-      // name and a second set of baselines.
+      // name and a second set of baselines. Harmless while the spec is absent,
+      // and correct again the moment it returns.
       testIgnore: /visual-baselines\.spec\.ts/,
     },
     {

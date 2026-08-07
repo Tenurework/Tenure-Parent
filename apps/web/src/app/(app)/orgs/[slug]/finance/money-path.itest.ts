@@ -155,6 +155,11 @@ beforeAll(async () => {
       await db.receiptAllocation.deleteMany({ where: { organizationId: { in: ids } } })
       await db.approvalRequest.deleteMany({ where: { organizationId: { in: ids } } })
       await db.budgetLine.deleteMany({ where: { organizationId: { in: ids } } })
+      await db.budget.deleteMany({ where: { organizationId: { in: ids } } })
+      // Vendors point at the organization with `onDelete: Restrict`, so the
+      // organization delete below aborts on `Vendor_organizationId_fkey` while
+      // any survive. Ordered after the ledger, which points at the vendor.
+      await db.vendor.deleteMany({ where: { organizationId: { in: ids } } })
       await db.roleAssignment.deleteMany({ where: { role: { organizationId: { in: ids } } } })
       await db.seat.deleteMany({ where: { organizationId: { in: ids } } })
       await db.role.deleteMany({ where: { organizationId: { in: ids } } })

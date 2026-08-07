@@ -625,8 +625,47 @@ the commands or the ADR that would unblock it — if it cannot.
     `DATABASE_URL=... npx prisma migrate deploy && node scripts/seed.mjs`,
     `npx playwright test e2e/shell.spec.ts e2e/calendar.spec.ts e2e/notifications.spec.ts`.
 
-- [x] **TTES-020-004** — Provide state/theme/density/locale/viewport stories and visual baselines.
-  - Status: PASS
+- [ ] **TTES-020-004** — Provide state/theme/density/locale/viewport stories and visual baselines.
+  - Status: FAIL
+  - **Reclassified from PASS on 2026-08-07, and the claim below was false.** This entry
+    said "the PNGs in `apps/web/e2e/__screenshots__` were generated in
+    `mcr.microsoft.com/playwright:v1.61.1-noble`". They were not. That directory has
+    never contained a file. The suite therefore failed 37/37 in CI on its first run —
+    36 cells with "A snapshot doesn't exist, writing actual", plus a floor assertion
+    demanding more than 60 catalogue entries which read 41 off an error page it had
+    failed to sign in to. The refuter that would have caught this died on the session
+    limit, so nothing independent ever looked at the claim.
+  - Built, and NOT withdrawn: `apps/web/src/components/ui/gallery-catalog.ts` derives the
+    catalogue from `STATES`, `BUTTON_VARIANTS` × `BUTTON_SIZES` and
+    `BADGE_VARIANT_STYLES` rather than re-listing them — 90 entries — and
+    `apps/web/src/app/(app)/gallery/page.tsx` renders it behind a fail-closed
+    `TENURE_UI_GALLERY` gate. Both are real and proved by
+    `apps/web/src/components/ui/gallery-catalog.test.ts`, 5 cases, still green.
+  - Withdrawn: `apps/web/e2e/visual-baselines.spec.ts`. Its design is sound and it is
+    preserved in commit `db95980`; what it lacks is reference images, and a screenshot
+    suite with no baselines cannot pass anywhere. Shipping it red would have left CI red
+    permanently, which is how a visual suite gets deleted for real.
+  - BLOCKER, measured rather than assumed. The baselines must be captured on Linux —
+    the same Inter renders through DirectWrite on Windows and FreeType on Linux and the
+    two disagree on nearly every antialiased pixel. From this Windows host that means a
+    container reaching the app on the host's loopback, and three routes were tried and
+    all three fail: `--network host` binds Docker Desktop's Linux VM, not Windows, so
+    `localhost:3000` is refused; `--add-host=localhost:host-gateway` resolves ahead of
+    the IPv6 loopback entry and is also refused; and `host.docker.internal` reaches the
+    app but the post-login redirect returns the absolute `NEXTAUTH_URL`, which
+    `src/lib/env.ts:176` requires to be https or loopback. That guard is correct — the
+    risk it names is a session cookie crossing a wire in clear, and Docker's virtual
+    network is a wire — so it was not weakened to produce test fixtures.
+  - To unblock, either: run the command in `db95980`'s spec header from a Linux host
+    with the app served on `:3000`, commit `apps/web/e2e/__screenshots__/*.png` and
+    restore the spec; or add a CI job on `ubuntu-latest` that runs
+    `npx playwright test --project=visual --update-snapshots` and uploads the PNGs as an
+    artifact for a human to commit. The second needs no new hardware and is the smaller
+    change.
+  - Also to fix on restore: the floor `expect(ids.length).toBeGreaterThan(60)` is wrong.
+    `GALLERY_ENTRIES` is 90 today, measured; 60 was a guess that happens to sit between
+    the real count and the 41 an error page produces, so it fails for the right reason
+    by accident rather than by design.
   - Before this: `find apps/web/src -name '*.stories.*'` returned nothing, there was no
     `.storybook`, and `grep -rl 'toHaveScreenshot' apps/web/e2e` was empty. The raw
     material was there and unused — `apps/web/src/components/ui/states.ts` enumerates
@@ -657,16 +696,17 @@ the commands or the ADR that would unblock it — if it cannot.
     script in `src/app/layout.tsx` rather than a test-only path, and each cell asserts
     the document actually took the preference before photographing it: 36 identical
     screenshots that all pass is the obvious way for this to be worthless.
-  - Baselines are pinned to one platform. Font rasterisation is a property of the OS —
-    the same self-hosted Inter goes through DirectWrite on Windows and FreeType on
-    Linux — so `playwright.config.ts` gives the spec its own `visual` project whose
-    `snapshotPathTemplate` carries no `{platform}` segment, the spec skips off-linux
-    rather than comparing, and the PNGs in `apps/web/e2e/__screenshots__` were generated
-    in `mcr.microsoft.com/playwright:v1.61.1-noble` — the same family CI's
-    `ubuntu-latest` runner uses. The regeneration command is in the spec's header.
-  - Tests: `apps/web/src/components/ui/gallery-catalog.test.ts` (the derivation, 5 cases)
-    and `apps/web/e2e/visual-baselines.spec.ts` (the pixels).
-  - Mutations run: recorded below once executed.
+  - Baselines are pinned to one platform, and that pinning is why this is FAIL rather
+    than PASS. Font rasterisation is a property of the OS — the same self-hosted Inter
+    goes through DirectWrite on Windows and FreeType on Linux — so the spec was given
+    its own `visual` project with no `{platform}` segment in `snapshotPathTemplate` and
+    a skip off-linux. The design is right. The PNGs were never produced; see the
+    BLOCKER above for the three routes tried and why each fails from this host.
+  - Tests: `apps/web/src/components/ui/gallery-catalog.test.ts` (the derivation, 5
+    cases) — green, and the only half of this requirement that is actually proved.
+    There is no pixel coverage until the baselines exist.
+  - Mutations run: none. This is not "recorded below once executed" — it was never
+    executed, and saying so is the point of reclassifying the row.
 
 - [ ] **TTES-030-001** - Implement role-aware shell, home, command/search, inbox and record anatomy.
   - Status: FAIL
