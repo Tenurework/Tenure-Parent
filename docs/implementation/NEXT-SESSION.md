@@ -139,14 +139,15 @@ Both cost the same. One produced a domain.
 2. **Check the window before launching.** A run needs ~4M tokens end to end. If
    you cannot be confident of that much, do not start one — start the smaller
    piece of work instead. There is always some.
-3. **Persist the survey.** The single highest-value change to
-   `cluster-workflow.mjs` is writing the survey pool to
-   `tools/loop/surveyed-<domain>.json` before the implement phase begins. Then a
-   death costs the implementation only, and the next session resumes from paid-for
-   findings — which is exactly what `harvested-queue.json` already is for GE.
-   Until that lands, every killed run pays for its survey twice.
-4. **`resumeFromRunId` replays completed agents from cache.** The three dead runs
-   are resumable — their run ids are in §2.3. Resuming re-uses the surveys.
+3. **The survey is now persisted — this is DONE** (`4c7f3b9`). Each surveyor
+   writes its slice to `tools/loop/surveyed-<domain>-<n>.json` before the implement
+   phase begins, and a cheap agent replays those files on the next run instead of
+   re-surveying. A death now costs the implementation only. `freshSurvey: true`
+   re-buys a survey when the code has moved far enough to distrust old findings.
+4. **`resumeFromRunId` will NOT save a run from a previous session.** It is
+   same-session only, and no transcript survives the session anyway — see §2.4,
+   where this was believed and was false. Disk is the only thing that outlives a
+   session, which is why (3) writes to the repository rather than to a cache.
 
 A cluster agent that dies mid-edit leaves the tree **broken, not empty**. One of
 these left `packages/configuration/src/definition.ts` with `price` and `ui` made
@@ -256,10 +257,11 @@ from where the work actually is.
 | `722a3c9` | Cluster-workflow rules: type widening, producer mutation, run the e2e | green |
 | `64e10c0` | This file: measured cluster cost, real baselines | green |
 
-### 2.4 THREE RESUMABLE RUNS — their surveys are paid for
+### 2.4 THE THREE KILLED RUNS ARE NOT RESUMABLE — their surveys are gone
 
-Killed by the quota, surveys complete, implementation not started. Resuming
-replays the surveyors from cache and costs only the implement+refute phases:
+**Corrected 2026-08-07 (third session). The previous version of this section said
+these three runs were resumable and their surveys paid for. Both halves are
+false, and acting on it would have bought nothing at full price.**
 
 ```
 CFG  wf_3433d090-a1c   declarative-configurator   79 requirements
@@ -267,14 +269,26 @@ WRK  wf_1607725c-3a6   universal-work-graph       88 requirements
 PAY  wf_c59c18fa-cc9   payments-treasury         224 requirements
 ```
 
+`resumeFromRunId` is **same-session only** — the tool contract says so, and these
+ids belong to a session that ended. Nor is there anything left on disk to replay:
+
 ```bash
-Workflow({scriptPath: 'tools/loop/cluster-workflow.mjs',
-          resumeFromRunId: 'wf_3433d090-a1c', args: <the same args>})
+find "$LOCALAPPDATA/Temp/claude" -name journal.jsonl -o -name 'agent-*.jsonl'
 ```
 
-The args must be **byte-identical** or the cache misses and the survey is paid
-for twice. They are recorded in each run's task notification and in
-`<transcriptDir>/journal.jsonl`. **Resume one at a time** (§1.2b).
+returns nothing for any of the three. No transcript, no cache, no findings. The
+4.21M tokens bought exactly what the ledger shows: nothing.
+
+**The fix landed instead** (`4c7f3b9`). Surveyors now write their slice to
+`tools/loop/surveyed-<domain>-<n>.json` before the implement phase starts, and a
+cheap agent replays those files on the next run — so the survey survives the
+session, the machine, and the quota. Pass `freshSurvey: true` to re-buy one
+deliberately when the code has moved far enough that old findings should not be
+trusted. Nothing else needs the dead run ids; they are kept here only so the next
+session recognises them and does not try.
+
+The three focus strings below are the part that was genuinely worth keeping, and
+they are re-usable as-is.
 
 The three focus strings carried real, verified defects that are still open, so
 they are worth re-supplying even if you do not resume:
@@ -344,7 +358,8 @@ regardless. Only mutation caught it. Stand-ins must honour the query.
 
 | File | Purpose | Status |
 |---|---|---|
-| `tools/loop/cluster-workflow.mjs` | Survey a domain → implement in **clusters** (one agent, many requirements, owns its call sites) → adversarial refute | **Never completed a run. Use this.** |
+| `tools/loop/cluster-workflow.mjs` | Survey a domain → implement in **clusters** (one agent, many requirements, owns its call sites) → adversarial refute | **Proven: PACK, 17 confirmed. Survey now persists to disk. Use this.** |
+| `tools/loop/surveyed-<domain>-<n>.json` | A finished survey, written by the surveyors before implementation starts | Replayed automatically; the reason a killed run no longer pays twice |
 | `tools/loop/queue-workflow.mjs` | Implement pre-surveyed items 1:1 | Proven; 5 waves, 10 landed |
 | `tools/loop/domain-workflow.mjs` | Survey + implement one domain | Proven for survey |
 | `tools/loop/plan-waves.mjs` | Partition a queue into collision-free waves | Working |
