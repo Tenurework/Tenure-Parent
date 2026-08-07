@@ -18,6 +18,96 @@ export interface ScoredDoc extends SearchDoc {
   snippet: string
 }
 
+// ─── Read-time authorization (GE-062-004) ────────────────────────────────────
+
+/**
+ * The classification ladder, ordered least → most restrictive.
+ *
+ * `Document.sensitivity` and `MemoryRecord.sensitivity` have been in the schema
+ * (`@default("standard")`) since the baseline migration and were read by nothing
+ * — a classification label that no read path consults is a comment, not a
+ * control. This is the ladder those columns are ranked on.
+ */
+export const SENSITIVITY_LEVELS = ["standard", "restricted"] as const
+export type Sensitivity = (typeof SENSITIVITY_LEVELS)[number]
+
+/**
+ * Where a stored label sits on the ladder.
+ *
+ * The column is a free `String`, so it can hold something this ladder does not
+ * know — a label a future migration adds, or a typo. An unrecognised label is
+ * ranked at the **most restrictive** known level rather than waved through, so
+ * the failure mode of an unknown classification is that ordinary members stop
+ * seeing the row, not that everyone starts seeing it. Absent/empty means the
+ * schema default, `standard`.
+ */
+export function sensitivityRank(label: string | null | undefined): number {
+  if (label === null || label === undefined || label === "") return 0
+  const known = (SENSITIVITY_LEVELS as readonly string[]).indexOf(label)
+  return known === -1 ? SENSITIVITY_LEVELS.length - 1 : known
+}
+
+/** A row that has already come back from the database, before it is shown. */
+export interface RetrievedRow {
+  organizationId: string | null
+  /** Classification label, for the row types that carry one. */
+  sensitivity?: string | null
+  /**
+   * The person who filed the row, where the record has one. Approvals are the
+   * case: `/approvals/[id]` lets a submitter read their own request whether or
+   * not they can still see the club, and the corpus has to agree with the page
+   * it links to.
+   */
+  ownerId?: string | null
+}
+
+/** What the caller may read, resolved once per request. */
+export interface RetrievalVisibility {
+  viewerId: string
+  /** Orgs the caller may see at all. */
+  visibleOrgIds: ReadonlySet<string>
+  /**
+   * The highest sensitivity the caller may read **in each org**, which is not
+   * one number per caller: somebody can be the president of one club and an
+   * ordinary member of another, and a single ceiling would carry the first
+   * club's clearance into the second. An org absent from the map reads at
+   * `standard`. Required rather than optional so `tsc` enumerates every call
+   * site that has to answer the question.
+   */
+  clearanceByOrg: ReadonlyMap<string, Sensitivity>
+}
+
+/**
+ * Is this already-retrieved row allowed to reach this caller?
+ *
+ * Read-time authorization, applied **after** retrieval and independently of the
+ * `where` clause that fetched the row. The corpus that feeds `/search`,
+ * `/api/search` and the Tenure AI prompt previously re-checked exactly one of
+ * its five row types (memory, via `canSeeMemoryCard`) and trusted the query for
+ * the rest — so the approvals loop had no check at all, and a document's
+ * classification was never consulted by anything. A query predicate is not an
+ * authorization decision: it is one, in one place, and it stops being correct
+ * the moment somebody widens the `where`.
+ *
+ * Pure and database-free on purpose, so it is unit-testable without Postgres.
+ */
+export function authorizeRetrieved(
+  row: RetrievedRow,
+  visibility: RetrievalVisibility,
+): boolean {
+  const orgId = row.organizationId
+  const orgVisible = orgId !== null && visibility.visibleOrgIds.has(orgId)
+  const isOwner = row.ownerId != null && row.ownerId === visibility.viewerId
+  if (!orgVisible && !isOwner) return false
+
+  // Clearance is a property of the caller's standing *in that org*. Reading
+  // one's own row in an org that is no longer visible carries no elevation.
+  const ceiling =
+    (orgVisible && orgId !== null ? visibility.clearanceByOrg.get(orgId) : undefined) ??
+    "standard"
+  return sensitivityRank(row.sensitivity) <= sensitivityRank(ceiling)
+}
+
 export function tokenize(q: string): string[] {
   return q
     .toLowerCase()

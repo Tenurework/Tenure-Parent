@@ -256,7 +256,14 @@ export async function composeTenant(
                 ? `No cell serves ${manifest.region} in this environment.`
                 : placement.reason === "no-healthy-cell"
                   ? `Every cell in ${manifest.region} is degraded, upgrading or draining. Nothing to fix here — try again once the fleet is healthy.`
-                  : `Every cell in ${manifest.region} is at capacity.`,
+                  : placement.reason === "no-headroom"
+                    ? // Not the same problem as being full, and saying "at
+                      // capacity" for it would be a lie an operator can check:
+                      // they open the console, see 49 of 50, and stop believing
+                      // the next message too. The decision already carries the
+                      // accurate sentence and what to do about it.
+                      placement.admission.detail
+                    : `Every cell in ${manifest.region} is at capacity.`,
           },
         ],
       };

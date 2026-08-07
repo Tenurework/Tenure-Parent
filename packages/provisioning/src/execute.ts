@@ -19,12 +19,30 @@ import type { TenantState } from "./lifecycle";
  * that could also write to any tenant's rows is one credential away from being
  * the worst thing in the estate.
  *
- * So provisioning is a control plane. It computes, validates and signs a
- * **deployment manifest**: the exact system definition, with digests for the
- * configuration, the module set, the topology and the release. The cell reads
- * that and reconciles itself toward it. Everything up to and including the
- * signed artifact is done here, honestly and completely. The apply is the
+ * So provisioning is a control plane. It computes, validates and **digests** a
+ * **deployment manifest**: the exact system definition, with a named digest for
+ * the release, the configuration, the module set, the reserved resources, the
+ * migration target, the verification run and the artifact this one rolls back
+ * to. The cell reads that and reconciles itself toward it. The apply is the
  * cell's, and `CELL_APPLY` below says so rather than pretending otherwise.
+ *
+ * ── What the digest does and does not prove ────────────────────────────────
+ *
+ * This module used to say it *signed* that artifact. It does not, and saying so
+ * was the most dangerous sentence in the package: `digest` is an unkeyed
+ * SHA-256 over the body, there is no key anywhere in this package, and the
+ * cell's verifier (`verifyDigest`, apps/web/src/lib/provisioning/reconcile.ts)
+ * recomputes the same unkeyed hash. That proves the artifact was not altered by
+ * an *accident* of encoding or storage between here and there. It proves
+ * nothing whatever about who produced it: anyone able to POST to the cell can
+ * compute a matching digest over a body of their choosing.
+ *
+ * Origin is currently established by the shared secret on the reconcile
+ * endpoint — the transport, not the artifact — which is exactly the property a
+ * self-verifying artifact is supposed to remove the need for. A real signature
+ * (asymmetric, so the cell holds only a public key) needs a `signature` field
+ * checked in the cell's verifier and a key source in the Studio; neither exists,
+ * and until they do nothing here calls this artifact signed.
  *
  * ── Determinism ────────────────────────────────────────────────────────────
  *
@@ -256,21 +274,34 @@ export function executeStep(
 
     case "MIGRATING":
       // The boundary. Said plainly rather than reported as done.
+      //
+      // The digest is the migration TARGET, not the migrations: the engine has
+      // never read a migration file, because they live in the cell's build.
+      // What it can honestly publish is the schema version this artifact
+      // requires the cell to be at, bound to the tenant and to the manifest —
+      // which is precisely what the cell compares before applying anything.
       return {
         step: "cell-apply",
         state,
         ok: true,
+        digest: sha({
+          slug: manifest.slug,
+          manifestDigest: digestOf(manifest),
+          schemaVersion: ctx.schemaVersion(),
+        }),
         detail:
           "Handed to the cell. The engine does not write to a tenant's database — it publishes a " +
-          "signed deployment manifest and the cell reconciles toward it. The reconciler exists " +
-          "and is proven against a real database (apps/web/src/lib/provisioning): it verifies the " +
-          "digest with its own implementation, refuses across a schema boundary, and four " +
-          "concurrent runs produce exactly one institution, one account and one membership. The " +
-          "tenant is created and NOT yet served: this artifact carries `serving: false`, and " +
-          "`resolveTenantScope` in the cell drops an institution that is not serving, so no user " +
-          "can act in the tenant yet. What is NOT wired is the transport that carries the " +
-          "artifact from engine to cell; the manifest is produced and signed, and moving it is " +
-          "still an operator step.",
+          "deployment manifest whose digest covers every field, and the cell reconciles toward " +
+          "it. The reconciler exists and is proven against a real database " +
+          "(apps/web/src/lib/provisioning): it verifies the digest with its own implementation, " +
+          "refuses across a schema boundary, and four concurrent runs produce exactly one " +
+          "institution, one account and one membership. The tenant is created and NOT yet " +
+          "served: this artifact carries `serving: false`, and `resolveTenantScope` in the cell " +
+          "drops an institution that is not serving, so no user can act in the tenant yet. What " +
+          "is NOT wired is the transport that carries the artifact from engine to cell; the " +
+          "manifest is produced and digested, and moving it is still an operator step. Nor is " +
+          "its origin established: `digest` is an unkeyed digest, not a signature, so it proves " +
+          "the artifact arrived unaltered and proves nothing about who produced it.",
       };
 
     case "VERIFYING": {
@@ -306,6 +337,12 @@ export function executeStep(
         step: "verify",
         state,
         ok: checks.every((c) => c.ok),
+        // Digested over the OUTCOMES, not just the names, so "which checks ran"
+        // and "did they pass" are the same fact. A digest over the names alone
+        // would hash a clean verification and a failed one identically, and the
+        // deployment manifest would then cite a verification run that says
+        // nothing — the shape of evidence without the content.
+        digest: sha(checks.map((c) => [c.name, c.ok])),
         detail: checks.every((c) => c.ok)
           ? "Every pre-activation check passed."
           : "One or more checks failed; the tenant must not be routed.",
@@ -343,7 +380,12 @@ export function executeStep(
   }
 }
 
-/** The artifact a cell reconciles toward. GE-102-009. */
+/**
+ * The artifact a cell reconciles toward. GE-102-009.
+ *
+ * Not signed. `digest` is an unkeyed SHA-256 over every other field; see the
+ * note at the top of this file for what that does and does not establish.
+ */
 export interface DeploymentManifest {
   slug: string;
   manifestDigest: string;
@@ -354,7 +396,8 @@ export interface DeploymentManifest {
   /**
    * Every configuration key this tenant's resolved configuration actually sets.
    *
-   * Declared so a cell can refuse a key it does not implement.    * pins the DATABASE and says nothing about the config registry, so an engine
+   * Declared so a cell can refuse a key it does not implement. `schemaVersion`
+   * pins the DATABASE and says nothing about the config registry, so an engine
    * that gains a key and a cell that has not been rebuilt would otherwise agree
    * on the schema and silently disagree about the configuration — the setting
    * shows as published in the Studio and has no effect in the cell.
@@ -365,6 +408,55 @@ export interface DeploymentManifest {
   configKeys: readonly string[];
   /** Digest of every step's evidence, in order. */
   evidenceDigest: string;
+
+  // ── The named digests ─────────────────────────────────────────────────────
+  //
+  // `evidenceDigest` is a roll-up: it covers each step's digest, so it detects
+  // that *something* about the run changed and cannot say what. The evidence
+  // array itself never reaches a cell — the reconcile endpoint is given the
+  // manifest, a display name and an admin address, and nothing else — so
+  // without these fields a cell holding an artifact cannot answer "which
+  // reservation, which migration target, which verification run produced this?"
+  // at all. Each is named separately for the same reason CONFIGURING digests
+  // the configuration and the module set apart: a drifted configuration and a
+  // drifted verification are different incidents and should not share a hash.
+  //
+  // `null` means the engine did not state it, which is not the same as empty.
+  // The artifact published at CONFIGURING legitimately has no migration or
+  // verification digest yet — those steps have not run. The one published at
+  // ACTIVATING carries all of them.
+
+  /**
+   * The system definition this artifact deploys: blueprint, pinned module
+   * versions, configuration checksum and schema version, hashed together.
+   *
+   * Computed here rather than taken from `@tenure/releases`. That package's
+   * `checksumOfRelease` covers strictly more (blueprint VERSION, topology,
+   * policy ids) and nothing links a `SystemRelease` to a tenant manifest yet —
+   * so this is honestly "the release identity of this deployment", not that
+   * package's release id under a different name.
+   */
+  releaseDigest: string;
+  /** Digest the PROVISIONING step produced: what was reserved for this tenant. */
+  resourceDigest: string | null;
+  /** Digest the MIGRATING step produced: the schema target the cell must reach. */
+  migrationDigest: string | null;
+  /** Digest the VERIFYING step produced: which pre-activation checks ran, and their outcomes. */
+  testDigest: string | null;
+  /**
+   * The digest of the artifact this one supersedes — the one to re-publish to
+   * undo this deployment.
+   *
+   * Rollback is "publish the previous artifact again" (the same model
+   * `@tenure/releases` uses), and until this field existed the artifact did not
+   * say which artifact that is: a cell holding a manifest could not name what
+   * it was rolling back to, and neither could an incident review.
+   *
+   * `null` for a tenant's first deployment. It is also null whenever the caller
+   * does not supply `meta.previousDigest` — which the Studio does not yet do;
+   * see the note on `deploymentManifest` below.
+   */
+  rollbackDigest: string | null;
   /**
    * Whether the cell may serve this tenant to users yet.
    *
@@ -389,27 +481,67 @@ export interface DeploymentManifest {
 /**
  * Freeze everything the run produced into one citable artifact.
  *
- * `digest` covers every other field, so a cell can verify it received what the
- * engine published rather than trusting the transport.
+ * `digest` covers every other field, so a cell can tell that what it received
+ * is byte-for-byte what was published. It is unkeyed, so it cannot tell WHO
+ * published it — see the note at the top of this file. Nothing here signs.
+ *
+ * `meta.previousDigest` is the tenant's current artifact, which becomes this
+ * one's rollback target. It is optional because the Studio does not yet pass
+ * it: `apps/system-studio/src/app/tenants/actions.ts` already holds the value
+ * (`tenant.deployment`, read a few lines above the call) and simply does not
+ * forward it. Until it does, published artifacts carry `rollbackDigest: null`,
+ * which reads as "the engine did not state a rollback target" — true, rather
+ * than a chain that claims to exist and does not.
  */
 export function deploymentManifest(
   manifest: TenantManifest,
   evidence: readonly StepEvidence[],
   ctx: ExecutionContext,
-  meta: { createdAt: string; createdBy: string; serving: boolean },
+  meta: {
+    createdAt: string;
+    createdBy: string;
+    serving: boolean;
+    previousDigest?: string | null;
+  },
 ): DeploymentManifest {
   const config = ctx.resolveConfiguration(manifest);
   const modules = ctx.resolveModules(manifest);
+  const modulePins = modules.ordered.map((m) => `${m.key}@${m.version}`);
+
+  /**
+   * The LAST evidence for a state, not the first.
+   *
+   * A step can be retried — `advance` counts attempts precisely because it is —
+   * and the artifact must cite what the run finally produced, not what the
+   * attempt that failed produced.
+   */
+  const producedBy = (state: TenantState): string | null => {
+    let found: string | null = null;
+    for (const e of evidence) if (e.state === state) found = e.digest ?? null;
+    return found;
+  };
 
   const body = {
     slug: manifest.slug,
     manifestDigest: digestOf(manifest),
     configurationChecksum: config.checksum,
-    modules: modules.ordered.map((m) => `${m.key}@${m.version}`),
+    modules: modulePins,
     blueprintId: manifest.blueprintId,
     schemaVersion: ctx.schemaVersion(),
     configKeys: Object.keys(config.values).sort(),
     evidenceDigest: sha(evidence.map((e) => [e.step, e.ok, e.digest ?? null])),
+    // Sorted, so the same system assembled in a different order is the same
+    // release — the property `@tenure/releases` relies on for the same reason.
+    releaseDigest: sha({
+      blueprintId: manifest.blueprintId,
+      modules: [...modulePins].sort(),
+      configurationChecksum: config.checksum,
+      schemaVersion: ctx.schemaVersion(),
+    }),
+    resourceDigest: producedBy("PROVISIONING"),
+    migrationDigest: producedBy("MIGRATING"),
+    testDigest: producedBy("VERIFYING"),
+    rollbackDigest: meta.previousDigest ?? null,
     // Required, not defaulted. A caller that forgets which side of activation
     // this artifact represents would otherwise publish a serving tenant by
     // omission, and the omission is invisible in the diff.

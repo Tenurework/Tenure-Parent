@@ -1,15 +1,51 @@
 import { allowedModelIds, modelIsAllowed } from "@tenure/platform-config"
 import { cellContext } from "@/lib/cell-context"
+import { serviceAvailableHere } from "@/lib/partition-services"
 import type { ScoredDoc } from "@/lib/search"
+
+/** Partitions already reported, so the warning is an explanation and not a flood. */
+const announcedPartitions = new Set<string>()
 
 /**
  * Answer synthesis over retrieved, permission-filtered sources.
  * Uses the Anthropic API when ANTHROPIC_API_KEY is configured; otherwise
  * the caller falls back to showing cited sources without a prose answer.
  * The model only ever sees content the requesting user is allowed to see.
+ *
+ * ## Two facts, not one (GE-010-007)
+ *
+ * A key being set says an operator configured a vendor. It does not say this
+ * cell can reach that vendor. `api.anthropic.com` is a public-internet SaaS
+ * endpoint and is not part of the GovCloud or China partitions, so a cell
+ * running in either would — on the strength of the key alone — have posted
+ * tenant content across the partition boundary its operator chose it to stay
+ * inside. That is a silent failure: nothing errors, and the answer comes back.
+ *
+ * Returning false rather than throwing is deliberate. Both routes that gate on
+ * this already degrade honestly — `/api/ai/chat` returns the ranked sources
+ * without prose, `/api/ai/draft` returns 503 — so an unsupported partition
+ * lands on the same well-trodden path as an unconfigured key, rather than on a
+ * 500 nobody has a runbook for. The console line is what tells the operator
+ * which of the two it was.
  */
 export function aiConfigured(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY
+  if (!process.env.ANTHROPIC_API_KEY) return false
+
+  if (!serviceAvailableHere("anthropic-public-api")) {
+    const { partition } = cellContext()
+    if (!announcedPartitions.has(partition)) {
+      announcedPartitions.add(partition)
+      console.warn(
+        `[ai] ANTHROPIC_API_KEY is set, but api.anthropic.com is not available in the ` +
+          `"${partition}" partition this cell runs in. The assistant is off here and search ` +
+          `returns sources without a written answer. This is not a misconfiguration to fix by ` +
+          `setting another variable — the endpoint is outside the partition.`,
+      )
+    }
+    return false
+  }
+
+  return true
 }
 
 

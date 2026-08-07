@@ -20,7 +20,13 @@ import fs from 'node:fs'
 import { execFileSync } from 'node:child_process'
 
 /** Lower this as writes move to `@tenure/audit`. Never raise it. */
-const RAW_WRITE_CEILING = 34
+// 34 -> 32 on 2026-08-07. `apps/web/src/lib/calendar-write.ts` now builds its
+// two conflict records through `buildAuditRecord`, so the file counts as
+// via-package and its writes leave the raw tally. Lowered, never raised: two
+// NEW conflict-audit writes had pushed the real count to 36, and widening the
+// ceiling to admit them would have been weakening the guard to make the build
+// pass — the writes were converted instead.
+const RAW_WRITE_CEILING = 32
 
 const SOURCE_GLOBS = ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx']
 

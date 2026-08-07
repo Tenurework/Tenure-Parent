@@ -37,8 +37,8 @@ documents:
     family: "subsystem-paths"
     superseded_by: null
     supersedes: []
-    sha256: "43c56d5e31963dd673e174150634e80e0babd03d65cc8495c81fe429a8395032"
-    bytes: 12140
+    sha256: "4fa993860ac4c685fadb9d2cf8baa5fbb330bf972e3f135e360bf5579f332ccc"
+    bytes: 12359
     aliases: []
     requirement_prefixes:
       - GE
@@ -173,7 +173,7 @@ documents:
     family: Tenure_Claude_Code_Global_Engine_Execution_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: "3fba33cca362f752afba1f36de4b9705149dfa19ab3900bdb6455f3d6ba9be7d"
+    sha256: "5d46f0667c58146c95e31159f47db0035752677f1408d38a981d02b4aded2362"
     bytes: 115086
     aliases: []
     requirement_prefixes:
@@ -188,7 +188,7 @@ documents:
     family: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: e646fa2b01a9b33a8a003401a60c02b846025e5937a5b2ef267e748a68b71d22
+    sha256: d6bfde6609dfc0a71eaa7ed851d6501bdd1dc838b2ca8bcc7f6ed8c022b80724
     bytes: 162330
     aliases: []
     requirement_prefixes:

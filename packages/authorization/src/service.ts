@@ -30,6 +30,36 @@ import { relationshipProblems } from "./relationships"
  * answer. Working out which boundaries actually matter is the same reasoning as
  * the decision itself, done twice, and the second copy is the one that goes
  * wrong quietly.
+ *
+ * ## GE-053-006 — a revocation is not a date change
+ *
+ * The horizon above bounds a decision by the *dated* facts it rested on, and
+ * that is the whole answer only while every way authority ends is a date. It is
+ * not. Deleting a role assignment, ending a membership out of band, withdrawing
+ * a delegation and rewriting a policy all remove authority without moving any
+ * `effectiveTo` the cache has already read — so a decision taken a second before
+ * the revocation carries `validUntil: null` and keeps answering ALLOW until it
+ * is evicted for being old.
+ *
+ * `revision()` covers one half of that: configuration. It does not cover the
+ * other half, which is the per-principal facts — this person's memberships,
+ * grants and delegations — because bumping a global revision on every role
+ * change would void every decision in the tenant to revoke one.
+ *
+ * So there is a second stamp, `subjectRevision()`, read on every call exactly as
+ * `revision()` is, and folded into the cache key. A bumped stamp is therefore a
+ * **structural miss** rather than a hoped-for eviction: the old entry is not
+ * consulted because the key is not the key any more. And because a miss under a
+ * new stamp also drops that principal's entries recorded under the old one, the
+ * revocation reclaims the space instead of leaving dead entries to push live
+ * ones out of a bounded cache.
+ *
+ * The stamp is supplied by the caller and is deliberately **not** defined here.
+ * REVIEW-FINDINGS §14 is explicit that the platform's per-membership
+ * `authz_version` fan-out "is never specified", so this package does not pretend
+ * to read a column that no migration creates. What it does is refuse to make
+ * revocation depend on a date: it names the seam, reads it on every call, and
+ * fails to a stable stamp when no source is wired.
  */
 
 /**
@@ -60,6 +90,24 @@ export interface DecisionCache {
   set(key: string, value: CachedDecision): void
   /** Everything, because a revision change voids everything. */
   clear(): void
+  /**
+   * Drop one entry.
+   *
+   * Needed because a revocation is narrower than a revision change: it voids
+   * one principal's remembered decisions and must leave every other principal's
+   * alone. `clear()` on a role edit would be correct and useless — it turns
+   * every revocation in the tenant into a full cold start.
+   */
+  delete(key: string): void
+  /**
+   * The keys currently held.
+   *
+   * A targeted invalidation has to be able to find its own entries, and the
+   * only thing that identifies them is the key. Exposed as an iterable rather
+   * than an array so an implementation backed by something other than a Map
+   * does not have to materialise the whole keyspace.
+   */
+  keys(): Iterable<string>
   readonly size: number
 }
 
@@ -88,10 +136,44 @@ export function memoryCache(maxEntries = 5000): DecisionCache {
       }
     },
     clear: () => entries.clear(),
+    delete: (key) => {
+      entries.delete(key)
+    },
+    keys: () => entries.keys(),
     get size() {
       return entries.size
     },
   }
+}
+
+const SEPARATOR = "|"
+
+/**
+ * One field of the key.
+ *
+ * Percent-encoded, which for this purpose means one thing: the separator cannot
+ * appear inside a field. That is not tidiness — `invalidatePrincipal` finds a
+ * principal's entries by matching the head of the key, so with raw fields a
+ * principal literally called `dana|finance.budget.read` would sit under a key
+ * indistinguishable from dana's, and revoking one would silently revoke or spare
+ * the other depending on which way the prefix happened to fall. Encoding makes
+ * the format injective, which is what makes prefix matching a fact rather than a
+ * guess.
+ */
+const field = (value: string): string => encodeURIComponent(value)
+
+/**
+ * The head of every key for one principal in one tenant, separator included.
+ *
+ * **This is a documented, load-bearing part of the key format.** Every key
+ * produced by `decisionKey` begins with it, no key for any other
+ * (tenant, principal) pair does, and `invalidatePrincipal` relies on both halves
+ * of that. Reordering `decisionKey`'s fields without changing this function
+ * would turn targeted invalidation into a no-op that still returns a plausible
+ * count, which is the failure mode worth being loud about.
+ */
+export function decisionKeyPrefix(tenantId: string, principalId: string): string {
+  return `${field(tenantId)}${SEPARATOR}${field(principalId)}${SEPARATOR}`
 }
 
 /**
@@ -103,18 +185,62 @@ export function memoryCache(maxEntries = 5000): DecisionCache {
  * request from a stepped-up session and an ordinary one are different
  * questions, and sharing a key between them is how a step-up requirement is
  * satisfied once and then never again.
+ *
+ * `subjectRevision` (GE-053-006) is the stamp on the principal's own authority
+ * facts, and it sits immediately after the tenant/principal prefix so that a
+ * prefix match finds a principal's entries under *every* stamp they have ever
+ * held. Absent, it is a constant, and the key is what it always was plus one
+ * fixed field: a service with no stamp source behaves exactly as before rather
+ * than pretending to a protection it does not have.
  */
-export function decisionKey(request: AuthorizationRequest): string {
-  return [
-    request.tenantId,
-    request.principalId,
-    request.permission,
-    request.resource?.id ?? "-",
-    request.resource?.orgUnitId ?? "-",
-    request.resource?.createdByPrincipalId ?? "-",
-    request.session?.level ?? "-",
-    request.session?.establishedAt ?? "-",
-  ].join("|")
+export function decisionKey(
+  request: AuthorizationRequest,
+  subjectRevision?: string | null,
+): string {
+  return (
+    decisionKeyPrefix(request.tenantId, request.principalId) +
+    [
+      subjectRevision ?? "-",
+      request.permission,
+      request.resource?.id ?? "-",
+      request.resource?.orgUnitId ?? "-",
+      request.resource?.createdByPrincipalId ?? "-",
+      request.session?.level ?? "-",
+      request.session?.establishedAt ?? "-",
+    ]
+      .map(field)
+      .join(SEPARATOR)
+  )
+}
+
+/**
+ * The subject stamp a key was recorded under, or `null` if the key is not this
+ * principal's. The inverse of the field order documented above.
+ */
+function stampOf(key: string, prefix: string): string | null {
+  if (!key.startsWith(prefix)) return null
+  const rest = key.slice(prefix.length)
+  const end = rest.indexOf(SEPARATOR)
+  return end === -1 ? rest : rest.slice(0, end)
+}
+
+/**
+ * Drop one principal's entries, optionally sparing those under one stamp.
+ *
+ * Keys are collected before anything is deleted. Deleting while iterating a Map
+ * happens to be safe in JavaScript, but `DecisionCache` is an interface and the
+ * next implementation of it is not obliged to be a Map.
+ */
+function dropPrincipal(cache: DecisionCache, prefix: string, spare: string | null): number {
+  const doomed: string[] = []
+  for (const key of cache.keys()) {
+    const stamp = stampOf(key, prefix)
+    if (stamp === null) continue
+    if (spare !== null && stamp === spare) continue
+    doomed.push(key)
+  }
+  for (const key of doomed) cache.delete(key)
+  return doomed.length
 }
 
 const parse = (iso: ISODate | null | undefined): number | null => {
@@ -212,12 +338,34 @@ export interface AuthorizationServiceOptions {
   worldFor: (request: AuthorizationRequest) => AuthorizationWorld
   /** The revision the current configuration is at. Read on every call. */
   revision: () => PolicyRevision
+  /**
+   * GE-053-006 — the stamp on this principal's own authority facts, read on
+   * **every** call, hit or miss, exactly as `revision()` is.
+   *
+   * Any opaque string that changes when this principal's memberships, role
+   * assignments or delegations change. It is compared for equality and never
+   * ordered or parsed, so a monotonic counter, the `updatedAt` of the newest
+   * row, or a hash of the set all work equally well.
+   *
+   * Omitting it is legal and leaves the cache bounded by dates and the global
+   * revision alone — which is to say, blind to revocation. It is optional
+   * because REVIEW-FINDINGS §14 records that the platform has no per-principal
+   * stamp specified yet, and a required option nobody can satisfy would be
+   * satisfied with a lie.
+   */
+  subjectRevision?: (request: AuthorizationRequest) => string
   cache?: DecisionCache
 }
 
 export interface ServiceDecision extends Decision {
   /** The revision it was decided under. Recorded so an audit can be replayed. */
   revision: string
+  /**
+   * The subject stamp it was decided under, or `null` if no source is wired.
+   * Recorded for the same reason as `revision`: "why was this allowed on
+   * Tuesday" is answerable only if the answer names every input.
+   */
+  subjectRevision: string | null
   /** When it stops being trustworthy. */
   validUntil: ISODate | null
   /** Whether this came from the cache. For metrics and for tests. */
@@ -228,6 +376,17 @@ export interface AuthorizationService {
   authorize(request: AuthorizationRequest): ServiceDecision
   /** Drop everything. Called when configuration changes out of band. */
   invalidate(): void
+  /**
+   * GE-053-006 — drop one principal's remembered decisions in this tenant, and
+   * nobody else's. Returns how many entries went, so a caller that expected to
+   * revoke something can tell it revoked nothing.
+   *
+   * The out-of-band door for a revocation that is known at the moment it
+   * happens. The in-band one is `subjectRevision`, which needs no notification
+   * to reach a machine that was not listening — this is the same eviction,
+   * reached the other way.
+   */
+  invalidatePrincipal(tenantId: string, principalId: string): number
   readonly cacheSize: number
 }
 
@@ -256,15 +415,40 @@ export function authorizationService(
       }
       lastRevision = revision.id
 
-      const key = decisionKey(request)
+      // GE-053-006. Read on every call, hit or miss, for the same reason
+      // `revision()` is: a stamp captured once is a revocation that never
+      // arrives. It goes into the key rather than being compared against
+      // something remembered, so a bumped stamp cannot be *missed* — the old
+      // entry is not consulted, because its key is no longer the key.
+      const stamp = options.subjectRevision?.(request) ?? null
+      const key = decisionKey(request, stamp)
       const hit = cache.get(key)
       if (hit && hit.revision === revision.id && stillValid(hit, request.at)) {
-        return { ...hit.decision, revision: hit.revision, validUntil: hit.validUntil, cached: true }
+        return {
+          ...hit.decision,
+          revision: hit.revision,
+          subjectRevision: stamp,
+          validUntil: hit.validUntil,
+          cached: true,
+        }
       }
 
       const world = options.worldFor(request)
       const decision = decide(world, request)
       const horizon = validUntil(world, request)
+
+      if (stamp !== null) {
+        // The entries this principal holds under any *other* stamp are dead:
+        // their facts have been superseded and no future key will name them.
+        // Leaving them to age out would be correct and still wrong — the cache
+        // is bounded, so dead entries evict live ones, and a principal whose
+        // roles change often would quietly starve everyone else's.
+        //
+        // Skipped entirely when no stamp source is wired: there is then exactly
+        // one stamp in play, nothing is ever superseded, and this would be a
+        // full scan of the cache on every miss to delete nothing.
+        dropPrincipal(cache, decisionKeyPrefix(request.tenantId, request.principalId), stamp)
+      }
 
       // A denial is cached like an allowance. Not caching denials sounds
       // cautious and is the opposite: an unauthorized caller in a retry loop
@@ -272,10 +456,19 @@ export function authorizationService(
       // service the authorization layer performs on itself.
       cache.set(key, { decision, revision: revision.id, validUntil: horizon })
 
-      return { ...decision, revision: revision.id, validUntil: horizon, cached: false }
+      return {
+        ...decision,
+        revision: revision.id,
+        subjectRevision: stamp,
+        validUntil: horizon,
+        cached: false,
+      }
     },
     invalidate() {
       cache.clear()
+    },
+    invalidatePrincipal(tenantId, principalId) {
+      return dropPrincipal(cache, decisionKeyPrefix(tenantId, principalId), null)
     },
     get cacheSize() {
       return cache.size

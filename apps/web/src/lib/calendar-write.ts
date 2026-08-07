@@ -1,7 +1,15 @@
 import "server-only"
 import type { Prisma } from "@prisma/client"
+import { buildAuditRecord } from "@tenure/audit"
 import { db } from "@/lib/db"
-import { detectConflicts } from "@/lib/calendar"
+import { detectConflicts, isBlockingConflict, type ConflictRule, type DetectedConflict } from "@/lib/calendar"
+import {
+  decideConflictOutcome,
+  EVENT_OVERRIDE_CAPABILITY,
+  type ConflictDecision,
+  type ConflictOverrideRequest,
+} from "@/lib/calendar-conflict-policy"
+import { hasCapability } from "@/lib/admin/capabilities"
 import { getUserContext, isOse, type UserContext } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
 import { institutionTimeZone } from "@/lib/institution-time"
@@ -12,10 +20,13 @@ import { notifyUsers, orgPresidentIds } from "@/lib/notify"
  * Writes that the calendar grid performs directly — rescheduling and editing an
  * event in place, rather than sending the officer to a form.
  *
- * Every path here re-runs conflict detection. A calendar you can drag on is
- * only safe if moving an event re-checks the venue and double-booking rules
- * that gated it at proposal time; otherwise drag-and-drop becomes a way to
- * quietly bypass approval controls.
+ * Every path here re-runs conflict detection BEFORE it writes, and puts the
+ * result through `decideConflictOutcome`. A calendar you can drag on is only
+ * safe if moving an event re-checks the venue and double-booking rules that
+ * gated it at proposal time — and only actually safe if a rule that fires can
+ * refuse the write. Detecting afterwards and notifying about it left drag-and-
+ * drop as a way around the gate: the row was already updated by the time
+ * anybody was told.
  */
 
 export interface EditableEvent {
@@ -170,8 +181,7 @@ async function requireEditable(userId: string, eventId: string): Promise<Guarded
   return { event, ctx }
 }
 
-/** Re-run conflict detection for an event's new time and persist the result. */
-async function recheckConflicts(event: {
+interface ProposedEvent {
   id: string
   institutionId: string
   organizationId: string
@@ -179,7 +189,16 @@ async function recheckConflicts(event: {
   startAt: Date
   endAt: Date
   venue: string | null
-}) {
+}
+
+/**
+ * Run conflict detection for an event's PROPOSED shape, writing nothing.
+ *
+ * Read-only on purpose: the gate below asks this question about a time or venue
+ * that may never be written, and persisting conflicts for a rejected proposal
+ * would leave the calendar advertising a clash that does not exist.
+ */
+async function evaluateConflicts(event: ProposedEvent): Promise<DetectedConflict[]> {
   const existing = await db.event.findMany({
     where: {
       institutionId: event.institutionId,
@@ -197,15 +216,21 @@ async function recheckConflicts(event: {
       venue: true,
     },
   })
-  const conflicts = detectConflicts(event, existing)
+  return detectConflicts(event, existing)
+}
+
+/** Replace an event's stored conflicts once the write it belongs to has landed. */
+async function persistConflicts(eventId: string, conflicts: DetectedConflict[]) {
+  const byRule: Partial<Record<ConflictRule, number>> = {}
+  for (const c of conflicts) byRule[c.rule] = (byRule[c.rule] ?? 0) + 1
 
   await db.$transaction([
-    db.conflictRecord.deleteMany({ where: { eventId: event.id } }),
+    db.conflictRecord.deleteMany({ where: { eventId } }),
     ...(conflicts.length
       ? [
           db.conflictRecord.createMany({
             data: conflicts.map((c) => ({
-              eventId: event.id,
+              eventId,
               conflictWithEventId: c.conflictWithEventId,
               severity: c.severity,
               reason: c.reason,
@@ -214,18 +239,157 @@ async function recheckConflicts(event: {
         ]
       : []),
     db.event.update({
-      where: { id: event.id },
+      where: { id: eventId },
       data: {
         conflictSummary: {
           hard: conflicts.filter((c) => c.severity === "HARD").length,
           soft: conflicts.filter((c) => c.severity === "SOFT").length,
           informational: conflicts.filter((c) => c.severity === "INFORMATIONAL").length,
+          // Which rules fired, not just how many — the ConflictRecord table has
+          // no rule column, so this is where the named rule survives the write.
+          byRule,
         },
       },
     }),
   ])
+}
 
-  return conflicts
+/**
+ * The gate: detect, decide, and record the decision when it refuses.
+ *
+ * A refusal is itself a governed outcome, so it is audited here (`DENY`, with
+ * the rule ids and the code that refused) even though nothing was written —
+ * "the system stopped me" has to be answerable from the log, and a block that
+ * leaves no trace is indistinguishable from a request that was never made.
+ *
+ * The ALLOW side is deliberately NOT audited here: it must be recorded by the
+ * caller after its write succeeds, or the log would assert an override that a
+ * later failure rolled back.
+ */
+async function gateOnConflicts(args: {
+  proposed: ProposedEvent
+  ctx: UserContext
+  actorId: string
+  actorRole: string
+  attempted: "Event.Rescheduled" | "Event.Edited"
+  override: ConflictOverrideRequest | undefined
+}): Promise<{ conflicts: DetectedConflict[]; decision: ConflictDecision }> {
+  const conflicts = await evaluateConflicts(args.proposed)
+  const decision = decideConflictOutcome({
+    conflicts,
+    actorHasOverride: hasCapability(
+      args.ctx,
+      EVENT_OVERRIDE_CAPABILITY,
+      args.proposed.institutionId
+    ),
+    overrideRequested: args.override?.requested === true,
+    overrideReason: args.override?.reason ?? null,
+  })
+
+  if (!decision.allowed) {
+    await recordConflictDecision({
+      proposed: args.proposed,
+      actorId: args.actorId,
+      actorRole: args.actorRole,
+      action: "Event.ConflictBlocked",
+      outcome: "DENY",
+      reason: decision.explanation,
+      metadata: {
+          attempted: args.attempted,
+          code: decision.blocked?.code ?? null,
+          requiredCapability: decision.blocked?.requiredCapability ?? null,
+          rules: decision.blockedByRules,
+        conflicts: conflicts.filter(isBlockingConflict).map((c) => ({
+          rule: c.rule,
+          conflictWithEventId: c.conflictWithEventId,
+          reason: c.reason,
+        })),
+      },
+    })
+  }
+
+  return { conflicts, decision }
+}
+
+/**
+ * Persist a conflict decision through `@tenure/audit` instead of hand-building
+ * the row.
+ *
+ * `tests/security/audit-writes.test.mjs` holds a ratchet that may only shrink,
+ * and these two writes are new — so raising the ceiling to fit them would be
+ * weakening a guard to make a build pass. The guard is right on the merits too:
+ * the builder is what enforces that a DENY carries a reason, that the required
+ * fields are present, and that metadata is redacted before it is stored. A
+ * hand-built `data: {}` skips all three silently.
+ *
+ * The record is built unchained (no `sequence`), matching every other writer in
+ * this app today. That is a real gap and GE-063-001 owns it: an edit to this row
+ * is still caught by its own hash, but nothing proves a neighbour was not
+ * deleted.
+ */
+async function recordConflictDecision(input: {
+  proposed: ProposedEvent
+  actorId: string
+  actorRole: string
+  action: string
+  outcome: "ALLOW" | "DENY"
+  reason: string
+  metadata: Record<string, unknown>
+}) {
+  const record = buildAuditRecord({
+    tenantId: input.proposed.institutionId,
+    organizationId: input.proposed.organizationId ?? undefined,
+    actor: { principalId: input.actorId, role: input.actorRole },
+    action: input.action,
+    resourceType: "Event",
+    resourceId: input.proposed.id,
+    outcome: input.outcome,
+    reason: input.reason,
+    metadata: input.metadata,
+    occurredAt: new Date().toISOString(),
+  })
+
+  await db.auditEvent.create({
+    data: {
+      institutionId: record.tenantId,
+      organizationId: input.proposed.organizationId,
+      actorId: input.actorId,
+      actorRole: input.actorRole,
+      action: record.action,
+      resourceType: record.resourceType,
+      resourceId: record.resourceId ?? null,
+      outcome: record.outcome,
+      reason: record.reason ?? null,
+      metadata: (record.metadata ?? {}) as object,
+      occurredAt: new Date(record.occurredAt),
+    },
+  })
+}
+
+/** Record that a blocking conflict was consciously overridden by an authorized actor. */
+async function auditOverride(args: {
+  proposed: ProposedEvent
+  actorId: string
+  actorRole: string
+  attempted: "Event.Rescheduled" | "Event.Edited"
+  decision: ConflictDecision
+}) {
+  const override = args.decision.override
+  if (!override) return
+  await recordConflictDecision({
+    proposed: args.proposed,
+    actorId: args.actorId,
+    actorRole: args.actorRole,
+    action: "Event.ConflictOverridden",
+    outcome: "ALLOW",
+    reason: override.reason,
+    metadata: {
+      attempted: args.attempted,
+      rules: override.rules,
+      conflictWithEventIds: override.conflictWithEventIds,
+      capability: EVENT_OVERRIDE_CAPABILITY,
+    },
+  })
 }
 
 export interface RescheduleInput {
@@ -234,6 +398,12 @@ export interface RescheduleInput {
   /** Minutes from local midnight. */
   startMinute: number
   endMinute: number
+  /**
+   * An explicit override of a blocking conflict. Absent means "not requested",
+   * which is what every ordinary move sends — the gate refuses a HARD conflict
+   * unless this arrives AND the actor holds `event.override`.
+   */
+  override?: ConflictOverrideRequest
 }
 
 /**
@@ -250,7 +420,7 @@ export async function rescheduleEvent(
   return withTenantScope(userId, async () => {
     const found = await requireEditable(userId, eventId)
     if ("error" in found) return found
-    const { event } = found
+    const { event, ctx } = found
 
     if (!parseDateKey(input.date)) return { error: "That is not a valid date." }
     if (
@@ -291,9 +461,7 @@ export async function rescheduleEvent(
     if (endAt <= startAt) return { error: "The end time must be after the start time." }
 
     const before = { startAt: event.startAt, endAt: event.endAt }
-    await db.event.update({ where: { id: eventId }, data: { startAt, endAt } })
-
-    const conflicts = await recheckConflicts({
+    const proposed: ProposedEvent = {
       id: event.id,
       institutionId: event.institutionId,
       organizationId: event.organizationId,
@@ -301,9 +469,25 @@ export async function rescheduleEvent(
       startAt,
       endAt,
       venue: event.venue,
-    })
+    }
 
-    const hard = conflicts.filter((c) => c.severity === "HARD")
+    // Detect and DECIDE before the row moves. The old order wrote first and
+    // classified second, which made every hard conflict advisory by
+    // construction — there was nothing left to refuse.
+    const { conflicts, decision } = await gateOnConflicts({
+      proposed,
+      ctx,
+      actorId: userId,
+      actorRole: "Calendar",
+      attempted: "Event.Rescheduled",
+      override: input.override,
+    })
+    if (!decision.allowed) return { error: decision.explanation }
+
+    await db.event.update({ where: { id: eventId }, data: { startAt, endAt } })
+    await persistConflicts(event.id, conflicts)
+
+    const hard = conflicts.filter(isBlockingConflict)
     const when = formatInZone(startAt, tz, { dateStyle: "medium", timeStyle: "short" })
 
     await syncApprovalSnapshot(
@@ -334,16 +518,28 @@ export async function rescheduleEvent(
           to: { startAt: startAt.toISOString(), endAt: endAt.toISOString() },
           timeZone: tz,
           hardConflicts: hard.length,
+          overriddenRules: decision.override?.rules ?? [],
         },
       },
     })
 
-    // A move that creates a hard conflict is exactly what an approver needs to
-    // hear about — silence here would let drag-and-drop route around the gate.
+    await auditOverride({
+      proposed,
+      actorId: userId,
+      actorRole: "Calendar",
+      attempted: "Event.Rescheduled",
+      decision,
+    })
+
+    // Past the gate, a surviving hard conflict means somebody used their
+    // override authority — precisely the thing the club's presidents must hear
+    // about, and now with the reason attached rather than a bare warning.
     if (hard.length > 0) {
       await notifyUsers(await orgPresidentIds(event.organizationId), {
         title: `“${event.title}” was moved into a conflict`,
-        body: `Now ${when}. ${hard[0].reason}`,
+        body:
+          `Now ${when}. ${hard[0].reason}` +
+          (decision.override ? ` — overridden: ${decision.override.reason}` : ""),
         href: `/calendar/${event.id}`,
         excludeUserId: userId,
       })
@@ -366,6 +562,8 @@ export interface EventDetailsInput {
   title: string
   venue: string | null
   description: string | null
+  /** Same explicit-override contract as a reschedule. See `RescheduleInput`. */
+  override?: ConflictOverrideRequest
 }
 
 /** Edit an event's text fields in place from the inspector. */
@@ -377,7 +575,7 @@ export async function updateEventDetails(
   return withTenantScope(userId, async () => {
     const found = await requireEditable(userId, eventId)
     if ("error" in found) return found
-    const { event } = found
+    const { event, ctx } = found
 
     const title = input.title.trim()
     if (!title) return { error: "A title is required." }
@@ -386,21 +584,48 @@ export async function updateEventDetails(
     const venue = input.venue?.trim() || null
     const description = input.description?.trim() || null
 
+    // The venue is half of the hard-conflict rule, so a venue edit goes through
+    // the same gate a reschedule does. Typing a room into the inspector and
+    // dragging an event into that room are the same act; gating only one of
+    // them leaves the other as the way around it.
+    let decision: ConflictDecision | null = null
+    let conflicts: DetectedConflict[] = []
+    const proposed: ProposedEvent = {
+      id: event.id,
+      institutionId: event.institutionId,
+      organizationId: event.organizationId,
+      title,
+      startAt: event.startAt,
+      endAt: event.endAt,
+      venue,
+    }
+    if (venue !== event.venue) {
+      const gated = await gateOnConflicts({
+        proposed,
+        ctx,
+        actorId: userId,
+        actorRole: "Calendar",
+        attempted: "Event.Edited",
+        override: input.override,
+      })
+      if (!gated.decision.allowed) return { error: gated.decision.explanation }
+      decision = gated.decision
+      conflicts = gated.conflicts
+    }
+
     await db.event.update({
       where: { id: eventId },
       data: { title, venue, description },
     })
 
-    // The venue is half of the hard-conflict rule, so a venue edit must re-check.
-    if (venue !== event.venue) {
-      await recheckConflicts({
-        id: event.id,
-        institutionId: event.institutionId,
-        organizationId: event.organizationId,
-        title,
-        startAt: event.startAt,
-        endAt: event.endAt,
-        venue,
+    if (decision) {
+      await persistConflicts(event.id, conflicts)
+      await auditOverride({
+        proposed,
+        actorId: userId,
+        actorRole: "Calendar",
+        attempted: "Event.Edited",
+        decision,
       })
     }
 
@@ -435,7 +660,11 @@ export async function updateEventDetails(
         resourceType: "Event",
         resourceId: event.id,
         outcome: "ALLOW",
-        metadata: { title, venue: input.venue ?? null },
+        metadata: {
+          title,
+          venue: input.venue ?? null,
+          overriddenRules: decision?.override?.rules ?? [],
+        },
       },
     })
 

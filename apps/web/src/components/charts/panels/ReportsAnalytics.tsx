@@ -103,12 +103,17 @@ export function ReportsAnalytics({
     const from = range === "year" ? cutoff : range === "term" ? cutoff : null
     const months = bucketByMonth(evDates, from, now)
 
-    // 4. Memory coverage by type
+    // 4. Memory coverage by type. Rows are ranked by count, so the rank of a
+    // type changes with `range` — hence `key`, the MemoryRecordType enum value,
+    // which pins each type's colour to the type itself rather than to the row it
+    // lands on. Without it, switching this panel between "This term" and "12
+    // months" repaints the donut and the legend means something different in
+    // each view.
     const memCount = new Map<string, number>()
     for (const m of memory) if (after(m.createdAt)) memCount.set(m.type, (memCount.get(m.type) ?? 0) + 1)
     const memoryData = [...memCount.entries()]
       .sort((a, b) => b[1] - a[1])
-      .map(([type, value]) => ({ label: titleCase(type), value }))
+      .map(([type, value]) => ({ key: type, label: titleCase(type), value }))
     const memoryTotal = memoryData.reduce((n, d) => n + d.value, 0)
 
     return { funnel, buckets, medianLabel, months, memoryData, memoryTotal }

@@ -219,6 +219,10 @@ const OWNERS = {
  */
 const DATABASE_EXEMPT = new Map([
   [
+    'apps/web/src/lib/audit-append-only.test.ts',
+    'the subject under test IS the extension: it builds a client, attaches auditAppendOnlyExtension() and asserts that delete/update/deleteMany/updateMany on AuditEvent are refused. Reaching for the shared `db` would be asserting against the very wiring the case exists to prove, so a failure could mean the extension broke or that lib/db.ts stopped attaching it — two different bugs with one signal',
+  ],
+  [
     'apps/web/src/lib/tenant-switching.itest.ts',
     'an unextended client on purpose: it asserts that the MEMBERSHIP ROW decides which tenants a user may act in, and an extended client would answer from the scope under test',
   ],
@@ -444,7 +448,11 @@ test('the exemption lists are reasoned, real, and have not grown silently', () =
   // those two from drifting has to read rows of every status, including revoked
   // ones, so an extended client would filter away the fixtures the assertion is
   // about. Raised deliberately, with the reason recorded.
-  assert.equal(DATABASE_EXEMPT.size, 12, 'the raw-database-client exemption list changed')
+  // 12 -> 13 on 2026-08-07: audit-append-only.test.ts, which builds a client
+  // precisely to prove the append-only extension refuses a delete. Bumped
+  // deliberately and with the reason recorded beside the entry, which is what
+  // this assertion is for — it forbids the list GROWING SILENTLY, not growing.
+  assert.equal(DATABASE_EXEMPT.size, 13, 'the raw-database-client exemption list changed')
   assert.equal(AWS_EXEMPT.size, 0, 'a file was exempted from the AWS client rule')
   assert.equal(PROVIDER_EXEMPT.size, 0, 'a file was exempted from the provider endpoint rule')
 

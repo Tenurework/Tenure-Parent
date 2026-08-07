@@ -1,4 +1,11 @@
-import { detectConflicts, overlaps, type CalendarEventLike } from "./calendar"
+import {
+  CONFLICT_RULES,
+  detectConflicts,
+  explainConflict,
+  isBlockingConflict,
+  overlaps,
+  type CalendarEventLike,
+} from "./calendar"
 
 const d = (iso: string) => new Date(iso)
 
@@ -36,6 +43,7 @@ describe("detectConflicts", () => {
       evt({ id: "e1", organizationId: "org_b", venue: "schlegel 203" }),
     ])
     expect(found).toHaveLength(1)
+    expect(found[0].rule).toBe("VENUE_DOUBLE_BOOKING")
     expect(found[0].severity).toBe("HARD")
     expect(found[0].reason).toMatch(/Venue clash/)
   })
@@ -44,6 +52,7 @@ describe("detectConflicts", () => {
     const found = detectConflicts(proposed, [
       evt({ id: "e2", organizationId: "org_a", venue: "Gleason 118" }),
     ])
+    expect(found[0].rule).toBe("SELF_DOUBLE_BOOKING")
     expect(found[0].severity).toBe("HARD")
     expect(found[0].reason).toMatch(/Double booking/)
   })
@@ -52,7 +61,46 @@ describe("detectConflicts", () => {
     const found = detectConflicts(proposed, [
       evt({ id: "e3", organizationId: "org_b", venue: "Gleason 118" }),
     ])
+    expect(found[0].rule).toBe("AUDIENCE_OVERLAP")
     expect(found[0].severity).toBe("SOFT")
+  })
+
+  it("names the rule that fired and keeps the inputs it fired on", () => {
+    const found = detectConflicts(proposed, [
+      evt({
+        id: "e_hard",
+        organizationId: "org_b",
+        title: "Robotics Build",
+        venue: "Schlegel 203",
+        startAt: d("2026-10-01T19:00:00Z"),
+        endAt: d("2026-10-01T21:00:00Z"),
+      }),
+    ])
+
+    const c = found[0]
+    expect(c.rule).toBe("VENUE_DOUBLE_BOOKING")
+    expect(c.inputs).toEqual({
+      // The proposed venue is carried normalized — that is the value compared.
+      venue: "schlegel 203",
+      otherTitle: "Robotics Build",
+      otherVenue: "Schlegel 203",
+      otherStartAt: d("2026-10-01T19:00:00Z"),
+      otherEndAt: d("2026-10-01T21:00:00Z"),
+    })
+    // The sentence is DERIVED: re-deriving it from the record reproduces it
+    // exactly, so an explanation survives without re-running detection.
+    expect(explainConflict(c.rule, c.inputs)).toBe(c.reason)
+  })
+
+  it("takes each rule's severity from the rule table", () => {
+    const found = detectConflicts(proposed, [
+      evt({ id: "e1", organizationId: "org_b", venue: "schlegel 203" }),
+      evt({ id: "e3", organizationId: "org_b", venue: "Gleason 118" }),
+    ])
+    for (const c of found) {
+      expect(c.severity).toBe(CONFLICT_RULES[c.rule].severity)
+      expect(isBlockingConflict(c)).toBe(c.severity === "HARD")
+    }
   })
 
   it("flags same-day non-overlap as INFORMATIONAL", () => {
@@ -64,6 +112,7 @@ describe("detectConflicts", () => {
         endAt: d("2026-10-01T22:00:00Z"),
       }),
     ])
+    expect(found[0].rule).toBe("SAME_DAY")
     expect(found[0].severity).toBe("INFORMATIONAL")
   })
 

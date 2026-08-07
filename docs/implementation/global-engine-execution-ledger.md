@@ -9086,3 +9086,1786 @@ documents it is derived from — the mistake `prompt-matches-ledger` caught when
 
   123/1219 → superseded: see `capability-completeness-registry.yaml` for the
   real figures (2,046 requirements, 106 PASS).
+
+### Wave 0 remediation — notification consent, 2026-08-06
+
+- [ ] **GE-073-004** — Implement templates/version/localization, preferences, consent, opt-out, quiet hours, urgency, digest, deduplication, batching, escalation, delivery/bounce/complaint state.
+  - Status: FAIL — one clause of twelve is now real. The requirement is not.
+  - Clause closed: **consent / opt-out**, on the in-app channel
+  - Code: `apps/web/src/lib/notify.ts` — `inAppRecipients`, called by `notifyUsers`
+    on every fan-out
+  - Tests: `apps/web/src/lib/notify.test.ts` (11)
+  - Evidence: `npm run test --workspace apps/web -- --ci --testPathPattern
+    "src/lib/notify"` → 11/11; `npm run type-check` → clean.
+    **3 mutations, 3 caught.**
+
+  `NotificationPreference` — `userId`, `channel`, `enabled` — has been in
+  `schema.prisma:929-940` and in the applied baseline
+  (`20260730000000_baseline/migration.sql:580,830`) since the beginning, and a
+  repo-wide grep for `notificationPreference` returned zero hits outside the
+  schema, the migration and the tenancy registry. Nothing read it. `notifyUsers`
+  deduped, dropped the actor, and then wrote a `Notification` row for everyone
+  left, so a person who had turned the in-app channel off received every
+  approval, every calendar change, every feed reply and every reminder exactly as
+  if they had asked for them.
+
+  A stored consent that nothing consults is worse than an absent one: the
+  product has a place to record the answer, which is what makes it reasonable to
+  believe the answer is being honoured.
+
+  The check belongs in `notifyUsers` and nowhere else, because nine call sites
+  fan out through it — `approvals/actions.ts`, `calendar/actions.ts`,
+  `feed/actions.ts`, `messages/actions.ts`, `orgs/[slug]/finance/actions.ts`,
+  `orgs/[slug]/members/actions.ts`, `admin/actions.ts`,
+  `api/jobs/reminders/route.ts` and `lib/calendar-write.ts`. Putting it in the
+  callers would be nine chances to forget, and the tenth caller would be written
+  by someone who never knew the rule existed.
+
+  **Absence of a row is consent.** `enabled` defaults to true and a row is only
+  written when somebody changes the setting, so an id with no preference row
+  stays in the list and only an explicit `enabled: false` on `IN_APP` removes
+  one. That is what makes this shippable with no backfill and no migration: an
+  empty table behaves exactly as the code did yesterday.
+
+  The query asks for the opt-outs (`enabled: false`) rather than reading every
+  preference and filtering in memory — on a fan-out to an institution's whole
+  staff the opt-out set is the small one — and it names `channel: "IN_APP"`
+  because that is the channel this function delivers on. Someone who silenced
+  email has said nothing about the bell, and suppressing their in-app row would
+  remove the only delivery they still have.
+
+  ## The mutations
+
+  * `recipients = ids` — the filter removed entirely. Three tests failed: the
+    opted-out user reappeared in the payload, the all-opted-out fan-out wrote
+    rows, and the preference read stopped happening.
+  * `channel: IN_APP` dropped from the `where`. Two tests failed — an EMAIL
+    opt-out began suppressing the in-app notification.
+  * The `recipients.length === 0` early return removed. One test failed: an
+    empty `createMany` for a fully opted-out audience.
+
+  The stand-in database in the test is a small table that applies `where` and
+  projects `select` the way Postgres would, not a canned array. A
+  `mockResolvedValue([])` would have left every assertion green whether or not
+  the production query filtered on anything, which is the exact fake-test trap
+  `tenant-scope.test.ts` documents; a test asserts the fake discriminates.
+
+  ## Why this row stays unticked
+
+  The requirement names twelve things. This closes one of them. Templates,
+  versioning and localization, quiet hours, urgency, digest, deduplication,
+  batching, escalation and delivery/bounce/complaint state are all still absent,
+  and EMAIL / EMAIL_DIGEST preferences are still unread because there is no
+  email delivery path to read them for (GE-073-003).
+
+  **There is also no writer.** Nothing in the application creates or updates a
+  `NotificationPreference` row — there is no settings screen and no server
+  action — so today the only way one exists is an operator writing it directly.
+  The read side is what this item was scoped to and the read side is now real
+  and proven; a preferences screen lives in `apps/web/src/app/(app)/…`, outside
+  this item's file allowlist, and is the next piece of the clause.
+
+### Wave 0 remediation — no self-approval on the approval gates, 2026-08-06
+
+- [x] **GE-094-008** — An OSE member can approve their own approval request; the
+  no-self-approval control exists in `@tenure/authorization` and has zero callers
+  in the app.
+  - Status: PASS
+  - Code: `apps/web/src/lib/approvals.ts` — `decisionControl` (new, wraps
+    `mayDecide` from `@tenure/authorization`), called by `actorRoles`, which is
+    called by `workflowRolesFor`, which is called by `availableActions`, which is
+    called by `apps/web/src/app/(app)/approvals/actions.ts:175` (`actOnApproval`
+    gates the write on membership of that list) and `…/approvals/[id]/page.tsx:78`
+    (which renders the buttons).
+  - Tests: `apps/web/src/lib/approvals.test.ts` (7 new, 19 in the file)
+  - Evidence: `npm run test --workspace apps/web -- --ci --testPathPattern
+    "(lib/approvals|lib/workflows/approval-definition|lib/authz)"` → 10 suites,
+    309/309. `npm run type-check` → exit 0, clean. (An earlier run in this shared
+    tree showed four errors, all in `calendar-write.ts`, `finance.ts` and
+    `partition-services.test.ts` — other agents' in-flight work, since resolved;
+    none were in either file changed here.)
+    **2 mutations, 2 caught.**
+
+  `mayDecide` (`packages/authorization/src/controls.ts:116-191`) is the
+  platform's decision gate — self-approval, maker-checker, recusal, declared
+  conflicts, four-eyes across gates and the duties matrix, each returning a
+  *named* refusal. It shipped complete and a repo-wide grep for it across
+  `apps/web/src` returned nothing. That is the whole of this defect: the control
+  was written, tested inside its package, and never asked.
+
+  What that left open. `workflowRolesFor` pushed `requester` and `oseGate` for
+  the same actor when both were true, and `packages/workflow/src/engine.ts:55`
+  filters transitions by `allowedRoles` with `some()` — there is no deny concept
+  in the engine, so roles are additive and being the person who asked could not
+  cancel the role that approves. An OSE member who raised a request was therefore
+  offered approve / request_changes / reject on it at PENDING_OSE. If that person
+  was also the club's ACTIVE president, `approval-definition.ts:52-58` skips the
+  president gate on submit, so the OSE gate was the *only* remaining pair of
+  eyes: one person carried their own request DRAFT → APPROVED, with an
+  `ApprovalStep` and an ALLOW `AuditEvent` recording it as a two-gate approval.
+
+  ## Where the control went, and why not in `availableActions`
+
+  In `actorRoles`, gating `isPresident` and `isOseGate`. Not in
+  `availableActions`, for two reasons.
+
+  The gate roles are per-request standing, not standing facts about the person.
+  Holding the president seat, or an institution membership, is what makes you
+  *eligible* for a gate; whether you hold it on THIS request is a different
+  question, and `actorRoles` is documented as "role the actor plays for THIS
+  request". A caller that reads `isOseGate` and acts on it now cannot do so
+  without the control having run.
+
+  It also keeps the frozen oracle honest rather than editing it.
+  `apps/web/src/lib/workflows/approval-definition.test.ts:37-62` holds the
+  pre-delegation `switch` verbatim as an oracle and compares `availableActions`
+  against it across 7 statuses × 8 role combinations × 2 conditions. That oracle
+  destructures `actorRoles`, so it inherits the control and continues to test
+  exactly what it claims to — that the workflow *definition* has not drifted from
+  the switch. Filtering inside `availableActions` instead would have reddened 4
+  of its cases and required editing a file outside this item's allowlist to
+  re-assert the old, vulnerable answer. The rule is enforced once, in the place
+  both paths already go through.
+
+  `isPresident` is gated too, not only `isOseGate`. PENDING_PRESIDENT with the
+  requester in the president seat is reachable: a VP submits, the request sits at
+  the president gate, and the VP is then given the seat.
+
+  Requester actions are untouched. `requester` is still pushed unconditionally,
+  so submit / resubmit / cancel stay with the person who raised the request — a
+  control that took those away would stop people filing requests at all. One test
+  asserts exactly that, and it is the one that stays green under both mutations.
+
+  ## The world passed to `mayDecide`
+
+  `{}`, and truthfully. `schema.prisma` has no `ConflictDeclaration` and no
+  `Recusal` model — a repo-wide grep returns nothing — so there are none to pass,
+  and SELF_APPROVAL is answered from the decision itself and needs no world. The
+  empty object is a statement of what this call site knows, not a placeholder;
+  the RECUSED / DECLARED_CONFLICT / INCOMPATIBLE_DUTIES arms are already wired
+  and start working the day those rows exist. `at` is a defaulted parameter for
+  the same reason: the conflict arm is time-bounded even though nothing is
+  time-bounded yet.
+
+  ## The mutations
+
+  * **The guard removed** — `isPresident` and `isOseGate` restored to their
+    pre-fix expressions, `decisionControl` still called but its answer discarded.
+    4 of the 7 new tests failed and 15 passed: the OSE self-approval case, the
+    president self-approval case, the DRAFT → APPROVED single-person walk, and
+    the `actorRoles` role assertion. The three that stayed green are the
+    complements — a *different* OSE member still decides, the requester keeps
+    submit/resubmit/cancel, and `decisionControl` still names its refusal — so
+    the four are failing on the behaviour and not on an over-broad assertion.
+  * **`raisedByPrincipalId` → `preparedByPrincipalId`** in `decisionControl`.
+    Exactly 1 test failed: the refusal came back `SAME_MAKER` instead of
+    `SELF_APPROVAL`. The action lists were unaffected, which is the point — the
+    assertion on the refusal *name* is what proves the answer comes from
+    `mayDecide` and its stated reason, rather than from a local `===` that would
+    have been indistinguishable at the `availableActions` level.
+
+  ## Not proven here
+
+  The database and e2e paths. Postgres is not available in this environment, so
+  `npx playwright test` was not run. No existing spec regresses by inspection —
+  `app.spec.ts:135`, `reimbursement.spec.ts:12`, `calendar.spec.ts:84` and
+  `delegation.spec.ts:11` all use three distinct people, and `app.spec.ts:148`
+  already asserts a VP cannot approve their own request (it passed before only
+  because a VP holds no gate). An operator can confirm with:
+
+  ```bash
+  docker run -d --name tenure-pg -e POSTGRES_USER=tenure \
+    -e POSTGRES_PASSWORD=tenure -e POSTGRES_DB=tenure -p 5433:5432 postgres:16
+  export DATABASE_URL="postgresql://tenure:tenure@localhost:5433/tenure"
+  cd apps/web && npx prisma migrate deploy && node scripts/seed.mjs
+  npx playwright test e2e/app.spec.ts e2e/reimbursement.spec.ts \
+    e2e/calendar.spec.ts e2e/delegation.spec.ts
+  ```
+
+  The delegation path was already closed separately, by `mayBorrowAuthority`
+  (`apps/web/src/lib/authz/borrowed-authority.ts`), which refuses borrowed
+  authority on your own request before `effectiveApprovalContext` is even built.
+  This item closes the *direct* path, which that fix documented but did not
+  cover. Both now hold, and the direct one holds first.
+
+- [x] **GE-010-007** — Partition abstraction: something now asks whether a
+  service exists in the partition this process is running in.
+  - Status: PASS
+  - Code: `apps/web/src/lib/partition-services.ts` (new),
+    `apps/web/src/lib/ai.ts` (`aiConfigured`),
+    `apps/web/src/lib/s3.ts` (`s3Client`)
+  - Tests: `apps/web/src/lib/partition-services.test.ts` — 15 cases, all green;
+    `cell-context.test.ts` (15) and `api/ai/ai-kill-switch.test.ts` (11) still
+    green alongside it.
+  - `GE-012-001` resolved the partition and validated it. Nothing then asked it
+    anything: the only two consumers of `cellContext()` read `.region` and
+    stopped there. So a cell deployed with `AWS_PARTITION=aws-cn` or
+    `aws-us-gov` reported `aiConfigured() === true` on the strength of an
+    `ANTHROPIC_API_KEY` and posted tenant content to `api.anthropic.com` — a
+    commercial-internet SaaS endpoint that is not in either partition. An
+    abstraction that resolves a partition and then assumes it contains every
+    service the commercial partition contains is worse than not having one: it
+    looks like the question was asked.
+  - `PARTITION_SERVICES` is one explicit matrix over the services this app
+    actually reaches — `s3` in all three partitions (it really is in all three;
+    the matrix is a statement about reality, not a convenient way to say no) and
+    `anthropic-public-api` in commercial `aws` only. There is no API that
+    answers "is service X in partition Y", and none that covers third-party SaaS
+    at all, so it is a written-down decision with a comment per row. It is typed
+    `Record<Partition, …>`, so a fourth partition added to `cell-context.ts`
+    will not compile until someone decides what it offers.
+  - **Wired at both real call sites, not declared.** `aiConfigured()` returns
+    false when the running partition does not offer `anthropic-public-api`, and
+    that one function gates every AI surface: `/api/ai/chat`
+    (`available = flag.enabled && aiConfigured()` → ranked sources, no prose),
+    `/api/ai/draft` (503), the search page's answer block, `DraftAssist` on the
+    compose/memory/event forms, and the document summary page. It returns false
+    rather than throwing so an unsupported partition lands on the honest
+    degraded path those routes already have, and logs once per partition so an
+    operator who set the key correctly is not left hunting for a typo.
+    `s3Client()` calls `requireService("s3")` before constructing the client.
+  - **An unrecognised partition offers nothing.** `cellContext()` reports a bad
+    `AWS_PARTITION` in `unresolved` and still hands the string back typed as
+    `Partition` — deliberately, so a variable production does not set yet cannot
+    fail a deploy. That means an unreviewed partition string does reach this
+    module, and treating it as commercial AWS is the exact assumption being
+    deleted. This is also what makes the S3 wiring non-vacuous: S3 exists in
+    every partition, so the case the guard catches is the silent one.
+  - Mutation-proven, three ways. (1) Replace the partition check in
+    `aiConfigured()` with `if (false)` → the `aws-cn` and `aws-us-gov` cases
+    fail (2 failed / 13 passed); restored → 15 passed. (2) Delete
+    `requireService("s3")` from `s3Client()` → the S3 case fails, and the error
+    it fails *with* is the proof: `CredentialsProviderError: Could not load
+    credentials from any providers`, i.e. without the guard the client is built
+    for a partition nobody decided about and the call proceeds toward the
+    network. (3) Widen the `aws-cn` row to include `anthropic-public-api` → 4
+    cases fail. Each restored to green.
+  - Verification: `npm run test --workspace apps/web -- --ci --testPathPattern
+    "partition-services"` → 15/15. `npm run type-check` → no error in these four
+    files (two pre-existing `finance.ts` BigInt-target errors belong to another
+    area of this shared tree). `npx eslint` on all four files → clean.
+  - No behaviour change for the running pilot: production does not set
+    `AWS_PARTITION`, so `cellContext()` resolves `"aws"`, which offers both
+    services. The test suite asserts that explicitly rather than leaving it to
+    be inferred.
+  - Scope note: this is the **application-side** half of GE-010-007. The AWS
+    landing-zone half — SCPs that make the partition boundary enforceable
+    outside this process — remains `BLOCKED_EXTERNAL` under GE-010-002…007 on
+    the four decisions ADR-0007 names. A matrix in the app is a check the app
+    performs on itself; it is not a control.
+
+### GE-102-009 — Signed deployment manifest with the named digests — 2026-08-06
+
+- [ ] **GE-102-009** — Signed deployment manifest with the named digests
+  - Status: FAIL
+  - Where: `packages/provisioning/src/execute.ts`,
+    `packages/provisioning/src/provisioning.test.ts`
+
+  **What the item asked for, split honestly.** Two claims live in this item.
+  The digests are now real. The signature is not, and cannot be made real from
+  inside this package, so the item stays unchecked rather than being marked
+  `PASS` for the half that landed. An engine that is honest for nine steps and
+  asserts the tenth teaches its operators to trust the tenth.
+
+  `FAIL`, not `BLOCKED_EXTERNAL`: nothing here waits on a human, a credential
+  or an AWS resource. The rest is buildable today by whoever owns
+  `apps/web/src/lib/provisioning/reconcile.ts` and `apps/system-studio`, so the
+  item belongs in the queue — which is exactly the distinction
+  `tests/architecture/ledger-statuses.test.mjs` exists to keep. (The agent
+  session that did this work reports `BLOCKED_ARCHITECTURE` to its own
+  orchestrator, whose vocabulary is wider; the two say the same thing — the
+  remainder is real work in another area, not work that failed here.)
+
+  **1. The false claim is gone.** `execute.ts` said provisioning "signs a
+  deployment manifest", and `MIGRATING` told operators the artifact was
+  "produced and signed". Nothing signs it: `digest` is an unkeyed SHA-256 over
+  the body (`execute.ts:128`), there is no key anywhere in the package, and the
+  cell's verifier recomputes the same unkeyed hash
+  (`apps/web/src/lib/provisioning/reconcile.ts:138`). That establishes that the
+  artifact arrived unaltered and nothing whatever about who produced it —
+  origin today rests on the shared secret on the reconcile endpoint, i.e. on
+  the transport, which is the exact property a self-verifying artifact exists
+  to remove the need for. The header and the `MIGRATING` evidence string now
+  say that plainly, and a test pins it.
+
+  **2. The named digests are on the artifact.** `evidenceDigest` is a roll-up:
+  it detects that *something* in the run changed and cannot say what. The
+  evidence array never reaches a cell — `POST /api/platform/reconcile` is given
+  the manifest, a display name and an admin address and nothing else — so an
+  artifact carrying only the roll-up could not answer "which reservation, which
+  migration target, which verification run produced this?". Added to the
+  digest-covered body (`execute.ts:535–544`), each derived from data the run
+  already produces:
+
+  | field | source | `execute.ts` |
+  | --- | --- | --- |
+  | `releaseDigest` | blueprint + sorted module pins + config checksum + schema version | 535 |
+  | `resourceDigest` | the `PROVISIONING` step's evidence digest | 541 |
+  | `migrationDigest` | the `MIGRATING` step's evidence digest (new, line 290) | 542 |
+  | `testDigest` | the `VERIFYING` step's evidence digest (new, line 345) | 543 |
+  | `rollbackDigest` | `meta.previousDigest` — the artifact this supersedes | 544 |
+
+  `MIGRATING` and `VERIFYING` previously produced no digest at all, so two of
+  these had no source to read; they now emit one. The migration digest is the
+  schema *target* bound to the tenant and the manifest, not a digest of
+  migration files — the engine has never read one, they live in the cell's
+  build, and a field claiming otherwise would be the same species of lie this
+  item was opened about. `null` means "the engine did not state it", which is
+  not "empty": the artifact published at `CONFIGURING` has no migration or
+  verification digest because those steps have not run yet.
+
+  Compatible with the deployed cell without touching it: `verifyDigest`
+  destructures `{ digest, ...body }` and canonicalises generically, so added
+  fields verify rather than break. `npm run studio:type-check` is clean, and
+  `reconcile.itest.ts:302` (the engine-signs / cell-verifies round trip) needs
+  no change.
+
+  **Evidence.**
+  `npm run test --workspace apps/web -- --ci --testPathPattern "packages/provisioning"`
+  → 8 suites, 230 tests, 0 failures. `npm run type-check` → 0 errors.
+  `npm run studio:type-check` → 0 errors (it consumes `DeploymentManifest` and
+  the five new fields are required, so this is the check that the added fields
+  break no consumer). `node --test tests/architecture/ledger-statuses.test.mjs`
+  → 5/5, i.e. this entry's status is one the loop can act on.
+
+  Six mutations, each applied to the source, run, and reverted:
+
+  | # | mutation | result |
+  | --- | --- | --- |
+  | 1 | drop `testDigest` from the digested body | 4 tests fail |
+  | 2 | `VERIFYING` digest covers check names, not outcomes | 2 tests fail |
+  | 3 | drop `rollbackDigest` from the digested body | "names the artifact it rolls back to" fails — the two artifacts hash identically |
+  | 4 | restore "produced and signed" in the `MIGRATING` detail | "does not tell an operator the artifact is signed" fails |
+  | 5 | `producedBy` cites the FIRST attempt at a step | "cites the last attempt at a step" fails |
+  | 6 | `releaseDigest` covers module keys without versions | "changes the release digest when the pinned module VERSIONS change" fails |
+
+  Restored and re-run green after each.
+
+  **What is blocked, and on what.** Both remaining pieces are single edits in
+  files this change does not own:
+
+  * **A signature.** Needs a `signature` field checked in
+    `apps/web/src/lib/provisioning/reconcile.ts` and an asymmetric key source
+    (KMS or Ed25519, cell holding only the public half) in
+    `apps/system-studio`. Until both exist the artifact is digest-covered and
+    unsigned, and every string in this package now says so.
+  * **The rollback chain carries no value yet.** `rollbackDigest` is `null` on
+    every published artifact because
+    `apps/system-studio/src/app/tenants/actions.ts:376` does not pass
+    `previousDigest`. It already holds the value — `tenant.deployment`, read at
+    line 339 of the same function — so the wiring is one property on the `meta`
+    object. Recorded rather than done because that file belongs to another
+    area.
+  * Related, smaller: the cell's mirror interface
+    (`apps/web/src/lib/provisioning/reconcile.ts:29`) does not declare the five
+    new fields. It verifies them (the digest is computed over whatever the body
+    holds) but cannot yet read them by name.
+  * The same false claim survives in four strings outside this package and
+    should go with the signature work, not before it:
+    `apps/web/src/lib/provisioning/reconcile.ts:28` ("The artifact the engine
+    signed"), `apps/system-studio/src/app/tenants/actions.ts:362`,
+    `apps/system-studio/src/app/tenants/[slug]/page.tsx:198` ("The signed
+    artifact a cell reconciles toward"), and
+    `apps/system-studio/src/lib/deliver.ts:6`.
+
+### Wave 2 — revocation invalidates a cached decision, 2026-08-06
+
+- [ ] **GE-053-006** — Revocation of a membership, assignment, delegation or
+  policy invalidates cached decisions immediately.
+  - Status: FAIL
+  - Reclassified from PASS by the orchestrator, agreeing with the refuter, and
+    FAIL rather than BLOCKED_* because `tests/architecture/ledger-statuses.test.mjs`
+    is right: the rest of this CAN be built now. The wiring is in `apps/web`; it
+    was outside one agent's allowlist, which is a fact about how the work was
+    partitioned, not about the platform. FAIL keeps it in the queue. The
+    package work below is real, well-tested and mutation-proven — four mutations
+    re-run independently, all four red the tests that claim to catch them. But
+    the requirement is that a revocation stops a *cached* decision being served,
+    and there is no cache in production: `apps/web` calls `decide()` directly and
+    uncached, and nothing constructs `authorizationService`. A hardening applied
+    to an API with no consumer does not satisfy a requirement about live
+    behaviour, and PASS beside a caveat saying so is two statuses at once.
+    Unblocks when the service is wired — see the standing FAIL below.
+  - Code: `packages/authorization/src/service.ts` — `AuthorizationServiceOptions
+    .subjectRevision` (new, optional), `decisionKeyPrefix` (new, exported),
+    `decisionKey(request, subjectRevision?)`, `dropPrincipal` (new, private),
+    `AuthorizationService.invalidatePrincipal` (new), `DecisionCache.delete`
+    and `.keys` (new), `ServiceDecision.subjectRevision` (new)
+  - Tests: `packages/authorization/src/service.test.ts` — 53 cases (was 38), all
+    green; the whole package 288/288 green.
+
+  **The defect.** `validUntil` bounded a cached decision by the *dated* facts it
+  rested on — `effectiveFrom` / `effectiveTo` on memberships, grants, delegations
+  and relationships. That is the whole answer only while every way authority ends
+  is a date, and it is not. A revocation deletes a role assignment; it moves no
+  boundary the cache has already read, so the horizon stays `null` and the
+  remembered ALLOW keeps being served until it is evicted for being old. The two
+  escape hatches did not cover it: `revision()` is configuration, not
+  per-principal facts, and `invalidate()` is all-or-nothing and had no caller
+  anywhere in the tree. REVIEW-FINDINGS §14 names the same defect from the other
+  side — the per-membership `authz_version` fan-out is "never specified" — and
+  the review wins over the spec.
+
+  **The fix.** A second stamp, `subjectRevision()`, read on **every** call, hit
+  and miss, exactly as `revision()` already is, and folded into the cache key
+  immediately after the tenant/principal prefix. A bumped stamp is therefore a
+  *structural miss* — the old entry is not consulted because its key is no longer
+  the key — rather than an eviction somebody has to remember to trigger. On a
+  miss under a new stamp the principal's entries under every other stamp are
+  dropped, so a revocation reclaims the space instead of leaving dead entries to
+  push live ones out of a bounded cache. `invalidatePrincipal(tenantId,
+  principalId)` is the same eviction reached out of band, returning a count so a
+  caller that expected to revoke something can tell when it revoked nothing.
+
+  The key's fields are now percent-encoded. That is load-bearing, not tidiness:
+  targeted invalidation matches the head of the key, so with raw fields a
+  principal named `dana|finance.budget.read` would sit under a key
+  indistinguishable from dana's and revoking one would revoke or spare the other
+  by accident.
+
+  The stamp source is deliberately **not** defined in this package. §14 records
+  that no per-principal stamp is specified and no migration creates one, so the
+  option is optional and the code does not pretend to read a column that does not
+  exist. Omitting it leaves the cache exactly as it was — which the tests assert
+  by executing the stale ALLOW rather than describing it.
+
+  - **Caller.** `authorizationService().authorize()` calls
+    `options.subjectRevision(request)` on every request and `dropPrincipal(...)`
+    on every miss under a stamp. Both are on the service's own request path, not
+    declared-and-unused.
+  - Mutation-proven, four ways, each restored to 53/53 green:
+    1. Drop the stamp from `decisionKey` (`subjectRevision ?? "-"` → `"-"`) →
+       4 failed / 49 passed; the post-revocation assertion fails with
+       `expect(after.cached).toBe(false)` receiving `true`, i.e. the revoked
+       decision served from cache — the defect itself, reproduced.
+    2. Capture the stamp once at construction instead of per call → 4 failed /
+       49 passed.
+    3. Delete the drop-on-miss reclaim → 1 failed / 52 passed ("voids the
+       principal's other remembered answers").
+    4. Make `field()` the identity instead of `encodeURIComponent` → 1 failed /
+       52 passed (the forged-prefix case).
+  - Verification: `npm run test --workspace apps/web -- --ci --testPathPattern
+    "packages/authorization"` → 288/288, 7 suites. `npm run type-check` → zero
+    errors mentioning `packages/authorization` (the run is red on
+    `packages/provisioning/*` and `apps/web/src/lib/finance.ts`, both modified by
+    other agents in this shared tree and both unrelated).
+
+  **Honest scope caveat.** This hardens the platform boundary; it does not fix a
+  live request path, because there is not one. The FAIL finding above —
+  "`authorizationService` has no production caller" — still stands: `apps/web`
+  calls `decide()` directly and uncached from `navigation-capabilities.ts` and
+  `seat-world.ts`, and nothing in the app constructs the service. So no `apps/web`
+  code supplies `subjectRevision` today, and none can until that wiring happens.
+  Wiring it is a larger change in files this task does not own, and it is now
+  strictly easier: the seam a caller has to satisfy is named, typed and tested.
+
+### Wave 1 remediation — the seed carries its own refusal, 2026-08-06
+
+- [x] **GE-085-006** — Redeploy must never rerun destructive seed logic:
+  `seed.mjs` issued unscoped deletes with no environment guard, and its own
+  header claimed the opposite of the truth.
+  - Status: PASS
+  - Code: `apps/web/scripts/seed-guard.mjs` (new) — `decideSeedAllowed({
+    nodeEnv, databaseUrl, seedDestructive })` → `{ allowed, reason }`. Called by
+    `apps/web/scripts/seed.mjs:65`, the first statement of `main()`, before the
+    `institution.upsert` at `:74` and 357 lines before the first delete; a
+    refusal prints the reason and `process.exit(1)` at `:75`. `main()` is
+    invoked at the bottom of the file, so the caller is the script's only entry
+    point — every path that runs the seed runs the guard.
+  - Tests: `apps/web/scripts/seed-guard.test.mjs` — 12 cases.
+  - Evidence: `npm run test --workspace apps/web -- --ci --testPathPattern
+    "scripts/"` → 2 suites, 35/35 (`seed-guard` 12, `db-bootstrap` 23 unchanged).
+    `npm run type-check` → one error, `src/lib/search-data.ts:107` on
+    `Document.sensitivity`, which is another agent's in-flight work in this
+    shared tree and is in neither of my files. `npx eslint scripts/seed-guard.mjs
+    scripts/seed-guard.test.mjs scripts/seed.mjs` → clean, exit 0.
+    **2 mutations, 2 caught.**
+
+  The defect. `seed.mjs:422` is `db.approvalDelegation.deleteMany({})` — no
+  filter of any kind, so it removes every approval delegation in the database
+  including rows a customer created, and three further deletes clear budget
+  lines, a club's whole ledger and the demo document. Nothing in the file
+  refused to run against production: the only `NODE_ENV` check (`:98-101`) turns
+  off the seven demo login accounts and does not touch the deletes.
+  `scripts/entrypoint.sh:120-127` had already reached the right conclusion in
+  prose — "Seeding is NOT part of starting a server… it issues unscoped deletes
+  to reset test state. Running it on every boot… destroyed live rows while doing
+  it" — and `infrastructure/terraform/ecs.tf:170` deliberately leaves
+  `SEED_ON_BOOT` unset. But both of those are configuration *around* the script:
+  `SEED_ON_BOOT=true` on a copied task definition, or a hand-run
+  `aws ecs run-task`, reaches the deletes with nothing in between. Meanwhile
+  `seed.mjs:1-2` still read "Idempotent pilot seed — safe to run on every
+  container start", which the entrypoint directly contradicts.
+
+  What the guard decides. Refuse when `NODE_ENV === "production"` —
+  `ecs.tf:141` sets exactly that on the pilot task definition, so this is the
+  input a booting, scaling-out or health-check-replaced task actually supplies,
+  and it refuses even when `DATABASE_URL` looks local (a tunnel or a pgbouncer
+  on 127.0.0.1 still fronts production; the declared environment is the stronger
+  signal). Refuse when `NODE_ENV` is unset *and* `DATABASE_URL` names a host
+  that is not `localhost` / `127.0.0.1` / `::1` — the local shell pointed at RDS
+  by mistake. A `DATABASE_URL` that is present but unparseable is treated as
+  unproven, not absent. `SEED_DESTRUCTIVE="true"`, exact match, is the single
+  opt-in, and the reason string then says *Overridden* rather than pretending
+  the environment was fine. The module is pure — it reads no environment of its
+  own, the way `planBootstrap` in `db-bootstrap.mjs` does not — so the whole
+  decision table is testable with no Postgres and no `process.env` mutation.
+
+  Only the host is ever put in the reason, never the URL: `DATABASE_URL` carries
+  the database password and the reason is printed to CloudWatch. A test asserts
+  that across every branch.
+
+  What still runs. `.github/workflows/ci.yml:254` and `:356` run
+  `node scripts/seed.mjs` with `DATABASE_URL=…@localhost:5432/tenure` and no
+  `NODE_ENV`; `CLAUDE.md` exports `…@localhost:5433/tenure`. Both stay allowed,
+  and a test names those exact URLs so this guard cannot quietly become a build
+  break. Verified against the real script, not only the unit: with
+  `NODE_ENV=production` it exits 1 having opened no connection; with
+  `SEED_DESTRUCTIVE=true` added it proceeds to `institution.upsert` and fails
+  only on there being no reachable database here.
+
+  Mutations. (1) Make the production branch of `whyRefused` return `null` →
+  4 of 12 fail, including "refuses in production, which is what a redeploy is";
+  restored → 12/12. (2) Sever the wiring in `seed.mjs` — drop the
+  `process.exit(1)` so the refusal warns and carries on into the deletes → the
+  `seed.mjs wiring` case fails on the missing exit; restored → 12/12. The second
+  mutation is the one that matters: a pure decision module nothing consults is
+  the exact failure this requirement describes, so the test reads `seed.mjs` and
+  asserts the import, that the call site precedes both the first upsert and the
+  first `deleteMany`, that all three environment variables are passed, and that
+  refusal exits non-zero.
+
+  Boundary, not fixed here. `.github/workflows/seed-reference-data.yml` runs the
+  seed as a deliberate one-off ECS task on the production task definition, so it
+  now inherits `NODE_ENV=production` and will be refused until
+  `SEED_DESTRUCTIVE=true` is added to its `containerOverrides` environment (or
+  exported by `entrypoint.sh` in `seed` mode). Both files are outside this
+  task's ownership and were not touched. The refusal message names the variable,
+  so an operator reading the task's logs is told what to add. That workflow is
+  disarmed in this repository (`if: github.repository == 'Tenurework/Tenure'`),
+  is `workflow_dispatch`-only, and requires typing "seed" to confirm, so nothing
+  is broken silently — but a human running it before that env is added will get
+  a refusal rather than a seed, and that is the correct order of events for a
+  script whose first act on a live database is an untenanted delete.
+
+### Wave 0 remediation — read-time authorization in the search corpus, 2026-08-06
+
+- [x] **GE-062-004** — Read-time authorization after retrieval in the shared
+  search corpus: the corpus behind `/search`, `/api/search` and the Tenure AI
+  prompt re-checked one of its five row types after retrieval and trusted the
+  `where` clause for the other four.
+  - Status: PASS
+  - Code: `apps/web/src/lib/search.ts:21-109` (new) — `SENSITIVITY_LEVELS`
+    (`:31`), `sensitivityRank` (`:44`), `RetrievedRow`, `RetrievalVisibility`
+    and `authorizeRetrieved(row, visibility)` (`:94`), pure and database-free so
+    the whole decision is testable without Postgres. Called by
+    `apps/web/src/lib/search-data.ts` at `:107` (documents), `:130` (approvals)
+    and `:147` (events) inside `loadSearchCorpus`, whose production callers are
+    `apps/web/src/app/(app)/search/page.tsx:34`,
+    `apps/web/src/app/api/search/route.ts:19` and
+    `apps/web/src/app/api/ai/chat/route.ts:43` — the search page, the header
+    command palette and the model prompt. Clearance is resolved per club by
+    `search-data.ts:183` `clearanceIn(ctx, org)`, over the real `isOse` and the
+    real ACTIVE-president test, and `sensitivity: true` joins the document
+    `select` at `:64`.
+  - Tests: `apps/web/src/lib/search.test.ts` — 19 cases (5 pre-existing ranking
+    cases kept, 8 new on the decision, 6 new on the corpus wiring).
+  - Evidence: `npm run test --workspace apps/web -- --ci --testPathPattern
+    "lib/search"` → 1 suite, 19/19. Consumers re-run together:
+    `--testPathPattern "search|api/ai"` → 2 suites, 30/30.
+    `npm run type-check` → 0 errors. `npx eslint src/lib/search.ts
+    src/lib/search-data.ts src/lib/search.test.ts` → clean, exit 0.
+    **3 mutations, 3 caught.**
+
+  The defect, and which half of it was real. Two things were claimed in the Wave
+  0 survey. The second is the substantive one: `Document.sensitivity` has been
+  in the schema since the baseline migration (`schema.prisma:667`,
+  `@default("standard")`) and `grep -rn sensitivity apps/web/src` returned
+  nothing — a classification label that no read path consults is a comment, not
+  a control, and every document's title and description entered the corpus and
+  the model prompt regardless of it. That is now closed: an ordinary member does
+  not get a `restricted` document, the club's ACTIVE president and the
+  institution's OSE do, and the ceiling is a per-club map rather than one number
+  per caller, because somebody can be president of one club and an ordinary
+  member of another and a single ceiling would carry the first club's clearance
+  into the second.
+
+  The first claim — that the approvals loop leaked, because it alone had no
+  `if (!org) continue` — is narrower than the survey states, and saying so is
+  part of the result. The query is
+  `{ OR: [{ organizationId: { in: orgIds } }, { submittedById: userId }] }`, so
+  a row whose club is invisible is *necessarily* one the caller filed
+  themselves, and `apps/web/src/app/(app)/approvals/[id]/page.tsx:46` already
+  decides that a submitter may read their own request in full. Dropping those
+  rows would have contradicted the page the search result links to and made the
+  `submittedById` branch of the query dead. So `authorizeRetrieved` takes an
+  `ownerId` and the loop's behaviour on today's query is unchanged; what changed
+  is that the decision is now made explicitly, after retrieval, instead of being
+  an accident of the `where` — which is the requirement's actual title. The same
+  goes for the events loop, where `orgById.get` was already doing the org check.
+  Read-time authorization here is defence in depth for three of the four loops
+  and a new control for the fourth.
+
+  Fail-closed on an unknown label. `sensitivity` is a free `String`, so it can
+  hold a value this ladder does not know — a label a later migration adds, or a
+  typo. `sensitivityRank` ranks an unrecognised label at the most restrictive
+  known level rather than waving it through, so an unknown classification stops
+  ordinary members from seeing the row instead of showing it to everyone. A
+  fixture document classified `board-eyes-only` proves it in both directions:
+  withheld from the member, shown to the president.
+
+  Mutations. (1) `authorizeRetrieved` returns `true` unconditionally → 8 of 19
+  fail, including every corpus-level refusal; restored → 19/19. (2) Drop
+  `sensitivity: true` from the document `select` in `search-data.ts` →
+  "withholds a restricted document from an ordinary member" fails; restored →
+  19/19. (3) Delete the `authorizeRetrieved` call from the approvals loop →
+  "keeps another club's rows out even when the query hands them over" and
+  "gives a caller with no membership nothing, not everything" fail; restored →
+  19/19.
+
+  Why the second mutation is caught at all is the point of how the test is
+  built. The database stand-in **deliberately over-returns** — it hands back
+  every fixture row whatever the `where` says, which is exactly the condition
+  post-retrieval authorization exists for — but it honours `select`, projecting
+  only the columns asked for the way the real client does. So an implementation
+  that reads `sensitivity` without asking for it silently reclassifies every
+  document as `standard` and goes red, rather than passing because the fake
+  returned the column anyway. The one query whose `where` *is* honoured is
+  `organization.findMany`, because that query is the visible set; faking it away
+  would have moved the answer from `loadSearchCorpus` into the test.
+
+  Not fixed here, named rather than left implicit. `MemoryRecord.sensitivity`
+  (`schema.prisma:702`) and `Attachment.sensitivity` (`:636`) are still read by
+  nothing. Memory was left alone on purpose: `canSeeMemoryCard` shows a
+  role-scoped card to the SHADOW holder because that *is* the handoff, and a
+  classification that hid a card from the successor it was written for is a
+  product decision, not a mechanical extension of this one. Every memory row is
+  `standard` today, so nothing is leaking that this change would have caught;
+  it needs its own requirement. `search-data.itest.ts` (Postgres, run by
+  `npm run test:isolation`) is unchanged and still proves cross-tenant
+  separation end to end; it does not cover sensitivity, and the operator command
+  that would exercise this against a real database is
+  `DATABASE_URL=… npm run test:isolation --workspace apps/web` after adding a
+  `restricted` document to its fixture.
+
+## GE-101: Placement engine
+
+- [x] **GE-101-004** — Implement cell capacity admission, quota thresholds,
+  shard/new-cell/account-vend recommendations, and onboarding block before
+  exhaustion.
+  - Status: PASS
+  - Code: `packages/provisioning/src/cell-registry.ts` — `CellCapacity.reserve`
+    and `.warnAt`, `cellReserve` / `admissionLimit` / `cellHeadroom` /
+    `warnThreshold` / `isCellHot`, the `no-headroom` refusal, and
+    `FleetAdmission` on every `PlacementDecision`. Exported from
+    `packages/provisioning/src/index.ts`.
+  - Caller: `choosePlacement` ← `placementFor`
+    (`apps/system-studio/src/lib/cells.ts:112`) ← `composeTenant`
+    (`apps/system-studio/src/app/tenants/actions.ts:240`), which already turns a
+    null `cellId` into a form problem on the compose form. The admission change
+    is therefore a change to what the console actually does, not a new API
+    beside it.
+  - Tests: `cell-registry.test.ts` — 36 cases (was 17)
+  - **Capacity was one test where it needed two.** `healthy.filter((c) =>
+    c.capacity.tenants < c.capacity.maxTenants)` was the entire rule: a cell
+    refused a tenant the moment the last slot was consumed and not before. So
+    the last slot went to whoever signed up first, and the fleet discovered it
+    had no room at the moment something else needed some — a tenant migrating in
+    off a failing cell, a split, a restore. `withCapacity` now means "a slot
+    exists" and `withHeadroom` means "onboarding may have it"; the decision
+    reports both, because the gap between them is the reserve and an operator
+    who reads "no room" against a console showing 49/50 stops believing one of
+    the two.
+  - **`no-headroom` is a different refusal from `no-capacity`, deliberately.**
+    One says the cells are full. The other says they are not, and we are still
+    not putting a tenant there. Collapsing them would be the same mistake the
+    five health states exist to avoid.
+  - **A threshold that only fires on refusal fires too late.** `warnAt` defaults
+    to four fifths of `maxTenants` and `FleetAdmission` rides on *successful*
+    placements too: 45 of 50 places the tenant and asks for a cell, because
+    building one is not a same-day operation and the refusal is four tenants
+    away.
+  - **Four recommendations because they cost four different things.**
+    `shard-cell` when some cells are hot and some are not — placement only moves
+    NEW tenants, so a hot cell stays hot on its own and buying hardware would be
+    solving a distribution problem with infrastructure. `add-cell` when there is
+    nothing cold left to move into. `vend-account` when the residency has no
+    footprint at all while the rest of the estate is healthy — the first move in
+    a region Tenure has no account in is the account. `none` only when there is
+    room to spare, or when the block is DEGRADED/UPGRADING and will clear
+    itself; DRAINING and OFFLINE never return `none`, because waiting does not
+    grow a cell that is being emptied.
+  - Defaults are capped rather than clamped: a cell with `maxTenants: 1` gets a
+    default reserve of 0, because applying the default there would make it admit
+    nobody — a fleet-wide capacity change wearing a default's clothes. An
+    *explicit* reserve that consumes the cell is refused by
+    `validateCellRecord`, not quietly reduced; so is a `warnAt` above
+    `maxTenants`, which can never fire, and never firing looks exactly like
+    never being hot.
+  - Proven by mutation, 5 of 5 caught, each restored and re-run green:
+    admission filter back to `< maxTenants` → 4 fail; `add-cell` → `shard-cell`
+    when every cell is hot → 2 fail; `isCellHot` `>=` → `>` → 1 fail;
+    `vend-account` → always `add-cell` → 1 fail; default reserve → 0 → 6 fail.
+    Full suite `--testPathPattern provisioning`: 230/230.
+  - **Cross-area, not done here:** `apps/system-studio/src/app/tenants/actions.ts:245-262`
+    renders the refusal, and its ternary chain has no branch for `no-headroom` —
+    it falls through to *"Every cell in &lt;region&gt; is at capacity"*, which is
+    the wrong sentence for a cell at 49 of 50. The accurate sentence is already
+    on the decision as `placement.admission.detail`, and the recommendation is
+    not surfaced anywhere yet for the same reason. That file belongs to another
+    area; this entry stops at the package boundary rather than editing it.
+  - Honest limit, inherited from GE-030-002: `capacity.tenants` still comes from
+    `CELL_TENANT_COUNT` rather than from a count of the tenant registry, and
+    defaults to 0. The admission rule, the threshold and the recommendation are
+    all live on the production path — but they are reading a configured number,
+    so today's fleet reports itself empty and never reaches its own threshold.
+    Wiring the real count is GE-033-002's fleet-health work, not this item's.
+
+### GE-143-022 — the four states the matrix was missing, and a skeleton with a size, 2026-08-06
+
+- [x] **GE-143-022** — Complete component-state matrix, including no-results,
+  syncing, read-only, pending purge and a geometry-matched skeleton.
+  - Status: PASS
+  - The survey was right on both counts and was re-verified before any edit.
+    `SurfaceState` covered ten of the twenty-one named states, and a
+    case-insensitive grep for `skeleton` across `apps/web/src` returned zero
+    hits before this change — no implementation at all, not a thin one.
+  - Code: `apps/web/src/components/ui/states.ts` — `SurfaceState` extended to
+    fourteen with `no-results`, `syncing`, `read-only` and `pending-purge`;
+    each gets a `STATE_SEMANTICS` row (`states.ts:102`, `:146`, `:191`, `:205`),
+    a `DEFAULT_COPY` row (`:261`, `:271`, `:281`, `:285`) and its own
+    `retryAdvice` branch (`:316`, `:327`, `:323`, `:325`).
+  - **Four states rather than four aliases.** Each exists because collapsing it
+    onto its nearest neighbour produces copy that is not merely vague but
+    inverted:
+    - `no-results` is not `empty`. Empty's detail is *"This is up to date —
+      there is simply nothing to show"*; saying that to someone whose filter
+      matched nothing sends them hunting for records that are sitting behind a
+      chip they forgot to clear. `no-results` names the filter instead.
+    - `syncing` is not `offline`. Offline's detail is *"Changes will not
+      save"* — the exact opposite of what is true while a write is in flight.
+      It is also the state where a retry control does real damage rather than
+      merely failing: the request is already out, and a second one is a
+      duplicate write on something approval- or money-shaped.
+    - `read-only` is not `permission-denied`. The denial hides the data;
+      read-only shows all of it and removes only the edit affordances, so it is
+      `presentsAsComplete: true`, `role="region"`, `aria-live="off"` and the
+      only user of the `neutral` tone. Borrowing the refusal's copy would make
+      every viewer seat look broken.
+    - `pending-purge` is not `archived`. Archived is *"kept for the record"*;
+      pending-purge is on a countdown to being gone. It is one of the few states that
+      earns `assertive`, because the window to stop an irreversible deletion
+      closes on a clock the reader cannot see.
+  - The interaction-level states the item also names — hover, active,
+    focus-visible, selected, disabled — are properties of a control, not of a
+    surface. They stay on Button / TextField / Select and are recorded as out of
+    scope in the file header rather than faked into this table.
+  - Code: `apps/web/src/components/ui/Skeleton.tsx` (new) — `skeletonHeight`,
+    `skeletonColumnShares` and the `Skeleton` component. The caller is
+    `StateSurface.tsx:138`, guarded by `showsSkeleton` at `:100`
+    (`state === "loading" && geometry !== undefined`).
+  - **Geometry, not shimmer.** A "Loading…" card is one line tall and the table
+    behind it is forty rows tall; the difference is a layout shift that lands
+    exactly when a pointer is over a button that is about to move. The caller
+    declares rows / rowHeight / gap / headerHeight / columns and the placeholder
+    reserves precisely `skeletonHeight(geometry)` px. n rows carry n − 1 gaps,
+    not n, and a header charges one more gap only when there are rows beneath
+    it to be separated from. When `geometry` is supplied `StateSurface` drops
+    its border and padding and moves the title and detail to `sr-only`: visible
+    copy would stack its own height on top of the reservation and reintroduce
+    the shift, but deleting it would take "Loading" out of the accessibility
+    tree. The skeleton itself is `aria-hidden` — the surface announces once,
+    politely; a reader is not read eighteen empty bars.
+  - Tests: `apps/web/src/components/ui/states.test.ts` — 45 cases, up from 18.
+    The component assertions are now real renders through
+    `renderToStaticMarkup`, not `fs.readFileSync` on the source: every one of
+    the fourteen states is rendered and checked for the role, `aria-live` and
+    `data-state` the table dictates, which is also the only check that catches
+    a tone with no `TONE` entry — that is `undefined.frame` at render, a blank
+    panel in production for whichever state used the tone nobody exercised.
+  - Proven by mutation, 4 of 4 caught, each restored and re-run green:
+    - `DEFAULT_COPY["no-results"]` collapsed back onto `empty`'s title and
+      detail → 1 fail (*sends a filtered miss to the filter…*).
+    - `skeletonHeight` gap count `(rows - 1) * gap` → `rows * gap` → 7 fail,
+      including the two rendered-markup cases, so the arithmetic is proven to
+      reach a style attribute rather than only a helper.
+    - `{showsSkeleton ? <Skeleton geometry={geometry} /> : null}` → `{null}` in
+      `StateSurface.tsx` → 1 fail. The wiring is tested, not assumed.
+    - `case "syncing"` deleted from `retryAdvice` so it falls to the generic
+      `default` → 2 fail, one of them *gives each non-retryable state its own
+      reason, not the fallback* — the case added specifically so that a future
+      state without a branch cannot ship silently.
+  - Verified: `npm run type-check` exit 0. `npm run test --workspace apps/web --
+    --ci --testPathPattern "src/components/ui"` → 45/45. `npx eslint` on the
+    four files → clean.
+  - **Cross-area, not done here:** `StateSurface` still has no page-level
+    caller. `grep -rn "StateSurface" apps/web/src` returns only its own
+    definition and this test file; the app's pages use `EmptyState`, `Card` and
+    `Badge` from the same directory but not this one. Adopting it — and passing
+    the geometry each list already knows — means editing files under
+    `apps/web/src/app/(app)/**`, which belong to another area. Every new state
+    and the skeleton are reached by a real caller inside this area
+    (`states.ts` → `StateSurface.tsx`, `Skeleton.tsx` → `StateSurface.tsx:138`)
+    and are proven by rendered-DOM tests, but the design-system component's own
+    adoption is a boundary this entry stops at rather than crossing.
+
+### Wave 0 remediation — GE-042-004: the session engine now runs the app's session
+
+- [x] **GE-042-004 (wiring)** — The absolute/idle session clocks are reached by
+  the session `apps/web` actually issues.
+  - Status: PASS
+  - Code: `apps/web/src/lib/auth.ts` (`sessionOptions`, `sessionCallbacks`,
+    `absoluteDeadline`)
+  - Tests: `apps/web/src/lib/auth-session-lifetime.test.ts` (14)
+  - Evidence: 14/14 in that suite; 1226/1226 across the 46 suites matching
+    `(auth|session|identity)`; `npm run type-check` reports no error in either
+    file. **5 mutations, 5 caught.**
+
+  The original GE-042-004 entry above is accurate about the engine and accurate
+  about its own limit: *"Nothing calls any of this."* The Wave 0 survey confirmed
+  it by execution — `grep -rn '@tenure/identity' apps/web/src` returned five
+  imports, none of them `checkSession`, `sessionCookie`, `rotateSession`,
+  `sessionInventory`, `revokeSessions`, `checkCsrf` or `cookieProblems`. The
+  session the application actually issued was `session: { strategy: "jwt" }` with
+  no `maxAge`, which is NextAuth's default: a 30-day window that slides forward
+  on every read. A token used once a day never expired at all — precisely the
+  loophole `session.ts` documents the absolute clock as existing to close. The
+  callbacks copied `token.sub` and nothing else.
+
+  **What changed.** The callbacks are lifted out of the `NextAuth({...})` literal
+  into an exported `sessionCallbacks`, and the session options into an exported
+  `sessionOptions` — both passed straight back in, so the thing under test is the
+  thing installed.
+
+  * **Idle** is `sessionOptions.maxAge = IDLE_TIMEOUT_MINUTES * 60`. Under the
+    JWT strategy NextAuth re-encodes the token and re-sets the cookie on every
+    session read with a fresh `now + maxAge`
+    (`@auth/core/lib/actions/session.js`), and `jwt.maxAge` defaults to
+    `session.maxAge` (`@auth/core/lib/init.js`), so one number bounds the cookie
+    and the signed token together. That is a sliding idle window, which is what
+    idle expiry is. `updateAge` is deliberately not set — it is read only on the
+    database-strategy path, so setting it would be a line of configuration that
+    does nothing, and the survey's suggested `updateAge: …` was checked against
+    the vendored source rather than adopted.
+  * **Absolute** cannot be a cookie attribute, because every attribute NextAuth
+    writes is refreshed on use. It is `token.authAt`, stamped on the sign-in call
+    — `user` is present there and on no other call — and never re-stamped. Every
+    subsequent call hands `checkSession` a record whose `expiresAt` is
+    `authAt + ABSOLUTE_TIMEOUT_HOURS`, and returns `null` when it refuses, which
+    is how NextAuth is told to delete the session cookie.
+
+  **`checkSession` is called rather than re-implemented**, which is the point of
+  the item: the rule it applies — absolute before idle, `NaN` counts as expired,
+  `>=` not `>` — is stated once, in the engine, instead of being re-typed in the
+  app where the two would drift. Reaching it means constructing a `ServerSession`
+  the app does not have, so the filler is chosen to make each branch it would
+  reach **inert rather than accidentally satisfied**: `lastSeenAt` is the
+  evaluation instant (idle belongs to `maxAge`; two places enforcing one rule is
+  how they disagree), `tenantId` is the same value on both sides because the
+  NextAuth token carries no tenant, and `revokedAt` is `null` because there is no
+  session table to revoke in. Each is written down in the code as a limit, not
+  disguised as a check.
+
+  **A token with no `authAt` is refused, not adopted.** Its age cannot be
+  established, and stamping `Date.now()` would hand an arbitrarily old session a
+  fresh full window — the loophole again, wearing a migration's clothes. The cost
+  is one forced sign-in at the deploy that introduces this, and that is the right
+  trade.
+
+  **Mutations.** Each applied to `auth.ts`, run, restored, re-run green.
+
+  | # | Mutation | Result |
+  |---|---|---|
+  | 1 | re-stamp `token.authAt = Date.now()` on every call (the sliding clock) | 6 tests fail, incl. "does not slide" and both expiry tests |
+  | 2 | drop `maxAge` from `sessionOptions` (the defect as found) | 2 tests fail |
+  | 3 | keep `sessionCallbacks` exported but pass NextAuth the old inline callbacks | "passes sessionOptions and sessionCallbacks to NextAuth" fails |
+  | 4 | ignore the `checkSession` verdict (`if (!verdict.live && false)`) | 4 tests fail |
+  | 5 | adopt a token with no `authAt` by stamping `now` instead of refusing | 2 tests fail |
+
+  Mutation 3 is the one that matters most for this item: it is exactly the
+  failure mode the survey found — an engine that exists, is exported, is tested,
+  and is not the code that runs. The suite fails on it.
+
+  **Honest limits, unchanged and not claimed.**
+
+  * **Rotation and the session inventory are still unwired.** `rotateSession`,
+    `sessionInventory` and `revokeSessions` need a persisted session row: a
+    NextAuth JWT session has no server-side identifier to rotate and no row to
+    list or revoke. That needs a new model in `apps/web/prisma/schema.prisma`
+    and a migration, which is outside this area's files and needs a database
+    this host does not have. **BLOCKED_EXTERNAL.** An operator would run:
+    `docker run -d --name tenure-pg -e POSTGRES_USER=tenure -e
+    POSTGRES_PASSWORD=tenure -e POSTGRES_DB=tenure -p 5433:5432 postgres:16`,
+    then `export DATABASE_URL="postgresql://tenure:tenure@localhost:5433/tenure"`,
+    then `cd apps/web && npx prisma migrate dev`.
+  * **Tenant binding is not enforced here**, because the token carries no tenant
+    to bind. Named in the code at the point where a real check would go.
+  * **`sessionCookie` / `csrfCookie` / `checkCsrf` / `cookieProblems` remain
+    uncalled.** They describe a BFF cookie this deployment does not issue;
+    wiring them is the same cutover, not this change.
+  * The clock is `Date.now()` rather than an injected one, so the tests reason in
+    offsets from the real now. Deterministic, no fake timers, no randomness.
+
+### GE-080-007 — money parses on digits, not on a float, 2026-08-06
+
+- [x] **GE-080-007** — Currency precision, rounding and invariant tests for money
+  parsing.
+  - Status: PASS
+  - The survey was re-verified against the running code before any edit, and
+    every claim in it held. Executing the old `parseMoneyToCents` verbatim:
+    `parseMoneyToCents(-0.005)` → `-0` but `parseMoneyToCents("-0.005")` → `-1`
+    (the two live branches disagreeing on one amount); `"1.005"` → `100` where
+    half-away-from-zero is `101`; `"0.145"` → `14` where it is `15`. Both
+    branches are production paths, so this was a real defect, not a latent one.
+  - Code: `apps/web/src/lib/finance.ts` — `parseMoneyToCents` rewritten to round
+    on the decimal *digits* instead of `Math.round(value * 100)`.
+    - One implementation, two entry paths. The number branch no longer has its
+      own arithmetic: it stringifies through `toPlainDecimalString`
+      (`finance.ts:112`) and falls into the same digit path as the string
+      branch, which is what makes the two agree by construction rather than by
+      coincidence. `toPlainDecimalString` exists because `String(1e-7)` is
+      `"1e-7"` and `String(1e21)` is `"1e+21"`; neither survives digit-wise
+      rounding, and both reach this function from a spreadsheet cell.
+    - Half away from zero is decided on the magnitude, before the sign is
+      applied (`finance.ts:191`), so `"0.005"` → `1` and `"-0.005"` → `-1` are
+      mirror images. The old code inherited `Math.round`'s bias toward `+∞`,
+      which is why the sign changed the answer.
+    - The result is assembled by integer arithmetic only — `whole * 10 **
+      exponent + kept` — which is exact in a double below 2^53. No fractional
+      float exists at any point, so there is nothing to round wrong. The
+      `Number.isSafeInteger` guard (`finance.ts:195`) is what keeps that claim
+      true at the top of the range: past 2^53 the sum rounds silently, and the
+      function now refuses rather than storing a total that is not the amount
+      that was typed.
+    - `-0` is normalised to `0` (`finance.ts:200`). It is `=== 0` but
+      `Object.is`-distinct and serialises as `"-0"` in JSON.
+    - BigInt was the obvious tool here and is deliberately **not** used: this
+      app's `tsc` target predates ES2020, so `10n` is `TS2737`. The first
+      implementation used it, failed `type-check`, and was replaced with the
+      exact-integer double arithmetic above rather than by changing a
+      compiler target that belongs to the whole app.
+  - **Parse is now the inverse of format.** `finance.ts` always multiplied by
+    100 while `packages/platform-config/src/money.ts:41` divides by
+    `10 ** <Intl-resolved exponent>`, so the pair did not round-trip for any
+    currency whose minor unit is not 1/100 — a hundredfold error on a JPY
+    tenant, and wrong the other way for KWD. `minorUnitExponent`
+    (`finance.ts:84`) resolves the exponent through the *same*
+    `Intl.NumberFormat(...).resolvedOptions().maximumFractionDigits` expression
+    the formatter uses, so the two cannot drift apart. It is memoised per
+    locale+currency because a budget import resolves it once per sheet cell.
+  - Caller: `parseMoneyToCents` is reached by eight real production call sites,
+    unchanged and uncast — the new `format` parameter is optional and defaults
+    to `DEFAULT_MONEY_FORMAT`. Server actions that write to the database:
+    `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts:64` and `:65`
+    (budget line budgeted/actual), `:125` (forecast), `:236` (ledger posting
+    magnitude, which then goes through `ledgerSignedCents`), `:367`
+    (reimbursement amount). Client surfaces: `FinanceDashboard.tsx:66` and
+    `:94`, `ReimbursementForm.tsx:24`. In-module: `parseBudgetSheet`
+    (`finance.ts:340-341`), itself called from
+    `apps/web/src/components/finance/BudgetUpload.tsx:41` with xlsx cell values
+    — the number branch.
+  - Tests: `apps/web/src/lib/finance.test.ts` — 29 cases, up from 13. The
+    invariants the survey asked for, plus the edges the rewrite introduced:
+    parse(format(n)) over an amount table; number and string forms of the same
+    amount asserted *equal to each other* rather than to a literal; half-way
+    values in both signs and in parenthesised form; `-0` never returned;
+    `parseMoneyToCents(String(cents / 10 ** digits), format) === cents` for USD,
+    JPY and KWD, which is literally the formatter's divisor inverted; a posting
+    and its reversal netting to exactly `0`; `summarize` totals equal to the sum
+    of the parsed lines and every total a safe integer; and 100 sheet rows of
+    `"0.145"` summing to `$15.00` rather than the `$14.00` the float parser
+    produced.
+  - Proven by mutation, 5 of 5 caught, each restored and re-run green (29/29):
+    - **A** — the original `Math.round(value * 100)` / `Math.round(parseFloat(s)
+      * 100)` restored in both branches → **10 fail**, including the two the
+      survey predicted: *keeps the number and string branches in agreement* and
+      *rounds half away from zero instead of through a float*.
+    - **B** — `minorUnitExponent(format)` replaced by a hardcoded `2`, digit
+      rounding otherwise intact → **3 fail**, and exactly the three
+      exponent tests. This is the proof that the currency generality is load
+      bearing and not decoration: nothing else in the suite notices.
+    - **C** — the `-0` normalisation deleted → **1 fail** (*never returns
+      negative zero*), which is the `Object.is` assertion, not the `toBe(0)`
+      one that `-0` would have passed.
+    - **D** — the half-way boundary moved from `>= 53` to `> 53`, so exactly
+      half rounds toward zero → **9 fail**. A one-character change to the
+      rounding rule is caught nine ways.
+    - **E** — the `Number.isSafeInteger` guard deleted → **1 fail** (*parses
+      amounts too large for a double exactly, and rejects the rest*).
+  - One test was corrected rather than the code: the round-trip case originally
+    asserted `parseMoneyToCents(formatCents(-0)) === -0`, which fails because
+    `-0` normalising to `0` is the required behaviour. The claim was wrong, not
+    the implementation.
+  - **Deliberately not widened.** The accepted input charset is unchanged —
+    `$`, commas, whitespace, parenthesised and leading-minus negatives. `format`
+    selects how many fraction digits are kept, not how the number is written.
+    Stripping currency symbols generally would make de-DE `"1.234,56 €"` parse
+    as `1.23456` — silent hundredfold corruption — where today it is rejected as
+    unparseable and the caller's `?? 0` sees a null. Locale-aware grouping and
+    decimal separators are a larger change than this item, and the limitation is
+    written into the function's doc comment rather than left to be discovered.
+    The test suite asserts the rejection (`"¥1,234"` → `null`) so that a future
+    widening has to confront it.
+  - Verified: `npm run type-check` — zero errors from `finance.ts`; the tree's
+    one remaining error is `src/lib/search-data.ts(107,60)`, which belongs to
+    another agent's in-flight edit (`git status --porcelain` shows it modified;
+    this task never opened it). `npm run test --workspace apps/web -- --ci
+    --testPathPattern "lib/finance"` → 29/29 pass. Widened to
+    `--testPathPattern "(finance|finops|money|platform-config)"` → 13 suites,
+    209/209 pass, confirming the shared formatter's own suite still agrees.
+    `npm run lint` → no finding in either file.
+  - No database was required or touched; this is pure computation.
+
+### GE-074-004 — the hard conflict becomes a rule with authority behind it, 2026-08-06
+
+- [x] **GE-074-004** — Hard/soft conflict engine with explainable rule, override
+  authority and an audited decision.
+  - Status: PASS for the engine, the gate and the audited decision; the HTTP
+    surface for *requesting* an override is named as a boundary below.
+  - Code: `apps/web/src/lib/calendar.ts` (`ConflictRule`, `CONFLICT_RULES`,
+    `ConflictInputs`, `explainConflict`, `isBlockingConflict`),
+    `apps/web/src/lib/calendar-conflict-policy.ts` (`decideConflictOutcome`),
+    `apps/web/src/lib/calendar-write.ts` (`evaluateConflicts`,
+    `persistConflicts`, `gateOnConflicts`, `auditOverride`, and the reordered
+    `rescheduleEvent` / `updateEventDetails`).
+  - Tests: `calendar.test.ts` (9), `calendar-conflict-policy.test.ts` (8),
+    `calendar-write.test.ts` (10) — 41/41 across the four `src/lib/calendar`
+    suites; `npm run type-check` clean over the whole tree when this work landed
+    (a later re-run reds on `src/lib/audit-record.test.ts` 253/277, another
+    agent's in-flight edit — zero errors name a calendar file); `npx eslint`
+    on all six files silent.
+  - **9 mutations, 9 caught.**
+
+  ## What was actually wrong
+
+  The classifier was fine and the governance around it did not exist.
+  `detectConflicts` returned `{severity, reason}` where `reason` was an English
+  sentence interpolated at the point of detection — no rule identifier, so
+  nothing downstream could name what fired, decide per rule, or record which
+  rule was overridden. And `rescheduleEvent` did the check *after* the write:
+  `db.event.update` moved the row, then conflicts were re-detected, then the
+  count was dropped into audit metadata and the presidents were notified. A HARD
+  conflict was advisory by construction — there was nothing left to refuse.
+  Anyone who could drag an event could drag it into an occupied room, and the
+  system's own record of the collision was written by the act that caused it.
+
+  ## Three changes, in the order they matter
+
+  **The rule is an identifier.** `VENUE_DOUBLE_BOOKING`, `SELF_DOUBLE_BOOKING`,
+  `AUDIENCE_OVERLAP`, `SAME_DAY` — each with a fixed severity in one table and
+  one `explain(inputs)` function. A conflict carries the `inputs` that fired it
+  (the normalized venue, the other event's title, its start and end), so the
+  sentence is *derived* rather than only rendered: `explainConflict(c.rule,
+  c.inputs)` reproduces `c.reason` exactly, and a test asserts it. Severity is
+  read from the table, never passed in, so a mutated copy claiming `SOFT` still
+  blocks — `isBlockingConflict` decides on the rule id.
+
+  **The decision is a pure function.** `decideConflictOutcome` takes the
+  conflicts, whether the actor holds `event.override` at that institution, and
+  what the actor asked for. A blocking rule refuses unless *three* conditions
+  hold together: authority, an explicit override request in this request, and a
+  written reason of at least 10 characters. Each removes a different failure —
+  authority alone would make every Director's ordinary drag a silent bypass of
+  the rule they enforce; an explicit request alone would let anyone opt out via
+  a client-controlled flag; without a reason the audit row says only "someone
+  chose to", which is not an account of a decision. SOFT and INFORMATIONAL never
+  block: blocking on coincidence is how a hard gate stops meaning anything.
+
+  **The write happens after the decision, or not at all.** `evaluateConflicts`
+  is read-only and `persistConflicts` runs only once the write has landed, so a
+  refused proposal leaves no `ConflictRecord` advertising a clash that does not
+  exist. `gateOnConflicts` audits the refusal itself — `Event.ConflictBlocked`,
+  `outcome: DENY`, carrying the block code, the required capability and the rule
+  ids — because a block that leaves no trace is indistinguishable from a request
+  nobody made. The ALLOW side is deliberately audited by the caller *after* its
+  write, so the log cannot assert an override that a later failure rolled back:
+  `Event.ConflictOverridden` with the rules, the conflicting event ids and the
+  reason, alongside the existing `Event.Rescheduled` row (which now also carries
+  `overriddenRules`). The presidents' notification now quotes the override
+  reason rather than a bare warning.
+
+  The venue edit goes through the same gate. Typing an occupied room into the
+  inspector and dragging the event into it are the same act; gating only the
+  drag would have left the other door open.
+
+  ## Mutations
+
+  | # | Mutation | Result |
+  |---|---|---|
+  | 1 | policy ignores `actorHasOverride` | 3 failed (policy + write suites) |
+  | 2 | policy ignores `overrideRequested` | 2 failed |
+  | 3 | `rescheduleEvent` computes the decision and ignores it | 4 failed |
+  | 4 | restore the old order — `event.update` before the gate | 4 failed |
+  | 5 | accept an override with no reason | 2 failed |
+  | 6 | never write the `Event.ConflictOverridden` row | 4 failed |
+  | 7 | `isBlockingConflict` reads the record's severity, not the rule's | 1 failed |
+  | 8 | venue clash fires as `AUDIENCE_OVERLAP` | 16 failed |
+  | 9 | gate consults `audit.view` instead of `event.override` | 1 failed |
+
+  Mutation 4 is the one that matters most: it re-creates the exact defect this
+  requirement was opened against, and the wiring test catches it on the "row
+  unchanged" assertion rather than on any prose.
+
+  `calendar-write.test.ts` drives `rescheduleEvent` and `updateEventDetails` —
+  the functions `POST /api/calendar/reschedule` and `PATCH
+  /api/calendar/event/[id]` call — against a database stand-in that is a table,
+  not a canned answer: `findMany` filters the same rows `update` mutates, so the
+  conflicts under test are produced by the real detector reading real state, and
+  a write that should not have happened shows up as a changed row.
+
+  **Honest limits.**
+
+  * **An override cannot yet be *requested* over HTTP.** `RescheduleInput` and
+    `EventDetailsInput` accept `override: {requested, reason}`, and the two API
+    routes — outside this task's file allowlist — parse their bodies with a Zod
+    object that strips unknown keys. So today every HARD conflict arriving over
+    HTTP is refused, including a Director's: the safe half is live end to end,
+    the override half is reachable only by a server-side caller. Exposing it is
+    `override: z.object({ requested: z.boolean(), reason: z.string().max(500)
+    .optional() }).optional()` added to `Body` in
+    `apps/web/src/app/api/calendar/reschedule/route.ts` (and the equivalent in
+    `event/[id]/route.ts`), plus the inspector UI that collects the reason.
+  * **`ConflictRecord` has no rule column.** The schema was not in scope, so the
+    named rule survives the write in `Event.conflictSummary.byRule` (a Json
+    field nothing else reads) and in the audit metadata. The persisted
+    `ConflictRecord.reason` is still the derived sentence.
+  * **Not exercised against Postgres.** No database is available in this
+    environment. The e2e paths an operator should run after `docker run …
+    postgres:16 && npx prisma migrate deploy && node scripts/seed.mjs` are
+    `npx playwright test e2e/calendar.spec.ts` — in particular "an officer can
+    reschedule their own event from the grid", which now passes only because
+    each spec parks on its own day and its own venue, and "a member who does not
+    own the event cannot reschedule it", whose 403 is unchanged.
+
+### GE-143-026 — a category's colour is now a property of the category, not of its rank, 2026-08-06
+
+- [x] **GE-143-026** — Chart API must give a category deterministic colour
+  identity, independent of its rank.
+  - Status: PASS
+  - The survey was re-verified against the code before any edit, and it was
+    right. `palette.ts` opened by claiming colours "are assigned to entities in
+    FIXED SLOT ORDER and never cycled or repainted when a filter changes the
+    series count: the hue follows the entity, not its rank", while `slotColor(i)`
+    took an array index and `DonutChart.tsx:59` handed it the loop counter. The
+    live consequence is in `panels/ReportsAnalytics.tsx:109` (now `:114-115`):
+    `memoryData` is `[...memCount.entries()].sort((a, b) => b[1] - a[1])` inside
+    a `useMemo` keyed on `range`, so the row order of the memory donut is a
+    function of the range filter. Clicking "This term" → "12 months" re-ranks
+    PLAYBOOK against CONTACT and, with an index-keyed palette, swaps their hues:
+    the same legend means two different things in two views of the same chart.
+  - Code: `apps/web/src/components/charts/palette.ts` — new `slotsForKeys(keys)`
+    (`:84`) and the private `preferredSlot(key)` (`:54`). Each key hashes to the
+    slot it wants; keys are resolved in canonical (code-unit) order and a key
+    whose slot is claimed probes forward, so a ≤ 8-category chart still gets
+    eight distinct hues while *which* key yields a collision is decided by the
+    keys themselves and never by their arrival order.
+  - Caller: `DonutChart.tsx:62-63` builds the map once per render and
+    `:76` / `:135` paint the arc and its legend swatch from it — `slotColor(i)`
+    is gone from this component. `DonutDatum` gains an optional `key`
+    (`DonutChart.tsx:17`), the stable identity behind a row where `label` is the
+    display string. The production caller of that field is
+    `panels/ReportsAnalytics.tsx:116`, which now emits
+    `{ key: type, label: titleCase(type), value }` — the `MemoryRecordType` enum
+    value (`prisma/schema.prisma:679`), reached from
+    `app/(app)/reports/page.tsx:196`. The other two donuts in the app
+    (`app/(app)/admin/page.tsx:97` and `components/finance/FinanceDashboard.tsx:108`)
+    supply an explicit `color` on every datum, so they are unchanged by this.
+  - **The hash needed a finalizer, and finding that out was not academic.** The
+    first cut was plain FNV-1a with `% 8`. FNV's low bits are weak, and `% 8`
+    reads only the low three: a character's ASCII case bit (0x20) cannot
+    propagate down into them, so `"CONTACT"` and `"Contact"` — and every one of
+    the eight enum/label pairs this panel deals in — landed on the same slot,
+    which would have made "is this chart keyed on the enum or on its label?"
+    an unanswerable question. `preferredSlot` now runs the murmur3 fmix32
+    avalanche before the fold (`palette.ts:60-64`), and the test that pinned this
+    down (`separated.length >= 6`) reports 0 of 8 separating without it.
+  - **What is claimed, and what is not.** The module header was rewritten
+    (`palette.ts:1-22`) because the old text was false for every chart:
+    `slotColor(i)` is position-keyed and stays correct only where the code fixes
+    the series list (a stacked bar's `series`, a line chart's named lines);
+    `slotsForKeys` is identity-keyed and is what data-ordered rows must use.
+    `slotsForKeys`' own contract is stated exactly: identical for any permutation
+    of the same keys, and identical across two key sets *unless the key actually
+    collides with another key present in one of them*; past eight keys the slots
+    are exhausted and a hue repeats. That last case is asserted rather than
+    hidden — nine keys yield nine entries over eight distinct colours.
+  - Tests: `apps/web/src/components/charts/palette.test.ts` (new) — 12 cases.
+    Six cover `slotsForKeys` directly; four render `DonutChart` through
+    `renderToStaticMarkup` and read the colour off the `<circle stroke>` and the
+    legend swatch rather than trusting the helper; two render the real
+    `ReportsAnalytics` panel over two windows in which the four categories rank
+    differently and assert the painted hues are identical and enum-keyed. The
+    fixture keys are the eight real `MemoryRecordType` values.
+  - Proven by mutation, 5 of 5 caught, each restored and re-run green (12/12):
+    - `color: colors[i]` → `d.color ?? CHART_SLOTS[i % CHART_SLOTS.length]` in
+      `DonutChart` (the survey's mutation — index-keyed again) → 5 fail,
+      including both panel-level cases.
+    - the legend swatch alone reverted to the index → 1 fail, on the assertion
+      that the legend and the arcs agree. Without it a legend could lie about a
+      correctly-painted ring.
+    - `.sort()` dropped from `slotsForKeys` (collisions resolved in arrival
+      order) → 3 fail, so the canonical ordering is load-bearing and not decor.
+    - the fmix32 finalizer deleted → 2 fail, one reporting exactly 0 of 8
+      case-pairs separating.
+    - `key: type` dropped from `ReportsAnalytics`'s `memoryData` → 1 fail: the
+      panel repaints to the label-keyed hues (chart-2/7/3/5 instead of
+      chart-3/7/2/1). The wiring in the production caller is tested, not assumed.
+  - Verified: `npm run test --workspace apps/web -- --ci --testPathPattern
+    "components/charts" ` → 3 suites, 29/29 pass. `npx tsc --noEmit` in
+    `apps/web` → exit 0, no error in any file of this area. (A later run of the
+    repo-level `npm run type-check` reported two errors in
+    `src/lib/audit-record.test.ts`, a file in another agent's area and outside
+    this change.) `npx eslint` on the four files → clean, 0 errors 0 warnings;
+    a pre-existing unused `SURFACE` import in `DonutChart.tsx` was dropped in
+    passing, since the import line was being edited anyway.
+  - No database was required or touched; this is pure computation and rendering.
+  - **Cross-area, not done here:** `BarChart`, `HBarChart`, `LineAreaChart` and
+    `SankeyChart` still call `slotColor(i)`. For the first three that is correct
+    — their series lists are literals in the calling component. `SankeyChart.tsx:247`
+    and `:269` are not: they key on `node.idx`, the node's position in the
+    `nodes` array, which for the seat-allocation flow is roster order. That file
+    belongs to another item in this wave and is untouched here.
+
+### GE-063-004 — the audit trail can be checked, exported and expired, 2026-08-06
+
+- [ ] **GE-063-004** — `@tenure/audit` gains record hashing, chain verification,
+  gap detection, clearance-scoped projection, retention planning and legal holds.
+  - Status: FAIL
+  - Reclassified from PASS by the orchestrator, agreeing with the refuter. FAIL
+    rather than BLOCKED_*, because the remaining work — passing a sequence and
+    previous hash from the two production writers, and calling `verifyChain`
+    somewhere real — can be built now. It was blocked only by a file allowlist.
+    The refuter
+    re-ran all five mutations and reproduced every one exactly. The hashing work
+    is real and `hashRecord` genuinely runs on the production write path
+    (`apps/web/src/lib/admin/guard.ts:70`, `.../provisioning/reconcile.ts:368`).
+    Two things stop this being PASS:
+    1. The chain is never continuous in production. `record.ts:353` gates
+       `_sequence`/`_previousHash` behind `if (sequence !== null)`, and neither
+       production caller passes `previous` or `sequence`, so every real record is
+       `sequence: null` and only the per-row hash is written. A per-row hash is
+       precisely the control this code's own comments say an attacker who can
+       edit a row defeats — gap detection has nothing to detect gaps in.
+    2. `verify.ts` and `retention.ts` — 565 of roughly 600 new source lines —
+       have exactly one caller between them, `audit.test.ts`.
+    Unblocks when the two production writers pass a per-tenant sequence and the
+    previous hash, and something in `apps/web` calls `verifyChain`. Both are in
+    `apps/web`, which this agent's allowlist forbade — see the note below on why
+    that boundary caused this.
+  - The survey was re-verified before any edit and every claim held.
+    `packages/audit/src/` contained exactly three files; `index.ts` exported
+    exactly four symbols (`AuditRecordError`, `REDACTED`, `buildAuditRecord`,
+    `redactMetadata`); `AuditRecord` (record.ts:73-87 as it stood) carried no
+    sequence, no previous hash and no record hash. The only audit read surface,
+    `apps/web/src/app/(app)/admin/audit/page.tsx:58-60`, is still a raw
+    `db.auditEvent.findMany({ take: 200 })` with a text filter.
+  - Code, and the production caller each part is reached by:
+    - `packages/audit/src/record.ts` — `hashRecord()` plus `sequence`,
+      `previousHash` and `recordHash` on `AuditRecord`. **On the production
+      write path**: `buildAuditRecord` computes the hash for every record it
+      builds, and it is called from `apps/web/src/lib/admin/guard.ts:70` (every
+      privileged admin action) and
+      `apps/web/src/lib/provisioning/reconcile.ts:368`.
+    - The hash is mirrored into `metadata` under `CHAIN_METADATA_KEYS`
+      (`_sequence`, `_previousHash`, `_recordHash`) — the same `_` namespace
+      already used for `_releaseId` and `_policyDecision`, and for the same
+      reason: `AuditEvent` has no column for it, and both writers persist
+      `record.metadata` wholesale as JSONB (`guard.ts:96`,
+      `reconcile.ts:396`). So the hash reaches the database today, with no
+      migration and no edit outside this package.
+    - `occurredAt` is canonicalised through `new Date(...).toISOString()` before
+      hashing. Otherwise a record written as `…T12:00:00Z` and read back as
+      `…T12:00:00.000Z` would fail verification for having been stored.
+    - `previous?: AuditRecord` on the input derives `sequence`/`previousHash`
+      **and refuses to extend a record whose content no longer hashes to its own
+      hash** — a tampered log stops growing at the tamper instead of burying it
+      under a valid-looking suffix.
+    - `packages/audit/src/verify.ts` — `verifyChain()` reports `CONTENT_ALTERED`
+      (a row edited in place), `BROKEN_LINK` (a row whose hash was recomputed by
+      someone who could not also rewrite every later row), `gaps` (a per-tenant
+      sequence that skips), `duplicates` (two rows claiming one position), and
+      `unchained` — the honest count of records the chain does not cover while
+      36 writers still hand-build their payloads. `projectForQuery()` classifies
+      every field by `FieldSensitivity` (a type that until now nothing used) and
+      re-runs `redactMetadata` on read, so a key added to the denylist after a
+      row was written is redacted in the export anyway.
+    - `packages/audit/src/retention.ts` — `applyRetention()` returns a partition
+      (`expire` / `retain` / `heldBack` / `chainBlocked`) plus per-tenant
+      `anchors`. It plans a deletion; it never performs one. Two rules it will
+      not bend: a record matched by an active `LegalHold` is never in `expire`,
+      and expiry only ever cuts a *prefix* of a chain — deleting record 5 leaves
+      4 and 6 unlinked, which is indistinguishable, to `verifyChain`, from
+      someone removing the record that mattered.
+  - Reuse, not reimplementation: hashing goes through `stableStringify` from
+    `@tenure/configuration`, the same canonical serializer
+    `packages/releases/src/release.ts:123` hashes with. Two definitions of
+    "canonical" is one too many.
+  - Tests: `packages/audit/src/audit.test.ts` — 49 cases, up from 19.
+  - Proven by mutation, 5 of 5 caught, each restored and re-run green (49/49):
+    - **A** — `applyRetention` ignores the holds array (`holds.filter(h =>
+      isActive(h, asOfMs) && false)`) → **3 fail**, led by *never expires a
+      record under an active hold*.
+    - **B** — `hashedContentOf` stops covering `metadata` → **1 fail**, *catches
+      a record whose content was edited after it was written*. This is the
+      flipped-metadata-byte proof.
+    - **C** — the link check compares `cur.previousHash !== cur.previousHash`
+      instead of `!== prev.recordHash` → **2 fail**: *catches an attacker who
+      recomputed the hash too* and *catches a deleted record as a gap and a
+      broken link*.
+    - **D** — `projectForQuery` returns `record.metadata` unchanged instead of
+      re-redacting → **2 fail**, including the case that models one of the 36
+      hand-built rows carrying a `sessionToken` in full.
+    - **E** — the `cutting = false` that a legal hold sets is deleted → **1
+      fail**, *cuts only a prefix of a chain*: the plan starts expiring records
+      on the far side of a held one.
+  - Verified: `npm run test --workspace apps/web -- --ci --testPathPattern
+    "packages/audit"` → 49/49. Widened to `--testPathPattern
+    "packages/(audit|releases|configuration)"` → 13 suites, 350/350, confirming
+    the shared `stableStringify` consumers still agree.
+  - `npm run type-check` → 0 errors at the moment this work finished. On a
+    re-run minutes later it reported 2, both
+    `src/lib/audit-record.test.ts(253,22)` and `(277,9)`: a fixture in that file
+    omits `reason`, which its own hand-written `StoredAuditEvent` interface
+    (`apps/web/src/lib/audit-record.ts:96-109`) requires. That file is another
+    agent's in-flight work, appeared in the tree after this task's edits, and is
+    outside this allowlist. `reason` has been on `AuditRecord` since before this
+    change, so neither error comes from it. Nothing in `packages/audit`
+    type-errors.
+  - Noted, not claimed: that same in-flight file already imports
+    `CHAIN_METADATA_KEYS` from this package and rehydrates an `AuditRecord` from
+    a stored row (`audit-record.ts:134-146`). That is the cross-area wiring
+    described below being picked up elsewhere; it is not this entry's work and
+    it does not yet compile.
+  - **CROSS-AREA, not done here.** Two things this deliberately stops short of,
+    both outside this task's file allowlist:
+    1. The chain is *available* but not yet *continuous* in production. Records
+       built without `previous` are `sequence: null` — honestly unchained, and
+       counted as such by `verifyChain`. Making the chain real needs
+       `guard.ts` and `reconcile.ts` to read the tenant's last record and pass
+       it as `previous`, inside the same transaction as the insert (otherwise
+       two concurrent writes claim one sequence, which `verifyChain` would then
+       correctly report as a duplicate). That is an `apps/web` change.
+    2. `verifyChain`, `projectForQuery` and `applyRetention` are the package's
+       public API and are exercised only by this package's tests. The surface
+       that would call them in production —
+       `apps/web/src/app/(app)/admin/audit/page.tsx` — is another agent's area
+       and was not touched. Nothing in this entry claims the admin audit page
+       verifies, exports or expires anything today; it does not.
+  - No database was required or touched: every function here is pure over
+    arrays. The one thing Postgres would add is a round-trip proof that
+    `_recordHash` survives JSONB storage and read-back; that is
+    BLOCKED_EXTERNAL on this host. An operator can run it with
+    `docker run -d --name tenure-pg -e POSTGRES_USER=tenure -e
+    POSTGRES_PASSWORD=tenure -e POSTGRES_DB=tenure -p 5433:5432 postgres:16`,
+    then `export DATABASE_URL="postgresql://tenure:tenure@localhost:5433/tenure"
+    && cd apps/web && npx prisma migrate deploy && node scripts/seed.mjs`, then
+    `npm run test:isolation --workspace apps/web`.
+  - `npm run test:platform` fails 10 of 216 in this working tree, none of them
+    from this change: the audit-writes ratchet (#72/#73/#75) counts
+    `auditEvent.create` calls under `apps/web/src/**` and reports 36 raw writes
+    against a ceiling of 34, and `git status --porcelain` shows
+    `apps/web/src/lib/calendar-write.ts` and new `apps/web/src/lib/audit-*.ts`
+    files modified/added by other agents working this tree concurrently. This
+    task changed no file under `apps/web`.
+
+- [x] **GE-143-032** — Test Sankey at small, medium, large, and pathological graph sizes; aggregate or switch representation before legibility fails.
+  - Status: PASS
+  - Code: `apps/web/src/components/charts/SankeyChart.tsx`
+  - Tests: `apps/web/src/components/charts/SankeyChart.test.ts` (18)
+  - Evidence: 18/18 in `npm run test --workspace apps/web -- --ci --testPathPattern
+    "src/components/charts"` (35/35 for the whole charts area, including another
+    agent's `palette.test.ts`), `tsc --noEmit` clean, eslint clean on both files.
+    **7 mutations, 7 caught.**
+
+  The chart shipped with no test file at all and three ways to fail silently.
+  Bands were sized `Math.max(3, throughput * scale)` where `scale` was solved
+  ignoring that clamp, so once a column held more than `plotH / (3 + gap)` nodes
+  the stack ran past the plot and the bands overlapped — an SVG that renders
+  without complaint. Ribbon thickness had no floor at all and degenerated to
+  sub-pixel hairlines. Every label was drawn unconditionally at 11px with no
+  reference to the room around it. And a single self-link drove the longest-path
+  layering to one column per node, because a node can never out-rank itself.
+
+  `computeLayout` is now exported and states four bounds in its own doc comment,
+  and the test asserts each of them at four sizes — 3 nodes, 25, 201, and a
+  pathological graph of 500 equal flows plus a zero-value link, a self-link and
+  a 2-cycle:
+
+  1. Per column, `sum(band heights) + gaps <= plotH`. Held by solving for the
+     value→pixel scale with the minimum-height clamp *inside* the budget
+     (`fitScale` bisects the monotone `sum(max(min, v*s))`), and by folding.
+  2. Folding: a column keeps its largest flows and folds the rest into one
+     `Other (n)` band — links re-pointed at it and merged — once it would exceed
+     `layerCapacity(height)` bands, or once more than half its budget would be
+     bands pinned to the floor. The second trigger is what matters: capacity
+     alone bounds overlap but not legibility, and 36 identical 4px bands encode
+     nothing. Ranking is by throughput with input order breaking ties, so the
+     same graph always folds the same way.
+  3. Ribbons get the same treatment per endpoint: floored at `MIN_RIBBON_H`,
+     re-fitted so the stack cannot overflow its band, and — where a band is too
+     thin to host that many ribbons at the floor at all — split equally, which
+     shows connectivity where proportion is no longer showable.
+  4. Labels are committed largest-flow-first and only where they clear
+     `LABEL_LINE_H` of every label already placed. What crowding costs is the
+     smallest flow's label, never the biggest's, and never the reading: every
+     band carries a `<title>`, so a suppressed label survives to hover and to
+     assistive technology.
+
+  Feedback edges are excluded from the *ranking* pass rather than deleted — the
+  ribbon is still drawn, it just does not get a vote on where the columns are.
+  Self-links are dropped outright; they have no ribbon to draw between columns.
+
+  Wired, not declared: `SankeyChart` in the same file is the production caller,
+  reached from `apps/web/src/components/charts/panels/ReportsAnalytics.tsx:207`
+  (seat-allocation flow) and `apps/web/src/components/finance/PortfolioSankey.tsx:19`
+  → `apps/web/src/app/(app)/reports/finance/page.tsx:105` (budget split). Two of
+  the tests mount that component in jsdom and read the SVG back, so `showLabel`
+  and the per-band `<title>` are proven to change the DOM, not merely to exist.
+  Four more tests pin the shape both callers actually ship — N categories into
+  two sinks at 4/8/12/18 — folding nothing and labelling everything: bounding
+  density cost the live surfaces nothing.
+
+  Mutations, each applied, run, and reverted:
+
+  | # | Mutation | Caught by |
+  |---|---|---|
+  | 1 | `keepCountFor` returns every node (no fold) | 3 tests; the 200-node column stacks to 1596px against a 288px plot |
+  | 2 | ribbon width without the `MIN_RIBBON_H` floor | 2 tests, guarantee B |
+  | 3 | label committed unconditionally | 5 tests, guarantee D |
+  | 4 | self-links kept and feedback edges ranked | pathological: layering runs to one column per node |
+  | 5 | band height without the `MIN_NODE_H` floor | 4 tests |
+  | 6 | component renders `<text>` unconditionally | the jsdom render test |
+  | 7 | component drops the per-band `<title>` | the jsdom render test |
+
+  Not addressed, and named rather than implied: the fold is vertical only. A
+  graph deep enough to need more columns than the width can hold (a chain of
+  hundreds) still draws columns narrower than a node is wide. Both production
+  callers produce two columns, and a horizontal fold would have to merge layers
+  — changing what the picture means, not just how much of it fits. That is a
+  different decision from this one, and it is not made here.
+
+### Wave 1 remediation — the design-token boundary, 2026-08-06
+
+- [x] **GE-143-004** — Add lint/architecture rules that prevent literal colors,
+  arbitrary spacing/shadows/z-index, unregistered fonts/icons, and direct raw
+  primitive tokens in product modules, with a documented exception process and
+  expiry.
+  - Status: PASS, for four of the five categories. The two it does not cover are
+    named below with the reason, not left to silence.
+  - Code: `apps/web/eslint.config.mjs` — `DESIGN_TOKEN_RULES`,
+    `RESTRICTED_ICON_IMPORTS`, `DESIGN_TOKEN_EXCEPTIONS`, `lintToday` and
+    `designTokenConfigs` (all new). The default export is
+    `[...compat.extends("next/core-web-vitals", "next/typescript"),
+    ...designTokenConfigs(DESIGN_TOKEN_EXCEPTIONS, lintToday())]`, which is the
+    config `next lint` loads, which is what `npm run lint` runs, which is what
+    `.github/workflows/ci.yml:57` runs on every push and pull request. The
+    caller is CI, and it was already there — the file it read had no `rules`
+    block at all.
+  - Tests: `apps/web/scripts/design-token-lint.test.mjs` — 6 cases.
+  - Evidence: `npm run test --workspace apps/web -- --ci --testPathPattern
+    "design-token-lint"` → 1 suite, 6/6 (105.9 s; every case shells out to the
+    real ESLint binary). `npm run lint` → exit 0, the same 9 pre-existing
+    warnings and zero errors, so the whole product tree is already clean under
+    the new rules. `npm run type-check` → 0 errors. **2 mutations, 2 caught.**
+
+  The defect. `eslint.config.mjs` was sixteen lines whose entire ruleset was
+  `compat.extends("next/core-web-vitals", "next/typescript")`. The token system
+  itself is real and rather good — `src/app/globals.css` declares the `--token`
+  layer, `tailwind.config.ts` binds every colour / shadow / radius / font class
+  to it, and `src/lib/a11y/theme-tokens.ts` parses the stylesheet so the
+  GE-022-003 contrast audit grades the values the product actually renders. What
+  was missing was the boundary. A literal is invisible to that audit: the
+  palette can pass its contrast gate forever while a component quietly renders a
+  colour the gate has never seen.
+
+  It was not hypothetical. `src/components/ai/TenureAIPanel.tsx:121` draws the
+  Tenure AI mark in `#25a96d`, which is not `--primary` (`#198052`) and not any
+  other token — un-audited, un-themed, and in the product. The rule found it.
+
+  ## What is enforced
+
+  Scoped to `src/app/**` and `src/components/**`, excluding their own tests (a
+  test asserting on `#198052` is not a product module):
+
+  * **Literal colour values** — `#rgb` / `#rrggbb` / `#rrggbbaa`, `rgb()`,
+    `hsl()`, `oklch()` and friends, in string literals and template elements
+    alike. This is also the registry item's "direct raw primitive token": this
+    token layer has no primitive tier beneath it — `--primary` *is* the
+    primitive — so the only way to bypass it is to write the colour out by hand.
+  * **Tailwind arbitrary colour values** — `bg-[#…]`, `text-[rgb(…)]`. The same
+    bypass wearing a utility class. Baseline: zero occurrences.
+  * **Arbitrary shadows** — `shadow-[…]`, `drop-shadow-[…]`, inline
+    `boxShadow`. `tailwind.config.ts` extends `boxShadow` with xs/sm/md/lg →
+    `--shadow-*`, so every message can name the token to use instead. Baseline:
+    zero.
+  * **Unregistered fonts** — `font-[…]`, inline `fontFamily`, against the `sans`
+    and `display` families next/font actually loads. Baseline: zero.
+  * **Unregistered icons** — `no-restricted-imports` on `lucide-react` and
+    `@phosphor-icons/react*`. `src/components/ui/icons.tsx` already says in its
+    header "Import icons from @/components/ui/icons, never from a vendor package
+    directly", and every icon call site in the product obeys it. That was prose
+    with a perfect compliance record and no enforcement; it is now a rule. The
+    registry itself gets a structural carve-out — it is the boundary, not a hole
+    in it, so it carries no expiry.
+
+  ## What is not enforced, and why not
+
+  Silence would read as safety, so both gaps are stated in the config too.
+
+  **Arbitrary spacing** (`text-[13px]`, `p-[7px]`) — 237 occurrences across 58
+  files today, nine of them in `src/components/ui` itself. A rule there is a
+  cleanup project across the whole product, and it would red CI on 58 files this
+  change does not own.
+
+  **Arbitrary z-index** (`z-[60]`, `z-[100]`; four occurrences) — worse than
+  spacing, because `tailwind.config.ts` extends no `zIndex` scale and
+  `globals.css` declares no `--z-*` tokens. The rule would have no sanctioned
+  alternative to name, and a rule that only says "no" collects exceptions rather
+  than fixes. The layering scale has to exist before its use can be required.
+
+  Both need `tailwind.config.ts`, which is outside this change's file ownership.
+  A test pins the exclusion ("leaves the arbitrary values that have no token to
+  point at alone") so widening the rules later is a deliberate edit to a failing
+  assertion rather than a silent change of behaviour.
+
+  ## The exception process, and why the expiry is real
+
+  An exception names files, the rule keys it suspends, a reason, and an
+  `expires` date. Suspension is per-rule: `src/app/manifest.ts` may write a
+  colour literal and still may not write an arbitrary shadow. Four are live —
+  browser and OS chrome (`layout.tsx`, `manifest.ts`, read by the user agent
+  before a stylesheet exists), the satori-rendered `apple-icon.tsx` (no custom
+  properties in that renderer), `Avatar.tsx`'s per-person `hsl()` monogram
+  swatch, and `TenureAIPanel.tsx`, labelled in the config as debt rather than as
+  a sanctioned literal and given a one-quarter expiry rather than the annual one.
+
+  The expiry is enforced, not narrated. `designTokenConfigs` throws at config
+  load on an exception with no `expires`, a malformed one, or an unknown rule
+  key — so a broken exception fails the lint run instead of silently suppressing
+  everything in the files it names. Past its date, an exception stops suppressing
+  anything *and* the file reports the expiry itself, by name, with the reason it
+  was granted attached.
+
+  `TENURE_DESIGN_TOKEN_TODAY` moves that clock so a test can prove an expiry
+  fires without waiting for 2027. It moves it **forwards only** (`lintToday`
+  returns the later of the override and the real date): an override that also
+  worked backwards would be a way to keep a dead exception alive from CI
+  configuration, which is the ratchet loosening itself.
+
+  ## Why the tests shell out
+
+  Every case drives the real `eslint` binary over the real `eslint.config.mjs`
+  through `--stdin --stdin-filename`, which is what lets a fixture be linted *as
+  if* it were `src/app/manifest.ts` without writing throwaway files into the
+  tree. A reconstruction of the rule objects inside jest would keep passing after
+  someone deleted the rules from the file that ships, which is the one failure
+  the test exists to prevent. The sixth case reaches the config's exported
+  helpers, and it primes them by running ESLint first: `eslint-config-next` loads
+  `@rushstack/eslint-patch`, which throws unless ESLint itself is loading the
+  config — so priming is both the workaround and the guarantee that the helpers
+  under test are the module instance the linter is using.
+
+  ## The mutations
+
+  * **`"no-restricted-syntax"` deleted from the product-module block** — 1 of 6
+    failed, on the colour-literal assertion; 5 passed. The five that stayed green
+    are the right ones: the icon-import rule is a separate rule, and the
+    exception blocks re-declare their own `no-restricted-syntax`, so the case
+    that failed is failing on the deleted behaviour and not on breadth.
+  * **`if (expires < today)` → `if (false)`** — exactly 1 of 6 failed, the expiry
+    case, with the reported text empty: the exception kept suppressing and
+    nothing reported at all. The malformed-exception assertions in the same file
+    stayed green, which is the point — validation and expiry are separate teeth,
+    and only the one that was removed came out.
+
+  ## Not proven here
+
+  Nothing needing a database or a browser is involved: this is a lint config and
+  its tests run offline. The 2026-11-06 expiry on `TenureAIPanel.tsx` will red
+  `npm run lint` on that date if nobody has replaced `#25a96d` with a token by
+  then. That is the intended behaviour rather than a latent failure, but it is a
+  dated commitment and it is recorded here so that it is not a surprise.
+
+---
+
+### GE-063-001 — `AuditEvent` becomes append-only at the chokepoint, 2026-08-06
+
+- [ ] **GE-063-001** — Nothing made `AuditEvent` append-only. Now the single
+  Prisma client the whole application shares refuses every mutating operation on
+  it, in enforce mode, from this commit.
+  - Status: FAIL
+  - The status token is FAIL and the checkbox is unticked deliberately, and this
+    is the interesting part. The previous line read "PASS for the append-only
+    half" — honest prose, and invisible to the tooling: both
+    `tools/reconcile-execution-checkboxes.mjs` and `tools/loop/next-batch.mjs`
+    read status with `/Status:\s*\*{0,2}([A-Z_]+)/`, which extracts `PASS` and
+    drops the qualifier. A refuter ran `ledgerState()` and confirmed it returned
+    PASS, so the unbuilt half would have been ticked done in all four execution
+    prompts and never re-queued. A caveat a parser cannot see is not a caveat.
+  - What IS done, and is mutation-proven: the append-only extension at
+    `apps/web/src/lib/db.ts:37`, which the refuter verified with two mutations of
+    its own beyond the two claimed.
+  - What is NOT done: `apps/web/src/lib/audit-record.ts` has zero production
+    importers. `recordAuditEvent`, `seatFor`, `changeBlockFor`,
+    `prismaAuditLedger` and `rehydrateAuditRecord` — roughly 460 lines — carry
+    seat, the before/after change digest and the prior hash, three of the fields
+    this requirement names, and nothing calls them. The 36 production
+    `db.auditEvent.create` sites still bypass the validated builder.
+    The second half it names (36 of 39 writers bypass the validated builder) is
+    **not closed**: the chokepoint they would go through is written and tested,
+    and 0 of 38 writers are migrated onto it. Why, and where the boundary is,
+    is under CROSS-AREA below. That half is unchecked, not claimed.
+  - The survey was re-verified before any edit and every claim held.
+    `AuditEvent` is TENANT_SCOPED (`src/lib/tenancy/registry.ts:33`), and
+    `src/lib/tenancy/scope-args.ts:28-34` lists `update`, `updateMany`,
+    `delete`, `deleteMany` and `upsert` in `MUTATE_OPERATIONS`, which
+    `scope-args.ts:115-125` scopes and permits — the tenant chokepoint filtered
+    the audit trail to your own institution and then let you rewrite it. A
+    case-insensitive search for `append.only|appendOnly` across `apps/web/src`
+    returned only prose in unrelated files, never a guard. A repository-wide
+    search for a mutation of the model returned exactly one hit, and it is a
+    teardown: `src/lib/provisioning/reconcile.itest.ts:76`.
+  - Code, and the production caller it is reached by:
+    - `apps/web/src/lib/audit-append-only.ts` — `appendOnlyRefusal()` (the rule,
+      pure) and `auditAppendOnlyExtension()` (the Prisma `$extends` that calls
+      it). **Production caller: `apps/web/src/lib/db.ts:37`**, where it is
+      attached to the one exported `db` every server action, route handler and
+      job in the application imports. Not opt-in, for the same reason the
+      tenancy extension is not: a control a caller can decline is a suggestion.
+    - Enforce from day one, unlike tenancy's staged `observe`. Tenancy was
+      staged because ~60 call sites did not yet open a scope; here there is
+      nothing to stage, because no product code has ever mutated an audit row.
+    - The permitted set is an **allow-list**, not a deny-list of mutations. A
+      deny-list fails open: Prisma has added operations before
+      (`createManyAndReturn`, `updateManyAndReturn`), and the day it adds
+      another mutating one a deny-list silently permits it on the audit table.
+      `appendOnlyRefusal("AuditEvent", "obliterateMany")` refuses, and there is
+      a test for exactly that.
+    - `upsert` is refused, not permitted. It can insert, but it can also update,
+      and the insert half is already `create`.
+    - Attachment order is `auditAppendOnly` **then** `tenancy`, and the comment
+      saying why is backed by a test rather than by belief: Prisma runs query
+      extensions in attachment order, so append-only is outermost and an
+      erasure attempt never reaches the tenancy hook. The first draft asserted
+      the opposite ordering, the test failed, and the code — not the claim —
+      was changed.
+  - Scope of the claim, stated because the opposite would be the useful lie:
+    this closes the **application** path. It does not stop `$executeRaw`, a psql
+    session, or anything else holding the credential — Prisma's `$allModels`
+    hook never sees raw SQL, and `apps/web/scripts/entrypoint.sh` composes
+    `DATABASE_URL` from `DB_CREDS`, so the app runs as the table's owner. The
+    durable backstop is a least-privilege role with `REVOKE UPDATE, DELETE ON
+    "AuditEvent"` plus a `BEFORE UPDATE OR DELETE` trigger: a migration and a
+    credentials change, neither of which is a code change, and neither of which
+    is in this allowlist.
+  - Also written, tested, and **reached by nothing yet** —
+    `apps/web/src/lib/audit-record.ts`: `recordAuditEvent()`, the chokepoint the
+    36 hand-assembled writers would go through. It builds through
+    `buildAuditRecord` (validation + redaction), chains each record off the
+    tenant's last *chained* record inside one `$transaction` via
+    `prismaAuditLedger`, records the acting seat (`seatFor` derives it from the
+    same `UserContext` that gated the write), records a before/after change
+    block, and stamps the release from `IMAGE_TAG` — all into the existing
+    `metadata Json` column, so no migration. `rehydrateAuditRecord` turns a
+    stored row back into the canonical `AuditRecord` that `@tenure/audit`'s
+    `verifyChain` reads, which is the piece GE-063-004 left for a caller.
+    Its header says plainly that no writer has been migrated onto it; a header
+    implying otherwise would have been the more expensive kind of wrong.
+  - Two design decisions in that file worth recording, because they trade
+    against each other:
+    - `changedKeys` is computed from the **raw** before/after, so "the
+      passphrase changed" is recorded even though the passphrase is not. An
+      audit trail that cannot say a credential was rotated is missing the events
+      that matter most.
+    - The change `digest` is computed from the **redacted** before/after, and
+      that is deliberately the weaker choice: a digest over raw values would let
+      anyone holding the audit row brute-force a low-entropy secret offline —
+      a disclosure the audit trail would have created rather than recorded.
+      Two different secrets therefore produce the same digest, and there is a
+      test asserting exactly that.
+  - Deliberately absent: a configuration or policy version, which the
+    requirement asks for. `buildAuditRecord` accepts one and the application
+    cannot answer it on a write path — `buildSystem` resolves a checksum from an
+    institution *slug* plus a tenant binding, this runs from an institution *id*
+    on a request path, and there is no persisted release or configuration row.
+    A field that always reads "(unresolved)" looks like provenance and is not.
+  - Tests: `apps/web/src/lib/audit-append-only.test.ts` (36 cases) and
+    `apps/web/src/lib/audit-record.test.ts` (26 cases).
+    - No database and no mock in the append-only suite. It drives a **real**
+      `PrismaClient` carrying the real extension, and — the test that matters —
+      the real `db` the application imports. Pass-through is proven by the
+      *kind* of failure: a permitted `findMany` comes back as a Prisma
+      initialization error, so it got past the guard and tried to reach the
+      database; a refused `deleteMany` comes back as `AuditAppendOnlyError`.
+    - The record suite's ledger is a stand-in, not a spy: it implements "latest
+      chained row for this institution" and "append", and round-trips
+      `metadata` through `JSON.parse(JSON.stringify(...))` because that is what
+      a JSONB column does, and a chain that only verifies before serialization
+      verifies nothing. It calls the production `rehydrateAuditRecord`, and the
+      integrity assertions go through the package's own `verifyChain`.
+  - Proven by mutation, both applied, run, restored, and re-run green:
+    - **A** — `"deleteMany"` added to `APPEND_ONLY_ALLOWED_OPERATIONS` → **3
+      fail**: the rule case, the real-client case, and *refuses an audit
+      deletion issued through `@/lib/db`*, which fails with
+      `PrismaClientInitializationError` instead — i.e. the erasure was on its
+      way to the database. Restored → 36/36.
+    - **B** — the conditional `previous`/`sequence: 0` chain link replaced with
+      an unconditional `sequence: 0` → **5 fail**, led by *links each record to
+      the one before it* and *survives the round trip a JSONB column performs*.
+      The chain flattens to a run of unlinked sequence-0 records, which is the
+      exact failure that would make the tamper-evidence worthless.
+      Restored → 26/26.
+  - Verified:
+    - `npm run test --workspace apps/web -- --ci --testPathPattern
+      "src/lib/audit-"` → 2 suites, 62/62.
+    - `npm run test --workspace apps/web -- --ci` (full suite, because `db.ts`
+      is global and every model call in the product now passes through the new
+      extension) → **131 suites, 3224/3224**. An earlier full run reported 4
+      failing suites; each passed when re-run alone, and a clean full re-run was
+      green — other agents were writing to this shared tree mid-run.
+    - `npm run type-check` → 0 errors. It reported 2 first, both in
+      `audit-record.test.ts` (a fixture omitting `reason`); both were mine and
+      both are fixed. `npx eslint` on all five files → clean.
+  - **BLOCKED_EXTERNAL — no Postgres here.** One production path is unverified
+    by any test in this environment: `prismaAuditLedger`'s JSON predicate on
+    `metadata` at path `_sequence`, which selects the latest row that carries a
+    chain position rather than the latest row outright — necessary while
+    unchained rows from the 36 unmigrated writers are interleaved. Its logic is
+    covered against the fake ledger; the SQL Prisma generates for it is not. An
+    operator runs:
+
+    ```
+    docker run -d --name tenure-pg -e POSTGRES_USER=tenure \
+      -e POSTGRES_PASSWORD=tenure -e POSTGRES_DB=tenure -p 5433:5432 postgres:16
+    export DATABASE_URL="postgresql://tenure:tenure@localhost:5433/tenure"
+    cd apps/web && npx prisma migrate deploy && node scripts/seed.mjs
+    npx jest --ci --testPathPattern "itest"
+    ```
+
+    Worst case if the predicate is wrong: the chain restarts at sequence 0 on
+    each write. That is degenerate, not incorrect — every record is still
+    individually hashed and `verifyChain` still reports content tampering.
+  - **CROSS-AREA, not done here.** `recordAuditEvent` has no production caller,
+    and this is the honest reason rather than an oversight. Of the 38
+    `db.auditEvent.create` call sites, 36 are in `src/app/**` route handlers and
+    server actions, outside this task's allowlist. The two that are inside it
+    are in `apps/web/src/lib/calendar-write.ts` — and that file is being edited
+    by another agent in this same working tree right now. Its test,
+    `apps/web/src/lib/calendar-write.test.ts` (10/10 green, **not** in this
+    allowlist), mocks `@/lib/db` with an array-form `$transaction` and an
+    `auditEvent` double carrying `create` and no `findFirst`.
+    `recordAuditEvent` reads and writes inside a `$transaction` *callback*, so
+    migrating either call site would red a suite this task may not repair. The
+    migration was therefore not performed, rather than performed and left
+    broken. Whoever owns those files next needs, per call site:
+    `db.auditEvent.create({ data: {...} })` becomes `recordAuditEvent({
+    institutionId, actor: { principalId }, seat: seatFor(ctx, { organizationId,
+    institutionId }), action, resourceType, resourceId, outcome, change: {
+    before, after } })`, plus a `$transaction` in the test double that accepts a
+    function and an `auditEvent.findFirst`.
+  - Not addressed, and named rather than implied: `src/lib/tenancy/registry.ts`
+    still classifies `AuditEvent` as plain `TENANT_SCOPED`, so `scope-args.ts`
+    would still scope-and-permit a mutation on it if the extension were ever
+    detached. Two controls agreeing is better than one, but `lib/tenancy/**` is
+    another area's file and moving the classification there is its decision to
+    make, not this one's.

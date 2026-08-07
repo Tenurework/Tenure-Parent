@@ -65,6 +65,7 @@ const DOMAINS = [
       'apps/web/src/types/next-auth.d.ts',
 
       'apps/web/src/lib/auth.ts',
+      'apps/web/src/lib/auth-session-lifetime.test.ts',
       // The cell's own identity connections, described as registry records so
       // provider selection goes through the same checks a tenant's will.
       'apps/web/src/lib/auth-connections',
@@ -124,6 +125,9 @@ const DOMAINS = [
       // Partition, account, region, environment, cell. The same question
       // `lib/env` answers, at the level the estate cares about.
       'apps/web/src/lib/cell-context',
+      // Which AWS services the running partition actually offers. It answers a
+      // question only cellContext() can raise, so it belongs beside it.
+      'apps/web/src/lib/partition-services',
       'apps/web/src/lib/institution-time.ts',
       'apps/web/src/lib/time',
       'packages/configuration/',
@@ -176,6 +180,7 @@ const DOMAINS = [
       'apps/web/src/components/Calendar',
 
       'apps/web/src/lib/notify.ts',
+      'apps/web/src/lib/notify.test.ts',
       'apps/web/src/lib/outbox/',
       'apps/web/src/lib/messaging',
       'apps/web/src/lib/calendar',
@@ -199,6 +204,10 @@ const DOMAINS = [
       'apps/web/src/app/(app)/dashboard/',
       'apps/web/src/app/api/reports/',
       'packages/audit/',
+      // The cell-side half of the same subsystem: the append-only extension
+      // on the shared client, and the validated record builder it enforces.
+      'apps/web/src/lib/audit-append-only',
+      'apps/web/src/lib/audit-record',
     ],
   },
   {

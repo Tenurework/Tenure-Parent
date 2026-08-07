@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "8b565d1",
+  "commit": "2583a8d",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 225,
-    "done": 106,
+    "total": 241,
+    "done": 117,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -1603,6 +1603,118 @@
             "title": "Relay is a deployed, permission-aware, citation-grounded, multimodal copilot with safe editing/automation, model evaluation/routing, guardrails, budgets, and complete cross-tenant/tool-risk tests.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": true
+          },
+          {
+            "id": "GE-073-004",
+            "done": false,
+            "title": "Implement templates/version/localization, preferences, consent, opt-out, quiet hours, urgency, digest, deduplication, batching, escalation, delivery/bounce/complaint state.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-094-008",
+            "done": true,
+            "title": "An OSE member can approve their own approval request; the no-self-approval control exists in `@tenure/authorization` and has zero callers in the app.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-010-007",
+            "done": true,
+            "title": "Partition abstraction: something now asks whether a service exists in the partition this process is running in.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-102-009",
+            "done": false,
+            "title": "Signed deployment manifest with the named digests",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-053-006",
+            "done": false,
+            "title": "Revocation of a membership, assignment, delegation or policy invalidates cached decisions immediately.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-085-006",
+            "done": true,
+            "title": "Redeploy must never rerun destructive seed logic: `seed.mjs` issued unscoped deletes with no environment guard, and its own header claimed the opposite of the truth.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-062-004",
+            "done": true,
+            "title": "Read-time authorization after retrieval in the shared search corpus: the corpus behind `/search`, `/api/search` and the Tenure AI prompt re-checked one of its five row types after retrieval and trusted the `where` clause for the other four.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-101-004",
+            "done": true,
+            "title": "Implement cell capacity admission, quota thresholds, shard/new-cell/account-vend recommendations, and onboarding block before exhaustion.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-143-022",
+            "done": true,
+            "title": "Complete component-state matrix, including no-results, syncing, read-only, pending purge and a geometry-matched skeleton.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-080-007",
+            "done": true,
+            "title": "Currency precision, rounding and invariant tests for money parsing.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-074-004",
+            "done": true,
+            "title": "Hard/soft conflict engine with explainable rule, override authority and an audited decision.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-143-026",
+            "done": true,
+            "title": "Chart API must give a category deterministic colour identity, independent of its rank.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-063-004",
+            "done": false,
+            "title": "`@tenure/audit` gains record hashing, chain verification, gap detection, clearance-scoped projection, retention planning and legal holds.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-143-032",
+            "done": true,
+            "title": "Test Sankey at small, medium, large, and pathological graph sizes; aggregate or switch representation before legibility fails.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-143-004",
+            "done": true,
+            "title": "Add lint/architecture rules that prevent literal colors, arbitrary spacing/shadows/z-index, unregistered fonts/icons, and direct raw primitive tokens in product modules, with a documented exception process and expiry.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-063-001",
+            "done": false,
+            "title": "Nothing made `AuditEvent` append-only. Now the single Prisma client the whole application shares refuses every mutating operation on it, in enforce mode, from this commit.",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -1617,7 +1729,7 @@
     ],
     "totalItems": 1219,
     "totalGates": 80,
-    "decided": 123,
+    "decided": 133,
     "phases": [
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -1827,7 +1939,7 @@
         "source": "GE",
         "items": 5,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-063: Audit and event integrity",
@@ -1890,7 +2002,7 @@
         "source": "GE",
         "items": 6,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-075: Institutional memory service",
@@ -1911,7 +2023,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-081: Procure-to-pay, vendors, and expenses",
@@ -1946,7 +2058,7 @@
         "source": "GE",
         "items": 8,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · Phase 8 gate",
@@ -1988,7 +2100,7 @@
         "source": "GE",
         "items": 8,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-095: AI guardrails, safety, and quality",
@@ -2023,7 +2135,7 @@
         "source": "GE",
         "items": 4,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-102: Idempotent provisioning state machine",
@@ -2205,7 +2317,7 @@
         "source": "GE",
         "items": 46,
         "gates": 0,
-        "done": 0
+        "done": 4
       },
       {
         "phase": "GE · Phase 14 gate",
@@ -2973,7 +3085,7 @@
     },
     {
       "name": "application unit",
-      "files": 41,
+      "files": 50,
       "what": "apps/web"
     },
     {

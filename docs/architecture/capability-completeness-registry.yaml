@@ -28,8 +28,8 @@ by_prefix:
   TTES: 34
   WRK: 88
 by_status:
-  FAIL: 1938
-  PASS: 108
+  FAIL: 1927
+  PASS: 119
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -3279,10 +3279,10 @@ requirements:
   - id: "GE-010-007"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Define partition-aware account abstraction for commercial, GovCloud, and sovereign deployments without pretending unavailable services exist."
   - id: "GE-011-001"
     prefix: GE
@@ -4129,8 +4129,8 @@ requirements:
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: Membership/assignment/policy/delegation revocation invalidates access and caches immediately.
   - id: "GE-053-007"
     prefix: GE
@@ -4287,10 +4287,10 @@ requirements:
   - id: "GE-062-004"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Ensure separate tenant index/namespace, dedicated resources by tier, authorization metadata, and read-time authorization after retrieval."
   - id: "GE-062-005"
     prefix: GE
@@ -4305,8 +4305,8 @@ requirements:
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement append-only application audit with tenant, actor, represented actor/support, seat, action, target, result, before/after/change digest, policy/config version, time, trace, reason, and prior hash."
   - id: "GE-063-002"
     prefix: GE
@@ -4329,8 +4329,8 @@ requirements:
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement audit verification, gap detection, replay-safe query projection, export, retention, and legal hold."
   - id: "GE-063-005"
     prefix: GE
@@ -4633,8 +4633,8 @@ requirements:
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement templates/version/localization, preferences, consent, opt-out, quiet hours, urgency, digest, deduplication, batching, escalation, delivery/bounce/complaint state."
   - id: "GE-073-005"
     prefix: GE
@@ -4679,10 +4679,10 @@ requirements:
   - id: "GE-074-004"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement hard and soft conflict engine with explainable rule, override authority, decision/audit, and no false “AI” claim for deterministic rules."
   - id: "GE-074-005"
     prefix: GE
@@ -4815,10 +4815,10 @@ requirements:
   - id: "GE-080-007"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Add currency precision, rounding, exchange-rate source/time, reversal, closed-period, concurrency, and invariant tests."
   - id: "GE-081-001"
     prefix: GE
@@ -5071,10 +5071,10 @@ requirements:
   - id: "GE-085-006"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Restart/redeploy never mutates customer-created rows or reruns destructive seed logic."
   - id: "GE-085-007"
     prefix: GE
@@ -5399,10 +5399,10 @@ requirements:
   - id: "GE-094-008"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "High-risk payment, access, policy publication, sensitive export, signature, deletion, HR action, production config, and tenant lifecycle tools cannot self-approve."
   - id: "GE-095-001"
     prefix: GE
@@ -5615,10 +5615,10 @@ requirements:
   - id: "GE-101-004"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement cell capacity admission, quota thresholds, shard/new-cell/account-vend recommendations, and onboarding block before exhaustion."
   - id: "GE-102-001"
     prefix: GE
@@ -5689,8 +5689,8 @@ requirements:
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: Emit signed deployment manifest with release/config/schema/migration/resource/test/evidence/rollback digests.
   - id: "GE-102-010"
     prefix: GE
@@ -6895,10 +6895,10 @@ requirements:
   - id: "GE-143-004"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Add lint/architecture rules that prevent literal colors, arbitrary spacing/shadows/z-index, unregistered fonts/icons, and direct raw primitive tokens in product modules, with a documented exception process and expiry."
   - id: "GE-143-005"
     prefix: GE
@@ -7039,10 +7039,10 @@ requirements:
   - id: "GE-143-022"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement the complete component-state matrix where applicable: default, hover, active, focus-visible, selected, disabled, read-only, loading, geometry-matched skeleton, empty, no results, error, denied, stale, offline, syncing, conflict, partial, archived, pending purge, and high risk."
   - id: "GE-143-023"
     prefix: GE
@@ -7071,10 +7071,10 @@ requirements:
   - id: "GE-143-026"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Build an owned chart/visualization API with semantic tokens, deterministic series/category identity, standard interaction/tooltip/legend/filter contracts, responsive layouts, export/print, authorization, and source drill-through; keep business modules independent of vendor configuration."
   - id: "GE-143-027"
     prefix: GE
@@ -7119,10 +7119,10 @@ requirements:
   - id: "GE-143-032"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Test Sankey at small, medium, large, and pathological graph sizes. It must aggregate or switch representation before labels become unreadable; prohibit a decorative forest of hairlines or unsupported causal interpretation."
   - id: "GE-143-033"
     prefix: GE

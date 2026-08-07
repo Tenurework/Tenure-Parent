@@ -1,6 +1,8 @@
 import type { ApprovalStatus, OrgStatus } from "@prisma/client";
 import {
+  actorRoles,
   availableActions,
+  decisionControl,
   isConcurrentDecision,
   nextStatus,
   type ApprovalView,
@@ -97,6 +99,110 @@ describe("availableActions", () => {
     const a = approval("NEEDS_CHANGES");
     expect(availableActions(vp, a)).toEqual(["resubmit", "cancel"]);
     expect(availableActions(president, a)).toEqual([]);
+  });
+
+  // ── no self-approval (GE-094-008) ──────────────────────────────────────────
+  //
+  // The gate roles are additive and the engine matches them with `some()`, so
+  // an OSE member who raised a request used to arrive at PENDING_OSE holding
+  // BOTH `requester` and `oseGate` and was offered approve / request_changes /
+  // reject on their own request. `actions.ts` gates the write on exactly this
+  // list, so that was a real write path, not a cosmetic one.
+  it("refuses the OSE gate to the person who raised the request", () => {
+    const own = approval("PENDING_OSE", "ose_user");
+    expect(availableActions(oseDirector, own)).toEqual(["cancel"]);
+  });
+
+  it("still lets a different OSE member decide the same request", () => {
+    const own = approval("PENDING_OSE", "ose_user");
+    const colleague = ctx("ose_user_2", {
+      institutionRoles: [{ institutionId: INST, role: "OSE_DIRECTOR" }],
+    });
+    expect(availableActions(colleague, own)).toEqual([
+      "approve",
+      "request_changes",
+      "reject",
+    ]);
+  });
+
+  it("refuses the president gate to a president who raised the request", () => {
+    // Reachable: a VP submits, the request sits at PENDING_PRESIDENT, and the
+    // VP is then given the president seat.
+    const own = approval("PENDING_PRESIDENT", "pres_user");
+    expect(availableActions(president, own)).toEqual(["cancel"]);
+  });
+
+  it("leaves the requester's own actions alone", () => {
+    // submit / resubmit / cancel are the requester's, not a second pair of
+    // eyes. A control that took those away would stop people filing requests.
+    expect(availableActions(oseDirector, approval("DRAFT", "ose_user"))).toEqual(
+      ["submit", "cancel"],
+    );
+    expect(
+      availableActions(oseDirector, approval("NEEDS_CHANGES", "ose_user")),
+    ).toEqual(["resubmit", "cancel"]);
+  });
+
+  it("cannot be carried DRAFT → APPROVED by one person", () => {
+    // The whole workflow, not one hop. An OSE member who is also the club's
+    // ACTIVE president skips the president gate on submit (nextStatus below),
+    // which leaves the OSE gate as the only remaining human — so if that gate
+    // were still offered to them, no second person would ever see the request.
+    const oseAndPresident = ctx("ose_pres", {
+      institutionRoles: [{ institutionId: INST, role: "OSE_DIRECTOR" }],
+      orgRoles: [
+        {
+          organizationId: ORG,
+          roleId: "r_p2",
+          roleName: "President",
+          templateKey: "unit.lead",
+          scope: "PRESIDENT",
+          status: "ACTIVE",
+        },
+      ],
+    });
+
+    const draft = approval("DRAFT", "ose_pres");
+    expect(availableActions(oseAndPresident, draft)).toEqual([
+      "submit",
+      "cancel",
+    ]);
+
+    const afterSubmit = nextStatus("submit", "DRAFT", {
+      requesterIsPresident: true,
+    });
+    expect(afterSubmit).toBe("PENDING_OSE");
+
+    const pending = approval(afterSubmit!, "ose_pres");
+    const offered = availableActions(oseAndPresident, pending);
+    expect(offered).toEqual(["cancel"]);
+    expect(
+      offered.some((a) =>
+        nextStatus(a, "PENDING_OSE", { requesterIsPresident: true }) ===
+        "APPROVED",
+      ),
+    ).toBe(false);
+  });
+
+  it("names the refusal, rather than answering with a bare boolean", () => {
+    // The rule is @tenure/authorization's `mayDecide`, not a local `===` — so
+    // support gets "because you raised it" and the other refusal arms
+    // (recusal, declared conflict, four-eyes) arrive already wired.
+    expect(decisionControl(oseDirector, approval("PENDING_OSE", "ose_user")))
+      .toEqual({
+        ok: false,
+        refusal: "SELF_APPROVAL",
+        detail: "A request cannot be decided by the person who raised it.",
+      });
+    expect(decisionControl(oseDirector, approval("PENDING_OSE", "vp_user"))).toEqual(
+      { ok: true },
+    );
+  });
+
+  it("drops the gate role without pretending they are not the requester", () => {
+    const roles = actorRoles(oseDirector, approval("PENDING_OSE", "ose_user"));
+    expect(roles.isRequester).toBe(true);
+    expect(roles.isOseGate).toBe(false);
   });
 
   it("offers nothing on terminal states or to outsiders", () => {

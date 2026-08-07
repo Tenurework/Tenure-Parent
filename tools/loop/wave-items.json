@@ -1,0 +1,66 @@
+{
+ "A": {
+  "owns": [
+   "packages/provisioning/**",
+   "apps/web/src/lib/provisioning/**"
+  ],
+  "items": [
+   {
+    "id": "GE-101-004",
+    "title": "Cell admission is a binary full/not-full test — no quota thresholds, no shard/new-cell/vend recommendation, no block before exhaustion",
+    "why_open": "`packages/provisioning/src/cell-registry.ts:260` is the entire capacity rule: `healthy.filter((c) => c.capacity.tenants < c.capacity.maxTenants)`, refusing with `no-capacity` only once the last slot is literally consumed. `CellCapacity` (`:58-69`) carries only `tenants` and `maxTenants` — no reserve, no warning threshold. A grep across `packages/provisioning/src` finds no `threshold`, `headroom`, `shard`, `vend` or `recommend`, so none of 'quota thresholds', 'shard/new-cell/account-vend recommendations' or 'onboarding block before exhaustion' exists. The path is live: `apps/system-studio/src/lib/cells.ts:112` -> `apps/system-studio/src/app/tenants/actions.ts:240`, which already renders `placement.reason` as a form problem.",
+    "files": [
+     "packages/provisioning/src/cell-registry.ts",
+     "packages/provisioning/src/cell-registry.test.ts",
+     "packages/provisioning/src/index.ts"
+    ],
+    "smallest_real_change": "Add `reserve` and `warnAt` to `CellCapacity` and a `FleetAdmission` result to `choosePlacement`: filter on `tenants < maxTenants - reserve` (so onboarding stops before exhaustion rather than at it), add a `no-headroom` refusal distinct from `no-capacity`, and return a `recommendation` of `'none' | 'shard-cell' | 'add-cell' | 'vend-account'` derived deterministically from how many healthy in-residency cells are above `warnAt` (all above -> add-cell; none in residency at all but healthy cells elsewhere -> vend-account). CROSS-AREA DEPENDENCY: the new refusal reason renders correctly only if `apps/system-studio/src/app/tenants/actions.ts:245-262` gets a branch for it — its ternary chain currently falls through to 'Every cell is at capacity', which would be wrong copy for a headroom block. If apps/system-studio is not mine, I stop at the package boundary and this needs the system-studio owner. Mutation proof: change the filter back to `< maxTenants` and the test asserting a cell at maxTenants-1 with reserve 1 is refused with `no-headroom` must fail."
+   }
+  ]
+ },
+ "B": {
+  "owns": [
+   "apps/web/src/lib/tenancy/**"
+  ],
+  "items": []
+ },
+ "C": {
+  "owns": [
+   "packages/authorization/**",
+   "apps/web/src/lib/authz/**"
+  ],
+  "items": [
+   {
+    "id": "GE-051-004",
+    "title": "Centralized authorization decision interface has no production caller — every live decision bypasses the service, its policy revision and its invalidation",
+    "why_open": "Registry marks this PASS (capability-completeness-registry.yaml:4023) and the ledger claims PASS at global-engine-execution-ledger.md:7201 — but the ledger's own closing finding (line 9083) says 'GE-051-004 built the service; nothing routes through it.' I confirmed it: `grep -rn authorizationService apps packages` returns only packages/authorization/src/service.ts:242 (the definition), index.ts:187 (the barrel re-export) and service.test.ts. Zero hits under apps/. The three real production authorization sites all call the raw pure function `decide()` instead: apps/web/src/lib/authz/navigation-capabilities.ts:155 (reached from apps/web/src/app/(app)/layout.tsx:58 and apps/web/src/app/api/me/route.ts:57), and apps/web/src/lib/authz/seat-world.ts:104 and :176 (reached from apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts:4 — a write path — and apps/web/src/lib/resources-data.ts:6). So no decision in the running app records a policy revision, none is cached, and `invalidate()` can never take effect. The ledger names the blocker as 'needs a revision source, which is platform.permissions.* — still reserved' (packages/configuration/src/domains.ts:128-134), but that reservation only blocks a tenant-writable revision; a real revision id is derivable inside apps/web from what it already resolves.",
+    "files": [
+     "apps/web/src/lib/authz/decision-service.ts",
+     "apps/web/src/lib/authz/navigation-capabilities.ts",
+     "apps/web/src/lib/authz/seat-world.ts",
+     "apps/web/src/lib/authz/decision-service.test.ts"
+    ],
+    "smallest_real_change": "Add apps/web/src/lib/authz/decision-service.ts holding one module-level `authorizationService({ worldFor, revision, cache })`. `revision()` returns a sha256 over (a) the resolved config layers the app already reads for that institution via @tenure/platform-config `layersFor`/`resolveSystemConfig` and (b) a stable digest of the compiled-in role definitions (INSTITUTION_ROLES in navigation-capabilities.ts and the seat templates in seat-world.ts) — computed with node:crypto in apps/web, no packages/ change. Because `worldFor` is synchronous and needs UserContext, expose `authorizeWith(ctx, request)` that stashes the already-loaded ctx in a closure-scoped map keyed by principalId+tenantId for the duration of the call, then delegates to service.authorize(). Replace the three `decide(...)` calls in navigation-capabilities.ts:155 and seat-world.ts:104/:176 with it. Tests (apps/web/src/lib/authz/decision-service.test.ts): (1) two identical navigationCapabilitiesFor calls produce one world build and the second reports `cached:true`; (2) changing the role-definition digest changes revision().id and the next call is uncached and reflects the new definition; (3) a grant whose effectiveUntil is 12:00 is allowed at 11:59 and DENIED at 12:00 even though a cache entry exists — i.e. the validUntil horizon, not a TTL, is what expires it. Mutation to prove test 3 catches: make `stillValid` in the app wrapper ignore validUntil (or pass `validUntil: null`) and confirm the 12:00 assertion fails."
+   },
+   {
+    "id": "GE-053-006",
+    "title": "Revocation of a membership, assignment, delegation or policy must invalidate cached decisions immediately",
+    "why_open": "packages/authorization/src/service.ts caches decisions and bounds them only by DATED facts: `validUntil` (:139-208) collects `effectiveFrom`/`effectiveTo` from memberships, grants, delegations and relationships, and returns null when none is in the future (:206) — i.e. cached until eviction. A revocation is not a date change: deleting a role assignment, ending a membership out of band or removing a delegation moves no `effectiveTo` the cache has already read, so a decision taken before the revocation keeps returning ALLOW. The only escape hatches are a `PolicyRevision` id change (:252-256), which covers configuration edits and not per-principal facts, and `invalidate()` (:277-279), which is all-or-nothing and has no caller anywhere in the tree (grep finds only its definition and the re-export at index.ts:187). REVIEW-FINDINGS §14 names this same defect from the other side — the per-membership `authz_version` fan-out is 'never specified' — and the review wins over the spec.",
+    "files": [
+     "packages/authorization/src/service.ts",
+     "packages/authorization/src/service.test.ts"
+    ],
+    "smallest_real_change": "Add an optional `subjectRevision?: (request: AuthorizationRequest) => string` to `AuthorizationServiceOptions` (service.ts:210-216), read on EVERY authorize call exactly as `revision()` already is, and fold its value into `decisionKey` (:107-118) so a bumped stamp is a structural miss rather than a hoped-for eviction; plus `invalidatePrincipal(tenantId, principalId)` on `AuthorizationService` that drops just that principal's entries, which requires the key's tenant/principal prefix to be a documented, parseable part of the format. Test in service.test.ts: authorize (ALLOW, cached false), authorize again (cached true), then revoke by removing the grant from the world AND bumping the subject stamp — the next call must be `cached: false` and DENY; and the same revocation WITHOUT the stamp bump must still be served stale, which is the fact that makes the stamp load-bearing. Mutation: drop the stamp from `decisionKey` — the post-revocation DENY assertion goes red. Honest caveat: `authorizationService` currently has no apps/web caller (only the package index re-exports it), so this hardens the platform boundary rather than a live request path; wiring apps/web onto the service is a larger, separate change.",
+    "already_done": false
+   }
+  ]
+ },
+ "D": {
+  "owns": [
+   "apps/web/src/lib/jobs/**",
+   "apps/web/src/lib/outbox/**",
+   "apps/web/src/lib/http/**"
+  ],
+  "items": []
+ }
+}

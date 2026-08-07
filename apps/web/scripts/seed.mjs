@@ -1,5 +1,16 @@
 /**
- * Idempotent pilot seed — safe to run on every container start.
+ * Destructive development and e2e fixture. NOT safe to run on every container
+ * start, and NOT idempotent in the sense that word usually carries.
+ *
+ * Most of this file upserts. Four statements do not: it deletes approval
+ * delegations with no filter whatsoever (:422), budget lines outside the demo
+ * set, this club's whole ledger, and the demo archived document — all to reset
+ * state a previous e2e run left behind. On a live database those deletes remove
+ * rows a customer created. scripts/entrypoint.sh says the same thing, and
+ * infrastructure/terraform/ecs.tf deliberately leaves SEED_ON_BOOT unset for
+ * it; scripts/seed-guard.mjs is the refusal that travels with the deletes
+ * themselves, so neither of those has to be the only thing standing between a
+ * redeploy and the data.
  *
  * Seeds the demo institution, the real Simon club roster (from
  * scripts/roster-data.mjs, generated from the OSE spreadsheets), and the
@@ -19,6 +30,7 @@ import { PrismaClient } from "@prisma/client"
 // with no code change — CI and local development fall through to the synthetic
 // fixture, and production refuses to seed from that fixture by accident.
 import { ROSTER, ADVISORS, CURRENT_TERM, PRIOR_TERM } from "./roster-source.mjs"
+import { decideSeedAllowed } from "./seed-guard.mjs"
 import { deliverablesWithTerms } from "./deliverables-data.mjs"
 import { RESOURCES } from "./resources-data.mjs"
 
@@ -48,6 +60,21 @@ function templateFor(position) {
 }
 
 async function main() {
+  // Before the first write, not after it. Everything below this line is either
+  // an upsert or a delete against whatever database DATABASE_URL names.
+  const verdict = decideSeedAllowed({
+    nodeEnv: process.env.NODE_ENV,
+    databaseUrl: process.env.DATABASE_URL,
+    seedDestructive: process.env.SEED_DESTRUCTIVE,
+  })
+  if (!verdict.allowed) {
+    console.error(`⛔ Refusing to seed: ${verdict.reason}`)
+    // Non-zero, so `set -e` in scripts/entrypoint.sh stops the container rather
+    // than serving on from a boot that quietly skipped a step it was told to
+    // take. A task that was configured to seed and did not is misconfigured.
+    process.exit(1)
+  }
+
   const institution = await db.institution.upsert({
     where: { slug: "rochester" },
     update: {},

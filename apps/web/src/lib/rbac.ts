@@ -170,8 +170,15 @@ export interface OrgWriteTarget extends OrgRef {
  * gates on `isOseDirector` directly — so a club can always be reactivated,
  * which a check written into these four predicates would otherwise have made
  * impossible.
+ *
+ * Exported because the approvals path needs the lifecycle rule WITHOUT the
+ * capability rules wrapped around it: `actorRoles` in `lib/approvals.ts` asks
+ * only "does this club take writes at all", and answering it with
+ * `canManageRoster` or `canContribute` would silently fold "and does this
+ * person hold a seat" into a gate that `decisionControl` already decides
+ * differently. One predicate, one question.
  */
-function acceptsWrites(org: OrgWriteTarget): boolean {
+export function acceptsWrites(org: OrgWriteTarget): boolean {
   return org.status === "ACTIVE";
 }
 

@@ -2,12 +2,21 @@
 
 import { useState, type ReactNode } from "react"
 import { useMeasuredWidth, useMounted } from "./hooks"
-import { slotColor, SURFACE } from "./palette"
+// (No SURFACE import: the inter-segment gaps are cut with strokeDasharray, not
+// painted over with a surface-coloured mark.)
+import { slotsForKeys, CHART_SLOTS } from "./palette"
 import { formatCompact } from "./format"
 import { ChartTooltip, TooltipHeader, TooltipRow } from "./ChartTooltip"
 import { ChartEmpty } from "./ChartEmpty"
 
-export type DonutDatum = { label: string; value: number; color?: string }
+/**
+ * `key` is the category's stable identity — the enum value or id behind the row,
+ * where `label` is the human string that may be re-cased or translated. It is
+ * what the colour is keyed on; omit it and the label serves as the key.
+ */
+export type DonutDatum = { label: string; value: number; color?: string; key?: string }
+
+const keyOf = (d: DonutDatum) => d.key ?? d.label
 
 /**
  * Part-to-whole donut (≤ 8 segments). Arcs are drawn as a stroked ring with 2px
@@ -45,6 +54,14 @@ export function DonutChart({
   const C = 2 * Math.PI * r
   const gapLen = total > 0 ? Math.min(C * 0.012, 3) : 0
 
+  // Colour is keyed on the category, not on the row's position: a donut's rows
+  // are routinely re-sorted by value (see panels/ReportsAnalytics), and an
+  // index-keyed palette would make two categories trade hues whenever a filter
+  // changed which of them ranked higher. `slots` is built from exactly these
+  // keys, so the `??` below is satisfying Map.get's type, not a runtime path.
+  const slots = slotsForKeys(data.map(keyOf))
+  const colors = data.map((d) => d.color ?? slots.get(keyOf(d)) ?? CHART_SLOTS[0])
+
   // Precompute segment angles/lengths.
   let cum = 0
   const segs = data.map((d, i) => {
@@ -56,7 +73,7 @@ export function DonutChart({
     const midAngle = (-90 + midFrac * 360) * (Math.PI / 180)
     return {
       i,
-      color: d.color ?? slotColor(i),
+      color: colors[i],
       arcLen,
       startAngleDeg: -90 + startFrac * 360,
       point: [cx + r * Math.cos(midAngle), cy + r * Math.sin(midAngle)] as const,
@@ -115,7 +132,7 @@ export function DonutChart({
             {data.map((d, i) => (
               <li key={d.label} className="flex items-center gap-2 text-sm">
                 <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                  style={{ background: d.color ?? slotColor(i) }} />
+                  style={{ background: colors[i] }} />
                 <span className="min-w-0 flex-1 truncate text-text-2">{d.label}</span>
                 <span className="shrink-0 font-medium tabular-nums text-text-1">{formatValue(d.value)}</span>
               </li>

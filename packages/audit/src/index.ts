@@ -16,12 +16,29 @@
  *
  * Refusing to build is the point. A write that cannot be attributed is worse
  * than no write: it occupies a row that looks like evidence and is not.
+ *
+ * The read side is the other half, and until now it did not exist. Every record
+ * carries a `recordHash`, and a writer that supplies `previous` chains them, so
+ * the log can be checked rather than trusted:
+ *
+ *   const result = verifyChain(records)        // altered content, broken
+ *   result.tampered                            // links, gaps, duplicates
+ *
+ *   projectForQuery(records, { sensitivity })  // export, re-redacted on read
+ *   applyRetention(records, { retainDays, asOf }, holds)
+ *
+ * `applyRetention` plans a deletion; it never performs one. A record under an
+ * active legal hold is never in `expire`, and expiry stops at the first record
+ * that must be kept, because cutting a hole in a hash chain is indistinguishable
+ * from someone removing the record that mattered.
  */
 
 export {
   AuditRecordError,
+  CHAIN_METADATA_KEYS,
   REDACTED,
   buildAuditRecord,
+  hashRecord,
   redactMetadata,
 } from "./record"
 export type {
@@ -30,4 +47,24 @@ export type {
   AuditRecord,
   AuditRecordInput,
   FieldSensitivity,
+  HashableRecord,
 } from "./record"
+
+export { projectForQuery, verifyChain } from "./verify"
+export type {
+  AuditProjection,
+  ChainBreak,
+  ChainDuplicate,
+  ChainGap,
+  ChainVerification,
+  ProjectionOptions,
+} from "./verify"
+
+export { RetentionError, applyRetention } from "./retention"
+export type {
+  HeldRecord,
+  LegalHold,
+  RetentionAnchor,
+  RetentionPlan,
+  RetentionPolicy,
+} from "./retention"

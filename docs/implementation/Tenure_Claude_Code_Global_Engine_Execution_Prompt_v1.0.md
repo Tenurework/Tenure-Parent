@@ -153,7 +153,7 @@ Use this evidence shape:
 - [ ] GE-010-004 — Establish Control Tower/Account Factory or equivalent account-vending baseline with organization trail/config, delegated security admin, required contacts/tags/budgets, backup, IAM boundaries, and deployment roles.
 - [ ] GE-010-005 — Define SCPs/guardrails for region restrictions, public resource prevention, disabling security services, leaving organization, root use, unapproved IAM escalation, and required evidence—tested for operational safety.
 - [ ] GE-010-006 — Separate production/nonproduction/security/log workloads and prove nonproduction roles cannot reach production resources.
-- [ ] GE-010-007 — Define partition-aware account abstraction for commercial, GovCloud, and sovereign deployments without pretending unavailable services exist.
+- [x] GE-010-007 — Define partition-aware account abstraction for commercial, GovCloud, and sovereign deployments without pretending unavailable services exist.
 
 ### GE-011: GitHub Actions OIDC
 
@@ -369,7 +369,7 @@ Use this evidence shape:
 - [ ] GE-062-001 — Implement and document DynamoDB access patterns for sessions, idempotency, routing projection, provisioning state, websocket/delivery, and usage; enable TTL/PITR/conditional writes.
 - [ ] GE-062-002 — Prefix/bind every cache key with environment, cell, tenant, resource, authorization/config revision, locale, and query version; add cross-tenant collision tests.
 - [ ] GE-062-003 — Create `KnowledgeIndex` and search storage drivers for tenant-specific OpenSearch/Bedrock/S3 Vector resources.
-- [ ] GE-062-004 — Ensure separate tenant index/namespace, dedicated resources by tier, authorization metadata, and read-time authorization after retrieval.
+- [x] GE-062-004 — Ensure separate tenant index/namespace, dedicated resources by tier, authorization metadata, and read-time authorization after retrieval.
 - [ ] GE-062-005 — Make every search/vector/graph projection reproducible from canonical source/version events.
 
 ### GE-063: Audit and event integrity
@@ -448,7 +448,7 @@ Use this evidence shape:
 - [ ] GE-074-001 — Implement tenant/organization/seat/team/personal/resource calendars with IANA time zones, recurrence, DST, fiscal/business calendars, and external sync.
 - [ ] GE-074-002 — Implement event/session/deadline/milestone, proposal, budget, venue/resource, vendor, risk, accessibility, marketing, registration, attendance, run-of-show, incident, and closeout.
 - [ ] GE-074-003 — Implement room/resource inventory, capacity, layouts, equipment, setup/teardown, ownership, maintenance/blackout, and reservation.
-- [ ] GE-074-004 — Implement hard and soft conflict engine with explainable rule, override authority, decision/audit, and no false “AI” claim for deterministic rules.
+- [x] GE-074-004 — Implement hard and soft conflict engine with explainable rule, override authority, decision/audit, and no false “AI” claim for deterministic rules.
 - [ ] GE-074-005 — Implement RSVP/registration/waitlist/guest/consent/check-in/QR and communications with privacy/accessibility.
 - [ ] GE-074-006 — Implement Google/Microsoft calendar/ICS adapters through Integration Hub with reconciliation and correct recurrence/time zones.
 
@@ -477,7 +477,7 @@ Use this evidence shape:
 - [ ] GE-080-004 — Implement funds/grants/programs/cost centers/projects/restrictions and funding-source controls where configured.
 - [ ] GE-080-005 — Implement cash/bank account references, statement import/feed adapter, matching, reconciliation, deposits/transfers, and cash view without storing bank secrets in app data.
 - [ ] GE-080-006 — Implement financial statements and budget-to-actual/trial balance/ledger drill-through from canonical records, not duplicated UI calculations.
-- [ ] GE-080-007 — Add currency precision, rounding, exchange-rate source/time, reversal, closed-period, concurrency, and invariant tests.
+- [x] GE-080-007 — Add currency precision, rounding, exchange-rate source/time, reversal, closed-period, concurrency, and invariant tests.
 
 ### GE-081: Procure-to-pay, vendors, and expenses
 
@@ -524,7 +524,7 @@ Use this evidence shape:
 - [ ] GE-085-003 — Two concurrent approvals create one state transition and one financial effect.
 - [ ] GE-085-004 — Archiving/suspending an org blocks writes and removes operational views without erasing history.
 - [ ] GE-085-005 — Every surface returns the same canonical seat/member/finance metrics from the same fixture.
-- [ ] GE-085-006 — Restart/redeploy never mutates customer-created rows or reruns destructive seed logic.
+- [x] GE-085-006 — Restart/redeploy never mutates customer-created rows or reruns destructive seed logic.
 - [ ] GE-085-007 — Malicious documents cannot execute script, escape preview, access unsafe URLs, or enter AI index before release.
 - [ ] GE-085-008 — Suggested Relay questions are answerable from authorized indexed evidence or are not shown.
 
@@ -586,7 +586,7 @@ Use this evidence shape:
 - [ ] GE-094-005 — Require preview/confirmation for material writes, approved standing automation policy for unattended R2/R3, ordinary approval/step-up/separation of duties for R4, and hard deny R5.
 - [ ] GE-094-006 — Implement tool cancellation, timeout, partial failure, compensation, human handoff, and clear state; never fabricate success when an integration or workflow is pending.
 - [ ] GE-094-007 — Implement Relay tools for search/read/summarize/compare, drafts, tasks/projects, requests/workflows, events/calendar, documents/memory, finance budget/expense drafts, messages, reports, and connector queries according to enabled modules.
-- [ ] GE-094-008 — High-risk payment, access, policy publication, sensitive export, signature, deletion, HR action, production config, and tenant lifecycle tools cannot self-approve.
+- [x] GE-094-008 — High-risk payment, access, policy publication, sensitive export, signature, deletion, HR action, production config, and tenant lifecycle tools cannot self-approve.
 
 ### GE-095: AI guardrails, safety, and quality
 
@@ -631,7 +631,7 @@ Use this evidence shape:
 - [ ] GE-101-001 — Implement policy evaluation for partition, allowed regions, latency, classification, regulation/contract, isolation tier, service/model availability, capacity, KMS, DR, and cost.
 - [ ] GE-101-002 — Implement pooled, bridge, silo, dedicated Tenure account, and regional/sovereign placement adapters behind one contract.
 - [ ] GE-101-003 — Emit explainable placement decision with policy/config version and approved operator override workflow.
-- [ ] GE-101-004 — Implement cell capacity admission, quota thresholds, shard/new-cell/account-vend recommendations, and onboarding block before exhaustion.
+- [x] GE-101-004 — Implement cell capacity admission, quota thresholds, shard/new-cell/account-vend recommendations, and onboarding block before exhaustion.
 
 ### GE-102: Idempotent provisioning state machine
 

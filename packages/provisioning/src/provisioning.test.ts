@@ -410,4 +410,116 @@ describe("execute", () => {
     }, meta)
     expect(differentModules.digest).not.toBe(dm.digest)
   })
+
+  // ── GE-102-009: the named digests ────────────────────────────────────────
+
+  const BUILD = ["VALIDATING", "PROVISIONING", "CONFIGURING", "MIGRATING", "VERIFYING"] as const
+  const META = { createdAt: "2026-08-01T00:00:00.000Z", createdBy: "dana@tenure.example", serving: true }
+  const run = (m: TenantManifest, c: ExecutionContext = ctx) =>
+    BUILD.map((s) => executeStep(s, m, c))
+
+  it("names each step's digest on the artifact, because the evidence never reaches the cell", () => {
+    // The reconcile endpoint is handed the manifest, a display name and an
+    // admin address — not the evidence array. So an artifact that carried only
+    // `evidenceDigest` could tell a cell that something about the run differed
+    // and never which thing. Each digest is therefore named.
+    const m = manifest()
+    const evidence = run(m)
+    const by = (state: TenantState) => evidence.find((e) => e.state === state)!.digest
+
+    const dm = deploymentManifest(m, evidence, ctx, META)
+
+    expect(dm.resourceDigest).toBe(by("PROVISIONING"))
+    expect(dm.migrationDigest).toBe(by("MIGRATING"))
+    expect(dm.testDigest).toBe(by("VERIFYING"))
+    expect(dm.releaseDigest).toHaveLength(32)
+
+    // Four genuinely different facts, not one hash under four names — which is
+    // what field-stuffing would look like and would pass every other assertion.
+    expect(
+      new Set([dm.releaseDigest, dm.resourceDigest, dm.migrationDigest, dm.testDigest]).size,
+    ).toBe(4)
+    expect(dm.releaseDigest).not.toBe(dm.manifestDigest)
+  })
+
+  it("says null for a step that has not run, rather than inventing a digest", () => {
+    // CONFIGURING publishes before MIGRATING and VERIFYING happen. "The engine
+    // did not state it" and "it verified as empty" are different claims.
+    const m = manifest()
+    const early = deploymentManifest(m, [executeStep("CONFIGURING", m, ctx)], ctx, {
+      ...META,
+      serving: false,
+    })
+    expect(early.migrationDigest).toBeNull()
+    expect(early.testDigest).toBeNull()
+    expect(early.resourceDigest).toBeNull()
+    expect(early.releaseDigest).toHaveLength(32)
+  })
+
+  it("cites the last attempt at a step, not the first", () => {
+    // A retried step is why `advance` counts attempts. An artifact citing the
+    // attempt that failed would point an incident at the wrong evidence.
+    const m = manifest()
+    const failed = executeStep("VERIFYING", manifest({ secretRefs: { k: "sk_live_abc" } }), ctx)
+    const passed = executeStep("VERIFYING", m, ctx)
+    expect(failed.digest).not.toBe(passed.digest)
+
+    const dm = deploymentManifest(m, [failed, passed], ctx, META)
+    expect(dm.testDigest).toBe(passed.digest)
+  })
+
+  it("changes the verification digest when a pre-activation check changes outcome", () => {
+    // The digest covers the check OUTCOMES. Digesting the names alone would
+    // hash a clean verification and a failed one identically, and the artifact
+    // would cite a verification run that says nothing.
+    const good = manifest()
+    const bad = manifest({ secretRefs: { k: "sk_live_abc" } })
+
+    const passing = deploymentManifest(good, run(good), ctx, META)
+    const failing = deploymentManifest(bad, run(bad), ctx, META)
+
+    expect(passing.testDigest).not.toBe(failing.testDigest)
+  })
+
+  it("names the artifact it rolls back to, and covers it in the digest", () => {
+    const m = manifest()
+    const evidence = run(m)
+
+    const first = deploymentManifest(m, evidence, ctx, { ...META, serving: false })
+    expect(first.rollbackDigest).toBeNull()
+
+    const second = deploymentManifest(m, evidence, ctx, { ...META, previousDigest: first.digest })
+    expect(second.rollbackDigest).toBe(first.digest)
+
+    // The rollback target is part of what the cell verifies: the same run
+    // pointing at a different predecessor is a different artifact. Without
+    // `rollbackDigest` inside the digested body these two hash identically.
+    const third = deploymentManifest(m, evidence, ctx, { ...META, previousDigest: "0".repeat(32) })
+    expect(third.digest).not.toBe(second.digest)
+    expect(second.digest).not.toBe(first.digest)
+  })
+
+  it("changes the release digest when the pinned module VERSIONS change", () => {
+    // Not the module set — the versions. A release is the pins, and a build
+    // that shipped governance@1.2.0 is not the build that shipped 1.3.0.
+    const m = manifest()
+    const bumped: ExecutionContext = {
+      ...ctx,
+      resolveModules: () => ({ ordered: [{ key: "governance", version: "1.3.0" }], problems: [] }),
+    }
+    expect(deploymentManifest(m, run(m), ctx, META).releaseDigest).not.toBe(
+      deploymentManifest(m, run(m, bumped), bumped, META).releaseDigest,
+    )
+  })
+
+  it("does not tell an operator the artifact is signed, because nothing signs it", () => {
+    // The claim this requirement was opened against. `digest` is an unkeyed
+    // SHA-256 and the cell recomputes the same unkeyed hash, so it establishes
+    // that the artifact arrived unaltered and nothing at all about its origin.
+    // An engine that says "signed" here teaches operators to trust a property
+    // it does not have.
+    const e = executeStep("MIGRATING", manifest(), ctx)
+    expect(e.detail).not.toMatch(/\bsigns?\b|\bsigned\b|\bsigning\b/i)
+    expect(e.detail).toMatch(/unkeyed digest, not a signature/)
+  })
 })

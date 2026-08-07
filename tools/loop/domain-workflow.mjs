@@ -9,7 +9,25 @@ export const meta = {
   ],
 }
 
-const D = args || {}
+/**
+ * `args` arrives as a JSON STRING, not an object.
+ *
+ * Found the hard way: `const D = args || {}` left every field undefined, so a
+ * fan-out of 13 workflows each fell back to the same default domain and
+ * surveyed the same one 13 times. The defaults hid it — nothing errored, the
+ * runs just all did the same work.
+ */
+const D = (() => {
+  if (!args) return {}
+  if (typeof args === 'string') {
+    try {
+      return JSON.parse(args)
+    } catch {
+      return {}
+    }
+  }
+  return args
+})()
 const DOMAIN = D.domain || 'GE'
 const OWNS = D.owns || []
 const LEDGER = D.ledger || ''

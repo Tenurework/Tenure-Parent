@@ -9,7 +9,11 @@
 
 // The /money subpath, not the package root: the root reaches node:crypto via the
 // configuration resolver, and this module is imported by client components.
-import { formatMoney, type MoneyFormat } from "@tenure/platform-config/money"
+import {
+  DEFAULT_MONEY_FORMAT,
+  formatMoney,
+  type MoneyFormat,
+} from "@tenure/platform-config/money"
 
 export type BudgetLineInput = {
   category: string
@@ -65,17 +69,94 @@ export function formatCentsCompact(cents: number): string {
 }
 
 /**
- * Parse a currency-ish value into integer cents. Accepts numbers (assumed
- * dollars) and strings with $, commas, and parenthesised negatives, which is
+ * How many digits the minor unit has: 2 for USD, 0 for JPY, 3 for KWD.
+ *
+ * Resolved by the *same* expression `formatMoney` uses to pick its divisor
+ * (packages/platform-config/src/money.ts), so parsing is the exact inverse of
+ * formatting rather than a second, independently-wrong guess. A hardcoded 100
+ * here against `10 ** digits` there is a hundredfold error on a JPY tenant.
+ *
+ * Cached because a budget import resolves this once per spreadsheet cell and
+ * constructing an `Intl.NumberFormat` is not free.
+ */
+const minorUnitDigitsByFormat = new Map<string, number>()
+
+function minorUnitExponent(format: MoneyFormat): number {
+  const key = `${format.locale}|${format.currency}`
+  const cached = minorUnitDigitsByFormat.get(key)
+  if (cached !== undefined) return cached
+  let digits: number
+  try {
+    digits =
+      new Intl.NumberFormat(format.locale, {
+        style: "currency",
+        currency: format.currency,
+      }).resolvedOptions().maximumFractionDigits ?? 2
+  } catch {
+    // An unknown locale or currency code throws RangeError. Fall back to the
+    // platform default's 2 rather than propagating out of a parse.
+    digits = 2
+  }
+  minorUnitDigitsByFormat.set(key, digits)
+  return digits
+}
+
+/**
+ * The digits of a finite number, without exponent notation.
+ *
+ * `String(1e-7)` is "1e-7" and `String(1e21)` is "1e+21"; neither survives
+ * digit-wise rounding. Everything in between is already plain, and is the
+ * shortest string that round-trips to the same double — which is precisely the
+ * decimal a spreadsheet cell was showing.
+ */
+function toPlainDecimalString(n: number): string {
+  const s = String(n)
+  if (!s.includes("e") && !s.includes("E")) return s
+  const m = /^(-?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/.exec(s)
+  if (!m) return s
+  const [, sign, intDigits, fracDigits = "", expText] = m
+  const exp = Number(expText)
+  const digits = intDigits + fracDigits
+  const pointAt = intDigits.length + exp
+  if (pointAt <= 0) return `${sign}0.${"0".repeat(-pointAt)}${digits}`
+  if (pointAt >= digits.length) return `${sign}${digits}${"0".repeat(pointAt - digits.length)}`
+  return `${sign}${digits.slice(0, pointAt)}.${digits.slice(pointAt)}`
+}
+
+/**
+ * Parse a currency-ish value into integer minor units. Accepts numbers (assumed
+ * major units) and strings with $, commas, and parenthesised negatives, which is
  * how accounting spreadsheets write them: "$1,200.50", "(300)", "-45".
  * Returns null for anything that is not a number.
+ *
+ * Rounding happens on the decimal *digits*, half away from zero, never through
+ * a float: `Math.round(value * 100)` disagreed with itself across the number and
+ * string branches (`-0.005` gave `-0`, `"-0.005"` gave `-1`) and lost the
+ * half-way case entirely, because 1.005 and 0.145 are both a hair below their
+ * decimal value as doubles, so `"1.005"` yielded 100 and `"0.145"` yielded 14.
+ * Both branches now share one implementation: numbers stringify first.
+ *
+ * `format` names the currency whose minor unit the result is counted in, and
+ * only affects how many fraction digits are kept — the accepted *input* charset
+ * is deliberately the en-US one for every currency. A locale that writes the
+ * decimal separator as a comma (de-DE "1.234,56 €") is rejected as unparseable
+ * rather than silently read as 1.23456; making it parse needs locale-aware
+ * grouping, which is a larger change than this one.
  */
-export function parseMoneyToCents(value: unknown): number | null {
+export function parseMoneyToCents(
+  value: unknown,
+  format: MoneyFormat = DEFAULT_MONEY_FORMAT
+): number | null {
   if (value == null || value === "") return null
+
+  let s: string
   if (typeof value === "number") {
-    return Number.isFinite(value) ? Math.round(value * 100) : null
+    if (!Number.isFinite(value)) return null
+    s = toPlainDecimalString(value)
+  } else {
+    s = String(value)
   }
-  let s = String(value).trim()
+  s = s.trim()
   if (!s) return null
 
   let negative = false
@@ -90,8 +171,34 @@ export function parseMoneyToCents(value: unknown): number | null {
   }
   if (!/^\d*\.?\d+$/.test(s)) return null
 
-  const cents = Math.round(parseFloat(s) * 100)
-  return negative ? -cents : cents
+  const exponent = minorUnitExponent(format)
+  const dot = s.indexOf(".")
+  const wholePart = dot < 0 ? s : s.slice(0, dot)
+  const fractionPart = dot < 0 ? "" : s.slice(dot + 1)
+  const keptFraction = fractionPart.slice(0, exponent).padEnd(exponent, "0")
+  const droppedFraction = fractionPart.slice(exponent)
+
+  // Every term here is a whole number of minor units, and integer arithmetic in
+  // a double is exact below 2^53 — so unlike `value * 100`, no fractional float
+  // ever exists to be rounded wrong. The safe-integer guard below is what keeps
+  // that promise true at the top of the range.
+  let minorUnits =
+    Number(wholePart === "" ? "0" : wholePart) * 10 ** exponent +
+    Number(keptFraction === "" ? "0" : keptFraction)
+  // Half away from zero, decided on the magnitude so the sign cannot change the
+  // rounding: the first dropped digit being >= 5 ("5" is char code 53) means the
+  // remainder is at least half a minor unit.
+  if (droppedFraction !== "" && droppedFraction.charCodeAt(0) >= 53) minorUnits += 1
+
+  // Past 2^53 the sum above rounds silently. Refuse the value rather than store
+  // a total that is not the amount that was typed.
+  if (!Number.isSafeInteger(minorUnits)) return null
+
+  // Normalise -0 to 0 before applying the sign: -0 is === 0 but Object.is-
+  // distinct, it serialises as "-0" in JSON, and the number branch used to
+  // return it from `Math.round(-0.005 * 100)` while the string branch did not.
+  if (minorUnits === 0) return 0
+  return negative ? -minorUnits : minorUnits
 }
 
 export function summarize(lines: BudgetLineInput[]): FinanceSummary {

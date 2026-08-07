@@ -1,5 +1,6 @@
 import { type ReactNode } from "react"
 
+import { Skeleton, type SkeletonGeometry } from "@/components/ui/Skeleton"
 import {
   DEFAULT_COPY,
   STATE_SEMANTICS,
@@ -9,26 +10,34 @@ import {
 } from "@/components/ui/states"
 
 /**
- * One component for all ten states, rendering from the semantics table.
+ * One component for all fourteen states, rendering from the semantics table.
  *
- * Ten separate components would each re-decide the ARIA role, the urgency and
- * whether to offer a retry, and they would drift — nine of them correct and one
- * announcing a loading spinner assertively over whatever the reader was doing.
- * Reading it from `states.ts` means the decision is made once and the component
- * cannot disagree with the tests.
+ * Fourteen separate components would each re-decide the ARIA role, the urgency
+ * and whether to offer a retry, and they would drift — thirteen of them correct
+ * and one announcing a loading spinner assertively over whatever the reader was
+ * doing. Reading it from `states.ts` means the decision is made once and the
+ * component cannot disagree with the tests.
  *
  * `presentsAsComplete: false` renders a visible marker rather than only a tone.
  * Colour alone fails for a reader who cannot distinguish it, and "this is not
  * everything" is precisely the thing they must not miss.
+ *
+ * `geometry` turns the loading state from a one-line card into a placeholder
+ * the size of the content it precedes. When it is supplied the card chrome and
+ * the visible copy step aside — they would add their own height on top of the
+ * reservation and reintroduce the shift — and the copy moves to `sr-only`, so
+ * the polite "Loading" announcement is unchanged for anyone listening.
  */
 
 /**
  * Tone → design tokens.
  *
- * Four tones rather than ten, because the palette is a smaller vocabulary than
- * the state set: `stale`, `offline`, `partial` and `permission-denied` are
- * different situations that should look the same amount of unfinished. Every
+ * Four tones rather than fourteen, because the palette is a smaller vocabulary
+ * than the state set: `stale`, `offline`, `partial` and `permission-denied` are
+ * different situations that should look the same amount of unfinished, and
+ * `empty`, `no-results`, `archived` and `syncing` are all equally quiet. Every
  * value resolves to a token from `globals.css`; nothing here invents a colour.
+ * `neutral` is what `read-only` uses — live data, full contrast, no alarm.
  */
 const TONE: Record<StateSemantics["tone"], { frame: string; title: string; body: string }> = {
   neutral: {
@@ -59,6 +68,7 @@ export function StateSurface({
   detail,
   onRetry,
   retryLabel,
+  geometry,
   children,
   className,
 }: {
@@ -68,6 +78,13 @@ export function StateSurface({
   /** Ignored when the state says a retry cannot help; see `retryAdvice`. */
   onRetry?: () => void
   retryLabel?: string
+  /**
+   * The shape of the content this surface is standing in for. Supplying it
+   * makes `loading` reserve that exact box instead of collapsing to a one-line
+   * card and reflowing the page when the data lands. Ignored in every other
+   * state — there is nothing to stand in for once the answer is known.
+   */
+  geometry?: SkeletonGeometry
   /** Rows this surface is wrapping, for stale/partial/archived/offline. */
   children?: ReactNode
   className?: string
@@ -77,13 +94,19 @@ export function StateSurface({
   const advice = retryAdvice(state)
   const tone = TONE[semantics.tone]
 
+  // The skeleton replaces the card, it does not sit inside it: a border and
+  // 12px of padding around a height-matched placeholder is a height-mismatched
+  // placeholder, which is the reflow this is here to remove.
+  const showsSkeleton = state === "loading" && geometry !== undefined
+
   return (
     <div
       className={[
-        "state-surface rounded-md border px-4 py-3",
+        "state-surface",
+        showsSkeleton ? "" : "rounded-md border px-4 py-3",
         `state-${state}`,
         `tone-${semantics.tone}`,
-        tone.frame,
+        showsSkeleton ? "" : tone.frame,
         className,
       ]
         .filter(Boolean)
@@ -95,8 +118,24 @@ export function StateSurface({
       data-state={state}
       data-complete={semantics.presentsAsComplete}
     >
-      <p className={`state-title text-sm font-semibold ${tone.title}`}>{title ?? copy.title}</p>
-      <p className={`state-detail mt-0.5 text-sm ${tone.body}`}>{detail ?? copy.detail}</p>
+      {/* Still announced, just not occupying height the reservation has to
+          account for. `sr-only` keeps it in the accessibility tree. */}
+      <p
+        className={
+          showsSkeleton ? "state-title sr-only" : `state-title text-sm font-semibold ${tone.title}`
+        }
+      >
+        {title ?? copy.title}
+      </p>
+      <p
+        className={
+          showsSkeleton ? "state-detail sr-only" : `state-detail mt-0.5 text-sm ${tone.body}`
+        }
+      >
+        {detail ?? copy.detail}
+      </p>
+
+      {showsSkeleton ? <Skeleton geometry={geometry} /> : null}
 
       {/* Not colour alone. A reader who cannot distinguish the tone still has
           to know that what follows is not the whole answer. */}

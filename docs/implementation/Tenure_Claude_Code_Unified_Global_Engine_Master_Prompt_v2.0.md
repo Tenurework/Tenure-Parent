@@ -177,7 +177,7 @@ Use this evidence shape:
 - [ ] GE-010-004 — Establish Control Tower/Account Factory or equivalent account-vending baseline with organization trail/config, delegated security admin, required contacts/tags/budgets, backup, IAM boundaries, and deployment roles.
 - [ ] GE-010-005 — Define SCPs/guardrails for region restrictions, public resource prevention, disabling security services, leaving organization, root use, unapproved IAM escalation, and required evidence—tested for operational safety.
 - [ ] GE-010-006 — Separate production/nonproduction/security/log workloads and prove nonproduction roles cannot reach production resources.
-- [ ] GE-010-007 — Define partition-aware account abstraction for commercial, GovCloud, and sovereign deployments without pretending unavailable services exist.
+- [x] GE-010-007 — Define partition-aware account abstraction for commercial, GovCloud, and sovereign deployments without pretending unavailable services exist.
 
 ### GE-011: GitHub Actions OIDC
 
@@ -396,7 +396,7 @@ Use this evidence shape:
 - [ ] GE-062-001 — Implement and document DynamoDB access patterns for sessions, idempotency, routing projection, provisioning state, websocket/delivery, and usage; enable TTL/PITR/conditional writes.
 - [ ] GE-062-002 — Prefix/bind every cache key with environment, cell, tenant, resource, authorization/config revision, locale, and query version; add cross-tenant collision tests.
 - [ ] GE-062-003 — Create `KnowledgeIndex` and search storage drivers for tenant-specific OpenSearch/Bedrock/S3 Vector resources.
-- [ ] GE-062-004 — Ensure separate tenant index/namespace, dedicated resources by tier, authorization metadata, and read-time authorization after retrieval.
+- [x] GE-062-004 — Ensure separate tenant index/namespace, dedicated resources by tier, authorization metadata, and read-time authorization after retrieval.
 - [ ] GE-062-005 — Make every search/vector/graph projection reproducible from canonical source/version events.
 
 ### GE-063: Audit and event integrity
@@ -475,7 +475,7 @@ Use this evidence shape:
 - [ ] GE-074-001 — Implement tenant/organization/seat/team/personal/resource calendars with IANA time zones, recurrence, DST, fiscal/business calendars, and external sync.
 - [ ] GE-074-002 — Implement event/session/deadline/milestone, proposal, budget, venue/resource, vendor, risk, accessibility, marketing, registration, attendance, run-of-show, incident, and closeout.
 - [ ] GE-074-003 — Implement room/resource inventory, capacity, layouts, equipment, setup/teardown, ownership, maintenance/blackout, and reservation.
-- [ ] GE-074-004 — Implement hard and soft conflict engine with explainable rule, override authority, decision/audit, and no false “AI” claim for deterministic rules.
+- [x] GE-074-004 — Implement hard and soft conflict engine with explainable rule, override authority, decision/audit, and no false “AI” claim for deterministic rules.
 - [ ] GE-074-005 — Implement RSVP/registration/waitlist/guest/consent/check-in/QR and communications with privacy/accessibility.
 - [ ] GE-074-006 — Implement Google/Microsoft calendar/ICS adapters through Integration Hub with reconciliation and correct recurrence/time zones.
 
@@ -504,7 +504,7 @@ Use this evidence shape:
 - [ ] GE-080-004 — Implement funds/grants/programs/cost centers/projects/restrictions and funding-source controls where configured.
 - [ ] GE-080-005 — Implement cash/bank account references, statement import/feed adapter, matching, reconciliation, deposits/transfers, and cash view without storing bank secrets in app data.
 - [ ] GE-080-006 — Implement financial statements and budget-to-actual/trial balance/ledger drill-through from canonical records, not duplicated UI calculations.
-- [ ] GE-080-007 — Add currency precision, rounding, exchange-rate source/time, reversal, closed-period, concurrency, and invariant tests.
+- [x] GE-080-007 — Add currency precision, rounding, exchange-rate source/time, reversal, closed-period, concurrency, and invariant tests.
 
 ### GE-081: Procure-to-pay, vendors, and expenses
 
@@ -551,7 +551,7 @@ Use this evidence shape:
 - [ ] GE-085-003 — Two concurrent approvals create one state transition and one financial effect.
 - [ ] GE-085-004 — Archiving/suspending an org blocks writes and removes operational views without erasing history.
 - [ ] GE-085-005 — Every surface returns the same canonical seat/member/finance metrics from the same fixture.
-- [ ] GE-085-006 — Restart/redeploy never mutates customer-created rows or reruns destructive seed logic.
+- [x] GE-085-006 — Restart/redeploy never mutates customer-created rows or reruns destructive seed logic.
 - [ ] GE-085-007 — Malicious documents cannot execute script, escape preview, access unsafe URLs, or enter AI index before release.
 - [ ] GE-085-008 — Suggested Relay questions are answerable from authorized indexed evidence or are not shown.
 
@@ -613,7 +613,7 @@ Use this evidence shape:
 - [ ] GE-094-005 — Require preview/confirmation for material writes, approved standing automation policy for unattended R2/R3, ordinary approval/step-up/separation of duties for R4, and hard deny R5.
 - [ ] GE-094-006 — Implement tool cancellation, timeout, partial failure, compensation, human handoff, and clear state; never fabricate success when an integration or workflow is pending.
 - [ ] GE-094-007 — Implement Relay tools for search/read/summarize/compare, drafts, tasks/projects, requests/workflows, events/calendar, documents/memory, finance budget/expense drafts, messages, reports, and connector queries according to enabled modules.
-- [ ] GE-094-008 — High-risk payment, access, policy publication, sensitive export, signature, deletion, HR action, production config, and tenant lifecycle tools cannot self-approve.
+- [x] GE-094-008 — High-risk payment, access, policy publication, sensitive export, signature, deletion, HR action, production config, and tenant lifecycle tools cannot self-approve.
 
 ### GE-095: AI guardrails, safety, and quality
 
@@ -658,7 +658,7 @@ Use this evidence shape:
 - [ ] GE-101-001 — Implement policy evaluation for partition, allowed regions, latency, classification, regulation/contract, isolation tier, service/model availability, capacity, KMS, DR, and cost.
 - [ ] GE-101-002 — Implement pooled, bridge, silo, dedicated Tenure account, and regional/sovereign placement adapters behind one contract.
 - [ ] GE-101-003 — Emit explainable placement decision with policy/config version and approved operator override workflow.
-- [ ] GE-101-004 — Implement cell capacity admission, quota thresholds, shard/new-cell/account-vend recommendations, and onboarding block before exhaustion.
+- [x] GE-101-004 — Implement cell capacity admission, quota thresholds, shard/new-cell/account-vend recommendations, and onboarding block before exhaustion.
 
 ### GE-102: Idempotent provisioning state machine
 
@@ -916,7 +916,7 @@ Treat experience quality as a production invariant. Use Monarch for calm whole-p
 - [ ] GE-143-001 — Inventory every current UI stack, component library, CSS strategy, font, icon set, table/grid, chart library, editor, calendar, dialog, theme, breakpoint, and copied component; record duplication, accessibility debt, visual drift, and migration risk.
 - [ ] GE-143-002 — Create an owned, versioned TES package consumed by tenant app, operator plane, configuration studio, public/guest surfaces, Relay, and Marketplace; prohibit business modules from maintaining parallel foundations.
 - [ ] GE-143-003 — Define primitive → semantic → component → guarded tenant → user-preference token layers in a validated schema; generate CSS variables, TypeScript types, documentation, and future-native artifacts from the same source.
-- [ ] GE-143-004 — Add lint/architecture rules that prevent literal colors, arbitrary spacing/shadows/z-index, unregistered fonts/icons, and direct raw primitive tokens in product modules, with a documented exception process and expiry.
+- [x] GE-143-004 — Add lint/architecture rules that prevent literal colors, arbitrary spacing/shadows/z-index, unregistered fonts/icons, and direct raw primitive tokens in product modules, with a documented exception process and expiry.
 - [ ] GE-143-005 — If React is canonical, evaluate and adopt Radix Primitives selectively behind owned Tenure wrappers for appropriate behaviors; pin versions and test portals, focus, layering, keyboard, touch, screen-reader, RTL, and reduced-motion behavior. Do not adopt Radix Themes as Tenure's identity.
 - [ ] GE-143-006 — Create a component laboratory and documentation site with interaction controls, accessibility annotations, source links, usage guidance, anti-patterns, changelog, migration notes, and realistic enterprise fixtures.
 - [ ] GE-143-007 — Establish one coherent outline icon family, sanitation rules for tenant/extension icons, and semantic icon-label requirements; remove emoji or mixed icon families from operational controls unless explicitly content-authored.
@@ -940,20 +940,20 @@ Treat experience quality as a production invariant. Use Monarch for calm whole-p
 - [ ] GE-143-019 — Create responsive templates for overview, record, master-detail, queue, grid, board, calendar, builder, canvas, report, Relay, and high-risk operations with defined action hierarchy, scroll ownership, sticky behavior, breakpoints, and state transformations.
 - [ ] GE-143-020 — Implement governed comfortable and compact density on a four-pixel grid. Preserve readable type, accessible touch targets, focus, labels, error content, and safety context in every density.
 - [ ] GE-143-021 — Implement owned form/control patterns for international name/address/phone, locale number/currency, time zone/DST, date ranges, recurrence, calculated fields, attachments, structured editors, autosave/draft recovery, validation, conflict, and recoverable failure.
-- [ ] GE-143-022 — Implement the complete component-state matrix where applicable: default, hover, active, focus-visible, selected, disabled, read-only, loading, geometry-matched skeleton, empty, no results, error, denied, stale, offline, syncing, conflict, partial, archived, pending purge, and high risk.
+- [x] GE-143-022 — Implement the complete component-state matrix where applicable: default, hover, active, focus-visible, selected, disabled, read-only, loading, geometry-matched skeleton, empty, no results, error, denied, stale, offline, syncing, conflict, partial, archived, pending purge, and high risk.
 - [ ] GE-143-023 — Implement an owned virtualized data-grid contract for keyboard navigation, selection, pin/resize/reorder, grouping, aggregation, saved views, filters, export, bulk operation, permissions, localization, printing, deep links, and accessibility; prevent domain modules from coupling directly to a vendor grid API.
 - [ ] GE-143-024 — Make consequential results persistent in the relevant record/activity surface; never use a transient toast as the sole confirmation, error, approval, export, or destructive-operation record.
 - [ ] GE-143-025 — Standardize destructive and cross-organization previews with exact target, tenant/org/seat scope, affected count, downstream effects, approvals, recovery/undo window, retention/legal-hold impact, cost impact, and audit consequence.
 
 #### GE-143D: Enterprise visualization platform
 
-- [ ] GE-143-026 — Build an owned chart/visualization API with semantic tokens, deterministic series/category identity, standard interaction/tooltip/legend/filter contracts, responsive layouts, export/print, authorization, and source drill-through; keep business modules independent of vendor configuration.
+- [x] GE-143-026 — Build an owned chart/visualization API with semantic tokens, deterministic series/category identity, standard interaction/tooltip/legend/filter contracts, responsive layouts, export/print, authorization, and source drill-through; keep business modules independent of vendor configuration.
 - [ ] GE-143-027 — Select one approved standard chart engine and use narrowly imported D3 modules for specialized Sankey, organizational, provenance, and dependency views; document bundle, accessibility, performance, licensing, and maintenance decisions.
 - [ ] GE-143-028 — Implement governed line/area, sorted/grouped/stacked bar, dot/bullet, progress/variance, restrained donut, Sankey/alluvial, hierarchy/network, timeline/Gantt/calendar, heatmap, histogram/box/scatter, waterfall, and justified geographic patterns with a chart-selection guide.
 - [ ] GE-143-029 — Require every visual to expose question/title, definition, unit, grain, source, time zone, freshness, filters, comparison basis, missing/estimated data, permission scope, annotation, and record-level drill-through.
 - [ ] GE-143-030 — Provide accessible summaries, keyboard exploration or equivalent controls, screen-reader semantics, a synchronized table/list alternative, non-color encoding, color-vision-safe palettes, zoom/text scaling, and downloadable accessible data for every visualization.
 - [ ] GE-143-031 — Implement a production Sankey pattern for cash flow, budget allocation, request/approval routing, workflow transitions, information lineage, seat handoffs, integration traffic, and tenant cost decomposition with source→destination clarity, direct labels, search/highlight, Top-N + Other, small-flow aggregation, cycle handling, absolute/percentage modes, filters, zoom/staged expansion, and record drill-through.
-- [ ] GE-143-032 — Test Sankey at small, medium, large, and pathological graph sizes. It must aggregate or switch representation before labels become unreadable; prohibit a decorative forest of hairlines or unsupported causal interpretation.
+- [x] GE-143-032 — Test Sankey at small, medium, large, and pathological graph sizes. It must aggregate or switch representation before labels become unreadable; prohibit a decorative forest of hairlines or unsupported causal interpretation.
 - [ ] GE-143-033 — Prohibit 3D/perspective distortion, decorative gauges, exploding pies, unjustified dual axes, silent truncated axes, rainbow categorical scales, status colors reused arbitrarily, hidden denominators, and visualized AI numbers without canonical provenance.
 - [ ] GE-143-034 — Connect finance, workflow, org/memory, project, risk/control, integration, AI-cost, and tenant-fleet dashboards to canonical read models; no duplicated client-side business calculations or fake placeholder metrics may survive production paths.
 

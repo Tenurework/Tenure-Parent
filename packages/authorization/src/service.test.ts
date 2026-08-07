@@ -2,6 +2,7 @@ import type { AuthorizationRequest, AuthorizationWorld } from "./decide"
 import {
   authorizationService,
   decisionKey,
+  decisionKeyPrefix,
   memoryCache,
   validUntil,
   type PolicyRevision,
@@ -271,6 +272,31 @@ describe("the cache key separates questions that are not the same", () => {
   it("gives the same question the same key", () => {
     expect(decisionKey(request())).toBe(decisionKey(request()))
   })
+
+  it("separates two subject stamps", () => {
+    // GE-053-006. The stamp in the key is what makes a revocation a structural
+    // miss instead of a hoped-for eviction.
+    expect(decisionKey(request(), "s1")).not.toBe(decisionKey(request(), "s2"))
+  })
+
+  it("begins with the documented tenant/principal prefix", () => {
+    // invalidatePrincipal finds a principal's entries by matching this head.
+    // If decisionKey's field order drifts from decisionKeyPrefix, targeted
+    // invalidation becomes a no-op that still returns a plausible count.
+    const prefix = decisionKeyPrefix(TENANT, "dana")
+    expect(decisionKey(request(), "s1").startsWith(prefix)).toBe(true)
+    expect(decisionKey(request(), "s2").startsWith(prefix)).toBe(true)
+    expect(decisionKey(request()).startsWith(prefix)).toBe(true)
+  })
+
+  it("cannot be made to forge another principal's prefix with a separator", () => {
+    // Raw fields would put a principal called "dana|finance.budget.read" under
+    // a key that begins exactly like dana's, and revoking one would revoke or
+    // spare the other by accident. Encoding is what makes the prefix a fact.
+    const impostor = decisionKey(request({ tenantId: "t1", principalId: "dana|x" }))
+    expect(impostor.startsWith(decisionKeyPrefix("t1", "dana"))).toBe(false)
+    expect(impostor.startsWith(decisionKeyPrefix("t1", "dana|x"))).toBe(true)
+  })
 })
 
 /* ──────────────────────────────────────────────────────────────── the cache ── */
@@ -313,6 +339,25 @@ describe("the memory cache is bounded and evicts the oldest", () => {
     cache.set("a", { decision: {} as never, revision: "r1", validUntil: null })
     cache.clear()
     expect(cache.size).toBe(0)
+  })
+
+  it("deletes one entry and leaves the rest", () => {
+    // A revocation is narrower than a revision change: clear() on a role edit
+    // would be correct and useless.
+    const cache = memoryCache()
+    cache.set("a", { decision: {} as never, revision: "r1", validUntil: null })
+    cache.set("b", { decision: {} as never, revision: "r1", validUntil: null })
+    cache.delete("a")
+    expect(cache.get("a")).toBeUndefined()
+    expect(cache.get("b")).toBeDefined()
+    expect(cache.size).toBe(1)
+  })
+
+  it("lists the keys it holds, so a targeted invalidation can find its own", () => {
+    const cache = memoryCache()
+    cache.set("a", { decision: {} as never, revision: "r1", validUntil: null })
+    cache.set("b", { decision: {} as never, revision: "r1", validUntil: null })
+    expect([...cache.keys()].sort()).toEqual(["a", "b"])
   })
 })
 
@@ -620,5 +665,207 @@ describe("a borrowed decision expires when the lender's grant does", () => {
     // Carol's earlier boundary must not shorten Bob's horizon: she lends to
     // nobody, so her dates cannot change this answer.
     expect(validUntil(stranger, asBob())).toBe("2026-08-03T13:00:00.000Z")
+  })
+})
+
+/* ─────────────────────────────────── revocation, which is not a date ── */
+
+describe("GE-053-006 — a revocation invalidates a remembered decision", () => {
+  /**
+   * The horizon bounds a decision by the dated facts it rested on, and that is
+   * the whole answer only while every way authority ends is a date. A revocation
+   * is not: the role assignment row is DELETED, so no `effectiveTo` the cache
+   * already read moves, `validUntil` stays `null`, and the clock alone can never
+   * notice. Every case below revokes that way — by removing the grant, never by
+   * dating it.
+   */
+  const grantFor = (principalId: string) => ({
+    principalId,
+    tenantId: TENANT,
+    roleKey: "r",
+    scope: { kind: "tenant" as const },
+    state: "CONFIRMED" as const,
+    effectiveFrom: PAST,
+  })
+
+  const build = ({ stamped }: { stamped: boolean }) => {
+    let grants = [grantFor("dana"), grantFor("eve")]
+    const stamps: Record<string, string> = { dana: "s1", eve: "s1" }
+    let builds = 0
+    let stampReads = 0
+
+    const service = authorizationService({
+      worldFor: (): AuthorizationWorld => {
+        builds += 1
+        return {
+          principals: [{ id: "dana" }, { id: "eve" }],
+          memberships: [
+            { principalId: "dana", tenantId: TENANT, state: "ACTIVE", effectiveFrom: PAST },
+            { principalId: "eve", tenantId: TENANT, state: "ACTIVE", effectiveFrom: PAST },
+          ],
+          roles: [{ key: "r", permissions: ["finance.budget.read", "finance.budget.update"] }],
+          grants,
+          enabledModules: ["budgeting"],
+        }
+      },
+      revision: () => revision("rev-1"),
+      ...(stamped
+        ? {
+            subjectRevision: (r: AuthorizationRequest) => {
+              stampReads += 1
+              return stamps[r.principalId] ?? "s0"
+            },
+          }
+        : {}),
+    })
+
+    return {
+      service,
+      builds: () => builds,
+      stampReads: () => stampReads,
+      revoke: (principalId: string) => {
+        grants = grants.filter((g) => g.principalId !== principalId)
+      },
+      bump: (principalId: string, to: string) => {
+        stamps[principalId] = to
+      },
+    }
+  }
+
+  const asEve = () => request({ principalId: "eve" })
+
+  it("serves the revoked decision stale when no stamp source is wired", () => {
+    // The defect, executed rather than asserted about. This is what the dated
+    // horizon alone buys you, and it is why the stamp exists.
+    const h = build({ stamped: false })
+    expect(h.service.authorize(request()).allowed).toBe(true)
+
+    h.revoke("dana")
+
+    const after = h.service.authorize(request())
+    expect(after.cached).toBe(true)
+    expect(after.allowed).toBe(true)
+    expect(h.builds()).toBe(1)
+  })
+
+  it("still serves it stale when the stamp is wired but not bumped", () => {
+    // The fact that makes the stamp load-bearing rather than decorative: it is
+    // the bump that lands the revocation, not the revocation itself. A source
+    // that forgets to move the stamp has changed nothing.
+    const h = build({ stamped: true })
+    h.service.authorize(request())
+
+    h.revoke("dana")
+
+    const after = h.service.authorize(request())
+    expect(after.cached).toBe(true)
+    expect(after.allowed).toBe(true)
+  })
+
+  it("stops serving it on the very next call once the stamp is bumped", () => {
+    const h = build({ stamped: true })
+    const first = h.service.authorize(request())
+    expect(first.allowed).toBe(true)
+    expect(first.cached).toBe(false)
+    expect(first.subjectRevision).toBe("s1")
+    expect(h.service.authorize(request()).cached).toBe(true)
+
+    h.revoke("dana")
+    h.bump("dana", "s2")
+
+    const after = h.service.authorize(request())
+    expect(after.cached).toBe(false)
+    expect(after.allowed).toBe(false)
+    expect(after.subjectRevision).toBe("s2")
+    expect(h.builds()).toBe(2)
+  })
+
+  it("reads the stamp on every call, hit and miss, not at construction", () => {
+    // A stamp captured once is a revocation that never arrives — the same
+    // failure `revision()` is read per-call to avoid.
+    const h = build({ stamped: true })
+    h.service.authorize(request())
+    h.service.authorize(request())
+    expect(h.stampReads()).toBe(2)
+  })
+
+  it("voids the principal's other remembered answers, not just the one asked again", () => {
+    // A revocation removes authority, not one answer. Leaving the rest to age
+    // out would also let dead entries evict live ones from a bounded cache.
+    const h = build({ stamped: true })
+    h.service.authorize(request())
+    h.service.authorize(request({ permission: "finance.budget.update" }))
+    expect(h.service.cacheSize).toBe(2)
+
+    h.revoke("dana")
+    h.bump("dana", "s2")
+    h.service.authorize(request())
+
+    expect(h.service.cacheSize).toBe(1)
+    const other = h.service.authorize(request({ permission: "finance.budget.update" }))
+    expect(other.cached).toBe(false)
+    expect(other.allowed).toBe(false)
+  })
+
+  it("leaves every other principal's answers alone", () => {
+    // The reason this is not `invalidate()`. Revoking one person's role must not
+    // turn every decision in the tenant into a cold start.
+    const h = build({ stamped: true })
+    h.service.authorize(request())
+    h.service.authorize(asEve())
+    expect(h.service.cacheSize).toBe(2)
+
+    h.revoke("dana")
+    h.bump("dana", "s2")
+
+    const dana = h.service.authorize(request())
+    expect(dana.cached).toBe(false)
+    expect(dana.allowed).toBe(false)
+
+    const eve = h.service.authorize(asEve())
+    expect(eve.cached).toBe(true)
+    expect(eve.allowed).toBe(true)
+  })
+
+  it("drops one principal's entries out of band, and reports how many", () => {
+    // The other door: a revocation known at the moment it happens, on a machine
+    // that can be told. Returns a count so a caller that expected to revoke
+    // something can tell it revoked nothing.
+    const h = build({ stamped: false })
+    h.service.authorize(request())
+    h.service.authorize(asEve())
+    expect(h.service.cacheSize).toBe(2)
+
+    expect(h.service.invalidatePrincipal(TENANT, "dana")).toBe(1)
+    expect(h.service.cacheSize).toBe(1)
+    expect(h.service.authorize(asEve()).cached).toBe(true)
+    expect(h.service.authorize(request()).cached).toBe(false)
+  })
+
+  it("does not reach the same principal id in another tenant", () => {
+    const h = build({ stamped: false })
+    h.service.authorize(request())
+    expect(h.service.invalidatePrincipal("other-tenant", "dana")).toBe(0)
+    expect(h.service.authorize(request()).cached).toBe(true)
+  })
+
+  it("reaches the principal's entries under every stamp they have held", () => {
+    // The stamp sits after the tenant/principal prefix precisely so that an
+    // out-of-band invalidation does not have to know which stamp is current.
+    const h = build({ stamped: true })
+    h.service.authorize(request())
+    h.bump("dana", "s2")
+    h.service.authorize(asEve())
+    // dana's s1 entry is still there — nothing of dana's has been asked since
+    // the bump, so nothing has reclaimed it.
+    expect(h.service.cacheSize).toBe(2)
+
+    expect(h.service.invalidatePrincipal(TENANT, "dana")).toBe(1)
+    expect(h.service.authorize(asEve()).cached).toBe(true)
+  })
+
+  it("records the stamp on the decision, so an audit can name every input", () => {
+    const unstamped = build({ stamped: false })
+    expect(unstamped.service.authorize(request()).subjectRevision).toBeNull()
   })
 })

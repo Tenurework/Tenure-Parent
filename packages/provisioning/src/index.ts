@@ -54,12 +54,25 @@ export type {
   TenantRegistryRecord,
 } from "./tenant-registry"
 
-export { choosePlacement, isCellServing, validateCellRecord } from "./cell-registry"
+export {
+  DEFAULT_CELL_RESERVE,
+  DEFAULT_WARN_FRACTION,
+  admissionLimit,
+  cellHeadroom,
+  cellReserve,
+  choosePlacement,
+  isCellHot,
+  isCellServing,
+  validateCellRecord,
+  warnThreshold,
+} from "./cell-registry"
 export type {
   CellCapacity,
   CellHealth,
   CellProblem,
   CellRecord,
+  FleetAdmission,
+  FleetRecommendation,
   PlacementDecision,
   PlacementRefusal,
 } from "./cell-registry"
