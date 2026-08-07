@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "d965a5b",
+  "commit": "db95980",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 241,

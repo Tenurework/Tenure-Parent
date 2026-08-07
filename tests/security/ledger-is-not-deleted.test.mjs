@@ -29,10 +29,26 @@ import { execFileSync } from 'node:child_process'
 
 const SOURCE_GLOBS = ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx']
 
+/**
+ * Application code only — the thing this rule is named after.
+ *
+ * An integration test that posts entries has to remove them again between runs:
+ * every link into `LedgerEntry` is `onDelete: Restrict`, so there is no cascade
+ * to lean on, and a suite that left its fixtures behind would fail its own next
+ * run. That cleanup is not a correction path a tenant can reach, does not ship,
+ * and cannot destroy anybody's accounting record.
+ *
+ * Narrow enough to matter: only the `.test.ts(x)` / `.itest.ts(x)` suffixes are
+ * dropped, and `scannedFiles` below refuses to run if that leaves an
+ * implausibly small set — an exclusion that quietly swallowed `src/lib` would
+ * otherwise turn this whole file green and mean nothing.
+ */
+const IS_TEST_FILE = /\.i?test\.tsx?$/
+
 const listFiles = () =>
   SOURCE_GLOBS.flatMap((g) =>
     execFileSync('git', ['ls-files', g], { encoding: 'utf8' }).split('\n').filter(Boolean)
-  )
+  ).filter((f) => !IS_TEST_FILE.test(f))
 
 /** Comments stripped: a call named in prose — as this file's own header does — is not a call. */
 const code = (text) =>
@@ -55,6 +71,26 @@ function deletionSites() {
   }
   return found
 }
+
+test('the scan still reaches the application, so a clean result means something', () => {
+  // Every assertion below is an absence, and an absence over an empty file list
+  // is indistinguishable from an absence over the real one. This is the floor
+  // that tells them apart.
+  const files = listFiles()
+  // 267 today, of 363 including the test files this scan drops. A floor rather
+  // than an equality: application files are added constantly and pinning the
+  // count would red on every new route, while a collapse to a handful is the
+  // only movement that would make the assertion below meaningless.
+  assert.ok(
+    files.length >= 200,
+    `Scanned ${files.length} application files, expected at least 200. The glob or the ` +
+      `test-file exclusion has stopped matching, and "no deletions found" would be a lie.`
+  )
+  assert.ok(
+    files.some((f) => f.includes('finance/actions.ts')),
+    'The finance actions file is not in the scanned set — that is the file this rule exists for.'
+  )
+})
 
 test('no application code deletes a posted ledger entry', () => {
   const sites = deletionSites()

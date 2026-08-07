@@ -89,7 +89,19 @@ test.describe("Relay is anchored, announced and cancellable", () => {
     // is genuine not-connected state, not a fixture.
     test.skip(!!process.env.ANTHROPIC_API_KEY, "a model IS connected in this environment")
 
-    await signIn(page, "Priya Raman")
+    // The Director, not a club officer — and the persona is load-bearing here.
+    //
+    // `relayReply` checks `toolRefusal` BEFORE "no model configured", by design:
+    // a refused retrieval must never be reported as an absent answer. A club
+    // seat is granted at an org unit, and `authorizeRegistrations` checks a tool
+    // tenant-scoped with no resource, so `search.corpus` is refused for every
+    // club officer — Priya included. Her turn therefore comes back
+    // `retrieval-refused`, which is a different outcome with a different
+    // surface, and this test's subject (the ai.model connection card) is
+    // unreachable for her. The Director holds a tenant-scoped grant, so her turn
+    // reaches the unconfigured branch this test is about. The ordering itself is
+    // covered by relay-reply.test.ts.
+    await signIn(page, "Dana Whitfield")
     await page.goto("/dashboard")
     const panel = await openPanel(page)
 

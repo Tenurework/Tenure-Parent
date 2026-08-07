@@ -14,17 +14,28 @@
 
 type Args = { data?: Record<string, unknown>; where?: unknown; create?: Record<string, unknown> }
 
-jest.mock("@/lib/db", () => ({
-  db: {
+jest.mock("@/lib/db", () => {
+  const client: Record<string, unknown> = {
     organization: { findFirst: jest.fn(async () => ({ id: "org_1" })) },
     approvalRequest: {
       findMany: jest.fn(async () => []),
       create: jest.fn(async () => ({ id: "ar_new" })),
     },
     paymentsFundsFlowConfig: { upsert: jest.fn(async () => ({ id: "cfg_1" })) },
-    auditEvent: { create: jest.fn(async () => ({})) },
-  },
-}))
+    // `findFirst` is the audit chain's predecessor read; null means this row
+    // starts the chain, which is what a per-test mock database always is.
+    auditEvent: { create: jest.fn(async () => ({})), findFirst: jest.fn(async () => null) },
+  }
+  // The funds-flow row is written through `recordAuditEvent`, which appends via
+  // the CALLBACK form of `$transaction` so the predecessor read and the write
+  // land together. A mock without it throws inside `appendChained`, which reads
+  // as the action failing when in fact the stand-in cannot do what the real
+  // client does.
+  client.$transaction = jest.fn(async (arg: unknown) =>
+    typeof arg === "function" ? (arg as (tx: unknown) => Promise<unknown>)(client) : arg,
+  )
+  return { db: client }
+})
 jest.mock("@/lib/admin/guard", () => ({
   requireAdminContext: jest.fn(async () => ({
     userId: "user_admin",

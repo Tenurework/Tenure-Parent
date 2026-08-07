@@ -251,9 +251,33 @@ export function SearchCommand({
 
   const optionId = (i: number) => `shell-search-opt-${i}`
 
+  /**
+   * Focus leaving the palette closes it — WCAG 2.4.11 Focus Not Obscured.
+   *
+   * The dropdown is `position: absolute` under a `position: fixed` header, so
+   * it hangs over the page. Opening it on focus and only closing it on Escape
+   * or an outside *mousedown* meant a keyboard user who tabbed past the input
+   * carried an open panel with them: the next several tab stops were covered by
+   * an option row they had no way to dismiss. `e2e/a11y.spec.ts`'s 2.4.11 probe
+   * caught exactly that, naming the option row's own class as the coverer.
+   *
+   * `relatedTarget` inside the box keeps it open — the option rows are
+   * `tabIndex={-1}` but a pointer still focuses them, so closing on any blur
+   * would tear the panel down before the row's own click handler ran.
+   */
+  const onFocusLeave = (e: React.FocusEvent<HTMLDivElement>) => {
+    const next = e.relatedTarget as Node | null
+    if (next && boxRef.current?.contains(next)) return
+    setOpen(false)
+  }
+
   return (
     <>
-      <div ref={boxRef} className="relative hidden sm:block w-64 lg:w-80">
+      <div
+        ref={boxRef}
+        onBlur={onFocusLeave}
+        className="relative hidden sm:block w-64 lg:w-80"
+      >
         <form
           role="search"
           onSubmit={(e) => {

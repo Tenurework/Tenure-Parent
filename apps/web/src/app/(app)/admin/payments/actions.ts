@@ -12,6 +12,7 @@ import {
 } from "@tenure/payments"
 
 import { db } from "@/lib/db"
+import { recordAuditEvent } from "@/lib/audit-record"
 import { requireAdminContext } from "@/lib/admin/guard"
 import { withTenantScope } from "@/lib/tenant-scope"
 
@@ -263,23 +264,25 @@ export async function saveFundsFlowConfiguration(
       },
     })
 
-    await db.auditEvent.create({
-      data: {
-        institutionId,
-        organizationId: org.id,
-        actorId: userId,
-        action: "Payments.FundsFlowConfigured",
-        resourceType: "PaymentsFundsFlowConfig",
-        resourceId: decision.sellerLegalEntityId,
-        outcome: "ALLOW",
-        reason: gate.reason,
-        metadata: {
-          chargeModel: decision.model,
-          liableParty: decision.liableParty,
-          decisionDigest: digest,
-          requiredException: requiresLiabilityException(decision),
-          exceptionApprovalId: gate.approvalId,
-        },
+    // Through the builder. This row says who is liable for a club's money and
+    // under which charge model, so it is one of the rows an incident review
+    // reads first — and a hand-built one joins no hash chain, which is the
+    // property that makes a later edit detectable.
+    await recordAuditEvent({
+      institutionId,
+      organizationId: org.id,
+      actor: { principalId: userId },
+      action: "Payments.FundsFlowConfigured",
+      resourceType: "PaymentsFundsFlowConfig",
+      resourceId: decision.sellerLegalEntityId,
+      outcome: "ALLOW",
+      reason: gate.reason,
+      metadata: {
+        chargeModel: decision.model,
+        liableParty: decision.liableParty,
+        decisionDigest: digest,
+        requiredException: requiresLiabilityException(decision),
+        exceptionApprovalId: gate.approvalId,
       },
     })
 

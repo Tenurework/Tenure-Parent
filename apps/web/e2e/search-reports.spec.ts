@@ -20,9 +20,14 @@ test.describe("search", () => {
     await page.getByRole("button", { name: "Save card" }).click()
     await expect(page.getByText(cardTitle)).toBeVisible()
 
-    // Search from the shell header
-    await page.getByRole("textbox", { name: "Search Tenure" }).fill(`SIMONX${stamp}`)
-    await page.getByRole("textbox", { name: "Search Tenure" }).press("Enter")
+    // Search from the shell header.
+    //
+    // `combobox`, not `textbox`: TTES-030-001 gave the palette the ARIA 1.2
+    // combobox contract (aria-expanded / aria-controls / aria-activedescendant),
+    // and an input carrying an explicit role="combobox" no longer matches the
+    // textbox role. e2e/shell.spec.ts asserts the same element by the same role.
+    await page.getByRole("combobox", { name: "Search Tenure" }).fill(`SIMONX${stamp}`)
+    await page.getByRole("combobox", { name: "Search Tenure" }).press("Enter")
     await page.waitForURL(/\/search\?q=/)
     await expect(page.getByText(cardTitle)).toBeVisible()
     await expect(page.getByText("[1]")).toBeVisible()
@@ -30,16 +35,31 @@ test.describe("search", () => {
   })
 
   test("search respects role scoping — seat cards stay hidden", async ({ page }) => {
-    // Priya writes a President-seat-only card with a unique token
+    // Priya writes a President-seat-only card whose TITLE carries the token.
+    //
+    // The token used to sit only in the card's body. WRK-010-003 then made
+    // `memory` REFERENCE_ONLY in the search projection
+    // (lib/relay/projection-policy.ts): a card contributes its title, its club
+    // and its link to the corpus, and its free text "never enters the corpus,
+    // never reaches ranking" — because /search hands its results to
+    // `synthesizeAnswer`, which is a model-vendor boundary.
+    //
+    // That is a deliberate improvement, and it silently hollowed this test out.
+    // A body token is now unfindable by ANYONE, so the negative half ("Maya
+    // cannot see it") passed while proving nothing about role scoping, and the
+    // positive half could never pass again. Titles are still projected, so
+    // naming the card with the token is what puts the assertion back: Maya is
+    // refused the exact string Isaiah is served, and the only thing separating
+    // them is the seat.
     const secret = `SEATSECRET${stamp}`
     await signIn(page, "Priya Raman")
     await page.goto("/orgs/simon-consulting-club/memory")
     await page.getByLabel("Type").selectOption("CREDENTIAL")
-    await page.getByLabel("Title").fill(`Bank portal ${stamp}`)
+    await page.getByLabel("Title").fill(`Bank portal ${secret}`)
     await page.getByLabel("Visible to").selectOption({ label: "President seat only" })
     await page
       .getByPlaceholder("The details your successor will thank you for.")
-      .fill(`Login hint: ${secret}`)
+      .fill("Login hint: in the card body, which the projection withholds.")
     await page.getByRole("button", { name: "Save card" }).click()
 
     // Maya searches for it — invisible to her
@@ -50,7 +70,7 @@ test.describe("search", () => {
     // Isaiah (shadow president) finds it — the seat's memory is his
     await signIn(page, "Isaiah Brooks")
     await page.goto(`/search?q=${secret}`)
-    await expect(page.getByText(`Bank portal ${stamp}`)).toBeVisible()
+    await expect(page.getByText(`Bank portal ${secret}`)).toBeVisible()
   })
 
   test("searching for approvals and events works", async ({ page }) => {

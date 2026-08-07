@@ -89,7 +89,10 @@ test.describe("persona task scorecard", () => {
 
   test("J04 — a board member searches for a record from the shell", async ({ page }) => {
     await signIn(page, "Victor Chen")
-    const search = page.getByRole("textbox", { name: "Search Tenure" })
+    // `combobox`, not `textbox` — the palette carries the ARIA 1.2 combobox
+    // contract since TTES-030-001, and an explicit role="combobox" stops the
+    // element matching the textbox role. See e2e/shell.spec.ts.
+    const search = page.getByRole("combobox", { name: "Search Tenure" })
     await expect(search).toBeVisible()
 
     await measureJourney(

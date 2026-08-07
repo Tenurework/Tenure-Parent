@@ -473,10 +473,18 @@ async function main() {
       const debitToExpense = e.amountCents >= 0
       await db.ledgerEntry.create({
         data: {
+          // LedgerEntry became tenant-scoped and institutionId is NOT NULL.
+          // Without it every seed run dies here, and entrypoint.sh seeds on
+          // container start — so this is the whole application, not the demo
+          // data. tsc cannot see it: this file is JavaScript.
+          institutionId: consulting.institutionId,
           organizationId: consulting.id,
           budgetLineId: e.line,
           academicYear: "2026-2027",
           kind: e.kind,
+          // NOT NULL with no default: money without a unit is the defect
+          // packages/finops exists to prevent, so the column refuses to guess.
+          currency: "USD",
           amountCents: e.amountCents,
           description: e.description,
           vendorId: e.vendorId ?? null,
@@ -490,10 +498,14 @@ async function main() {
       })
       await db.ledgerEntry.create({
         data: {
+          institutionId: consulting.institutionId,
           organizationId: consulting.id,
           budgetLineId: null,
           academicYear: "2026-2027",
           kind: e.kind,
+          // NOT NULL with no default: money without a unit is the defect
+          // packages/finops exists to prevent, so the column refuses to guess.
+          currency: "USD",
           amountCents: -e.amountCents,
           description: e.description,
           vendorId: e.vendorId ?? null,

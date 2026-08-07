@@ -123,7 +123,11 @@ test.describe("organizations + roster RBAC", () => {
     await page.goto("/orgs/simon-consulting-club/members")
     const email = `e2e-${Date.now()}@tenure.demo`
     await page.getByPlaceholder("student@rochester.edu").fill(email)
-    await page.getByRole("combobox").first().selectOption({ label: "Member" })
+    // Named, not `.first()`. The shell's search palette is an ARIA combobox
+    // since TTES-030-001 and the header renders before <main>, so an unscoped
+    // `getByRole("combobox").first()` now resolves to the search input — which
+    // is not a <select> and cannot be selectOption'd. Ask for the seat picker.
+    await page.getByRole("combobox", { name: "Role", exact: true }).selectOption({ label: "Member" })
     await page.getByRole("button", { name: "Add", exact: true }).click()
     await expect(page.getByText(email)).toBeVisible()
   })

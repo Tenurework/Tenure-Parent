@@ -911,7 +911,16 @@
    connection returns. This keeps focus exactly where it was.
    ────────────────────────────────────────────────────────────────────────── */
 @layer components {
+  /* `button:not([type])` is here because HTML says a <button> inside a form
+     with no `type` IS a submit button, and most of the product's forms are
+     written that way. `OfflineBoundary` already puts `aria-disabled` on that
+     exact selector, so leaving it out here meant the two halves of the bound
+     disagreed: a screen reader was told the control was disabled while a
+     pointer could still submit it — the "changes will not save" promise broken
+     for the sighted mouse user and kept for everyone else. e2e/offline.spec.ts
+     probes `form button[type=submit], form button:not([type])` for this. */
   html[data-offline] form button[type="submit"],
+  html[data-offline] form button:not([type]),
   html[data-offline] form input[type="submit"] {
     pointer-events: none;
     opacity: 0.6;
