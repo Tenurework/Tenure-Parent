@@ -167,13 +167,6 @@ export const DESIGN_TOKEN_EXCEPTIONS = [
       "Deterministic monogram swatch: four hsl() values computed from a hash of the person's name so a roster reads as distinct discs. A fixed token cannot vary per person; the light/dark pair is still handed to `.avatar-monogram` in globals.css to resolve.",
     expires: "2027-08-06",
   },
-  {
-    files: ["src/components/ai/TenureAIPanel.tsx"],
-    allow: ["colorLiteral"],
-    reason:
-      "DEBT, not a sanctioned literal. The Tenure AI mark is drawn in #25a96d, which is not --primary (#198052) nor any other token — it is the drift this rule exists to stop, found by the rule itself. Closing it means adding a token for the mark or passing currentColor, both of which are edits to files outside the change that added this boundary. Short expiry on purpose.",
-    expires: "2026-11-06",
-  },
 ]
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/

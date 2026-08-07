@@ -118,7 +118,7 @@ export function TenureAIPanel() {
         <>
         <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
           <div className="flex items-center gap-2.5">
-            <TenureAIMark size={22} color="#25a96d" />
+            <TenureAIMark size={22} />
             <div>
               <p className="font-display text-base font-bold text-text-1">Tenure AI</p>
               <p className="text-meta text-text-3">Grounded in your workspace</p>
