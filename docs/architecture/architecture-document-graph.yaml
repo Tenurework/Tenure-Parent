@@ -37,7 +37,7 @@ documents:
     family: "subsystem-paths"
     superseded_by: null
     supersedes: []
-    sha256: "4fa993860ac4c685fadb9d2cf8baa5fbb330bf972e3f135e360bf5579f332ccc"
+    sha256: "69556ab4e543d8bc6869379c34fb372aeee48248e19947f101d7049eebe55d06"
     bytes: 12359
     aliases: []
     requirement_prefixes:

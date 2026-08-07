@@ -77,7 +77,7 @@ currently "the older one", which is the opposite of the intended direction.
 > answers a different question (who holds what seat) and stays. It is
 > `admin/capabilities.ts` whose 16 ids must become policies the engine decides.
 
-## 3. Audit — 37 writes, 5 through the audit package
+## 3. Audit — 38 writes, 6 through the audit package
 
 ```
 $ grep -rho 'auditEvent\.create' apps/web/src --include=*.ts --include=*.tsx | wc -l
@@ -102,7 +102,7 @@ What the 34 therefore skip:
   events tamper-evident. A hand-built row does not participate.
 
 This is not a latent risk; it is the current state of the evidence trail. The
-audit log that a school would be shown in an incident review is 32/37
+audit log that a school would be shown in an incident review is 32/38
 unvalidated. The ratchet in `tests/security/audit-writes.test.mjs` is what makes
 that number able only to improve: the reconciler was a *new* write, and it went
 through the package rather than adding a 35th raw one.
@@ -246,7 +246,7 @@ session- and tenant-guarded.
 | # | Contradiction | Evidence | Owner |
 |---|---|---|---|
 | 1 | The authorization engine gates nothing. Two older systems decide access; the newest paints the menu. | 2 consumers, both navigational | GE-030s |
-| 2 | 32 of 37 audit writes bypass validation, redaction and chaining. | 5 of 37 import `@tenure/audit` | GE-120s |
+| 2 | 32 of 38 audit writes bypass validation, redaction and chaining. | 6 of 38 import `@tenure/audit` | GE-120s |
 | 3 | Five SQS queues, an SES identity and a DLQ alarm exist for a delivery path with no producer and no consumer. | no SQS/SES client in any package | GE-090 / GE-140 |
 | 4 | Identity is a shared passphrase; the Bible mandates Cognito. | 0 user pools in the account | GE-041 |
 | 5 | Inference calls a vendor API directly from the task; the Bible mandates a gateway with per-tenant policy, cost and audit. | one literal URL in `lib/ai.ts` | GE-100s |
