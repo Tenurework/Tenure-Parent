@@ -52,6 +52,7 @@ async function main() {
     where: { slug: "rochester" },
     update: {},
     create: {
+      serving: true,
       name: "University of Rochester",
       slug: "rochester",
       domain: "rochester.edu",

@@ -1,14 +1,14 @@
-"use server"
+"use server";
 
-import { revalidatePath } from "next/cache"
-import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
-import { TENANT_BINDINGS, getBlueprint } from "@tenure/blueprints"
-import { MODULE_CATALOG } from "@tenure/modules"
-import { resolveConfig } from "@tenure/configuration"
-import { resolveModules } from "@tenure/module-runtime"
-import { validateTopology } from "@tenure/organization-model"
-import { REGISTRY, layersFor } from "@tenure/platform-config"
+import { TENANT_BINDINGS, getBlueprint } from "@tenure/blueprints";
+import { MODULE_CATALOG } from "@tenure/modules";
+import { resolveConfig } from "@tenure/configuration";
+import { resolveModules } from "@tenure/module-runtime";
+import { validateTopology } from "@tenure/organization-model";
+import { REGISTRY, layersFor } from "@tenure/platform-config";
 import {
   MANIFEST_VERSION,
   LifecycleError,
@@ -20,12 +20,12 @@ import {
   type IsolationTier,
   type TenantManifest,
   type TenantState,
-} from "@tenure/provisioning"
+} from "@tenure/provisioning";
 
-import { auth } from "@/lib/auth"
-import { registryRecordFor } from "@/lib/registry-record"
-import { placementFor } from "@/lib/cells"
-import { isOperator } from "@/lib/operators"
+import { auth } from "@/lib/auth";
+import { registryRecordFor } from "@/lib/registry-record";
+import { placementFor } from "@/lib/cells";
+import { isOperator } from "@/lib/operators";
 import {
   SlugTaken,
   adoptBoundTenant,
@@ -33,9 +33,9 @@ import {
   getTenant,
   registerTenant,
   takenSlugs,
-} from "@/lib/registry"
-import { buildAdoption } from "@/lib/adopt"
-import { deliverToCell } from "@/lib/deliver"
+} from "@/lib/registry";
+import { buildAdoption } from "@/lib/adopt";
+import { deliverToCell } from "@/lib/deliver";
 
 /**
  * Every action here re-checks the operator, in the action.
@@ -45,17 +45,17 @@ import { deliverToCell } from "@/lib/deliver"
  * lives only in the page protects the page.
  */
 async function operator(): Promise<string> {
-  const session = await auth()
-  const email = session?.user?.email
+  const session = await auth();
+  const email = session?.user?.email;
   if (!isOperator(email)) {
     // 404-shaped, like the rest of the console: the existence of an endpoint
     // that provisions tenants is not something to confirm to a stranger.
-    throw new Error("Not found")
+    throw new Error("Not found");
   }
-  return email!
+  return email!;
 }
 
-const now = () => new Date().toISOString()
+const now = () => new Date().toISOString();
 
 /**
  * The engines the executor runs against.
@@ -72,8 +72,8 @@ function executionContext(): ExecutionContext {
       // default — a system that looks configured and is not. The blueprint
       // layer is therefore built from the manifest, and the file binding is
       // used only when one exists (the pilot, which predates the registry).
-      const fileLayers = layersFor(manifest.slug)
-      const blueprint = getBlueprint(manifest.blueprintId)
+      const fileLayers = layersFor(manifest.slug);
+      const blueprint = getBlueprint(manifest.blueprintId);
       const layers =
         fileLayers.length > 0
           ? fileLayers
@@ -92,44 +92,56 @@ function executionContext(): ExecutionContext {
                   values: manifest.configuration,
                 },
               ]
-            : []
+            : [];
 
-      const { config, problems } = resolveConfig(REGISTRY, layers, { collectProblems: true })
+      const { config, problems } = resolveConfig(REGISTRY, layers, {
+        collectProblems: true,
+      });
       return {
         checksum: config?.checksum ?? "",
         values: config?.values ?? {},
         problems: problems ?? [],
-      }
+      };
     },
     resolveModules(manifest) {
       const resolved = resolveModules(MODULE_CATALOG, {
         requested: manifest.modules,
         entitlements: manifest.entitlements,
-      })
+      });
       return {
-        ordered: resolved.ordered.map((m) => ({ key: m.key, version: m.version })),
+        ordered: resolved.ordered.map((m) => ({
+          key: m.key,
+          version: m.version,
+        })),
         problems: resolved.problems,
-      }
+      };
     },
     validateTopology(manifest) {
-      const blueprint = getBlueprint(manifest.blueprintId)
-      if (!blueprint) return { valid: false, problems: [`No blueprint "${manifest.blueprintId}".`] }
+      const blueprint = getBlueprint(manifest.blueprintId);
+      if (!blueprint)
+        return {
+          valid: false,
+          problems: [`No blueprint "${manifest.blueprintId}".`],
+        };
       try {
-        validateTopology(blueprint.topology)
-        return { valid: true, problems: [] }
+        validateTopology(blueprint.topology);
+        return { valid: true, problems: [] };
       } catch (err) {
-        return { valid: false, problems: [err instanceof Error ? err.message : String(err)] }
+        return {
+          valid: false,
+          problems: [err instanceof Error ? err.message : String(err)],
+        };
       }
     },
     // Pinned to the migration the cell is expected to be at. Read from the
     // build rather than hardcoded so a stale engine cannot publish an artifact
     // claiming a schema it does not know about.
     schemaVersion: () => process.env.SCHEMA_VERSION ?? "unpinned",
-  }
+  };
 }
 
 export interface ComposeResult {
-  problems: Array<{ field: string; reason: string; detail: string }>
+  problems: Array<{ field: string; reason: string; detail: string }>;
 }
 
 /**
@@ -139,14 +151,19 @@ export interface ComposeResult {
  * is not where trust lives — and because the same function is what the plan
  * preview calls, so what an operator was shown is what gets written.
  */
-export async function composeTenant(_prev: ComposeResult | null, form: FormData): Promise<ComposeResult> {
-  const principalId = await operator()
+export async function composeTenant(
+  _prev: ComposeResult | null,
+  form: FormData,
+): Promise<ComposeResult> {
+  const principalId = await operator();
 
-  const planId = String(form.get("planId") ?? "")
+  const planId = String(form.get("planId") ?? "");
 
   const manifest: TenantManifest = {
     manifestVersion: MANIFEST_VERSION,
-    slug: String(form.get("slug") ?? "").trim().toLowerCase(),
+    slug: String(form.get("slug") ?? "")
+      .trim()
+      .toLowerCase(),
     legalName: String(form.get("legalName") ?? "").trim(),
     displayName: String(form.get("displayName") ?? "").trim(),
     blueprintId: String(form.get("blueprintId") ?? ""),
@@ -164,7 +181,7 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
     secretRefs: {},
     initialAdminEmail: String(form.get("initialAdminEmail") ?? "").trim(),
     notes: String(form.get("notes") ?? "").trim() || undefined,
-  }
+  };
 
   const { valid, problems } = validateManifest(manifest, {
     knownBlueprints: [...new Set(TENANT_BINDINGS.map((b) => b.blueprintId))],
@@ -172,8 +189,11 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
     // Both sources of truth for an existing slug: registered tenants, and the
     // file-based bindings that predate the registry. Missing the second would
     // let someone register "rochester" over the live pilot.
-    takenSlugs: [...(await takenSlugs()), ...TENANT_BINDINGS.map((b) => b.slug)],
-  })
+    takenSlugs: [
+      ...(await takenSlugs()),
+      ...TENANT_BINDINGS.map((b) => b.slug),
+    ],
+  });
 
   // Module dependencies are resolved here, not only at VALIDATING. A manifest
   // that cannot build should not be registrable: catching it at composition
@@ -186,7 +206,7 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
     field: "modules",
     reason: p.reason,
     detail: `${p.moduleKey}: ${p.detail}`,
-  }))
+  }));
 
   // An unknown plan yields no entitlements, which is the right failure but a
   // silent one — the tenant registers, every gated module is refused, and the
@@ -199,14 +219,14 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
           reason: "unknown-plan",
           detail: `No plan "${planId}". Entitlements and quotas come from the plan, so an unknown one entitles nothing.`,
         },
-      ]
+      ];
 
   if (!valid || moduleProblems.length > 0 || planProblems.length > 0) {
-    return { problems: [...problems, ...moduleProblems, ...planProblems] }
+    return { problems: [...problems, ...moduleProblems, ...planProblems] };
   }
 
   try {
-    const at = now()
+    const at = now();
     // GE-030-001. The registry record is what is TRUE about the tenant —
     // immutable id, lifecycle, placement, residency, release, config revision —
     // as distinct from the manifest, which is what was asked for. Built here and
@@ -219,8 +239,9 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
     // full, draining, or in another environment.
     const placement = placementFor({
       residency: [manifest.region],
-      environment: (process.env.DEPLOY_ENVIRONMENT ?? "production") as "production",
-    })
+      environment: (process.env.DEPLOY_ENVIRONMENT ??
+        "production") as "production",
+    });
     if (!placement.cellId) {
       // Reported as a form problem rather than a 500, and with the reason: "no
       // cell may legally hold this tenant" and "every cell is full" are the
@@ -238,7 +259,7 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
                   : `Every cell in ${manifest.region} is at capacity.`,
           },
         ],
-      }
+      };
     }
 
     await registerTenant(
@@ -254,26 +275,30 @@ export async function composeTenant(_prev: ComposeResult | null, form: FormData)
         plan: planId,
         at,
       }),
-    )
+    );
   } catch (err) {
     if (err instanceof SlugTaken) {
       // Lost the race between validation and the conditional write. Reported as
       // the same problem shape rather than a 500, because it is a form error.
       return {
         problems: [
-          { field: "slug", reason: "taken", detail: `"${manifest.slug}" was registered a moment ago.` },
+          {
+            field: "slug",
+            reason: "taken",
+            detail: `"${manifest.slug}" was registered a moment ago.`,
+          },
         ],
-      }
+      };
     }
-    throw err
+    throw err;
   }
 
-  revalidatePath("/tenants")
-  redirect(`/tenants/${manifest.slug}`)
+  revalidatePath("/tenants");
+  redirect(`/tenants/${manifest.slug}`);
 }
 
 export interface AdvanceResult {
-  error?: string
+  error?: string;
 }
 
 /**
@@ -284,33 +309,36 @@ export interface AdvanceResult {
  * engine. This action does not know the rules and must not — a UI that encodes
  * them separately is a UI that will disagree with them.
  */
-export async function advanceState(_prev: AdvanceResult | null, form: FormData): Promise<AdvanceResult> {
-  const principalId = await operator()
+export async function advanceState(
+  _prev: AdvanceResult | null,
+  form: FormData,
+): Promise<AdvanceResult> {
+  const principalId = await operator();
 
-  const slug = String(form.get("slug") ?? "")
-  const to = String(form.get("to") ?? "") as TenantState
-  const approvedBy = String(form.get("approvedBy") ?? "").trim() || undefined
-  const reason = String(form.get("reason") ?? "").trim() || undefined
+  const slug = String(form.get("slug") ?? "");
+  const to = String(form.get("to") ?? "") as TenantState;
+  const approvedBy = String(form.get("approvedBy") ?? "").trim() || undefined;
+  const reason = String(form.get("reason") ?? "").trim() || undefined;
 
-  const at = now()
+  const at = now();
 
   try {
     // Run the work for the destination state BEFORE recording the move. A step
     // that fails must not leave a tenant claiming to be in a state it never
     // reached — which is precisely what the lifecycle looked like before the
     // executor existed.
-    const tenant = await getTenant(slug)
-    if (!tenant) return { error: `No tenant "${slug}".` }
+    const tenant = await getTenant(slug);
+    if (!tenant) return { error: `No tenant "${slug}".` };
 
-    const ctx = executionContext()
-    const evidence = executeStep(to, tenant.manifest, ctx)
+    const ctx = executionContext();
+    const evidence = executeStep(to, tenant.manifest, ctx);
 
     // MIGRATING is the hand-off. The artifact is delivered here, and the
     // evidence records what the cell actually did — or that nothing received
     // it, which must not read as success.
     if (to === "MIGRATING" && tenant.deployment) {
-      const outcome = await deliverToCell(tenant.deployment, tenant.manifest)
-      evidence.detail = `${evidence.detail} ${outcome.detail}`
+      const outcome = await deliverToCell(tenant.deployment, tenant.manifest);
+      evidence.detail = `${evidence.detail} ${outcome.detail}`;
       evidence.checks = [
         ...(evidence.checks ?? []),
         {
@@ -318,26 +346,44 @@ export async function advanceState(_prev: AdvanceResult | null, form: FormData):
           ok: outcome.delivered,
           detail: outcome.detail,
         },
-      ]
-      if (!outcome.delivered) evidence.ok = false
+      ];
+      if (!outcome.delivered) evidence.ok = false;
     }
 
     if (!evidence.ok) {
-      const failed = (evidence.checks ?? []).filter((c) => !c.ok).map((c) => `${c.name}: ${c.detail}`)
+      const failed = (evidence.checks ?? [])
+        .filter((c) => !c.ok)
+        .map((c) => `${c.name}: ${c.detail}`);
       return {
         error: `${to} did not complete. ${evidence.detail}${failed.length ? ` — ${failed.join("; ")}` : ""}`,
-      }
+      };
     }
 
-    // The signed artifact is written once, when configuring succeeds, because
-    // that is the step that computes what a cell reconciles toward.
+    // A signed artifact is written twice, and the second one is what activation
+    // actually IS.
+    //
+    // CONFIGURING computes what a cell reconciles toward, and publishes it with
+    // `serving: false` — the tenant is created and unreachable. ACTIVATING
+    // publishes the same system with `serving: true`, and that manifest is the
+    // routing switch: `resolveTenantScope` in the cell drops institutions that
+    // are not serving, so until this arrives nobody can act in the tenant.
+    //
+    // Before this, ACTIVATING returned a sentence saying routing had been
+    // switched on and did nothing. The tenant had been reachable since
+    // MIGRATING, one state and one approval earlier.
     const deployment =
-      to === "CONFIGURING"
-        ? deploymentManifest(tenant.manifest, [...tenant.evidence, evidence], ctx, {
-            createdAt: at,
-            createdBy: principalId,
-          })
-        : undefined
+      to === "CONFIGURING" || to === "ACTIVATING"
+        ? deploymentManifest(
+            tenant.manifest,
+            [...tenant.evidence, evidence],
+            ctx,
+            {
+              createdAt: at,
+              createdBy: principalId,
+              serving: to === "ACTIVATING",
+            },
+          )
+        : undefined;
 
     await advanceTenant(
       slug,
@@ -355,25 +401,25 @@ export async function advanceState(_prev: AdvanceResult | null, form: FormData):
       },
       evidence,
       deployment,
-    )
+    );
   } catch (err) {
-    if (err instanceof LifecycleError) return { error: err.message }
+    if (err instanceof LifecycleError) return { error: err.message };
     if ((err as { name?: string }).name === "TransactionCanceledException") {
       return {
         error:
           "This tenant moved while the page was open — someone else advanced it. Reload to see where it is now.",
-      }
+      };
     }
-    throw err
+    throw err;
   }
 
-  revalidatePath(`/tenants/${slug}`)
-  revalidatePath("/tenants")
-  return {}
+  revalidatePath(`/tenants/${slug}`);
+  revalidatePath("/tenants");
+  return {};
 }
 
 export interface AdoptResult {
-  problems: Array<{ field: string; reason: string; detail: string }>
+  problems: Array<{ field: string; reason: string; detail: string }>;
 }
 
 /**
@@ -389,7 +435,7 @@ export async function adoptTenantAction(
   _prev: AdoptResult | null,
   form: FormData,
 ): Promise<AdoptResult> {
-  const principalId = await operator()
+  const principalId = await operator();
 
   const request = {
     slug: String(form.get("slug") ?? "").trim(),
@@ -400,23 +446,27 @@ export async function adoptTenantAction(
       .filter(Boolean),
     plan: String(form.get("planId") ?? ""),
     at: now(),
-  }
+  };
 
   // The operator confirms the institution row exists, because the engine does
   // not read tenant databases and must not claim to have checked.
-  const institutionExists = form.get("institutionExists") === "on"
+  const institutionExists = form.get("institutionExists") === "on";
 
   if (!getPlan(request.plan)) {
     return {
       problems: [
-        { field: "planId", reason: "unknown-plan", detail: `No plan "${request.plan}".` },
+        {
+          field: "planId",
+          reason: "unknown-plan",
+          detail: `No plan "${request.plan}".`,
+        },
       ],
-    }
+    };
   }
 
-  let built
+  let built;
   try {
-    built = buildAdoption(request, { institutionExists })
+    built = buildAdoption(request, { institutionExists });
   } catch (err) {
     // AdoptionRefused and NotAdoptable both carry the reason in the message,
     // and both are operator-fixable — a missing check, a bad residency, a
@@ -429,11 +479,14 @@ export async function adoptTenantAction(
           detail: err instanceof Error ? err.message : String(err),
         },
       ],
-    }
+    };
   }
 
   try {
-    await adoptBoundTenant(built.manifest, built.record, { principalId, at: request.at })
+    await adoptBoundTenant(built.manifest, built.record, {
+      principalId,
+      at: request.at,
+    });
   } catch (err) {
     if (err instanceof SlugTaken) {
       return {
@@ -444,11 +497,11 @@ export async function adoptTenantAction(
             detail: `"${request.slug}" is already in the registry. Adoption is a one-time move.`,
           },
         ],
-      }
+      };
     }
-    throw err
+    throw err;
   }
 
-  revalidatePath("/tenants")
-  redirect(`/tenants/${request.slug}`)
+  revalidatePath("/tenants");
+  redirect(`/tenants/${request.slug}`);
 }

@@ -60,7 +60,7 @@ describe("the SQL filter and the engine agree", () => {
 
   beforeAll(async () => {
     await db.institution.create({
-      data: { id: institutionId, name: `Live fixture ${RUN}`, slug: institutionId },
+      data: { serving: true, id: institutionId, name: `Live fixture ${RUN}`, slug: institutionId },
     })
     for (const [index, fixture] of FIXTURES.entries()) {
       const user = await db.user.create({

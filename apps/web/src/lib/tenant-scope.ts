@@ -1,15 +1,18 @@
-import "server-only"
-import { cache } from "react"
-import { cookies } from "next/headers"
-import { db } from "@/lib/db"
-import { getUserContext } from "@/lib/rbac"
+import "server-only";
+import { cache } from "react";
+import { cookies } from "next/headers";
+import { db } from "@/lib/db";
+import { getUserContext } from "@/lib/rbac";
 import {
   runInTenantScope,
   runUnscoped,
   TenantContextError,
   type TenantScope,
-} from "@/lib/tenancy/context"
-import { ACTING_TENANT_SLUG_COOKIE, LOCALE_COOKIE_OPTIONS } from "@/lib/tenancy/locale-cookie"
+} from "@/lib/tenancy/context";
+import {
+  ACTING_TENANT_SLUG_COOKIE,
+  LOCALE_COOKIE_OPTIONS,
+} from "@/lib/tenancy/locale-cookie";
 
 /**
  * Where a request acquires its tenant.
@@ -52,52 +55,88 @@ import { ACTING_TENANT_SLUG_COOKIE, LOCALE_COOKIE_OPTIONS } from "@/lib/tenancy/
  * a past officer of the institution they can currently still read the feed of,
  * which is a permission change smuggled in as a tenancy change.
  */
-const institutionCandidates = cache(async (userId: string): Promise<string[]> => {
-  // Resolving which institutions a user belongs to is *how* a tenant is
-  // determined, so this read cannot itself require one. That is the deadlock
-  // `auth-bootstrap` exists for; see ADR-0002 and context.ts.
-  return runUnscoped("auth-bootstrap", `resolveTenantScope(${userId})`, async () => {
-    const ctx = await getUserContext(userId)
+const institutionCandidates = cache(
+  async (userId: string): Promise<string[]> => {
+    // Resolving which institutions a user belongs to is *how* a tenant is
+    // determined, so this read cannot itself require one. That is the deadlock
+    // `auth-bootstrap` exists for; see ADR-0002 and context.ts.
+    return runUnscoped(
+      "auth-bootstrap",
+      `resolveTenantScope(${userId})`,
+      async () => {
+        const ctx = await getUserContext(userId);
 
-    // getUserContext already orders memberships by institutionId, so this is
-    // the same pick the ~15 existing `institutionRoles[0]` call sites make.
-    const fromMemberships = ctx.institutionRoles.map((m) => m.institutionId)
+        // getUserContext already orders memberships by institutionId, so this is
+        // the same pick the ~15 existing `institutionRoles[0]` call sites make.
+        const fromMemberships = ctx.institutionRoles.map(
+          (m) => m.institutionId,
+        );
 
-    const orgIds = [...new Set(ctx.orgRoles.map((r) => r.organizationId))]
-    const fromSeats =
-      orgIds.length === 0
-        ? []
-        : (
-            await db.organization.findMany({
-              where: { id: { in: orgIds } },
-              // Stable ordering, so a multi-club member resolves the same
-              // institution on every request rather than whichever row the
-              // planner returned first.
-              orderBy: { id: "asc" },
-              select: { institutionId: true },
-            })
-          ).map((o) => o.institutionId)
+        const orgIds = [...new Set(ctx.orgRoles.map((r) => r.organizationId))];
+        const fromSeats =
+          orgIds.length === 0
+            ? []
+            : (
+                await db.organization.findMany({
+                  where: { id: { in: orgIds } },
+                  // Stable ordering, so a multi-club member resolves the same
+                  // institution on every request rather than whichever row the
+                  // planner returned first.
+                  orderBy: { id: "asc" },
+                  select: { institutionId: true },
+                })
+              ).map((o) => o.institutionId);
 
-    return [...new Set([...fromMemberships, ...fromSeats])]
-  })
-})
+        const belongsTo = [...new Set([...fromMemberships, ...fromSeats])];
+        if (belongsTo.length === 0) return [];
+
+        // Only institutions this cell may actually serve.
+        //
+        // `ACTIVATING` described itself as "the first moment a user can reach the
+        // system, which is why it is a separate, approved act" — and nothing in this
+        // application read a tenant lifecycle state at all, so a tenant was reachable
+        // from the moment the reconciler created its Institution row at `MIGRATING`,
+        // one state and one approval earlier. The approval guarded something that
+        // had already happened.
+        //
+        // Filtered here rather than at the end of `resolveTenantScope`, because this
+        // is the list every later decision is made from: the membership check, the
+        // ambiguity warning and the acting-institution cookie all read it. A tenant
+        // excluded here cannot be reached by any of them.
+        // The query is a filter, and the order it returns rows in is thrown away.
+        //
+        // `belongsTo` is ordered deliberately — memberships before club seats, each
+        // group stably sorted — and the first entry is the default institution a
+        // user lands in. Returning `serving.map(...)` instead would hand that choice
+        // to whatever order the planner felt like, which for a two-institution user
+        // silently changes which tenant they open the app in.
+        const serving = await db.institution.findMany({
+          where: { id: { in: belongsTo }, serving: true },
+          select: { id: true },
+        });
+        const mayServe = new Set(serving.map((i) => i.id));
+        return belongsTo.filter((id) => mayServe.has(id));
+      },
+    );
+  },
+);
 
 /**
  * Ambiguity is reported once per process per user, not per request: a warning
  * that repeats on every page load is a warning nobody reads. Same reasoning as
  * the dedupe in the tenancy extension's observe-mode recorder.
  */
-const warnedAmbiguous = new Set<string>()
+const warnedAmbiguous = new Set<string>();
 
 function warnAmbiguous(userId: string, candidates: string[]) {
-  if (warnedAmbiguous.has(userId)) return
-  warnedAmbiguous.add(userId)
+  if (warnedAmbiguous.has(userId)) return;
+  warnedAmbiguous.add(userId);
   console.warn(
     `[tenancy] ${userId} belongs to ${candidates.length} institutions ` +
       `(${candidates.join(", ")}) and has not chosen one, so the first is used. ` +
       `A choice is made in the shell's institution switcher and persisted in the ` +
       `${ACTING_INSTITUTION_COOKIE} cookie; see chooseActingInstitution().`,
-  )
+  );
 }
 
 /**
@@ -106,21 +145,28 @@ function warnAmbiguous(userId: string, candidates: string[]) {
  * different event from "this user has never chosen", and an operator reading
  * logs after a membership change needs to be able to tell them apart.
  */
-const warnedRejected = new Set<string>()
+const warnedRejected = new Set<string>();
 
-function warnRejectedChoice(userId: string, chosen: string, candidates: string[]) {
-  const key = `${userId}:${chosen}`
-  if (warnedRejected.has(key)) return
-  warnedRejected.add(key)
+function warnRejectedChoice(
+  userId: string,
+  chosen: string,
+  candidates: string[],
+) {
+  const key = `${userId}:${chosen}`;
+  if (warnedRejected.has(key)) return;
+  warnedRejected.add(key);
   console.warn(
     `[tenancy] ${userId} presented ${chosen} as their acting institution and is not a member ` +
       `of it. Ignored; acting at ${candidates[0]} instead. Their institutions are: ` +
       `${candidates.join(", ")}.`,
-  )
+  );
 }
 
 function scopeForUser(institutionId: string, userId: string): TenantScope {
-  return { institutionId, actor: { principalId: userId, principalType: "user" } }
+  return {
+    institutionId,
+    actor: { principalId: userId, principalType: "user" },
+  };
 }
 
 /**
@@ -138,21 +184,21 @@ function scopeForUser(institutionId: string, userId: string): TenantScope {
  * anything. `httpOnly` is therefore not what makes it safe — it is set because
  * no client code needs to read it, not because reading it would matter.
  */
-export const ACTING_INSTITUTION_COOKIE = "tenure.acting-institution"
+export const ACTING_INSTITUTION_COOKIE = "tenure.acting-institution";
 
 /** A year: this is a preference, and re-choosing on every session is friction. */
-const CHOICE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
+const CHOICE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 async function readChoiceCookie(): Promise<string | undefined> {
   try {
-    const jar = await cookies()
-    return jar.get(ACTING_INSTITUTION_COOKIE)?.value || undefined
+    const jar = await cookies();
+    return jar.get(ACTING_INSTITUTION_COOKIE)?.value || undefined;
   } catch {
     // No request to read a cookie from — a scheduled job, a script, a unit
     // test. There is no user to have chosen anything, and the entry points
     // that run without one (`withSystemTenantScope`, `forEachInstitution`)
     // name their institution outright.
-    return undefined
+    return undefined;
   }
 }
 
@@ -174,18 +220,18 @@ async function readChoiceCookie(): Promise<string | undefined> {
  */
 export const actingInstitutionChoice = cache(
   async (userId: string): Promise<string | undefined> => {
-    const chosen = await readChoiceCookie()
-    if (!chosen) return undefined
+    const chosen = await readChoiceCookie();
+    if (!chosen) return undefined;
 
-    const candidates = await institutionCandidates(userId)
-    if (candidates.includes(chosen)) return chosen
+    const candidates = await institutionCandidates(userId);
+    if (candidates.includes(chosen)) return chosen;
 
-    if (candidates.length > 0) warnRejectedChoice(userId, chosen, candidates)
-    return undefined
+    if (candidates.length > 0) warnRejectedChoice(userId, chosen, candidates);
+    return undefined;
   },
-)
+);
 
-export type ActingInstitution = { id: string; slug: string; name: string }
+export type ActingInstitution = { id: string; slug: string; name: string };
 
 /**
  * What the institution switcher renders: where the user is acting, and where
@@ -202,26 +248,34 @@ export type ActingInstitution = { id: string; slug: string; name: string }
 export const actingInstitutions = cache(
   async (
     userId: string,
-  ): Promise<{ active: ActingInstitution | null; options: ActingInstitution[] }> => {
-    const candidates = await institutionCandidates(userId)
-    if (candidates.length === 0) return { active: null, options: [] }
+  ): Promise<{
+    active: ActingInstitution | null;
+    options: ActingInstitution[];
+  }> => {
+    const candidates = await institutionCandidates(userId);
+    if (candidates.length === 0) return { active: null, options: [] };
 
     // Institution is platform-global, so this is legitimately unscoped — and it
     // has to be, because it runs before the tenant is settled.
-    const rows = await runUnscoped("auth-bootstrap", `actingInstitutions(${userId})`, () =>
-      db.institution.findMany({
-        where: { id: { in: candidates } },
-        select: { id: true, slug: true, name: true },
-      }),
-    )
+    const rows = await runUnscoped(
+      "auth-bootstrap",
+      `actingInstitutions(${userId})`,
+      () =>
+        db.institution.findMany({
+          where: { id: { in: candidates } },
+          select: { id: true, slug: true, name: true },
+        }),
+    );
 
-    const byId = new Map(rows.map((r) => [r.id, r]))
-    const options = candidates.map((id) => byId.get(id)).filter((r): r is ActingInstitution => !!r)
-    const activeId = (await actingInstitutionChoice(userId)) ?? candidates[0]
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const options = candidates
+      .map((id) => byId.get(id))
+      .filter((r): r is ActingInstitution => !!r);
+    const activeId = (await actingInstitutionChoice(userId)) ?? candidates[0];
 
-    return { active: byId.get(activeId) ?? null, options }
+    return { active: byId.get(activeId) ?? null, options };
   },
-)
+);
 
 /**
  * Record which institution this user is acting in.
@@ -241,18 +295,18 @@ export async function chooseActingInstitution(
   userId: string,
   institutionId: string,
 ): Promise<ActingInstitution> {
-  const scope = await resolveTenantScope(userId, institutionId)
+  const scope = await resolveTenantScope(userId, institutionId);
 
-  const { options } = await actingInstitutions(userId)
-  const chosen = options.find((o) => o.id === scope.institutionId)
+  const { options } = await actingInstitutions(userId);
+  const chosen = options.find((o) => o.id === scope.institutionId);
   if (!chosen) {
     throw new TenantContextError(
       `${userId} may act at ${scope.institutionId}, but no Institution row with that id exists. ` +
         `Something has deleted the tenant out from under its memberships.`,
-    )
+    );
   }
 
-  const jar = await cookies()
+  const jar = await cookies();
   jar.set(ACTING_INSTITUTION_COOKIE, scope.institutionId, {
     httpOnly: true,
     sameSite: "lax",
@@ -261,15 +315,15 @@ export async function chooseActingInstitution(
     // dropped silently — the switch would appear to do nothing.
     secure: process.env.NODE_ENV === "production",
     maxAge: CHOICE_MAX_AGE_SECONDS,
-  })
+  });
 
   // The slug beside the id, for the root layout's `lang` and `dir` (GE-022-004).
   // Written here, from `chosen`, so it can only ever name a tenant this user was
   // just proved to be a member of. It still decides nothing — see
   // `lib/tenancy/locale-cookie.ts` for why a forged value is harmless.
-  jar.set(ACTING_TENANT_SLUG_COOKIE, chosen.slug, LOCALE_COOKIE_OPTIONS)
+  jar.set(ACTING_TENANT_SLUG_COOKIE, chosen.slug, LOCALE_COOKIE_OPTIONS);
 
-  return chosen
+  return chosen;
 }
 
 /**
@@ -297,13 +351,16 @@ export async function chooseActingInstitution(
  */
 export const resolveTenantScope = cache(
   async (userId: string, institutionId?: string): Promise<TenantScope> => {
-    const candidates = await institutionCandidates(userId)
+    const candidates = await institutionCandidates(userId);
 
     if (candidates.length === 0) {
       throw new TenantContextError(
-        `${userId} holds no institution membership and no club seat, so there is no tenant to ` +
-          `act in. An account in this state needs an onboarding path, not a tenant scope.`,
-      )
+        `${userId} holds no institution membership and no club seat in a tenant this cell is ` +
+          `serving, so there is no tenant to act in. Either the account needs an onboarding ` +
+          `path, or its tenant has not been activated — activation is what publishes a ` +
+          `deployment manifest setting \`serving\`, and until then the cell holds the tenant ` +
+          `created and unreachable.`,
+      );
     }
 
     if (institutionId !== undefined) {
@@ -311,16 +368,16 @@ export const resolveTenantScope = cache(
         throw new TenantContextError(
           `${userId} asked to act at institution ${institutionId}, which they are not a member ` +
             `of. Their institutions are: ${candidates.join(", ")}.`,
-        )
+        );
       }
-      return scopeForUser(institutionId, userId)
+      return scopeForUser(institutionId, userId);
     }
 
-    if (candidates.length > 1) warnAmbiguous(userId, candidates)
+    if (candidates.length > 1) warnAmbiguous(userId, candidates);
 
-    return scopeForUser(candidates[0], userId)
+    return scopeForUser(candidates[0], userId);
   },
-)
+);
 
 /**
  * Run `fn` with the acting user's tenant open. **This is the one pattern.**
@@ -354,9 +411,10 @@ export async function withTenantScope<T>(
   fn: (scope: TenantScope) => Promise<T>,
   opts?: { institutionId?: string },
 ): Promise<T> {
-  const institutionId = opts?.institutionId ?? (await actingInstitutionChoice(userId))
-  const scope = await resolveTenantScope(userId, institutionId)
-  return runInTenantScope(scope, () => fn(scope))
+  const institutionId =
+    opts?.institutionId ?? (await actingInstitutionChoice(userId));
+  const scope = await resolveTenantScope(userId, institutionId);
+  return runInTenantScope(scope, () => fn(scope));
 }
 
 /**
@@ -375,8 +433,8 @@ export function withSystemTenantScope<T>(
   const scope: TenantScope = {
     institutionId,
     actor: { principalId: jobName, principalType: "system" },
-  }
-  return runInTenantScope(scope, () => fn(scope))
+  };
+  return runInTenantScope(scope, () => fn(scope));
 }
 
 /**
@@ -402,12 +460,13 @@ export async function forEachInstitution<T>(
   const institutions = await runUnscoped(
     "control-plane",
     `${jobName}: enumerate institutions`,
-    () => db.institution.findMany({ select: { id: true }, orderBy: { id: "asc" } }),
-  )
+    () =>
+      db.institution.findMany({ select: { id: true }, orderBy: { id: "asc" } }),
+  );
 
-  const results: T[] = []
+  const results: T[] = [];
   for (const institution of institutions) {
-    results.push(await withSystemTenantScope(institution.id, jobName, fn))
+    results.push(await withSystemTenantScope(institution.id, jobName, fn));
   }
-  return results
+  return results;
 }

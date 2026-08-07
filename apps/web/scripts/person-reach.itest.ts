@@ -50,8 +50,8 @@ async function cleanup() {
 beforeAll(async () => {
   await cleanup()
 
-  await db.institution.create({ data: { id: A, name: "Reach A", slug: A } })
-  await db.institution.create({ data: { id: B, name: "Reach B", slug: B } })
+  await db.institution.create({ data: { serving: true, id: A, name: "Reach A", slug: A } })
+  await db.institution.create({ data: { serving: true, id: B, name: "Reach B", slug: B } })
 
   const user = await db.user.create({ data: { email: CROSSER, name: "Reaches Both" } })
   crosserId = user.id

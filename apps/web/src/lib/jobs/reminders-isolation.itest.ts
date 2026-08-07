@@ -57,8 +57,8 @@ beforeAll(async () => {
   await runUnscoped("control-plane", "reminders isolation fixture", async () => {
     await db.institution.createMany({
       data: [
-        { id: INST_A, name: "Tenant A", slug: `tenant-a-${SUFFIX}` },
-        { id: INST_B, name: "Tenant B", slug: `tenant-b-${SUFFIX}` },
+        { serving: true, id: INST_A, name: "Tenant A", slug: `tenant-a-${SUFFIX}` },
+        { serving: true, id: INST_B, name: "Tenant B", slug: `tenant-b-${SUFFIX}` },
       ],
     })
     await db.user.createMany({

@@ -47,7 +47,7 @@ describe("the access state a person is actually told", () => {
   beforeAll(async () => {
     await runUnscoped("seed", "access-state fixtures", async () => {
       await db.institution.create({
-        data: { id: institutionId, name: `Access fixture ${RUN}`, slug: institutionId },
+        data: { serving: true, id: institutionId, name: `Access fixture ${RUN}`, slug: institutionId },
       })
       for (const fixture of FIXTURES) {
         const user = await db.user.create({

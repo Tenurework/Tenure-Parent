@@ -1,5 +1,5 @@
-import { buildAuditRecord } from "@tenure/audit"
-import type { Prisma } from "@prisma/client"
+import { buildAuditRecord } from "@tenure/audit";
+import type { Prisma } from "@prisma/client";
 
 /**
  * The cell side of provisioning.
@@ -27,12 +27,12 @@ import type { Prisma } from "@prisma/client"
 
 /** The artifact the engine signed. Structurally identical to @tenure/provisioning's. */
 export interface DeploymentManifest {
-  slug: string
-  manifestDigest: string
-  configurationChecksum: string
-  modules: readonly string[]
-  blueprintId: string
-  schemaVersion: string
+  slug: string;
+  manifestDigest: string;
+  configurationChecksum: string;
+  modules: readonly string[];
+  blueprintId: string;
+  schemaVersion: string;
   /**
    * Configuration keys the engine's composed configuration actually sets.
    *
@@ -41,22 +41,36 @@ export interface DeploymentManifest {
    * means "the engine did not say", which is checked as no requirement rather
    * than as an empty one — those are different claims.
    */
-  configKeys?: readonly string[]
-  evidenceDigest: string
-  digest: string
-  createdAt: string
-  createdBy: string
+  configKeys?: readonly string[];
+  /**
+   * Whether this cell may serve the tenant to users.
+   *
+   * Optional for the same reason `configKeys` is: manifests published before
+   * this field existed do not carry it, and a cell that read absence as `false`
+   * would take every already-live tenant off the air the first time an old
+   * artifact was re-delivered.
+   *
+   * Absent means "the engine did not say", which is not the same as "no". The
+   * reconciler leaves an existing tenant's setting untouched and refuses to
+   * serve a NEW one — because for a tenant nobody has decided about, not
+   * serving is the only safe reading.
+   */
+  serving?: boolean;
+  evidenceDigest: string;
+  digest: string;
+  createdAt: string;
+  createdBy: string;
 }
 
 /** What the cell needs beyond the artifact, because the artifact does not carry it. */
 export interface ReconcileInput {
-  manifest: DeploymentManifest
+  manifest: DeploymentManifest;
   /** Display name for the institution. Not in the digest-covered artifact. */
-  displayName: string
+  displayName: string;
   /** Who gets director rights. Exactly one. */
-  initialAdminEmail: string
+  initialAdminEmail: string;
   /** The schema version THIS cell is at. Compared, never assumed. */
-  cellSchemaVersion: string
+  cellSchemaVersion: string;
   /**
    * Configuration keys THIS build implements.
    *
@@ -64,18 +78,18 @@ export interface ReconcileInput {
    * `cellSchemaVersion` is: this function compares what it is given and assumes
    * nothing about its environment, which is what makes it testable without one.
    */
-  knownConfigKeys: ReadonlySet<string>
+  knownConfigKeys: ReadonlySet<string>;
   /** Supplied so a run is reproducible in a test. */
-  at: string
+  at: string;
 }
 
 export interface ReconcileReport {
-  slug: string
-  applied: boolean
+  slug: string;
+  applied: boolean;
   /** Only what genuinely changed. A second run reports an empty list. */
-  changes: string[]
-  institutionId?: string
-  refusal?: string
+  changes: string[];
+  institutionId?: string;
+  refusal?: string;
 }
 
 export class ReconcileRefused extends Error {
@@ -83,8 +97,8 @@ export class ReconcileRefused extends Error {
     message: string,
     readonly reason: "digest" | "schema" | "input" | "compatibility",
   ) {
-    super(message)
-    this.name = "ReconcileRefused"
+    super(message);
+    this.name = "ReconcileRefused";
   }
 }
 
@@ -97,9 +111,11 @@ export class ReconcileRefused extends Error {
  * ever disagree about what is covered, an artifact stops verifying, which is the
  * correct outcome and far better than both drifting together.
  */
-export async function verifyDigest(manifest: DeploymentManifest): Promise<boolean> {
-  const { createHash } = await import("node:crypto")
-  const { digest, ...body } = manifest
+export async function verifyDigest(
+  manifest: DeploymentManifest,
+): Promise<boolean> {
+  const { createHash } = await import("node:crypto");
+  const { digest, ...body } = manifest;
 
   // Key order must not change the answer. The artifact is stored in DynamoDB
   // between being signed and being delivered, and a DynamoDB map has no order —
@@ -108,22 +124,22 @@ export async function verifyDigest(manifest: DeploymentManifest): Promise<boolea
   // artifact as "altered". Sorting at every level is what makes the digest a
   // property of the meaning rather than of the transport.
   const canonical = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(canonical)
+    if (Array.isArray(value)) return value.map(canonical);
     if (value && typeof value === "object") {
       return Object.fromEntries(
         Object.entries(value as Record<string, unknown>)
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([k, v]) => [k, canonical(v)]),
-      )
+      );
     }
-    return value
-  }
+    return value;
+  };
 
   const computed = createHash("sha256")
     .update(JSON.stringify(canonical(body)))
     .digest("hex")
-    .slice(0, 32)
-  return computed === digest
+    .slice(0, 32);
+  return computed === digest;
 }
 
 /**
@@ -145,19 +161,22 @@ export async function verifyDigest(manifest: DeploymentManifest): Promise<boolea
  */
 export interface ReconcileClient {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  $transaction<T>(fn: (tx: any) => Promise<T>, options?: unknown): Promise<T>
+  $transaction<T>(fn: (tx: any) => Promise<T>, options?: unknown): Promise<T>;
 }
 
-export async function reconcile(db: ReconcileClient, input: ReconcileInput): Promise<ReconcileReport> {
-  const { manifest } = input
-  const changes: string[] = []
+export async function reconcile(
+  db: ReconcileClient,
+  input: ReconcileInput,
+): Promise<ReconcileReport> {
+  const { manifest } = input;
+  const changes: string[] = [];
 
   if (!(await verifyDigest(manifest))) {
     throw new ReconcileRefused(
       `Deployment manifest for "${manifest.slug}" does not verify. Its digest covers every other ` +
         `field, so this means the artifact was altered between publication and here.`,
       "digest",
-    )
+    );
   }
 
   if (manifest.schemaVersion !== input.cellSchemaVersion) {
@@ -169,7 +188,7 @@ export async function reconcile(db: ReconcileClient, input: ReconcileInput): Pro
         `${input.cellSchemaVersion}. Migrate the cell, or republish from an engine at the same ` +
         `version — do not apply across a schema boundary.`,
       "schema",
-    )
+    );
   }
 
   // GE-022-005. `schemaVersion` above pins the DATABASE and says nothing about
@@ -183,14 +202,16 @@ export async function reconcile(db: ReconcileClient, input: ReconcileInput): Pro
   // Absent `configKeys` is "the engine did not say" — a manifest published
   // before this existed — and is not treated as "it sets nothing".
   if (manifest.configKeys) {
-    const unimplemented = manifest.configKeys.filter((key) => !input.knownConfigKeys.has(key))
+    const unimplemented = manifest.configKeys.filter(
+      (key) => !input.knownConfigKeys.has(key),
+    );
     if (unimplemented.length > 0) {
       throw new ReconcileRefused(
         `Manifest for "${manifest.slug}" sets configuration this build does not implement: ` +
           `${unimplemented.join(", ")}. Applying it would show the setting as published and ` +
           `have no effect. Rebuild the cell from an engine that has these keys.`,
         "compatibility",
-      )
+      );
     }
   }
 
@@ -198,37 +219,81 @@ export async function reconcile(db: ReconcileClient, input: ReconcileInput): Pro
     throw new ReconcileRefused(
       "No usable administrator address. A system nobody can sign into is not deployed.",
       "input",
-    )
+    );
   }
 
-  const email = input.initialAdminEmail.toLowerCase()
+  const email = input.initialAdminEmail.toLowerCase();
 
   // Everything in one transaction: a cell left with an institution but no
   // administrator is worse than one left with neither, because it looks
   // provisioned.
   const result = await db.$transaction(async (tx: Prisma.TransactionClient) => {
-    const existing = await tx.institution.findUnique({ where: { slug: manifest.slug } })
+    const existing = await tx.institution.findUnique({
+      where: { slug: manifest.slug },
+    });
 
+    // `serving` comes from the signed artifact, on both create and update.
+    //
+    // On update as well as create, because activation is exactly the case where
+    // the institution already exists: `MIGRATING` delivers one with
+    // `serving: false` and `ACTIVATING` delivers a second setting it true. An
+    // upsert that only set it on create would make the activation manifest a
+    // no-op, which is the defect this replaced.
     const institution = await tx.institution.upsert({
       where: { slug: manifest.slug },
-      update: { name: input.displayName },
-      create: { slug: manifest.slug, name: input.displayName },
-    })
-    if (!existing) changes.push(`created institution "${manifest.slug}"`)
-    else if (existing.name !== input.displayName) changes.push("updated institution name")
+      update: {
+        name: input.displayName,
+        // Only when the engine said. An older artifact that does not carry the
+        // field must not silently withdraw a tenant that is already serving.
+        ...(manifest.serving === undefined
+          ? {}
+          : { serving: manifest.serving }),
+      },
+      // A tenant nobody has decided about is not served. This is the one place
+      // the reading is strict, and it is strict because it is about a tenant
+      // that did not exist a moment ago.
+      create: {
+        slug: manifest.slug,
+        name: input.displayName,
+        serving: manifest.serving ?? false,
+      },
+    });
+    if (!existing) {
+      changes.push(
+        `created institution "${manifest.slug}" (${manifest.serving ? "serving" : "not yet serving"})`,
+      );
+    } else {
+      if (existing.name !== input.displayName)
+        changes.push("updated institution name");
+      if (
+        manifest.serving !== undefined &&
+        existing.serving !== manifest.serving
+      ) {
+        changes.push(
+          manifest.serving
+            ? "activated: now serving"
+            : "withdrawn from serving",
+        );
+      }
+    }
 
-    const existingUser = await tx.user.findUnique({ where: { email } })
+    const existingUser = await tx.user.findUnique({ where: { email } });
     const user = await tx.user.upsert({
       where: { email },
       update: {},
       create: { email, name: email.split("@")[0] },
-    })
+    });
 
-    if (!existingUser) changes.push("created the administrator account")
+    if (!existingUser) changes.push("created the administrator account");
 
     const existingMembership = await tx.institutionMembership.findUnique({
-      where: { userId_institutionId: { userId: user.id, institutionId: institution.id } },
-    })
+      where: {
+        userId_institutionId: {
+          userId: user.id,
+          institutionId: institution.id,
+        },
+      },
+    });
 
     if (existingUser && !existingMembership) {
       // GE-044-005. Attaching an existing account to a new institution is not
@@ -266,19 +331,29 @@ export async function reconcile(db: ReconcileClient, input: ReconcileInput): Pro
       // that number at one rather than trusting the reading.
       const priorPlacements = await tx.institutionMembership.count({
         where: { userId: user.id },
-      })
+      });
       changes.push(
         priorPlacements === 0
           ? `reused the existing account for ${email}`
           : `reused the existing account for ${email}, which has been placed at ${priorPlacements} other institution${priorPlacements === 1 ? "" : "s"} — confirm this is the same person`,
-      )
+      );
     }
     await tx.institutionMembership.upsert({
-      where: { userId_institutionId: { userId: user.id, institutionId: institution.id } },
+      where: {
+        userId_institutionId: {
+          userId: user.id,
+          institutionId: institution.id,
+        },
+      },
       update: { role: "OSE_DIRECTOR" },
-      create: { userId: user.id, institutionId: institution.id, role: "OSE_DIRECTOR" },
-    })
-    if (!existingMembership) changes.push("granted director rights to the administrator")
+      create: {
+        userId: user.id,
+        institutionId: institution.id,
+        role: "OSE_DIRECTOR",
+      },
+    });
+    if (!existingMembership)
+      changes.push("granted director rights to the administrator");
 
     // The record that a tenant was materialised here, and by which artifact.
     //
@@ -307,7 +382,7 @@ export async function reconcile(db: ReconcileClient, input: ReconcileInput): Pro
         publishedAt: manifest.createdAt,
         changes,
       },
-    })
+    });
 
     await tx.auditEvent.create({
       data: {
@@ -320,10 +395,10 @@ export async function reconcile(db: ReconcileClient, input: ReconcileInput): Pro
         reason: record.reason ?? undefined,
         metadata: record.metadata as Prisma.InputJsonValue,
       },
-    })
+    });
 
-    return institution.id
-  })
+    return institution.id;
+  });
 
-  return { slug: manifest.slug, applied: true, changes, institutionId: result }
+  return { slug: manifest.slug, applied: true, changes, institutionId: result };
 }

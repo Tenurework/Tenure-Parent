@@ -27,7 +27,7 @@ const organizationId = `org-seat-${RUN}`
 beforeAll(async () => {
   await runUnscoped("seed", "seat-is-not-a-role fixture", async () => {
   await db.institution.create({
-    data: { id: institutionId, name: `Seat fixture ${RUN}`, slug: institutionId },
+    data: { serving: true, id: institutionId, name: `Seat fixture ${RUN}`, slug: institutionId },
   })
   await db.organization.create({
     data: {

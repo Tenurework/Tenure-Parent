@@ -65,6 +65,11 @@ model Institution {
   // stored in UTC; this is the wall clock officers actually work against, so a
   // 6pm event reads as 6pm here and in the ICS feed alike. See src/lib/time.ts.
   timeZone  String   @default("America/New_York")
+  /// Whether this cell may resolve the tenant for users. Written by the
+  /// reconciler from the signed deployment manifest; ACTIVATING is the step
+  /// that publishes one setting it true. Deliberately has NO default: a row
+  /// created without deciding must fail, not quietly go on the air.
+  serving   Boolean
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

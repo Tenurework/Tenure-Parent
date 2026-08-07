@@ -393,7 +393,7 @@ describe("execute", () => {
     const evidence = (["VALIDATING", "CONFIGURING"] as const).map((s) =>
       executeStep(s, manifest(), ctx),
     )
-    const meta = { createdAt: "2026-08-01T00:00:00.000Z", createdBy: "dana@tenure.example" }
+    const meta = { createdAt: "2026-08-01T00:00:00.000Z", createdBy: "dana@tenure.example" , serving: true}
 
     const dm = deploymentManifest(manifest(), evidence, ctx, meta)
     expect(dm.digest).toHaveLength(32)

@@ -1,8 +1,8 @@
-import { createHash } from "node:crypto"
+import { createHash } from "node:crypto";
 
-import type { TenantManifest } from "./manifest"
-import { digestOf } from "./manifest"
-import type { TenantState } from "./lifecycle"
+import type { TenantManifest } from "./manifest";
+import { digestOf } from "./manifest";
+import type { TenantState } from "./lifecycle";
 
 /**
  * The work each lifecycle state actually does.
@@ -36,14 +36,14 @@ import type { TenantState } from "./lifecycle"
 
 /** What a step produced, or why it could not. */
 export interface StepEvidence {
-  step: string
-  state: TenantState
-  ok: boolean
+  step: string;
+  state: TenantState;
+  ok: boolean;
   /** Digest of whatever the step produced, when it produces something citable. */
-  digest?: string
-  detail: string
+  digest?: string;
+  detail: string;
   /** Sub-checks, each independently pass/fail, for steps that verify. */
-  checks?: ReadonlyArray<{ name: string; ok: boolean; detail: string }>
+  checks?: ReadonlyArray<{ name: string; ok: boolean; detail: string }>;
 }
 
 /**
@@ -56,19 +56,26 @@ export interface StepEvidence {
 export interface ExecutionContext {
   /** Resolved configuration for this tenant, and its checksum. */
   resolveConfiguration(manifest: TenantManifest): {
-    checksum: string
-    values: Readonly<Record<string, unknown>>
-    problems: ReadonlyArray<{ key: string; reason: string; detail: string }>
-  }
+    checksum: string;
+    values: Readonly<Record<string, unknown>>;
+    problems: ReadonlyArray<{ key: string; reason: string; detail: string }>;
+  };
   /** Modules that actually resolve, in dependency order, with versions. */
   resolveModules(manifest: TenantManifest): {
-    ordered: ReadonlyArray<{ key: string; version: string }>
-    problems: ReadonlyArray<{ moduleKey: string; reason: string; detail: string }>
-  }
+    ordered: ReadonlyArray<{ key: string; version: string }>;
+    problems: ReadonlyArray<{
+      moduleKey: string;
+      reason: string;
+      detail: string;
+    }>;
+  };
   /** The blueprint's topology, validated. */
-  validateTopology(manifest: TenantManifest): { valid: boolean; problems: readonly string[] }
+  validateTopology(manifest: TenantManifest): {
+    valid: boolean;
+    problems: readonly string[];
+  };
   /** Schema version the cell is expected to be at. */
-  schemaVersion(): string
+  schemaVersion(): string;
 }
 
 /**
@@ -89,19 +96,22 @@ export interface ExecutionContext {
  * always canonicalised the tenant manifest.
  */
 const canonical = (value: unknown): unknown => {
-  if (Array.isArray(value)) return value.map(canonical)
+  if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([k, v]) => [k, canonical(v)]),
-    )
+    );
   }
-  return value
-}
+  return value;
+};
 
 const sha = (value: unknown) =>
-  createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex").slice(0, 32)
+  createHash("sha256")
+    .update(JSON.stringify(canonical(value)))
+    .digest("hex")
+    .slice(0, 32);
 
 /**
  * The state at which the engine's work ends and a cell's begins.
@@ -109,7 +119,7 @@ const sha = (value: unknown) =>
  * Named as a constant and exported so the Studio can render the boundary rather
  * than implying the whole lifecycle runs here.
  */
-export const CELL_APPLY: TenantState = "MIGRATING"
+export const CELL_APPLY: TenantState = "MIGRATING";
 
 /**
  * Run the work for one state.
@@ -127,16 +137,18 @@ export function executeStep(
       // Re-validated here even though the composer already did: the manifest
       // may have been registered days ago, and a module can have left the
       // catalog since.
-      const modules = ctx.resolveModules(manifest)
-      const config = ctx.resolveConfiguration(manifest)
-      const topology = ctx.validateTopology(manifest)
+      const modules = ctx.resolveModules(manifest);
+      const config = ctx.resolveConfiguration(manifest);
+      const topology = ctx.validateTopology(manifest);
 
       const checks = [
         {
           name: "modules resolve",
           ok: modules.problems.length === 0,
           detail:
-            modules.problems.map((p) => `${p.moduleKey}: ${p.detail}`).join("; ") ||
+            modules.problems
+              .map((p) => `${p.moduleKey}: ${p.detail}`)
+              .join("; ") ||
             `${modules.ordered.length} modules resolve in dependency order`,
         },
         {
@@ -151,7 +163,7 @@ export function executeStep(
           ok: topology.valid,
           detail: topology.problems.join("; ") || "org topology validates",
         },
-      ]
+      ];
 
       return {
         step: "validate",
@@ -162,7 +174,7 @@ export function executeStep(
           ? "The manifest still describes a system that can be built."
           : "The manifest no longer describes a buildable system.",
         checks,
-      }
+      };
     }
 
     case "PLANNED":
@@ -174,7 +186,7 @@ export function executeStep(
         detail:
           "Plan computed from the manifest. Nothing has been created; the plan digest is the " +
           "manifest digest, so what was approved and what gets built are the same object.",
-      }
+      };
 
     case "PROVISIONING": {
       // For a pooled tenant this is a reservation, not an allocation: the slug,
@@ -185,7 +197,7 @@ export function executeStep(
         routing: `/${manifest.slug}`,
         placement: manifest.isolation,
         region: manifest.region,
-      }
+      };
       return {
         step: "reserve",
         state,
@@ -196,7 +208,7 @@ export function executeStep(
             ? `Reserved "${manifest.slug}" and its routing prefix in the ${manifest.region} cell. ` +
               "No AWS resource is created for a pooled tenant."
             : `Reserved "${manifest.slug}" and requested ${manifest.isolation} resources.`,
-      }
+      };
     }
 
     case "CONFIGURING": {
@@ -204,11 +216,14 @@ export function executeStep(
       // the cell applies, so it is digested field by field rather than as one
       // opaque blob — a drifted configuration and a drifted module set are
       // different incidents and should not share one hash.
-      const config = ctx.resolveConfiguration(manifest)
-      const modules = ctx.resolveModules(manifest)
-      const topology = ctx.validateTopology(manifest)
+      const config = ctx.resolveConfiguration(manifest);
+      const modules = ctx.resolveModules(manifest);
+      const topology = ctx.validateTopology(manifest);
 
-      const ok = config.problems.length === 0 && modules.problems.length === 0 && topology.valid
+      const ok =
+        config.problems.length === 0 &&
+        modules.problems.length === 0 &&
+        topology.valid;
 
       const artifact = {
         manifestDigest: digestOf(manifest),
@@ -216,7 +231,7 @@ export function executeStep(
         modules: modules.ordered.map((m) => `${m.key}@${m.version}`),
         blueprintId: manifest.blueprintId,
         schemaVersion: ctx.schemaVersion(),
-      }
+      };
 
       return {
         step: "configure",
@@ -236,7 +251,7 @@ export function executeStep(
           },
           { name: "schema version", ok: true, detail: artifact.schemaVersion },
         ],
-      }
+      };
     }
 
     case "MIGRATING":
@@ -250,14 +265,17 @@ export function executeStep(
           "signed deployment manifest and the cell reconciles toward it. The reconciler exists " +
           "and is proven against a real database (apps/web/src/lib/provisioning): it verifies the " +
           "digest with its own implementation, refuses across a schema boundary, and four " +
-          "concurrent runs produce exactly one institution, one account and one membership. What " +
-          "is NOT wired is the transport between them — nothing yet delivers this artifact to a " +
-          "cell, so a tenant advanced past here has one published and waiting to be collected.",
-      }
+          "concurrent runs produce exactly one institution, one account and one membership. The " +
+          "tenant is created and NOT yet served: this artifact carries `serving: false`, and " +
+          "`resolveTenantScope` in the cell drops an institution that is not serving, so no user " +
+          "can act in the tenant yet. What is NOT wired is the transport that carries the " +
+          "artifact from engine to cell; the manifest is produced and signed, and moving it is " +
+          "still an operator step.",
+      };
 
     case "VERIFYING": {
-      const config = ctx.resolveConfiguration(manifest)
-      const modules = ctx.resolveModules(manifest)
+      const config = ctx.resolveConfiguration(manifest);
+      const modules = ctx.resolveModules(manifest);
 
       const checks = [
         {
@@ -267,7 +285,9 @@ export function executeStep(
         },
         {
           name: "no secret value in the manifest",
-          ok: Object.values(manifest.secretRefs).every((r) => /^(secretsmanager|ssm):/.test(r)),
+          ok: Object.values(manifest.secretRefs).every((r) =>
+            /^(secretsmanager|ssm):/.test(r),
+          ),
           detail: "Every secret is a reference; none is a value.",
         },
         {
@@ -280,7 +300,7 @@ export function executeStep(
           ok: modules.ordered.length > 0,
           detail: modules.ordered.map((m) => m.key).join(", ") || "none",
         },
-      ]
+      ];
 
       return {
         step: "verify",
@@ -290,18 +310,28 @@ export function executeStep(
           ? "Every pre-activation check passed."
           : "One or more checks failed; the tenant must not be routed.",
         checks,
-      }
+      };
     }
 
     case "ACTIVATING":
+      // What this step DOES is publish a second deployment manifest carrying
+      // `serving: true`; the cell reads it and starts resolving the slug. Until
+      // that existed, this returned the sentence below and did nothing, while
+      // the tenant had already been reachable since `MIGRATING`.
       return {
         step: "activate",
         state,
         ok: true,
+        digest: sha({ slug: manifest.slug, serving: true }),
         detail:
-          `Routing for /${manifest.slug} switched on. This is the first moment a user can reach ` +
-          "the system, which is why it is a separate, approved act.",
-      }
+          `Routing for /${manifest.slug} switched on: this step publishes a second deployment ` +
+          "manifest carrying `serving: true`, and the cell's `resolveTenantScope` refuses to " +
+          "resolve an institution without one — so this is genuinely the first moment a user " +
+          "can reach the system, which is why it is a separate, approved act. Before this the " +
+          "sentence was aspirational: nothing read a lifecycle state, and the tenant had been " +
+          "reachable since `MIGRATING`, one state and one approval earlier. The engine-to-cell " +
+          "transport is still NOT wired, so delivering this artifact remains an operator step.",
+      };
 
     default:
       return {
@@ -309,18 +339,18 @@ export function executeStep(
         state,
         ok: true,
         detail: "No engine-side work is defined for this state.",
-      }
+      };
   }
 }
 
 /** The artifact a cell reconciles toward. GE-102-009. */
 export interface DeploymentManifest {
-  slug: string
-  manifestDigest: string
-  configurationChecksum: string
-  modules: readonly string[]
-  blueprintId: string
-  schemaVersion: string
+  slug: string;
+  manifestDigest: string;
+  configurationChecksum: string;
+  modules: readonly string[];
+  blueprintId: string;
+  schemaVersion: string;
   /**
    * Every configuration key this tenant's resolved configuration actually sets.
    *
@@ -332,13 +362,28 @@ export interface DeploymentManifest {
    * Sorted, so the digest is a property of the content rather than of iteration
    * order (the same lesson the canonical digest already carries).
    */
-  configKeys: readonly string[]
+  configKeys: readonly string[];
   /** Digest of every step's evidence, in order. */
-  evidenceDigest: string
+  evidenceDigest: string;
+  /**
+   * Whether the cell may serve this tenant to users yet.
+   *
+   * `ACTIVATING` calls itself "the first moment a user can reach the system,
+   * which is why it is a separate, approved act". It was not: the cell had no
+   * idea a lifecycle existed, so a tenant became reachable the moment
+   * `reconcile` created its Institution row — at `MIGRATING`, one state and one
+   * approval earlier. The approval on `READY → ACTIVATING` guarded something
+   * that had already happened.
+   *
+   * Carried on the artifact rather than sent alongside it, so it is covered by
+   * `digest` and the cell verifies it with everything else. A serving flag the
+   * transport could set is a serving flag an attacker can set.
+   */
+  serving: boolean;
   /** The whole thing, digested. What a cell verifies before applying anything. */
-  digest: string
-  createdAt: string
-  createdBy: string
+  digest: string;
+  createdAt: string;
+  createdBy: string;
 }
 
 /**
@@ -351,10 +396,10 @@ export function deploymentManifest(
   manifest: TenantManifest,
   evidence: readonly StepEvidence[],
   ctx: ExecutionContext,
-  meta: { createdAt: string; createdBy: string },
+  meta: { createdAt: string; createdBy: string; serving: boolean },
 ): DeploymentManifest {
-  const config = ctx.resolveConfiguration(manifest)
-  const modules = ctx.resolveModules(manifest)
+  const config = ctx.resolveConfiguration(manifest);
+  const modules = ctx.resolveModules(manifest);
 
   const body = {
     slug: manifest.slug,
@@ -365,9 +410,13 @@ export function deploymentManifest(
     schemaVersion: ctx.schemaVersion(),
     configKeys: Object.keys(config.values).sort(),
     evidenceDigest: sha(evidence.map((e) => [e.step, e.ok, e.digest ?? null])),
+    // Required, not defaulted. A caller that forgets which side of activation
+    // this artifact represents would otherwise publish a serving tenant by
+    // omission, and the omission is invisible in the diff.
+    serving: meta.serving,
     createdAt: meta.createdAt,
     createdBy: meta.createdBy,
-  }
+  };
 
-  return { ...body, digest: sha(body) }
+  return { ...body, digest: sha(body) };
 }

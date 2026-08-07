@@ -66,7 +66,7 @@ describe("seat terms are enforced by the real authorization path", () => {
   beforeAll(async () => {
     await runUnscoped("seed", "seat-term fixtures", async () => {
     await db.institution.create({
-      data: { id: institutionId, name: `Seat fixture ${RUN}`, slug: institutionId },
+      data: { serving: true, id: institutionId, name: `Seat fixture ${RUN}`, slug: institutionId },
     })
     await db.user.create({
       data: { id: userId, name: "Seat fixture holder", email: `seat-${RUN}@example.invalid` },

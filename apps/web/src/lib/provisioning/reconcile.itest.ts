@@ -260,6 +260,9 @@ describe("engine and cell agree on what a digest covers", () => {
     const produced = deploymentManifest(tenantManifest, evidence, ctx, {
       createdAt: "2026-08-01T00:00:00.000Z",
       createdBy: "operator@tenure.example",
+      // CONFIGURING publishes the tenant created and unreachable; ACTIVATING
+      // publishes the same system with serving: true, and that is the switch.
+      serving: false,
     })
 
     expect(await verifyDigest(produced)).toBe(true)
