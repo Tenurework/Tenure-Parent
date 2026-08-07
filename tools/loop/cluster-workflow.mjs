@@ -57,7 +57,8 @@ QUALITY BAR — zero mocks, zero placeholders, zero stubs:
   proves nothing. Make it behave like the real dependency.
 - If a comment or evidence string claims something untrue, fix the CLAIM, not the test.
 - Do not mark PASS what is not true. A requirement titled "signed X" is not PASS while X is
-  unsigned. BLOCKED_ARCHITECTURE with an honest reason is worth more than a false PASS.
+  unsigned. An honest FAIL, or BLOCKED_EXTERNAL naming the commands that would unblock it,
+  is worth more than a false PASS.
 - docs/architecture/REVIEW-FINDINGS.md overrides PLATFORM-ARCHITECTURE.md where they disagree.
 `
 
@@ -98,7 +99,7 @@ const CLUSTER_SCHEMA = {
         required: ['id', 'status', 'summary', 'mutation_proof'],
         properties: {
           id: { type: 'string' },
-          status: { type: 'string', enum: ['PASS', 'FAIL', 'BLOCKED_EXTERNAL', 'BLOCKED_ARCHITECTURE', 'NOT_APPLICABLE'] },
+          status: { type: 'string', enum: ['PASS', 'FAIL', 'BLOCKED_EXTERNAL', 'NOT_APPLICABLE'] },
           summary: { type: 'string' },
           mutation_proof: { type: 'string' },
           caller: { type: 'string' },
@@ -219,7 +220,7 @@ YOU ALSO OWN THE CALL SITES THAT CONSUME THEM.
 
 This is deliberate and it is the most important instruction here. A previous run confined
 each agent to a single package, and every single package requirement came back
-BLOCKED_ARCHITECTURE for the same reason: the improvement was real but nothing called it,
+blocked for the same reason: the improvement was real but nothing called it,
 and the wiring lived one directory outside the allowlist. Cache invalidation with no cache
 constructed. An audit chain whose writers never pass a sequence. Correct code, zero effect.
 
@@ -232,8 +233,10 @@ nothing else. Do not refactor a file you happen to open. If another agent has cl
 file since you read it, re-read before editing rather than overwriting.
 
 If a requirement truly cannot be finished — it needs a schema migration, an external
-credential, a decision only a human can make — return BLOCKED_ARCHITECTURE or BLOCKED_EXTERNAL
-for THAT requirement, naming exactly what was needed, and still finish the others.
+credential, a decision only a human can make — return BLOCKED_EXTERNAL for THAT requirement,
+naming the exact commands or the ADR that would unblock it, and still finish the others.
+If the rest of it CAN be built now the answer is FAIL, not blocked: the queue skips a blocked
+item forever, so calling buildable work blocked is how it never gets built.
 "I was not allowed to wire it" is no longer an acceptable blocker.
 
 REQUIREMENTS:
@@ -248,7 +251,8 @@ Then run \`npm run type-check\` (0 errors — you share this tree, so check an e
 the narrowest test command covering your files, and append each entry to ${LEDGER}.
 
 Return one result per requirement. Statuses: PASS / FAIL / BLOCKED_EXTERNAL /
-BLOCKED_ARCHITECTURE / NOT_APPLICABLE. There is no PARTIAL.`,
+NOT_APPLICABLE. There is no PARTIAL and no BLOCKED_ARCHITECTURE — next-batch.mjs does not
+decide on either, so the item returns to the queue every tick forever.`,
       { label: `cluster:${c.area}`, phase: 'Implement', schema: CLUSTER_SCHEMA },
     ),
   (out, c) => {

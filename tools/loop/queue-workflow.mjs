@@ -83,7 +83,7 @@ const IMPL_SCHEMA = {
   required: ['id', 'status', 'summary', 'files_changed', 'mutation_proof', 'evidence'],
   properties: {
     id: { type: 'string' },
-    status: { type: 'string', enum: ['PASS', 'FAIL', 'BLOCKED_EXTERNAL', 'BLOCKED_ARCHITECTURE', 'NOT_APPLICABLE'] },
+    status: { type: 'string', enum: ['PASS', 'FAIL', 'BLOCKED_EXTERNAL', 'NOT_APPLICABLE'] },
     summary: { type: 'string' },
     files_changed: { type: 'array', items: { type: 'string' } },
     mutation_proof: { type: 'string' },
@@ -128,7 +128,8 @@ with the file:line that shows it — that is a useful answer, not a failure.
 
 Then: implement it, wire it to a caller, test it, mutate the test to prove it catches, run
 type-check and the narrowest test command, and append your entry to ${LEDGER} with status
-PASS / FAIL / BLOCKED_EXTERNAL / BLOCKED_ARCHITECTURE / NOT_APPLICABLE. There is no PARTIAL.
+PASS / FAIL / BLOCKED_EXTERNAL / NOT_APPLICABLE. There is no PARTIAL and no
+BLOCKED_ARCHITECTURE — next-batch.mjs decides on neither, so either respins forever.
 Claim PASS only if it is really done and really proven.`,
       { label: `impl:${it.id}`, phase: 'Implement', schema: IMPL_SCHEMA },
     ),

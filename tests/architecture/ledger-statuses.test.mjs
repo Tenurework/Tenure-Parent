@@ -32,11 +32,25 @@ const ROOT = path.resolve(HERE, "../..")
 /** Kept identical to the set `next-batch.mjs` acts on. Asserted below. */
 const KNOWN_STATUSES = ["PASS", "FAIL", "BLOCKED_EXTERNAL", "NOT_APPLICABLE"]
 
-const LEDGERS = [
-  "docs/implementation/global-engine-execution-ledger.md",
-  "docs/implementation/system-studio-aws-control-plane-execution-ledger.md",
-  "docs/implementation/simon-ose-absorption-execution-ledger.md",
-]
+const LEDGER_DIR = "docs/implementation"
+
+/**
+ * Every ledger on disk, not a hand-written list of three.
+ *
+ * The list was written when three ledgers existed. Twelve more arrived with the
+ * Bible import and none of them were guarded — so the twelve ledgers carrying
+ * 1,600 of the 2,046 requirements were the ones a status the loop cannot act on
+ * could land in silently. A guard aimed away from where the work is happening is
+ * worth roughly nothing, and this one was.
+ */
+const LEDGERS = fs
+  .readdirSync(path.join(ROOT, LEDGER_DIR))
+  .filter((n) => n.endsWith("-execution-ledger.md"))
+  .sort()
+  .map((n) => `${LEDGER_DIR}/${n}`)
+
+/** The engine ledger specifically, for the tests that assert on its volume. */
+const ENGINE_LEDGER = `${LEDGER_DIR}/global-engine-execution-ledger.md`
 
 function read(file) {
   try {
@@ -168,7 +182,7 @@ test("the chain of blocked items terminates in real commands", () => {
   // The rule above lets an entry point at another. Followed far enough that has
   // to end somewhere runnable, or the whole chain is a set of items politely
   // deferring to each other and nothing is ever unblocked.
-  const text = read(LEDGERS[0])
+  const text = read(ENGINE_LEDGER)
   const lines = text.split("\n")
 
   let withCommands = 0
@@ -190,7 +204,7 @@ test("the chain of blocked items terminates in real commands", () => {
 test("the status detector finds statuses at all", () => {
   // Asserted because the failure mode is silence: a regex that stopped matching
   // would report every ledger as clean.
-  const found = statusesIn(read(LEDGERS[0]))
+  const found = statusesIn(read(ENGINE_LEDGER))
 
   assert.ok(found.length > 50, `expected the engine ledger to carry many statuses, found ${found.length}`)
   assert.ok(
@@ -201,4 +215,90 @@ test("the status detector finds statuses at all", () => {
     found.some((f) => f.status === "BLOCKED_EXTERNAL"),
     "no BLOCKED_EXTERNAL found — the bolded form is not being matched",
   )
+})
+
+/**
+ * The vocabulary an agent is *told* to use, not just the one it used.
+ *
+ * Every ledger opens with a `Statuses:` line, and that line is what an agent
+ * reads before writing an entry. Twelve of them advertised
+ * `BLOCKED_ARCHITECTURE`, which `next-batch.mjs` does not decide on — so an
+ * agent following the instructions at the top of the file would have written a
+ * status that reads as undecided, returning its item to the queue every tick
+ * forever. That is the `PARTIAL` defect this whole file was written about,
+ * reintroduced through the one channel nothing was checking: the documentation
+ * telling agents what to write.
+ *
+ * The tests above catch the word once an entry uses it. This catches the
+ * instruction that would produce it, which is a tick earlier and far cheaper.
+ */
+function advertisedStatuses(text) {
+  const line = /^Statuses:.*$/m.exec(text)
+  if (!line) return null
+  return [...line[0].matchAll(/`([A-Z_]+)`/g)].map((m) => m[1])
+}
+
+test("no ledger advertises a status the loop cannot act on", () => {
+  const offenders = []
+
+  for (const ledger of LEDGERS) {
+    const advertised = advertisedStatuses(read(ledger))
+    if (advertised === null) continue
+    for (const status of advertised) {
+      if (!KNOWN_STATUSES.includes(status)) offenders.push(`${ledger} — ${status}`)
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `these ledgers tell an agent to write a status the queue treats as undecided:\n  ` +
+      `${offenders.join("\n  ")}\n` +
+      `The header of a ledger is the instruction an agent follows. It may only name ` +
+      `${KNOWN_STATUSES.join(" | ")}.`,
+  )
+})
+
+test("every ledger states its vocabulary at all", () => {
+  // A ledger with no `Statuses:` header is exempt from the rule above by
+  // omission, which is the cheapest way to defeat it.
+  const silent = LEDGERS.filter((l) => advertisedStatuses(read(l)) === null)
+
+  assert.deepEqual(
+    silent,
+    [],
+    `these ledgers declare no status vocabulary, so nothing constrains what an agent writes ` +
+      `in them:\n  ${silent.join("\n  ")}`,
+  )
+})
+
+test("the tools that generate and read ledgers share one vocabulary", () => {
+  // Three copies of the list is how they came to disagree in the first place:
+  // `document-graph.mjs` exported five statuses, `import-requirements.mjs`
+  // stamped five into every generated header, and the queue acted on three.
+  const graph = read("tools/document-graph.mjs")
+  const declared = /export const STATUSES = \[([^\]]*)\]/.exec(graph)
+
+  assert.ok(declared, "tools/document-graph.mjs no longer exports STATUSES — this guard is not reading it")
+
+  const statuses = [...declared[1].matchAll(/"([A-Z_]+)"/g)].map((m) => m[1])
+  assert.deepEqual(
+    [...statuses].sort(),
+    [...KNOWN_STATUSES].sort(),
+    "document-graph.mjs's STATUSES and the queue's vocabulary disagree. Whichever is right, an " +
+      "agent reading one and a queue acting on the other is how an item spins forever.",
+  )
+
+  const template = read("tools/import-requirements.mjs")
+  const stamped = /^Statuses:.*$/m.exec(template)
+  assert.ok(stamped, "import-requirements.mjs no longer stamps a Statuses: header — this guard is not reading it")
+
+  const inTemplate = [...stamped[0].matchAll(/`{1,2}([A-Z_]+)/g)].map((m) => m[1])
+  for (const status of inTemplate) {
+    assert.ok(
+      KNOWN_STATUSES.includes(status),
+      `import-requirements.mjs stamps '${status}' into every generated ledger header, and the ` +
+        `queue does not act on it. Every ledger it creates would teach the next agent the wrong word.`,
+    )
+  }
 })

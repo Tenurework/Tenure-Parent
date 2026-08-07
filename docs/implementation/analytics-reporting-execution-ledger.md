@@ -12,9 +12,12 @@ all. They were not queued, not counted and not failing; they were invisible, and
 invisible reads exactly like done. `tests/architecture/document-graph.test.mjs`
 ratchets that number downward and it may only shrink.
 
-Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `BLOCKED_ARCHITECTURE` ·
-`NOT_APPLICABLE`. There is no `PARTIAL` — an unfinished requirement stays
-`FAIL` unless a precise external or architectural blocker exists.
+Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `NOT_APPLICABLE`. There is no
+`PARTIAL` and no `BLOCKED_ARCHITECTURE` — `tools/loop/next-batch.mjs` decides on
+`PASS`, `BLOCKED_EXTERNAL` and `NOT_APPLICABLE` only, so any other word reads as
+undecided and returns the item to the queue every tick, forever. An unfinished
+requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — naming
+the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **ANL-000-001** — Inventory every dashboard/report/chart/client-side metric and classify source/owner/truth.
   - Status: FAIL

@@ -155,7 +155,11 @@ test("a checked box and a PASS status agree", () => {
 })
 
 test("no entry claims a status the loop cannot act on", () => {
-  const KNOWN = ["PASS", "FAIL", "BLOCKED_EXTERNAL", "BLOCKED_ARCHITECTURE", "NOT_APPLICABLE"]
+  // Was five. `BLOCKED_ARCHITECTURE` is not one the loop can act on — this
+  // test's own title says so and it was accepting it anyway, which meant the
+  // one word most likely to be written by an agent hitting a schema wall passed
+  // here and respun its item forever.
+  const KNOWN = ["PASS", "FAIL", "BLOCKED_EXTERNAL", "NOT_APPLICABLE"]
   const unknown = [...new Set(entries().map((e) => e.status))].filter((s) => !KNOWN.includes(s))
   assert.deepEqual(
     unknown,

@@ -124,8 +124,8 @@ test("one requirement has one owner", () => {
 test("a requirement stated twice is stated identically", () => {
   // If two documents state the same id with different text, one of them is a
   // stale copy and picking either silently is how the easier version wins. The
-  // mission calls for an ADR and a BLOCKED_ARCHITECTURE mark; this is what
-  // notices.
+  // mission calls for an ADR and the conflicting requirements held until it
+  // lands; this is what notices.
   const statements = new Map()
   const conflicts = []
   // Superseded documents are excluded, and that is not a loophole. The v1.0
@@ -153,8 +153,8 @@ test("a requirement stated twice is stated identically", () => {
       String.fromCharCode(10) +
       conflicts.join(String.fromCharCode(10)) +
       String.fromCharCode(10) +
-      "Resolve it in an ADR and mark the conflicting requirements BLOCKED_ARCHITECTURE. Never " +
-      "let the shorter version win by being parsed second.",
+      "Resolve it in an ADR and mark the conflicting requirements BLOCKED_EXTERNAL, naming that " +
+      "ADR. Never let the shorter version win by being parsed second.",
   )
 })
 

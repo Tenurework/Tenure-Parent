@@ -105,7 +105,7 @@ const IMPL_SCHEMA = {
   required: ['id', 'status', 'summary', 'files_changed', 'mutation_proof', 'evidence'],
   properties: {
     id: { type: 'string' },
-    status: { type: 'string', enum: ['PASS', 'FAIL', 'BLOCKED_EXTERNAL', 'BLOCKED_ARCHITECTURE', 'NOT_APPLICABLE'] },
+    status: { type: 'string', enum: ['PASS', 'FAIL', 'BLOCKED_EXTERNAL', 'NOT_APPLICABLE'] },
     summary: { type: 'string' },
     files_changed: { type: 'array', items: { type: 'string' } },
     mutation_proof: { type: 'string', description: 'the mutation applied, the test that went red, and that it went green on restore' },
@@ -195,7 +195,7 @@ YOU OWN EXACTLY THESE FILES for this task, and no others:
 ${(it.files || []).map((f) => '  - ' + f).join('\n')}
 (plus a test file beside them, and the ledger ${LEDGER}). Another agent owns every other file
 in this repository right now. If the change cannot be made inside these files, return
-status BLOCKED_ARCHITECTURE with cross_area_blocked naming what you needed.
+status FAIL with cross_area_blocked naming what you needed, so it stays queued.
 
 Do the whole thing:
   1. Read the surrounding code first and match its idiom, comment density and naming.
@@ -207,7 +207,8 @@ Do the whole thing:
      error you see is actually yours before touching it; if it is not yours, leave it and say so)
      and the narrowest test command covering your files.
   5. Append your entry to ${LEDGER} with status and evidence. Statuses are exactly
-     PASS / FAIL / BLOCKED_EXTERNAL / BLOCKED_ARCHITECTURE / NOT_APPLICABLE. There is no PARTIAL.
+     PASS / FAIL / BLOCKED_EXTERNAL / NOT_APPLICABLE. There is no PARTIAL and no
+     BLOCKED_ARCHITECTURE — next-batch.mjs decides on neither, so either respins forever.
      Only claim PASS if it is really done and really proven.
 
 Report honestly. A FAIL you describe accurately is worth more than a PASS you cannot defend.`,

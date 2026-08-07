@@ -7,6 +7,13 @@ The authoritative record of what has actually been implemented, with evidence.
 **Target architecture:**
 [`../architecture/Tenure_Global_System_Architecture_Bible_v1.0.md`](../architecture/Tenure_Global_System_Architecture_Bible_v1.0.md)
 
+Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `NOT_APPLICABLE`. There is no
+`PARTIAL` and no `BLOCKED_ARCHITECTURE` — `tools/loop/next-batch.mjs` decides on
+`PASS`, `BLOCKED_EXTERNAL` and `NOT_APPLICABLE` only, so any other word reads as
+undecided and returns the item to the queue every tick, forever. An unfinished
+requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — naming
+the commands or the ADR that would unblock it — if it cannot.
+
 ## Rules this ledger is kept under
 
 Taken from §4 of the execution prompt, restated here because a ledger nobody

@@ -13,6 +13,13 @@ Created 2026-08-02, on the bible's own instruction (§3: "Create
 `docs/implementation/simon-ose-absorption-execution-ledger.md` and copy every
 `SIMON-*` item into it.").
 
+Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `NOT_APPLICABLE`. There is no
+`PARTIAL` and no `BLOCKED_ARCHITECTURE` — `tools/loop/next-batch.mjs` decides on
+`PASS`, `BLOCKED_EXTERNAL` and `NOT_APPLICABLE` only, so any other word reads as
+undecided and returns the item to the queue every tick, forever. An unfinished
+requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — naming
+the commands or the ADR that would unblock it — if it cannot.
+
 ## Why this is a separate file from the global engine ledger
 
 Three binding prompts each name their own ledger path in an imperative sentence,

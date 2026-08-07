@@ -301,7 +301,14 @@ export function classify() {
  * name: "the evidence generator must derive checked states from verified ledger
  * records."
  */
-export const STATUSES = ["PASS", "FAIL", "BLOCKED_EXTERNAL", "BLOCKED_ARCHITECTURE", "NOT_APPLICABLE"]
+/**
+ * The vocabulary, and only it. `BLOCKED_ARCHITECTURE` used to be here and is
+ * not a status: `tools/loop/next-batch.mjs` decides on PASS, BLOCKED_EXTERNAL
+ * and NOT_APPLICABLE, so anything else reads as undecided and respins its item
+ * every tick. `tests/architecture/ledger-statuses.test.mjs` pins this list
+ * against the queue's own source.
+ */
+export const STATUSES = ["PASS", "FAIL", "BLOCKED_EXTERNAL", "NOT_APPLICABLE"]
 
 const LEDGER_DIR = "docs/implementation"
 
