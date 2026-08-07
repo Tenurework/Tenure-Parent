@@ -334,18 +334,45 @@ npm run build --workspace apps/system-studio        # ← the one that was misse
 8. Regenerate: `node tools/document-graph.mjs`,
    `node tools/reconcile-execution-checkboxes.mjs`, `node tools/ownership-map.mjs`.
 
-### Blocked externally
+### Database — AVAILABLE. Check before believing otherwise.
 
-Postgres is unavailable on this host — no Docker daemon, nothing on 5432/5433.
-All `*.itest.ts` and Playwright e2e are `BLOCKED_EXTERNAL`. Record the exact
-operator commands and do the non-database work fully:
+**This section previously said Postgres was unavailable ("no Docker daemon,
+nothing on 5432/5433") and it was wrong on 2026-08-07.** Docker was up, and the
+*previous session's own containers* were still listening on 5433, 5434 and 5439.
+Two e2e behaviours were guessed at rather than run, and the guesses cost three
+red CI runs on a test that takes 19 seconds to run locally.
+
+**Check, do not inherit the claim:**
 
 ```bash
-docker run -d --name tenure-pg -e POSTGRES_USER=tenure -e POSTGRES_PASSWORD=tenure \
-  -e POSTGRES_DB=tenure -p 5433:5432 postgres:16
-export DATABASE_URL="postgresql://tenure:tenure@localhost:5433/tenure"
-cd apps/web && npx prisma migrate deploy && node scripts/seed.mjs && npx playwright test
+docker info >/dev/null 2>&1 && echo up          # daemon
+docker ps                                        # containers already running
+netstat -an | grep -E "543[2-9]"                 # anything listening
 ```
+
+Standing one up, verified end to end on 2026-08-07 (migrate + seed + 11/11 in
+`resources.spec.ts`):
+
+```bash
+docker run -d --name tenure-verify-pg -e POSTGRES_USER=tenure \
+  -e POSTGRES_PASSWORD=tenure -e POSTGRES_DB=tenure -p 5455:5432 postgres:16
+export DATABASE_URL="postgresql://tenure:tenure@localhost:5455/tenure"
+cd apps/web && npx prisma migrate deploy && node scripts/seed.mjs
+npx playwright test e2e/<one>.spec.ts        # one spec, not all 30, while iterating
+```
+
+The e2e run also needs the auth env CI sets — `AUTH_SECRET`, `AUTH_TRUST_HOST`,
+`AUTH_DEV_LOGIN`, `ALLOW_DEV_LOGIN_IN_PRODUCTION`, `DEV_LOGIN_PASSPHRASE`,
+`TENANCY_ENFORCE`, `NEXTAUTH_URL`, `JOB_SECRET`, `AWS_REGION`, `IMAGE_TAG`. Copy
+them from `.github/workflows/ci.yml`.
+
+**30 e2e specs and 12 `*.itest.ts` were treated as unrunnable on this ground.
+They are runnable.** No ledger entry names the database as its blocker — checked,
+`grep -A6 BLOCKED_EXTERNAL` over all fifteen ledgers returns nothing about
+Postgres or Docker — so nothing needs reclassifying. What was lost was
+*verification*: a whole class of proof was skipped as impossible while it was
+available, and "record the operator commands and move on" was the wrong answer to
+a database that was already running.
 
 The e2e suite is **not idempotent** — re-seed between runs.
 
