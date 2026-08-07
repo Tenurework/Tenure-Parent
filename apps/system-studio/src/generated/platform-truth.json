@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "2583a8d",
+  "commit": "0900c8f",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 241,
-    "done": 117,
+    "done": 116,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -682,7 +682,7 @@
           },
           {
             "id": "GE-042-007",
-            "done": true,
+            "done": false,
             "title": "Integrate real accessible frontend login, discovery, callback, MFA/recovery, invitation, switcher, logout, and generic error paths.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
@@ -1722,936 +1722,214 @@
   },
   "programme": {
     "sources": [
-      "docs/implementation/Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v2.0.md",
+      "Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md",
+      "Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md",
+      "Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md",
+      "Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md",
+      "Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md",
+      "Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md",
+      "Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md",
+      "Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md",
+      "Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md",
+      "Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md",
+      "Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md",
       "docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md",
+      "docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md",
       "docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md",
-      "docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md"
+      "docs/implementation/payments-treasury-execution-ledger.md",
+      "docs/implementation/system-studio-aws-control-plane-execution-ledger.md",
+      "docs/implementation/universal-work-graph-execution-ledger.md"
     ],
-    "totalItems": 1219,
-    "totalGates": 80,
-    "decided": 133,
+    "totalItems": 2046,
+    "totalGates": 181,
+    "decided": 128,
     "phases": [
       {
-        "phase": "GE · GE-000: Repository inventory",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 7
-      },
-      {
-        "phase": "GE · GE-001: Safe GitHub/AWS discovery",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 7
-      },
-      {
-        "phase": "GE · Phase 0 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 1
-      },
-      {
-        "phase": "GE · GE-010: Tenure-owned landing zone",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 7
-      },
-      {
-        "phase": "GE · GE-011: GitHub Actions OIDC",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 7
-      },
-      {
-        "phase": "GE · GE-012: Foundation IaC",
-        "source": "GE",
+        "phase": "ANL · ANL-000 — Foundation and truth",
+        "source": "ANL",
         "items": 5,
-        "gates": 0,
-        "done": 5
-      },
-      {
-        "phase": "GE · Phase 1 gate",
-        "source": "GE",
-        "items": 1,
         "gates": 1,
-        "done": 1
+        "done": 0
       },
       {
-        "phase": "GE · GE-020: Architecture boundaries",
-        "source": "GE",
+        "phase": "ANL · ANL-010 — Data, semantics and security",
+        "source": "ANL",
         "items": 5,
-        "gates": 0,
-        "done": 5
+        "gates": 1,
+        "done": 0
       },
       {
-        "phase": "GE · GE-021: Tenant context and command path",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 7
+        "phase": "ANL · ANL-020 — Visualization platform",
+        "source": "ANL",
+        "items": 6,
+        "gates": 1,
+        "done": 0
       },
       {
-        "phase": "GE · GE-022: Common UX/runtime",
-        "source": "GE",
+        "phase": "ANL · ANL-030 — Reports, dashboards and narratives",
+        "source": "ANL",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "ANL · ANL-040 — Benchmark and superiority",
+        "source": "ANL",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CAT · CAT-000 — Catalog truth and binding",
+        "source": "CAT",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CAT · CAT-010 — Cardinality and dimensions",
+        "source": "CAT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CAT · CAT-020 — Schema-driven Deployer",
+        "source": "CAT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CAT · CAT-030 — Compiler and desired state",
+        "source": "CAT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CAT · CAT-040 — Global Deployer UX",
+        "source": "CAT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CAT · CAT-050 — Major workspace catalog",
+        "source": "CAT",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CAT · CAT-060 — Horizontal enterprise catalog",
+        "source": "CAT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CAT · CAT-070 — Industry catalog",
+        "source": "CAT",
         "items": 8,
-        "gates": 0,
-        "done": 8
-      },
-      {
-        "phase": "GE · Phase 2 gate",
-        "source": "GE",
-        "items": 1,
         "gates": 1,
-        "done": 1
+        "done": 0
       },
       {
-        "phase": "GE · GE-030: Global registries",
-        "source": "GE",
+        "phase": "CAT · CAT-080 — Provider-pack certification",
+        "source": "CAT",
         "items": 5,
-        "gates": 0,
-        "done": 5
-      },
-      {
-        "phase": "GE · GE-031: Configuration model",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 7
-      },
-      {
-        "phase": "GE · GE-032: Tenant configuration studio",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 4
-      },
-      {
-        "phase": "GE · GE-033: Operator plane",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 4
-      },
-      {
-        "phase": "GE · Phase 3 gate",
-        "source": "GE",
-        "items": 1,
         "gates": 1,
-        "done": 1
+        "done": 0
       },
       {
-        "phase": "GE · GE-040: Canonical identity data",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 5
-      },
-      {
-        "phase": "GE · GE-041: Cognito infrastructure",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 5
-      },
-      {
-        "phase": "GE · GE-042: Browser/API authentication",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 7
-      },
-      {
-        "phase": "GE · GE-043: Enterprise federation and lifecycle",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 7
-      },
-      {
-        "phase": "GE · GE-044: Authentication security tests",
-        "source": "GE",
+        "phase": "CAT · CAT-090 — Cost, capacity, release, and final proof",
+        "source": "CAT",
         "items": 6,
-        "gates": 0,
-        "done": 6
-      },
-      {
-        "phase": "GE · Phase 4 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 1
-      },
-      {
-        "phase": "GE · GE-050: Temporal organization graph",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 7
-      },
-      {
-        "phase": "GE · GE-051: Authorization engine",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 5
-      },
-      {
-        "phase": "GE · GE-052: Generality fixtures",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-053: Authorization tests",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 5 gate",
-        "source": "GE",
-        "items": 1,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "GE · GE-060: Relational tenant isolation",
-        "source": "GE",
+        "phase": "CFG · CFG-000 — Truth and authority",
+        "source": "CFG",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CFG · CFG-010 — Schema package registry",
+        "source": "CFG",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CFG · CFG-020 — Declarative schema and rule runtime",
+        "source": "CFG",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CFG · CFG-030 — Graph compiler and incremental evaluation",
+        "source": "CFG",
+        "items": 7,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CFG · CFG-040 — State, invalidation and provenance",
+        "source": "CFG",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CFG · CFG-050 — Drafts, save/resume and collaboration",
+        "source": "CFG",
+        "items": 7,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CFG · CFG-060 — Generated Deployer UX",
+        "source": "CFG",
         "items": 8,
-        "gates": 0,
+        "gates": 1,
         "done": 0
       },
       {
-        "phase": "GE · GE-061: Object and file isolation",
-        "source": "GE",
+        "phase": "CFG · CFG-070 — Validation, impact and review",
+        "source": "CFG",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CFG · CFG-080 — Approval and change transaction",
+        "source": "CFG",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "CFG · CFG-090 — Deployment and actual-state integration",
+        "source": "CFG",
         "items": 7,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-062: DynamoDB/cache/search isolation",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 1
-      },
-      {
-        "phase": "GE · GE-063: Audit and event integrity",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-064: Analytics foundation",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-065: Full isolation test matrix",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 6 gate",
-        "source": "GE",
-        "items": 1,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "GE · GE-070: Tenant workflow engine",
-        "source": "GE",
-        "items": 10,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-071: Forms and custom metadata",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-072: Documents, contracts, and records",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-073: Messaging and notifications",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-074: Calendar, events, facilities, and resources",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 1
-      },
-      {
-        "phase": "GE · GE-075: Institutional memory service",
-        "source": "GE",
-        "items": 8,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 7 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-080: Finance ledger and budget integrity",
-        "source": "GE",
+        "phase": "CFG · CFG-100 — Domain proving and regression",
+        "source": "CFG",
         "items": 7,
-        "gates": 0,
-        "done": 1
-      },
-      {
-        "phase": "GE · GE-081: Procure-to-pay, vendors, and expenses",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-082: Projects, tasks, goals, and requests",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-083: Reporting and search",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-084: Simon/OSE proving configuration",
-        "source": "GE",
-        "items": 10,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-085: Pilot acceptance",
-        "source": "GE",
-        "items": 8,
-        "gates": 0,
-        "done": 1
-      },
-      {
-        "phase": "GE · Phase 8 gate",
-        "source": "GE",
-        "items": 1,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "GE · GE-090: Model gateway and evaluation",
-        "source": "GE",
-        "items": 9,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-091: Multimodal ingestion",
-        "source": "GE",
+        "phase": "CFG · CFG-110 — Security, reliability and final proof",
+        "source": "CFG",
         "items": 7,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-092: Permission-aware RAG",
-        "source": "GE",
-        "items": 8,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-093: Relay experiences",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-094: Typed tools and automation",
-        "source": "GE",
-        "items": 8,
-        "gates": 0,
-        "done": 1
-      },
-      {
-        "phase": "GE · GE-095: AI guardrails, safety, and quality",
-        "source": "GE",
-        "items": 9,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-096: Relay acceptance tests",
-        "source": "GE",
-        "items": 10,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 9 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-100: Tenant manifest",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-101: Placement engine",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 1
-      },
-      {
-        "phase": "GE · GE-102: Idempotent provisioning state machine",
-        "source": "GE",
-        "items": 11,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-103: Tenant fleet, suspension, hibernation, purge, migration, export, and offboarding",
-        "source": "GE",
-        "items": 24,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-104: Provisioning proof",
-        "source": "GE",
-        "items": 9,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 10 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-110: Connector runtime",
-        "source": "GE",
-        "items": 9,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-111: Initial connector families",
-        "source": "GE",
-        "items": 8,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-112: Integration tests",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 11 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-120: Declarative and low-code extension",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-121: SDK extension runtime",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-122: Marketplace Coming soon",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 12 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-130: Human capital management",
-        "source": "GE",
-        "items": 10,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-131: CRM, sales, service, and customer success",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-132: Order-to-cash and revenue",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-133: Treasury, grants, fundraising, and sponsorship",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-134: Inventory, order, warehouse, and logistics",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-135: Manufacturing, product, quality, and maintenance",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-136: Assets, facilities, real estate, and field service",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-137: Governance, risk, compliance, legal, and audit",
-        "source": "GE",
-        "items": 9,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-138: Strategy, planning, and advanced analytics",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 13 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-140: Industry-pack engine",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-141: Globalization",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-142: Accessibility and PWA",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-143: Tenure Experience System, visualizations, and long-session quality",
-        "source": "GE",
-        "items": 46,
-        "gates": 0,
-        "done": 4
-      },
-      {
-        "phase": "GE · Phase 14 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-150: Threat model and security controls",
-        "source": "GE",
-        "items": 8,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-151: Privacy and retention",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-152: Compliance/evidence readiness",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-153: Security acceptance",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 15 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-160: SLO and resilience",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-161: Backup, restore, and disaster recovery",
-        "source": "GE",
-        "items": 4,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-162: Observability and incident operations",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-163: FinOps and metering",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 16 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-170: Workflow suite",
-        "source": "GE",
-        "items": 9,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-171: Release and migration",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-172: Performance and scale",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-173: Production readiness review",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 17 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-180: Unified authority and current-state audit",
-        "source": "GE",
-        "items": 10,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 18 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-190: Program truth, traceability, and durable ownership",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 19 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-200: Purpose-bound environments and promotion",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 20 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-210: Global organization and accounting foundation",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 21 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-220: Effective-dated jurisdiction packs",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 22 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-230: Payroll boundary, provider orchestration, and exact-scope proof",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 23 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-240: Discover, map, transform, rehearse, reconcile, and cut over",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 24 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-250: Files, APIs, events, streams, and connector certification",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 25 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-260: Payment instruction, acknowledgement, settlement, and reconciliation",
-        "source": "GE",
-        "items": 6,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 26 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-270: Acceptance under realistic roles and failures",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 27 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-280: Rehearsed activation, go/no-go, and recovery",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 28 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-290: Stabilization, support, and successor-ready operations",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 29 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-300: Dependency closure, archive, revocation, destruction, and cost",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 30 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-310: Modern internal product and governed transformation copilot",
-        "source": "GE",
-        "items": 8,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 31 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-320: Cross-cutting proof",
-        "source": "GE",
-        "items": 5,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 32 gate",
-        "source": "GE",
-        "items": 1,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "GE · GE-330: One proof system for the whole behemoth",
-        "source": "GE",
-        "items": 7,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "GE · Phase 33 gate",
-        "source": "GE",
-        "items": 1,
         "gates": 1,
         "done": 0
       },
@@ -2775,114 +2053,1430 @@
         "done": 0
       },
       {
-        "phase": "STUDIO · 4. Phase 0 — Establish repository, AWS, product, and deployed truth",
-        "source": "STUDIO",
-        "items": 11,
+        "phase": "FIN · FIN-000 — Foundation and invariants",
+        "source": "FIN",
+        "items": 6,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "STUDIO · 5. Target system architecture",
-        "source": "STUDIO",
-        "items": 11,
+        "phase": "FIN · FIN-010 — Core ledgers and close",
+        "source": "FIN",
+        "items": 5,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "STUDIO · 6. Secure operator login, session, authorization, and support",
-        "source": "STUDIO",
-        "items": 14,
+        "phase": "FIN · FIN-020 — Transaction cycles",
+        "source": "FIN",
+        "items": 5,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "STUDIO · 7. Tenure Experience System for System Studio",
-        "source": "STUDIO",
-        "items": 14,
+        "phase": "FIN · FIN-030 — Global and specialized finance",
+        "source": "FIN",
+        "items": 6,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "STUDIO · 8. Core domain model and desired-state contract",
-        "source": "STUDIO",
-        "items": 10,
+        "phase": "FIN · FIN-040 — Controls, UX, memory and Relay",
+        "source": "FIN",
+        "items": 6,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "STUDIO · 9. System Studio tenant-creation and implementation journey",
-        "source": "STUDIO",
+        "phase": "FIN · FIN-050 — Integration, reliability and superiority",
+        "source": "FIN",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-000: Repository inventory",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 7
+      },
+      {
+        "phase": "GE · GE-001: Safe GitHub/AWS discovery",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 7
+      },
+      {
+        "phase": "GE · GE-010: Tenure-owned landing zone",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 2
+      },
+      {
+        "phase": "GE · GE-011: GitHub Actions OIDC",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 7
+      },
+      {
+        "phase": "GE · GE-012: Foundation IaC",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 5
+      },
+      {
+        "phase": "GE · GE-020: Architecture boundaries",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 5
+      },
+      {
+        "phase": "GE · GE-021: Tenant context and command path",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 7
+      },
+      {
+        "phase": "GE · GE-022: Common UX/runtime",
+        "source": "GE",
         "items": 8,
-        "gates": 1,
+        "gates": 0,
+        "done": 8
+      },
+      {
+        "phase": "GE · GE-030: Global registries",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 5
+      },
+      {
+        "phase": "GE · GE-031: Configuration model",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 7
+      },
+      {
+        "phase": "GE · GE-032: Tenant configuration studio",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
+        "done": 4
+      },
+      {
+        "phase": "GE · GE-033: Operator plane",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
+        "done": 4
+      },
+      {
+        "phase": "GE · GE-040: Canonical identity data",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 5
+      },
+      {
+        "phase": "GE · GE-041: Cognito infrastructure",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 5
+      },
+      {
+        "phase": "GE · GE-042: Browser/API authentication",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 7
+      },
+      {
+        "phase": "GE · GE-043: Enterprise federation and lifecycle",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 7
+      },
+      {
+        "phase": "GE · GE-044: Authentication security tests",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 6
+      },
+      {
+        "phase": "GE · GE-050: Temporal organization graph",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 7
+      },
+      {
+        "phase": "GE · GE-051: Authorization engine",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 5
+      },
+      {
+        "phase": "GE · GE-052: Generality fixtures",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
         "done": 0
       },
       {
-        "phase": "STUDIO · 10. Change classification, preview, approvals, and command contract",
-        "source": "STUDIO",
-        "items": 11,
-        "gates": 1,
+        "phase": "GE · GE-053: Authorization tests",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
         "done": 0
       },
       {
-        "phase": "STUDIO · 11. AWS execution engine and one-click tenant vending",
-        "source": "STUDIO",
-        "items": 11,
-        "gates": 1,
+        "phase": "GE · GE-060: Relational tenant isolation",
+        "source": "GE",
+        "items": 8,
+        "gates": 0,
         "done": 0
       },
       {
-        "phase": "STUDIO · 12. AWS service-specific studios and actual resource graph",
-        "source": "STUDIO",
+        "phase": "GE · GE-061: Object and file isolation",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-062: DynamoDB/cache/search isolation",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "GE · GE-063: Audit and event integrity",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-064: Analytics foundation",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-065: Full isolation test matrix",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-070: Tenant workflow engine",
+        "source": "GE",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-071: Forms and custom metadata",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-072: Documents, contracts, and records",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-073: Messaging and notifications",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-074: Calendar, events, facilities, and resources",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "GE · GE-075: Institutional memory service",
+        "source": "GE",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-080: Finance ledger and budget integrity",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "GE · GE-081: Procure-to-pay, vendors, and expenses",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-082: Projects, tasks, goals, and requests",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-083: Reporting and search",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-084: Simon/OSE proving configuration",
+        "source": "GE",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-085: Pilot acceptance",
+        "source": "GE",
+        "items": 8,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "GE · GE-090: Model gateway and evaluation",
+        "source": "GE",
         "items": 9,
-        "gates": 1,
+        "gates": 0,
         "done": 0
       },
       {
-        "phase": "STUDIO · 13. Relay by Tenure inside System Studio",
-        "source": "STUDIO",
-        "items": 13,
-        "gates": 1,
+        "phase": "GE · GE-091: Multimodal ingestion",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
         "done": 0
       },
       {
-        "phase": "STUDIO · 14. Tenant fleet, release, lifecycle, and verified zero cost",
-        "source": "STUDIO",
-        "items": 13,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "STUDIO · 15. Security, privacy, governance, and supply chain",
-        "source": "STUDIO",
-        "items": 11,
-        "gates": 1,
-        "done": 0
-      },
-      {
-        "phase": "STUDIO · 16. Reliability, observability, operations, DR, and FinOps",
-        "source": "STUDIO",
-        "items": 13,
-        "gates": 1,
-        "done": 3
-      },
-      {
-        "phase": "STUDIO · 17. API, event, and extension contracts",
-        "source": "STUDIO",
+        "phase": "GE · GE-092: Permission-aware RAG",
+        "source": "GE",
         "items": 8,
-        "gates": 1,
+        "gates": 0,
         "done": 0
       },
       {
-        "phase": "STUDIO · 18. Testing and release proof",
-        "source": "STUDIO",
+        "phase": "GE · GE-093: Relay experiences",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-094: Typed tools and automation",
+        "source": "GE",
+        "items": 8,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "GE · GE-095: AI guardrails, safety, and quality",
+        "source": "GE",
+        "items": 9,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-096: Relay acceptance tests",
+        "source": "GE",
         "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-100: Tenant manifest",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-101: Placement engine",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "GE · GE-102: Idempotent provisioning state machine",
+        "source": "GE",
+        "items": 11,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-103: Tenant fleet, suspension, hibernation, purge, migration, export, and offboarding",
+        "source": "GE",
+        "items": 24,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-104: Provisioning proof",
+        "source": "GE",
+        "items": 9,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-110: Connector runtime",
+        "source": "GE",
+        "items": 9,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-111: Initial connector families",
+        "source": "GE",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-112: Integration tests",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-120: Declarative and low-code extension",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-121: SDK extension runtime",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-122: Marketplace Coming soon",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-130: Human capital management",
+        "source": "GE",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-131: CRM, sales, service, and customer success",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-132: Order-to-cash and revenue",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-133: Treasury, grants, fundraising, and sponsorship",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-134: Inventory, order, warehouse, and logistics",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-135: Manufacturing, product, quality, and maintenance",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-136: Assets, facilities, real estate, and field service",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-137: Governance, risk, compliance, legal, and audit",
+        "source": "GE",
+        "items": 9,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-138: Strategy, planning, and advanced analytics",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-140: Industry-pack engine",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-141: Globalization",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-142: Accessibility and PWA",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-143A: Foundations and ownership",
+        "source": "GE",
+        "items": 8,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "GE · GE-143B: Forest-green brand, light/dark ambience, and type",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-143C: Shell, layout, density, and components",
+        "source": "GE",
+        "items": 10,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "GE · GE-143D: Enterprise visualization platform",
+        "source": "GE",
+        "items": 9,
+        "gates": 0,
+        "done": 2
+      },
+      {
+        "phase": "GE · GE-143E: Relay, comfort, performance, and evidence",
+        "source": "GE",
+        "items": 12,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-150: Threat model and security controls",
+        "source": "GE",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-151: Privacy and retention",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-152: Compliance/evidence readiness",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-153: Security acceptance",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-160: SLO and resilience",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-161: Backup, restore, and disaster recovery",
+        "source": "GE",
+        "items": 4,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-162: Observability and incident operations",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-163: FinOps and metering",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-170: Workflow suite",
+        "source": "GE",
+        "items": 9,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-171: Release and migration",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-172: Performance and scale",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-173: Production readiness review",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-180: Unified authority and current-state audit",
+        "source": "GE",
+        "items": 11,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-190: Program truth, traceability, and durable ownership",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-200: Purpose-bound environments and promotion",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-210: Global organization and accounting foundation",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-220: Effective-dated jurisdiction packs",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-230: Payroll boundary, provider orchestration, and exact-scope proof",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-240: Discover, map, transform, rehearse, reconcile, and cut over",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-250: Files, APIs, events, streams, and connector certification",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-260: Payment instruction, acknowledgement, settlement, and reconciliation",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-270: Acceptance under realistic roles and failures",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-280: Rehearsed activation, go/no-go, and recovery",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-290: Stabilization, support, and successor-ready operations",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-300: Dependency closure, archive, revocation, destruction, and cost",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-310: Modern internal product and governed transformation copilot",
+        "source": "GE",
+        "items": 9,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-320: Cross-cutting proof",
+        "source": "GE",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-330: One proof system for the whole behemoth",
+        "source": "GE",
+        "items": 7,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-340: Schema-driven configuration compiler",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-350: Composable global product line",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-360: Governed internal/external connectivity and money movement",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-370: Memory-first global people system",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-380: Control-first global finance",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-390: Connected planning and decision memory",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-400: Product, supply, manufacturing, asset, project and service execution",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-410: Distinct modern tenant product",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-420: Governed metrics and high-end charts",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · GE-430: One mandatory document and release graph",
+        "source": "GE",
+        "items": 6,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 0 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "GE · Phase 1 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "GE · Phase 10 gate",
+        "source": "GE",
+        "items": 1,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "SIMON · 4. Phase 0 — Forensic two-repository and deployed-system truth",
+        "phase": "GE · Phase 11 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 12 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 13 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 14 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 15 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 16 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 17 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 18 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 19 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 2 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "GE · Phase 20 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 21 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 22 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 23 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 24 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 25 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 26 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 27 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 28 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 29 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 3 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "GE · Phase 30 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 31 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 32 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 33 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 34 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 35 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 36 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 37 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 38 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 39 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 4 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "GE · Phase 40 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 41 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 42 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 43 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 5 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 6 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 7 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 8 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "GE · Phase 9 gate",
+        "source": "GE",
+        "items": 1,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "HCM · HCM-000 — Foundation",
+        "source": "HCM",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "HCM · HCM-010 — Lifecycle and organization",
+        "source": "HCM",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "HCM · HCM-020 — Talent acquisition and development",
+        "source": "HCM",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "HCM · HCM-030 — Time, leave, compensation, benefits and payroll boundary",
+        "source": "HCM",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "HCM · HCM-040 — Privacy, UX, memory and Relay",
+        "source": "HCM",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "HCM · HCM-050 — Global, integration, operations and superiority",
+        "source": "HCM",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-000 — Truth, boundary and ledger",
+        "source": "INT",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-010 — Canonical runtime",
+        "source": "INT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-020 — Connector SDK and registry",
+        "source": "INT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-030 — Auth, consent and credentials",
+        "source": "INT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-040 — Schemas, mappings and transformations",
+        "source": "INT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-050 — Webhooks, files, APIs and events",
+        "source": "INT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-060 — Rate, errors and reconciliation",
+        "source": "INT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-070 — Integration Studio",
+        "source": "INT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-080 — Capability families and domain imports",
+        "source": "INT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-090 — Certification and release",
+        "source": "INT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "INT · INT-100 — Lifecycle, security and final proof",
+        "source": "INT",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "OPS · OPS-000 — Foundation",
+        "source": "OPS",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "OPS · OPS-010 — Supply, inventory, warehouse and orders",
+        "source": "OPS",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "OPS · OPS-020 — Manufacturing, quality and assets",
+        "source": "OPS",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "OPS · OPS-030 — Projects, service, logistics and facilities",
+        "source": "OPS",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "OPS · OPS-040 — UX, memory, Relay and integrations",
+        "source": "OPS",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "OPS · OPS-050 — Global, reliability and superiority",
+        "source": "OPS",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-000 — Truth and registry",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-010 — Product-line kernel",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-020 — Archetype model",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-030 — Pack contract and lifecycle",
+        "source": "PACK",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-040 — Functional suites",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-050 — Industry packs",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-060 — Process chains and accounting",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-070 — UI, data, integration and Relay contributions",
+        "source": "PACK",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-080 — Release, upgrade and certification",
+        "source": "PACK",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-090 — Proving systems",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PAY · docs/implementation/payments-treasury-execution-ledger.md",
+        "source": "PAY",
+        "items": 224,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PLN · PLN-000 — Foundation",
+        "source": "PLN",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PLN · PLN-010 — Cycles, workflow and UX",
+        "source": "PLN",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PLN · PLN-020 — Connected plans",
+        "source": "PLN",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PLN · PLN-030 — Rules, scenarios and forecasts",
+        "source": "PLN",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PLN · PLN-040 — Security, scale and superiority",
+        "source": "PLN",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "SIMON · 4.1 Repository inventory",
         "source": "SIMON",
-        "items": 16,
+        "items": 7,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "SIMON · 4.2 Deployed and AWS inventory",
+        "source": "SIMON",
+        "items": 5,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "SIMON · 4.3 Baseline artifact",
+        "source": "SIMON",
+        "items": 4,
         "gates": 1,
         "done": 0
       },
@@ -2915,14 +3509,14 @@
         "done": 0
       },
       {
-        "phase": "SIMON · 9. Phase 5 — Full Simon ERP module absorption",
+        "phase": "SIMON · 9.8 Reports, search, audit, and oversight",
         "source": "SIMON",
         "items": 11,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "SIMON · 10. Phase 6 — Data and file migration factory",
+        "phase": "SIMON · 10.2 Required migration controls",
         "source": "SIMON",
         "items": 13,
         "gates": 1,
@@ -2950,21 +3544,21 @@
         "done": 0
       },
       {
-        "phase": "SIMON · 14. Phase 10 — Permanent global update inheritance",
+        "phase": "SIMON · 14.3 Safe release sequence",
         "source": "SIMON",
         "items": 16,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "SIMON · 15. Phase 11 — End-to-end Simon acceptance matrix",
+        "phase": "SIMON · Operations",
         "source": "SIMON",
         "items": 7,
         "gates": 1,
         "done": 0
       },
       {
-        "phase": "SIMON · 16. Phase 12 — Cutover command center",
+        "phase": "SIMON · 16.2 Cutover sequence",
         "source": "SIMON",
         "items": 8,
         "gates": 1,
@@ -2975,6 +3569,167 @@
         "source": "SIMON",
         "items": 12,
         "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 4. Phase 0 — Establish repository, AWS, product, and deployed truth",
+        "source": "STUDIO",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 5.5 Control-plane account topology",
+        "source": "STUDIO",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 6.2 Login flow",
+        "source": "STUDIO",
+        "items": 13,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 7.2 Global shell",
+        "source": "STUDIO",
+        "items": 13,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 8. Core domain model and desired-state contract",
+        "source": "STUDIO",
+        "items": 9,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · Stage 11 — Review, simulate, approve, and launch",
+        "source": "STUDIO",
+        "items": 7,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 10. Change classification, preview, approvals, and command contract",
+        "source": "STUDIO",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 11.2 Stack layers",
+        "source": "STUDIO",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · Security, operations, and cost",
+        "source": "STUDIO",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 13. Relay by Tenure inside System Studio",
+        "source": "STUDIO",
+        "items": 12,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 14. Tenant fleet, release, lifecycle, and verified zero cost",
+        "source": "STUDIO",
+        "items": 12,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 15. Security, privacy, governance, and supply chain",
+        "source": "STUDIO",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 16. Reliability, observability, operations, DR, and FinOps",
+        "source": "STUDIO",
+        "items": 9,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · STUDIO-120: FinOps Center",
+        "source": "STUDIO",
+        "items": 18,
+        "gates": 15,
+        "done": 3
+      },
+      {
+        "phase": "STUDIO · 17. API, event, and extension contracts",
+        "source": "STUDIO",
+        "items": 7,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "STUDIO · 18. Testing and release proof",
+        "source": "STUDIO",
+        "items": 9,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "TTES · TTES-000 — Separation and truth",
+        "source": "TTES",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "TTES · TTES-010 — Tokens and foundations",
+        "source": "TTES",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "TTES · TTES-020 — Components and patterns",
+        "source": "TTES",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "TTES · TTES-030 — Shell and journeys",
+        "source": "TTES",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "TTES · TTES-040 — Accessibility, security and performance",
+        "source": "TTES",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "TTES · TTES-050 — Superiority and governance",
+        "source": "TTES",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "WRK · docs/implementation/universal-work-graph-execution-ledger.md",
+        "source": "WRK",
+        "items": 88,
+        "gates": 14,
         "done": 0
       }
     ]

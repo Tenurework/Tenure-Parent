@@ -96,7 +96,14 @@ test("the set here is the set next-batch acts on", () => {
   // own source, so a status added there without being added here fails rather
   // than quietly widening what the ledger may say.
   const source = read("tools/loop/next-batch.mjs")
-  const decided = /s === "PASS" \|\| s === "BLOCKED_EXTERNAL" \|\| s === "NOT_APPLICABLE"/.test(source)
+  // The receiver was `s` when the queue filtered a Map of statuses and is
+  // `r.status` now that it filters registry rows. Matched loosely on the
+  // receiver and exactly on the three statuses and their order: what this guard
+  // protects is which statuses count as decided, not what the variable is called.
+  const decided =
+    /\w+(?:\.\w+)? === "PASS" \|\|\s*\w+(?:\.\w+)? === "BLOCKED_EXTERNAL" \|\|\s*\w+(?:\.\w+)? === "NOT_APPLICABLE"/.test(
+      source,
+    )
 
   assert.ok(
     decided,

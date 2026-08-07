@@ -38,7 +38,10 @@ export function entries() {
     for (const chunk of text.split(/\n(?=- \[[ xX]\] \*\*)/)) {
       const id = chunk.match(/^- \[([ xX])\] \*\*([^*]+)\*\*/)
       if (!id) continue
-      const declared = chunk.match(/^\s*[-*]\s*Status:\s*([A-Z_]+)/m)?.[1]
+      // `\*{0,2}` because eleven entries write `Status: **BLOCKED_EXTERNAL**`.
+      // Without it they read as FAIL here too, and this file's own evidence
+      // rules would be applied to the wrong status.
+      const declared = chunk.match(/^\s*[-*]\s*Status:\s*\*{0,2}([A-Z_]+)/m)?.[1]
       out.push({
         file: `${LEDGER_DIR}/${name}`,
         id: id[2].trim(),

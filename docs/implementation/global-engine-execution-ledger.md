@@ -4923,7 +4923,7 @@ worth less than three items that hold.
     local only**. It fails identically with these changes stashed, and CI passed
     it on the previous commit. Not fixed here; not caused here.
 
-- [x] **GE-042-007** — Integrate real accessible frontend login, discovery, callback, MFA/recovery, invitation, switcher, logout, and generic error paths.
+- [ ] **GE-042-007** — Integrate real accessible frontend login, discovery, callback, MFA/recovery, invitation, switcher, logout, and generic error paths.
   - Status: **BLOCKED_EXTERNAL** — the generic error path is real and shipped;
     login, discovery, callback, MFA/recovery and invitation cannot be built
     until there is a provider to build them against.

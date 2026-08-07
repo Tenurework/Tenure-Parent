@@ -173,6 +173,22 @@ test.describe("resource authoring", () => {
     // Scoped to this card: the retired shelf accumulates across runs, so a
     // bare .first() would restore somebody else's resource.
     await card().getByRole("button", { name: /Restore/ }).click()
+
+    // Wait for the restore to actually land before navigating away.
+    //
+    // `click()` resolves when the click is dispatched, not when the server
+    // action commits. `page.goto` immediately after it races the write: the
+    // fresh render can be produced from a database that has not seen the update
+    // yet, and `toBeVisible` then polls a static DOM for its whole timeout
+    // because an assertion re-queries the page but does not re-navigate it.
+    // Passing is a matter of which side wins, which is why this went red on the
+    // fourth run of an unchanged spec.
+    //
+    // Asserting the card leaves the retired shelf is the same wait-for-the-effect
+    // idiom the Retire step above uses, and it is a stronger claim than the one
+    // it replaces: restore has to remove it from here as well as return it there.
+    await expect(card()).toHaveCount(0)
+
     await page.goto("/resources")
     await expect(page.getByRole("heading", { name: title }).first()).toBeVisible()
   })

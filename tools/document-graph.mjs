@@ -151,13 +151,36 @@ function versionOf(name, text) {
 export function requirementsIn(text) {
   const found = []
   const seen = new Set()
+
+  // The section a requirement is stated under, carried so the work queue can
+  // print it without parsing these documents a second time. `next-batch.mjs`
+  // had its own parser for exactly this field, over four of the twenty-three
+  // authorities, and the divergence is the defect its own comments describe:
+  // "Two parsers of the same documents will disagree; the only question is how
+  // long before anyone notices."
+  let section = ""
+
+  // Fenced blocks are pictures of items, not items. The prompts show the
+  // evidence format inside a fence, and the example is a checkbox line like any
+  // other — counting it puts a phantom at the head of the queue.
+  let inFence = false
+
   for (const line of text.split("\n")) {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+
+    const heading = /^#{2,4}\s+(.+?)\s*$/.exec(line)
+    if (heading) section = heading[1].trim()
+
     const m = line.match(REQUIREMENT)
     if (!m) continue
     const [, id, statement] = m
     if (seen.has(id)) continue
     seen.add(id)
-    found.push({ id, statement: statement.replace(/\s+/g, " ").trim() })
+    found.push({ id, statement: statement.replace(/\s+/g, " ").trim(), section })
   }
   return found
 }
@@ -356,7 +379,13 @@ export function ledgerStatuses() {
     for (const entry of entries) {
       const id = entry.match(/^- \[[ xX]\] \*\*([A-Z]{2,8}-\d{3}-\d{3}|[A-Z]{2,8}-GATE-\d+)\*\*/)?.[1]
       if (!id) continue
-      const declared = entry.match(/^\s*[-*]\s*Status:\s*([A-Z_]+)/m)?.[1]
+      // `Status: **BLOCKED_EXTERNAL**` — eleven entries bold it, and a pattern
+      // that only matched bare uppercase read every one of them as FAIL. That
+      // put work waiting on a human back at the front of the queue every tick,
+      // and understated the registry by the same eleven. `next-batch.mjs` hit
+      // this exact bug and fixed it in its own parser; the graph kept it, which
+      // is what having two parsers costs.
+      const declared = entry.match(/^\s*[-*]\s*Status:\s*\*{0,2}([A-Z_]+)/m)?.[1]
       const checked = /^- \[x\]/i.test(entry)
       status.set(id, {
         status: declared && STATUSES.includes(declared) ? declared : checked ? "PASS" : "FAIL",
@@ -443,6 +472,9 @@ export function buildRegistry(documents, statuses, imported = new Set()) {
       id: r.id,
       prefix: r.id.split("-")[0],
       source_document: r.document,
+      // Falls back to the document itself so the field is never empty: the work
+      // queue prints it, and a blank phase reads as a parsing failure.
+      section: r.section || r.document,
       statement: r.statement,
       status: known?.status ?? "FAIL",
       imported: known ? true : imported.has(r.id),
@@ -491,6 +523,7 @@ export function renderRegistry(rows) {
     lines.push(`  - id: ${yamlScalar(r.id)}`)
     lines.push(`    prefix: ${yamlScalar(r.prefix)}`)
     lines.push(`    source_document: ${yamlScalar(r.source_document)}`)
+    lines.push(`    section: ${yamlScalar(r.section)}`)
     lines.push(`    status: ${yamlScalar(r.status)}`)
     lines.push(`    imported: ${r.imported}`)
     lines.push(`    reason: ${yamlScalar(r.reason)}`)
