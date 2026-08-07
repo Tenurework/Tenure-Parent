@@ -113,6 +113,50 @@ share: they caught two claims that were false, one of which was a total outage.
 A third defect got through both the agent and its refuter and was caught only by
 the Studio Playwright suite. **Run both e2e suites after every domain lands.**
 
+### 1.2b THE SURVEY IS NOT FREE, AND IT IS SPENT FIRST
+
+**2026-08-07: three cluster runs launched together, all three died. ~4.2M tokens,
+zero requirements landed.** The twelve surveyors finished; all fifteen cluster
+agents failed with `You've hit your session limit`. This is the 13-workflow
+failure again at a fifth of the size, and the reason is structural, not bad luck.
+
+`cluster-workflow.mjs` spends survey FIRST and implementation SECOND. Survey is
+~30-35% of a run's cost and produces **nothing durable** — no code, no ledger
+entry, and the findings die with the workflow. So a run that is killed anywhere
+in its second phase loses everything it paid for in the first.
+
+| | PACK (completed) | CFG+WRK+PAY (died) |
+|---|---|---|
+| Tokens | 4.04M | **4.21M** |
+| Requirements confirmed | 17 | **0** |
+
+Both cost the same. One produced a domain.
+
+**Rules that follow from this:**
+
+1. **One domain at a time until the quota window is known to be fresh.** Three
+   concurrent runs cannot finish inside a window that one run nearly fills.
+2. **Check the window before launching.** A run needs ~4M tokens end to end. If
+   you cannot be confident of that much, do not start one — start the smaller
+   piece of work instead. There is always some.
+3. **Persist the survey.** The single highest-value change to
+   `cluster-workflow.mjs` is writing the survey pool to
+   `tools/loop/surveyed-<domain>.json` before the implement phase begins. Then a
+   death costs the implementation only, and the next session resumes from paid-for
+   findings — which is exactly what `harvested-queue.json` already is for GE.
+   Until that lands, every killed run pays for its survey twice.
+4. **`resumeFromRunId` replays completed agents from cache.** The three dead runs
+   are resumable — their run ids are in §2.3. Resuming re-uses the surveys.
+
+A cluster agent that dies mid-edit leaves the tree **broken, not empty**. One of
+these left `packages/configuration/src/definition.ts` with `price` and `ui` made
+REQUIRED and `description` removed — 47 type errors, every construction site
+broken. That is the same "widening a type breaks its consumers" defect the rules
+now warn about, delivered half-finished. Reverted; the draft is preserved at
+`<scratchpad>/killed-waves/cfg/`, and it is worth finishing because priced config
+options are the standing requirement in §7. **Always `npm run type-check` after a
+workflow dies, before believing the tree is where you left it.**
+
 ### 1.3 Budget rules
 
 1. **Never launch more than 3 workflows concurrently** without checking remaining
@@ -196,26 +240,59 @@ minutes, not the "record the operator commands" this file used to advise.
 reused table or database fails them; a fresh one passes. Re-create before
 believing a failure.
 
-### 2.3 Commits this session
+### 2.3 Commits, 2026-08-07 (second session)
+
+All CI-green on `main`. Every one of these was a guard or a tool pointed away
+from where the work actually is.
 
 | SHA | What | CI |
 |---|---|---|
-| `8152933` | `ACTIVATING` actually gates reachability (`Institution.serving`) | red → fixed |
-| `13dc466` | `serving` in untyped `.mjs` fixtures | red → fixed |
-| `2583a8d` | Archived clubs stop taking writes (GE-085-004) | **green** |
-| `892a167` | Ten requirements, seven refuter-confirmed | **both red** — see below |
-| `234f430` | Restore wrongly-deleted `packages/finops` | verify on next run |
-| `daa605d` | This handoff | — |
-| `a61a0c4` | Fix a broken command inside this handoff | — |
+| `0900c8f` | 12 ledgers advertised `BLOCKED_ARCHITECTURE`, which the queue cannot act on | green |
+| `71beac8` | The queue could not see 755 of 2,046 requirements | green |
+| `d9dd487` | AI-mark colour debt closed on the token; exception deleted not renewed | green |
+| `6bae247` | e2e restore race — the spec that failed CI three times | green |
+| `6846a12` | This file's "database unavailable" corrected | green |
+| `c97b71c` | PACK: 17 requirements, 2 refuted, 2 total outages caught | green + Deploy Studio green |
+| `722a3c9` | Cluster-workflow rules: type widening, producer mutation, run the e2e | green |
+| `64e10c0` | This file: measured cluster cost, real baselines | green |
 
-One deletion caused every failure on `892a167`, in three places at once:
-`Studio · Playwright / Build the Studio` (`Module not found: @tenure/finops`),
-platform guard **35** — *every domain with code actually has some*, which is
-precisely a guard for "a domain just lost all its code" — and guard **75**, the
-audit counts. `234f430` restores the package; 75 was fixed separately. The
-lesson is in §0.4, and guard 35 existed to catch exactly this.
+### 2.4 THREE RESUMABLE RUNS — their surveys are paid for
 
----
+Killed by the quota, surveys complete, implementation not started. Resuming
+replays the surveyors from cache and costs only the implement+refute phases:
+
+```
+CFG  wf_3433d090-a1c   declarative-configurator   79 requirements
+WRK  wf_1607725c-3a6   universal-work-graph       88 requirements
+PAY  wf_c59c18fa-cc9   payments-treasury         224 requirements
+```
+
+```bash
+Workflow({scriptPath: 'tools/loop/cluster-workflow.mjs',
+          resumeFromRunId: 'wf_3433d090-a1c', args: <the same args>})
+```
+
+The args must be **byte-identical** or the cache misses and the survey is paid
+for twice. They are recorded in each run's task notification and in
+`<transcriptDir>/journal.jsonl`. **Resume one at a time** (§1.2b).
+
+The three focus strings carried real, verified defects that are still open, so
+they are worth re-supplying even if you do not resume:
+
+- **CFG** — REVIEW-FINDINGS P2 #19, a **privilege escalation**:
+  `finance.roleNamePatterns` is a tenant-writable config key that decides
+  `canManageFinance`, classified `sensitivity: "standard"` with no
+  `requiresCapability`, and its guard regex excludes none of `[a-z] .  ^ $`
+  or backreferences while being run against attacker-controlled input. The
+  document names the fix (case-insensitive substrings, not regex) and ships the
+  regex anyway.
+- **WRK** — REVIEW-FINDINGS P1 #16: `redirect()` inside `withTenant` is a
+  Next.js control-flow throw; inside `db.$transaction` it aborts the transaction
+  and **silently rolls back writes**. Server actions here end with `redirect(...)`.
+- **PAY** — REVIEW-FINDINGS P0 #7: `ApprovalRequest.idempotencyKey` is a
+  client-supplied **global** unique (`schema.prisma:391`), so a collision makes
+  tenant B's retry resolve to tenant A's approval. A cross-tenant leak, not a
+  collision.
 
 ## 3. QUALITATIVE — what was actually fixed, and what it means
 
