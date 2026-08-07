@@ -56,6 +56,23 @@ QUALITY BAR — zero mocks, zero placeholders, zero stubs:
 - Beware the fake test: a stand-in returning a canned value regardless of the code under test
   proves nothing. Make it behave like the real dependency.
 - If a comment or evidence string claims something untrue, fix the CLAIM, not the test.
+- WIDENING A TYPE BREAKS ITS CONSUMERS SILENTLY. If you change the shape or meaning of a
+  field, grep every construction site of that type and fix them in the same change. An
+  OPTIONAL field that a caller does not set is invisible to \`tsc\` — it compiles, every unit
+  test passes because tests build their own fixtures, and the failure appears only at runtime.
+  This happened twice in one run and both were total outages: \`requiresEngine\` was added to
+  every manifest while two callers never said which engine was running, so module resolution
+  returned NOTHING; and \`dependsOn\` began naming capabilities satisfied via \`provides\` while
+  three callers projected modules without \`provides\`, so EVERY configuration publication was
+  blocked. Name the consumers you checked.
+- MUTATE THE PRODUCER, NOT THE HELPER. A test that proves a property by calling the helper
+  directly stays green when the production caller stops using it. Freezing \`policyRevision\`
+  to a constant left an entire 3448-test suite green for exactly this reason, and the mutation
+  was reported as caught. Assert on the value the production path EMITS.
+- The database is available. \`docker ps\` — Postgres and DynamoDB Local are running, and both
+  Playwright suites run locally in minutes. If your change touches resolution, configuration,
+  provisioning or any request path, run the relevant spec. Do not reason about e2e behaviour;
+  the two times that was done this session, both readings were wrong.
 - Do not mark PASS what is not true. A requirement titled "signed X" is not PASS while X is
   unsigned. An honest FAIL, or BLOCKED_EXTERNAL naming the commands that would unblock it,
   is worth more than a false PASS.
