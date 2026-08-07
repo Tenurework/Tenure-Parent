@@ -1,3 +1,5 @@
+import { isPaymentMode, PAYMENT_MODE_CONFIG_KEY, type PaymentMode } from "@tenure/contracts"
+
 import type { ConfigRegistry } from "./definition"
 import { resolveVersionedLayers } from "./layer-bridge"
 import type { VersionedLayer } from "./layer-schema"
@@ -215,6 +217,32 @@ export interface PublicationInput {
   modules?: readonly ModuleLike[]
   enabledModules?: readonly string[]
   entitlements?: readonly string[]
+  /**
+   * Capabilities the publishing principal actually holds (PAY-000-007).
+   *
+   * Empty by default, which is the fail-closed direction: a definition
+   * declaring `requiresCapability` is unpublishable until a caller says who is
+   * publishing and what they hold. Nothing declared one before this existed, so
+   * no existing publication changes behaviour — but the day one does, the
+   * declaration is a control rather than a comment.
+   */
+  publisherCapabilities?: readonly string[]
+}
+
+/**
+ * The tenant's money-mode as its CURRENT configuration says it is.
+ *
+ * Read off `current.values` rather than taken as a separate input, deliberately:
+ * the mode is itself a published configuration value, so a second parameter
+ * would be a second source of truth able to disagree with the one the resolver
+ * reads. Absent or unrecognised resolves to `test` — the direction that
+ * withholds rather than grants.
+ */
+export function currentPaymentMode(
+  current: { values: Readonly<Record<string, unknown>> } | null,
+): PaymentMode {
+  const value = current?.values?.[PAYMENT_MODE_CONFIG_KEY]
+  return isPaymentMode(value) ? value : "test"
 }
 
 export interface PublicationPlan {
@@ -269,6 +297,7 @@ export function planPublication(input: PublicationInput): PublicationPlan {
     modules = [],
     enabledModules = [],
     entitlements = [],
+    publisherCapabilities = [],
   } = input
 
   const rejections = allRejections({ layers: proposed, modules, enabledModules, entitlements })
@@ -307,6 +336,41 @@ export function planPublication(input: PublicationInput): PublicationPlan {
     blockers.push(
       `Activation is scheduled for ${activateAt.toISOString()}, which is in the past. A schedule nobody can act on is not a schedule.`,
     )
+  }
+
+  // PAY-000-007 — mode separation, and the capability that gates a mode change.
+  //
+  // The tenant's mode is whatever its CURRENT configuration resolves to, not
+  // whatever this proposal would set it to. That ordering is the control: a
+  // proposal that flips the mode to live AND carries live-only values is
+  // blocked, because at the moment it is signed the tenant is still in test and
+  // nobody has reviewed the live values under a live tenant. Flip first, with
+  // its own diff, then publish what the flip made meaningful.
+  const held = new Set(publisherCapabilities)
+  const modeNow = currentPaymentMode(current)
+
+  for (const layer of proposed) {
+    for (const key of Object.keys(layer.values)) {
+      const definition = registry.get(key)
+      if (!definition) continue
+
+      if (definition.requiresCapability && !held.has(definition.requiresCapability)) {
+        blockers.push(
+          `"${layer.id}" sets "${key}", which requires the capability "${definition.requiresCapability}". ` +
+            `The principal publishing this holds ${held.size === 0 ? "none" : [...held].sort().join(", ")}. ` +
+            `A key that decides authority is not published by whoever can reach the form.`,
+        )
+      }
+
+      if (definition.liveOnly && modeNow === "test") {
+        blockers.push(
+          `"${layer.id}" sets "${key}", which only means anything in live mode, while this tenant is in ` +
+            `test mode. Publish the mode change first — "${PAYMENT_MODE_CONFIG_KEY}" is its own change, ` +
+            `with its own diff and its own approval — so a live-only value is never sitting dormant ` +
+            `waiting for a flip nobody re-reads it at.`,
+        )
+      }
+    }
   }
 
   // Resolve the proposal once to produce the diff and the impact.

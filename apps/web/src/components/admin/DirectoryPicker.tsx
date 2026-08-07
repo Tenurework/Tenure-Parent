@@ -96,7 +96,7 @@ export function DirectoryPicker({ kind }: { kind?: "STUDENT" | "ADVISOR" }) {
           </div>
 
           {open && (
-            <ul className="pop-panel absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg">
+            <ul className="pop-panel absolute z-popover mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg">
               {results.length === 0 ? (
                 <li className="px-3 py-4 text-center text-[13px] text-text-3">
                   {q ? "No matching people." : "Start typing to search the directory."}

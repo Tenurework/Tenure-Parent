@@ -44,6 +44,8 @@ const context = (over: Record<string, unknown> = {}) => ({
   channel: "web",
   correlationId: "corr-abc",
   configRevision: "cfg-7",
+  environment: "test",
+  legalEntityId: null,
   at: AT,
   ...over,
 })
@@ -70,6 +72,43 @@ describe("TenantContext", () => {
 
   it("refuses a timestamp that is not an instant", () => {
     expect(() => parseTenantContext(context({ at: "yesterday" }))).toThrow(/is not an ISO-8601/)
+  })
+
+  // PAY-020-003. The refusal, not the type: a `TenantContext` that omits the
+  // money-mode has to be rejected at runtime, because the values that reach
+  // this function arrive as JSON from a queue, a webhook or a browser and were
+  // never seen by the compiler that believed the interface. An omitted required
+  // field is invisible to `tsc` at exactly those boundaries.
+  it("refuses a context that does not say which money-mode it is in", () => {
+    const violation = (input: unknown) => {
+      try {
+        parseTenantContext(input)
+      } catch (err) {
+        return err as ContractViolation
+      }
+      throw new Error("expected parseTenantContext to refuse")
+    }
+
+    for (const bad of [undefined, null, "", "TEST", "production", "sandbox", true]) {
+      const err = violation(context({ environment: bad }))
+      expect(err).toBeInstanceOf(ContractViolation)
+      // Names the field, so whoever wired the caller knows which one to set.
+      expect(err.field).toBe("environment")
+      expect(err.message).toMatch(/TenantContext\.environment/)
+    }
+
+    // And the two it does accept survive untouched.
+    expect(parseTenantContext(context({ environment: "test" })).environment).toBe("test")
+    expect(parseTenantContext(context({ environment: "live" })).environment).toBe("live")
+  })
+
+  it("refuses a context that leaves the legal entity unstated", () => {
+    const { legalEntityId: _omitted, ...withoutEntity } = context()
+    expect(() => parseTenantContext(withoutEntity)).toThrow(/TenantContext\.legalEntityId/)
+
+    // Null is a statement — "the tenant's own entity" — and is accepted.
+    expect(parseTenantContext(context({ legalEntityId: null })).legalEntityId).toBeNull()
+    expect(parseTenantContext(context({ legalEntityId: "le-ny" })).legalEntityId).toBe("le-ny")
   })
 })
 
@@ -147,6 +186,7 @@ const event = (over: Record<string, unknown> = {}) => ({
   occurredAt: AT,
   correlationId: "corr-abc",
   causationId: "cmd-1",
+  origin: "tenure",
   payload: {},
   ...over,
 })
@@ -168,6 +208,18 @@ describe("DomainEvent", () => {
 
   it("allows a null causation for an event no command caused", () => {
     expect(parseDomainEvent(event({ causationId: null })).causationId).toBeNull()
+  })
+
+  it("insists every event says who wrote its payload", () => {
+    // PAY-020-006. Without this an event body from a payment provider and one
+    // this platform built are the same opaque JSON, and a sink asked not to log
+    // provider payloads has nothing to test.
+    expect(parseDomainEvent(event()).origin).toBe("tenure")
+    expect(parseDomainEvent(event({ origin: "provider" })).origin).toBe("provider")
+
+    const { origin, ...without } = event()
+    expect(() => parseDomainEvent(without)).toThrow(/origin/)
+    expect(() => parseDomainEvent(event({ origin: "stripe" }))).toThrow(/tenure, provider/)
   })
 })
 

@@ -14,6 +14,7 @@ export function PageHeader({
   breadcrumbs,
   actions,
   eyebrow,
+  status,
   className,
 }: {
   title: ReactNode
@@ -22,6 +23,14 @@ export function PageHeader({
   actions?: ReactNode
   /** A small label above the title, e.g. a section or club name. */
   eyebrow?: ReactNode
+  /**
+   * TTES-030-001, Bible section 5.3 (record anatomy). The record's STATE, sat
+   * between its identity and its primary actions — badges, a lifecycle chip, a
+   * count of what is outstanding. A page header that names a record without
+   * saying what state it is in makes the reader hunt the page for it, and
+   * different pages hid it in different places.
+   */
+  status?: ReactNode
   className?: string
 }) {
   return (
@@ -50,6 +59,7 @@ export function PageHeader({
             </p>
           )}
           <h1 className="text-text-1">{title}</h1>
+          {status && <div className="mt-2 flex flex-wrap items-center gap-2">{status}</div>}
           {subtitle && (
             <p className="mt-1.5 max-w-2xl text-lead text-text-2">{subtitle}</p>
           )}

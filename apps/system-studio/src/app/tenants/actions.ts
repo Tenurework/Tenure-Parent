@@ -52,6 +52,7 @@ import {
 } from "@/lib/registry";
 import { buildAdoption } from "@/lib/adopt";
 import { deliverToCell } from "@/lib/deliver";
+import { parseObjectAuthority } from "@/lib/object-authority";
 
 /**
  * Every action here re-checks the operator, in the action.
@@ -230,6 +231,16 @@ export async function composeTenant(
   // typo in it would silently mean "no external owner" for the domain meant.
   const externalOwned = new Set(form.getAll("externalDomains").map(String));
 
+  // WRK-020-004. The refinement below the domain grain: which objects inside a
+  // domain move, in which direction, and which of their fields the other side
+  // writes. Parsed for shape here and refused for meaning by
+  // `coexistenceProblems` inside `validateManifest` — an object claiming Tenure
+  // inside a domain the customer's ERP owns is refused there, not here, so the
+  // console cannot accept a manifest under looser rules than the executor.
+  const objectAuthority = parseObjectAuthority(
+    String(form.get("objectAuthority") ?? ""),
+  );
+
   /* --------------------------------------------------------- PACK-020-002 --
    * The preset, and the operator's edit over it.
    *
@@ -319,6 +330,12 @@ export async function composeTenant(
         externalOwned.has(domain) ? ("external" as const) : ("tenure" as const),
       ]),
     ),
+    // Omitted rather than written as `[]` when nothing was typed. An empty list
+    // and no list read the same to a validator and differently to a person: the
+    // manifest is diffed, and "no object-level refinement" should not appear as
+    // a field somebody filled in.
+    objectAuthority:
+      objectAuthority.entries.length > 0 ? objectAuthority.entries : undefined,
     configuration: {},
     secretRefs: {},
     initialAdminEmail: String(form.get("initialAdminEmail") ?? "").trim(),
@@ -411,7 +428,8 @@ export async function composeTenant(
     editProblems.length > 0 ||
     moduleProblems.length > 0 ||
     planProblems.length > 0 ||
-    entitlementProblems.length > 0
+    entitlementProblems.length > 0 ||
+    objectAuthority.problems.length > 0
   ) {
     return {
       problems: [
@@ -420,6 +438,11 @@ export async function composeTenant(
         ...moduleProblems,
         ...planProblems,
         ...entitlementProblems,
+        // A line that did not parse is not silently dropped. Dropping it would
+        // register a tenant whose declaration is quietly shorter than what the
+        // operator wrote, which is the difference between a refusal they can
+        // fix and a coexistence contract nobody knows is missing.
+        ...objectAuthority.problems,
       ],
     };
   }
@@ -524,6 +547,13 @@ export async function advanceState(
   const slug = String(form.get("slug") ?? "");
   const to = String(form.get("to") ?? "") as TenantState;
   const approvedBy = String(form.get("approvedBy") ?? "").trim() || undefined;
+  // WRK-120-005. Who answers for the tenant after the move — the successor, not
+  // the departing owner. The engine refuses SUSPENDING, HIBERNATING and
+  // OFFBOARDING without one, so this is passed through rather than defaulted:
+  // defaulting it to the requesting operator would satisfy the check by naming
+  // whoever happened to click, which is how an orphan gets an owner on paper.
+  const ownerPrincipalId =
+    String(form.get("ownerPrincipalId") ?? "").trim() || undefined;
   const reason = String(form.get("reason") ?? "").trim() || undefined;
 
   const at = now();
@@ -603,6 +633,7 @@ export async function advanceState(
         // could approve their own irreversible purge by typing any address
         // that was not theirs.
         approverIsOperator: approvedBy ? isOperator(approvedBy) : undefined,
+        ownerPrincipalId,
         reason,
       },
       evidence,

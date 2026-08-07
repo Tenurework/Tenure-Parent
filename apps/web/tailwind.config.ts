@@ -78,11 +78,54 @@ const config: Config = {
       height: {
         shell: "var(--shell-height)",
         footer: "var(--footer-height)",
+        // Density contract (globals.css --control-h* / --row-h). Comfortable
+        // resolves to exactly the h-8 / h-10 / h-11 these replaced, so binding
+        // them changed nothing; compact is what they now make possible.
+        "control-sm": "var(--control-h-sm)",
+        control: "var(--control-h)",
+        "control-lg": "var(--control-h-lg)",
+        row: "var(--row-h)",
       },
       width: {
         sidenav: "var(--sidenav-width)",
         "sidenav-collapsed": "var(--sidenav-width-collapsed)",
         "sidenav-current": "var(--sidenav-current-width)",
+        // Square icon buttons have to follow the height, or compact makes them
+        // rectangles.
+        control: "var(--control-h)",
+      },
+      // ─── The z-layer contract (globals.css --z-*) ────────────────────────
+      // `extend`, so Tailwind's numeric z-0…z-50 still resolve — but
+      // eslint.config.mjs's arbitraryZIndex rule rejects those and z-[…] alike,
+      // which is what makes these the only way to layer something. Deleting
+      // this block does not break the lint message (that is generated from
+      // globals.css); it breaks the classes the message names, and
+      // src/app/design-contracts.test.ts fails on exactly that.
+      zIndex: {
+        raised: "var(--z-raised)",
+        marker: "var(--z-marker)",
+        dragged: "var(--z-dragged)",
+        popover: "var(--z-popover)",
+        sticky: "var(--z-sticky)",
+        scrim: "var(--z-scrim)",
+        nav: "var(--z-nav)",
+        header: "var(--z-header)",
+        "chrome-popover": "var(--z-chrome-popover)",
+        "assist-scrim": "var(--z-assist-scrim)",
+        assist: "var(--z-assist)",
+        toast: "var(--z-toast)",
+        overlay: "var(--z-overlay)",
+        "skip-link": "var(--z-skip-link)",
+      },
+      // ─── The motion contract (globals.css --motion-* / --ease-*) ─────────
+      transitionDuration: {
+        fast: "var(--motion-fast)",
+        base: "var(--motion-base)",
+        slow: "var(--motion-slow)",
+      },
+      transitionTimingFunction: {
+        entry: "var(--ease-entry)",
+        exit: "var(--ease-exit)",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],

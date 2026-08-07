@@ -61,7 +61,16 @@ export class AuditAppendOnlyError extends Error {
  * table (an outbox archive, a retention journal) should be one line here rather
  * than a second copy of this extension.
  */
-export const APPEND_ONLY_MODELS: ReadonlySet<string> = new Set(["AuditEvent"])
+export const APPEND_ONLY_MODELS: ReadonlySet<string> = new Set([
+  "AuditEvent",
+  // PAY-030-005. schema.prisma has commented ApprovalStep "append-only" since
+  // the model existed and actOnApproval told the reader it appended to "a trail
+  // the schema declares immutable". Neither was true: nothing stopped an
+  // update, a delete or an upsert on it, and it is the ONLY state-transition
+  // history the platform has. A decision trail the application can rewrite
+  // records what somebody is currently willing to say happened.
+  "ApprovalStep",
+])
 
 /**
  * The only operations permitted on an append-only model.

@@ -47,6 +47,14 @@ export const LOCALE_COOKIE_OPTIONS = {
   maxAge: 60 * 60 * 24 * 365,
 } as const
 
+/**
+ * Rule (1) of the `React.cache()` invariant stated beside `runInTenantScope`
+ * (`./context.ts`, `docs/architecture/REVIEW-FINDINGS.md:54`): `Institution` is
+ * PLATFORM_GLOBAL in `./registry.ts`, so the query layer applies no tenant
+ * predicate to this read and the answer cannot vary with which scope happens to
+ * be open when the memo is first filled. The `institutionId` in the key is what
+ * the answer actually depends on.
+ */
 const slugForInstitution = cache(async (institutionId: string): Promise<string | null> => {
   const row = await db.institution.findUnique({
     where: { id: institutionId },
@@ -63,6 +71,24 @@ const slugForInstitution = cache(async (institutionId: string): Promise<string |
  * a slug with no binding, and a deleted institution should all produce a
  * correct document rather than a 500 on the root layout — which would take
  * every page down, including the sign-in page needed to recover.
+ *
+ * ## Why this one takes no key at all
+ *
+ * Rule (1) again, and it has to be said out loud because the shape looks like
+ * the defect: a `cache()`d function with an EMPTY argument list memoises one
+ * value for the whole request, so if it could reach a tenant-scoped row it would
+ * be `viewerTimeZone`'s bug with no key to fix it. It cannot. The only database
+ * read it reaches is `slugForInstitution` above, on PLATFORM_GLOBAL
+ * `Institution`; everything else here is a cookie and a pure lookup in
+ * `@tenure/platform-config`.
+ *
+ * Keying it would also be wrong rather than merely redundant. This resolves
+ * `<html lang>` and `<html dir>` for the ROOT layout, and a Next request renders
+ * exactly one document — so "the tenant this document is for" is a property of
+ * the request, not an argument any caller could supply. If a second db read is
+ * ever added here it must be on a platform-global model, or this function has to
+ * take the institution and the root layout has to find one before it renders,
+ * which is the deadlock ADR-0002 describes.
  */
 export const documentLocalization = cache(async (): Promise<Localization> => {
   try {

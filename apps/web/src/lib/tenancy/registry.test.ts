@@ -98,16 +98,58 @@ describe("the registry matches prisma/schema.prisma", () => {
     // would be reading every tenant's activity — exactly what the chokepoint
     // exists to prevent. The tripwire fired on the migration, which is the
     // behaviour it was written for.
-    expect(TENANT_SCOPED).toHaveLength(16)
-    expect(PLATFORM_GLOBAL).toHaveLength(5)
+    //
+    // 16 → 17 on 2026-08-07: InboxEvent (PAY-020-005). The acknowledgement side
+    // of the same events: a dedupe check that spanned tenants would let one
+    // institution's already-consumed event suppress another's, which is a
+    // dropped delivery caused by an isolation failure rather than by a bug in
+    // the dispatcher. The tripwire fired on the migration, as intended.
+    //
+    // 17 -> 24 on 2026-08-07: seven rows in one migration
+    // (20260807120000_payments_tenant_scoped_ledger_and_provider_references).
+    // LedgerEntry MOVED here from UNENFORCEABLE — it gained its own
+    // institutionId, backfilled from Organization, so the chokepoint can filter
+    // it rather than hoping the caller joined. The other seven are new:
+    // ReceiptAllocation (PAY-230-004), ConflictDeclaration and Recusal
+    // (PAY-150-003), and ExternalReference, Settlement and
+    // ProviderBalanceTransaction (PAY-020-004 / PAY-080-004 / PAY-130-004).
+    //
+    // The payments three deserve a sentence of their own, because their UNIQUE
+    // keys are deliberately NOT tenant-first — (provider, mode, connected
+    // account, objectType, externalId) is global by design, since the same
+    // provider id under two accounts is two objects whoever owns them. That
+    // means the index cannot be what keeps one tenant out of another's reads,
+    // and the chokepoint has to be. The tripwire fired on the migration, which
+    // is the behaviour it was written for.
+    // 24 → 25 and 5 → 6 on 2026-08-07, one model each, and they are the two
+    // halves of the same webhook path. `PaymentsFundsFlowConfig` (PAY-270-002)
+    // carries institutionId and is scoped: it says who is liable for a charge.
+    // `ProviderEventReceipt` (PAY-000-007) carries none and is GLOBAL, which is
+    // the interesting one — it is written when an event is received and
+    // verified, before attribution, and its (provider, mode, accountId,
+    // eventId) uniqueness enforces "the platform saw this once". Scoping it
+    // would make one redelivery processable once per tenant, which is the bug
+    // the table exists to prevent.
+    expect(TENANT_SCOPED).toHaveLength(25)
+    expect(PLATFORM_GLOBAL).toHaveLength(6)
     //
     // 19 → 20 on 2026-08-03: Seat (GE-050-002). The durable position left Role
     // so that renaming a seat no longer edits the row authorization reads. It
     // reaches its tenant through Organization, exactly as Role does, so it is
     // unenforceable by column rather than tenant-scoped. The tripwire fired on
     // the migration, which is the behaviour it was written for.
-    expect(Object.keys(UNENFORCEABLE)).toHaveLength(20)
-    expect(schemaModels).toHaveLength(41)
+    //
+    // 20 -> 19 on 2026-08-07: LedgerEntry left for TENANT_SCOPED, above. This is
+    // the one direction this number is supposed to move.
+    expect(Object.keys(UNENFORCEABLE)).toHaveLength(19)
+    //
+    // 41 -> 50 on 2026-08-07. Nine models landed across the payments migrations:
+    // ConflictDeclaration, Recusal, ReceiptAllocation, ExternalReference,
+    // Settlement and ProviderBalanceTransaction here, plus InboxEvent,
+    // ProviderEventReceipt and PaymentsFundsFlowConfig from the sibling
+    // requirements. The number is a tripwire on the schema, so it moves only
+    // when somebody has looked at what moved it.
+    expect(schemaModels).toHaveLength(50)
   })
 })
 

@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto"
 
+import { runningTotal, type RunningTotal } from "@tenure/finops"
+
 import type { ConfigDefinition, ConfigRegistry } from "./definition"
 import type { ConfigScope } from "./scopes"
 import { scopeRank } from "./scopes"
@@ -71,9 +73,60 @@ export interface ResolvedConfig {
    * record what a system was configured as, and lets a cache key be honest.
    */
   readonly checksum: string
+  /**
+   * What this configuration costs — per seat, for the organisation, and the
+   * running total (NEXT-SESSION §7).
+   *
+   * On the resolved configuration rather than beside it, so a caller cannot read
+   * configuration without the price. Every path that produces a
+   * `ResolvedConfig` — `resolveConfig`, `resolveConfigOrThrow`,
+   * `resolveVersionedLayers` — therefore carries it, and a surface that renders
+   * the options has the money for them already in hand.
+   *
+   * Deliberately NOT part of `checksum`. The checksum answers "what was this
+   * system configured as"; a price list moving does not change a tenant's
+   * configuration, and folding it in would make every published revision differ
+   * from its predecessor the day a price changes.
+   */
+  readonly runningCost: RunningTotal
   /** Typed read. Throws on an unknown key rather than returning undefined. */
   get<T = unknown>(key: string): T
   explain(key: string): Provenance
+}
+
+/**
+ * The seat count a quote is computed for when the caller does not say.
+ *
+ * One, not zero: a running total for nobody is zero for every configuration and
+ * would make the per-seat half of §7 invisible. `runningCost.seats` always
+ * reports which number was used, so a total is never shown without the
+ * assumption behind it.
+ */
+export const DEFAULT_QUOTE_SEATS = 1
+
+/**
+ * Whether an option is charged, given the value it actually resolved to.
+ *
+ * Two rules, because there are two kinds of option and one rule for both is
+ * wrong for half of them:
+ *
+ *   boolean   charged while it is ON. A switch is a thing you are using; the AI
+ *             assistant bills per seat for as long as it is answering questions,
+ *             and turning it off has to remove the charge rather than add one.
+ *
+ *   anything  charged when the effective value differs from the platform
+ *   else      default. The default is what the plan already includes, so a
+ *             tenant pays for having chosen something other than it — a
+ *             white-label wordmark, a second currency — and pays nothing for
+ *             leaving it alone.
+ *
+ * Exported because the Studio labels each row with whether it is currently
+ * being charged, and a second copy of this rule in the UI is a second answer to
+ * "why am I being billed for this".
+ */
+export function isChargeable(def: ConfigDefinition, effectiveValue: unknown): boolean {
+  if (typeof def.default === "boolean") return effectiveValue === true
+  return stableStringify(effectiveValue) !== stableStringify(def.default)
 }
 
 export interface ResolveOptions {
@@ -88,6 +141,16 @@ export interface ResolveOptions {
    * The Studio turns it on to show every problem in a draft at once.
    */
   collectProblems?: boolean
+
+  /**
+   * How many seats the running total is for. Defaults to `DEFAULT_QUOTE_SEATS`.
+   *
+   * Optional rather than required because most callers resolve configuration to
+   * read a word off a screen and have no seat count to give — and forcing them
+   * to invent one would put a made-up number into a quote. What is NOT optional
+   * is saying which number was used: `runningCost.seats` echoes it back.
+   */
+  seats?: number
 }
 
 export interface ResolveResult {
@@ -277,7 +340,10 @@ export function resolveConfig(
     return { config: null, problems }
   }
 
-  return { config: freezeResolved(values, provenance, registry), problems }
+  return {
+    config: freezeResolved(values, provenance, registry, options.seats ?? DEFAULT_QUOTE_SEATS),
+    problems,
+  }
 }
 
 /** `resolveConfig` for the common case: give me the configuration or throw. */
@@ -297,6 +363,7 @@ function freezeResolved(
   values: Record<string, unknown>,
   provenance: Record<string, Provenance>,
   registry: ConfigRegistry,
+  seats: number,
 ): ResolvedConfig {
   for (const p of Object.values(provenance)) {
     Object.freeze(p.contributors)
@@ -307,10 +374,19 @@ function freezeResolved(
 
   const checksum = checksumOf(values)
 
+  // §7's running total, over the options this tenant is actually being charged
+  // for. `isChargeable` reads the EFFECTIVE value, not whether a layer happened
+  // to write one: a tenant that sets a key back to the platform default has
+  // chosen the included option and owes nothing for it, and a flag that ships on
+  // is charged for until somebody turns it off.
+  const charged = registry.all().filter((def) => isChargeable(def, values[def.key]))
+  const runningCost = Object.freeze(runningTotal(charged, seats))
+
   return Object.freeze({
     values,
     provenance,
     checksum,
+    runningCost,
     get<T = unknown>(key: string): T {
       if (!registry.has(key)) {
         // Returning undefined would let a typo read as "not configured" and take

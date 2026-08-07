@@ -8,6 +8,11 @@
  */
 
 export { PLATFORM_DEFINITIONS } from "./definitions"
+// PAY-150-002. The key, exported so the application reads the ladder by a
+// symbol rather than by a string literal it keeps in step by hand — a renamed
+// key must be a compile error, not a threshold that silently resolves to its
+// default and stops firing.
+export { APPROVAL_THRESHOLDS_KEY, approvalThresholds } from "./definitions"
 export { BRANDING_DEFINITIONS, brandingCss } from "./branding"
 export type { Branding } from "./branding"
 export {
@@ -91,9 +96,35 @@ export type {
   SystemModules,
   SystemTiers,
 } from "./modules"
+/**
+ * Re-exported so a Studio page rendering `SystemModules.paymentCapabilities`
+ * can name the row type without reaching past this package into
+ * `@tenure/payments` — which is the boundary `cell-independence.test.mjs`
+ * exists to keep.
+ */
+export type { ModulePaymentCapability } from "@tenure/payments"
 
 export { MODEL_CATALOG, allowedModelIds, modelIsAllowed } from "./model-policy"
 export type { ModelEntry, ModelLifecycle } from "./model-entry"
+
+/**
+ * WRK-040-003. Here rather than in `@tenure/provisioning` for the reason
+ * `model-policy.ts` states at length: whether a cell may make an outbound call
+ * is policy the engine distributes TO the cell, and the cell reads it at
+ * request time. `@tenure/provisioning` imports these and hangs them on
+ * `ConnectorEntry`, so there is one definition and two importers.
+ */
+export {
+  RELAY_ANTHROPIC_REVIEW,
+  RELAY_ANTHROPIC_SCOPES,
+  providerActivation,
+} from "./provider-review"
+export type {
+  ProviderActivationReason,
+  ProviderActivationVerdict,
+  ProviderReview,
+  ProviderReviewState,
+} from "./provider-review"
 
 export { ROLLOUT_PATH, buildSystem, planPromotion, systemUnderValidation } from "./build-system"
 export type {

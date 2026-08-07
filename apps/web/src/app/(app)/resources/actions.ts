@@ -52,7 +52,9 @@ export async function publishResource(
   if (!session?.user?.id) return { error: "Not signed in." }
   const userId = session.user.id
 
-  return withTenantScope(userId, async () => {
+  // The form state comes back out of the scope and the caches are bumped after
+  // it closes. A validation failure returns `{ error }` and revalidates nothing.
+  const state = await withTenantScope(userId, async (): Promise<ResourceFormState> => {
     const ctx = await getUserContext(userId)
     const institutionId = await resourceInstitutionFor(ctx)
     if (!institutionId) return { error: "You are not attached to an institution." }
@@ -65,10 +67,14 @@ export async function publishResource(
 
     if ("error" in result) return { error: result.error }
 
-    revalidatePath("/resources")
-    revalidatePath("/dashboard")
     return { ok: true }
   })
+
+  if (state.ok) {
+    revalidatePath("/resources")
+    revalidatePath("/dashboard")
+  }
+  return state
 }
 
 export async function retireResource(formData: FormData): Promise<void> {
@@ -81,8 +87,8 @@ export async function retireResource(formData: FormData): Promise<void> {
     const archived = formData.get("archived") === "1"
     const result = await setResourceArchived(userId, id, archived)
     if ("error" in result) throw new Error(result.error)
-
-    revalidatePath("/resources")
-    revalidatePath("/dashboard")
   })
+
+  revalidatePath("/resources")
+  revalidatePath("/dashboard")
 }

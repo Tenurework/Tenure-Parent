@@ -20,7 +20,9 @@ import { createHash } from "node:crypto"
 import {
   coexistenceProblems,
   externalDomains,
+  objectAuthorityNotes,
   type CoexistenceProfile,
+  type ObjectAuthority,
   type SystemOfRecordMap,
 } from "@tenure/module-runtime"
 
@@ -119,6 +121,20 @@ export interface TenantManifest {
    * remember to check.
    */
   systemOfRecord: SystemOfRecordMap
+
+  /**
+   * Object- and field-level refinement of `systemOfRecord`, with the sync
+   * direction for each object.
+   *
+   * Optional where `systemOfRecord` is required, and the asymmetry is the
+   * point: every tenant has to say who owns a domain, and a tenant that has
+   * only ever declared at the domain grain has declared something complete.
+   * What nothing could recover is a *bidirectional* arrangement with no
+   * direction on it — `COEXISTENCE_TRANSITION` says both sides write and, until
+   * this existed, no field anywhere said which side writes what. Refused by
+   * `coexistenceProblems` when it disagrees with the domain above it.
+   */
+  objectAuthority?: readonly ObjectAuthority[]
 
   /** Configuration overlay — values only, never secrets. */
   configuration: Readonly<Record<string, unknown>>
@@ -313,6 +329,11 @@ export function validateManifest(
   for (const problem of coexistenceProblems({
     profile: manifest.coexistence,
     systemOfRecord: manifest.systemOfRecord ?? {},
+    // Passed through rather than dropped. The object rules only run on what
+    // they are given, so omitting this here would leave a manifest carrying an
+    // object that contradicts its own domain accepted by the validator and
+    // refused by nothing.
+    objectAuthority: manifest.objectAuthority,
   })) {
     bad(problem.field, problem.reason, problem.detail)
   }
@@ -514,6 +535,18 @@ export function planFor(manifest: TenantManifest): ProvisioningPlan {
       `Coexistence profile ${manifest.coexistence}: an external system is authoritative for ` +
         `${external.join(", ")}. Modules that write ${external.length === 1 ? "that domain" : "those domains"} ` +
         `are refused, because exactly one system writes a domain's facts.`,
+    )
+  }
+
+  // The object grain, on the same plan and for the same reason. The warning
+  // above says which domains move; without this one, "controlled, bidirectional
+  // coexistence" reaches an approver as a profile name with nothing under it,
+  // and the fields the other side writes are approved unread.
+  const notes = objectAuthorityNotes(manifest)
+  if (notes.length > 0) {
+    warnings.push(
+      `Object-level authority is declared for ${notes.length} ` +
+        `object${notes.length === 1 ? "" : "s"}. ${notes.join(" ")}`,
     )
   }
 

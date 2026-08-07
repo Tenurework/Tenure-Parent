@@ -33,9 +33,13 @@ test('the committed entry-point inventory is not stale', () => {
 test('no API route or page is reachable without a guard, unless allowlisted', () => {
   const { apiRoutes, pages } = collect()
 
+  // `e.id`, not `e.route`. Both apps serve `/signin` and both serve
+  // `/api/auth/[...nextauth]`, so matching on the bare path would let an
+  // allowlist entry written for the tenant app silently cover the operator
+  // console's route of the same name (TTES-000-001).
   const unguarded = [...apiRoutes, ...pages]
     .filter((e) => e.guards.length === 0)
-    .map((e) => e.route)
+    .map((e) => e.id)
     .filter((r) => !INTENTIONALLY_PUBLIC.has(r))
 
   assert.deepEqual(
@@ -49,9 +53,9 @@ test('no server action is reachable without a guard, unless allowlisted', () => 
   const { actions } = collect()
 
   const unguarded = actions
-    .flatMap((a) => a.exported.map((fn) => ({ ...fn, module: a.route })))
+    .flatMap((a) => a.exported)
     .filter((fn) => fn.guards.length === 0)
-    .map((fn) => `${fn.module} → ${fn.name}`)
+    .map((fn) => fn.id)
     .filter((id) => !PUBLIC_ACTIONS.has(id))
 
   assert.deepEqual(
@@ -69,9 +73,9 @@ test('every mutating server action proves a session, not merely a tenant', () =>
   const { actions } = collect()
 
   const scopedButAnonymous = actions
-    .flatMap((a) => a.exported.map((fn) => ({ ...fn, module: a.route })))
+    .flatMap((a) => a.exported)
     .filter((fn) => fn.guards.includes('tenant') && !fn.guards.includes('session'))
-    .map((fn) => `${fn.module} → ${fn.name}`)
+    .map((fn) => fn.id)
 
   assert.deepEqual(scopedButAnonymous, [], 'tenant-scoped actions with no session check')
 })
@@ -79,7 +83,15 @@ test('every mutating server action proves a session, not merely a tenant', () =>
 test('the allowlists have not grown silently', () => {
   // A guard removed from a route is a code review question. A route added to the
   // allowlist is the same question, asked where it is easier to miss.
-  assert.equal(INTENTIONALLY_PUBLIC.size, 3, 'a new public entry point was allowlisted')
+  //
+  // Three became five at TTES-000-001, and neither addition opened anything.
+  // `deployer:/api/auth/[...nextauth]` and `tenant:/` were BOTH already served
+  // and already unauthenticated; they were absent from this list because they
+  // were absent from the inventory — the walk stopped at `apps/web`, and git's
+  // `**/` pathspec never matched an app-root page. Widening the inventory made
+  // two existing holes visible, which is the direction a ratchet is supposed to
+  // move. Every one of the eight new deployer surfaces reports a guard.
+  assert.equal(INTENTIONALLY_PUBLIC.size, 5, 'a new public entry point was allowlisted')
   assert.equal(PUBLIC_ACTIONS.size, 1, 'a new unguarded server action was allowlisted')
 })
 

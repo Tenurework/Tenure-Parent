@@ -37,11 +37,26 @@ export function EventInspector({
   timeZone,
   onClose,
   onSaved,
+  onResize,
 }: {
   eventId: string
   timeZone: string
   onClose: () => void
   onSaved: () => void
+  /**
+   * Change how long the event runs, in minutes, without dragging anything.
+   *
+   * WCAG 2.2 SC 2.5.7: the grid's resize handles were the ONLY way to set a
+   * duration, and a handle you have to drag is exactly what the criterion is
+   * about. Opening an event is one pointer-down and one pointer-up on a 100px
+   * chip; pressing a button here is another. No path between them requires a
+   * drag.
+   *
+   * Required, not optional. There is one construction site — CalendarTimeGrid
+   * — and an optional callback would let it ship an inspector whose buttons
+   * silently do nothing, which `tsc` would never mention.
+   */
+  onResize: (deltaMinutes: number) => void
 }) {
   const [data, setData] = useState<EventPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -180,9 +195,35 @@ export function EventInspector({
                 multiline
                 rows={4}
               />
+              {/* SC 2.5.7 — the no-drag path to a duration. */}
+              <div className="space-y-2 border-t border-border pt-3.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-text-3">
+                  How long it runs
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    aria-label="Make this event 15 minutes shorter"
+                    onPress={() => onResize(-15)}
+                  >
+                    15 min shorter
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    aria-label="Make this event 15 minutes longer"
+                    onPress={() => onResize(15)}
+                  >
+                    15 min longer
+                  </Button>
+                </div>
+              </div>
+
               <p className="text-xs text-text-3">
-                To change the time, drag the event on the grid — or select it and use the arrow
-                keys. Every move is re-checked for conflicts and recorded in the audit trail.
+                To move it, drag the event on the grid — or select it and use the arrow keys; hold
+                Alt with up or down to change its length from the keyboard. Every change is
+                re-checked for conflicts and recorded in the audit trail.
               </p>
             </div>
           ) : (

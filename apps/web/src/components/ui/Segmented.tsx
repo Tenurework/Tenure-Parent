@@ -45,7 +45,7 @@ export function Segmented({
         <Radio
           key={item.key}
           value={item.key}
-          className="cursor-pointer select-none rounded-full px-3.5 py-1.5 text-[13px] font-medium text-text-2 outline-none transition-colors data-[hovered]:text-text-1 data-[selected]:bg-[--segment-active-bg] data-[selected]:text-text-1 data-[selected]:shadow-xs data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--primary]"
+          className="cursor-pointer select-none rounded-full px-3.5 py-1.5 text-[13px] font-medium text-text-2 outline-none transition-colors data-[hovered]:text-text-1 data-[selected]:bg-[--segment-active-bg] data-[selected]:text-text-1 data-[selected]:shadow-xs data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--border-focus]"
         >
           {item.label}
         </Radio>

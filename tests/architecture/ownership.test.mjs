@@ -77,15 +77,32 @@ test('the shared list stays small', () => {
   // the easy way out of classifying it, and this is what makes that a decision
   // rather than a reflex.
   //
-  // The sixteen are the root document and its error boundaries, the load
-  // balancer probe, the boot-time environment check, and four UI primitives
+  // The eighteen are the root document and its error boundaries, the load
+  // balancer probe, the boot-time environment check, and the UI primitives
   // that live at the top of components/ rather than in components/ui/. None
   // belongs to a platform domain, and forcing them into one to make a number
   // smaller would be worse than the number.
+  //
+  // 16 -> 18, argued rather than adjusted, because this is the direction the
+  // number is not supposed to move. Eleven previously-unclassified files were
+  // classified in the same commit — payments into `billing-metering`,
+  // connections and the relay projection policy into `integrations`, the
+  // approval digest into `workflow`, the gallery into `files` — and these two
+  // are what was left after that:
+  //
+  //   · `DensitySwitcher.tsx` sets how tightly every domain renders. It sits at
+  //     the top of components/ beside `ThemeSwitcher.tsx`, which is already
+  //     here for exactly this reason. Its only importer is the settings page,
+  //     but being rendered from one place does not make a control that changes
+  //     every surface the property of that place.
+  //   · `design-contracts.test.ts` asserts design contracts ACROSS surfaces —
+  //     it reads the shell, the settings page and the switchers in one test.
+  //     Scoping it to a domain would mean the surfaces outside that domain
+  //     stopped being checked, which is the opposite of what it is for.
   assert.equal(
     SHARED.size,
-    16,
-    `${SHARED.size} files are owned by no domain, expected 16. This may only fall — if a file ` +
+    18,
+    `${SHARED.size} files are owned by no domain, expected 18. This may only fall — if a file ` +
       `was classified into a domain, lower this in the same commit.`,
   )
   assert.ok(SHARED_PREFIXES.length <= 5, 'too many shared directories')

@@ -11,6 +11,7 @@ import { describe, expect, it } from "@jest/globals"
 import {
   ALL_STATES,
   LifecycleError,
+  REQUIRES_OWNER,
   RESIDUAL_COST,
   TERMINAL,
   advance,
@@ -20,6 +21,7 @@ import {
   type LifecycleStep,
   type TenantState,
 } from "./lifecycle"
+import { RESIDUAL_CLAIMS, observeResidual, reconcileResidual } from "./residual-reconciliation"
 import { MANIFEST_VERSION, digestOf, planFor, validateManifest, type TenantManifest } from "./manifest"
 import { CELL_APPLY, deploymentManifest, executeStep, type ExecutionContext } from "./execute"
 
@@ -159,6 +161,120 @@ describe("lifecycle", () => {
       expect(RESIDUAL_COST[state]).toMatch(/bill|retain/i)
     }
     expect(RESIDUAL_COST.HIBERNATED_ZERO_RUNTIME).toMatch(/not zero cost/i)
+  })
+
+  /* ----------------------------------------------------------- WRK-120-005 --
+   * The residual claim is checkable, and an owner's departure cannot orphan a
+   * tenant.
+   */
+  describe("residual cost is reconciled against what is actually retained", () => {
+    it("keeps the sentence and the resource list as one fact", () => {
+      // Derived, not declared twice. Written twice, the sentence is what
+      // everybody reads and the list is what everybody trusts.
+      for (const claim of Object.values(RESIDUAL_CLAIMS)) {
+        expect(RESIDUAL_COST[claim.state]).toBe(claim.note)
+      }
+      expect(Object.keys(RESIDUAL_COST).sort()).toEqual(Object.keys(RESIDUAL_CLAIMS).sort())
+    })
+
+    it("names a hibernated tenant's compute as a bill nobody expected", () => {
+      // The exact failure GE-103-012 describes: HIBERNATED_ZERO_RUNTIME claims
+      // no compute, and a dedicated task keeps running whether or not routing
+      // points at it.
+      const claim = RESIDUAL_CLAIMS.HIBERNATED_ZERO_RUNTIME!
+      const observed = observeResidual({
+        isolation: "dedicated-account",
+        hasDeployment: true,
+        serving: false,
+        evidenceRecords: 3,
+      })
+
+      expect(observed).toContain("compute")
+      const { unexplained, overclaimed } = reconcileResidual(claim, observed)
+      // Compute is retained and not claimed; database likewise. Both are bills.
+      expect([...unexplained].sort()).toEqual(["compute", "database"])
+      expect(overclaimed).toEqual([])
+    })
+
+    it("says nothing is unexplained when the claim is right", () => {
+      // A pooled, hibernated tenant retains exactly what the sentence says.
+      // Without this the test above would pass against a function that returned
+      // every class every time.
+      const claim = RESIDUAL_CLAIMS.HIBERNATED_ZERO_RUNTIME!
+      const observed = observeResidual({
+        isolation: "pooled",
+        hasDeployment: true,
+        serving: false,
+        evidenceRecords: 1,
+      })
+      const { unexplained, overclaimed } = reconcileResidual(claim, observed)
+
+      expect(unexplained).toEqual(["database"])
+      // The console claims a dedicated edge this pooled tenant does not have.
+      // Reported, because an operator told they are paying for something they
+      // are not stops believing the panel that carries the real finding.
+      expect(overclaimed).toEqual(["edge"])
+    })
+
+    it("treats anything left on a purged tenant as unexplained", () => {
+      // PURGED_ZERO_INCREMENTAL_COST claims nothing at all, so a purged tenant
+      // still holding a snapshot is the strongest finding the reconciliation
+      // can produce.
+      const { unexplained } = reconcileResidual(RESIDUAL_CLAIMS.PURGED_ZERO_INCREMENTAL_COST!, [
+        "snapshot",
+      ])
+      expect(unexplained).toEqual(["snapshot"])
+    })
+
+    it("observes nothing for a tenant that was never deployed", () => {
+      expect(
+        observeResidual({
+          isolation: "pooled",
+          hasDeployment: false,
+          serving: false,
+          evidenceRecords: 0,
+        }),
+      ).toEqual([])
+    })
+  })
+
+  describe("a departure cannot leave a tenant unowned", () => {
+    const OWNER = "successor@tenure.example"
+
+    it("refuses suspend, hibernate and offboard with no successor owner recorded", () => {
+      for (const [from, to] of [
+        ["ACTIVE", "SUSPENDING"],
+        ["ACTIVE", "HIBERNATING"],
+        ["ACTIVE", "OFFBOARDING"],
+      ] as const) {
+        expect(REQUIRES_OWNER.has(to)).toBe(true)
+        expect(() => advance(from, to, { actor: OPERATOR })).toThrow(/requires a recorded owner/)
+        // Blank is not a name. The value's only source is a form field.
+        expect(() => advance(from, to, { actor: OPERATOR, ownerPrincipalId: "   " })).toThrow(
+          /requires a recorded owner/,
+        )
+        expect(advance(from, to, { actor: OPERATOR, ownerPrincipalId: OWNER }).state).toBe(to)
+      }
+    })
+
+    it("records the successor on the step, so the answer survives the move", () => {
+      const { step } = advance("ACTIVE", "HIBERNATING", {
+        actor: OPERATOR,
+        ownerPrincipalId: ` ${OWNER} `,
+      })
+      expect(step.ownerPrincipalId).toBe(OWNER)
+    })
+
+    it("leaves every other transition alone", () => {
+      // A control demanded everywhere is a field people fill with the same word
+      // every time, which is the same as not having it.
+      expect(advance("ACTIVE", "IDLE", { actor: OPERATOR }).state).toBe("IDLE")
+      expect(advance("ACTIVE", "EXPORTING", { actor: OPERATOR }).state).toBe("EXPORTING")
+      expect(advance("ACTIVE", "LEGAL_HOLD", { actor: OPERATOR }).state).toBe("LEGAL_HOLD")
+      expect(
+        advance("SUSPENDED_LOGICAL", "REACTIVATING", { actor: OPERATOR }).step.ownerPrincipalId,
+      ).toBeUndefined()
+    })
   })
 
   it("has no transition into DRAFT except from a failure or a rejection", () => {
@@ -394,6 +510,95 @@ describe("manifest", () => {
         context,
       ),
     ).toEqual({ valid: true, problems: [] })
+  })
+
+  /* --------------------------------------------------------- WRK-020-004 --
+   * Object and field authority, checked THROUGH `validateManifest`.
+   *
+   * The rules themselves are proved in
+   * `packages/module-runtime/src/module-runtime.test.ts`. These assert the
+   * wiring, which is the half that has silently gone missing before: a
+   * declaration the manifest carries and the validator does not pass on is a
+   * contradiction nothing refuses, and it would look exactly like this file
+   * being green.
+   */
+  it("refuses an object whose authority contradicts its own domain", () => {
+    const { valid, problems } = validateManifest(
+      manifest({
+        coexistence: "HYBRID_PROCESS_SPLIT",
+        systemOfRecord: { finance: "external", org: "tenure" },
+        objectAuthority: [
+          { domain: "finance", object: "LedgerEntry", authority: "tenure", direction: "OUTBOUND" },
+        ],
+      }),
+      context,
+    )
+    expect(valid).toBe(false)
+    const problem = problems.find((p) => p.field === "objectAuthority.finance.LedgerEntry")!
+    expect(problem.reason).toBe("contradicts-system-of-record")
+  })
+
+  it("refuses a bidirectional object under a profile that is not bidirectional", () => {
+    const { problems } = validateManifest(
+      manifest({
+        objectAuthority: [
+          { domain: "org", object: "Organization", authority: "tenure", direction: "BIDIRECTIONAL" },
+        ],
+      }),
+      context,
+    )
+    expect(problems.map((p) => p.reason)).toContain("bidirectional-outside-coexistence")
+  })
+
+  it("refuses a field the other side owns with no channel to reach it", () => {
+    const { problems } = validateManifest(
+      manifest({
+        coexistence: "HYBRID_PROCESS_SPLIT",
+        systemOfRecord: { finance: "external", org: "tenure" },
+        objectAuthority: [
+          {
+            domain: "finance",
+            object: "LedgerEntry",
+            authority: "external",
+            direction: "NONE",
+            fields: [{ field: "memo", authority: "tenure" }],
+          },
+        ],
+      }),
+      context,
+    )
+    expect(problems.map((p) => p.reason)).toContain("field-owner-without-sync")
+  })
+
+  it("accepts a coherent object split, and puts it on the plan an approver reads", () => {
+    const coherent = manifest({
+      coexistence: "COEXISTENCE_TRANSITION",
+      systemOfRecord: { finance: "external", org: "tenure" },
+      objectAuthority: [
+        {
+          domain: "finance",
+          object: "LedgerEntry",
+          authority: "external",
+          direction: "BIDIRECTIONAL",
+          fields: [{ field: "memo", authority: "tenure" }],
+        },
+      ],
+    })
+    expect(validateManifest(coherent, context)).toEqual({ valid: true, problems: [] })
+
+    // The plan is where a person decides. "Controlled, bidirectional
+    // coexistence" with nothing under it is a profile name; this is the
+    // sentence that says which field the other side writes.
+    const warning = planFor(coherent).warnings.find((w) => w.includes("Object-level authority"))
+    expect(warning).toBeDefined()
+    expect(warning).toContain("finance.LedgerEntry: external writes it, sync BIDIRECTIONAL")
+    expect(warning).toContain("memo → tenure")
+  })
+
+  it("leaves a manifest that declares no object authority alone", () => {
+    // Every tenant in the registry today. The field is optional and adding it
+    // must not have refused the whole fleet.
+    expect(validateManifest(manifest(), context)).toEqual({ valid: true, problems: [] })
   })
 
   it("refuses a version-1 manifest rather than reading it as Tenure-owns-everything", () => {

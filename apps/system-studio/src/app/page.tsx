@@ -8,7 +8,12 @@ import { CATALOG_ENTRIES, availabilityDecisions } from "@tenure/provisioning"
 import { auth } from "@/lib/auth"
 import { fleet } from "@/lib/cells"
 import { isOperator, operatorConfigProblems } from "@/lib/operators"
-import { REGISTRY, layersFor, modulesFor } from "@tenure/platform-config"
+import {
+  REGISTRY,
+  layersFor,
+  modulesFor,
+  type ModulePaymentCapability,
+} from "@tenure/platform-config"
 
 export const dynamic = "force-dynamic"
 
@@ -71,6 +76,14 @@ export default async function StudioPage() {
   const capabilities = availabilityDecisions(CATALOG_ENTRIES, availabilityScope)
   const offered = capabilities.filter((d) => d.available)
   const refused = capabilities.filter((d) => !d.available)
+
+  // WRK-000-002. Flattened out of the decisions rather than gathered from the
+  // catalog: the classification only means anything alongside the artifact
+  // verdict it was checked against, and reading the entries directly would
+  // produce rows nobody had reconciled with the gate.
+  const classified = capabilities.flatMap((d) =>
+    (d.capabilities ?? []).map((c) => ({ ...c, entryKey: d.entry.key })),
+  )
 
   const systems = TENANT_BINDINGS.map((binding) => {
     const blueprint = getBlueprint(binding.blueprintId)
@@ -144,12 +157,79 @@ export default async function StudioPage() {
             {refused.map((d) => (
               <p className="refused" key={d.entry.key}>
                 <b>{d.entry.key}</b> — {d.reason}
+                {/* The provider's own answer, where the refusal is about them.
+                    `provider-review-missing` covers NOT_SUBMITTED, IN_REVIEW
+                    and REJECTED, and those send an operator to three different
+                    places — so the state travels with the reason. */}
+                {d.providerReview ? ` (${d.providerReview.program}: ${d.providerReview.state})` : ""}
                 {/* The disclaimer is carried on the decision, so this cannot
                     render an availability verdict without the text that
                     qualifies it. */}
                 {d.disclaimer ? ` — ${d.disclaimer}` : ""}
               </p>
             ))}
+          </>
+        )}
+
+        {/* WRK-000-002. One row per (provider, product, capability, direction),
+            in the seven-state vocabulary the Bible names, with its evidence.
+            The entry rows above answer "may this pack be offered"; these answer
+            "what does it actually do", and a pack refused as `planned` at the
+            artifact level still has to say which capabilities were promised.
+
+            Rendered from the decision's own `capabilities`, not from a second
+            lookup, so an availability verdict and the claims underneath it
+            cannot come apart. */}
+        {classified.length > 0 && (
+          <>
+            <h3>
+              Capabilities — {classified.filter((c) => c.status === "AVAILABLE").length} available of{" "}
+              {classified.length}
+            </h3>
+            <table className="grid">
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Product</th>
+                  <th>Capability</th>
+                  <th>Direction</th>
+                  <th>Status</th>
+                  <th>Evidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                {classified.map((c) => (
+                  <tr key={`${c.entryKey}:${c.provider}/${c.product}/${c.capability}/${c.direction}`}>
+                    <td className="id">{c.provider}</td>
+                    <td>{c.product}</td>
+                    <td>{c.capability}</td>
+                    <td className="slug">{c.direction}</td>
+                    <td>
+                      {c.status}
+                      {c.problems.map((p) => (
+                        <span className="badge bad" key={p.reason}>
+                          {" "}
+                          {p.reason}
+                        </span>
+                      ))}
+                    </td>
+                    {/* An AVAILABLE or DEGRADED row with nothing here is a
+                        claim nobody can retrace, and `capabilityProblems` has
+                        already flagged it in the column to the left. */}
+                    <td className="slug">{c.evidenceRefs.join(", ") || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {classified.flatMap((c) => c.problems).length > 0 && (
+              <p className="error">
+                {classified.flatMap((c) => c.problems).length} capability claims do not hold up.
+                {classified
+                  .flatMap((c) => c.problems)
+                  .map((p) => ` ${p.capability}: ${p.detail}`)
+                  .join("")}
+              </p>
+            )}
           </>
         )}
       </section>
@@ -202,6 +282,54 @@ export default async function StudioPage() {
                   {p.moduleKey} — not enabled: {p.detail}
                 </p>
               ))}
+
+              {/* PAY-000-008 / PAY-010-005. A module being enabled says the
+                  tenant bought it. It says nothing about whether Tenure has
+                  certified the PAYMENTS the module's surfaces would use, and
+                  before this the two were indistinguishable because there was
+                  no third value between on and off.
+
+                  Every row is a STATE, never a tick: `PLANNED` and
+                  `UNSUPPORTED` are different answers with different fixes, and
+                  a provider documenting something is not Tenure having approved
+                  it. `capabilityAvailabilityForModules` validates the approving
+                  ADR against the filesystem on each read, so a registry edited
+                  to claim GA without writing the decision down fails here
+                  rather than rendering as available. */}
+              {s.modules.paymentCapabilities.length > 0 && (
+                <>
+                  <h3>
+                    Payments capabilities —{" "}
+                    {s.modules.paymentCapabilities.filter((c) => c.transactable).length} transactable
+                    of {s.modules.paymentCapabilities.length}
+                  </h3>
+                  <table className="grid">
+                    <thead>
+                      <tr>
+                        <th>Module</th>
+                        <th>Capability</th>
+                        <th>State</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {s.modules.paymentCapabilities.map((c: ModulePaymentCapability) => (
+                        <tr key={`${c.moduleKey}:${c.capabilityId}`}>
+                          <td className="id">{c.moduleKey}</td>
+                          <td className="slug" title={c.summary}>
+                            {c.capabilityId}
+                          </td>
+                          <td>
+                            {c.state}
+                            {!c.transactable && (
+                              <span className="badge bad"> not transactable</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
 
               <h3>Configuration, and where each value came from</h3>
               <dl className="kv">

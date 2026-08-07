@@ -92,6 +92,31 @@ export function citesSomethingCheckable(body, id = "") {
   )
 }
 
+/**
+ * The requirements a gate is the gate for, when the ids say so.
+ *
+ * `TTES-GATE-040` is the gate over `TTES-040-001…005`, and the ledger says so
+ * in the only place it can be checked: the identifiers. Returns null when the
+ * family cannot be derived — `GE-GATE-3` gathers four families and names them
+ * in prose — because a check that guesses is worse than one that abstains.
+ */
+export function gateChildren(id, file, all) {
+  const m = /^([A-Z]+)-GATE-(\d{3})$/.exec(id)
+  if (!m) return null
+  const child = new RegExp(`^${m[1]}-${m[2]}-\\d+$`)
+  const kids = all.filter((e) => e.file === file && child.test(e.id))
+  return kids.length > 0 ? kids : null
+}
+
+/** A decided child is one somebody finished with. FAIL is not a decision. */
+const DECIDED = new Set(["PASS", "NOT_APPLICABLE"])
+
+/** `- Children: 0 of 5 decided` → `{ decided: 0, total: 5 }`. */
+export function statedChildRatio(body) {
+  const m = /^\s*[-*]\s*\*{0,2}Children\*{0,2}\s*:\s*\*{0,2}(\d+)\s*(?:\/|\s+of\s+)\s*(\d+)/m.exec(body)
+  return m ? { decided: Number(m[1]), total: Number(m[2]) } : null
+}
+
 test("the reader finds the ledger entries", () => {
   // Every assertion below passes on an empty list, and this list comes from
   // splitting markdown on a heading shape.
@@ -155,6 +180,70 @@ test("a checked box and a PASS status agree", () => {
     .map((e) => `${e.file} ${e.id}: checked=${e.checked} status=${e.status}`)
 
   assert.deepEqual(disagreeing, [], "A ledger entry's checkbox and status disagree.")
+})
+
+test("the child-ratio detectors read real shapes and reject invented ones", () => {
+  // Exercised directly, because both are allowed to abstain — and a detector
+  // that abstains on everything would make the two checks below vacuous while
+  // looking identical in CI.
+  const all = entries()
+  const ttes = "docs/implementation/tenant-experience-execution-ledger.md"
+  const kids = gateChildren("TTES-GATE-040", ttes, all)
+  assert.ok(kids, "TTES-GATE-040's children could not be derived from the ledger at all.")
+  assert.deepEqual(
+    kids.map((k) => k.id).sort(),
+    ["TTES-040-001", "TTES-040-002", "TTES-040-003", "TTES-040-004", "TTES-040-005"],
+    "The gate's children are the TTES-040 requirements; this is the mapping the ratio is checked against.",
+  )
+  // A gate that gathers several families names them in prose, and is not guessed at.
+  assert.equal(gateChildren("GE-GATE-3", "docs/implementation/global-engine-execution-ledger.md", all), null)
+  // Not a gate at all.
+  assert.equal(gateChildren("TTES-040-001", ttes, all), null)
+
+  assert.deepEqual(statedChildRatio("  - Children: 0 of 5 decided"), { decided: 0, total: 5 })
+  assert.deepEqual(statedChildRatio("  - Children: 21/21 PASS"), { decided: 21, total: 21 })
+  // The gate-evidence rule above accepts any ratio anywhere in the body, which
+  // is how "2901/2901 unit tests" reads as a child ratio. This one does not.
+  assert.equal(statedChildRatio("  - Evidence: 2901/2901 unit tests"), null)
+})
+
+test("a gate that states its child ratio states the true one", () => {
+  // A gate is proven by its children, so the ratio is the whole claim. Written
+  // by hand it goes stale the first time a child is decided, and a stale ratio
+  // is indistinguishable from a measured one — it is a number, and the
+  // evidence rule above is satisfied by a number.
+  const all = entries()
+  const wrong = []
+  for (const entry of all) {
+    const stated = statedChildRatio(entry.body)
+    if (!stated) continue
+    const kids = gateChildren(entry.id, entry.file, all)
+    if (!kids) continue
+    const decided = kids.filter((k) => DECIDED.has(k.status)).length
+    if (stated.total !== kids.length || stated.decided !== decided) {
+      wrong.push(
+        `${entry.file} ${entry.id}: says ${stated.decided} of ${stated.total}, ledger says ${decided} of ${kids.length}` +
+          ` (${kids.map((k) => `${k.id}=${k.status}`).join(", ")})`,
+      )
+    }
+  }
+  assert.deepEqual(wrong, [], "A gate's stated child ratio disagrees with the children in the same ledger.")
+})
+
+test("a gate is not PASS while a child it counts is undecided", () => {
+  const all = entries()
+  const premature = []
+  for (const entry of all) {
+    if (entry.status !== "PASS") continue
+    const stated = statedChildRatio(entry.body)
+    const kids = stated && gateChildren(entry.id, entry.file, all)
+    if (!kids) continue
+    const undecided = kids.filter((k) => !DECIDED.has(k.status))
+    if (undecided.length > 0) {
+      premature.push(`${entry.file} ${entry.id}: ${undecided.map((k) => `${k.id}=${k.status}`).join(", ")}`)
+    }
+  }
+  assert.deepEqual(premature, [], "A gate is PASS while requirements it gates are not.")
 })
 
 test("no entry claims a status the loop cannot act on", () => {

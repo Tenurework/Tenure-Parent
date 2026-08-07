@@ -46,10 +46,14 @@ export type {
   ModuleLifecycle,
   ModuleManifest,
   ModuleNavEntry,
+  ModuleSlo,
   ModuleSuspension,
   RiskClass,
   SuspensionKind,
 } from "./manifest"
+
+export { SloObjectiveError, sloBurn } from "./slo"
+export type { SloBurn, SloMeasurement } from "./slo"
 
 export {
   AmbiguousAlternativeError,
@@ -73,16 +77,22 @@ export type {
 } from "./resolve"
 
 export {
+  BIDIRECTIONAL_PROFILES,
   BUSINESS_DOMAINS,
   COEXISTENCE_PROFILES,
+  SYNC_DIRECTIONS,
   coexistenceProblems,
   externalDomains,
   moduleDomains,
+  objectAuthorityNotes,
 } from "./coexistence"
 export type {
   CoexistenceDeclaration,
   CoexistenceProblem,
   CoexistenceProfile,
+  FieldAuthority,
+  ObjectAuthority,
+  SyncDirection,
   SystemOfRecordAuthority,
   SystemOfRecordMap,
 } from "./coexistence"

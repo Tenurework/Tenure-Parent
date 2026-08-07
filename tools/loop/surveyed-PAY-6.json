@@ -1,0 +1,138 @@
+[
+  {
+    "id": "REVIEW-FINDINGS-7",
+    "title": "ApprovalRequest.idempotencyKey is a client-supplied GLOBAL unique — cross-tenant leak, and the field has zero production writers",
+    "why_open": "apps/web/prisma/schema.prisma:466 `idempotencyKey String? @unique`, materialised at apps/web/prisma/migrations/20260730000000_baseline/migration.sql:740 as `CREATE UNIQUE INDEX \"ApprovalRequest_idempotencyKey_key\" ON \"ApprovalRequest\"(\"idempotencyKey\")` — one index across all tenants. NEW EVIDENCE the review does not carry: the column has NO production writer. `apps/web/src/app/(app)/approvals/actions.ts:112` is the only `approvalRequest.create` and it never sets the field; a repo-wide grep for `idempotencyKey` finds it only in the schema, the baseline migration, `apps/web/src/lib/commands/bus.ts` (its own tenant-scoped ports, unrelated table) and `packages/contracts/src/index.ts:132`. So a migration alone fixes a leak in a dead column and ships a scoped unique nothing can violate.",
+    "files": [
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/lib/approvals.ts",
+      "tests/security/"
+    ],
+    "smallest_real_change": "Replace `idempotencyKey String? @unique` with a plain nullable column plus `@@unique([institutionId, idempotencyKey])`; write the migration by hand (DROP INDEX \"ApprovalRequest_idempotencyKey_key\"; CREATE UNIQUE INDEX \"ApprovalRequest_institutionId_idempotencyKey_key\" ON \"ApprovalRequest\"(\"institutionId\",\"idempotencyKey\")). Then give it the producer it lacks: in `submitApproval` (actions.ts:112) set `idempotencyKey` to a value derived from the submitting seat + organizationId + type + a form-supplied nonce, and turn the create into a `create`-on-conflict-return-existing so a double-submit resolves to the SAME approval. Prove it with an itest that inserts the same key for two institutions and asserts BOTH rows exist and each tenant reads back its own — mutate the composite unique back to global and that test must red.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-030-006",
+    "title": "Deleting an Organization cascade-deletes the entire financial history — budgets, transactions, budget lines, vendors and ledger entries",
+    "why_open": "Every financial model hangs off `onDelete: Cascade`: apps/web/prisma/schema.prisma:722 (Budget→Organization), :747 (Transaction→Budget), :768 (BudgetLine→Organization), :793 (Vendor→Organization), :823 (LedgerEntry→Organization), :825 (LedgerEntry→BudgetLine), and :483 (ApprovalStep→ApprovalRequest), :459 (ApprovalRequest→Organization). One `organization.delete()` destroys the posted ledger that `apps/web/src/lib/finance.ts:204 summarize()` reports and that `apps/web/src/app/(app)/approvals/actions.ts:347` writes. No guard test anywhere asserts otherwise — `tests/security/` has 20+ suites and none mentions cascade or referential action. The requirement is stated verbatim in the ledger at docs/implementation/payments-treasury-execution-ledger.md:138 and is FAIL.",
+    "files": [
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/",
+      "apps/web/src/lib/finance.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "tests/security/"
+    ],
+    "smallest_real_change": "Change the six financial relations to `onDelete: Restrict` and write the migration (DROP CONSTRAINT / ADD CONSTRAINT ... ON DELETE RESTRICT for Budget_organizationId_fkey, Transaction_budgetId_fkey, BudgetLine_organizationId_fkey, Vendor_organizationId_fkey, LedgerEntry_organizationId_fkey, LedgerEntry_budgetLineId_fkey). Add `tests/security/financial-history-does-not-cascade.test.mjs` that reads the schema and asserts every relation on Budget/Transaction/BudgetLine/Vendor/LedgerEntry is Restrict, plus an `.itest.ts` against real Postgres that seeds an org with one LedgerEntry, attempts `organization.delete()` and asserts a foreign-key violation and that the LedgerEntry row survives. Mutation: flip ONE relation back to Cascade — the itest must red. Any production path that legitimately removes an org must first be made to archive (Vendor already has `isArchived` at schema.prisma:800; give Organization the same).",
+    "already_done": false
+  },
+  {
+    "id": "PAY-130-004",
+    "title": "No provider balance-transaction ingestion — no external-reference table, no provider/mode/account-qualified key, no replay guard",
+    "why_open": "There is no payments schema at all: `grep -n '^model ' apps/web/prisma/schema.prisma` lists 40 models and none is a provider object, balance transaction or external reference. The only replay machinery in the repo is OUTBOUND — `apps/web/src/lib/outbox/outbox.ts:140 dispatchOnce` / `:212 replay` — with no inbound counterpart. `apps/web/src/lib/commands/bus.ts:44 claimIdempotency` declares an inbound idempotency port whose only implementations are the fakes in `bus.test.ts:52,98,113,140`; there is no table and no production adapter. A preserved (UNVERIFIED) draft of the qualified key exists at <scratchpad 48abdb25>/killed-waves/payments/src/external-reference.ts:31 `ProviderRef` / :82 `refKey`.",
+    "files": [
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/",
+      "packages/payments/src/external-reference.ts",
+      "packages/payments/src/balance-transactions.ts",
+      "apps/web/src/lib/outbox/outbox.ts"
+    ],
+    "smallest_real_change": "Add a `ProviderBalanceTransaction` model keyed `@@unique([provider, mode, providerAccountId, externalId])` (the qualification is the point: the same `txn_123` in test and live, or under two connected accounts, are different objects) plus `institutionId` and an `ingestedAt`. Ship `packages/payments/src/balance-transactions.ts` with a PURE `ingest(existingRefs, batch)` that returns `{ inserted, replayed, conflicting }` and refuses a row whose external id matches an existing ref with a DIFFERENT payload digest. Wire it to a real reader (a read-only reconciliation page or job) — no provider write path. Mutation: drop `mode` from the unique tuple and the test that ingests the same id in test and live modes must red with a false 'replayed'.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-020-002",
+    "title": "No payments port exists, so 'prevent modules importing raw Stripe clients' has nothing to point them at",
+    "why_open": "`packages/` contains audit, authorization, configuration, contracts, finops, identity, metadata, module-runtime, organization-model, platform-config, provisioning, releases, workflow — no payments. `grep -rn '\"stripe\"' package.json apps/*/package.json packages/*/package.json` returns nothing, and the only occurrence of the word 'stripe' in any source tree is a requirement TITLE in `apps/system-studio/src/generated/platform-truth.json:1022`. The command layer that would be the alternative — `apps/web/src/lib/commands/bus.ts:86 dispatch()` — has ZERO production callers (grep for `commands/bus` matches only `bus.test.ts`). So the interface named by the requirement is neither built nor stubbed. Ledger line docs/implementation/payments-treasury-execution-ledger.md:90, FAIL.",
+    "files": [
+      "packages/payments/package.json",
+      "packages/payments/src/index.ts",
+      "packages/payments/src/gateway.ts",
+      "apps/web/src/lib/commands/bus.ts",
+      "package.json"
+    ],
+    "smallest_real_change": "Create `packages/payments` (auto-wired by the `packages/*` workspace glob at package.json:5-9) exporting a provider-neutral command surface — `quotePayment`, `describeMerchant`, `classifyRequest` — typed over integer minor units and an explicit `ProviderMode`, with NO provider SDK dependency and no write verb in the type. Give it one real consumer this session so it is not a declaration: route the finance surface's merchant/fee display through it from `apps/web/src/lib/finance.ts`. Name the consumers checked when the type lands: `apps/web/src/lib/finance.ts`, `apps/web/src/app/(app)/approvals/actions.ts:347` (the only LedgerEntry writer), and `apps/system-studio/src/lib/cost-source.ts`.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-000-006",
+    "title": "The bypass guard covers database, AWS and model providers but not payments — nothing proves a module cannot construct a raw Stripe client",
+    "why_open": "`tests/architecture/forbidden-clients.test.mjs` is exactly the right shape and stops one category short: `OWNERS` at :191-214 has only `database`, `aws`, `provider`; the exemption lists at :276-277 are `AWS_EXEMPT`/`PROVIDER_EXEMPT`; `AWS_CLIENT_CTORS` at :288-289 and `PROVIDER_HOSTS` at :296-302 name no payment provider and no `api.stripe.com`. The size ratchet at :455-457 pins three lists, so adding a fourth is a deliberate, visible change. Until it exists the requirement's word 'prove' is unmet — today the absence of Stripe imports is an accident of nobody having written one, not a property.",
+    "files": [
+      "tests/architecture/forbidden-clients.test.mjs",
+      "packages/payments/src/index.ts",
+      "tools/run-platform-tests.mjs"
+    ],
+    "smallest_real_change": "Add a fourth rule to the SAME file: `OWNERS.payments` = { 'packages/payments/src/gateway.ts': '...' }, `PAYMENTS_EXEMPT = new Map()` with `assert.equal(PAYMENTS_EXEMPT.size, 0)` beside the existing ratchets at :455-457, a module rule forbidding any value-import of `stripe` / `@stripe/*` outside the owner, and `api.stripe.com` added to `PROVIDER_HOSTS` (:296) so a literal endpoint is caught too. Extend the 'every owning adapter exists and still holds the client it owns' proof at :386-404 with the payments entry, so deleting the port is not the cheap way to green. Mutation: add `import Stripe from 'stripe'` to any file under apps/web/src — the suite must red; move it into the owner — green.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-180-006",
+    "title": "No refusal-and-escalation path for prohibited or ambiguous money movement — the one control §0.3 makes absolute is unimplemented",
+    "why_open": "Nothing in the repo classifies a request as money movement, let alone refuses one. `grep -rn 'payout|transfer|disburse|payroll' --include=*.ts apps/web/src packages` finds no such concept; `apps/web/src/lib/approvals.ts:152 availableActions` and `:188 nextStatus` model an approval state machine with no money-movement predicate, and `apps/web/src/app/(app)/approvals/actions.ts:347` posts a LedgerEntry — an internal memo — with no gate distinguishing it from a real disbursement. docs/implementation/NEXT-SESSION.md §0.3 forbids execution absolutely; a refusal engine is the code that makes the prohibition enforceable rather than a promise in a prompt.",
+    "files": [
+      "packages/payments/src/refusal.ts",
+      "packages/payments/src/index.ts",
+      "apps/web/src/lib/approvals.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts"
+    ],
+    "smallest_real_change": "`packages/payments/src/refusal.ts`: `classifyRequest(req): { verdict: 'ALLOWED' | 'REFUSED' | 'ESCALATE', reason, escalateTo }` — REFUSED for anything whose effect leaves the platform (payout, transfer, charge, payroll, bank instruction), ESCALATE for ambiguous cases (a ledger allocation naming an external beneficiary), ALLOWED only for same-legal-entity memo/ledger writes. Call it from the real producer: `submitApproval`/`decide` in `apps/web/src/app/(app)/approvals/actions.ts` before any LedgerEntry write, so a REFUSED verdict blocks the write and records an AuditEvent with the reason. Mutation: make `classifyRequest` return ALLOWED unconditionally and the action-level test that submits a payout-shaped approval must red — assert on what the ACTION emits, not on the classifier called directly.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-140-008",
+    "title": "No webhook verification at all — forged signature, rotated secret, duplicate, out-of-order and stale-schema events are all untested because none can be received",
+    "why_open": "There is no webhook endpoint for any payment provider: `apps/web/src/app/api/` has no provider route, and the only signed-envelope logic in the repo is the job envelope at `apps/web/src/app/api/jobs/reminders/route.ts:63`, which derives its own key rather than verifying a provider's. No HMAC verification, no timestamp tolerance, no replay set, no secret-rotation window exists anywhere — `grep -rn 'timingSafeEqual|constructEvent|webhookSecret'` over apps and packages returns nothing.",
+    "files": [
+      "packages/payments/src/webhook.ts",
+      "packages/payments/src/index.ts",
+      "apps/web/src/app/api/jobs/reminders/route.ts",
+      "apps/web/prisma/schema.prisma"
+    ],
+    "smallest_real_change": "Ship `packages/payments/src/webhook.ts` as a PURE verifier: `verifySignature(rawBody, header, secrets[], nowMs, toleranceMs)` using `crypto.timingSafeEqual`, accepting an ARRAY of secrets so a rotation window has two valid keys, rejecting a timestamp outside tolerance, and `dedupe(eventId, seen)` returning `'new' | 'duplicate' | 'out-of-order'` against a persisted `(provider, mode, accountId, eventId, sequence)` row. Wire it to a read-only ingestion route that ONLY records the event (no state change, no provider call). Mutations to prove: (a) flip `timingSafeEqual` to `===` — the forged-signature case must still red via a length-mismatch/short-circuit test; (b) drop the tolerance check — the stale-timestamp test must red; (c) accept a single secret instead of the array — the rotation test must red.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-140-002",
+    "title": "No provider API version is pinned anywhere, so there is nothing for a contract/regression test to hold still",
+    "why_open": "The only version machinery in the platform is engine-version compatibility: `packages/platform-config/src/compatibility.ts:41 EngineVersion`, `:54 parseVersion`, `:109 checkCompatibility` — all about Tenure's own engine, none about a provider API. `grep -rn 'apiVersion' --include=*.ts apps packages` returns nothing outside node_modules. `apps/web/src/lib/env.ts:33` validates NODE_ENV and secrets and names no provider version. So an upgrade today would be invisible to CI.",
+    "files": [
+      "packages/payments/src/api-version.ts",
+      "packages/platform-config/src/compatibility.ts",
+      "tests/architecture/",
+      "docs/implementation/payments-treasury-execution-ledger.md"
+    ],
+    "smallest_real_change": "`packages/payments/src/api-version.ts` exporting `PROVIDER_API_VERSION` as a frozen literal plus `SUPPORTED_EVENT_TYPES` and the exact field set each one is read for. Every payments module (webhook.ts, external-reference.ts) imports the constant rather than restating it. Add `tests/architecture/provider-api-version-is-pinned.test.mjs` asserting (a) the constant matches the version recorded in the ledger evidence line, (b) no source file outside api-version.ts contains a bare version-shaped literal for the provider, and (c) every entry in SUPPORTED_EVENT_TYPES has a parser. Reuse `compareVersionStrings` from packages/platform-config/src/compatibility.ts:83 rather than writing a second comparator — that file's own header (:27) says two comparators is two chances to disagree. Mutation: bump the constant without updating the ledger evidence line — the test must red.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-070-004",
+    "title": "Multi-recipient split rules do not exist — finops has the rounding primitive but no recipient model, no exact-sum guarantee at the split level, and no reversal invariant",
+    "why_open": "`packages/finops/src/money.ts:116 allocateByWeight` is a correct largest-remainder splitter and it is the ONLY thing close: `packages/finops/src/index.ts:10-38` exports it plus `allocate`/`reconcile`, which are AWS cost allocation (`packages/finops/src/allocation.ts`, driven by `apps/system-studio/src/lib/cost-source.ts:3`). There is no recipient/beneficiary type, no split-rule declaration, and — the load-bearing gap — no reversal: nothing guarantees that reversing a split returns exactly the per-recipient amounts that were assigned, which is where largest-remainder splits go wrong (re-running the allocation on the reversal amount reshuffles the leftover units). Ledger docs/implementation/payments-treasury-execution-ledger.md line for PAY-070-004, FAIL.",
+    "files": [
+      "packages/finops/src/split.ts",
+      "packages/finops/src/money.ts",
+      "packages/finops/src/index.ts",
+      "packages/finops/src/finops.test.ts"
+    ],
+    "smallest_real_change": "`packages/finops/src/split.ts`: `splitAmount(amount, rules)` where each rule names a recipient and a weight, returning `{ recipientId, amount }[]` built on `allocateByWeight` so exact-sum is inherited, and `reverseSplit(previous, amount)` which reverses by REPLAYING THE RECORDED PER-RECIPIENT AMOUNTS, never by re-deriving them. Export from index.ts and render it in the Studio cost page beside the existing figures so it has a caller. Tests: (1) property test that Σ parts === whole across 1000 deterministic weight vectors and currencies including JPY (0 minor digits) and KWD (3); (2) reversal test asserting `splitAmount(x) + reverseSplit(that)` sums to zero per recipient. Mutation: make `reverseSplit` re-run `allocateByWeight` on the reversal amount — the per-recipient reversal test must red on a tie-breaking vector while the total still nets to zero, which is exactly the bug a total-only assertion misses.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-SEC7-001",
+    "title": "NEXT-SESSION §7 standing requirement: no configuration option carries a price — per seat, per organisation, or a running total",
+    "why_open": "`ConfigDefinition` (packages/configuration/src/definition.ts:22-65) declares key, owner, type, default, allowedScopes, mergeStrategy, sensitivity, overridable, requiresCapability, description — and NO price. `validateDefinition` (:82-...) therefore cannot demand one. The resolver's `ResolveResult` (packages/configuration/src/resolve.ts:93) returns values and provenance and no cost. A repo-wide grep for `price|perSeat|priceMinor|costMinor` across packages/platform-config/src and packages/configuration/src hits exactly one line, and it is a test fixture string: packages/configuration/src/rejections.test.ts:151. The 19 real options (packages/platform-config/src/branding.ts ×4, definitions.ts ×6, flags.ts ×3, localization.ts ×6) are all priceless. docs/implementation/NEXT-SESSION.md:413-428 makes this a standing PAY-owned requirement. NOTE FOR THE ORCHESTRATOR: all six PAY surveyors may report this; it must be implemented ONCE, by one agent, because it edits a type every other config file constructs.",
+    "files": [
+      "packages/configuration/src/definition.ts",
+      "packages/configuration/src/resolve.ts",
+      "packages/platform-config/src/definitions.ts",
+      "packages/platform-config/src/branding.ts",
+      "packages/platform-config/src/flags.ts",
+      "packages/platform-config/src/localization.ts",
+      "packages/finops/src/index.ts"
+    ],
+    "smallest_real_change": "Add a REQUIRED `price: OptionPrice` to `ConfigDefinition` — `{ perSeatMinor: number; perOrgMinor: number; currency: string }` in integer minor units, with `{ perSeatMinor: 0, perOrgMinor: 0 }` meaning 'included' stated explicitly rather than omitted. Required, not optional: an optional field a caller does not set is invisible to tsc, which is exactly how the requiresEngine and dependsOn outages happened. Enforce it in `validateDefinition` (definition.ts:82) so a priceless definition is a startup failure. THEN FIX ALL 19 CONSTRUCTION SITES in the same change — branding.ts (4), definitions.ts (6), flags.ts (3), localization.ts (6); the `defineConfig(` hits in apps/web/playwright.config.ts and apps/system-studio/playwright.config.ts are Playwright's unrelated function, not consumers. Extend `ResolveResult` (resolve.ts:93) with `runningCost: { perSeatMinor, perOrgMinor, currency, seats, orgTotalMinor }` computed with `@tenure/finops` money helpers (never floats, `add`/`sum` enforce one currency), and render it in the Studio configuration surface. Mutation to prove: delete `price` from ONE definition in packages/platform-config/src/flags.ts — type-check and the validateDefinition test must both red; and delete the runningCost line from the resolver — the resolver test asserting the emitted total must red.",
+    "already_done": false
+  }
+]

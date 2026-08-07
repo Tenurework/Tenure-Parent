@@ -3,11 +3,20 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canViewOrg, getUserContext } from "@/lib/rbac";
 import { withTenantScope } from "@/lib/tenant-scope";
-import { availableActions, ACTION_LABELS } from "@/lib/approvals";
+import {
+  approvalAuthorityFor,
+  approvalMoney,
+  availableActions,
+  exceedsApprovalThreshold,
+  ACTION_LABELS,
+} from "@/lib/approvals";
+import { institutionSlugFor, terminologyForInstitution } from "@/lib/config/server";
+import { localizationFor, formatMoney } from "@tenure/platform-config";
 import { formatCents } from "@/lib/finance";
 import { approvalSla, slaColor } from "@/lib/approvals-sla";
 import { documentLocalization } from "@/lib/tenancy/locale-cookie";
 import { effectiveApprovalContext } from "@/lib/delegation";
+import { standingDeclarationsFor } from "@/lib/approvals-world";
 import { mayBorrowAuthority } from "@/lib/authz/borrowed-authority";
 import Link from "next/link";
 import { Card, CardHeader, Attribute } from "@/components/ui/Card";
@@ -71,13 +80,49 @@ export default async function ApprovalDetailPage({
     // The approval actions are writes, and an archived club takes none. The
     // status travels on the view so the rules can see it rather than the page
     // deciding separately and drifting.
+    // PAY-150-003. The same standing declarations the server action loads, so
+    // the page offers the gate buttons the action would actually accept. Hiding
+    // a control is not the boundary — `actOnApproval` re-runs this — but
+    // rendering Approve to somebody who has recused themselves is telling the
+    // reader something untrue.
+    const controlWorld = await standingDeclarationsFor({
+      institutionId: approval.institutionId,
+      principalId: session.user.id,
+      resourceId: approval.id,
+    });
+    // PAY-150-002. The page has to ask the same money questions the server
+    // action asks, or it renders an Approve button the action then refuses.
+    // Both come from configuration keyed by the institution's slug: the ladder
+    // this institution published, and the currency amounts on it are written in.
+    const slug = await institutionSlugFor(approval.institutionId);
+    const authority = approvalAuthorityFor(slug);
+    const localization = localizationFor(slug);
+    const money = approvalMoney(approval.metadata, localization.currency);
+    // A fact about the SUBMITTER, which the viewer's context cannot supply.
+    const requesterIsPresident =
+      (await db.roleAssignment.findFirst({
+        where: {
+          userId: approval.submittedById,
+          status: "ACTIVE",
+          role: { organizationId: approval.organizationId, scope: "PRESIDENT" },
+        },
+        select: { id: true },
+      })) !== null;
     const view = {
       ...approval,
       organizationStatus: approval.organization.status,
+      controlWorld,
+      requesterIsPresident,
+      ...money,
     };
-    const actions = availableActions(effCtx, view);
+    const needsDirector = exceedsApprovalThreshold(money, authority);
+    // This institution's own word for the staff office, not "OSE".
+    const { staffOfficeShort } = await terminologyForInstitution(
+      approval.institutionId,
+    );
+    const actions = availableActions(effCtx, view, authority);
     const GATE_ACTIONS = ["approve", "reject", "request_changes"];
-    const directGate = availableActions(ctx, view).some((a) =>
+    const directGate = availableActions(ctx, view, authority).some((a) =>
       GATE_ACTIONS.includes(a),
     );
     const backupFor =
@@ -193,9 +238,27 @@ export default async function ApprovalDetailPage({
               />
               <Attribute
                 label="Amount"
-                value={meta.amount ? `$${meta.amount}` : "—"}
+                // Through the same parser the authority check uses, and in the
+                // institution's own currency. The old `$${meta.amount}` printed
+                // whatever string was in the blob with a dollar sign glued on —
+                // wrong for any institution not on USD, and a different number
+                // from the one the gate is deciding on.
+                value={
+                  money.amountMinorUnits === null
+                    ? "—"
+                    : formatMoney(money.amountMinorUnits, {
+                        locale: localization.locale,
+                        currency: money.currency,
+                      })
+                }
               />
             </div>
+            {needsDirector && (
+              <p className="mt-3 text-[13px] text-text-2">
+                Over this institution&apos;s approval ceiling — final approval
+                needs the {staffOfficeShort} director, not any staff seat.
+              </p>
+            )}
             {approval.description && (
               <p className="mt-4 text-sm text-text-1 whitespace-pre-wrap">
                 {approval.description}

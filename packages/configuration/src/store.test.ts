@@ -22,6 +22,7 @@ const LATER = new Date("2026-08-03T00:00:00Z")
 
 const registry = ConfigRegistry.of([
   defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
     key: "platform.localization.currency",
     owner: "platform",
     type: z.string(),

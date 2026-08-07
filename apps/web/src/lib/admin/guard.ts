@@ -1,9 +1,8 @@
 import "server-only"
-import { buildAuditRecord } from "@tenure/audit"
 import type { InstitutionRole, Prisma } from "@prisma/client"
 import { notFound, redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
-import { db } from "@/lib/db"
+import { recordAuditEvent } from "@/lib/audit-record"
 import { getUserContext, type UserContext } from "@/lib/rbac"
 import { adminRoleAt, hasCapability, isAdmin, type CapabilityId } from "./capabilities"
 
@@ -61,14 +60,27 @@ export async function requireCapability(
 
   const allowed = hasCapability(ctx, capId, institutionId)
 
-  // Built rather than assembled inline. Every privileged action in the product
-  // passes through here, so this is the one audit write worth making impossible
-  // to get wrong: the builder requires a tenant, an actor, an action, a resource
-  // type and an outcome, refuses a DENY that does not say why, and redacts
-  // anything that looks like a credential out of `metadata` before it reaches
-  // an append-only table that ON DELETE RESTRICT makes it impossible to clean.
-  const record = buildAuditRecord({
-    tenantId: institutionId,
+  // Written through `recordAuditEvent`, not assembled inline and not through
+  // `buildAuditRecord` directly. Every privileged action in the product passes
+  // through here, so this is the one audit write worth making impossible to get
+  // wrong, and the chokepoint adds three things the bare builder cannot:
+  //
+  //   · the hash chain — each record commits to this institution's previous
+  //     one, so a rewrite performed around the application (psql, a restored
+  //     backup) breaks a link that `verifyChain` finds. Calling the builder
+  //     directly produced records with no chain position, which is exactly the
+  //     state `verifyChain` reports as unchained;
+  //   · the release the code was running under, from IMAGE_TAG;
+  //   · the money-mode (PAY-000-007), from the ambient tenant scope — so
+  //     "which mode did this administrator act in" is answerable from the row
+  //     rather than inferred from when it was written.
+  //
+  // The builder's own guarantees are unchanged and still apply: it requires a
+  // tenant, an actor, an action, a resource type and an outcome, refuses a DENY
+  // that does not say why, and redacts anything credential-shaped out of
+  // `metadata` before it reaches an append-only table.
+  await recordAuditEvent({
+    institutionId,
     organizationId: opts?.organizationId,
     actor: { principalId: userId, role: adminRoleAt(ctx, institutionId) ?? undefined },
     action: `Admin.${capId}`,
@@ -79,22 +91,6 @@ export async function requireCapability(
     // makes the row unreadable six months later.
     reason: opts?.reason ?? (allowed ? undefined : `Capability "${capId}" not held.`),
     metadata: (opts?.metadata ?? {}) as Record<string, unknown>,
-    occurredAt: new Date().toISOString(),
-  })
-
-  await db.auditEvent.create({
-    data: {
-      institutionId: record.tenantId,
-      actorId: record.actorId,
-      actorRole: record.actorRole ?? undefined,
-      action: record.action,
-      resourceType: record.resourceType,
-      resourceId: record.resourceId ?? undefined,
-      organizationId: record.organizationId ?? undefined,
-      outcome: record.outcome,
-      reason: record.reason ?? undefined,
-      metadata: record.metadata as Prisma.InputJsonValue,
-    },
   })
 
   if (!allowed) throw new Error("You do not have permission for this action")

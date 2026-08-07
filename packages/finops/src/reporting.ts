@@ -1,4 +1,14 @@
-import { add, compare, money, subtract, sum, zero, type Money } from "./money"
+import {
+  add,
+  compare,
+  money,
+  roundToInteger,
+  subtract,
+  sum,
+  zero,
+  type Money,
+  type RoundingMode,
+} from "./money"
 import type { AllocationResult } from "./allocation"
 
 /**
@@ -24,11 +34,65 @@ import type { AllocationResult } from "./allocation"
 
 export type FigureKind = "ACTUAL" | "AMORTIZED" | "FORECAST" | "BUDGET"
 
+/**
+ * PAY-180-003 — which system a number came from, and when it was taken from it.
+ *
+ * The as-of half of this was already real: `figure()` refuses an unparseable
+ * `asOf` and `freshness()` flags staleness. The citation half was absent
+ * entirely, and it is the half an operator asks about first. "Spend is $4,182"
+ * is not actionable; "spend is $4,182 per the Cost and Usage Report at
+ * s3://tenure-cur/fleet, read 20 minutes ago" is, because it says what to go and
+ * check when the number looks wrong — and it says, crucially, that the number is
+ * not an estimate.
+ *
+ * Required on `Figure`, not optional. An optional citation is invisible to
+ * `tsc`, so a construction site that forgot one compiles, renders blank and
+ * reads exactly like a figure that has one.
+ */
+export interface FigureSource {
+  /**
+   * The system that produced it — `aws-cur`, `aws-cost-explorer`, `stripe`,
+   * `tenure-ledger`. A name an operator can go to, not a description.
+   */
+  system: string
+  /**
+   * Where inside that system: an S3 URI, an object id, an API path and version.
+   * Specific enough that two people fetch the same thing.
+   */
+  reference: string
+  /**
+   * When this engine took the value out of that system.
+   *
+   * Distinct from `asOf`, which is when the DATA is current as of. A CUR read
+   * five minutes ago can still be describing spend from yesterday, and
+   * collapsing the two is how a stale figure looks fresh.
+   */
+  retrievedAt: string
+}
+
+/**
+ * A citation for a figure computed from another figure.
+ *
+ * A forecast is not a reading of the CUR; it is arithmetic over one. It keeps
+ * the same system and retrieval time — the underlying fact has not been read
+ * again — and says in its reference what was done to it, so nothing can present
+ * a projection as a billed line.
+ */
+export function derivedFrom(source: FigureSource, how: string): FigureSource {
+  return {
+    system: source.system,
+    reference: `${source.reference} — derived: ${how}`,
+    retrievedAt: source.retrievedAt,
+  }
+}
+
 export interface Figure {
   amount: Money
   kind: FigureKind
   /** When the underlying data was last refreshed. Never optional. */
   asOf: string
+  /** Which system this came from. Never optional — PAY-180-003. */
+  source: FigureSource
   /**
    * How complete the period is, 0–1.
    *
@@ -40,14 +104,41 @@ export interface Figure {
   periodCompleteness: number
 }
 
-export function figure(amount: Money, kind: FigureKind, asOf: string, periodCompleteness = 1): Figure {
+export function figure(
+  amount: Money,
+  kind: FigureKind,
+  asOf: string,
+  source: FigureSource,
+  periodCompleteness = 1,
+): Figure {
   if (!(periodCompleteness >= 0 && periodCompleteness <= 1)) {
     throw new RangeError(`periodCompleteness must be between 0 and 1, got ${periodCompleteness}`)
   }
   if (!asOf || Number.isNaN(Date.parse(asOf))) {
     throw new TypeError("A figure without a valid as-of is not a figure. AWS billing settles over days.")
   }
-  return { amount, kind, asOf, periodCompleteness }
+  // The citation is held to the same standard the as-of already was. A blank
+  // system renders as an empty badge, which reads as "no claim made" and is
+  // indistinguishable from a figure somebody chose not to cite.
+  if (!source || !source.system.trim()) {
+    throw new TypeError(
+      "A figure without a source system is a number with no provenance. Name the system it came " +
+        "from — an operator deciding on this has to know whether it is a bill or an estimate.",
+    )
+  }
+  if (!source.reference.trim()) {
+    throw new TypeError(
+      `A figure from "${source.system}" cites no reference. "Somewhere in the CUR" is not a place ` +
+        `two people can both go and look at.`,
+    )
+  }
+  if (!source.retrievedAt || Number.isNaN(Date.parse(source.retrievedAt))) {
+    throw new TypeError(
+      `A figure from "${source.system}" says it was retrieved at ${JSON.stringify(source.retrievedAt)}, ` +
+        `which is not a time. When a value was read is half of what a citation is for.`,
+    )
+  }
+  return { amount, kind, asOf, source, periodCompleteness }
 }
 
 /** How stale the data is, and whether it should be believed without a caveat. */
@@ -86,10 +177,21 @@ export function freshness(asOf: string, now: Date): Freshness {
  */
 export const MIN_COMPLETENESS_TO_FORECAST = 0.1
 
-export function forecastPeriod(actual: Figure, now: Date): Figure | null {
+export function forecastPeriod(actual: Figure, now: Date, rounding: RoundingMode): Figure | null {
   if (actual.periodCompleteness < MIN_COMPLETENESS_TO_FORECAST) return null
-  const projected = Math.round(actual.amount.units / actual.periodCompleteness)
-  return figure(money(projected, actual.amount.currency), "FORECAST", now.toISOString(), 1)
+  const projected = roundToInteger(actual.amount.units / actual.periodCompleteness, rounding)
+  return figure(
+    money(projected, actual.amount.currency),
+    "FORECAST",
+    now.toISOString(),
+    // The actual's own citation, marked derived. A projection has no source of
+    // its own — inventing one would say a system produced a number it never saw.
+    derivedFrom(
+      actual.source,
+      `straight-line to end of period from ${Math.round(actual.periodCompleteness * 100)}% complete`,
+    ),
+    1,
+  )
 }
 
 export type BudgetState = "UNDER" | "ON_TRACK" | "AT_RISK" | "OVER" | "NO_BUDGET"
@@ -113,8 +215,13 @@ export interface BudgetAssessment {
  * place: over on trajectory, not yet over in fact, which is the only point at
  * which anyone can still do something about it.
  */
-export function assessBudget(actual: Figure, budget: Figure | null, now: Date): BudgetAssessment {
-  const forecast = forecastPeriod(actual, now)
+export function assessBudget(
+  actual: Figure,
+  budget: Figure | null,
+  now: Date,
+  rounding: RoundingMode,
+): BudgetAssessment {
+  const forecast = forecastPeriod(actual, now, rounding)
 
   if (!budget) {
     return {
@@ -155,7 +262,7 @@ export function assessBudget(actual: Figure, budget: Figure | null, now: Date): 
 
   // 80% of budget on trajectory is close enough to want watching, and far
   // enough from the threshold to be worth distinguishing from comfortable.
-  const eightyPercent = money(Math.round(budget.amount.units * 0.8), budget.amount.currency)
+  const eightyPercent = money(roundToInteger(budget.amount.units * 0.8, rounding), budget.amount.currency)
   if (forecast && compare(forecast.amount, eightyPercent) > 0) {
     return { state: "ON_TRACK", budget, actual, forecast, variance, detail: "Projected to land inside budget." }
   }
@@ -258,13 +365,13 @@ export interface UnitCost {
  * tenant that is costing money and serving no one, which is the exact opposite
  * of the truth and the case worth catching.
  */
-export function unitCost(unit: string, count: number, cost: Money): UnitCost {
+export function unitCost(unit: string, count: number, cost: Money, rounding: RoundingMode): UnitCost {
   if (!Number.isInteger(count) || count < 0) throw new RangeError(`Unit count must be a non-negative integer, got ${count}`)
   return {
     unit,
     count,
     cost,
-    perUnit: count === 0 ? null : money(Math.round(cost.units / count), cost.currency),
+    perUnit: count === 0 ? null : money(roundToInteger(cost.units / count, rounding), cost.currency),
   }
 }
 
@@ -281,14 +388,29 @@ export interface CostSummary {
   lineCount: number
 }
 
-/** The headline the FinOps Center opens with. */
-export function summarize(result: AllocationResult, asOf: string, periodCompleteness: number, now: Date): CostSummary {
-  const actual = figure(result.ingested, "ACTUAL", asOf, periodCompleteness)
+/**
+ * The headline the FinOps Center opens with.
+ *
+ * `source` is threaded onto every figure it produces rather than attached to the
+ * summary as a whole, because the three figures are not equally sourced: the
+ * actual and the amortized are readings, the forecast is arithmetic over one.
+ * `forecastPeriod` marks its own citation derived; nothing else invents a
+ * provenance.
+ */
+export function summarize(
+  result: AllocationResult,
+  asOf: string,
+  periodCompleteness: number,
+  now: Date,
+  source: FigureSource,
+  rounding: RoundingMode,
+): CostSummary {
+  const actual = figure(result.ingested, "ACTUAL", asOf, source, periodCompleteness)
   return {
     currency: result.currency,
     actual,
-    amortized: figure(result.ingestedAmortized, "AMORTIZED", asOf, periodCompleteness),
-    forecast: forecastPeriod(actual, now),
+    amortized: figure(result.ingestedAmortized, "AMORTIZED", asOf, source, periodCompleteness),
+    forecast: forecastPeriod(actual, now, rounding),
     freshness: freshness(asOf, now),
     byTenant: costBy(result, "tenant"),
     unallocated: result.unallocatedTotal,
@@ -382,8 +504,15 @@ export function previewPlanCost(changes: readonly CostThreshold[], currency: str
 }
 
 /** Everything the Center needs, in one shape. */
-export function fleetCost(result: AllocationResult, asOf: string, periodCompleteness: number, now: Date) {
-  const summary = summarize(result, asOf, periodCompleteness, now)
+export function fleetCost(
+  result: AllocationResult,
+  asOf: string,
+  periodCompleteness: number,
+  now: Date,
+  source: FigureSource,
+  rounding: RoundingMode,
+) {
+  const summary = summarize(result, asOf, periodCompleteness, now, source, rounding)
   return {
     summary,
     anomalies: [] as Anomaly[],

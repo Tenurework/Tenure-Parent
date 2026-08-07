@@ -116,6 +116,7 @@ export type {
   PermissionDomain,
   PermissionAction,
   PermissionResource,
+  PermissionKey,
   ModuleKey,
 } from "./permission-catalog"
 

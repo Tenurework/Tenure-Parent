@@ -33,6 +33,7 @@ export type CapabilityId =
   | "content.override"
   | "budget.override"
   | "audit.view"
+  | "outbox.redrive"
 
 export interface Capability {
   id: CapabilityId
@@ -144,6 +145,17 @@ export const CAPABILITIES: Record<CapabilityId, Capability> = {
     label: "View the audit log",
     description: "Read the institution-wide audit trail.",
     minRole: "OSE_ADVISOR",
+  },
+  /**
+   * PAY-020-005. Returning a dead-lettered event to the queue re-runs whatever
+   * that event causes, so it is a Director's decision and it is audited like
+   * every other override — `requireCapability` writes the allow and the deny.
+   */
+  "outbox.redrive": {
+    id: "outbox.redrive",
+    label: "Redrive undelivered events",
+    description: "Return a dead-lettered event to the dispatch queue after reading why it failed.",
+    minRole: "OSE_DIRECTOR",
   },
 }
 

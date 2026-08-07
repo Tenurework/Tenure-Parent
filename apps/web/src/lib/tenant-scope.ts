@@ -7,12 +7,15 @@ import {
   runInTenantScope,
   runUnscoped,
   TenantContextError,
+  type TenantPurpose,
   type TenantScope,
 } from "@/lib/tenancy/context";
 import {
   ACTING_TENANT_SLUG_COOKIE,
   LOCALE_COOKIE_OPTIONS,
 } from "@/lib/tenancy/locale-cookie";
+import { paymentModeForInstitution } from "@/lib/config/server";
+import type { PaymentMode } from "@tenure/contracts";
 
 /**
  * Where a request acquires its tenant.
@@ -162,9 +165,16 @@ function warnRejectedChoice(
   );
 }
 
-function scopeForUser(institutionId: string, userId: string): TenantScope {
+function scopeForUser(
+  institutionId: string,
+  userId: string,
+  environment: PaymentMode,
+  purpose: TenantPurpose,
+): TenantScope {
   return {
     institutionId,
+    purpose,
+    environment,
     actor: { principalId: userId, principalType: "user" },
   };
 }
@@ -295,7 +305,10 @@ export async function chooseActingInstitution(
   userId: string,
   institutionId: string,
 ): Promise<ActingInstitution> {
-  const scope = await resolveTenantScope(userId, institutionId);
+  // `interactive`: a person is operating the switcher in the shell. This call
+  // validates a membership and writes a cookie; it reads no tenant rows a model
+  // could ever see.
+  const scope = await resolveTenantScope(userId, institutionId, "interactive");
 
   const { options } = await actingInstitutions(userId);
   const chosen = options.find((o) => o.id === scope.institutionId);
@@ -350,7 +363,11 @@ export async function chooseActingInstitution(
  * in with one that does not.
  */
 export const resolveTenantScope = cache(
-  async (userId: string, institutionId?: string): Promise<TenantScope> => {
+  async (
+    userId: string,
+    institutionId: string | undefined,
+    purpose: TenantPurpose,
+  ): Promise<TenantScope> => {
     const candidates = await institutionCandidates(userId);
 
     if (candidates.length === 0) {
@@ -370,12 +387,22 @@ export const resolveTenantScope = cache(
             `of. Their institutions are: ${candidates.join(", ")}.`,
         );
       }
-      return scopeForUser(institutionId, userId);
+      return scopeForUser(
+        institutionId,
+        userId,
+        await paymentModeForInstitution(institutionId),
+        purpose,
+      );
     }
 
     if (candidates.length > 1) warnAmbiguous(userId, candidates);
 
-    return scopeForUser(candidates[0], userId);
+    return scopeForUser(
+      candidates[0],
+      userId,
+      await paymentModeForInstitution(candidates[0]),
+      purpose,
+    );
   },
 );
 
@@ -405,15 +432,40 @@ export const resolveTenantScope = cache(
  * validates that choice against live membership before it is returned, so a
  * forged cookie resolves to `undefined` here and the user acts in their default
  * institution, not the one they named.
+ *
+ * `opts.purpose` defaults to `interactive`, which is what this entry point *is*:
+ * it takes a signed-in user id and opens their tenant for the request they are
+ * waiting on. The default is the conservative one — `loadSearchCorpus` refuses
+ * an `interactive` scope — so a new route that feeds a model and forgets to say
+ * so fails loudly at the retrieval rather than quietly succeeding as a page.
+ *
+ * **`redirect()` and `revalidatePath()` do not belong in `fn`.** `redirect()` is
+ * a throw; inside this body it aborts any transaction in flight. Return what the
+ * caller needs and do both after the call — `runInTenantScope` refuses an
+ * escaping redirect at runtime and
+ * `tests/architecture/redirect-lives-outside-tenant-scope.test.mjs` refuses one
+ * lexically.
+ *
+ * `notFound()` is the one exception, and only outside a transaction: a page read
+ * raising a 404 has nothing in flight, so `runInTenantScope` lets it through
+ * rather than turning a 404 into a 500. Inside `db.$transaction` it aborts
+ * exactly like a redirect — `guardedTransaction` in `src/lib/db.ts` refuses it
+ * there, and `tests/architecture/navigation-outside-tenant-scope.test.mjs` is
+ * the lexical half of that narrower rule. Two boundaries, two answers, both
+ * deliberate.
  */
 export async function withTenantScope<T>(
   userId: string,
   fn: (scope: TenantScope) => Promise<T>,
-  opts?: { institutionId?: string },
+  opts?: { institutionId?: string; purpose?: TenantPurpose },
 ): Promise<T> {
   const institutionId =
     opts?.institutionId ?? (await actingInstitutionChoice(userId));
-  const scope = await resolveTenantScope(userId, institutionId);
+  const scope = await resolveTenantScope(
+    userId,
+    institutionId,
+    opts?.purpose ?? "interactive",
+  );
   return runInTenantScope(scope, () => fn(scope));
 }
 
@@ -425,13 +477,24 @@ export async function withTenantScope<T>(
  * honest answer, and it keeps "nobody was signed in" from being recorded as
  * though somebody was.
  */
-export function withSystemTenantScope<T>(
+export async function withSystemTenantScope<T>(
   institutionId: string,
   jobName: string,
   fn: (scope: TenantScope) => Promise<T>,
+  opts?: { purpose?: TenantPurpose },
 ): Promise<T> {
+  // The mode is the tenant's, not the job's. A sweep running across every
+  // institution touches live tenants and test ones in the same pass, and the
+  // audit rows it writes have to say which each was — so it is resolved per
+  // institution here rather than taken once for the run.
   const scope: TenantScope = {
     institutionId,
+    // `job` is what this entry point is for — work with no person behind it.
+    // Overridable because a support read and an export are also nobody's
+    // session, and an audit that files all three as "job" answers none of the
+    // questions asked after an incident.
+    purpose: opts?.purpose ?? "job",
+    environment: await paymentModeForInstitution(institutionId),
     actor: { principalId: jobName, principalType: "system" },
   };
   return runInTenantScope(scope, () => fn(scope));
@@ -456,6 +519,7 @@ export function withSystemTenantScope<T>(
 export async function forEachInstitution<T>(
   jobName: string,
   fn: (scope: TenantScope) => Promise<T>,
+  opts?: { purpose?: TenantPurpose },
 ): Promise<T[]> {
   const institutions = await runUnscoped(
     "control-plane",
@@ -466,7 +530,11 @@ export async function forEachInstitution<T>(
 
   const results: T[] = [];
   for (const institution of institutions) {
-    results.push(await withSystemTenantScope(institution.id, jobName, fn));
+    results.push(
+      await withSystemTenantScope(institution.id, jobName, fn, {
+        purpose: opts?.purpose ?? "job",
+      }),
+    );
   }
   return results;
 }

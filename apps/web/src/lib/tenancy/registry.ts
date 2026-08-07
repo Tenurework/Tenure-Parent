@@ -26,6 +26,11 @@ export const TENANT_SCOPED = [
   // that produced it: a dispatcher reading across tenants would be reading every
   // tenant's activity, which is the thing the chokepoint exists to prevent.
   "OutboxEvent",
+  // The acknowledgement side of the same events. A consumer that could read
+  // another tenant's inbox could tell whether that tenant's event had been
+  // processed, and — worse — a dedupe check that spanned tenants would let one
+  // institution's already-consumed event suppress another's.
+  "InboxEvent",
   // institutionId with a declared relation to Institution
   "InstitutionMembership",
   "Organization",
@@ -43,6 +48,31 @@ export const TENANT_SCOPED = [
   "Budget",
   "Vendor",
   "FeedPost",
+  // PAY-030-007. LedgerEntry moved up from UNENFORCEABLE: it carries its own
+  // `institutionId` now, backfilled from Organization, so the chokepoint can
+  // filter it directly instead of hoping the caller joined.
+  "LedgerEntry",
+  // PAY-230-004. One slice of an inbound receipt.
+  "ReceiptAllocation",
+  // PAY-150-003. Standing declarations the approval gate reads. Scoped like the
+  // decisions they constrain: a recusal readable across tenants would let one
+  // institution see who has stood down from what in another.
+  "ConflictDeclaration",
+  "Recusal",
+  // PAY-020-004 / PAY-080-004 / PAY-130-004. The payments objects. Every one of
+  // them names a tenant, and the reason they must be scoped is sharper than
+  // usual: a provider id, a payout figure and a balance transaction are the
+  // most directly sensitive rows on the platform, and their UNIQUE keys are
+  // deliberately NOT tenant-first — (provider, mode, account, externalId) is
+  // global by design — so the index cannot be what keeps one tenant out of
+  // another's reads. The chokepoint has to.
+  "ExternalReference",
+  "Settlement",
+  "ProviderBalanceTransaction",
+  // PAY-270-002. Which charge model applies to a club, and who is liable for
+  // the money under it. Read across tenants it exposes commercial terms;
+  // written across tenants it redirects who pays.
+  "PaymentsFundsFlowConfig",
 ] as const
 
 /**
@@ -60,6 +90,16 @@ export const PLATFORM_GLOBAL = [
   "Account",
   "Session",
   "VerificationToken",
+  // PAY-000-007. The webhook dedupe table, and global for a real reason rather
+  // than an omission: a provider event is written here at the moment it is
+  // RECEIVED and verified, which is before anything has attributed it to a
+  // tenant — attribution is what the connected `accountId` is later used to do.
+  // Its uniqueness is (provider, mode, accountId, eventId), deliberately not
+  // tenant-first, because the property it enforces is "this platform has seen
+  // this event once", which is not a per-tenant claim. It carries no
+  // institutionId and must not: scoping it would make the same redelivery
+  // processable once per tenant, which is the exact bug it exists to stop.
+  "ProviderEventReceipt",
 ] as const
 
 /**
@@ -102,7 +142,6 @@ export const UNENFORCEABLE: Record<string, { reachableVia: string; note?: string
   Seat: { reachableVia: "Organization.institutionId" },
   OrganizationAdvisor: { reachableVia: "Organization.institutionId" },
   BudgetLine: { reachableVia: "Organization.institutionId" },
-  LedgerEntry: { reachableVia: "Organization.institutionId" },
   CollabInterest: { reachableVia: "Organization.institutionId" },
 }
 

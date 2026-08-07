@@ -8,7 +8,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./money": "./src/money.ts"
+    "./money": "./src/money.ts",
+    "./compatibility": "./src/compatibility.ts"
   },
-  "//exports": "Two entry points on purpose. The main one reaches @tenure/configuration, whose resolver imports node:crypto for checksums — importing it from a module that client components also import fails the build with UnhandledSchemeError. `./money` is the client-safe subset: a pure Intl formatter with no imports at all."
+  "//exports": "Three entry points on purpose. The main one reaches @tenure/configuration, whose resolver imports node:crypto for checksums — importing it from a module that client components also import fails the build with UnhandledSchemeError. `./money` is the client-safe subset: a pure Intl formatter with no imports at all. `./compatibility` is the version comparator, exposed on its own because @tenure/payments needs it and the main entry point imports @tenure/payments (see modules.ts) — reaching for the root from there would be a cycle. The file has no imports, so the subpath has none either."
 }

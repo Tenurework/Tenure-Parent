@@ -47,6 +47,10 @@ const TABS: {
     icon: Users,
     needs: ["institution.grantRole", "directory.manage", "institution.transferRole"],
   },
+  // PAY-070-003. Behind `budget.override` — deciding who carries a loss is the
+  // same authority as changing what this institution's money does, and the page
+  // itself makes the same check, so the tab never links to its own refusal.
+  { href: "/admin/payments", label: "Payments", icon: SlidersHorizontal, needs: ["budget.override"] },
   { href: "/admin/audit", label: "Audit log", icon: ScrollText, needs: ["audit.view"] },
 ]
 

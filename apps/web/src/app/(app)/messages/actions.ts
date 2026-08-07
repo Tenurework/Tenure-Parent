@@ -70,7 +70,11 @@ async function ensureParticipant(conversationId: string, userId: string, roleCon
 /** Email-style compose: To/Cc/Bcc + subject + body, hierarchy-enforced. */
 export async function composeMessage(formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  // The scope hands the conversation id back and closes; the navigation happens
+  // after it. `redirect()` is a throw, and this body opens a `db.$transaction`
+  // — reached from inside, it aborts that transaction, so the conversation and
+  // its first message roll back while the browser follows a 307 to them.
+  const conversationId = await withTenantScope(userId, async () => {
     const to = formData.getAll("to").map(String).filter(Boolean)
     const cc = formData.getAll("cc").map(String).filter(Boolean)
     const bcc = formData.getAll("bcc").map(String).filter(Boolean)
@@ -132,14 +136,16 @@ export async function composeMessage(formData: FormData) {
       excludeUserId: userId,
     })
 
-    redirect(`/messages/${convo.id}`)
+    return convo.id
   })
+
+  redirect(`/messages/${conversationId}`)
 }
 
 /** Start (or resume) a DM with another user. */
 export async function startDm(formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  const conversationId = await withTenantScope(userId, async () => {
     const otherUserId = String(formData.get("userId") ?? "")
     if (!otherUserId || otherUserId === userId) throw new Error("Pick someone to message")
 
@@ -187,14 +193,16 @@ export async function startDm(formData: FormData) {
             },
           })
 
-    redirect(`/messages/${dm.id}`)
+    return dm.id
   })
+
+  redirect(`/messages/${conversationId}`)
 }
 
 /** Open (creating if needed) a club's board channel. */
 export async function openBoardChannel(formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  const conversationId = await withTenantScope(userId, async () => {
     const organizationId = String(formData.get("organizationId") ?? "")
 
     const org = await db.organization.findUnique({ where: { id: organizationId } })
@@ -221,14 +229,16 @@ export async function openBoardChannel(formData: FormData) {
     })
 
     await ensureParticipant(channel.id, userId)
-    redirect(`/messages/${channel.id}`)
+    return channel.id
   })
+
+  redirect(`/messages/${conversationId}`)
 }
 
 /** Open (creating if needed) the discussion thread on an approval. */
 export async function openApprovalThread(formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  const conversationId = await withTenantScope(userId, async () => {
     const approvalId = String(formData.get("approvalId") ?? "")
 
     const approval = await db.approvalRequest.findUnique({ where: { id: approvalId } })
@@ -252,14 +262,16 @@ export async function openApprovalThread(formData: FormData) {
     })
 
     await ensureParticipant(thread.id, userId)
-    redirect(`/messages/${thread.id}`)
+    return thread.id
   })
+
+  redirect(`/messages/${conversationId}`)
 }
 
 /** OSE announcement to every current member. */
 export async function sendBroadcast(formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  const conversationId = await withTenantScope(userId, async () => {
     const subject = String(formData.get("subject") ?? "").trim()
     const body = String(formData.get("body") ?? "").trim()
     if (!subject || !body) throw new Error("Subject and message are required")
@@ -316,19 +328,24 @@ export async function sendBroadcast(formData: FormData) {
       return c
     })
 
-    redirect(`/messages/${convo.id}`)
+    return convo.id
   })
+
+  redirect(`/messages/${conversationId}`)
 }
 
 /** Post a message into a conversation the user can write to. */
 export async function sendMessage(conversationId: string, formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  // `false` when there was nothing to post: an empty submission must not
+  // invalidate three cached routes, and the caches are bumped outside the scope
+  // for the same reason the redirects above are.
+  const posted = await withTenantScope(userId, async () => {
     const body = String(formData.get("body") ?? "").trim()
     const hasFiles = formData
       .getAll("attachments")
       .some((f) => f instanceof File && f.size > 0)
-    if (!body && !hasFiles) return
+    if (!body && !hasFiles) return false
 
     const convo = await db.conversation.findUnique({
       where: { id: conversationId },
@@ -365,9 +382,11 @@ export async function sendMessage(conversationId: string, formData: FormData) {
     })
 
     await saveAttachments(message.id, convo.institutionId, formData)
-
-    revalidatePath(`/messages/${conversationId}`)
-    revalidatePath("/messages")
-    revalidatePath("/dashboard")
+    return true
   })
+
+  if (!posted) return
+  revalidatePath(`/messages/${conversationId}`)
+  revalidatePath("/messages")
+  revalidatePath("/dashboard")
 }

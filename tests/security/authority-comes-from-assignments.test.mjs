@@ -67,7 +67,13 @@ const PATTERNS = [
     // over it, because it only looked for `===` and `.includes(`. A detector
     // that catches the tidy spelling of a shortcut and not the clever one is
     // worse than none: it certifies the file it just failed to read.
-    re: /\b(?:roleName|role\.name|seatName|title)\s*(?:===|==|!==|!=)\s*["'`]|\b(?:roleName|role\.name|seatName)\s*\.\s*(?:includes|startsWith|endsWith|match)\s*\(|\.test\s*\(\s*(?:\w+\.)?(?:roleName|seatName|roleTitle|seatTitle)\s*\)/,
+    // The compared literal may not be a `typeof` tag. `typeof x.title ===
+    // "string"` is a shape check on parsed JSON — it decides whether a value is
+    // a string at all, never what its holder may do — and the palette's
+    // sessionStorage reader tripped this rule with one. Excluding the eight
+    // tags is narrower than exempting a file: `roleName === "President"` still
+    // matches, and so does a seat genuinely compared against any real title.
+    re: /\b(?:roleName|role\.name|seatName|title)\s*(?:===|==|!==|!=)\s*["'`](?!(?:string|number|boolean|object|undefined|function|symbol|bigint)["'`])|\b(?:roleName|role\.name|seatName)\s*\.\s*(?:includes|startsWith|endsWith|match)\s*\(|\.test\s*\(\s*(?:\w+\.)?(?:roleName|seatName|roleTitle|seatTitle)\s*\)/,
     why: "authority read from a seat title",
   },
   {

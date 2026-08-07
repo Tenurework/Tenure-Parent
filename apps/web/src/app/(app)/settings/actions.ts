@@ -13,6 +13,15 @@ async function requireUserId() {
   return session.user.id
 }
 
+/**
+ * The two routes a profile change shows on.
+ *
+ * Every caller invokes this AFTER its tenant scope has closed — including
+ * `uploadProfileImage`, which is the only one that opens a scope at all.
+ * `revalidatePath` inside a scope body is the rule stated on `withTenantScope`
+ * and enforced by
+ * tests/architecture/redirect-lives-outside-tenant-scope.test.mjs.
+ */
 function bumpProfile() {
   revalidatePath("/settings")
   revalidatePath("/dashboard")
@@ -83,8 +92,9 @@ export async function uploadProfileImage(formData: FormData) {
       where: { id: userId },
       data: { imageKey: key, image: `/api/profile-image/${userId}?v=${Date.now()}` },
     })
-    bumpProfile()
   })
+
+  bumpProfile()
 }
 
 export async function removeProfileImage() {
@@ -161,19 +171,22 @@ export async function setDelegation(formData: FormData) {
         },
       }),
     ])
-    revalidatePath("/settings")
   })
+
+  revalidatePath("/settings")
 }
 
 export async function revokeDelegation(formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  // `false` when there was no live delegation to revoke — nothing changed, so
+  // nothing is invalidated.
+  const revoked = await withTenantScope(userId, async () => {
     const id = String(formData.get("id") ?? "")
     const del = await db.approvalDelegation.findFirst({
       where: { id, fromUserId: userId, revokedAt: null },
       select: { id: true, institutionId: true },
     })
-    if (!del) return
+    if (!del) return false
     await db.$transaction([
       db.approvalDelegation.update({ where: { id: del.id }, data: { revokedAt: new Date() } }),
       db.auditEvent.create({
@@ -187,6 +200,8 @@ export async function revokeDelegation(formData: FormData) {
         },
       }),
     ])
-    revalidatePath("/settings")
+    return true
   })
+
+  if (revoked) revalidatePath("/settings")
 }

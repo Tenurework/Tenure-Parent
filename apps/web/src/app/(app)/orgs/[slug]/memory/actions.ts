@@ -58,7 +58,7 @@ export async function createMemoryCard(slug: string, formData: FormData) {
         },
       }),
     ])
-
-    revalidatePath(`/orgs/${slug}/memory`)
   })
+
+  revalidatePath(`/orgs/${slug}/memory`)
 }

@@ -18,7 +18,10 @@ export function MainRegion({ children }: { children: React.ReactNode }) {
       // user just skipped.
       id="main"
       tabIndex={-1}
-      className={`min-h-screen bg-base outline-none transition-[padding] duration-200 ease-out ${open ? "lg:pr-[26rem]" : ""}`}
+      // duration-base / ease-entry, the same pair SideNav's width transition
+      // uses: these two animate opposite edges of the same frame, so a
+      // mismatched duration is a visible tear down the side of the page.
+      className={`min-h-screen bg-base outline-none transition-[padding] duration-base ease-entry ${open ? "lg:pr-[26rem]" : ""}`}
       style={{
         paddingTop: "var(--shell-height)",
         paddingInlineStart: "var(--sidenav-current-width)",

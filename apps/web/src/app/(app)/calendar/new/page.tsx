@@ -34,9 +34,9 @@ export default async function NewEventPage({
   const session = await auth()
   if (!session?.user?.id) redirect("/signin")
 
-  return withTenantScope(session.user.id, async () => {
+  return withTenantScope(session.user.id, async (scope) => {
     const { date, time } = await searchParams
-    const timeZone = await viewerTimeZone(session.user.id)
+    const timeZone = await viewerTimeZone(session.user.id, scope.institutionId)
 
     const seats = await db.roleAssignment.findMany({
       where: { userId: session.user.id, status: "ACTIVE" },
@@ -50,6 +50,7 @@ export default async function NewEventPage({
           <BackButton />
           <Card className="mt-2">
             <EmptyState
+              state="empty"
               icon={CalendarDays}
               title="You need an active club seat"
               description="Only officers holding an active seat can propose events. If you have just been elected, your seat may still be in shadow status until your term begins."

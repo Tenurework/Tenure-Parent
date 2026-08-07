@@ -15,9 +15,32 @@ import {
   Sparkles,
 } from "@/components/ui/icons"
 import { DocContentView } from "@/components/documents/DocContentView"
+import { StateSurface } from "@/components/ui/StateSurface"
 import type { DocContentResponse, SavePayload, SheetData } from "@/components/documents/types"
 
-type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error" | "conflict"
+/**
+ * TTES-040-002. `session-expired` is a separate state, not an `error`.
+ *
+ * An idle-expired session (SESSION_IDLE_SECONDS, src/lib/auth.ts) turned an
+ * autosave into a 401, which fell into `error` — and `error` sets
+ * `dirtyRef.current = true`, so the debounce fired again, got another 401, and
+ * kept doing that until the reader navigated and lost everything they had
+ * typed. The draft is worth more than the retry: this state stops retrying,
+ * keeps the text exactly where it is in component state, and offers a
+ * re-authenticate link back to the same URL.
+ *
+ * Nothing is written anywhere. The draft stays in memory only — no token, no
+ * localStorage, no sessionStorage — so
+ * tests/security/no-tokens-in-browser-storage.test.mjs stays satisfied.
+ */
+type SaveStatus =
+  | "idle"
+  | "dirty"
+  | "saving"
+  | "saved"
+  | "error"
+  | "conflict"
+  | "session-expired"
 
 /** Presigned URLs live 600 s; refresh a little early once the modal is stale. */
 const STALE_MS = 9 * 60 * 1000
@@ -108,6 +131,8 @@ export function DocumentViewerOverlay({
   const dirtyRef = useRef(false)
   const savingRef = useRef(false)
   const conflictRef = useRef(false)
+  /** Latched on a 401. Stops the debounce re-firing into a signed-out session. */
+  const expiredRef = useRef(false)
   const closingRef = useRef(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savePromiseRef = useRef<Promise<void> | null>(null)
@@ -132,6 +157,7 @@ export function DocumentViewerOverlay({
         fetchedAtRef.current = Date.now()
         dirtyRef.current = false
         conflictRef.current = false
+        expiredRef.current = false
         if (json.content.kind === "text") {
           textRef.current = json.content.text
           setTextValue(json.content.text)
@@ -189,7 +215,7 @@ export function DocumentViewerOverlay({
   }, [])
 
   const doSave = useCallback(async () => {
-    if (conflictRef.current) return
+    if (conflictRef.current || expiredRef.current) return
     const payload = buildPayload()
     if (!payload) return
     dirtyRef.current = false
@@ -202,6 +228,14 @@ export function DocumentViewerOverlay({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ ...payload, baseUpdatedAt: baseUpdatedAtRef.current }),
         })
+        if (res.status === 401) {
+          // Do NOT set dirtyRef: that is what re-armed the debounce and made
+          // this a loop. The text is still in `textValue` / `sheets`, and it
+          // stays there until the reader signs back in.
+          expiredRef.current = true
+          setStatus("session-expired")
+          return
+        }
         if (res.status === 409) {
           conflictRef.current = true
           setStatus("conflict")
@@ -228,7 +262,7 @@ export function DocumentViewerOverlay({
   }, [buildPayload, docId])
 
   const scheduleSave = useCallback(() => {
-    if (conflictRef.current) return
+    if (conflictRef.current || expiredRef.current) return
     dirtyRef.current = true
     setStatus("dirty")
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -355,6 +389,34 @@ export function DocumentViewerOverlay({
           )}
         </div>
 
+        {status === "session-expired" && (
+          <div className="mb-4">
+            {/* The role and the politeness come from STATE_SEMANTICS, not from
+                here — `permission-denied` is role="alert" / assertive, which is
+                right: the reader is about to keep typing into a draft that is
+                no longer being saved. */}
+            <StateSurface
+              state="permission-denied"
+              title="Your session expired while you were editing"
+              detail={
+                <>
+                  Your changes are still on screen and have not been lost, but nothing is being
+                  saved. Sign in again in another tab, then press Save — this document is still
+                  open at{" "}
+                  <Link
+                    href={`/signin?next=${encodeURIComponent(`/orgs/${slug}/documents`)}`}
+                    target="_blank"
+                    className="text-text-link underline"
+                  >
+                    the sign-in page
+                  </Link>
+                  .
+                </>
+              }
+            />
+          </div>
+        )}
+
         {status === "conflict" && (
           <div className="mb-4 flex items-start gap-2 rounded-md border border-[--error] bg-base px-3 py-2 text-xs text-text-1">
             <AlertCircle size={14} className="mt-0.5 shrink-0 text-[--error]" />
@@ -408,7 +470,7 @@ function SaveStatusPill({ status, onRetry }: { status: SaveStatus; onRetry: () =
     >
       {status === "saving" && <Loader2 size={13} className="animate-spin" />}
       {status === "saved" && <CheckCircle size={13} className="text-[--primary]" />}
-      {(status === "error" || status === "conflict") && (
+      {(status === "error" || status === "conflict" || status === "session-expired") && (
         <AlertCircle size={13} className="text-[--error]" />
       )}
       {status === "error" ? (
@@ -425,7 +487,9 @@ function SaveStatusPill({ status, onRetry }: { status: SaveStatus; onRetry: () =
                 ? "Saved just now"
                 : status === "conflict"
                   ? "Newer version exists"
-                  : ""}
+                  : status === "session-expired"
+                    ? "Not saving — session expired"
+                    : ""}
         </span>
       )}
     </span>
@@ -447,7 +511,7 @@ function TextEditor({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         spellCheck={false}
-        className="h-[60vh] w-full resize-y rounded-md border border-border bg-base p-4 font-mono text-xs text-text-1 outline-none focus:border-[--primary]"
+        className="h-[60vh] w-full resize-y rounded-md border border-border bg-base p-4 font-mono text-xs text-text-1 outline-none focus:border-[--border-focus]"
       />
       <p className="mt-1 text-xs text-text-3">
         {lines} line{lines === 1 ? "" : "s"} · edits autosave

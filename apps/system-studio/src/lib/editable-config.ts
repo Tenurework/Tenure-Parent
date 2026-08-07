@@ -1,4 +1,4 @@
-import { CONFIG_DOMAINS, domainOf, type ConfigDomain } from "@tenure/configuration"
+import { CONFIG_DOMAINS, domainOf, type ConfigDomain, type OptionPrice } from "@tenure/configuration"
 import { PLATFORM_DEFINITIONS } from "@tenure/platform-config"
 
 /**
@@ -28,6 +28,16 @@ export interface EditableField {
   defaultValue: unknown
   /** `string`, `number`, `boolean` — what the form should render. */
   input: "string" | "number" | "boolean" | "unsupported"
+  /**
+   * What choosing this option costs — per seat AND for the whole organisation
+   * (NEXT-SESSION §7).
+   *
+   * Carried on the field rather than looked up beside it, so the form cannot
+   * render a row without the money for it. The running total on the page is the
+   * resolver's, not a sum of these — see `ConfigurationPage` — because a total
+   * assembled in the UI is a second answer to the same question.
+   */
+  price: OptionPrice
 }
 
 /** A domain a tenant admin may write, with the fields it currently has. */
@@ -66,7 +76,19 @@ function inputFor(value: unknown): EditableField["input"] {
  */
 export function editableDomains(
   domains: readonly ConfigDomain[] = CONFIG_DOMAINS,
-  definitions: readonly { key: string; description: string; default: unknown; overridable: boolean; allowedScopes: readonly string[] }[] = PLATFORM_DEFINITIONS,
+  definitions: readonly {
+    key: string
+    description: string
+    default: unknown
+    overridable: boolean
+    allowedScopes: readonly string[]
+    // Required here too, not optional. A definition without a price cannot
+    // reach this function — `validateDefinition` refuses to register it — so
+    // making it optional would only let a test build a field the real editor
+    // can never receive, and the "no price on the screen" defect would come
+    // back through the one door the type system was not watching.
+    price: OptionPrice
+  }[] = PLATFORM_DEFINITIONS,
 ): readonly EditableDomain[] {
   return domains
     .filter((d) => d.tenantAdminMayWrite)
@@ -84,6 +106,7 @@ export function editableDomains(
           domain: domain.id,
           defaultValue: definition.default,
           input: inputFor(definition.default),
+          price: definition.price,
         }))
         .sort((a, b) => (a.key < b.key ? -1 : 1)),
     }))

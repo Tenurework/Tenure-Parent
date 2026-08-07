@@ -13,6 +13,7 @@ import { z } from "zod"
  * overwrite an invariant must each come back named.
  */
 const wordmark = defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
   key: "platform.branding.wordmark",
   owner: "platform",
   type: z.string().min(1).max(40),
@@ -25,6 +26,7 @@ const wordmark = defineConfig({
 })
 
 const auditImmutable = defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
   key: "platform.audit.immutable",
   owner: "platform",
   type: z.boolean(),

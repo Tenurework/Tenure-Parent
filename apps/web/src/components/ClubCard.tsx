@@ -7,7 +7,7 @@ import { ConfirmSubmit } from "@/components/ui/ConfirmDialog"
 import { setClubStatus } from "@/app/(app)/orgs/actions"
 
 const clubActionBtn =
-  "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-3 outline-none transition-colors hover:bg-base hover:text-text-1 focus-visible:ring-2 focus-visible:ring-[--primary]"
+  "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-3 outline-none transition-colors hover:bg-base hover:text-text-1 focus-visible:ring-2 focus-visible:ring-[--border-focus]"
 
 const CATEGORY_LABEL: Record<OrgCategory, string> = {
   ORGANIZATION: "Organization",
@@ -95,7 +95,7 @@ export function ClubCard({
       </div>
 
       {/* Footer action row — above the stretched link, so no overlap */}
-      <div className="relative z-10 flex items-center justify-between gap-2 border-t border-border px-5 py-3">
+      <div className="relative z-raised flex items-center justify-between gap-2 border-t border-border px-5 py-3">
         <span className="text-[13px] font-medium text-text-link">View roster →</span>
         {canArchive &&
           (org.status === "ARCHIVED" ? (

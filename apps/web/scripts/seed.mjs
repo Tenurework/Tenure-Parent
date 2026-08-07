@@ -464,6 +464,13 @@ async function main() {
       { line: venueLine.id, kind: "SPEND", amountCents: 45000, description: "AV rental + setup", daysAgo: 9 },
     ]
     for (const e of demoLedger) {
+      const occurredAt = new Date(Date.now() - e.daysAgo * 86_400_000)
+      // PAY-130-002. Demo postings are journals like every other posting: the
+      // expense against the line, and the counter-side that does not carry a
+      // budget dimension. Seeding only the expense half would leave the
+      // development database in a shape production can no longer be in.
+      const journalId = `jrn_seed_${e.line}_${e.daysAgo}`
+      const debitToExpense = e.amountCents >= 0
       await db.ledgerEntry.create({
         data: {
           organizationId: consulting.id,
@@ -473,7 +480,29 @@ async function main() {
           amountCents: e.amountCents,
           description: e.description,
           vendorId: e.vendorId ?? null,
-          occurredAt: new Date(Date.now() - e.daysAgo * 86_400_000),
+          occurredAt,
+          journalId,
+          templateId: debitToExpense ? "ledger.manual-spend" : "ledger.manual-recovery",
+          account: "6000-program-expense",
+          side: debitToExpense ? "DEBIT" : "CREDIT",
+          effectiveAt: occurredAt,
+        },
+      })
+      await db.ledgerEntry.create({
+        data: {
+          organizationId: consulting.id,
+          budgetLineId: null,
+          academicYear: "2026-2027",
+          kind: e.kind,
+          amountCents: -e.amountCents,
+          description: e.description,
+          vendorId: e.vendorId ?? null,
+          occurredAt,
+          journalId,
+          templateId: debitToExpense ? "ledger.manual-spend" : "ledger.manual-recovery",
+          account: debitToExpense ? "2100-reimbursement-payable" : "1000-cash-clearing",
+          side: debitToExpense ? "CREDIT" : "DEBIT",
+          effectiveAt: occurredAt,
         },
       })
     }

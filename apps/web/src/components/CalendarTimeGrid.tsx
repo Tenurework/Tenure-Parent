@@ -525,6 +525,37 @@ export function CalendarTimeGrid({
     })
   }
 
+  /**
+   * WCAG 2.2 SC 2.5.7, Dragging Movements — a duration is a thing you could
+   * only set by dragging an edge, so there has to be another way to set it.
+   *
+   * The pointer half lives in the inspector (open the event with one click,
+   * press "15 min longer"), which is what the criterion literally asks for: a
+   * single pointer, no dragging. This is the keyboard half.
+   *
+   * Alt, not Shift. Shift+Arrow already means "move by an hour" — asserted by
+   * e2e/calendar.spec.ts — and taking that key for resize would have made an
+   * existing test red rather than making the product more accessible.
+   */
+  const resizeEnd = (
+    id: string,
+    date: string,
+    startMin: number,
+    writeEndMin: number,
+    deltaMin: number
+  ) => {
+    const span = Math.max(MIN_EVENT_MIN, writeEndMin - startMin)
+    // Never shorter than one slot, never past the bottom of the grid. Both are
+    // the same clamps the pointer resize uses, so the two paths cannot produce
+    // events the other could not.
+    const nextEnd = Math.max(
+      startMin + MIN_EVENT_MIN,
+      Math.min(clampToGrid(startMin + span + deltaMin), END_HOUR * 60)
+    )
+    if (nextEnd === startMin + span) return
+    void commit(id, date, startMin, nextEnd)
+  }
+
   /** Nudge an event by keyboard — drag-and-drop is not an accessible-only path. */
   const nudge = (
     ev: React.KeyboardEvent,
@@ -541,7 +572,10 @@ export function CalendarTimeGrid({
     // at 11pm exactly produced a zero-length request the server rejected.
     const span = Math.max(MIN_EVENT_MIN, writeEndMin - startMin)
     let handled = true
-    if (ev.key === "ArrowUp" || ev.key === "ArrowDown") {
+    if (ev.altKey && (ev.key === "ArrowUp" || ev.key === "ArrowDown")) {
+      // Resize: the start stays put, the end moves. Down lengthens.
+      resizeEnd(id, date, startMin, writeEndMin, ev.key === "ArrowDown" ? step : -step)
+    } else if (ev.key === "ArrowUp" || ev.key === "ArrowDown") {
       const dir = ev.key === "ArrowDown" ? 1 : -1
       const start = clampToGrid(startMin + dir * step)
       void commit(id, date, start, start + span)
@@ -721,7 +755,11 @@ export function CalendarTimeGrid({
                       tabIndex={0}
                       aria-label={`${e.title}, ${e.org}, ${label(startMin)} to ${label(endMin)}${
                         e.venue ? `, ${e.venue}` : ""
-                      }${e.editable ? ". Drag to reschedule, or use arrow keys." : ""}`}
+                      }${
+                        e.editable
+                          ? ". Drag to reschedule, or use arrow keys. Hold Alt with up or down to change how long it runs. Open it to change the time without dragging."
+                          : ""
+                      }`}
                       onPointerDown={(ev) =>
                         e.editable && beginDrag(ev, "move", e.id, d.date, startMin, endMin, writeEndMin)
                       }
@@ -744,9 +782,9 @@ export function CalendarTimeGrid({
                         }
                         setInspect(e.id)
                       }}
-                      className={`cal-chip absolute overflow-hidden rounded-md border-l-[3px] px-2 py-1 text-[12px] leading-tight outline-none focus-visible:ring-2 focus-visible:ring-[--primary] ${
+                      className={`cal-chip absolute overflow-hidden rounded-md border-l-[3px] px-2 py-1 text-[12px] leading-tight outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus] ${
                         e.editable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
-                      } ${isDragging ? "z-30 opacity-90 shadow-md" : "shadow-xs"} ${saving ? "opacity-70" : ""}`}
+                      } ${isDragging ? "z-dragged opacity-90 shadow-md" : "shadow-xs"} ${saving ? "opacity-70" : ""}`}
                       style={{
                         ...sw.vars,
                         top: liveTop,
@@ -756,22 +794,32 @@ export function CalendarTimeGrid({
                         touchAction: "none",
                       }}
                     >
-                      {/* Resize handles — top and bottom edges. */}
+                      {/* Resize handles — top and bottom edges.
+                          Named rather than `aria-hidden`: they were the only
+                          way to change a duration and they announced nothing,
+                          so a reader was not told the affordance existed, let
+                          alone that there was another route to it. They stay
+                          non-focusable spans — the keyboard path is Alt+Arrow
+                          on the chip itself and the pointer path is in the
+                          inspector, so a 6px tab stop would be a WCAG 2.5.8
+                          target-size failure offering nothing. */}
                       {e.editable && (
                         <>
                           <span
+                            role="img"
+                            aria-label={`Drag to change when ${e.title} starts. Not needed: open the event to set the time without dragging.`}
                             onPointerDown={(ev) =>
                               beginDrag(ev, "resize-start", e.id, d.date, startMin, endMin, writeEndMin)
                             }
                             className="absolute inset-x-0 top-0 h-1.5 cursor-ns-resize"
-                            aria-hidden
                           />
                           <span
+                            role="img"
+                            aria-label={`Drag to change how long ${e.title} runs, or hold Alt and press the down arrow.`}
                             onPointerDown={(ev) =>
                               beginDrag(ev, "resize-end", e.id, d.date, startMin, endMin, writeEndMin)
                             }
                             className="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize"
-                            aria-hidden
                           />
                         </>
                       )}
@@ -794,7 +842,7 @@ export function CalendarTimeGrid({
                       key={`of-${d.date}-${g.startMin}`}
                       type="button"
                       onClick={() => setExpanded({ date: d.date, events: g.events })}
-                      className="absolute overflow-hidden rounded-md border border-dashed border-[--border-strong] bg-surface px-1.5 py-1 text-[11px] font-semibold leading-tight text-text-2 outline-none transition-colors hover:border-[--primary] hover:text-text-1 focus-visible:ring-2 focus-visible:ring-[--primary]"
+                      className="absolute overflow-hidden rounded-md border border-dashed border-[--border-strong] bg-surface px-1.5 py-1 text-[11px] font-semibold leading-tight text-text-2 outline-none transition-colors hover:border-[--primary] hover:text-text-1 focus-visible:ring-2 focus-visible:ring-[--border-focus]"
                       style={{
                         top: (g.startMin - START_HOUR * 60) * PX_PER_MIN,
                         height: Math.max(20, (g.endMin - g.startMin) * PX_PER_MIN - 2),
@@ -814,7 +862,7 @@ export function CalendarTimeGrid({
               days, positioned from the institution's clock. */}
           {showNow && (
             <div
-              className="pointer-events-none absolute z-20 flex items-center"
+              className="pointer-events-none absolute z-marker flex items-center"
               // translateY(-50%) is load-bearing: `top` positions the top edge
               // of this flex row, but the hairline is centred inside it, so
               // without the shift the line drew ~7.5px — about nine minutes —
@@ -861,7 +909,7 @@ export function CalendarTimeGrid({
                         setExpanded(null)
                         setInspect(e.id)
                       }}
-                      className="cal-chip flex w-full items-start gap-2 rounded-md border-l-[3px] px-2.5 py-2 text-left text-[13px] outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[--primary]"
+                      className="cal-chip flex w-full items-start gap-2 rounded-md border-l-[3px] px-2.5 py-2 text-left text-[13px] outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[--border-focus]"
                       style={sw.vars}
                     >
                       <span className="min-w-0 flex-1">
@@ -887,6 +935,21 @@ export function CalendarTimeGrid({
           onSaved={() => {
             setInspect(null)
             router.refresh()
+          }}
+          // SC 2.5.7. Resolved from `effective` rather than from the layout, so
+          // an event folded into a "+N more" cluster resizes exactly like one
+          // that is drawn — a hidden chip is not a less accessible chip.
+          onResize={(deltaMinutes) => {
+            const e = effective.find((x) => x.id === inspect)
+            if (!e || !e.editable) return
+            const start = new Date(e.startISO)
+            const date = dateKeyInZone(start, timeZone)
+            const startMin = minutesOfDayInZone(start, timeZone)
+            const span = Math.max(
+              MIN_EVENT_MIN,
+              Math.round((new Date(e.endISO).getTime() - start.getTime()) / 60000)
+            )
+            resizeEnd(e.id, date, startMin, startMin + span, deltaMinutes)
           }}
         />
       )}

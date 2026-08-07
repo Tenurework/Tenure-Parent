@@ -3,6 +3,8 @@ import { TenantContextError, type TenantScope } from "./context"
 
 const TENANT_A: TenantScope = {
   institutionId: "inst_a",
+  environment: "test",
+  purpose: "interactive",
   actor: { principalId: "user_1", principalType: "user" },
 }
 

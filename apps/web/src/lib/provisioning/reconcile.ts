@@ -1,5 +1,9 @@
-import { buildAuditRecord } from "@tenure/audit";
-import type { Prisma } from "@prisma/client";
+import { recordAuditEvent, txAuditLedger } from "@/lib/audit-record";
+// Type-only, so nothing about the concrete client is pulled in here: the
+// callback's client is the tenancy-extended one, which is what `txAuditLedger`
+// asks for. `Prisma.TransactionClient` describes the UNextended client and
+// stopped matching once the extension was attached (see db.ts).
+import type { TxClient } from "@/lib/db";
 
 /**
  * The cell side of provisioning.
@@ -156,7 +160,7 @@ export async function verifyDigest(
  * nominally a different type, structurally a superset. Typing this parameter as
  * `PrismaClient` refused the extended client; typing it as the extended client
  * would refuse a plain one. It needs a transaction, so it asks for a
- * transaction, and the callback's client is `Prisma.TransactionClient` either
+ * transaction, and the callback's client is the extended `TxClient` either
  * way because that is what both hand it.
  */
 export interface ReconcileClient {
@@ -227,7 +231,7 @@ export async function reconcile(
   // Everything in one transaction: a cell left with an institution but no
   // administrator is worse than one left with neither, because it looks
   // provisioned.
-  const result = await db.$transaction(async (tx: Prisma.TransactionClient) => {
+  const result = await db.$transaction(async (tx: TxClient) => {
     const existing = await tx.institution.findUnique({
       where: { slug: manifest.slug },
     });
@@ -357,45 +361,46 @@ export async function reconcile(
 
     // The record that a tenant was materialised here, and by which artifact.
     //
-    // Built through @tenure/audit rather than hand-assembled: that validates the
-    // required fields, refuses a DENY with no reason, and redacts sensitive
-    // metadata. 34 of 35 audit writes in this application skip all of it
-    // (subsystem-paths.md §3) and a ratchet stops a 35th being added — this is
-    // a new write, so it goes through the package, which is where they are all
-    // heading anyway.
+    // Written through `recordAuditEvent` on the caller's own `tx`, not through
+    // `buildAuditRecord` directly. The builder validates the required fields,
+    // refuses a DENY with no reason and redacts sensitive metadata; the
+    // chokepoint adds the hash chain, the release stamp and the money-mode on
+    // top of that, and a record with no chain position is one `verifyChain`
+    // reports as unchained — which was this row's state until PAY-000-007.
     //
-    // Inside the transaction, so it cannot exist for a reconcile that rolled back.
-    const record = buildAuditRecord({
-      tenantId: institution.id,
-      actor: { principalId: user.id },
-      action: "Tenant.Reconciled",
-      resourceType: "Institution",
-      resourceId: institution.id,
-      outcome: "ALLOW",
-      occurredAt: input.at,
-      metadata: {
-        manifestDigest: manifest.manifestDigest,
-        deploymentDigest: manifest.digest,
-        configurationChecksum: manifest.configurationChecksum,
-        modules: [...manifest.modules],
-        publishedBy: manifest.createdBy,
-        publishedAt: manifest.createdAt,
-        changes,
+    // `txAuditLedger(tx)` rather than the default ledger: `prismaAuditLedger`
+    // opens its own `$transaction`, and PostgreSQL has no nested transactions,
+    // so the audit row would commit independently of the reconcile it
+    // describes. On `tx` it is inside the same transaction, so it cannot exist
+    // for a reconcile that rolled back.
+    //
+    // `mode` is explicit here because this is the one writer that legitimately
+    // runs OUTSIDE a tenant scope: it is materialising the tenant, so there is
+    // no scope to resolve a mode from yet. A tenant coming into existence is in
+    // test mode — nothing has published `platform.payments.mode` for it, and
+    // the definition's own default is `test`.
+    await recordAuditEvent(
+      {
+        institutionId: institution.id,
+        actor: { principalId: user.id },
+        action: "Tenant.Reconciled",
+        resourceType: "Institution",
+        resourceId: institution.id,
+        outcome: "ALLOW",
+        mode: "test",
+        occurredAt: new Date(input.at),
+        metadata: {
+          manifestDigest: manifest.manifestDigest,
+          deploymentDigest: manifest.digest,
+          configurationChecksum: manifest.configurationChecksum,
+          modules: [...manifest.modules],
+          publishedBy: manifest.createdBy,
+          publishedAt: manifest.createdAt,
+          changes,
+        },
       },
-    });
-
-    await tx.auditEvent.create({
-      data: {
-        institutionId: record.tenantId,
-        actorId: record.actorId,
-        action: record.action,
-        resourceType: record.resourceType,
-        resourceId: record.resourceId ?? undefined,
-        outcome: record.outcome,
-        reason: record.reason ?? undefined,
-        metadata: record.metadata as Prisma.InputJsonValue,
-      },
-    });
+      txAuditLedger(tx),
+    );
 
     return institution.id;
   });

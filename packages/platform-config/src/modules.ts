@@ -8,6 +8,10 @@ import {
 import { MODULE_CATALOG } from "@tenure/modules"
 import { ENGINE_VERSION } from "@tenure/configuration"
 import {
+  capabilityAvailabilityForModules,
+  type ModulePaymentCapability,
+} from "@tenure/payments"
+import {
   navigationFor,
   resolveModules,
   type ModuleAdvisory,
@@ -76,6 +80,26 @@ export interface SystemModules {
    * Reported by `/api/me` so a client can say so.
    */
   advisories: readonly ModuleAdvisory[]
+  /**
+   * PAY-000-008 — the payments capabilities these modules would use, as STATES.
+   *
+   * Not a boolean. `budgeting` being enabled says the tenant bought budgeting;
+   * it says nothing about whether Tenure has certified card acceptance, and the
+   * two were previously indistinguishable because there was no third value
+   * between "the module is on" and "the module is off". An operator reading a
+   * module list could not tell "Stripe documents this" from "Tenure has
+   * approved and certified this", which is exactly what Bible §3 asks the
+   * availability truth to answer identically in System Studio, the tenant UI,
+   * the APIs and the docs.
+   *
+   * Every entry comes from `@tenure/payments`'s registry, which validates the
+   * approving ADR against the filesystem on each read — so a capability edited
+   * to claim GA without an ADR does not render as available here, it throws.
+   *
+   * Non-optional, set at both return sites below. An optional field a producer
+   * forgets is invisible to `tsc` and shows up as an empty list in production.
+   */
+  paymentCapabilities: readonly ModulePaymentCapability[]
 }
 
 /**
@@ -137,6 +161,7 @@ export function modulesFor(
       provenance: originsOf(keys, requested),
       problems,
       advisories,
+      paymentCapabilities: capabilityAvailabilityForModules(keys, at),
     }
   }
 
@@ -186,7 +211,14 @@ export function modulesFor(
     systemOfRecord: binding.coexistence?.systemOfRecord,
   })
 
-  return { enabled: ordered, keys, provenance: originsOf(keys, preset), problems, advisories }
+  return {
+    enabled: ordered,
+    keys,
+    provenance: originsOf(keys, preset),
+    problems,
+    advisories,
+    paymentCapabilities: capabilityAvailabilityForModules(keys, at),
+  }
 }
 
 /** True when this system runs a module. The check a feature surface should make. */

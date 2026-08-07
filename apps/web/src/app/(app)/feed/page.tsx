@@ -32,13 +32,13 @@ export default async function FeedPage() {
   if (!session?.user?.id) redirect("/signin")
   const userId = session.user.id
 
-  return withTenantScope(userId, async () => {
+  return withTenantScope(userId, async (scope) => {
     const ctx = await getUserContext(userId)
     // Event dates render in the institution's zone, matching the calendar. An
     // unzoned format resolves against the server clock (UTC in production), which
     // pushes any event after ~8pm local onto the following day's date here while
     // the calendar shows the correct one.
-    const tz = await viewerTimeZone(userId)
+    const tz = await viewerTimeZone(userId, scope.institutionId)
     const oseInstitutionIds = ctx.institutionRoles.map((m) => m.institutionId)
     const activeOrgIds = ctx.orgRoles
       .filter((r) => r.status === "ACTIVE")

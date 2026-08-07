@@ -163,7 +163,14 @@ for (const r of pointers) {
 }
 
 // ── (4) ──────────────────────────────────────────────────────────────────────
-h("(4) COLLISION PRESSURE ON THE FIVE GLOBAL UNIQUES", "A composite is safe to add only if it is already unique.")
+// REVIEW-FINDINGS #7 closed one of these: `ApprovalRequest.idempotencyKey` is
+// no longer a global unique — the schema scopes it with
+// `@@unique([institutionId, idempotencyKey])`. It stays on this table because
+// collision pressure is still the question, but it is now counted PER TENANT.
+// Counting it globally would report collisions between tenants that the index
+// permits, which reads as pressure that does not exist and hides the pressure
+// that does: two rows sharing a key inside ONE institution.
+h("(4) COLLISION PRESSURE ON THE GLOBAL UNIQUES", "A composite is safe to add only if it is already unique.")
 const uniques = await db.$queryRaw`
   SELECT 'Organization.slug' AS constraint_, count(*) AS rows, count(DISTINCT slug) AS distinct_,
          count(*) FILTER (WHERE slug IS NULL) AS nulls FROM "Organization"
@@ -173,7 +180,8 @@ const uniques = await db.$queryRaw`
          count(*) FILTER (WHERE key IS NULL) FROM "Deliverable"
   UNION ALL SELECT 'DirectoryPerson.email', count(*), count(DISTINCT email),
          count(*) FILTER (WHERE email IS NULL) FROM "DirectoryPerson"
-  UNION ALL SELECT 'ApprovalRequest.idempotencyKey', count(*), count(DISTINCT "idempotencyKey"),
+  UNION ALL SELECT 'ApprovalRequest.idempotencyKey (per tenant)', count(*),
+         count(DISTINCT ("institutionId", "idempotencyKey")),
          count(*) FILTER (WHERE "idempotencyKey" IS NULL) FROM "ApprovalRequest"
   ORDER BY 1`
 table(uniques.map((r) => ({

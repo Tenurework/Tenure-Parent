@@ -75,6 +75,10 @@ export default async function NewTenantPage() {
     version: m.version,
     lifecycle: m.lifecycle,
     enableable: ENABLEABLE.has(m.lifecycle),
+    // PAY-160-002. The manifest's own list price, carried through rather than
+    // restated: the composer quotes what `validateManifest` admitted, so a
+    // price shown here and a price the catalog accepted cannot disagree.
+    price: m.price,
   }))
 
   /**

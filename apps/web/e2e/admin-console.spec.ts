@@ -99,6 +99,60 @@ test.describe("admin console", () => {
   })
 })
 
+test.describe("a capability refusal inside the console is refused, not hidden", () => {
+  /**
+   * TTES-040-002. `/admin/overrides` called notFound() when an administrator
+   * held neither override capability — telling somebody the page does not exist
+   * one click after the console's own navigation rendered the link to it. The
+   * existence rule is for OBJECTS a person should not know about; this person
+   * is already known to be an administrator, and no object is named. It is the
+   * `permission-denied` state that `states.ts` was written for.
+   *
+   * Driven entirely through the product: the director grants Advisor (the one
+   * admin role below both override capabilities) via /admin/people, the advisor
+   * signs in, and the grant is revoked afterwards.
+   */
+  const advisorEmail = "member@tenure.demo"
+
+  test("an advisor is told the seat does not include overrides — not that the page is missing", async ({
+    page,
+  }) => {
+    await signIn(page, "Dana Whitfield")
+    await page.goto("/admin/people")
+    await page.getByPlaceholder("staff@rochester.edu").fill(advisorEmail)
+    await page.getByRole("button", { name: /Role/ }).click()
+    await page.getByRole("option", { name: "Advisor", exact: true }).click()
+    await page.getByRole("button", { name: "Grant access" }).click()
+    await expect(
+      page.locator("li").filter({ hasText: advisorEmail }).getByText("OSE Advisor"),
+    ).toBeVisible()
+
+    try {
+      await signIn(page, "Maya Johnson")
+      await page.goto("/admin/overrides")
+
+      const refusal = page.locator('[data-state="permission-denied"]')
+      await expect(refusal).toBeVisible()
+      // The role comes from STATE_SEMANTICS, not from the page — delete
+      // `role={semantics.role}` in StateSurface and this reds.
+      await expect(refusal).toHaveAttribute("role", "alert")
+      await expect(refusal).toContainText("Not available to you")
+      // ...and it never names what it is withholding.
+      await expect(refusal).not.toContainText("Simon Consulting")
+
+      // Emphatically not a 404. This is the assertion that reds if the page is
+      // put back to notFound().
+      await expect(page.getByText(/could not be found|404/i)).toHaveCount(0)
+    } finally {
+      await signIn(page, "Dana Whitfield")
+      await page.goto("/admin/people")
+      const row = page.locator("li").filter({ hasText: advisorEmail })
+      await row.getByRole("button", { name: /Revoke access for/ }).click()
+      await page.getByRole("dialog").getByRole("button", { name: "Remove access" }).click()
+    }
+  })
+})
+
 test.describe("console navigation matches capability", () => {
   /**
    * The console used to link to its own 404s: AdminNav rendered all six tabs

@@ -1,0 +1,154 @@
+[
+  {
+    "id": "PAY-030-005",
+    "title": "Implement immutable state-transition history with actor, authority, reason, policy/config version and evidence",
+    "why_open": "ApprovalStep is the platform's only state-transition history and it is NOT immutable and does NOT carry a policy/config version. apps/web/src/lib/audit-append-only.ts:65 — `export const APPEND_ONLY_MODELS: ReadonlySet<string> = new Set([\"AuditEvent\"])` — ApprovalStep is absent, so the Prisma extension permits update/delete/upsert on it. Meanwhile apps/web/prisma/schema.prisma:479 comments the model `// Each gate in the approval state machine — append-only` and apps/web/src/app/(app)/approvals/actions.ts:387 claims writes append to `a trail the schema declares immutable`. Both claims are false. Separately, the config/policy revision is never recorded: apps/web/src/lib/config/server.ts:89 `configSnapshotForInstitution` produces `revision` + `checksum` and its ONLY caller is apps/web/src/app/api/ai/chat/route.ts:85 — none of the six ApprovalStep writers (approvals/actions.ts:125 and :396, admin/actions.ts:473, calendar/actions.ts:96, orgs/[slug]/finance/actions.ts:452, lib/calendar-write.ts:145) reads it. `policySnapshot` carries only ad-hoc booleans (actions.ts:404 `{ action, requesterIsPresident, onBehalfOf }`), not the revision the decision was made against, and there is no evidence reference column at all.",
+    "files": [
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/",
+      "apps/web/src/lib/audit-append-only.ts",
+      "apps/web/src/lib/audit-append-only.test.ts",
+      "apps/web/src/lib/config/server.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/app/(app)/admin/actions.ts",
+      "apps/web/src/app/(app)/calendar/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "apps/web/src/lib/calendar-write.ts"
+    ],
+    "smallest_real_change": "1) Add \"ApprovalStep\" to APPEND_ONLY_MODELS (audit-append-only.ts:65) so update/delete/upsert are refused; the header comment already explains the allow-list design, extend it to say why a decision trail belongs there. 2) Prisma migration adding NOT-NULL `configRevision String` and `configChecksum String` plus nullable `evidenceDocumentId String?` (FK to Document) and `authority String` (the capability/gate that conferred the decision, e.g. `approvals.request.decide` or `OSE Override`) to ApprovalStep. 3) Because the columns are REQUIRED, every one of the six construction sites must be fixed in the same change — grep `approvalStep.create` and pass `await configSnapshotForInstitution(institutionId)`'s `.revision`/`.checksum` at each. Do NOT make them optional: an optional column a writer forgets is invisible to tsc and re-opens the hole. 4) Tests: (a) mutation — delete \"ApprovalStep\" from APPEND_ONLY_MODELS and confirm a new append-only unit test reds; (b) mutation on the PRODUCER — in approvals/actions.ts replace the resolved revision with a frozen literal and assert an integration/e2e test on the emitted row reds (asserting via configSnapshotForInstitution directly would stay green when the action stops calling it).",
+    "already_done": false
+  },
+  {
+    "id": "PAY-150-005",
+    "title": "Implement step-up authentication and short action authorization for high-risk commands",
+    "why_open": "The step-up machinery is fully built and completely inert — declared with no producer. packages/authorization/src/decide.ts:78 declares `assuranceRequirements?: readonly AssuranceRequirement[]` on the world and :406 reads `requirementFor(world.assuranceRequirements, request.permission)`; the two production world builders never set it — apps/web/src/lib/authz/seat-world.ts `seatWorld()` returns `{ grants, enabledModules, entitlements }` (ends line 98) and `decideFromSeats` at :121 / `decideForInstitution` at :201 pass no `session` either, so `checkAssurance` runs with `undefined` requirement and `undefined` session on every real call and can never deny. packages/identity/src/assurance.ts:89 `REQUIREMENTS` maps GatedAction → level+maxAgeMinutes and its only importer anywhere is packages/identity/src/linking.ts:4 (for a single constant); no apps/web file imports GatedAction, REQUIREMENTS or satisfiesAssurance. packages/authorization/src/service.ts:326 is the only other reader and NEXT-SESSION.md §5 records that `authorizationService` has no production caller. Result: the approval decision path (apps/web/src/app/(app)/approvals/actions.ts:396) — the highest-risk command that exists — takes no step-up and no short-lived action authorization.",
+    "files": [
+      "apps/web/src/lib/authz/seat-world.ts",
+      "apps/web/src/lib/authz/seat-world.test.ts",
+      "apps/web/src/lib/tenancy/request-context.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/lib/approvals.ts",
+      "packages/identity/src/assurance.ts",
+      "packages/authorization/src/decide.ts"
+    ],
+    "smallest_real_change": "Make `seatWorld`/`institutionWorld` (seat-world.ts) populate `assuranceRequirements` from a single exported table, and make `decideFromSeats`/`decideForInstitution` pass `session: { level, provedAt }` derived from the NextAuth session (apps/web/src/lib/tenancy/request-context.ts:41 already models `assurance: anonymous|password|federated|mfa`, so map that, plus `token.authAt` which auth.ts already stamps, into `SessionAssurance`). Add a `payment-approval`-class entry to packages/identity/src/assurance.ts GATED_ACTIONS with `maxAgeMinutes`, and require it for the decide permission on BUDGET/VENDOR approval types in approvals/actions.ts before the transaction. The refusal must render as a step-up prompt, not a generic 403 — decide() already returns `ASSURANCE_TOO_LOW` with a detail string. Mutation proof: in seat-world.ts drop the `assuranceRequirements` field from the returned world and confirm an approvals test reds (mutating `checkAssurance` itself would not prove the producer is wired).",
+    "already_done": false
+  },
+  {
+    "id": "PAY-140-007",
+    "title": "Implement event-gap polling/reconciliation and safe replay/redrive",
+    "why_open": "The outbox is written and never drained. apps/web/src/lib/outbox/outbox.ts:140 `dispatchOnce` and :212 `replay` are real, careful implementations with backoff, dead-lettering and an explicit-ids-only replay guard — and their ONLY importer in the repository is apps/web/src/lib/outbox/outbox.test.ts (verified by grep across apps/ and packages/; the sole production import is `import { outboxEventRow } from \"@/lib/outbox/outbox\"` at apps/web/src/app/(app)/approvals/actions.ts:5). There is no implementation of `OutboxPorts` over Prisma, no job route under apps/web/src/app/api/jobs/ (only `reminders/`), and no operator surface for the dead-letter queue. So apps/web/prisma/schema.prisma:1088 OutboxEvent rows accumulate at `state = \"pending\"` (default, :1106) forever: every ApprovalDecided event ever emitted is an event gap. There is also no gap DETECTION — nothing counts rows stuck pending past `availableAt`, which is the reconciliation half of the requirement.",
+    "files": [
+      "apps/web/src/lib/outbox/outbox.ts",
+      "apps/web/src/lib/outbox/outbox.test.ts",
+      "apps/web/src/app/api/jobs/reminders/route.ts",
+      "apps/web/src/app/api/jobs/",
+      "apps/web/prisma/schema.prisma",
+      "apps/web/src/app/(app)/admin/page.tsx"
+    ],
+    "smallest_real_change": "Add `apps/web/src/lib/outbox/prisma-ports.ts` implementing `OutboxPorts`/`ReplayPorts` against `db.outboxEvent` (claimDue must be an atomic `UPDATE ... WHERE state='pending' AND availableAt<=now RETURNING` or a transactional select-for-update, not read-then-write), and `apps/web/src/app/api/jobs/outbox/route.ts` modelled on the existing reminders route (same JOB_SECRET auth, same JobRequest envelope, same hour-window idempotency key at reminders/route.ts:63) that calls `dispatchOnce`. Add `gaps(now)` to outbox.ts returning records overdue past a threshold and dead-letter counts, and surface it plus a redrive action on the existing admin page. Mutation proof: make claimDue non-atomic (read-then-write) and confirm a concurrency test reds; and remove the route's `dispatchOnce` call and confirm an integration test asserting rows move pending→dispatched reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-140-001",
+    "title": "Implement a single provider gateway with no raw SDK leakage",
+    "why_open": "There is no gateway and no boundary. `grep -rn stripe` over apps/web/src, apps/system-studio/src, packages, tests and tools returns only prose — apps/system-studio/src/generated/platform-truth.json:1022, tools/import-requirements.mjs:58 and two workflow prompt strings. No `stripe` dependency exists in any package.json, no `packages/payments-gateway` directory exists, and nothing prevents the first payments commit from importing the SDK straight into a page or a server action. The repository already has the exact precedent for the control and deliberately extended it forward: tests/security/provider-independence.test.mjs:48 declares `ADAPTER_PATHS = [\"packages/identity-cognito/\", \"apps/web/src/lib/identity/providers/\"]` with the comment \"Nothing lives here yet. The directory is named in advance so the adapter has an obvious home\" — the payments equivalent was never written. The cost is zero at zero violations and is a rewrite once every caller has the provider's shape in it.",
+    "files": [
+      "tests/security/provider-independence.test.mjs",
+      "tests/security/",
+      "tests/architecture/forbidden-clients.test.mjs",
+      "packages/payments-gateway/",
+      "packages/contracts/src/index.ts"
+    ],
+    "smallest_real_change": "Write `tests/security/payment-provider-independence.test.mjs` on the shape of provider-independence.test.mjs: scan apps/, packages/, modules/, blueprints/ via `git ls-files`, refuse any import of `stripe`/`@stripe/*` and any provider-only identifier shape (`acct_`, `pi_`, `seti_`, `sk_live`, `whsec_`) outside `packages/payments-gateway/`, at zero violations, with the reasoning in the header. Then create `packages/payments-gateway/src/index.ts` as a REAL module, not a stub: a `PaymentGateway` port typed in terms of `@tenure/contracts` `Command`/`ContractError` whose only implemented operations are read/quote/configure, and whose money-movement command names are enumerated and REFUSED with a named `ContractError` (`charter.money-movement-forbidden`) — that refusal is what makes it reachable code rather than a placeholder, and it is what §0.3 of NEXT-SESSION.md requires. Mutation proof: add `import Stripe from \"stripe\"` to an apps/web file and confirm the guard reds; move it into packages/payments-gateway and confirm it passes.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-110-007",
+    "title": "Prove no prohibited card data enters Tenure databases, logs, analytics, traces, screenshots or Relay",
+    "why_open": "Nothing proves it. A case-insensitive grep for cardNumber, PAN, cvv, iban, routingNumber, accountNumber and sortCode across apps/web/prisma/schema.prisma, apps/web/src and packages returns zero hits — the property is currently TRUE and entirely unguarded, so the first payments migration can add a PAN column and no check fails. apps/web/prisma/schema.prisma:789 Vendor is the closest thing to a payee and carries only name/contact/website/notes; there is no beneficiary or card model to redact. On the egress side, apps/web/src/lib/relay-tools.ts:66 `relayToolsFor` and :81 `authorizeRelayTools` gate WHICH tools Relay may call but assert nothing about what those tools return, and audit metadata is a free `Json` column (schema AuditEvent.metadata) with no field-level prohibition. tests/security/ has the right neighbours (no-personal-data.test.mjs is a `git ls-files`-based repository scanner with a reasoned ALLOWED map) and no card-data equivalent.",
+    "files": [
+      "tests/security/no-personal-data.test.mjs",
+      "tests/security/",
+      "apps/web/prisma/schema.prisma",
+      "apps/web/src/lib/relay-tools.ts",
+      "apps/web/src/lib/audit-record.ts"
+    ],
+    "smallest_real_change": "Write `tests/security/no-prohibited-card-data.test.mjs` modelled directly on no-personal-data.test.mjs (same `git ls-files --exclude-standard` scope, same reasoned-allowlist discipline): (a) parse apps/web/prisma/schema.prisma and refuse any field whose name matches the prohibited set (full PAN, CVV/CVC/CVV2, track data, PIN block, magnetic stripe, expiry paired with PAN, raw IBAN/routing+account); (b) refuse the same identifiers appearing in `console.*`, audit `metadata` literals and Relay tool result shapes; (c) assert a positive control — a fixture object containing a test PAN passed through the redactor is emitted masked. Ratchet at zero, with the header stating that zero is the current measured state so the number may only stay zero. Mutation proof: add `cardNumber String` to a schema model and confirm the test reds; remove it and confirm green.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-080-001",
+    "title": "Implement explicit internal-allocation, internal-transfer, intercompany and external-movement command types",
+    "why_open": "No such command types exist. The only money vocabulary in the product is apps/web/src/lib/finance.ts:241 `LedgerKindName = \"SPEND\" | \"REIMBURSEMENT\" | \"ADJUSTMENT\"` mirrored by the Prisma `LedgerKind` enum at apps/web/prisma/schema.prisma:810 — three accounting effects, none of which distinguishes an internal allocation from a movement of real funds, which is the exact distinction this requirement exists to force. apps/web/prisma/schema.prisma:820 LedgerEntry has no legal-entity, no counterparty and no currency column at all (only `amountCents Int` at :829), so an intercompany posting is unrepresentable. The generic command layer that would carry these — apps/web/src/lib/commands/bus.ts:86 `dispatch` — has zero production callers (grep for `commands/bus` across apps/web/src returns only bus.test.ts), so even the envelope is unwired.",
+    "files": [
+      "apps/web/src/lib/finance.ts",
+      "apps/web/src/lib/finance.test.ts",
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/",
+      "apps/web/src/lib/commands/bus.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "packages/contracts/src/index.ts"
+    ],
+    "smallest_real_change": "Add a `MovementKind` union — `INTERNAL_ALLOCATION | INTERNAL_TRANSFER | INTERCOMPANY | EXTERNAL_MOVEMENT` — in finance.ts beside LedgerKindName, plus a pure `classifyMovement({ fromLegalEntityId, toLegalEntityId, leavesProviderCustody })` that returns it, and `movementIsPermitted(kind)` which refuses EXTERNAL_MOVEMENT outright (charter: control plane only). Migration: add `movementKind` (enum), `legalEntityId` and `counterpartyLegalEntityId` to LedgerEntry, NOT NULL for movementKind with a backfill of INTERNAL_ALLOCATION for existing rows. Wire it at the real producer — apps/web/src/app/(app)/approvals/actions.ts:346 and apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts, which are the two `ledgerEntry.create` sites — so every posting names its kind; grep both before landing, because a required column a writer misses is invisible to tsc. Mutation proof: change classifyMovement to return INTERNAL_ALLOCATION for differing legal entities and confirm the ledger-posting test reds; and remove the movementKind argument at the producer and confirm the type check fails.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-080-007",
+    "title": "Reconcile internal allocations to provider cash/clearing and universal journal",
+    "why_open": "`reconcile()` exists but reconciles a different thing. packages/finops/src/allocation.ts:335 `reconcile(result: AllocationResult)` proves direct + allocated + unallocated equals the INGESTED total — an internal consistency check on one AWS cost report. It has no notion of a clearing account, a provider cash balance or a journal, and its only caller is apps/system-studio/src/lib/cost-source.ts:3 (the Studio's fleet-cost page). Nothing reconciles club-level allocations to anything: apps/web/prisma/schema.prisma:820 LedgerEntry has no clearing account, no settlement reference and no currency; there is no journal model at all in the 40-model schema; and BudgetLine.actualCents is maintained by a relative `increment` at apps/web/src/app/(app)/approvals/actions.ts:378 with no periodic check that it equals the sum of its ledger entries. So the one internal balance the product does keep is never proved against its own source, let alone against provider cash.",
+    "files": [
+      "packages/finops/src/allocation.ts",
+      "packages/finops/src/reporting.ts",
+      "packages/finops/src/finops.test.ts",
+      "packages/finops/src/index.ts",
+      "apps/web/src/lib/finance.ts",
+      "apps/web/prisma/schema.prisma"
+    ],
+    "smallest_real_change": "Add `packages/finops/src/settlement.ts` with a pure `reconcileToJournal({ allocations, journalPostings, clearingBalance })` returning a typed variance report (per-account signed `Money` differences, an `unexplained` list, and a boolean that is true only at exactly zero unexplained variance) — integer minor units and explicit currency throughout, reusing `subtract`/`sum`/`CurrencyMismatchError` from money.ts rather than a second comparator. It must NEVER auto-adjust to balance (that is PAY-130-006's rule and the failure mode allocation.ts's header already names). Reach it from a real caller: a `financeIntegrity()` read in apps/web/src/lib/finance.ts used by the finance page to show BudgetLine.actualCents vs SUM(LedgerEntry.amountCents) per line, which is the reconciliation that exists to be done today. Mutation proof: make the variance report round variances below one minor unit to zero and confirm a test with a one-unit discrepancy reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-130-003",
+    "title": "Reconcile gross, fees, refunds, disputes, transfers, payouts, FX and net settlement",
+    "why_open": "None of these eight components is modelled anywhere. packages/finops is charter-limited to AWS cost allocation — its public surface (packages/finops/src/index.ts:10-70) is money/allocation/reporting only, and grep across packages and apps/web/src finds no `fee`, `refund`, `dispute`, `payout` or `settlement` type. There is no FX at all: packages/platform-config/src/money.ts:11 `MoneyFormat` is `{ locale, currency }` for FORMATTING only, and packages/finops/src/money.ts:30 `CurrencyMismatchError` deliberately refuses cross-currency arithmetic with the message 'convert with a stated rate and date' — the rate-and-date value type that message points at does not exist. apps/web/prisma/schema.prisma:820 LedgerEntry carries a bare `amountCents Int` with no currency column, so a settlement in a second currency cannot even be stored.",
+    "files": [
+      "packages/finops/src/money.ts",
+      "packages/finops/src/index.ts",
+      "packages/finops/src/finops.test.ts",
+      "packages/platform-config/src/money.ts",
+      "apps/web/src/lib/finance.ts"
+    ],
+    "smallest_real_change": "Add `packages/finops/src/settlement-components.ts` declaring a `SettlementComponents` record with `gross, fees, refunds, disputes, transfers, payouts, fxGainLoss` each a `Money`, a `ConversionRate { from, to, rate, asOf }` value type, `convert(amount, rate)` doing exact integer arithmetic with an explicit stated rounding mode (never a float multiply), and `netSettlement(components)` proving gross − fees − refunds − disputes − transfers ± fx === payouts to the unit, returning a named refusal when it does not. Ship it beside the existing `reconcile` and export from index.ts. This is pure and testable with no provider call, which is what keeps it inside §0.3. Consumers to name in the same change: packages/finops/src/index.ts and the settlement.ts of PAY-080-007 (same cluster) so the variance report and the component report share one Money type. Mutation proof: drop the `fxGainLoss` term from `netSettlement` and confirm a cross-currency fixture reds; change `convert` to `Math.round(units * rate)` on a float and confirm the exactness test reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-040-003",
+    "title": "Implement a charge-model decision engine using exact use case, seller, parties, region, account configuration and liability",
+    "why_open": "No charge model exists in any form. There is no `packages/payments` directory (verified by `find -type d -name payments`), no merchant/legal-entity model in the 40-model schema (apps/web/prisma/schema.prisma has Institution/Organization/Vendor and no legal entity), and no funds-flow vocabulary anywhere in apps/web/src or packages. The nearest decision engines are packages/authorization/src/decide.ts (permissions) and apps/web/src/lib/workflows/approval-definition.ts (approval routing); neither has any concept of seller, party, region or liability. The requirement's inputs are therefore not merely unwired — none of them is representable.",
+    "files": [
+      "packages/payments/",
+      "packages/contracts/src/index.ts",
+      "apps/web/src/lib/finance.ts",
+      "apps/web/prisma/schema.prisma",
+      "packages/platform-config/src/definitions.ts"
+    ],
+    "smallest_real_change": "Create `packages/payments/src/charge-model.ts` as a pure decision function `decideChargeModel(input): ChargeModelDecision` where input names the use case, seller legal entity, buyer, region, connected-account configuration and who bears loss, and the output is `{ model: \"DIRECT\" | \"DESTINATION\" | \"SEPARATE_CHARGE_AND_TRANSFER\", liableParty, reasons: string[], blockers: string[] }` — reasons required, never a bare enum, matching the explainability discipline used by decide.ts's trace. Every unsupported combination returns a named blocker rather than a default; a decision with no supporting configuration must be refused, not defaulted to DIRECT. Reach it from a real caller in the same change (this pairs with PAY-070-003 below, which consumes the decision), otherwise it is dead code. Mutation proof: make the region input unused and confirm a test asserting a region-specific blocker reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-070-003",
+    "title": "Require exception approval for destination and separate-charge flows that shift liability to Tenure",
+    "why_open": "There is no funds-flow concept and therefore no gate on one. The approval engine that would carry it is real and reachable — apps/web/prisma/schema.prisma:434 `enum ApprovalType` already has an `EXCEPTION` member, apps/web/src/lib/workflows/approval-definition.ts defines the gates, and apps/web/src/lib/approvals.ts:152 `availableActions` routes them — but nothing anywhere constructs a liability-shifting request, and grep for `liability`, `destination charge` or `separate charge` across apps/web/src and packages returns nothing. `mayDecide`-based maker-checker exists (approvals.ts:80 `decisionControl`) so the second-human property is available for free; the missing piece is that no configuration change can currently be BLOCKED pending an approval at all — apps/web/src/lib/config/server.ts resolves configuration with no pending-exception check.",
+    "files": [
+      "packages/payments/",
+      "apps/web/src/lib/approvals.ts",
+      "apps/web/src/lib/workflows/approval-definition.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/app/(app)/approvals/new/page.tsx",
+      "apps/web/prisma/schema.prisma"
+    ],
+    "smallest_real_change": "Consume PAY-040-003's `ChargeModelDecision`: add `requiresLiabilityException(decision): boolean` in packages/payments returning true for DESTINATION and SEPARATE_CHARGE_AND_TRANSFER whenever `liableParty === \"TENURE\"`, and a `liabilityExceptionRequest(decision)` that builds an `ApprovalType.EXCEPTION` ApprovalRequest whose metadata pins the decision digest. Then make the gate real: the payments configuration writer must refuse to persist a liability-shifting funds flow unless an APPROVED exception request exists whose pinned digest equals the current decision's — a digest mismatch after approval must force a NEW request, not silently pass (this is the same binding property PAY-070-005 states). Mutation proof: change `requiresLiabilityException` to return false for SEPARATE_CHARGE_AND_TRANSFER and confirm the configuration-writer test reds; change the digest comparison to ignore the amount fields and confirm the post-approval-mutation test reds.",
+    "already_done": false
+  }
+]

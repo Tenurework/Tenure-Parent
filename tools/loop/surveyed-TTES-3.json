@@ -1,0 +1,99 @@
+[
+  {
+    "id": "TTES-030-002",
+    "title": "Implement responsive desktop/tablet/mobile and bounded offline patterns",
+    "why_open": "The responsive half is largely real (apps/web/src/components/shell/NavDrawerToggle.tsx:20 + apps/web/src/app/globals.css:274-322 park the 224px nav off-canvas below 700px; apps/web/e2e/layout.spec.ts:42 asserts no horizontal overflow at 1280/1024/768 and apps/web/e2e/a11y.spec.ts:84 at 320px). The OFFLINE half does not exist at all. apps/web/src/components/ui/states.ts:49 declares the `offline` state, :171-178 gives it role=status/aria-live=polite/presentsAsComplete:false/retryable:true and :279 gives it copy — and NOTHING renders it: `grep -rn \"'offline'|\\\"offline\\\"\" apps/web/src` outside states.ts returns zero hits, `grep -rn 'navigator.onLine' apps/web/src` returns zero hits, and no window online/offline listener exists anywhere. apps/web/src/components/ui/StateSurface.tsx:65 — the one component that renders those semantics — has ZERO importers under apps/web/src/app (only apps/web/src/components/ui/Skeleton.tsx:20 names it, in a comment); every route uses EmptyState instead (apps/web/src/app/(app)/admin/approvals/page.tsx:11, admin/audit/page.tsx:11, admin/overrides/page.tsx:14, calendar/new/page.tsx:7, orgs/[slug]/handoff/page.tsx:20). So the whole fourteen-state vocabulary is a declaration with no production caller. Worse, apps/web/src/app/manifest.ts:14 ships `display: \"standalone\"` — an installed PWA with no service worker and no offline surface shows the browser's network-error page. Bible §16 also requires route-level loading/offline boundaries: `find apps/web/src/app -name loading.tsx` = 0 files across 37 page.tsx, and only 4 error.tsx exist.",
+    "files": [
+      "apps/web/src/components/shell/OfflineBoundary.tsx",
+      "apps/web/src/components/ui/StateSurface.tsx",
+      "apps/web/src/components/ui/states.ts",
+      "apps/web/src/components/ui/Skeleton.tsx",
+      "apps/web/src/app/(app)/layout.tsx",
+      "apps/web/src/app/globals.css",
+      "apps/web/e2e/offline.spec.ts",
+      "apps/web/e2e/shell.spec.ts"
+    ],
+    "smallest_real_change": "Add apps/web/src/components/shell/OfflineBoundary.tsx ('use client'): subscribe to window 'online'/'offline' plus an initial navigator.onLine read, render <StateSurface state=\"offline\" /> when offline (so role/aria-live/copy come from STATE_SEMANTICS, not the call site) and set document.documentElement.dataset.offline so submit affordances can key off it. Render it from apps/web/src/app/(app)/layout.tsx beside <SkipLink /> — that is the real production caller StateSurface currently lacks. Bound it: the banner states that changes will not save (DEFAULT_COPY.offline already says exactly this), and globals.css sets `html[data-offline] form button[type=submit] { pointer-events:none; opacity:.6 }` with aria-disabled set by the component, so the 'bounded' in the requirement is an enforced boundary rather than a promise. Prove with apps/web/e2e/offline.spec.ts: sign in, `page.context().setOffline(true)`, expect a [role=status][data-state=offline] carrying the offline copy and the submit control to be aria-disabled; setOffline(false) and expect it gone. Mutation to run and report: delete the 'offline' addEventListener line -> the spec must fail; restore -> pass. Second mutation: flip STATE_SEMANTICS.offline.live from 'polite' to 'off' -> the aria-live assertion must fail. While in these files, give the three heaviest list routes a loading.tsx that renders <StateSurface state=\"loading\" geometry={...} /> — Skeleton's geometry arithmetic (apps/web/src/components/ui/Skeleton.tsx:48 skeletonHeight) is tested but has no caller either.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-010-005",
+    "title": "Eliminate production raw style values outside approved exceptions",
+    "why_open": "Partly built, and the config itself names what is still missing. apps/web/eslint.config.mjs:92-124 enforces colour literals, arbitrary colour utilities, arbitrary shadows and unregistered fonts, with a real dated exception table at :148-170 and a real ESLint-driven test at apps/web/scripts/design-token-lint.test.mjs. But eslint.config.mjs:45-56 states in the file itself that arbitrary spacing and arbitrary z-index are NOT enforced, and gives the reason for z-index: 'tailwind.config.ts extends no zIndex scale and globals.css declares no --z-* tokens, so the rule would have no sanctioned alternative to name.' That is still true today: apps/web/tailwind.config.ts:18-108 extends colors/height/width/fontFamily/fontSize/borderRadius/boxShadow and NOTHING else — no zIndex, no spacing. The raw layering that results is live in production: apps/web/src/components/ai/TenureAIPanel.tsx:99 `z-[60]` and :110 `z-[61]`, apps/web/src/components/shell/SkipLink.tsx:20 `focus:z-[100]`, apps/web/src/components/ui/Overlay.tsx:67 `z-[100]`, plus a raw `z-index: 39` at apps/web/src/app/globals.css:312, on top of nine hand-picked numeric layers (z-10/20/30/40/50) spread across ClubCard.tsx:98, CalendarTimeGrid.tsx:749,817, admin/DirectoryPicker.tsx:99, charts/ChartTooltip.tsx:40, shell/Footer.tsx:20, shell/SideNav.tsx:81,193, shell/SearchCommand.tsx:141, shell/ShellHeader.tsx:50. Twelve sites, no contract, nothing that fails when a new overlay picks 62.",
+    "files": [
+      "apps/web/src/app/globals.css",
+      "apps/web/tailwind.config.ts",
+      "apps/web/eslint.config.mjs",
+      "apps/web/scripts/design-token-lint.test.mjs",
+      "apps/web/src/components/ai/TenureAIPanel.tsx",
+      "apps/web/src/components/ui/Overlay.tsx",
+      "apps/web/src/components/shell/SkipLink.tsx",
+      "apps/web/src/components/shell/SideNav.tsx",
+      "apps/web/src/components/shell/ShellHeader.tsx",
+      "apps/web/src/components/shell/SearchCommand.tsx",
+      "apps/web/src/components/shell/Footer.tsx",
+      "apps/web/src/components/charts/ChartTooltip.tsx",
+      "apps/web/src/components/admin/DirectoryPicker.tsx",
+      "apps/web/src/components/CalendarTimeGrid.tsx",
+      "apps/web/src/components/ClubCard.tsx"
+    ],
+    "smallest_real_change": "1) Declare the z-layer contract in apps/web/src/app/globals.css as ordered tokens with the reason each layer exists (--z-raised, --z-sticky, --z-nav, --z-scrim, --z-header, --z-panel, --z-tooltip, --z-overlay, --z-skip-link) and bind them in apps/web/tailwind.config.ts `theme.extend.zIndex` so `z-nav`, `z-overlay` etc. become real classes. 2) Migrate all twelve call sites above and the raw `z-index: 39` at globals.css:312 onto them — the scrim must stay strictly below the nav and strictly above the page, which is the invariant the bare 39 encodes and nothing checks. 3) Add an `arbitraryZIndex` key to DESIGN_TOKEN_RULES in apps/web/eslint.config.mjs matching `\\bz-\\x5B` in Literal/TemplateElement plus `Property[key.name=\"zIndex\"]`, message naming the new classes; the exception mechanism at :208-282 already supports suspending it per file if a case genuinely needs one. 4) Extend apps/web/scripts/design-token-lint.test.mjs with the same shape as its existing cases: lint `<div className=\"z-[60]\" />` as src/components/x.tsx and assert one arbitraryZIndex message. Mutations to run and report: (a) delete the arbitraryZIndex entry from DESIGN_TOKEN_RULES -> the new lint test must fail; restore -> pass. (b) put `z-[61]` back into TenureAIPanel.tsx and run `npm run lint --workspace apps/web` -> it must error on that line. Do NOT also add a spacing rule in this change: 383 arbitrary spacing/type utilities across 82 files are live (measured with `grep -rnoE '\\b(p|px|py|pt|pb|pl|pr|ps|pe|m|mx|my|mt|mb|ml|mr|gap|text|leading|tracking)-\\[' apps/web/src`, excluding tests), so that one is the debt-ratchet item (TTES-050-004), not a boundary that can go green today. Note the header comment at eslint.config.mjs:47 claims '237 occurrences across 58 files' — re-measure and correct that number in the same change rather than leaving a stale claim in the file.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-040-003",
+    "title": "Meet route/component/bundle/RUM performance budgets",
+    "why_open": "Nothing exists. No budget is declared anywhere: `grep -rn 'performance budget|first-load|First Load JS' docs apps/web tools` matches only Bible/registry prose and the untouched ledger row. No RUM: `grep -rn 'useReportWebVitals|web-vitals|PerformanceObserver|performance.mark' apps/web/src` returns zero hits, and apps/web/package.json:15-32 has no web-vitals dependency (the only 'web-vitals' string in the repo is the eslint preset name at apps/web/eslint.config.mjs:286). No CI enforcement: .github/workflows/ci.yml runs Lint (:56), Type check (:59), Test (:67), Platform tests (:87) and Build (:90) and then stops — the build's own route/first-load numbers are printed and discarded. apps/web/next.config.ts declares headers, transpilePackages and serverActions and no performance instrumentation of any kind. So the requirement's four nouns — route, component, bundle, RUM — have zero implementation and zero measurement between them.",
+    "files": [
+      "tools/perf-budget.mjs",
+      "tools/perf-budget.test.mjs",
+      "docs/implementation/performance-budgets.json",
+      ".github/workflows/ci.yml",
+      "apps/web/next.config.ts"
+    ],
+    "smallest_real_change": "Start with the half that is provable without a browser and cannot be faked: a per-route JavaScript budget measured from the REAL build output. Commit docs/implementation/performance-budgets.json declaring, per app route, a first-load-JS byte ceiling plus a shared-chunk ceiling, each with a one-line reason. Add tools/perf-budget.mjs exporting a pure `evaluate(manifest, fileSizes, budgets)` -> violations[] and a CLI that reads apps/web/.next/app-build-manifest.json + apps/web/.next/build-manifest.json, stats the referenced chunk files under apps/web/.next/static, sums per route (dedup shared chunks once), and exits non-zero listing every route over budget with actual vs allowed. Wire it as a CI step immediately after .github/workflows/ci.yml:90 ('Build') — that step is the production caller; a script nothing runs is the failure mode this whole programme keeps hitting. Add tools/perf-budget.test.mjs (node:test, same style as tests/architecture/*.test.mjs) over `evaluate` with a fixture manifest: a route under budget, a route over, and a route whose chunks are shared so double-counting would falsely fail. Mutations to run and report: (a) drop a real route's ceiling in performance-budgets.json below its measured size -> the CI script must exit non-zero naming that route; restore. (b) make `evaluate` count shared chunks once per route instead of once per bundle -> the dedup test must fail. Do not claim RUM in the same change: real-user monitoring needs an ingest endpoint and a storage decision, so record it explicitly as the remaining half in the ledger entry rather than marking the row PASS on the bundle budget alone.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-050-004",
+    "title": "Publish adoption/exception/visual-debt dashboards and ownership",
+    "why_open": "None of the four nouns is published. The exception table is real but private to the linter: apps/web/eslint.config.mjs:148-170 holds three dated exceptions and nothing outside that file ever reports them, so nobody can see what is suspended, where, or when it lapses without reading the ESLint config. Adoption is unmeasured — there is no count anywhere of how many components render token-bound classes versus raw values. Visual debt is worse than unmeasured: it is asserted in prose that has already drifted. eslint.config.mjs:47 states '237 occurrences across 58 files today'; the same shape measured now is 383 occurrences across 82 files (`grep -rnoE '\\b(p|px|py|pt|pb|pl|pr|ps|pe|m|mx|my|mt|mb|ml|mr|gap|text|leading|tracking)-\\[' apps/web/src`, tests excluded), and eslint.config.mjs:51 says 'four occurrences' of arbitrary z-index while the tree carries four `z-[...]` plus a raw `z-index: 39` at apps/web/src/app/globals.css:312 and nine hand-picked numeric layers. A number in a comment that nothing recomputes is exactly the claim this requirement exists to replace. Ownership of design-system files is also absent from the one place ownership IS enforced: tools/ownership-map.mjs backs tests/architecture/ownership.test.mjs:22, but nothing maps a design-token rule or an exception to an owner.",
+    "files": [
+      "tools/design-debt.mjs",
+      "tools/design-debt.test.mjs",
+      "docs/implementation/design-system-debt.md",
+      "apps/web/eslint.config.mjs",
+      "tools/ownership-map.mjs"
+    ],
+    "smallest_real_change": "Make the three numbers measured, published and ratcheted instead of narrated. Add tools/design-debt.mjs that (a) imports DESIGN_TOKEN_EXCEPTIONS and DESIGN_TOKEN_RULES from apps/web/eslint.config.mjs — the real table, not a copy — and emits every exception with its files, suspended rule keys, reason, expiry and days remaining; (b) scans apps/web/src for the shapes the boundary does not yet enforce (arbitrary spacing/type utilities, arbitrary z-index, raw z-index in globals.css) and counts them per rule and per owning area, resolving the owner through tools/ownership-map.mjs's classify(); (c) computes adoption as token-bound colour/shadow/radius class uses over total styling uses per component directory. Write the result to docs/implementation/design-system-debt.md with a committed totals line, exactly as docs/architecture/capability-completeness-registry.yaml already does for requirements. Add tools/design-debt.test.mjs with (1) a ratchet — the committed totals must equal the recomputed totals and the debt count may only shrink, the same shape as tests/architecture/document-graph.test.mjs:196 — and (2) an expiry test asserting an exception whose `expires` has passed is reported by name. Mutations to run and report: (a) add one `p-[7px]` to a real component -> the ratchet test must fail with the higher count; remove it -> pass. (b) hand-edit the committed total in design-system-debt.md -> the equality assertion must fail. Then delete the stale '237 occurrences across 58 files' and 'four occurrences' sentences from apps/web/eslint.config.mjs:45-56 and point them at the generated report, so the config stops carrying a number nothing recomputes.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-GATE-040",
+    "title": "Experience is fast, secure, inclusive and low-fatigue",
+    "why_open": "A gate is proven by its children, and all five children of TTES-040 are FAIL and unevidenced in docs/implementation/tenant-experience-execution-ledger.md:94-112 (040-001 WCAG 2.2 AA, 040-002 UI security/privacy/export/session, 040-003 performance budgets, 040-004 localization/RTL/zoom/high-contrast/reduced-motion, 040-005 long-session and frontline usability). tests/architecture/pass-requires-evidence.test.mjs:71 requires a gate entry to state an N-of-N child ratio, so the gate cannot be marked PASS until those children are decided — and the 'fast' leg in particular has zero implementation behind it (see TTES-040-003: no budget, no RUM, no CI step). Real work exists on the inclusive leg — apps/web/src/lib/a11y/contrast.ts computes WCAG ratios with alpha compositing and apps/web/src/lib/a11y/theme-tokens.ts parses the four themes out of the real globals.css, apps/web/e2e/a11y.spec.ts covers 320px reflow and viewport zoom, apps/web/e2e/localization.spec.ts covers RTL — but that is 040-001/040-004 evidence, not this gate's.",
+    "files": [
+      "docs/implementation/tenant-experience-execution-ledger.md",
+      "tests/architecture/pass-requires-evidence.test.mjs",
+      "apps/web/e2e/a11y.spec.ts",
+      "apps/web/e2e/localization.spec.ts",
+      "apps/web/src/lib/a11y/contrast.ts",
+      "apps/web/src/lib/a11y/theme-tokens.ts"
+    ],
+    "smallest_real_change": "This gate is NOT independently closeable and must not be picked up as its own unit of work — its five children (TTES-040-001..005) sit in four different surveyors' slices. The honest move for whoever holds it: leave the ledger row FAIL and record in it the child ratio as it actually stands (0 of 5 decided) with a line per child naming the concrete blocker and the file that would carry the fix — 040-003 has no measurement at all (see the TTES-040-003 item and tools/perf-budget.mjs), 040-001/040-004 have real e2e coverage in apps/web/e2e/a11y.spec.ts and apps/web/e2e/localization.spec.ts that has never been rolled up against the WCAG 2.2 AA criterion list, 040-002 and 040-005 have nothing. That row is worth writing because docs/implementation/tenant-experience-execution-ledger.md:150 currently says only 'imported ...; not yet implemented', which reads identically for a gate blocked on five children and one nobody has looked at. Do not mark it PASS, and do not weaken tests/architecture/pass-requires-evidence.test.mjs:71 to accept a gate without a ratio.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-000-003",
+    "title": "Import every `TTES-*` item into the canonical ledger",
+    "why_open": "ALREADY TRUE — reported so the next session does not re-survey it. All 34 TTES ids stated by Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md §20 (lines 458-509) are present in docs/implementation/tenant-experience-execution-ledger.md:22-156; a set diff of the ids extracted from both files differs only by the six section headings (TTES-000, TTES-010, ... TTES-050), which are not requirements. Every TTES row in docs/architecture/capability-completeness-registry.yaml:17356-17660 carries `imported: true` and `ledger: docs/implementation/tenant-experience-execution-ledger.md`. tools/import-requirements.mjs:46 maps the TTES prefix to that ledger and is append-only by construction, and tests/architecture/document-graph.test.mjs:196 ratchets the unimported count downward so this cannot silently regress; tests/architecture/work-queue.test.mjs:175 additionally asserts TTES requirements reach the queue. The only thing left is bookkeeping: the ledger row is still `[ ] FAIL`. Whoever next edits that file should flip it to PASS citing the 34/34 id-set equality and the two tests above — but there is no code to write.",
+    "files": [
+      "docs/implementation/tenant-experience-execution-ledger.md",
+      "docs/architecture/capability-completeness-registry.yaml",
+      "tools/import-requirements.mjs",
+      "tests/architecture/document-graph.test.mjs"
+    ],
+    "smallest_real_change": "Flip docs/implementation/tenant-experience-execution-ledger.md:30-32 to `- [x] **TTES-000-003**` / `Status: PASS` with evidence citing 34/34 ids matched between the Bible §20 checklist and the ledger, `node --test tests/architecture/document-graph.test.mjs` and `node --test tests/architecture/work-queue.test.mjs`. Re-run `node tools/document-graph.mjs` (or whatever regenerates the committed registry artifacts) so the registry's TTES-000-003 status follows the ledger, because tests/architecture/document-graph.test.mjs:236 asserts the committed artifacts agree with the compiler. No product code changes.",
+    "already_done": true
+  }
+]

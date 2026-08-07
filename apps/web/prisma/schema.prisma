@@ -81,6 +81,7 @@ model Institution {
   approvalDelegations ApprovalDelegation[]
   resources     Resource[]
   outboxEvents  OutboxEvent[]
+  inboxEvents   InboxEvent[]
 }
 
 enum InstitutionRole {
@@ -203,6 +204,7 @@ model Organization {
   collabInterests CollabInterest[]
   budgetLines    BudgetLine[]
   ledgerEntries  LedgerEntry[]
+  fundsFlowConfigs PaymentsFundsFlowConfig[]
 
   @@index([institutionId, status])
 }
@@ -284,6 +286,13 @@ model Seat {
   retiredAt      DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+
+  /// PAY-030-007. Entries POSTED from this seat. `postedById` is a bare user id
+  /// that means nothing once the person graduates; the seat outlives them.
+  ledgerEntriesPosted     LedgerEntry[] @relation("LedgerEntryPostedBySeat")
+  /// PAY-080-004. Entries ATTRIBUTED to this seat — a different question from
+  /// who typed it in.
+  ledgerEntriesAttributed LedgerEntry[] @relation("LedgerEntryAttributedSeat")
 
   @@index([organizationId])
 }
@@ -462,8 +471,20 @@ model ApprovalRequest {
   description    String?
   status         ApprovalStatus @default(DRAFT)
   submittedById  String
+  /// Who PREPARED this request, when that is somebody other than the person who
+  /// submitted it. Maker-checker (`SAME_MAKER` in @tenure/authorization) needs a
+  /// name to refuse: without it a drafter who handed the request to a colleague
+  /// to submit was still offered the gate on their own work. Null means the
+  /// submitter prepared it, and `decisionControl` then falls through to the
+  /// SELF_APPROVAL arm, which already covers that case.
+  preparedById   String?
   metadata       Json           @default("{}") // type-specific fields
-  idempotencyKey String?        @unique
+  /// REVIEW-FINDINGS #7. A CLIENT-supplied key, and therefore never globally
+  /// unique: it used to be `@unique`, one index across every tenant, so tenant
+  /// B's retry of "req-1" resolved onto tenant A's approval. It is scoped by
+  /// `@@unique([institutionId, idempotencyKey])` below. PostgreSQL treats NULLs
+  /// as distinct in a unique index, so the un-keyed rows stay free.
+  idempotencyKey String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -471,12 +492,20 @@ model ApprovalRequest {
   conversation  Conversation?  @relation("ApprovalConversation")
   event         Event?         @relation("ApprovalEvent")
   ledgerEntries LedgerEntry[]
+  /// PAY-070-003. The funds-flow configurations this EXCEPTION authorised.
+  fundsFlowExceptions PaymentsFundsFlowConfig[] @relation("FundsFlowLiabilityException")
 
+  @@unique([institutionId, idempotencyKey])
   @@index([organizationId, status])
   @@index([institutionId, status])
 }
 
 // Each gate in the approval state machine — append-only
+//
+// "Append-only" is enforced, not asserted: "ApprovalStep" is in
+// APPEND_ONLY_MODELS (src/lib/audit-append-only.ts), so the Prisma extension
+// refuses update / delete / upsert on it. Until that landed the comment on this
+// model was simply false.
 model ApprovalStep {
   id               String         @id @default(cuid())
   approvalId       String
@@ -487,9 +516,67 @@ model ApprovalStep {
   actorRoleContext String?        // role seat name at time of decision
   reason           String?
   policySnapshot   Json           @default("{}") // permissions in effect at decision time
+  /// PAY-030-005. The configuration REVISION this decision was made against —
+  /// `<blueprintId>@<version>`, from configSnapshotForInstitution. Required, and
+  /// deliberately not nullable: a transition history that cannot say which
+  /// policy was in force answers "was this allowed at the time" with a shrug.
+  configRevision   String
+  /// The checksum of the resolved values, from the same snapshot. Different
+  /// fact from the revision: two tenants on the same blueprint version can
+  /// resolve to different values, and the same values can survive a version bump.
+  configChecksum   String
+  /// The capability/gate that conferred this decision, e.g. "approvals.gate.ose".
+  /// Recorded so the trail names the AUTHORITY, not only the actor.
+  authority        String
+  /// Evidence backing the decision — the receipt, the signed contract.
+  evidenceDocumentId String?
+  evidenceDocument   Document?    @relation("ApprovalStepEvidence", fields: [evidenceDocumentId], references: [id])
   occurredAt       DateTime       @default(now())
 
   @@index([approvalId])
+}
+
+/// PAY-150-003. A standing declared interest, as `ConflictDeclaration` in
+/// @tenure/authorization models it. Declared, not detected: the platform cannot
+/// know an approver's partner works for the vendor, but it can make the
+/// declaration binding once made. Loaded into the ControlWorld by
+/// `standingDeclarationsFor` (src/lib/approvals-world.ts).
+model ConflictDeclaration {
+  id             String    @id @default(cuid())
+  institutionId  String
+  principalId    String
+  /// What the interest is IN — a vendor id, an organization id, a person.
+  subjectId      String
+  /// Required. A conflict nobody can describe is one nobody can review.
+  reason         String
+  declaredAt     DateTime  @default(now())
+  effectiveFrom  DateTime  @default(now())
+  /// Null means open-ended.
+  effectiveUntil DateTime?
+
+  @@index([institutionId, principalId])
+  @@index([institutionId, subjectId])
+}
+
+/// PAY-150-003. Standing down from ONE decision, as `Recusal` in
+/// @tenure/authorization models it. Separate from a declaration on purpose: a
+/// declared interest is a fact about a person, a recusal is an act about a
+/// decision.
+model Recusal {
+  id             String    @id @default(cuid())
+  institutionId  String
+  principalId    String
+  resourceType   String    @default("ApprovalRequest")
+  resourceId     String
+  reason         String
+  declaredAt     DateTime  @default(now())
+  effectiveFrom  DateTime  @default(now())
+  /// Null means it never lapses. A recusal whose window has closed is loaded
+  /// but not applied — the loader filters, `mayDecide` only checks membership.
+  effectiveUntil DateTime?
+
+  @@unique([institutionId, principalId, resourceId])
+  @@index([institutionId, resourceId])
 }
 
 // ─── Calendar & Events ────────────────────────────────────────────────────────
@@ -534,6 +621,8 @@ model Event {
 
   conflicts ConflictRecord[]
   feedPosts FeedPost[]
+  /// PAY-080-004. Money attributed to this event.
+  ledgerEntries LedgerEntry[]
 
   @@index([institutionId, startAt])
   @@index([organizationId, status])
@@ -671,6 +760,7 @@ model Document {
   updatedAt      DateTime     @updatedAt
 
   ledgerEntries  LedgerEntry[]
+  approvalStepEvidence ApprovalStep[] @relation("ApprovalStepEvidence")
 
   @@index([organizationId, isArchived])
 }
@@ -719,7 +809,8 @@ model Budget {
   id             String       @id @default(cuid())
   institutionId  String
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// PAY-030-006. Restrict — see the note on LedgerEntry.organization.
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   period         BudgetPeriod
   academicYear   String       // e.g., "2025-26"
   totalCents     Int          @default(0)
@@ -744,7 +835,9 @@ enum TransactionType {
 model Transaction {
   id          String          @id @default(cuid())
   budgetId    String
-  budget      Budget          @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  /// PAY-030-006. Restrict — deleting a budget must not silently take its
+  /// posted transactions with it.
+  budget      Budget          @relation(fields: [budgetId], references: [id], onDelete: Restrict)
   type        TransactionType
   amountCents Int
   description String
@@ -765,7 +858,8 @@ model Transaction {
 model BudgetLine {
   id             String       @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// PAY-030-006. Restrict — see the note on LedgerEntry.organization.
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   academicYear   String       // "2026-2027"
   category       String
   budgetedCents  Int          @default(0)
@@ -790,7 +884,8 @@ model Vendor {
   id             String       @id @default(cuid())
   institutionId  String
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// PAY-030-006. Restrict — see the note on LedgerEntry.organization.
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   name           String
   contactName    String?
   contactEmail   String?
@@ -807,10 +902,31 @@ model Vendor {
   @@index([organizationId, isArchived])
 }
 
+/// PAY-130-002. Which side of the journal a row is.
+///
+/// The direction lives here and the magnitude lives in `amountCents`, which is
+/// debit-positive — so `Σ amountCents` over one `journalId` is exactly zero for
+/// a balanced journal, and a non-zero sum is a broken one that a query can find.
+enum LedgerSide {
+  DEBIT
+  CREDIT
+}
+
 enum LedgerKind {
   SPEND         // an expense posted against the line (increases actual spend)
   REIMBURSEMENT // money recovered (decreases actual spend)
   ADJUSTMENT    // a signed correction
+  /// PAY-230-004. Money coming IN — dues, an event ticket, a sponsorship.
+  /// Every other kind is outbound, so before this the platform could not post a
+  /// receipt at all, let alone allocate one across a club, a fund and an event.
+  RECEIPT
+  /// PAY-120-001. The correction of a posted entry, as an opposite entry.
+  /// Before this the only correction path was `ledgerEntry.delete()`: the row
+  /// was erased, the line's actual was recomputed from the survivors, and
+  /// nothing recorded that the money had ever been recognised or why it stopped
+  /// being. A reversal states the amount, the reason and the entry it answers,
+  /// and both rows survive.
+  REVERSAL
 }
 
 /// A posted ledger entry against a budget line — the transaction detail behind a
@@ -819,14 +935,56 @@ enum LedgerKind {
 /// records that justify it. A line's actualCents is the cache of Σ amountCents.
 model LedgerEntry {
   id             String           @id @default(cuid())
+  /// PAY-030-007. The tenant boundary, on the row. It used to be reachable only
+  /// by joining Organization, so "every posting in this institution" was a join
+  /// and an entry could not be filtered to its tenant at all without one.
+  institutionId  String
   organizationId String
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  budgetLineId   String
-  budgetLine     BudgetLine       @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
+  /// PAY-030-006. Restrict, not Cascade. One organization.delete() used to
+  /// destroy the posted ledger the finance dashboard reports and the approval
+  /// engine writes. An org is ARCHIVED (OrgStatus.ARCHIVED), never deleted out
+  /// from under its financial history.
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  /// PAY-130-002. Nullable, because only ONE side of a journal carries the
+  /// budget-line dimension. A club's expense hits a budget line; the payable to
+  /// the member who fronted the cash is an organization-level liability and
+  /// does not. Dimensioning both halves would double the line's actual and,
+  /// once the signs are taken into account, drive `Σ amountCents` to zero.
+  ///
+  /// Nullable rather than a `budgetDimensioned` flag on purpose: every
+  /// `aggregate({ where: { budgetLineId } })` in the app already excludes NULL
+  /// automatically, so the line's actual stays correct without every call site
+  /// having to learn about journals. A boolean would have made three existing
+  /// aggregates silently wrong.
+  budgetLineId   String?
+  budgetLine     BudgetLine?      @relation(fields: [budgetLineId], references: [id], onDelete: Restrict)
   academicYear   String
+  // ── PAY-130-002: double entry ──────────────────────────────────────────────
+  /// The journal this row is one side of. Both halves of a posting share it, so
+  /// a reader can find the other side — which, before this, did not exist.
+  journalId      String
+  /// The posting template that produced the journal, at the revision that was
+  /// effective when it posted. Kept on the row because the template is
+  /// effective-dated: knowing WHICH revision posted a March entry is the only
+  /// way to re-derive it later.
+  templateId     String
+  /// Chart-of-accounts code this side hits.
+  account        String
+  side           LedgerSide
+  /// When the entry takes effect in the books, which is not when it was
+  /// written. `occurredAt` is when the spend happened and `createdAt` is when
+  /// the row was inserted; neither is the accounting date, and a late-posted
+  /// correction needs all three to be different.
+  effectiveAt    DateTime         @default(now())
   kind           LedgerKind       @default(SPEND)
-  /// Signed effect on actual spend, in cents (SPEND +, REIMBURSEMENT −).
+  /// Signed effect on actual spend, in cents (SPEND +, REIMBURSEMENT/RECEIPT −).
   amountCents    Int
+  /// PAY-080-004. The currency `amountCents` is counted in. Its parent
+  /// BudgetLine has carried one since it existed; the entry did not, so the
+  /// amount was an untagged integer whose denomination had to be inferred by a
+  /// join — the exact failure @tenure/finops' Money type exists to prevent.
+  /// Backfilled from the line, then NOT NULL.
+  currency       String
   description    String
   memo           String?
   occurredAt     DateTime         @default(now())
@@ -838,10 +996,244 @@ model LedgerEntry {
   documentId     String?
   document       Document?        @relation(fields: [documentId], references: [id])
   postedById     String?
+  /// PAY-030-007. The durable owner SEAT that posted this, alongside the raw
+  /// user id. People rotate; the seat is what still answers "whose posting was
+  /// this" next year.
+  postedBySeatId String?
+  postedBySeat   Seat?            @relation("LedgerEntryPostedBySeat", fields: [postedBySeatId], references: [id])
+  // ── PAY-080-004: attribution that must survive provider settlement ─────────
+  /// Which event this money belongs to.
+  eventId        String?
+  event          Event?           @relation(fields: [eventId], references: [id])
+  /// Which seat it is attributed to — not necessarily the one that posted it.
+  seatId         String?
+  seat           Seat?            @relation("LedgerEntryAttributedSeat", fields: [seatId], references: [id])
+  /// The fund dimension. A code rather than a table: there is no Fund model to
+  /// point at yet, and a dangling FK is worse than an honest string.
+  fundCode       String?
+  /// The provider settlement this entry was reconciled through, when it came in
+  /// through one. Nullable: most entries are posted by hand and settle nowhere.
+  settlementId   String?
+  settlement     Settlement?      @relation(fields: [settlementId], references: [id])
+  // ── PAY-120-001: the refund / reversal chain ───────────────────────────────
+  /// The entry this one reverses. Set only on a REVERSAL, and `@unique` so one
+  /// posting can be answered at most once — a second reversal would double the
+  /// correction and leave the line short by the amount it was meant to restore.
+  /// Restrict, like every other link into a posted entry: the record a
+  /// correction refers to must not be removable out from under it.
+  reversesId     String?          @unique
+  reverses       LedgerEntry?     @relation("LedgerReversal", fields: [reversesId], references: [id], onDelete: Restrict)
+  reversedBy     LedgerEntry?     @relation("LedgerReversal")
+  /// Why the correction was made, in the words of whoever made it. Required by
+  /// `reverseLedgerEntry` — a reversal with no reason is a deletion with extra
+  /// steps, and the reason is the only part of the pair a reader cannot infer.
+  reversalReason String?
   createdAt      DateTime         @default(now())
+
+  allocations    ReceiptAllocation[]
 
   @@index([budgetLineId, occurredAt])
   @@index([organizationId, academicYear])
+  @@index([institutionId, occurredAt])
+  @@index([organizationId, eventId])
+  @@index([organizationId, seatId])
+  @@index([organizationId, fundCode])
+  @@index([settlementId])
+  /// PAY-130-002. Both halves of a posting share a journalId, so finding the
+  /// other side — and checking that a journal sums to zero — is an index seek.
+  @@index([journalId])
+}
+
+// ─── Receipts, settlement and provider references ─────────────────────────────
+
+/// PAY-230-004. Where an inbound receipt came from.
+enum ReceiptSource {
+  DUES
+  EVENT
+  SPONSORSHIP
+}
+
+/// PAY-230-004. One slice of a RECEIPT entry, attributed to a club / fund /
+/// event. A dues payment collected once and shared three ways is three rows
+/// here summing to exactly the receipt — split by `allocateReceipt`
+/// (packages/finops/src/allocation.ts), which uses the largest-remainder method
+/// so the parts add back to the whole instead of each rounding independently.
+model ReceiptAllocation {
+  id             String        @id @default(cuid())
+  institutionId  String
+  ledgerEntryId  String
+  ledgerEntry    LedgerEntry   @relation(fields: [ledgerEntryId], references: [id], onDelete: Restrict)
+  source         ReceiptSource
+  /// The club this slice belongs to. Not necessarily the entry's own org — a
+  /// sponsorship banked by one club can be shared with a co-host.
+  organizationId String
+  fundCode       String?
+  eventId        String?
+  /// Positive minor units. The slice, not the whole receipt.
+  minorUnits     Int
+  currency       String
+  createdAt      DateTime      @default(now())
+
+  @@index([institutionId, ledgerEntryId])
+  @@index([organizationId, source])
+}
+
+/// PAY-020-004 / PAY-130-004. The provider-neutral id table.
+///
+/// Bible §5: "A raw stripe_customer_id without account context is not globally
+/// unique enough." `cus_123` in test mode and `cus_123` in live mode are
+/// different objects, and the same id under two connected accounts is two
+/// objects again. So the external key is qualified by (provider, mode,
+/// connected account, object type) and the id Tenure owns — `canonicalId` — is
+/// the one every other row points at. The provider's id is never a primary key.
+model ExternalReference {
+  id                 String   @id @default(cuid())
+  institutionId      String
+  /// "stripe" | "adyen" | ... — never assumed.
+  provider           String
+  /// "test" | "live". Dropping this from the key merges a sandbox object onto a
+  /// real one, which is a silently wrong reconciliation rather than an error.
+  mode               String
+  /// The provider PROGRAM (platform account / merchant program), when there is one.
+  programId          String?
+  /// The connected/merchant account the id is scoped to.
+  connectedAccountId String
+  /// "customer" | "payment_intent" | "balance_transaction" | ...
+  objectType         String
+  externalId         String
+  /// Tenure's own id for the thing. Owned here, stable across providers.
+  canonicalId        String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  settlements Settlement[]
+
+  @@unique([provider, mode, connectedAccountId, objectType, externalId])
+  @@unique([institutionId, canonicalId])
+  @@index([institutionId, provider, mode])
+}
+
+/// PAY-080-004. A provider payout, so club / fund / event / seat attribution
+/// survives the hop through settlement instead of being reconstructed from a
+/// bank statement afterwards.
+model Settlement {
+  id                  String             @id @default(cuid())
+  institutionId       String
+  externalReferenceId String?
+  externalReference   ExternalReference? @relation(fields: [externalReferenceId], references: [id])
+  occurredAt          DateTime
+  currency            String
+  grossMinorUnits     Int
+  feeMinorUnits       Int
+  netMinorUnits       Int
+  createdAt           DateTime           @default(now())
+
+  ledgerEntries LedgerEntry[]
+
+  @@index([institutionId, occurredAt])
+}
+
+/// PAY-130-004. An ingested provider balance transaction.
+///
+/// The unique tuple IS the point. `txn_123` in test and `txn_123` in live are
+/// different objects; so is the same id under two provider accounts. Keying on
+/// `externalId` alone reports the second as a replay of the first and silently
+/// drops a real transaction. `payloadDigest` is what makes a replay checkable:
+/// same id and same digest is a retry, same id and a DIFFERENT digest is a
+/// conflict somebody has to look at, never an idempotent no-op.
+model ProviderBalanceTransaction {
+  id                String   @id @default(cuid())
+  institutionId     String
+  provider          String
+  mode              String
+  providerAccountId String
+  externalId        String
+  payloadDigest     String
+  currency          String
+  grossMinorUnits   Int
+  feeMinorUnits     Int
+  netMinorUnits     Int
+  occurredAt        DateTime
+  ingestedAt        DateTime @default(now())
+
+  @@unique([provider, mode, providerAccountId, externalId])
+  @@index([institutionId, ingestedAt])
+}
+
+/// PAY-140-008. The minimized, immutable receipt for one inbound provider event.
+///
+/// Written BEFORE any processing (Bible §16: "Persist a minimized immutable
+/// receipt before asynchronous processing"), and it is what `dedupe` reads.
+/// The unique tuple is `(provider, mode, accountId, eventId)` for the reason
+/// `ProviderBalanceTransaction` states about its own: `evt_1` in test and in
+/// live are different events, and so is the same id under two connected
+/// accounts.
+///
+/// `sequence` is the provider's ordering signal. Reordering is normal at the
+/// transport layer; applying an older account state on top of a newer one is
+/// not, and without a stored sequence there is nothing to compare against.
+///
+/// No payload column. Bible §16 minimizes provider payloads and PAY-020-006
+/// keeps them out of general storage; what is kept is what dedupe, ordering and
+/// support need.
+model ProviderEventReceipt {
+  id             String   @id @default(cuid())
+  provider       String
+  mode           String
+  /// The connected account the event is about, or the platform account.
+  accountId      String
+  eventId        String
+  eventType      String
+  sequence       Int
+  /// The API version the event declared, checked against the pinned one.
+  apiVersion     String
+  /// "new" | "duplicate" | "out-of-order" — what `dedupe` said on arrival.
+  dedupeVerdict  String
+  /// Which secret in the rotation window verified it. Names a rotation that has
+  /// not finished: events still arriving on index 1 mean the old key is live.
+  verifiedBySecretIndex Int
+  receivedAt     DateTime @default(now())
+
+  @@unique([provider, mode, accountId, eventId])
+  @@index([provider, mode, accountId, sequence])
+}
+
+/// PAY-070-003. The funds flow one tenant merchant is configured for.
+///
+/// The row exists so the liability gate has something to refuse. A
+/// liability-shifting flow — DESTINATION or SEPARATE_CHARGE_AND_TRANSFER with
+/// Tenure carrying loss — may only be written when an APPROVED
+/// `ApprovalType.EXCEPTION` request exists whose pinned decision digest equals
+/// the digest of the decision being written. `exceptionApprovalId` and
+/// `decisionDigest` record which approval authorised THIS configuration, so a
+/// later edit that changes the amounts produces a different digest and needs a
+/// new approval rather than inheriting the old one's authority.
+model PaymentsFundsFlowConfig {
+  id                  String           @id @default(cuid())
+  institutionId       String
+  organizationId      String
+  organization        Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  /// The seller legal entity this configuration is for.
+  legalEntityId       String
+  capabilityId        String
+  /// "DIRECT" | "DESTINATION" | "SEPARATE_CHARGE_AND_TRANSFER".
+  chargeModel         String
+  /// "TENURE" | "TENANT" | "PROVIDER" | "CUSTOMER".
+  liableParty         String
+  region              String
+  currency            String
+  grossCents          Int
+  platformFeeCents    Int
+  /// sha256 of the decision this row was written from.
+  decisionDigest      String
+  exceptionApprovalId String?
+  exceptionApproval   ApprovalRequest? @relation("FundsFlowLiabilityException", fields: [exceptionApprovalId], references: [id], onDelete: Restrict)
+  createdById         String
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@unique([organizationId, legalEntityId, capabilityId])
+  @@index([institutionId, updatedAt])
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
@@ -954,11 +1346,26 @@ model AuditEvent {
   reason        String?
   metadata      Json        @default("{}")
   traceId       String?
+  /// PAY-000-007. Which money-mode the action happened in: "test" or "live".
+  ///
+  /// Evidence that cannot say which mode an action was in cannot separate test
+  /// from live at all — one deployment serves both, and two rows for the same
+  /// action in two tenants were previously byte-identical on this point. Written
+  /// by recordAuditEvent() from the ambient TenantScope, which resolves it from
+  /// the tenant's published configuration (platform.payments.mode).
+  ///
+  /// Defaults to "test" so every row that predates this column reads as the
+  /// mode that claims the least: none of them were written by a payment path,
+  /// and backfilling them as "live" would manufacture evidence.
+  mode          String      @default("test")
   occurredAt    DateTime    @default(now())
 
   @@index([institutionId, occurredAt])
   @@index([actorId, occurredAt])
   @@index([resourceType, resourceId])
+  /// "Show me everything that happened in live for this tenant" is the query an
+  /// incident review opens with.
+  @@index([institutionId, mode, occurredAt])
 }
 
 // ─── Institution role transfers ───────────────────────────────────────────────
@@ -1102,12 +1509,23 @@ model OutboxEvent {
   causationId   String?
   payload       Json   @default("{}")
 
+  /// PAY-020-006. tenure | provider — who authored `payload`.
+  ///
+  /// Stored rather than inferred, because the dispatcher rehydrates the event
+  /// from this row and `DomainEvent.origin` is required: an event that came
+  /// back from the database without it would fail the contract at delivery
+  /// time, a long way from whoever wrote it. Existing rows are `tenure`, which
+  /// is true — the only writer is `outboxEventRow` from the approvals action.
+  origin String @default("tenure")
+
   /// pending | dispatching | dispatched | dead
   state          String    @default("pending")
   attempts       Int       @default(0)
   lastError      String?
   /// When this record becomes due. Retries move it forward with backoff.
   availableAt    DateTime  @default(now())
+  /// When a consumer confirmed it. Set only after delivery returns.
+  dispatchedAt   DateTime?
   deadLetteredAt DateTime?
 
   occurredAt DateTime @default(now())
@@ -1117,4 +1535,35 @@ model OutboxEvent {
   /// The dispatcher's only query: due records, oldest first.
   @@index([state, availableAt])
   @@index([institutionId, state])
+}
+
+/// The other half of at-least-once: what has already been consumed.
+///
+/// The outbox chooses duplication over loss — a dispatcher that marks a record
+/// dispatched before the consumer confirms can lose it, so it marks after, and
+/// a crash between the two redelivers. That is only bounded if the consumer can
+/// recognise a redelivery, and recognising one needs somewhere to have written
+/// down that it happened. This is that somewhere.
+///
+/// Keyed by consumer as well as event: two consumers of the same event are two
+/// independent pieces of work, and one having run says nothing about the other.
+/// The row is written in the SAME transaction as the handler's own effects, so
+/// "marked consumed" and "the work happened" cannot disagree — the mirror of
+/// the property the outbox itself exists for.
+model InboxEvent {
+  id String @id @default(cuid())
+
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  /// `DomainEvent.eventId` — the outbox row's own id is deliberately not used,
+  /// because a replayed record keeps its event id and must stay deduplicated.
+  eventId String
+  /// Which handler ran. `@tenure/modules` declares who may consume what.
+  consumer String
+
+  consumedAt DateTime @default(now())
+
+  @@unique([institutionId, eventId, consumer])
+  @@index([institutionId, consumedAt])
 }

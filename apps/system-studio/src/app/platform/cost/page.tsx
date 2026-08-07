@@ -4,12 +4,12 @@ import {
   PEER_THRESHOLD_MINOR,
   TWO_PERSON_THRESHOLD_MINOR,
   EXECUTIVE_THRESHOLD_MINOR,
-  toDecimal,
   money,
 } from "@tenure/finops"
 
 import { EmptyState } from "@/components/states"
-import { costSource, type CostReport } from "@/lib/cost-source"
+import { costSource } from "@/lib/cost-source"
+import { CostReportView, formatAmount } from "./CostReportView"
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
 
@@ -28,7 +28,10 @@ import { isOperator } from "@/lib/operators"
  */
 export const dynamic = "force-dynamic"
 
-const usd = (units: number) => `$${toDecimal(money(units, "USD"))}`
+// The approval thresholds are USD policy constants, so they are formatted as
+// USD. Everything that renders a BILLED figure goes through formatAmount with
+// the currency the Money is carrying — see CostReportView.
+const usd = (units: number) => formatAmount(money(units, "USD"))
 
 export default async function CostPage() {
   // The same gate every operator page uses. Not extracted into a helper here:
@@ -130,140 +133,6 @@ export default async function CostPage() {
       <p className="slug">
         <Link href="/platform">← back to Platform</Link>
       </p>
-    </>
-  )
-}
-
-function CostReportView({ report }: { report: CostReport }) {
-  const { summary, reconciliation, tenants, unallocated } = report
-
-  return (
-    <>
-      <section className="system">
-        <header>
-          <h2>This month</h2>
-          <span className={`badge ${summary.freshness.stale ? "warn" : "quiet"}`}>
-            as of {summary.freshness.asOf}
-          </span>
-        </header>
-
-        {summary.freshness.stale && (
-          <p className="hint">
-            This data is {Math.round(summary.freshness.ageHours)} hours old. AWS billing settles over
-            days, so recent spend may be missing entirely rather than merely late.
-          </p>
-        )}
-
-        <table className="grid">
-          <tbody>
-            <tr>
-              <td>Actual, month to date</td>
-              <td className="num">{usd(summary.actual.amount.units)}</td>
-              <td>{Math.round(summary.actual.periodCompleteness * 100)}% through the period</td>
-            </tr>
-            <tr>
-              <td>Amortized</td>
-              <td className="num">{usd(summary.amortized.amount.units)}</td>
-              <td>What this month&rsquo;s usage cost, with commitments spread over their term.</td>
-            </tr>
-            <tr>
-              <td>Forecast</td>
-              <td className="num">{summary.forecast ? usd(summary.forecast.amount.units) : "—"}</td>
-              <td>
-                {summary.forecast
-                  ? "Straight-line projection to the end of the period. A guess, labelled as one."
-                  : "Too early in the period to project without inventing a number."}
-              </td>
-            </tr>
-            <tr>
-              <td>Unallocated</td>
-              <td className="num">{usd(summary.unallocated.units)}</td>
-              <td>
-                {(summary.unallocatedShare * 100).toFixed(1)}% of spend reached no tenant. Reported, not
-                spread.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* The property that makes the rest worth reading. Shown, not assumed. */}
-        <p className={reconciliation.reconciles ? "ok" : "error"}>
-          {reconciliation.reconciles
-            ? `Reconciled: tenant costs plus unallocated equal the ${summary.lineCount} ingested lines exactly.`
-            : `Does not reconcile — ${usd(reconciliation.discrepancy.units)} unaccounted for across ${summary.lineCount} lines. ` +
-              `This is shown rather than absorbed into the largest tenant.`}
-        </p>
-      </section>
-
-      <section className="system">
-        <header>
-          <h2>By tenant</h2>
-        </header>
-        <table className="grid">
-          <thead>
-            <tr>
-              <th>Tenant</th>
-              <th className="num">Direct</th>
-              <th className="num">Allocated share</th>
-              <th className="num">Total</th>
-              <th>Driver</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tenants.map((tenant) => (
-              <tr key={tenant.tenantId}>
-                <td>{tenant.tenantId}</td>
-                <td className="num">{usd(tenant.direct.units)}</td>
-                <td className="num">{usd(tenant.allocated.units)}</td>
-                <td className="num">{usd(tenant.total.units)}</td>
-                <td>
-                  {/* The justification travels with the number. "Why is this
-                      tenant paying $412 of the NAT gateway" has an answer here
-                      rather than in a code comment. */}
-                  {tenant.attributions.length === 0
-                    ? "—"
-                    : tenant.attributions
-                        .map((a) => `${a.measure} (${a.weight}/${a.totalWeight})`)
-                        .join("; ")}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      {unallocated.length > 0 && (
-        <section className="system">
-          <header>
-            <h2>Unallocated</h2>
-            <span className="badge warn">{usd(summary.unallocated.units)}</span>
-          </header>
-          <p>
-            Spend that reached no tenant, with the reason. It is not distributed: a split nobody chose
-            produces a page whose total reconciles and whose every row is wrong.
-          </p>
-          <table className="grid">
-            <thead>
-              <tr>
-                <th>Service</th>
-                <th className="num">Amount</th>
-                <th>Why</th>
-                <th className="num">Lines</th>
-              </tr>
-            </thead>
-            <tbody>
-              {unallocated.map((entry) => (
-                <tr key={`${entry.service}-${entry.lineIds[0]}`}>
-                  <td>{entry.service}</td>
-                  <td className="num">{usd(entry.amount.units)}</td>
-                  <td>{entry.reason}</td>
-                  <td className="num">{entry.lineIds.length}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
     </>
   )
 }

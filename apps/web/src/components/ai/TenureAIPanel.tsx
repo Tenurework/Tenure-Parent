@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { X, ArrowRight, Sparkles, Loader2 } from "@/components/ui/icons"
 import { TenureAIMark } from "@/components/brand/TenureLogo"
+import { MissingConnectionCard } from "@/components/connections/MissingConnectionCard"
+import { relayReply, type RelayOutcome } from "./relay-reply"
 import { useAI } from "./AIProvider"
 
 interface Source {
@@ -17,6 +19,25 @@ interface Message {
   content: string
   sources?: Source[]
   aiEnabled?: boolean
+  /** Which of the four refusal/answer outcomes produced this turn. */
+  outcome?: RelayOutcome
+  /** The question this turn was answering, kept so a refusal can resume it. */
+  askedAbout?: string
+}
+
+/**
+ * What `/api/ai/chat` actually returns. The panel used to declare only the
+ * first three fields, so the two refusal facts the route deliberately keeps
+ * apart were dropped before anything could read them.
+ */
+interface ChatResponse {
+  answer: string | null
+  aiEnabled: boolean
+  aiDisabledReason: string | null
+  toolRefusal: string | null
+  sources: Source[]
+  /** The scope the route actually applied, echoed back. */
+  scopeApplied?: { kind: string; id: string | null } | null
 }
 
 const SUGGESTIONS = [
@@ -29,16 +50,45 @@ const SUGGESTIONS = [
 /**
  * Tenure AI as a right-side conversation panel. Retrieval-augmented over the
  * user's own permission-scoped workspace (via /api/ai/chat); answers cite
- * numbered sources, and when no model is configured it still surfaces the most
- * relevant items. Opened from the header / side-nav Tenure AI entry.
+ * numbered sources. Opened from the header / side-nav Tenure AI entry.
+ *
+ * ## What this panel is required to always show, and now does
+ *
+ * * **Tenant and active scope** (TTES-030-003, TTES-020-002). `scope.tenantName`
+ *   is a REQUIRED prop rather than an optional one, and there is exactly one
+ *   construction site — `src/app/(app)/layout.tsx`, which already holds
+ *   `tenants.active`. An optional prop here would compile at that call site
+ *   untouched and ship an assistant that never names the workspace it reads.
+ *   The active scope comes from `AIProvider`, which derives it from the route
+ *   and from any `AIScopeAnchor` a record page mounted, and it is SENT with the
+ *   question — so the line under the title describes the request rather than
+ *   decorating it.
+ * * **Cancellation.** `ask()` holds an `AbortController`; the Stop button
+ *   aborts it and appends a cancelled turn.
+ * * **Announcements** (WCAG 2.2 SC 4.1.3, Status Messages). Two live regions,
+ *   both mounted permanently — a region that appears at the same moment as its
+ *   content announces nothing, because assistive technology has to have been
+ *   watching it already. One wraps the transcript; the other is a short status
+ *   line ("Tenure AI is thinking", "Answer ready, 3 sources") derived from the
+ *   same state the visible UI renders, so it cannot drift from the screen.
+ * * **The four outcomes, distinguished.** `relayReply` decides the copy, so a
+ *   tenant that switched the assistant off is not told nobody configured it,
+ *   and a principal refused the retrieval tool is not told their workspace is
+ *   empty.
  */
-export function TenureAIPanel() {
-  const { open, closePanel } = useAI()
+export function TenureAIPanel({
+  scope,
+}: {
+  /** The institution every answer is scoped to. Required; see the header. */
+  scope: { tenantName: string }
+}) {
+  const { open, closePanel, scope: askScope } = useAI()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 120)
@@ -56,6 +106,14 @@ export function TenureAIPanel() {
     return () => window.removeEventListener("keydown", onKey)
   }, [open, closePanel])
 
+  // A request still in flight when the panel unmounts is a fetch nobody reads.
+  useEffect(() => () => abortRef.current?.abort(), [])
+
+  function stop() {
+    abortRef.current?.abort()
+    abortRef.current = null
+  }
+
   async function ask(question: string) {
     const q = question.trim()
     if (!q || loading) return
@@ -63,32 +121,70 @@ export function TenureAIPanel() {
     setMessages((m) => [...m, { role: "user", content: q }])
     setInput("")
     setLoading(true)
+    const controller = new AbortController()
+    abortRef.current = controller
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question: q, history }),
+        // The scope travels with the question. Without it the route ranks the
+        // whole corpus identically whichever page you asked from, which is the
+        // "chat window pasted over the product" the pattern forbids by name.
+        body: JSON.stringify({
+          question: q,
+          history,
+          scope: { kind: askScope.kind, id: askScope.id, label: askScope.label },
+        }),
+        signal: controller.signal,
       })
-      const data = (await res.json()) as { answer: string | null; aiEnabled: boolean; sources: Source[] }
-      // Distinguish the two no-answer cases so the state is honest: the key is
-      // simply not set up here (aiEnabled false) vs. it is set up but the answer
-      // couldn't be generated right now (aiEnabled true — a transient model or
-      // billing issue). Either way we still surface the ranked sources.
-      const fallback = data.sources.length
-        ? data.aiEnabled
-          ? "Tenure AI couldn't generate an answer just now — here are the most relevant items in your workspace:"
-          : "AI answers aren't set up for this workspace yet, but these are the most relevant items:"
-        : data.aiEnabled
-          ? "Tenure AI couldn't generate an answer just now, and I didn't find anything matching in your workspace."
-          : "I couldn't find anything about that in your workspace."
-      const content = data.answer ?? fallback
-      setMessages((m) => [...m, { role: "assistant", content, sources: data.sources, aiEnabled: data.aiEnabled }])
-    } catch {
-      setMessages((m) => [...m, { role: "assistant", content: "Something went wrong reaching Tenure AI. Please try again." }])
+      const data = (await res.json()) as ChatResponse
+      const reply = relayReply({
+        answer: data.answer,
+        aiEnabled: data.aiEnabled,
+        aiDisabledReason: data.aiDisabledReason ?? null,
+        toolRefusal: data.toolRefusal ?? null,
+        sourceCount: data.sources?.length ?? 0,
+      })
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content: reply.message,
+          sources: reply.showSources ? data.sources : [],
+          aiEnabled: data.aiEnabled,
+          outcome: reply.outcome,
+          askedAbout: q,
+        },
+      ])
+    } catch (err) {
+      const aborted = err instanceof DOMException && err.name === "AbortError"
+      setMessages((m) => [
+        ...m,
+        {
+          role: "assistant",
+          content: aborted
+            ? "Stopped. Nothing further was sent to the model."
+            : "Something went wrong reaching Tenure AI. Please try again.",
+        },
+      ])
     } finally {
+      abortRef.current = null
       setLoading(false)
     }
   }
+
+  const last = messages[messages.length - 1]
+  /**
+   * SC 4.1.3. Derived from the same `loading` / `messages` state the visible UI
+   * renders — delete `aria-live` from the node below and a screen-reader user
+   * is told nothing when an answer lands, which is what e2e/a11y.spec.ts's
+   * "4.1.3 Status Messages" case asserts against.
+   */
+  const liveStatus = loading
+    ? "Tenure AI is thinking"
+    : last?.role === "assistant"
+      ? `Answer ready, ${last.sources?.length ?? 0} sources`
+      : ""
 
   return (
     <>
@@ -96,7 +192,7 @@ export function TenureAIPanel() {
           of squeezing the content. */}
       <div
         onClick={closePanel}
-        className={`fixed inset-0 z-[60] bg-black/20 transition-opacity lg:hidden ${
+        className={`fixed inset-0 z-assist-scrim bg-black/20 transition-opacity lg:hidden ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         aria-hidden
@@ -107,7 +203,7 @@ export function TenureAIPanel() {
         aria-label="Tenure AI assistant"
         aria-hidden={open ? undefined : true}
         inert={!open}
-        className={`fixed right-0 z-[61] flex w-[min(26rem,100vw)] flex-col border-l border-border bg-surface shadow-lg transition-transform duration-300 ${
+        className={`fixed right-0 z-assist flex w-[min(26rem,100vw)] flex-col border-l border-border bg-surface shadow-lg transition-transform duration-slow ease-entry ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
         style={{ top: "var(--shell-height)", bottom: "var(--footer-height)" }}
@@ -117,23 +213,45 @@ export function TenureAIPanel() {
         {open && (
         <>
         <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-          <div className="flex items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-2.5">
             <TenureAIMark size={22} />
-            <div>
+            <div className="min-w-0">
               <p className="font-display text-base font-bold text-text-1">Tenure AI</p>
-              <p className="text-meta text-text-3">Grounded in your workspace</p>
+              {/* The named scope indicator: tenant first, then the active
+                  scope the question will actually carry. */}
+              <p className="text-meta text-text-3" data-testid="relay-scope">
+                Asking within: {scope.tenantName} · {askScope.label}
+              </p>
             </div>
           </div>
           <button
             onClick={closePanel}
             aria-label="Close Tenure AI"
-            className="grid h-9 w-9 place-items-center rounded-md text-text-3 transition-colors hover:bg-base hover:text-text-1"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-text-3 transition-colors hover:bg-base hover:text-text-1"
           >
             <X size={18} />
           </button>
         </header>
 
-        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+        {/* Privacy notice — what leaves this workspace, said before it does. */}
+        <p className="border-b border-border px-5 py-2 text-meta text-text-3">
+          Only records you can already open are read. Your question and the
+          passages used to answer it are sent to the connected model.
+        </p>
+
+        {/* SC 4.1.3. Mounted whether or not it has anything to say: a live
+            region that appears together with its text announces nothing. */}
+        <p
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+          data-testid="relay-live-status"
+        >
+          {liveStatus}
+        </p>
+
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">
           {messages.length === 0 && (
             <div className="pt-4">
               {/* Outline-only: a hairline ring, not a tinted plate. */}
@@ -159,6 +277,13 @@ export function TenureAIPanel() {
             </div>
           )}
 
+          {/* The transcript's own live region, mounted even when empty. */}
+          <div
+            className="space-y-4"
+            aria-live="polite"
+            aria-atomic="false"
+            data-testid="relay-transcript"
+          >
           {messages.map((m, i) => (
             <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
               <div
@@ -169,6 +294,37 @@ export function TenureAIPanel() {
                 }
               >
                 <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+
+                {/* TTES-030-005. A capability that is not connected gets the
+                    owned card — plain language, who owns it, one path, and the
+                    question kept for when it resumes — not a bare sentence.
+                    Driven by the `aiEnabled` flag the route computes from
+                    aiConfigured(); genuine state, not a fixture. */}
+                {(m.outcome === "unconfigured" || m.outcome === "assistant-disabled") && (
+                  <div className="mt-3">
+                    <MissingConnectionCard
+                      capability={{
+                        key: "ai.model",
+                        label: "Tenure AI model",
+                        certified: true,
+                        configured: m.aiEnabled ?? false,
+                        reachable: true,
+                        connectableBy: "admin",
+                      }}
+                      pendingIntent={m.askedAbout}
+                      alternative={
+                        <>
+                          In the meantime,{" "}
+                          <Link href="/search" onClick={closePanel} className="text-text-link">
+                            search your workspace
+                          </Link>{" "}
+                          — the same records, without a written answer.
+                        </>
+                      }
+                    />
+                  </div>
+                )}
+
                 {m.sources && m.sources.length > 0 && (
                   <div className="mt-3 space-y-1.5 border-t border-border pt-3">
                     <p className="text-meta font-semibold uppercase tracking-wide text-text-3">Sources</p>
@@ -194,8 +350,17 @@ export function TenureAIPanel() {
           {loading && (
             <div className="flex items-center gap-2 text-sm text-text-3">
               <Loader2 size={16} className="animate-spin" /> Tenure AI is thinking…
+              <button
+                type="button"
+                onClick={stop}
+                aria-label="Stop Tenure AI"
+                className="ml-1 inline-flex h-8 items-center rounded-md border border-border-strong px-2.5 text-[13px] font-medium text-text-1 transition-colors hover:bg-subtle"
+              >
+                Stop
+              </button>
             </div>
           )}
+          </div>
         </div>
 
         <form

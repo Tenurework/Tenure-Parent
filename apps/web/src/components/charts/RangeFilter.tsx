@@ -34,7 +34,7 @@ export function RangeFilter<T extends string>({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(o.value)}
-            className={`rounded-full px-3.5 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[--primary] ${
+            className={`rounded-full px-3.5 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[--border-focus] ${
               active
                 ? "bg-surface text-text-1 shadow-xs"
                 : "text-text-2 hover:text-text-1"

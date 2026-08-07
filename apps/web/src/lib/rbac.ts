@@ -6,9 +6,11 @@ import type {
   RoleScope,
 } from "@prisma/client";
 import { db } from "@/lib/db";
-import { ROLE_TEMPLATES } from "@tenure/authorization";
+import { ROLE_TEMPLATES, type PermissionKey } from "@tenure/authorization";
+import { modulesFor, tiersFor } from "@tenure/platform-config";
 import { seatState } from "@tenure/identity";
 
+import { decideAcrossInstitution } from "@/lib/authz/seat-world";
 import { liveMembershipWhere } from "@/lib/identity/live-membership";
 import { runUnscoped } from "@/lib/tenancy/context";
 
@@ -38,7 +40,36 @@ export interface UserContext {
   orgRoles: OrgRole[];
 }
 
-/** Load everything permission checks need in one query round-trip per request. */
+/**
+ * Load everything permission checks need in one query round-trip per request.
+ *
+ * ## Why this `cache()` is allowed to return TENANT_SCOPED rows
+ *
+ * REVIEW-FINDINGS #16's second half: a `React.cache()` memo lives for a REQUEST
+ * and a tenant scope lives for a BLOCK, and nothing lines the two up — so the
+ * first caller inside `runInTenantScope(A)` decides the answer every later
+ * caller gets, including one running inside `runInTenantScope(B)` further down
+ * the same request. `runInTenantScope`'s doc block
+ * (`src/lib/tenancy/context.ts`) states the three clauses a `cache()`d loader
+ * may satisfy and requires each one to say which it is. This is clause 3, and
+ * this comment is that statement.
+ *
+ * `InstitutionMembership` is TENANT_SCOPED (`tenancy/registry.ts`), so on the
+ * face of it this is the hazard exactly. It is not, because the answer does not
+ * vary by scope: the read runs under an explicit `auth-bootstrap` grant and
+ * returns the person's WHOLE cross-tenant membership set on purpose. That set is
+ * the same in A's scope and in B's — it is *how* a tenant is chosen in the first
+ * place, and `institutionCandidates` in `src/lib/tenant-scope.ts` is built from
+ * it. A version keyed on `(userId, institutionId)` would not be safer; it would
+ * be wrong, because a capability check needs every seat the person holds, not
+ * the slice sitting in the institution they happen to be acting in.
+ *
+ * The distinction to hold on to: it is safe because it is scope-INDEPENDENT, not
+ * because it is unscoped. A loader that ran under the same grant and then
+ * filtered to the acting tenant would be keyed on too little and would serve B
+ * whatever A asked for first — which is the shape `viewerTimeZone` had until it
+ * gained its `institutionId` argument.
+ */
 export const getUserContext = cache(
   async (userId: string): Promise<UserContext> => {
     // Reading a user's memberships is *how* a request works out which tenant it
@@ -335,4 +366,65 @@ export function canManageFinance(
       r.status === "ACTIVE" &&
       (r.scope === "PRESIDENT" || carriesFinanceAuthority(r)),
   );
+}
+
+/**
+ * PAY-150-001 — one money action, one capability, decided by the engine.
+ *
+ * `canManageFinance` above is a role-SHAPE predicate: it answers "is this
+ * person one of the three kinds of people who look after money here", and every
+ * finance write asked it. Editing a budget line, importing a spreadsheet,
+ * posting to the ledger and correcting a posted transaction are four different
+ * risks, and they had one answer between them.
+ *
+ * This asks `decide()` instead, against the world `seat-world.ts` already
+ * builds for `submitReimbursement` and `navigation-capabilities.ts` — club
+ * seats UNION institution roles, module gating, tier gating and effective dates
+ * included. No new engine: the decision path existed and the write path was not
+ * on it.
+ *
+ * Two things the engine cannot answer are answered here, before it:
+ *
+ *   - An ARCHIVED club takes no writes. `decide()` has no concept of an
+ *     organization lifecycle, so dropping `acceptsWrites` would have widened
+ *     every finance action to archived clubs while looking like a tightening.
+ *   - A finance action always names its club, so the request always carries an
+ *     `organizationId`; an org-scoped grant cannot authorise an unplaced
+ *     resource, and omitting it would silently restrict every answer to
+ *     tenant-wide grants.
+ */
+export function decideFinanceAction(
+  ctx: UserContext,
+  org: OrgWriteTarget,
+  institutionSlug: string,
+  permission: PermissionKey,
+  at: string = new Date().toISOString(),
+): { allowed: boolean; reason: string; detail: string } {
+  if (!acceptsWrites(org)) {
+    return {
+      allowed: false,
+      reason: "ORGANIZATION_NOT_ACTIVE",
+      detail: `This club is ${org.status.toLowerCase()}; its record is kept and its finances are closed to changes.`,
+    };
+  }
+  const decision = decideAcrossInstitution(ctx, {
+    permission,
+    tenantId: org.institutionId,
+    organizationId: org.id,
+    enabledModules: modulesFor(institutionSlug).keys,
+    // Without these the engine's tier comparison is a no-op — `tierRank`
+    // returns null for a world with no entitlements and every `minTier` is
+    // skipped. REVIEW-FINDINGS P0 #5; `submitReimbursement` passes them for the
+    // same reason.
+    tiers: tiersFor(institutionSlug),
+    at,
+  });
+  return {
+    allowed: decision.allowed,
+    reason: decision.reason,
+    // The catalog's own sentence, so a refusal says which capability is missing
+    // rather than "you do not have permission to manage this club's finances"
+    // for six different reasons.
+    detail: decision.detail,
+  };
 }

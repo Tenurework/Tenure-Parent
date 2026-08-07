@@ -3,7 +3,14 @@ import { cache } from "react"
 
 import { db } from "@/lib/db"
 import { getBlueprint, getTenantBinding } from "@tenure/blueprints"
-import { parseConfigSnapshot, type ConfigSnapshot } from "@tenure/contracts"
+import {
+  isPaymentMode,
+  LEGAL_ENTITY_CONFIG_KEY,
+  PAYMENT_MODE_CONFIG_KEY,
+  parseConfigSnapshot,
+  type ConfigSnapshot,
+  type PaymentMode,
+} from "@tenure/contracts"
 import {
   decideFlag,
   recordFlagExposure,
@@ -107,8 +114,64 @@ export const configSnapshotForInstitution = cache(
       tenantId: institutionId,
       revision,
       checksum: resolved.checksum,
+      // PAY-000-007. Stamped from the same resolved values the mode is
+      // published in, so the snapshot and `TenantScope.environment` cannot
+      // disagree — they are two readings of one key. `dispatch` compares this
+      // against the command's declared mode and refuses a mismatch, which is
+      // what makes "a test-mode command decided against a live configuration"
+      // a detectable event rather than an invisible one.
+      environment: modeOf(resolved.values),
       values: resolved.values,
     })
+  },
+)
+
+/**
+ * The money-mode a resolved configuration says the tenant is in.
+ *
+ * Fail-closed to `test`: an unbound institution resolves to platform defaults,
+ * and the default of `platform.payments.mode` is `test`. A value that cannot be
+ * read is not evidence that real money may move.
+ */
+function modeOf(values: Readonly<Record<string, unknown>>): PaymentMode {
+  const value = values[PAYMENT_MODE_CONFIG_KEY]
+  return isPaymentMode(value) ? value : "test"
+}
+
+/**
+ * PAY-020-003 / PAY-000-007 — the tenant's money-mode, by institution id.
+ *
+ * The one place the application answers "is this tenant in test or live". Read
+ * by `resolveTenantScope` and `withSystemTenantScope` in `src/lib/tenant-scope.ts`,
+ * so every block of work that opens a tenant scope carries the mode ambiently
+ * and no call site has to remember to thread it.
+ *
+ * It resolves through the configuration engine rather than an environment
+ * variable, which is the whole separation: `NODE_ENV` is one string for the
+ * whole container and two tenants on that container are routinely in different
+ * modes. Changing it is a configuration publication with a diff, an approver
+ * and a capability (`payments.mode.publish`).
+ */
+export const paymentModeForInstitution = cache(
+  async (institutionId: string): Promise<PaymentMode> => {
+    const slug = await institutionSlugFor(institutionId)
+    return modeOf(resolveSystemConfig(slug).values)
+  },
+)
+
+/**
+ * The legal entity this tenant's money moves under, or null for the tenant itself.
+ *
+ * The producer for `TenantContext.legalEntityId`. Empty string is the
+ * definition's default and means "the tenant itself", which is `null` on the
+ * contract — the contract requires the field to be present and lets `null` say
+ * that explicitly, rather than leaving it out.
+ */
+export const legalEntityIdForInstitution = cache(
+  async (institutionId: string): Promise<string | null> => {
+    const slug = await institutionSlugFor(institutionId)
+    const value = resolveSystemConfig(slug).values[LEGAL_ENTITY_CONFIG_KEY]
+    return typeof value === "string" && value.trim() !== "" ? value : null
   },
 )
 

@@ -247,6 +247,28 @@ export const CONFIG_DOMAINS: readonly ConfigDomain[] = [
     reservedFor: "GE-042 (metering and billing)",
   },
   {
+    // PAY-000-007. Money-mode and the legal entity money moves under. Not in
+    // the item's list of fourteen, and — like `branding` below — it must be
+    // here the moment its first key exists, or `platform.payments.*` is
+    // governed by nothing and any layer kind may set it.
+    id: "payments",
+    prefixes: ["platform.payments."],
+    governs:
+      "Test/live money-mode, the legal entity whose jurisdiction a tenant's money moves under, " +
+      "and the amount ceilings above which an approval needs more authority.",
+    // Tenant-scope layers may carry these — the mode is per tenant, and the
+    // whole point is that one tenant is live while its neighbour is not. What
+    // stops a tenant setting them unilaterally is `requiresCapability` on the
+    // definitions, checked in `planPublication`: authority here is per-key and
+    // deliberately so, because the mode and the entity are the two keys in this
+    // namespace and both need the same signature.
+    writableBy: [...PLATFORM_ONLY, "industryPack", "orgTemplate", "tenantBaseline", "tenantOverlay"],
+    // Not a tenant-console field. A mode flip is an operator publication with a
+    // named capability behind it, not a toggle in a settings page.
+    tenantAdminMayWrite: false,
+    status: "active",
+  },
+  {
     // Not in the item's list of fourteen, and it has three live keys. Leaving it
     // out would mean `platform.branding.*` belongs to no domain and is therefore
     // governed by nothing — which is precisely the hole the reserved entries

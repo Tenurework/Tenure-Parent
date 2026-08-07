@@ -62,7 +62,7 @@ export default async function SignInPage({
                   autoComplete="off"
                   required
                   aria-describedby="passphrase-help"
-                  className="w-full rounded-md border border-border bg-base px-3 py-2 text-sm text-text-1 focus:border-[--primary] focus:outline-none"
+                  className="w-full rounded-md border border-border bg-base px-3 py-2 text-sm text-text-1 focus:border-[--border-focus] focus:outline-none"
                 />
                 <p id="passphrase-help" className="mt-1.5 text-xs text-text-3">
                   This pilot is not yet behind your university&apos;s SSO. Ask the OSE team for the

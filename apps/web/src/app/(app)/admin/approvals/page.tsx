@@ -82,7 +82,7 @@ export default async function AdminApprovalsPage() {
             subtitle="Force a decision on any request across the institution, bypassing the President → OSE gates. Every override is audited."
           />
           {open.length === 0 ? (
-            <EmptyState icon={CheckCircle} title="No open requests" description="Nothing is awaiting a decision right now." />
+            <EmptyState state="empty" icon={CheckCircle} title="No open requests" description="Nothing is awaiting a decision right now." />
           ) : (
             <ul className="-mx-5 divide-y divide-border border-t border-border">
               {open.map((r) => (

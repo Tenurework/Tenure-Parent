@@ -8,7 +8,13 @@
  */
 import { describe, expect, it, jest } from "@jest/globals"
 
-import type { Command, IdempotencyRecord, TenantContext } from "@tenure/contracts"
+import type {
+  Command,
+  ConfigSnapshot,
+  IdempotencyRecord,
+  PaymentMode,
+  TenantContext,
+} from "@tenure/contracts"
 
 import { dispatch, type CommandPorts, type Handler } from "./bus"
 
@@ -21,7 +27,16 @@ const context: TenantContext = {
   channel: "web",
   correlationId: "corr-1",
   configRevision: "cfg-7",
+  environment: "test",
+  legalEntityId: null,
   at: AT,
+}
+
+/** The same context in the other money-mode, naming that mode's own revision. */
+const liveContext: TenantContext = {
+  ...context,
+  environment: "live",
+  configRevision: "cfg-live-7",
 }
 
 const command = (over: Partial<Command> = {}) => ({
@@ -47,15 +62,51 @@ const record = (over: Partial<IdempotencyRecord> = {}): IdempotencyRecord => ({
   ...over,
 })
 
-function ports(over: Partial<CommandPorts> = {}): CommandPorts {
+/**
+ * The two configurations this tenant has, one per money-mode.
+ *
+ * Behaves like the real resolver rather than echoing whatever the command
+ * claims: `configSnapshotForInstitution` resolves ONE configuration for a
+ * tenant, stamped with the mode that tenant's `platform.payments.mode`
+ * published. A stand-in that returned `{ environment: context.environment }`
+ * would agree with every command by construction and prove nothing — it would
+ * be the fake test the mismatch check exists to make impossible.
+ *
+ * So this tenant is genuinely in ONE mode at a time, and the port answers with
+ * that mode's snapshot whatever the command says.
+ */
+const SNAPSHOTS: Record<PaymentMode, ConfigSnapshot> = {
+  test: {
+    tenantId: "t-roch",
+    revision: "cfg-7",
+    checksum: "sha256:test-mode",
+    environment: "test",
+    values: {},
+  },
+  live: {
+    tenantId: "t-roch",
+    revision: "cfg-live-7",
+    checksum: "sha256:live-mode",
+    environment: "live",
+    values: {},
+  },
+}
+
+/** Which mode the tenant the ports stand in for is actually in. */
+function portsForTenantIn(mode: PaymentMode, over: Partial<CommandPorts> = {}): CommandPorts {
   return {
     claimIdempotency: async () => ({ claimed: true }),
     completeIdempotency: async () => {},
     releaseIdempotency: async () => {},
+    configuration: async () => SNAPSHOTS[mode],
     authorize: async () => ({ allowed: true, reason: null }),
     currentVersion: async () => 3,
     ...over,
   }
+}
+
+function ports(over: Partial<CommandPorts> = {}): CommandPorts {
+  return portsForTenantIn("test", over)
 }
 
 const handler: Handler<string> = async () => ({ result: "decided", resultRef: "approval:ar-9" })
@@ -79,6 +130,93 @@ describe("parsing", () => {
     const spy = jest.fn(handler)
     await dispatch({ nonsense: true }, spy as Handler<string>, ports(), { requestDigest: "d" })
     expect(spy).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * PAY-020-003 / PAY-000-007 — test and live are separated by something.
+ *
+ * The tenant these ports stand in for is in exactly one mode at a time and its
+ * configuration says so. A command declaring the other mode is refused before
+ * anything happens, which is the whole of the separation: without it both
+ * commands are well-formed, both parse, both authorize, and the only difference
+ * between "approved a $40,000 spend in a sandbox" and "approved it for real" is
+ * a word nothing compares.
+ */
+describe("money-mode separation", () => {
+  it("refuses a test-mode command against a tenant whose configuration is live", async () => {
+    const out = await dispatch(
+      command(),
+      handler,
+      portsForTenantIn("live"),
+      { requestDigest: "digest-a" },
+    )
+    expect(!out.ok && out.error.code).toBe("config.mode-mismatch")
+    expect(!out.ok && out.error.kind).toBe("precondition")
+    expect(!out.ok && out.error.retryable).toBe(false)
+  })
+
+  it("refuses a live-mode command against a tenant whose configuration is test", async () => {
+    // The direction that matters most: a live command must not execute against
+    // a tenant that is not live.
+    const out = await dispatch(
+      command({ context: liveContext }),
+      handler,
+      portsForTenantIn("test"),
+      { requestDigest: "digest-a" },
+    )
+    expect(!out.ok && out.error.code).toBe("config.mode-mismatch")
+  })
+
+  it("does not run the handler, and does not burn the key, on a mismatch", async () => {
+    // Not a request that happened: it is a refusal the caller can fix and
+    // resend, so claiming the idempotency key would make the corrected command
+    // a duplicate of one that never ran.
+    const spy = jest.fn(handler)
+    const claim = jest.fn(async () => ({ claimed: true as const }))
+    await dispatch(
+      command(),
+      spy as Handler<string>,
+      portsForTenantIn("live", {
+        claimIdempotency: claim as unknown as CommandPorts["claimIdempotency"],
+      }),
+      { requestDigest: "digest-a" },
+    )
+    expect(spy).not.toHaveBeenCalled()
+    expect(claim).not.toHaveBeenCalled()
+  })
+
+  it("lets a live command through when the tenant really is live", async () => {
+    const out = await dispatch(
+      command({ context: liveContext }),
+      handler,
+      portsForTenantIn("live"),
+      { requestDigest: "digest-a" },
+    )
+    expect(out).toEqual({ ok: true, result: "decided", resultRef: "approval:ar-9", replayed: false })
+  })
+
+  it("refuses a command naming a configuration revision that is no longer live", async () => {
+    // Same mode, stale revision: the configuration moved between the page being
+    // prepared and the button being pressed, so the thresholds the request was
+    // composed against are not the ones it would be decided against.
+    const out = await dispatch(
+      command({ context: { ...context, configRevision: "cfg-6" } }),
+      handler,
+      ports(),
+      { requestDigest: "digest-a" },
+    )
+    expect(!out.ok && out.error.code).toBe("config.revision-stale")
+  })
+
+  it("refuses a command for a tenant with no resolvable configuration", async () => {
+    const out = await dispatch(
+      command(),
+      handler,
+      ports({ configuration: async () => null }),
+      { requestDigest: "digest-a" },
+    )
+    expect(!out.ok && out.error.code).toBe("config.unresolved")
   })
 })
 

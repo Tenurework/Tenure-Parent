@@ -16,7 +16,7 @@ import {
 } from "@tenure/blueprints"
 import { ENGINE_VERSION } from "@tenure/configuration"
 import { MODULE_CATALOG } from "@tenure/modules"
-import { navigationFor, resolveModules } from "@tenure/module-runtime"
+import { coexistenceProblems, navigationFor, resolveModules } from "@tenure/module-runtime"
 
 import { compareVersionStrings } from "./compatibility"
 import {
@@ -188,6 +188,15 @@ describe("every blueprint's module selection actually resolves", () => {
       : ["missing-entitlement"]
     for (const p of modulesFor(slug).problems) {
       expect(allowed).toContain(p.reason)
+    }
+
+    // WRK-020-004. A binding's coexistence block is what an adopted manifest
+    // is built from (`apps/system-studio/src/lib/adopt.ts`), and it is checked
+    // by the same function the manifest validator calls. A binding declaring an
+    // object that contradicts its own domain would produce a manifest the
+    // engine refuses to build, discovered at adoption rather than here.
+    if (binding.coexistence) {
+      expect(coexistenceProblems(binding.coexistence)).toEqual([])
     }
   })
 })

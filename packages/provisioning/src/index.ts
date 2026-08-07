@@ -18,6 +18,7 @@ export {
   ALL_STATES,
   LifecycleError,
   REQUIRES_APPROVAL,
+  REQUIRES_OWNER,
   RESIDUAL_COST,
   SERVING,
   TERMINAL,
@@ -27,6 +28,23 @@ export {
   nextStates,
 } from "./lifecycle"
 export type { Actor, AdvanceOptions, LifecycleStep, TenantState } from "./lifecycle"
+
+/**
+ * WRK-120-005. The checkable half of the residual-cost claim, exported beside
+ * `RESIDUAL_COST` so a console rendering the sentence has the list in the same
+ * import and no excuse for rendering one without the other.
+ */
+export {
+  RESIDUAL_CLAIMS,
+  observeResidual,
+  reconcileResidual,
+} from "./residual-reconciliation"
+export type {
+  ObservedTenantResources,
+  ResidualClaim,
+  ResidualReconciliation,
+  ResourceClass,
+} from "./residual-reconciliation"
 
 export { CELL_APPLY, deploymentManifest, executeStep } from "./execute"
 export type { DeploymentManifest, ExecutionContext, StepEvidence } from "./execute"
@@ -50,14 +68,20 @@ export type {
  * definition, two importers, same as `ModelEntry`.
  */
 export {
+  BIDIRECTIONAL_PROFILES,
   BUSINESS_DOMAINS,
   COEXISTENCE_PROFILES,
+  SYNC_DIRECTIONS,
   coexistenceProblems,
   externalDomains,
+  objectAuthorityNotes,
 } from "@tenure/module-runtime"
 export type {
   CoexistenceDeclaration,
   CoexistenceProfile,
+  FieldAuthority,
+  ObjectAuthority,
+  SyncDirection,
   SystemOfRecordAuthority,
   SystemOfRecordMap,
 } from "@tenure/module-runtime"
@@ -179,6 +203,28 @@ export type {
   UsabilityReason,
   UsabilityVerdict,
 } from "./catalogs"
+
+/**
+ * WRK-000-002. The seven-state classification, per
+ * (provider, product, capability, direction).
+ */
+export {
+  capabilityKey,
+  capabilityProblems,
+  claimIsUnproven,
+  classifyCapabilities,
+} from "./connector-capability"
+export type {
+  CapabilityDirection,
+  CapabilityProblem,
+  ClassifiedCapability,
+  ConnectorCapability,
+  ConnectorCapabilityStatus,
+} from "./connector-capability"
+
+/** WRK-100-003. The named packs, bound to the requirements that ask for them. */
+export { PROVIDER_PACKS } from "./provider-packs"
+export type { ProviderPackEntry } from "./provider-packs"
 
 
 export { AdoptionRefused, REQUIRED_ADOPTION_CHECKS, adoptTenant } from "./adoption"

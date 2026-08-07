@@ -3,12 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import {
-  Button as AriaButton,
-  Focusable,
-  Tooltip,
-  TooltipTrigger,
-} from "react-aria-components"
+import { Focusable, Tooltip, TooltipTrigger } from "@/components/ui/Tooltip"
 import {
   LayoutDashboard,
   CheckCircle,
@@ -77,11 +72,13 @@ interface SideNavProps {
   sections: readonly NavSectionView[]
 }
 
-const TOOLTIP_CLASS =
-  "pop-panel z-50 rounded-md border border-border bg-surface px-2.5 py-1.5 text-[13px] font-medium text-text-1 shadow-lg outline-none"
-
+// h-row, not h-[32px]: the nav row is the product's densest repeated row, so it
+// is what `compact` has to shrink. Comfortable resolves to the same 32px.
 const ITEM_BASE =
-  "nav-item group relative flex h-[32px] items-center gap-2.5 rounded-[8px] px-2.5 text-[13.5px] no-underline transition-colors"
+  "nav-item group relative flex h-row items-center gap-2.5 rounded-[8px] px-2.5 text-[13.5px] no-underline transition-colors"
+
+/** The resting state every nav row shares — link, panel opener, collapse toggle. */
+const ITEM_IDLE = "text-text-2 hover:bg-[--shell-item-hover] hover:text-text-1"
 
 function ItemLink({
   item,
@@ -97,9 +94,7 @@ function ItemLink({
   const Icon = ICONS[item.icon] ?? Settings
   const { openPanel } = useAI()
   const className = `mx-2.5 ${ITEM_BASE} ${
-    active
-      ? "bg-[--shell-item-active] font-semibold text-text-1"
-      : "text-text-2 hover:bg-[--shell-item-hover] hover:text-text-1"
+    active ? "bg-[--shell-item-active] font-semibold text-text-1" : ITEM_IDLE
   }`
   const inner = (
     <>
@@ -128,11 +123,9 @@ function ItemLink({
   )
 
   return (
-    <TooltipTrigger delay={250} closeDelay={0} isDisabled={!collapsed}>
+    <TooltipTrigger isDisabled={!collapsed}>
       <Focusable>{trigger}</Focusable>
-      <Tooltip placement="right" offset={12} className={TOOLTIP_CLASS}>
-        {item.label}
-      </Tooltip>
+      <Tooltip>{item.label}</Tooltip>
     </TooltipTrigger>
   )
 }
@@ -141,18 +134,23 @@ function CollapseToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   const Icon = collapsed ? CaretDoubleRight : CaretDoubleLeft
   const label = collapsed ? "Expand navigation" : "Collapse navigation"
   return (
-    <TooltipTrigger delay={250} closeDelay={0} isDisabled={!collapsed}>
-      <AriaButton
-        onPress={onToggle}
-        aria-label={label}
-        className={`mx-2.5 w-[calc(100%-1.25rem)] ${ITEM_BASE} text-text-2 outline-none data-[hovered]:bg-[--shell-item-hover] data-[hovered]:text-text-1 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--primary]`}
-      >
-        <Icon size={18} className="shrink-0 text-text-3" />
-        <span className="nav-label truncate">Collapse</span>
-      </AriaButton>
-      <Tooltip placement="right" offset={12} className={TOOLTIP_CLASS}>
-        {label}
-      </Tooltip>
+    <TooltipTrigger isDisabled={!collapsed}>
+      {/* A nav row, not a page button: it shares ITEM_BASE and ITEM_IDLE with
+          the links above it, so the rail reads as one column. Wrapped in
+          Focusable for the same reason the panel-opener row is — a plain
+          <button> does not read TooltipTrigger's context on its own. */}
+      <Focusable>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={label}
+          className={`mx-2.5 w-[calc(100%-1.25rem)] ${ITEM_BASE} ${ITEM_IDLE} outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus]`}
+        >
+          <Icon size={18} className="shrink-0 text-text-3" />
+          <span className="nav-label truncate">Collapse</span>
+        </button>
+      </Focusable>
+      <Tooltip>{label}</Tooltip>
     </TooltipTrigger>
   )
 }
@@ -190,7 +188,7 @@ export function SideNav({ sections }: SideNavProps) {
   return (
     <nav
       id="primary-navigation"
-      className="fixed start-0 z-40 flex w-sidenav-current flex-col border-e border-border bg-[--shell-bg] transition-[width] duration-200 ease-out"
+      className="fixed start-0 z-nav flex w-sidenav-current flex-col border-e border-border bg-[--shell-bg] transition-[width] duration-base ease-entry"
       style={{ top: "var(--shell-height)", bottom: "var(--footer-height)" }}
       aria-label="Primary navigation"
     >

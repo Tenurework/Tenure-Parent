@@ -70,6 +70,18 @@ process.env.E2E_RUN_ID ||= String(Date.now())
  */
 process.env.PLATFORM_OPERATORS ||= "director@tenure.demo"
 
+/**
+ * The component gallery that `e2e/visual-baselines.spec.ts` photographs.
+ *
+ * Off everywhere by default and fail-closed — `src/app/(app)/gallery/page.tsx`
+ * 404s on any value but the exact string "true", and the pilot's task
+ * definition does not set it — so turning it on has to be explicit. This is that
+ * explicit place for a test run, and `webServer` below inherits this process's
+ * environment. `||=`, so a run that wants to prove the 404 can set it to
+ * "false".
+ */
+process.env.TENURE_UI_GALLERY ||= "true"
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -81,7 +93,33 @@ export default defineConfig({
     baseURL,
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  /**
+   * Visual baselines carry no `{platform}` segment.
+   *
+   * Playwright's default template inserts one, which is correct for a suite
+   * whose baselines are regenerated per machine and wrong for one whose
+   * baselines are committed: CI (ubuntu) would find no `-linux` file next to a
+   * developer's `-win32` one and fail with "A snapshot doesn't exist" on every
+   * cell, for every change, forever. Pinning the path is one half of the answer
+   * and `visual-baselines.spec.ts` skipping off-platform is the other — see its
+   * header for how to regenerate them in the container.
+   */
+  snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}",
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      // The visual matrix drives its own viewports and colour schemes; running
+      // it here as well would double every screenshot under a second project
+      // name and a second set of baselines.
+      testIgnore: /visual-baselines\.spec\.ts/,
+    },
+    {
+      name: "visual",
+      testMatch: /visual-baselines\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+  ],
   ...(process.env.PLAYWRIGHT_BASE_URL
     ? {}
     : {

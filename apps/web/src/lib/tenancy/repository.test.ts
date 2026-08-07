@@ -17,7 +17,12 @@ const client = Object.fromEntries(
   [...TENANT_SCOPED, ...PLATFORM_GLOBAL].map((m) => [m, { __delegate: m }]),
 )
 
-const scope = { institutionId: "t-roch", actor: { principalId: "u", principalType: "user" as const } }
+const scope = {
+  institutionId: "t-roch",
+  environment: "test" as const,
+  purpose: "interactive" as const,
+  actor: { principalId: "u", principalType: "user" as const },
+}
 
 describe("binding", () => {
   it("binds inside a tenant scope", () => {

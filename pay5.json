@@ -1,0 +1,520 @@
+[
+ {
+  "id": "PAY-000-005",
+  "line": 12217,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Create a legal/provider review gate for every new country, account configuration, funds flow, card program and financial-account capability.\""
+  }
+ },
+ {
+  "id": "PAY-010-003",
+  "line": 12271,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Add effective dates and provider/API-version compatibility to capability definitions.\""
+  }
+ },
+ {
+  "id": "PAY-020-001",
+  "line": 12325,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Publish bounded-context ownership and dependency diagrams.\""
+  }
+ },
+ {
+  "id": "PAY-020-007",
+  "line": 12379,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Define synchronous versus asynchronous boundaries and safe timeout/retry behavior."
+  }
+ },
+ {
+  "id": "PAY-030-005",
+  "line": 12433,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement immutable state-transition history with actor, authority, reason, policy/config version and evidence.\""
+  }
+ },
+ {
+  "id": "PAY-040-003",
+  "line": 12487,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement a charge-model decision engine using exact use case, seller, parties, region, account configuration and liability.\""
+  }
+ },
+ {
+  "id": "PAY-050-001",
+  "line": 12541,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Implement resumable onboarding cases with provider requirement synchronization."
+  }
+ },
+ {
+  "id": "PAY-050-007",
+  "line": 12595,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Minimize retention of identity documents and raw provider payloads; prove access separation."
+  }
+ },
+ {
+  "id": "PAY-060-005",
+  "line": 12649,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement payment-method availability by country, currency, account and transaction attributes.\""
+  }
+ },
+ {
+  "id": "PAY-070-003",
+  "line": 12703,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Require exception approval for destination and separate-charge flows that shift liability to Tenure.\""
+  }
+ },
+ {
+  "id": "PAY-080-001",
+  "line": 12757,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement explicit internal-allocation, internal-transfer, intercompany and external-movement command types.\""
+  }
+ },
+ {
+  "id": "PAY-080-007",
+  "line": 12811,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Reconcile internal allocations to provider cash/clearing and universal journal."
+  }
+ },
+ {
+  "id": "PAY-090-005",
+  "line": 12865,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement beneficiary change cooling-off, step-up, dual control, alerts and exception evidence.\""
+  }
+ },
+ {
+  "id": "PAY-100-003",
+  "line": 12919,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Implement financial addresses and inbound funding without exposing full account details beyond authorized need."
+  }
+ },
+ {
+  "id": "PAY-110-001",
+  "line": 12973,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement cardholder/card/control-policy canonical models and lifecycle.\""
+  }
+ },
+ {
+  "id": "PAY-110-007",
+  "line": 13027,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Prove no prohibited card data enters Tenure databases, logs, analytics, traces, screenshots or Relay.\""
+  }
+ },
+ {
+  "id": "PAY-120-005",
+  "line": 13081,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Implement reserves/rolling holds only when provider/contract/legal/accounting scope permits."
+  }
+ },
+ {
+  "id": "PAY-130-003",
+  "line": 13135,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Reconcile gross, fees, refunds, disputes, transfers, payouts, FX and net settlement.\""
+  }
+ },
+ {
+  "id": "PAY-140-001",
+  "line": 13189,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Implement a single provider gateway with no raw SDK leakage."
+  }
+ },
+ {
+  "id": "PAY-140-007",
+  "line": 13243,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement event-gap polling/reconciliation and safe replay/redrive.\""
+  }
+ },
+ {
+  "id": "PAY-150-005",
+  "line": 13297,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement step-up authentication and short action authorization for high-risk commands.\""
+  }
+ },
+ {
+  "id": "PAY-160-003",
+  "line": 13351,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Render provider capability/requirement truth and last synchronization time."
+  }
+ },
+ {
+  "id": "PAY-170-001",
+  "line": 13405,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement role-based information architecture for payer, requester, approver, treasurer, finance, merchant admin, risk, auditor and support.\""
+  }
+ },
+ {
+  "id": "PAY-170-007",
+  "line": 13459,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Pass accessibility, localization, RTL, responsive, visual-regression and long-session fatigue tests.\""
+  }
+ },
+ {
+  "id": "PAY-180-005",
+  "line": 13513,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Prevent payment data from entering shared model training or cross-tenant memory.\""
+  }
+ },
+ {
+  "id": "PAY-190-003",
+  "line": 13567,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Integrate tax determination/calculation through versioned provider contracts and preserve tax evidence."
+  }
+ },
+ {
+  "id": "PAY-200-001",
+  "line": 13621,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Complete payments threat model and abuse-case review.\""
+  }
+ },
+ {
+  "id": "PAY-200-007",
+  "line": 13675,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Perform SAST, dependency, IaC, secret, API authorization and penetration testing on payment surfaces.\""
+  }
+ },
+ {
+  "id": "PAY-210-005",
+  "line": 13729,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement runbooks for timeout ambiguity, event gaps, payout failure, compromised account/card, dispute deadline and provider incident.\""
+  }
+ },
+ {
+  "id": "PAY-220-003",
+  "line": 13783,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Implement account/card/financial-account closure and provider-ownership transfer where supported.\""
+  }
+ },
+ {
+  "id": "PAY-230-001",
+  "line": 13837,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Create a Simon payments discovery workbook and mark every unconfirmed fact/blocker."
+  }
+ },
+ {
+  "id": "PAY-230-007",
+  "line": 13891,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Migrate any existing payment records/providers through immutable extraction, mapping, reconciliation, cutover and rollback.\""
+  }
+ },
+ {
+  "id": "PAY-240-005",
+  "line": 13945,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Run repeated test-mode/full-scale mock migrations and final reconciliation.\""
+  }
+ },
+ {
+  "id": "PAY-250-003",
+  "line": 13999,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Test all 12 mandatory E2E scenarios with evidence and rollback/recovery."
+  }
+ },
+ {
+  "id": "PAY-260-001",
+  "line": 14053,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Create dependency-ordered implementation ledger and evidence directory.\""
+  }
+ },
+ {
+  "id": "PAY-260-007",
+  "line": 14107,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "\"Record pilot outcomes, incidents, support load, fees and reconciliation before expansion.\""
+  }
+ },
+ {
+  "id": "PAY-270-005",
+  "line": 14161,
+  "fields": {
+   "prefix": "PAY",
+   "source_document": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "section": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "status": "FAIL",
+   "imported": "true",
+   "reason": "decided in the execution ledger",
+   "ledger": "\"docs/implementation/payments-treasury-execution-ledger.md\"",
+   "statement": "Deliver migration/coexistence/cutover/rollback package."
+  }
+ }
+]

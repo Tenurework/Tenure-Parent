@@ -101,6 +101,7 @@ describe("the fourteen domains the item names are all declared", () => {
     for (const kind of LAYER_KINDS) {
       const viaDomains = validateDomains([
         defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
           key: "platform.organization.probe",
           owner: "platform",
           type: z.string(),
@@ -151,6 +152,7 @@ describe("a key belongs to exactly one domain", () => {
 describe("a definition may not grant itself authority its domain withholds", () => {
   const deploymentKey = (allowedScopes: readonly string[]) =>
     defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
       key: "platform.deployment.region",
       owner: "platform",
       type: z.string(),
@@ -177,6 +179,7 @@ describe("a definition may not grant itself authority its domain withholds", () 
 
   it("refuses a key that belongs to no domain at all", () => {
     const orphan = defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
       key: "platform.ungoverned.thing",
       owner: "platform",
       type: z.string(),
@@ -260,6 +263,7 @@ describe("a layer may not write a domain its kind does not own", () => {
 describe("the refusal is true, not advisory", () => {
   const registry = ConfigRegistry.of([
     defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
       key: "platform.localization.currency",
       owner: "platform",
       type: z.string(),
@@ -271,6 +275,7 @@ describe("the refusal is true, not advisory", () => {
       description: "Currency.",
     }),
     defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
       key: "platform.observability.logRetentionDays",
       owner: "platform",
       type: z.number(),

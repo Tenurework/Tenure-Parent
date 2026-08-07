@@ -19,7 +19,21 @@ import {
 
 export type SlaLevel = "ok" | "attention" | "overdue" | "none"
 
-const PENDING_STATES = new Set(["DRAFT", "PENDING_PRESIDENT", "NEEDS_CHANGES", "PENDING_OSE"])
+/**
+ * The statuses a request can age in.
+ *
+ * Exported because `/api/jobs/slo` has to ASK the database for exactly these
+ * rows — an aggregate that fetched every request and then filtered would read
+ * a tenant's whole approval history once an hour. One definition: a status
+ * added here and not there would be a queue that ages on the page and is
+ * invisible to the objective, which is the discrepancy the SLO exists to close.
+ */
+export const PENDING_STATES = new Set([
+  "DRAFT",
+  "PENDING_PRESIDENT",
+  "NEEDS_CHANGES",
+  "PENDING_OSE",
+])
 
 export const SLA_ATTENTION_DAYS = 3
 export const SLA_OVERDUE_DAYS = 6

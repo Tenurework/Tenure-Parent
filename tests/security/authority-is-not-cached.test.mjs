@@ -173,3 +173,146 @@ test("every authority module path still exists", () => {
     assert.ok(fs.existsSync(path.join(ROOT, target)), `${target} is guarded but does not exist`)
   }
 })
+
+/**
+ * The other half of "a cache() memo does not outlive what it is about".
+ *
+ * The tests above are about TIME: authority must not survive the request it was
+ * computed in. This one is about TENANT, and it is the same mistake made against
+ * a different axis — `docs/architecture/REVIEW-FINDINGS.md:54`. A `React.cache()`
+ * memo lives for the whole request; a tenant scope lives for a block; a request
+ * may legitimately open two scopes. `viewerTimeZone` was keyed on `userId` alone
+ * and read a TENANT_SCOPED `Organization`, so the first scope opened in a request
+ * answered for every later one, and a two-institution staffer who switched
+ * tenants saw their other campus's clock on every calendar surface.
+ *
+ * `tests/architecture/cache-does-not-cross-tenant-scopes.test.mjs` guards the
+ * SIGNATURE — that a tenant-reading `cache()`d loader declares an institution.
+ * That is not enough on its own and this is the gap it leaves: a caller can
+ * satisfy the signature and still hand it the wrong institution.
+ * `viewerTimeZone(userId, ctx.institutionRoles[0].institutionId)` type-checks,
+ * passes that guard, and is the original defect verbatim. What has to be true is
+ * that the argument comes from the OPEN SCOPE.
+ */
+const TENANT_KEYED_LOADERS = ["viewerTimeZone"]
+
+/** Sources of an institution that are the acting tenant rather than a guess. */
+const FROM_OPEN_SCOPE =
+  /^(?:scope|tenantScope|s)\.institutionId$|^requireTenantScope\([^)]*\)\.institutionId$|^currentScope\(\)[!?]?\.institutionId$/
+
+function callsInApp(loader) {
+  const listed = execFileSync(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard", "apps/web/src"],
+    { cwd: ROOT, encoding: "utf8" },
+  )
+    .split("\n")
+    .filter((file) => /\.tsx?$/.test(file) && !/\.(test|itest)\.tsx?$/.test(file))
+
+  const calls = []
+  for (const file of listed) {
+    const text = code(file)
+    // `import { viewerTimeZone }` is not a call; a `(` right after the name is.
+    for (const match of text.matchAll(new RegExp(`\\b${loader}\\(`, "g"))) {
+      const open = match.index + match[0].length - 1
+      const args = splitArguments(text, open)
+      if (args) calls.push({ file, args })
+    }
+  }
+  return calls
+}
+
+/**
+ * The arguments of a call whose `(` is at `open`, split on top-level commas.
+ *
+ * Scanned rather than matched with `[^)]*`, because an argument may itself
+ * contain parentheses — `requireTenantScope('viewerTimeZone').institutionId` is
+ * the shape the loader's own docblock offers to a caller with no `scope` in
+ * hand, and a lazy regex truncates it to `requireTenantScope('viewerTimeZone'`,
+ * which then fails the check for a reason that has nothing to do with the code.
+ */
+function splitArguments(text, open) {
+  let depth = 0
+  const args = []
+  let current = ""
+  for (let i = open; i < text.length; i += 1) {
+    const ch = text[i]
+    if ("([{".includes(ch)) {
+      depth += 1
+      if (depth === 1) continue
+    } else if (")]}".includes(ch)) {
+      depth -= 1
+      if (depth === 0) {
+        args.push(current)
+        return args.map((a) => a.trim()).filter((a, idx) => a !== "" || idx > 0)
+      }
+    }
+    if (ch === "," && depth === 1) {
+      args.push(current)
+      current = ""
+    } else current += ch
+  }
+  return null
+}
+
+test("every caller of a tenant-keyed loader takes the tenant from the open scope", () => {
+  const offenders = []
+  let total = 0
+
+  for (const loader of TENANT_KEYED_LOADERS) {
+    const calls = callsInApp(loader)
+    assert.ok(
+      calls.length > 0,
+      `${loader} has no call sites in apps/web/src — either it was renamed and this guard now ` +
+        `asserts nothing, or the production callers were deleted`,
+    )
+    total += calls.length
+
+    for (const call of calls) {
+      const institution = call.args[1]
+      if (institution === undefined) {
+        offenders.push(`${call.file} — ${loader}(${call.args.join(", ")}) names no institution at all`)
+      } else if (!FROM_OPEN_SCOPE.test(institution)) {
+        offenders.push(
+          `${call.file} — ${loader}(..., ${institution}) does not take the institution from the open scope`,
+        )
+      }
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `these call sites pass a loader an institution they chose themselves:\n  ${offenders.join("\n  ")}\n` +
+      `The acting tenant is the one \`withTenantScope\` resolved and validated against live ` +
+      `membership — take it from the \`scope\` the callback is handed, or from ` +
+      `\`requireTenantScope(...)\`. Deriving one from the viewer instead (\`institutionRoles[0]\`) ` +
+      `is the defect REVIEW-FINDINGS.md:54 names: it ignores which tenant the user actually ` +
+      `switched to, and it puts a value in the memo key that does not change when the scope does.`,
+  )
+
+  // Not a vacuous pass: the calendar, the new-event form and the feed all call
+  // viewerTimeZone, so anything below three means call sites went missing rather
+  // than the rule being satisfied everywhere.
+  assert.ok(total >= 3, `only ${total} call site(s) checked across ${TENANT_KEYED_LOADERS.join(", ")}`)
+})
+
+test("a caller inside a tenant scope is what makes `scope.institutionId` available", () => {
+  // `scope.institutionId` is only the acting tenant if `scope` is the argument
+  // `withTenantScope` handed the callback. A file that passes `scope.institutionId`
+  // while opening no scope has a local variable named `scope` and a guard that
+  // believed it.
+  const offenders = []
+
+  for (const loader of TENANT_KEYED_LOADERS) {
+    for (const call of callsInApp(loader)) {
+      if (!/^(?:scope|tenantScope|s)\.institutionId$/.test(call.args[1] ?? "")) continue
+      const text = code(call.file)
+      if (!/withTenantScope\(/.test(text) && !/withSystemTenantScope\(/.test(text)) {
+        offenders.push(`${call.file} — passes scope.institutionId but opens no tenant scope`)
+      }
+    }
+  }
+
+  assert.deepEqual(offenders, [], offenders.join("\n  "))
+})

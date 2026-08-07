@@ -1,0 +1,154 @@
+[
+  {
+    "id": "PAY-030-002",
+    "title": "Use exact money types and property tests across supported currencies and rounding modes",
+    "why_open": "packages/finops/src/money.ts:22 fixes SCALE=6 and money.ts:70 computes `const digits = 2 + SCALE`, hardcoding TWO minor digits for every currency. Verified by executing the module's own arithmetic: fromDecimal(\"1200\",\"JPY\") yields units=120000000000, i.e. 120000 minor units for a currency whose true minor-unit count is 1200 — 100x wrong; fromDecimal(\"1.234\",\"KWD\") then renders through toDecimal() as \"1.23\", silently dropping a legal digit of a 3-decimal currency. There is no currency->exponent table anywhere in the package. money.ts:151 `toDecimal(amount, minorDigits = 2)` also defaults to 2 regardless of the currency travelling in the Money, and money.ts:154/158 round with `Math.round`, which is half-toward-+Infinity: executed, toDecimal(+0.005)=\"0.01\" but toDecimal(-0.005)=\"0.00\", so a debit and the credit that exactly reverses it round to different magnitudes. There is no RoundingMode parameter on any exported function (packages/finops/src/index.ts:10-24 exports none). packages/finops/src/finops.test.ts has 40 tests and mentions no currency other than USD/EUR (grep JPY|KWD|BHD|rounding mode: zero hits) — the only rounding test, finops.test.ts:90, is a largest-remainder split in USD. Meanwhile packages/platform-config/src/money.ts:35-41 asks Intl for the real per-currency exponent, so the two money modules in this repo disagree about what a minor unit is.",
+    "files": [
+      "packages/finops/src/money.ts",
+      "packages/finops/src/allocation.ts",
+      "packages/finops/src/reporting.ts",
+      "packages/finops/src/index.ts",
+      "packages/finops/src/finops.test.ts",
+      "packages/platform-config/src/money.ts",
+      "apps/system-studio/src/lib/cost-source.ts",
+      "apps/system-studio/src/app/platform/cost/page.tsx"
+    ],
+    "smallest_real_change": "Add an ISO-4217 exponent table to packages/finops/src/money.ts (minorDigits(currency): 0 for JPY/KRW, 2 default, 3 for KWD/BHD/TND) and make fromDecimal/toDecimal read it instead of the literal 2 — `const digits = minorDigits(currency) + SCALE`. Add `export type RoundingMode = 'half-up' | 'half-even' | 'half-away-from-zero' | 'down'` and require it explicitly on toDecimal and on allocateByWeight's remainder step; delete the bare Math.round. Fix every consumer in the same change: allocation.ts (allocateByWeight/reconcile), reporting.ts (unitCost/forecastPeriod/summarize), apps/system-studio/src/app/platform/cost/page.tsx:31 `usd()`, and apps/system-studio/src/lib/cost-source.ts:84. Then add property tests in finops.test.ts over the cross product {USD, JPY, KWD} x {half-up, half-even, half-away-from-zero, down}: (a) fromDecimal->toDecimal round-trips the input string exactly, (b) sum(allocateByWeight(a, w)) === a to the unit, (c) toDecimal(x) and toDecimal(negate(x)) have equal magnitude. Mutation proof: revert `minorDigits(currency)` to the literal 2 and confirm the JPY round-trip property reds; drop the rounding-mode argument back to Math.round and confirm the sign-symmetry property reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-270-002",
+    "title": "Deliver machine-validated configuration and capability schemas — every option priced per seat and per organisation (NEXT-SESSION §7)",
+    "why_open": "packages/configuration/src/definition.ts:22-66 is the whole ConfigDefinition contract — key, owner, type, default, allowedScopes, mergeStrategy, sensitivity, overridable, requiresCapability, description. There is no price field, and validateDefinition (definition.ts:82) therefore cannot require one. grep for price|pricing|perSeat across packages/configuration/src and packages/platform-config/src returns nothing outside a rejections test fixture. All 19 production option declarations are unpriced: packages/platform-config/src/definitions.ts:22,35,47,64,76,88 (PLATFORM_DEFINITIONS at :106), branding.ts:31,46,59,82, flags.ts:165,181,222, localization.ts:26,55,85,97,112,133. NEXT-SESSION.md §7 is a standing product requirement owned by PAY: 'A new config option without a price is incomplete', per seat AND for the whole organisation, with a running total. Nothing in packages/configuration/src/resolve.ts returns a cost beside the resolved value.",
+    "files": [
+      "packages/configuration/src/definition.ts",
+      "packages/configuration/src/resolve.ts",
+      "packages/configuration/src/index.ts",
+      "packages/configuration/src/configuration.test.ts",
+      "packages/platform-config/src/definitions.ts",
+      "packages/platform-config/src/branding.ts",
+      "packages/platform-config/src/flags.ts",
+      "packages/platform-config/src/localization.ts",
+      "packages/finops/src/pricing.ts",
+      "packages/finops/src/index.ts"
+    ],
+    "smallest_real_change": "Add a REQUIRED `price: { perSeatMinorUnits: number; organizationMinorUnits: number; currency: string }` to ConfigDefinition (definition.ts:22) and reject a definition without it in validateDefinition (definition.ts:82) — integers only, so the check also rejects a float, matching the finops charter. Because this widens a type that four production files construct, fix all of them in the same change (the exact failure the brief warns about): platform-config/src/definitions.ts, branding.ts, flags.ts (both defineFlag-produced definitions at :165/:181 plus killed at :222) and localization.ts. Add packages/finops/src/pricing.ts exporting `runningTotal(selected: readonly ConfigDefinition[], seats: number): { perSeat: Money; organization: Money; total: Money }` built on the existing integer Money type, and have the configuration resolver return it beside the resolved snapshot so a caller cannot read configuration without the price. Mutation proof: delete the `price` from one entry in PLATFORM_DEFINITIONS and confirm the registration test reds; freeze runningTotal to a constant and confirm the resolver test — which must assert on the value the RESOLVER emits, not on runningTotal called directly — reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-000-008",
+    "title": "Mark every unapproved payments capability UNSUPPORTED or PLANNED; never infer availability from a Stripe marketing page",
+    "why_open": "There is no payments capability surface at all to mark. `ls packages/` returns audit, authorization, configuration, contracts, finops, identity, metadata, module-runtime, organization-model, platform-config, provisioning, releases, workflow — there is no `packages/payments`. A case-insensitive grep for 'stripe' across apps/, packages/ and tools/ hits only two generated artefacts (apps/system-studio/src/generated/platform-truth.json and its .next copy) — no source file names a provider capability, an approval state, or an availability flag. packages/platform-config/src/modules.ts:63-114 models module availability for the product but carries no lifecycle state and no provider dimension, so an operator reading it cannot distinguish 'Stripe documents this' from 'Tenure has approved and certified this'. Bible §3 requires the availability truth to be the same in System Studio, tenant UI, APIs and docs; today there is no single source for it to be the same as.",
+    "files": [
+      "packages/payments/package.json",
+      "packages/payments/src/capability-registry.ts",
+      "packages/payments/src/capability-registry.test.ts",
+      "packages/payments/src/index.ts",
+      "packages/platform-config/src/modules.ts",
+      "tests/architecture/ledger-statuses.test.mjs"
+    ],
+    "smallest_real_change": "Create packages/payments with a single declarative registry: `export type CapabilityState = 'DISCOVERED'|'ARCHITECTED'|'PLANNED'|'BUILDING'|'INTERNAL_PREVIEW'|'TENANT_PILOT'|'GA_LIMITED'|'GA'|'DEPRECATED'|'UNSUPPORTED'` and `PaymentCapability { id, provider, program, state, approvedBy: { adr: string } | null, effectiveFrom, effectiveTo }`, plus `assertRegistry(caps)` that REFUSES any capability whose state is GA/GA_LIMITED/TENANT_PILOT without an `approvedBy.adr` pointing at a file that exists on disk. Seed it with the capabilities the Bible §4 names, all at PLANNED or UNSUPPORTED, because none has an approval ADR. Give it a production reader: `capabilityState(id)` consumed by packages/platform-config/src/modules.ts so the Studio's module list renders the state rather than a boolean. Mutation proof: flip one seeded capability to GA without adding an ADR and confirm assertRegistry throws; point approvedBy.adr at a non-existent path and confirm it throws for a different reason.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-010-006",
+    "title": "Country/currency/entity/business-type eligibility simulation with explainable blockers",
+    "why_open": "Nothing simulates eligibility. There is no packages/payments, no country table, no business-type model. The nearest thing in the repo is packages/platform-config/src/compatibility.ts, which is about module/version compatibility, not payment eligibility, and packages/platform-config/src/localization.ts:55 which declares a `currency` config option with no eligibility semantics attached — a tenant can select any currency string and no code answers whether that currency is acceptable for its country, legal entity or provider program. Bible §3/§6 require the answer to be a list of named, explainable blockers, and REVIEW-FINDINGS §21 makes the same point for the module case: a collapsed refusal produces support tickets that take a week. Today there is no refusal to collapse.",
+    "files": [
+      "packages/payments/src/eligibility.ts",
+      "packages/payments/src/eligibility.test.ts",
+      "packages/payments/src/capability-registry.ts",
+      "packages/payments/src/index.ts",
+      "packages/platform-config/src/localization.ts"
+    ],
+    "smallest_real_change": "In the same packages/payments as the capability registry, add `simulateEligibility(request: { capabilityId, country, currency, legalEntityType, businessType }): { eligible: boolean; blockers: readonly Blocker[] }` where `Blocker = { code, subject: 'country'|'currency'|'entity'|'businessType'|'capabilityState', detail, whatWouldUnblock }`. Evaluate against the registry's declared support matrix — never a hardcoded 'true'. Return EVERY blocker, not the first: an operator who fixes one and is handed the next has to run the loop four times. Wire it as the reader behind the `currency` option in packages/platform-config/src/localization.ts:55 so an ineligible currency is refused at selection rather than at first charge. Mutation proof: make simulateEligibility return the first blocker only and confirm the multi-blocker test reds; make it ignore the capability's state and confirm the UNSUPPORTED-capability test reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-020-004",
+    "title": "Provider-neutral canonical IDs and separate external-provider reference tables (carries the REVIEW-FINDINGS #7 P0 migration)",
+    "why_open": "apps/web/prisma/schema.prisma declares 41 models (Account/Session/.../OutboxEvent at :1088) and not one of them is a provider reference table: there is no PaymentProvider, no ProviderProgram, no ExternalBankAccountReference, no external-id table of any kind. Bible §5 states the rule this violates directly — 'A raw stripe_customer_id without account context is not globally unique enough' — and PAY-030-003 requires provider/mode/account-qualified uniqueness that has nowhere to live. The same file carries the verified P0: apps/web/prisma/schema.prisma:466 `idempotencyKey String? @unique` on ApprovalRequest is a client-supplied GLOBAL unique, so tenant B's retry resolves to tenant A's approval. It directly contradicts packages/contracts/src/index.ts:453-460, where IdempotencyRecord carries `tenantId` and apps/web/src/lib/commands/bus.ts:169,219 scopes every idempotency call by `context.tenantId`. The column is currently written by nobody — apps/web/src/app/(app)/approvals/actions.ts:112-122 creates ApprovalRequest without it — so the leak is latent and the migration is cheap today and expensive after the first writer lands.",
+    "files": [
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/",
+      "packages/payments/src/external-reference.ts",
+      "packages/payments/src/external-reference.test.ts",
+      "packages/contracts/src/index.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts"
+    ],
+    "smallest_real_change": "One Prisma migration doing two things. (1) Replace `idempotencyKey String? @unique` at schema.prisma:466 with `@@unique([institutionId, idempotencyKey])` — the composite is the fix; a partial unique index in raw SQL keeps NULLs free. (2) Add `ExternalReference { id, institutionId, provider, mode, programId, connectedAccountId, objectType, externalId, canonicalId, ... @@unique([provider, mode, connectedAccountId, objectType, externalId]) @@unique([institutionId, canonicalId]) }` — the qualified uniqueness PAY-030-003 needs, with the canonical id owned by Tenure and the provider id never a primary key. Add packages/payments/src/external-reference.ts with `qualify(ref)` that REFUSES a reference missing provider, mode or account context, and have the approvals create path at actions.ts:112 pass a tenant-scoped idempotency key through it so the new unique has a real writer instead of staying a dead column. Prove against the running Postgres (docker ps shows it up): insert the same idempotencyKey under two institutionIds and assert both succeed; insert a duplicate under one institutionId and assert P2002. Mutation proof: revert the composite to a single-column unique and confirm the two-tenant insert test reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-080-004",
+    "title": "Preserve organization/fund/project/event/seat attribution through provider settlement",
+    "why_open": "LedgerEntry (apps/web/prisma/schema.prisma:820-845) carries organizationId, budgetLineId, academicYear, kind, amountCents, approvalId, vendorId, documentId and postedById. It carries no fund, no project, no event and no seat — grep for `fund`, `model Project`/`projectId` across schema.prisma returns ZERO hits, and the Event model at :513 is never referenced from any financial row. It also carries no currency at all, while its parent BudgetLine does (schema.prisma:775) — so an entry's amountCents is a bare integer whose currency has to be inferred by a join, which is precisely the untagged-amount failure packages/finops/src/money.ts:10-13 exists to prevent. There is no settlement or payout object to preserve attribution THROUGH, and no reconciliation column linking an entry to a provider settlement.",
+    "files": [
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/",
+      "apps/web/src/lib/finance.ts",
+      "apps/web/src/lib/finance.test.ts"
+    ],
+    "smallest_real_change": "In the same migration as PAY-020-004: add `currency String` to LedgerEntry (backfilled from its BudgetLine, NOT NULL after backfill) and nullable attribution columns `eventId` (FK to Event), `seatId` (FK to Seat) and `fundCode String?`, each indexed with organizationId. Add a `Settlement { id, institutionId, externalReferenceId, occurredAt, currency, grossMinorUnits, feeMinorUnits, netMinorUnits }` row and a nullable `settlementId` on LedgerEntry, so attribution survives the hop rather than being reconstructed. Then make apps/web/src/lib/finance.ts:204 `summarize` refuse a mixed-currency set of lines instead of adding bare ints — the same refusal packages/finops/src/money.ts:80 already makes. Mutation proof: make summarize ignore the currency field and confirm the mixed-currency test reds; drop the eventId FK and confirm the attribution round-trip test reds against the running Postgres.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-230-004",
+    "title": "Dues/event/sponsorship receipt allocation to club/fund/event and the universal journal",
+    "why_open": "Case-insensitive grep for `dues` and `sponsorship` across apps/web/prisma/schema.prisma and apps/web/src/lib/finance.ts returns ZERO hits. There is no receipt object, no allocation rule and no universal journal: the only posting surface is LedgerEntry (schema.prisma:820) with LedgerKind = SPEND | REIMBURSEMENT | ADJUSTMENT (schema.prisma:810-814) — three kinds, all of them outbound. There is no inbound-receipt kind at all, so a dues payment or a sponsorship cannot be posted, let alone allocated across a club, a fund and an event. apps/web/src/lib/finance.ts:257 `ledgerSignedCents` enumerates exactly those three kinds, so the gap is in the code as well as the schema.",
+    "files": [
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/",
+      "apps/web/src/lib/finance.ts",
+      "apps/web/src/lib/finance.test.ts",
+      "packages/finops/src/allocation.ts"
+    ],
+    "smallest_real_change": "Add `RECEIPT` to the LedgerKind enum (schema.prisma:810) and handle it in apps/web/src/lib/finance.ts:257 `ledgerSignedCents` with the opposite sign to SPEND — the function's switch is the one place the sign is decided, so a missing arm is a compile error rather than a silent zero. Add `ReceiptAllocation { id, institutionId, ledgerEntryId, source: 'DUES'|'EVENT'|'SPONSORSHIP', organizationId, fundCode, eventId, minorUnits, currency }` and allocate a receipt across its targets with the largest-remainder splitter already proven in packages/finops/src/allocation.ts (allocateByWeight, money.ts:116) rather than a second rounding rule — so the allocations add back to exactly the receipt. Mutation proof: change one allocation to round independently instead of by largest remainder and confirm the sum-to-the-unit test reds; remove the RECEIPT arm from ledgerSignedCents and confirm the sign test reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-150-002",
+    "title": "Amount/currency/entity/org/fund/provider/beneficiary-aware approval authority",
+    "why_open": "Approval authority in this codebase is purely role-shaped and completely blind to money. apps/web/src/lib/approvals.ts:37-50 defines ApprovalView as { id, status, submittedById, organizationId, institutionId, organizationStatus } — no amount, no currency, no fund, no beneficiary. The amount IS collected and then thrown into an untyped blob: apps/web/src/app/(app)/approvals/actions.ts:121 writes `metadata: amount ? { amount } : {}` into ApprovalRequest.metadata (schema.prisma:465, `Json @default(\"{}\")`), and no authority code ever reads it back. The workflow engine has a condition channel (packages/workflow/src/engine.ts:19,28-30 `when`/`unless`), but the only condition any definition names is `requesterIsPresident` (apps/web/src/lib/workflows/approval-definition.ts:56,64,133,141) — and approvals.ts:156-159 calls `engineActions(APPROVAL_WORKFLOW, { state, roles })` WITHOUT passing `conditions` at all, so even that one condition is unevaluated on the availability path. A $5 request and a $500,000 request therefore take the identical two gates.",
+    "files": [
+      "apps/web/src/lib/approvals.ts",
+      "apps/web/src/lib/workflows/approval-definition.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/app/(app)/approvals/page.tsx",
+      "apps/web/src/app/(app)/approvals/[id]/page.tsx",
+      "packages/workflow/src/engine.ts",
+      "packages/platform-config/src/definitions.ts"
+    ],
+    "smallest_real_change": "Add REQUIRED `amountMinorUnits: number | null` and `currency: string` to ApprovalView (approvals.ts:37) — required, not optional, so tsc forces every one of the six producers named in approvals.ts:146 to answer rather than silently defaulting to null (this is the exact optional-field outage the brief describes). Read them from a typed column, not from metadata: promote the amount out of the Json blob in the PAY-020-004 migration. Declare the threshold ladder as a priced config option in packages/platform-config/src/definitions.ts (per PAY-270-002, so it carries a price), and have approvals.ts:156 pass `conditions: { requesterIsPresident, exceedsThreshold }` into engineActions, with a transition in approval-definition.ts that requires the extra gate `when: \"exceedsThreshold\"`. Mutation proof: freeze exceedsThreshold to false in the PRODUCER (approvals.ts), not in a helper, and confirm the over-threshold availableActions test reds; drop `currency` from the comparison and confirm the mixed-currency threshold test reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-180-002",
+    "title": "Route every action through canonical commands and ordinary approvals; no privileged bypass",
+    "why_open": "The canonical command layer exists and NOTHING calls it. apps/web/src/lib/commands/bus.ts:86 exports `dispatch<R>()` with idempotency claim/release/complete (bus.ts:118,169,219) and tenant-scoped keys; `ls apps/web/src/lib/commands` returns exactly two files, bus.ts and bus.test.ts, and a repo-wide grep for `commands/bus` or `dispatchCommand` outside that test returns ZERO production importers. Every mutating path goes straight to Prisma instead — apps/web/src/app/(app)/approvals/actions.ts:112 calls `tx.approvalRequest.create` directly, with no command envelope, no idempotency key and no outbox record. The repo already counts the debt: tests/security/every-path-authorizes.test.mjs:41 pins `UNAUTHORIZED_MUTATORS = 30`, a ratchet that has not moved. So the bus is a declaration with no caller, which is exactly the failure mode this domain is supposed to prevent.",
+    "files": [
+      "apps/web/src/lib/commands/bus.ts",
+      "apps/web/src/lib/commands/bus.test.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "tests/security/every-path-authorizes.test.mjs",
+      "packages/contracts/src/index.ts",
+      "apps/web/prisma/schema.prisma"
+    ],
+    "smallest_real_change": "Give the bus its first production caller and prove it is the only route. Implement CommandPorts (bus.ts:36) against Prisma — an `IdempotencyRecord` model keyed `@@unique([institutionId, key])` (the same composite shape as the PAY-020-004 fix) plus the existing OutboxEvent model at schema.prisma:1088 — and route apps/web/src/app/(app)/approvals/actions.ts's create and act paths through `dispatch`, deriving the key from the tenant + request digest so a double-submit replays instead of duplicating. Then tighten tests/security/every-path-authorizes.test.mjs:41 from 30 by the number of paths actually converted; the ratchet may only shrink, so the number is the evidence. Mutation proof: make dispatch skip the idempotency claim and confirm the double-submit test reds; leave the ratchet at 30 after converting and confirm the 'ratchet not tightened' assertion at every-path-authorizes.test.mjs:174 reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-200-004",
+    "title": "Rate, velocity, amount, recipient, account and tenant limits with safe failure",
+    "why_open": "apps/web/src/lib/envelopes/limits.ts is 246 lines of limit logic with ZERO production callers — a grep for evaluateRateLimit / evaluateQuota / evaluatePrecondition / validateBulkJobStatus across apps/ and packages/ returns hits only in apps/web/src/lib/envelopes/envelopes.test.ts. Even as a library it covers two of the six limit kinds the requirement names: evaluateRateLimit (limits.ts:96) is a fixed-window request counter and evaluateQuota (limits.ts:154) is a plan quota. There is no velocity limit, no amount limit, no per-recipient limit, no per-account limit and no per-tenant aggregate limit — the money-shaped limits, none of which can be expressed by a request count. 'Safe failure' is also unaddressed: the module is deliberately storage-free (limits.ts:5-6, 'The counters live behind ports'), no port exists, and nothing states whether an unavailable counter store fails open or closed — for a money limit the answer must be closed.",
+    "files": [
+      "apps/web/src/lib/envelopes/limits.ts",
+      "apps/web/src/lib/envelopes/envelopes.test.ts",
+      "apps/web/src/lib/commands/bus.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "packages/finops/src/money.ts"
+    ],
+    "smallest_real_change": "Add `evaluateValueLimit(input: { spentMinorUnits, requestingMinorUnits, capMinorUnits, currency, window, subject: { kind: 'recipient'|'account'|'tenant'; id: string } }): LimitDecision` to limits.ts, taking Money from packages/finops rather than a bare number so a cap and a spend in different currencies cannot be compared (the CurrencyMismatchError at money.ts:80 does that work already). Add an explicit `counterUnavailable: boolean` input and DENY on it with reason 'limit state unavailable' — a money limit that fails open is not a limit; assert it rather than commenting it. Then give the module its first production caller by checking limits inside the command bus path from PAY-180-002, so the approval create/act route is gated. Mutation proof: flip the counterUnavailable arm to allow and confirm the fail-closed test reds; compare cap and spend as bare numbers and confirm the cross-currency test reds.",
+    "already_done": false
+  }
+]

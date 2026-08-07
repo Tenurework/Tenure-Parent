@@ -19,8 +19,10 @@ interface TextFieldProps extends AriaTextFieldProps {
   rows?: number
 }
 
+// h-control, not h-10: an input has to keep the same height as the Button
+// beside it under either density (globals.css --control-h).
 const inputClass = `
-  w-full h-10 px-3.5 text-[15px] text-text-1 bg-surface
+  w-full h-control px-3.5 text-[15px] text-text-1 bg-surface
   border border-border rounded-md transition-colors
   placeholder:text-text-3
   outline-none

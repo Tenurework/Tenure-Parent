@@ -1,7 +1,8 @@
 "use client"
 
 import { useTransition } from "react"
-import { Button, Menu, MenuItem, MenuTrigger, Popover } from "react-aria-components"
+import { Button } from "@/components/ui/Button"
+import { Menu, MenuItem, MenuPopover, MenuTrigger } from "@/components/ui/Menu"
 import { Building2, CheckCircle, ChevronDown, Loader2 } from "@/components/ui/icons"
 
 export interface TenantOption {
@@ -80,7 +81,9 @@ export function TenantSwitcher({ active, options, onSwitch }: TenantSwitcherProp
       {divider}
       <MenuTrigger>
         <Button
-          className="inline-flex h-9 min-w-0 items-center gap-1.5 rounded-lg px-2 transition-colors outline-none data-[hovered]:bg-[--shell-item-hover] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--primary]"
+          variant="shell"
+          size="shell"
+          className="min-w-0"
           aria-label={`Institution: ${active.name}. Switch institution`}
           isDisabled={switching}
         >
@@ -92,10 +95,7 @@ export function TenantSwitcher({ active, options, onSwitch }: TenantSwitcherProp
           {label}
           <ChevronDown size={14} aria-hidden style={{ color: "var(--shell-text-secondary)" }} />
         </Button>
-        <Popover
-          placement="bottom start"
-          className="pop-panel min-w-64 rounded-lg border border-border bg-surface shadow-lg outline-none"
-        >
+        <MenuPopover placement="bottom start" className="min-w-64">
           <div className="border-b border-border px-4 py-3">
             <p className="micro-label">Switch institution</p>
             <p className="mt-1 text-xs text-text-3">
@@ -104,7 +104,6 @@ export function TenantSwitcher({ active, options, onSwitch }: TenantSwitcherProp
             </p>
           </div>
           <Menu
-            className="p-1.5 outline-none"
             aria-label="Institutions you can act in"
             onAction={(key) => {
               if (String(key) === active.id) return
@@ -114,12 +113,7 @@ export function TenantSwitcher({ active, options, onSwitch }: TenantSwitcherProp
             }}
           >
             {options.map((option) => (
-              <MenuItem
-                key={option.id}
-                id={option.id}
-                textValue={option.name}
-                className="flex cursor-pointer items-center justify-between gap-3 rounded-md px-3 py-2.5 text-sm text-text-1 outline-none data-[focused]:bg-base"
-              >
+              <MenuItem key={option.id} id={option.id} textValue={option.name} layout="split">
                 <span className="min-w-0">
                   <span className="block truncate">{option.name}</span>
                   <span className="block truncate text-xs text-text-3">{option.slug}</span>
@@ -133,7 +127,7 @@ export function TenantSwitcher({ active, options, onSwitch }: TenantSwitcherProp
               </MenuItem>
             ))}
           </Menu>
-        </Popover>
+        </MenuPopover>
       </MenuTrigger>
     </>
   )

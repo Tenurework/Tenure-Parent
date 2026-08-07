@@ -13,6 +13,7 @@ import type { UserContext } from "@/lib/rbac";
 
 const findManyOrganization = jest.fn();
 const findManyInstitution = jest.fn();
+const findUniqueInstitution = jest.fn();
 const getUserContext = jest.fn();
 
 /** Which institutions have been activated. Absent means serving. */
@@ -25,6 +26,13 @@ jest.mock("@/lib/db", () => ({
     },
     institution: {
       findMany: (...args: unknown[]) => findManyInstitution(...args),
+      // `scopeForUser` now resolves the tenant's money-mode, and
+      // `paymentModeForInstitution` reaches the configuration engine through an
+      // id→slug read (src/lib/config/server.ts, `institutionSlugFor`). Without
+      // this the whole suite failed on `institution.findUnique is not a
+      // function` — a mock that had stopped describing the module it stands in
+      // for, which is the failure mode every partial mock eventually has.
+      findUnique: (...args: unknown[]) => findUniqueInstitution(...args),
     },
   },
 }));
@@ -109,6 +117,14 @@ beforeEach(() => {
         );
     },
   );
+  // The id→slug row `paymentModeForInstitution` reads. A real slug rather than
+  // `null`, because an institution with no row resolves to the platform default
+  // configuration and every mode assertion would then hold for the wrong reason.
+  findUniqueInstitution.mockImplementation(
+    async (args: { where?: { id?: string } }) => ({
+      slug: `slug-${args?.where?.id ?? "unknown"}`,
+    }),
+  );
   mockJar = new Map();
 });
 
@@ -120,7 +136,7 @@ describe("resolveTenantScope", () => {
       }),
     );
 
-    const scope = await resolveTenantScope("user_1");
+    const scope = await resolveTenantScope("user_1", undefined, "interactive");
 
     expect(scope.institutionId).toBe("inst_a");
     expect(scope.actor).toEqual({
@@ -135,7 +151,7 @@ describe("resolveTenantScope", () => {
     getUserContext.mockResolvedValue(ctx({ orgRoles: [seat("org_1")] }));
     findManyOrganization.mockResolvedValue([{ institutionId: "inst_b" }]);
 
-    await expect(resolveTenantScope("user_1")).resolves.toMatchObject({
+    await expect(resolveTenantScope("user_1", undefined, "interactive")).resolves.toMatchObject({
       institutionId: "inst_b",
     });
   });
@@ -148,7 +164,7 @@ describe("resolveTenantScope", () => {
     );
     findManyOrganization.mockResolvedValue([{ institutionId: "inst_b" }]);
 
-    await expect(resolveTenantScope("user_1")).resolves.toMatchObject({
+    await expect(resolveTenantScope("user_1", undefined, "interactive")).resolves.toMatchObject({
       institutionId: "inst_b",
     });
   });
@@ -161,14 +177,14 @@ describe("resolveTenantScope", () => {
       });
     });
 
-    await resolveTenantScope("user_1");
+    await resolveTenantScope("user_1", undefined, "interactive");
     expect(getUserContext).toHaveBeenCalled();
   });
 
   it("refuses a user with no institution rather than inventing one", async () => {
     getUserContext.mockResolvedValue(ctx());
 
-    await expect(resolveTenantScope("user_1")).rejects.toThrow(
+    await expect(resolveTenantScope("user_1", undefined, "interactive")).rejects.toThrow(
       TenantContextError,
     );
   });
@@ -182,7 +198,7 @@ describe("resolveTenantScope", () => {
       }),
     );
 
-    await expect(resolveTenantScope("user_1", "inst_b")).rejects.toThrow(
+    await expect(resolveTenantScope("user_1", "inst_b", "interactive")).rejects.toThrow(
       /not a member/,
     );
   });
@@ -197,7 +213,7 @@ describe("resolveTenantScope", () => {
       }),
     );
 
-    await expect(resolveTenantScope("user_1", "inst_b")).resolves.toMatchObject(
+    await expect(resolveTenantScope("user_1", "inst_b", "interactive")).resolves.toMatchObject(
       {
         institutionId: "inst_b",
       },
@@ -218,7 +234,7 @@ describe("resolveTenantScope", () => {
     );
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
 
-    await expect(resolveTenantScope("multi_user")).resolves.toMatchObject({
+    await expect(resolveTenantScope("multi_user", undefined, "interactive")).resolves.toMatchObject({
       institutionId: "inst_a",
     });
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("multi_user"));
@@ -245,8 +261,16 @@ describe("withTenantScope", () => {
   });
 
   it("lets the body's error out unchanged", async () => {
-    // redirect() and notFound() are thrown, so swallowing here would break
-    // every page that uses them.
+    // A scope is not an error boundary: a failing body must reach the caller
+    // with its own message, or every action's error handling reads a lecture
+    // about tenancy instead of the constraint that was violated.
+    //
+    // This used to throw `new Error("NEXT_REDIRECT")` and assert it propagated,
+    // which stated the OPPOSITE of REVIEW-FINDINGS #16 — and stated it
+    // misleadingly, because a bare Error carries no `digest` and is not what
+    // `redirect()` throws at all. The rule it appeared to bless was never the
+    // rule it tested. A plain domain failure now carries the property, and the
+    // real control-flow throw is asserted below on its own terms.
     getUserContext.mockResolvedValue(
       ctx({
         institutionRoles: [{ institutionId: "inst_a", role: "OSE_DIRECTOR" }],
@@ -255,9 +279,71 @@ describe("withTenantScope", () => {
 
     await expect(
       withTenantScope("user_1", async () => {
-        throw new Error("NEXT_REDIRECT");
+        throw new Error("Add at least one recipient in To");
       }),
-    ).rejects.toThrow("NEXT_REDIRECT");
+    ).rejects.toThrow("Add at least one recipient in To");
+  });
+
+  /**
+   * REVIEW-FINDINGS #16, at the entry point every server action calls.
+   *
+   * `runInTenantScope` holds the guard and `context.test.ts` proves it there.
+   * These drive `withTenantScope`, because that is what sixty call sites use and
+   * a guard reachable only through the inner primitive is a guard sixty call
+   * sites do not have.
+   */
+  describe("a redirect thrown from inside the body", () => {
+    /** The error `redirect()` actually throws: a digest, not a message. */
+    const redirectThrow = () => {
+      const error = new Error("NEXT_REDIRECT") as Error & { digest: string };
+      error.digest = "NEXT_REDIRECT;replace;/messages/abc;307;";
+      return error;
+    };
+
+    beforeEach(() => {
+      getUserContext.mockResolvedValue(
+        ctx({
+          institutionRoles: [{ institutionId: "inst_a", role: "OSE_DIRECTOR" }],
+        }),
+      );
+    });
+
+    it("is refused, naming the tenant and the fix", async () => {
+      await expect(
+        withTenantScope("user_1", async () => {
+          throw redirectThrow();
+        }),
+      ).rejects.toThrow(TenantContextError);
+
+      await expect(
+        withTenantScope("user_1", async () => {
+          throw redirectThrow();
+        }),
+      ).rejects.toThrow(/inst_a/);
+    });
+
+    it("does not let the NEXT_REDIRECT digest survive", async () => {
+      // The half that matters. If the digest reached the request boundary Next
+      // would answer 307 regardless of what the message said, and a transaction
+      // aborted a line earlier would still look to the user like a success.
+      const failure = await withTenantScope("user_1", async () => {
+        throw redirectThrow();
+      }).catch((err: unknown) => err);
+
+      expect((failure as { digest?: unknown }).digest).toBeUndefined();
+    });
+
+    it("accepts the shape the rule asks for instead", async () => {
+      // The positive case, so the guard cannot be satisfied by a scope that
+      // refuses everything: a body that RETURNS the target is the fix #16 names,
+      // and it has to keep working.
+      const href = await withTenantScope(
+        "user_1",
+        async () => `/messages/${currentScope()?.institutionId}`,
+      );
+
+      expect(href).toBe("/messages/inst_a");
+    });
   });
 });
 
@@ -371,7 +457,7 @@ describe("the acting institution a user has chosen", () => {
       // Provisioned, configured, migrated — and not yet activated.
       servingByInstitution.set("inst_a", false);
 
-      await expect(resolveTenantScope("user_1")).rejects.toThrow(
+      await expect(resolveTenantScope("user_1", undefined, "interactive")).rejects.toThrow(
         TenantContextError,
       );
     });
@@ -384,7 +470,7 @@ describe("the acting institution a user has chosen", () => {
       );
       servingByInstitution.set("inst_a", true);
 
-      await expect(resolveTenantScope("user_1")).resolves.toMatchObject({
+      await expect(resolveTenantScope("user_1", undefined, "interactive")).resolves.toMatchObject({
         institutionId: "inst_a",
       });
     });
@@ -399,7 +485,7 @@ describe("the acting institution a user has chosen", () => {
         }),
       );
 
-      await resolveTenantScope("user_1");
+      await resolveTenantScope("user_1", undefined, "interactive");
 
       expect(findManyInstitution).toHaveBeenCalledWith(
         expect.objectContaining({

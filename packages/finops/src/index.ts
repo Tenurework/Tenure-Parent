@@ -8,30 +8,91 @@
  * exactly the bill — are testable without an AWS account.
  */
 export {
+  ROUNDING_MODES,
   SCALE,
   CurrencyMismatchError,
   add,
   allocateByWeight,
   compare,
   fromDecimal,
+  fromMinorUnits,
   isZero,
+  minorDigits,
   money,
+  negate,
+  roundToInteger,
   subtract,
   sum,
   toDecimal,
+  toMinorUnits,
   zero,
   type Money,
+  type RoundingMode,
 } from "./money"
+
+export {
+  SplitReversalError,
+  netAfterReversal,
+  reverseSplit,
+  splitAmount,
+  splitTotal,
+  type RecordedSplit,
+  type SplitPart,
+  type SplitRule,
+} from "./split"
+
+export {
+  ConversionError,
+  convert,
+  netSettlement,
+  settlementComponentEntries,
+  type ConversionRate,
+  type NetSettlement,
+  type SettlementComponents,
+} from "./settlement-components"
+
+export {
+  ReconciliationInputError,
+  reconcileToJournal,
+  type AccountBalance,
+  type AccountVariance,
+  type ClearingPosition,
+  type UnexplainedVariance,
+  type VarianceReport,
+} from "./settlement"
+
+export {
+  DISCLOSURE_TOPICS,
+  PriceError,
+  activationPreview,
+  includedInPlan,
+  priceProblems,
+  quoteConfiguration,
+  runningTotal,
+  type ActivationPreview,
+  type ConfigurationQuote,
+  type Disclosure,
+  type DisclosureTopic,
+  type OptionPrice,
+  type PricedConfigOption,
+  type PricedOption,
+  type QuoteLine,
+  type RunningTotal,
+  type RunningTotalLine,
+} from "./pricing"
 
 export {
   TENANT_TAG,
   allocate,
+  allocateReceipt,
   reconcile,
   type AllocationDriver,
   type AllocationInput,
   type AllocationResult,
   type CostLine,
   type DriverAttribution,
+  type ReceiptSlice,
+  type ReceiptTarget,
   type Reconciliation,
   type TenantCost,
   type UnallocatedCost,
@@ -48,6 +109,7 @@ export {
   approvalFor,
   assessBudget,
   costBy,
+  derivedFrom,
   detectAnomalies,
   figure,
   fleetCost,
@@ -64,6 +126,7 @@ export {
   type CostThreshold,
   type Figure,
   type FigureKind,
+  type FigureSource,
   type Freshness,
   type ThresholdDecision,
   type UnitCost,

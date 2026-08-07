@@ -1,6 +1,6 @@
 "use client"
 
-import { Button as AriaButton } from "react-aria-components"
+import { Button } from "@/components/ui/Button"
 import { ImagePlus, Trash2, Link2, Upload } from "@/components/ui/icons"
 import { Overlay } from "@/components/ui/Overlay"
 import { Avatar } from "@/components/ui/Avatar"
@@ -26,13 +26,14 @@ export function ClubImageEditor({
   compact?: boolean
 }) {
   const trigger = (
-    <AriaButton
-      className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-3 h-9 text-[13px] font-medium text-text-1 outline-none transition-colors data-[hovered]:bg-base data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--primary]"
+    <Button
+      variant="secondary"
+      size="md"
       aria-label={`${logoUrl ? "Change" : "Add"} image for ${orgName}`}
     >
       <ImagePlus size={15} className="text-text-3" />
       {compact ? "Image" : logoUrl ? "Change image" : "Add image"}
-    </AriaButton>
+    </Button>
   )
 
   return (

@@ -73,7 +73,7 @@ function LiveTile({ label, value, tone }: { label: string; value: number; tone?:
   const accent = tone === "warn" && value > 0 ? "var(--warning)" : "var(--primary)"
   return (
     <div
-      className="rounded-lg border bg-surface px-3.5 py-2.5 transition-colors duration-300"
+      className="rounded-lg border bg-surface px-3.5 py-2.5 transition-colors duration-slow"
       style={{ borderColor: flash ? accent : "var(--border)" }}
     >
       <div className="text-[19px] font-semibold tabular-nums text-text-1">{formatNumber(value)}</div>

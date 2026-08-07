@@ -34,6 +34,8 @@ import {
   type SearchDoc,
 } from "./search"
 import type { OrgRole, UserContext } from "./rbac"
+import { PROJECTION_MODES } from "./relay/projection-policy"
+import { runInTenantScope } from "./tenancy/context"
 import { loadSearchCorpus } from "./search-data"
 
 // ─── Corpus fixtures ─────────────────────────────────────────────────────────
@@ -250,8 +252,24 @@ mockContexts[OSE] = {
 }
 mockContexts[STRANGER] = { userId: STRANGER, institutionRoles: [], orgRoles: [] }
 
+/**
+ * WRK-070-002. `loadSearchCorpus` is the model-exposure entry point and refuses
+ * any other purpose, so the corpus assertions below open the scope the way
+ * `/api/ai/chat` does. Opening it as `interactive` here — the default every
+ * other surface gets — makes every one of them throw, which is the behaviour
+ * the gate exists for.
+ */
 async function corpusIds(userId: string): Promise<string[]> {
-  return (await loadSearchCorpus(userId)).map((d) => d.id)
+  const docs = await runInTenantScope(
+    {
+      institutionId: INST,
+      environment: "test",
+      purpose: "model-exposure",
+      actor: { principalId: userId, principalType: "user" },
+    },
+    () => loadSearchCorpus(userId),
+  )
+  return docs.map((d) => d.id)
 }
 
 // ─── Ranking (unchanged behaviour, kept covered) ─────────────────────────────
@@ -263,6 +281,11 @@ function doc(partial: Partial<SearchDoc> & { id: string }): SearchDoc {
     body: "",
     href: `/x/${partial.id}`,
     context: "Club",
+    // WRK-010-003. `mode` is required on `SearchDoc`, which is what made `tsc`
+    // point at this fixture. These docs exist to exercise scoring, so the
+    // retentive mode is the honest one: a fixture at REFERENCE_ONLY would carry
+    // no body and every ranking assertion below would pass vacuously.
+    mode: "SEARCH_PROJECTION",
     ...partial,
   }
 }
@@ -454,5 +477,63 @@ describe("loadSearchCorpus applies authorization after retrieval", () => {
 
   it("gives a caller with no membership nothing, not everything", async () => {
     expect(await corpusIds(STRANGER)).toEqual([])
+  })
+})
+
+// ─── Projection mode, at the corpus builder (WRK-010-003) ────────────────────
+
+/**
+ * Authorization decides *who* may read a row. These decide *how much of it* the
+ * corpus is allowed to carry — a different question, and one nothing in this
+ * file used to ask. The president below is authorized for every row in Alpha,
+ * and that is the point: clearance to read a memory card is not clearance to
+ * copy its text into an index and post it to a model vendor.
+ */
+describe("loadSearchCorpus stamps a §3.4 projection mode on every doc", () => {
+  /** The scope `/api/ai/chat` opens — see `corpusIds` above (WRK-070-002). */
+  async function corpusFor(userId: string) {
+    return runInTenantScope(
+      {
+        institutionId: INST,
+        environment: "test",
+        purpose: "model-exposure",
+        actor: { principalId: userId, principalType: "user" },
+      },
+      () => loadSearchCorpus(userId),
+    )
+  }
+
+  it("gives every doc a mode drawn from the declared vocabulary", async () => {
+    const corpus = await corpusFor(PRESIDENT)
+    expect(corpus.length).toBeGreaterThan(0)
+    for (const d of corpus) expect(PROJECTION_MODES).toContain(d.mode)
+  })
+
+  it("drops a memory card's body from the corpus entirely", async () => {
+    const corpus = await corpusFor(PRESIDENT)
+    const card = corpus.find((d) => d.id === "mem_alpha")
+
+    expect(card).toBeDefined()
+    expect(card!.title).toBe("Alpha catering lesson")
+    // Stated before the label, so flipping `projectionModeFor("memory")` reds
+    // on the disclosure rather than on the name of the mode. Not merely
+    // unprinted: absent. Nothing downstream — scoring, `/api/search` snippets,
+    // the model prompt — can leak what was never put in the doc.
+    expect(corpus.map((d) => d.body).join("\n")).not.toContain("book two weeks out")
+    expect(card!.body).toBe("")
+    expect(card!.mode).toBe("REFERENCE_ONLY")
+  })
+
+  it("keeps the description-shaped kinds indexed, so the mode is the difference", async () => {
+    const corpus = await corpusFor(PRESIDENT)
+    const byId = new Map(corpus.map((d) => [d.id, d]))
+
+    expect(byId.get("doc_std")!.mode).toBe("SEARCH_PROJECTION")
+    expect(byId.get("doc_std")!.body).toBe("CampusEats terms")
+    expect(byId.get("ev_alpha")!.mode).toBe("SEARCH_PROJECTION")
+    expect(byId.get("ev_alpha")!.body).toContain("opening night")
+    expect(byId.get("appr_alpha")!.mode).toBe("SEARCH_PROJECTION")
+    expect(byId.get("appr_alpha")!.body).toContain("speaker fee")
+    expect(byId.get(ORG_ALPHA)!.mode).toBe("SEARCH_PROJECTION")
   })
 })

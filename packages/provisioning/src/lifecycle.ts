@@ -9,6 +9,8 @@
  * bill someone did not expect or a compliance answer someone cannot give.
  */
 
+import { RESIDUAL_CLAIMS, type ResidualClaim } from "./residual-reconciliation"
+
 /** Where a tenant is, exactly. */
 export type TenantState =
   // ── Bringing one up ──────────────────────────────────────────────────────
@@ -118,16 +120,41 @@ export const TERMINAL: ReadonlySet<TenantState> = new Set<TenantState>([
  * evidence, and **must never be displayed as $0 if it is not.** The name says
  * zero *runtime*, and a console that renders that as "free" is the specific lie
  * this map exists to prevent.
+ *
+ * WRK-120-005: derived from `RESIDUAL_CLAIMS` rather than declared, so the
+ * sentence a console prints and the resource list `reconcileResidual` checks
+ * against are one fact. Written twice, the sentence is what everybody reads and
+ * the list is what everybody trusts, and the day they disagree the console is
+ * confidently wrong.
  */
-export const RESIDUAL_COST: Readonly<Partial<Record<TenantState, string>>> = {
-  SUSPENDED_LOGICAL:
-    "Full infrastructure is retained — compute, database and storage all still bill. Only access is revoked.",
-  HIBERNATED_ZERO_RUNTIME:
-    "Zero runtime, not zero cost: snapshots, retained object storage, audit evidence and any dedicated edge resources continue to bill.",
-  LEGAL_HOLD: "All data is retained by obligation; storage and backup continue to bill.",
-  PURGE_PENDING: "Data is retained until the purge is approved and executed.",
-  PURGED_ZERO_INCREMENTAL_COST: "No incremental tenant cost. Shared cell resources are unaffected.",
-}
+export const RESIDUAL_COST: Readonly<Partial<Record<TenantState, string>>> = Object.fromEntries(
+  Object.values(RESIDUAL_CLAIMS)
+    .filter((c): c is ResidualClaim => c !== undefined)
+    .map((claim) => [claim.state, claim.note]),
+) as Readonly<Partial<Record<TenantState, string>>>
+
+/**
+ * WRK-120-005 — states a tenant may not be moved into without a recorded owner.
+ *
+ * Owner departure is the case. A tenant is suspended, hibernated or offboarded
+ * for exactly one common reason — the person who owned it left — and until this
+ * existed the move recorded who pressed the button and nothing about who is
+ * responsible for the thing afterwards. The result is an orphan: a tenant with
+ * retained data, a residual bill and nobody to ask about either, discovered
+ * months later by finance.
+ *
+ * The same shape as `REQUIRES_APPROVAL`, and for the same reason — it is a
+ * property of the transition rather than a step somebody remembers to do first.
+ * It is deliberately NOT the approver: the approver agrees to the move, the
+ * owner is who answers for the tenant after it. One person can be both, and the
+ * engine does not care, because refusing that would stop a small team from
+ * suspending anything.
+ */
+export const REQUIRES_OWNER: ReadonlySet<TenantState> = new Set<TenantState>([
+  "SUSPENDING",
+  "HIBERNATING",
+  "OFFBOARDING",
+])
 
 export class LifecycleError extends Error {
   constructor(
@@ -176,6 +203,20 @@ export interface AdvanceOptions {
    * removes is the ability to type anything at all.
    */
   approverIsOperator?: boolean
+  /**
+   * WRK-120-005 — who answers for this tenant after the move.
+   *
+   * Required by `advance` for every destination in `REQUIRES_OWNER`, refused
+   * when blank. Optional in the type because most transitions do not need one
+   * and demanding it everywhere would turn a real control into a field people
+   * fill with the same word every time.
+   *
+   * The successor, not the departing owner. Recording who left says what
+   * happened; recording who is now responsible is the thing that stops the
+   * tenant being an orphan, and only one of those can be acted on six months
+   * later when the bill arrives.
+   */
+  ownerPrincipalId?: string
   reason?: string
 }
 
@@ -186,6 +227,8 @@ export interface LifecycleStep {
   at: string
   actor: string
   approvedBy?: string
+  /** Who owns the tenant from this step on. Present wherever `REQUIRES_OWNER`. */
+  ownerPrincipalId?: string
   reason?: string
   attempt: number
 }
@@ -255,6 +298,25 @@ export function advance(
     }
   }
 
+  // WRK-120-005. A tenant cannot be parked or wound down with nobody named as
+  // responsible for it. This is the owner-departure control: the usual reason
+  // to suspend, hibernate or offboard is that the person who owned it left, and
+  // the move that follows a departure is exactly the one that must not be able
+  // to leave the tenant unowned.
+  //
+  // After the approval gate, not before: an unapproved purge and an unowned
+  // suspension are both refusals, and the approval one is the older and more
+  // load-bearing of the two.
+  if (REQUIRES_OWNER.has(to) && !options.ownerPrincipalId?.trim()) {
+    throw new LifecycleError(
+      `${from} → ${to} requires a recorded owner. Moving a tenant into ${to} without naming who ` +
+        `answers for it afterwards is how an owner's departure leaves an orphan: retained data, a ` +
+        `residual bill, and nobody to ask about either.`,
+      from,
+      to,
+    )
+  }
+
   // Attempt counts per destination, so a retry of PROVISIONING is visibly a
   // retry rather than a fresh start — which is what makes GE-102-011's
   // idempotency claim checkable after the fact.
@@ -268,6 +330,9 @@ export function advance(
       at: options.actor.at,
       actor: options.actor.principalId,
       ...(options.approvedBy ? { approvedBy: options.approvedBy } : {}),
+      ...(options.ownerPrincipalId?.trim()
+        ? { ownerPrincipalId: options.ownerPrincipalId.trim() }
+        : {}),
       ...(options.reason ? { reason: options.reason } : {}),
       attempt,
     },

@@ -10,7 +10,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "//dependencies": "@tenure/finops owns the money: ConfigDefinition.price and ResolvedConfig.runningCost are its types and its arithmetic (NEXT-SESSION §7). The dependency runs one way — finops imports nothing from here — so a price cannot grow a dependency on a resolver.",
   "dependencies": {
+    "@tenure/finops": "*",
     "zod": "^3.24.0"
   }
 }

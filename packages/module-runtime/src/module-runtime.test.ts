@@ -6,12 +6,17 @@ import {
   ModuleCatalog,
   ModuleManifestError,
   ModuleResolutionError,
+  SloObjectiveError,
+  coexistenceProblems,
   expandDependencies,
   navigationFor,
+  objectAuthorityNotes,
   resolveModules,
   resolveModulesOrThrow,
   satisfiesRange,
+  sloBurn,
   validateManifest,
+  type CoexistenceDeclaration,
   type ModuleDependency,
   type ModuleManifest,
 } from "./index"
@@ -55,6 +60,17 @@ const mod = (key: string, extra: Partial<ModuleManifest> = {}): ModuleManifest =
   owner: "erp-modules",
   lifecycle: "available",
   dimensions: FIXTURE_DIMENSIONS,
+  // PAY-160-002: every manifest states a list price, including a fixture. A
+  // default here would be the optional field the required one exists to avoid,
+  // so it is written out — and it is written as free WITH a reason, which is
+  // what `validateManifest` requires of any option priced at zero.
+  price: {
+    perSeatMinor: 0,
+    perOrgMinor: 0,
+    currency: "USD",
+    rounding: "half-up",
+    includedBecause: "Fixture module declared in module-runtime.test.ts; it ships nowhere and is sold to nobody.",
+  },
   ...extra,
 })
 
@@ -414,6 +430,25 @@ describe("an availability claim has to be backed by evidence", () => {
       COMPLETENESS_DIMENSIONS.map((d) => [d, { status, evidence: `evidence for ${d}` }]),
     ) as ModuleManifest["dimensions"]
 
+  /**
+   * WRK-120-003. A fixture claiming `observability-slo-and-finops` passes has to
+   * declare an objective, exactly as the shipped catalog does.
+   *
+   * Written out here rather than folded into `complete()` because it is the
+   * point: the dimension is the only one of the seventeen whose pass now needs
+   * a second declaration, and a fixture that got it for free would make the
+   * rule true of nothing.
+   */
+  const FIXTURE_SLO: ModuleManifest["slo"] = [
+    {
+      objective: "the fixture answers within its fictional budget",
+      target: 0.99,
+      window: "30d",
+      measure: "packages/module-runtime/src/module-runtime.test.ts",
+      runbook: "docs/runbooks/approvals-queue-stalled.md",
+    },
+  ]
+
   it("refuses `available` from a manifest that assesses nothing", () => {
     // PACK-000-002 / PACK-000-004. Before this, twelve of twelve manifests said
     // `available` and nothing checked it against anything — Bible §6 says a
@@ -427,7 +462,7 @@ describe("an availability claim has to be backed by evidence", () => {
   it("refuses `available` when one dimension is short", () => {
     const rest = { ...complete() }
     delete rest["accounting-controls-and-reconciliation"]
-    expect(() => validateManifest({ ...mod("a"), dimensions: rest })).toThrow(
+    expect(() => validateManifest({ ...mod("a"), slo: FIXTURE_SLO, dimensions: rest })).toThrow(
       /accounting-controls-and-reconciliation/,
     )
   })
@@ -436,6 +471,7 @@ describe("an availability claim has to be backed by evidence", () => {
     expect(() =>
       validateManifest({
         ...mod("a"),
+        slo: FIXTURE_SLO,
         dimensions: {
           ...complete(),
           "accounting-controls-and-reconciliation": { status: "gap", evidence: "no reconciliation here" },
@@ -458,6 +494,7 @@ describe("an availability claim has to be backed by evidence", () => {
       validateManifest({
         ...mod("a"),
         lifecycle: "certified-limited",
+        slo: FIXTURE_SLO,
         dimensions: {
           ...complete(),
           "accounting-controls-and-reconciliation": { status: "gap", evidence: "no reconciliation here" },
@@ -491,6 +528,7 @@ describe("an availability claim has to be backed by evidence", () => {
       validateManifest({
         ...mod("a"),
         lifecycle: "certified-limited",
+        slo: FIXTURE_SLO,
         dimensions: complete(),
         gaps: [
           { dimension: "observability-slo-and-finops", detail: "declared here, assessed pass there" },
@@ -501,7 +539,12 @@ describe("an availability claim has to be backed by evidence", () => {
 
   it("refuses certified-limited with no gap — limited by what?", () => {
     expect(() =>
-      validateManifest({ ...mod("a"), lifecycle: "certified-limited", dimensions: complete() }),
+      validateManifest({
+        ...mod("a"),
+        lifecycle: "certified-limited",
+        slo: FIXTURE_SLO,
+        dimensions: complete(),
+      }),
     ).toThrow(/declares no gap/)
   })
 
@@ -509,6 +552,7 @@ describe("an availability claim has to be backed by evidence", () => {
     expect(() =>
       validateManifest({
         ...mod("a"),
+        slo: FIXTURE_SLO,
         dimensions: {
           ...complete(),
           "ux-routes-forms-and-accessibility": { status: "pass", evidence: "yes" },
@@ -757,5 +801,474 @@ describe("a dependency is a range on a capability, not a bare key", () => {
     // Fails closed rather than throwing out of a resolution.
     expect(satisfiesRange("not-a-version", ">=1.0.0", compareVersions)).toBe(false)
     expect(satisfiesRange("1.2.3", "^1.0.0", compareVersions)).toBe(false)
+  })
+})
+
+/* ───────────────────────────────────────────── WRK-020-004 ─────────────
+ * Authority below the domain grain, and the direction facts travel in.
+ *
+ * Asserted through `coexistenceProblems`, which is what
+ * `packages/provisioning/src/manifest.ts` calls for every tenant manifest —
+ * not through a helper this file could keep green on its own.
+ */
+
+/** Every domain the fixtures below refer to, so nothing fails on "not declared". */
+const DOMAINS = {
+  finance: "external",
+  org: "tenure",
+} as const
+
+const declare = (extra: Partial<CoexistenceDeclaration> = {}): CoexistenceDeclaration => ({
+  profile: "HYBRID_PROCESS_SPLIT",
+  systemOfRecord: { ...DOMAINS },
+  ...extra,
+})
+
+const reasons = (d: CoexistenceDeclaration) => coexistenceProblems(d).map((p) => p.reason)
+
+describe("a domain says who writes; an object says which way it travels", () => {
+  it("accepts a declaration with no object-level refinement at all", () => {
+    // Every tenant in this repository today. The field is optional and its
+    // absence has to stay a complete declaration, or adding the vocabulary
+    // would have refused the whole fleet.
+    expect(coexistenceProblems(declare())).toEqual([])
+  })
+
+  it("accepts an object that agrees with its domain and states a direction", () => {
+    expect(
+      coexistenceProblems(
+        declare({
+          objectAuthority: [
+            { domain: "finance", object: "LedgerEntry", authority: "external", direction: "INBOUND" },
+          ],
+        }),
+      ),
+    ).toEqual([])
+  })
+
+  // (a) — the invisible second writer.
+  it("refuses an object claiming Tenure inside a domain an external system owns", () => {
+    const problems = coexistenceProblems(
+      declare({
+        objectAuthority: [
+          { domain: "finance", object: "LedgerEntry", authority: "tenure", direction: "OUTBOUND" },
+        ],
+      }),
+    )
+    expect(problems.map((p) => p.reason)).toContain("contradicts-system-of-record")
+    const contradiction = problems.find((p) => p.reason === "contradicts-system-of-record")!
+    expect(contradiction.field).toBe("objectAuthority.finance.LedgerEntry")
+    // The message has to name both sides, because the fix is to move one of
+    // them and an operator cannot tell which without knowing what the other says.
+    expect(contradiction.detail).toContain("claims tenure")
+    expect(contradiction.detail).toContain("records external")
+  })
+
+  it("refuses the same contradiction in the other direction", () => {
+    expect(
+      reasons(
+        declare({
+          objectAuthority: [
+            { domain: "org", object: "Organization", authority: "external", direction: "INBOUND" },
+          ],
+        }),
+      ),
+    ).toContain("contradicts-system-of-record")
+  })
+
+  it("refuses an object in a domain nothing decided, rather than assuming Tenure", () => {
+    expect(
+      reasons(
+        declare({
+          objectAuthority: [
+            { domain: "events", object: "Event", authority: "tenure", direction: "OUTBOUND" },
+          ],
+        }),
+      ),
+    ).toContain("domain-not-declared")
+  })
+
+  it("refuses two authorities for one object", () => {
+    expect(
+      reasons(
+        declare({
+          objectAuthority: [
+            { domain: "finance", object: "LedgerEntry", authority: "external", direction: "INBOUND" },
+            { domain: "finance", object: "LedgerEntry", authority: "external", direction: "NONE" },
+          ],
+        }),
+      ),
+    ).toContain("duplicate-object")
+  })
+
+  it("refuses a direction that is not one", () => {
+    expect(
+      reasons(
+        declare({
+          objectAuthority: [
+            {
+              domain: "finance",
+              object: "LedgerEntry",
+              authority: "external",
+              direction: "UPSTREAM" as never,
+            },
+          ],
+        }),
+      ),
+    ).toContain("unknown-direction")
+  })
+
+  it("refuses an entry that names an object but no domain", () => {
+    expect(
+      reasons(
+        declare({
+          objectAuthority: [
+            { domain: "", object: "LedgerEntry", authority: "external", direction: "INBOUND" },
+          ],
+        }),
+      ),
+    ).toContain("malformed")
+  })
+
+  // (b) — a direction the profile does not have.
+  it("refuses BIDIRECTIONAL under a profile with one authoritative side", () => {
+    const problems = coexistenceProblems({
+      profile: "TENURE_CLOUD_PRIMARY",
+      systemOfRecord: { finance: "tenure" },
+      objectAuthority: [
+        { domain: "finance", object: "LedgerEntry", authority: "tenure", direction: "BIDIRECTIONAL" },
+      ],
+    })
+    expect(problems.map((p) => p.reason)).toContain("bidirectional-outside-coexistence")
+  })
+
+  it("accepts BIDIRECTIONAL under the two profiles that declare it", () => {
+    for (const profile of ["COEXISTENCE_TRANSITION", "HYBRID_PROCESS_SPLIT"] as const) {
+      expect(
+        reasons(
+          declare({
+            profile,
+            objectAuthority: [
+              {
+                domain: "finance",
+                object: "LedgerEntry",
+                authority: "external",
+                direction: "BIDIRECTIONAL",
+              },
+            ],
+          }),
+        ),
+      ).not.toContain("bidirectional-outside-coexistence")
+    }
+  })
+
+  // (c) — a field the other side owns with nowhere for it to arrive.
+  it("refuses a field owned by the other side when the object has no sync channel", () => {
+    const problems = coexistenceProblems(
+      declare({
+        objectAuthority: [
+          {
+            domain: "finance",
+            object: "LedgerEntry",
+            authority: "external",
+            direction: "NONE",
+            fields: [{ field: "memo", authority: "tenure" }],
+          },
+        ],
+      }),
+    )
+    const problem = problems.find((p) => p.reason === "field-owner-without-sync")
+    expect(problem).toBeDefined()
+    expect(problem!.field).toBe("objectAuthority.finance.LedgerEntry.memo")
+  })
+
+  it("allows a field with the same owner as its object under NONE", () => {
+    // Nothing has to travel, so nothing is silently not travelling. Refusing
+    // this would make the rule about `NONE` rather than about the split.
+    expect(
+      reasons(
+        declare({
+          objectAuthority: [
+            {
+              domain: "finance",
+              object: "LedgerEntry",
+              authority: "external",
+              direction: "NONE",
+              fields: [{ field: "postedAt", authority: "external" }],
+            },
+          ],
+        }),
+      ),
+    ).not.toContain("field-owner-without-sync")
+  })
+
+  it("allows the split once the object declares a channel", () => {
+    expect(
+      reasons(
+        declare({
+          objectAuthority: [
+            {
+              domain: "finance",
+              object: "LedgerEntry",
+              authority: "external",
+              direction: "INBOUND",
+              fields: [{ field: "memo", authority: "tenure" }],
+            },
+          ],
+        }),
+      ),
+    ).not.toContain("field-owner-without-sync")
+  })
+
+  it("refuses the same field twice and a field with no name", () => {
+    expect(
+      reasons(
+        declare({
+          objectAuthority: [
+            {
+              domain: "finance",
+              object: "LedgerEntry",
+              authority: "external",
+              direction: "INBOUND",
+              fields: [
+                { field: "memo", authority: "tenure" },
+                { field: "memo", authority: "external" },
+                { field: "", authority: "tenure" },
+              ],
+            },
+          ],
+        }),
+      ),
+    ).toEqual(expect.arrayContaining(["duplicate-field", "malformed"]))
+  })
+
+  it("still applies every domain-level rule beside the object ones", () => {
+    // The two grains are not alternatives. A declaration wrong at both has to
+    // report both, or fixing the visible one would make the other disappear.
+    const problems = coexistenceProblems({
+      profile: "TENURE_CLOUD_PRIMARY",
+      systemOfRecord: { finance: "external" },
+      objectAuthority: [
+        { domain: "finance", object: "LedgerEntry", authority: "tenure", direction: "OUTBOUND" },
+      ],
+    })
+    expect(problems.map((p) => p.reason)).toEqual(
+      expect.arrayContaining(["contradicts-system-of-record"]),
+    )
+    expect(problems.filter((p) => p.field === "coexistence")).toHaveLength(1)
+    expect(problems.filter((p) => p.field.startsWith("objectAuthority"))).toHaveLength(1)
+  })
+
+  it("writes the split out for the plan an operator approves", () => {
+    // What `planFor` puts in front of an approver. A bidirectional profile
+    // whose plan says only "an external system is authoritative for finance"
+    // is a plan that does not mention the fields the other side writes.
+    expect(
+      objectAuthorityNotes({
+        objectAuthority: [
+          { domain: "finance", object: "Budget", authority: "external", direction: "NONE" },
+          {
+            domain: "finance",
+            object: "LedgerEntry",
+            authority: "external",
+            direction: "INBOUND",
+            fields: [{ field: "memo", authority: "tenure" }],
+          },
+        ],
+      }),
+    ).toEqual([
+      "finance.Budget: external writes it, sync NONE.",
+      "finance.LedgerEntry: external writes it, sync INBOUND, except memo → tenure.",
+    ])
+  })
+})
+
+/* ───────────────────────────────────────────── WRK-120-003 ─────────────
+ * A dimension nothing could ever pass, and the declaration that changes it.
+ *
+ * `observability-slo-and-finops` was a gap on all twelve shipped modules, and
+ * it was an honest gap — there was no objective type, no error budget and no
+ * evaluator, so nothing could have made it true. These are the rules that stop
+ * it becoming true by rewriting a sentence.
+ */
+
+const REAL_SLO: NonNullable<ModuleManifest["slo"]> = [
+  {
+    objective: "a pending approval is decided within its SLA",
+    target: 0.95,
+    window: "30d",
+    measure: "apps/web/src/lib/approvals-sla.ts",
+    runbook: "docs/runbooks/approvals-queue-stalled.md",
+  },
+]
+
+/**
+ * A certified-limited manifest with observability set to whatever a case needs.
+ *
+ * The migration dimension is held at `gap` throughout so the fixture keeps
+ * satisfying the older rule — certified-limited with no gap is refused — and
+ * the only thing moving between cases is the one under test.
+ */
+const observing = (
+  status: "pass" | "gap" | "not-applicable",
+  extra: Partial<ModuleManifest> = {},
+): ModuleManifest => ({
+  ...mod("a"),
+  lifecycle: "certified-limited",
+  dimensions: Object.fromEntries(
+    COMPLETENESS_DIMENSIONS.map((d) => [
+      d,
+      d === "observability-slo-and-finops"
+        ? { status, evidence: `observability is ${status} for this fixture` }
+        : d === "migration-cutover-and-data-quality"
+          ? { status: "gap" as const, evidence: "nothing describes a cutover" }
+          : { status: "pass" as const, evidence: `evidence for ${d}` },
+    ]),
+  ) as ModuleManifest["dimensions"],
+  gaps: [
+    {
+      dimension: "migration-cutover-and-data-quality" as const,
+      detail: "No import path from an incumbent system.",
+    },
+    ...(status === "gap"
+      ? [
+          {
+            dimension: "observability-slo-and-finops" as const,
+            detail: "No objective, alert or runbook is declared for this fixture.",
+          },
+        ]
+      : []),
+  ],
+  ...extra,
+})
+
+describe("an observability claim needs an objective, not an adjective", () => {
+  it("refuses a pass with no objective declared", () => {
+    // The whole point. Eleven modules still say `gap` here and still are one;
+    // the twelfth may only say `pass` because it declares something an
+    // evaluator can be wrong about.
+    expect(() => validateManifest(observing("pass"))).toThrow(
+      /assesses "observability-slo-and-finops" as a pass and declares no service objective/,
+    )
+  })
+
+  it("accepts the pass once the objective is there", () => {
+    expect(() => validateManifest(observing("pass", { slo: REAL_SLO }))).not.toThrow()
+  })
+
+  it("accepts an objective beside a gap, because the dimension is two things", () => {
+    // `approvals` is exactly here: a real objective, a real evaluator and a
+    // real runbook, and still no per-module cost attribution. Refusing this
+    // pairing would force the catalog to claim the half that is not built in
+    // order to record the half that is.
+    expect(() => validateManifest(observing("gap", { slo: REAL_SLO }))).not.toThrow()
+  })
+
+  it("refuses a target that is not a fraction, in both directions", () => {
+    for (const target of [0, 1, 1.5, -0.1, 95, Number.NaN]) {
+      expect(() =>
+        validateManifest(observing("pass", { slo: [{ ...REAL_SLO[0], target }] })),
+      ).toThrow(/not a fraction strictly/)
+    }
+  })
+
+  it("accepts the fractions in between", () => {
+    for (const target of [0.5, 0.95, 0.999]) {
+      expect(() =>
+        validateManifest(observing("pass", { slo: [{ ...REAL_SLO[0], target }] })),
+      ).not.toThrow()
+    }
+  })
+
+  it("refuses a target with no window to measure it over", () => {
+    expect(() =>
+      validateManifest(observing("pass", { slo: [{ ...REAL_SLO[0], window: "a month" }] })),
+    ).toThrow(/which is not a window such as/)
+  })
+
+  it("refuses an objective nothing measures", () => {
+    expect(() =>
+      validateManifest(observing("pass", { slo: [{ ...REAL_SLO[0], measure: "  " }] })),
+    ).toThrow(/names nothing that measures it/)
+  })
+
+  it("refuses a runbook that is not a document", () => {
+    expect(() =>
+      validateManifest(observing("pass", { slo: [{ ...REAL_SLO[0], runbook: "page somebody" }] })),
+    ).toThrow(/not a document path/)
+  })
+
+  it("refuses the same objective declared twice", () => {
+    expect(() =>
+      validateManifest(observing("pass", { slo: [REAL_SLO[0], REAL_SLO[0]] })),
+    ).toThrow(/twice/)
+  })
+
+  it("refuses a number with no sentence it is a number about", () => {
+    expect(() =>
+      validateManifest(observing("pass", { slo: [{ ...REAL_SLO[0], objective: "99.9%" }] })),
+    ).toThrow(/no statement of what is promised/)
+  })
+})
+
+describe("burn is how much of the error budget went, not whether it went", () => {
+  const objective = REAL_SLO[0]
+
+  it("attains 1 and burns nothing on an empty window", () => {
+    // An institution with no pending approvals has not breached anything.
+    // Reporting one would train whoever reads the alert to stop reading it.
+    const burn = sloBurn([], objective)
+    expect(burn).toMatchObject({ total: 0, attained: 1, burn: 0, met: true, breaching: [] })
+  })
+
+  it("separates a target that has slipped from a queue that has stopped", () => {
+    // Both fail `met`. Only one is an outage, and `burn` is what says which.
+    const slipped = sloBurn(
+      [...Array(100).keys()].map((i) => ({ subject: `r${i}`, good: i >= 6 })),
+      objective,
+    )
+    const stopped = sloBurn(
+      [...Array(100).keys()].map((i) => ({ subject: `r${i}`, good: i >= 60 })),
+      objective,
+    )
+    expect(slipped.met).toBe(false)
+    expect(stopped.met).toBe(false)
+    expect(slipped.burn).toBeCloseTo(1.2, 5)
+    expect(stopped.burn).toBeCloseTo(12, 5)
+  })
+
+  it("names what breached, in the order it was measured", () => {
+    const burn = sloBurn(
+      [
+        { subject: "late-1", good: false },
+        { subject: "fine", good: true },
+        { subject: "late-2", good: false },
+      ],
+      objective,
+    )
+    expect(burn.breaching).toEqual(["late-1", "late-2"])
+    expect(burn.bad).toBe(2)
+    expect(burn.good).toBe(1)
+    expect(burn.runbook).toBe(objective.runbook)
+  })
+
+  it("is met exactly at target rather than only above it", () => {
+    const at = sloBurn(
+      [...Array(20).keys()].map((i) => ({ subject: `r${i}`, good: i >= 1 })),
+      objective,
+    )
+    expect(at.attained).toBeCloseTo(0.95, 10)
+    expect(at.met).toBe(true)
+    expect(at.burn).toBeCloseTo(1, 5)
+  })
+
+  it("refuses an objective whose error budget is zero rather than returning Infinity", () => {
+    // `validateManifest` refuses this at declaration, so reaching it means an
+    // objective was built somewhere other than a manifest. A number that means
+    // nothing beside real ones on a dashboard is worse than a throw.
+    expect(() => sloBurn([{ subject: "x", good: false }], { ...objective, target: 1 })).toThrow(
+      SloObjectiveError,
+    )
+    expect(() => sloBurn([], { ...objective, target: 0 })).toThrow(SloObjectiveError)
   })
 })

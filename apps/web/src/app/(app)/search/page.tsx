@@ -4,7 +4,7 @@ import { Brain, FileText, CalendarDays, CheckCircle, Building2, BookOpen } from 
 import { auth } from "@/lib/auth"
 import { withTenantScope } from "@/lib/tenant-scope"
 import { rankDocs } from "@/lib/search"
-import { loadSearchCorpus } from "@/lib/search-data"
+import { loadInteractiveSearchCorpus } from "@/lib/search-data"
 import { aiConfigured, synthesizeAnswer } from "@/lib/ai"
 import { Card, CardHeader } from "@/components/ui/Card"
 
@@ -27,11 +27,17 @@ export default async function SearchPage({
   const session = await auth()
   if (!session?.user?.id) redirect("/signin")
 
+  // WRK-070-002. `interactive`: these rows are rendered back to the person who
+  // asked for them and never leave the process. The sibling entry point
+  // (`loadSearchCorpus`) is the one /api/ai/chat uses to post them to a model
+  // vendor, and each refuses the other's purpose.
   return withTenantScope(session.user.id, async () => {
     // Next 15 delivers a repeated `?q=a&q=b` as string[]; coerce to a single
     // string so `.trim()` never explodes on a crafted/shared URL.
     const query = (Array.isArray(q) ? q[0] ?? "" : q ?? "").trim()
-    const results = query ? rankDocs(await loadSearchCorpus(session.user.id), query) : []
+    const results = query
+      ? rankDocs(await loadInteractiveSearchCorpus(session.user.id), query)
+      : []
     const answer = query ? await synthesizeAnswer(query, results.slice(0, 6)) : null
 
     return (

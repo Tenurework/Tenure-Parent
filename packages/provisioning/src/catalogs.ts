@@ -1,4 +1,21 @@
-import { MODEL_CATALOG, compareVersions, parseVersion, type ModelEntry } from "@tenure/platform-config"
+import {
+  MODEL_CATALOG,
+  RELAY_ANTHROPIC_REVIEW,
+  RELAY_ANTHROPIC_SCOPES,
+  compareVersions,
+  parseVersion,
+  providerActivation,
+  type ModelEntry,
+  type ProviderReview,
+} from "@tenure/platform-config"
+
+import {
+  claimIsUnproven,
+  classifyCapabilities,
+  type ClassifiedCapability,
+  type ConnectorCapability,
+} from "./connector-capability"
+import { PROVIDER_PACKS } from "./provider-packs"
 
 /**
  * GE-030-005 — extension, package, connector and model catalogs.
@@ -53,6 +70,17 @@ import { MODEL_CATALOG, compareVersions, parseVersion, type ModelEntry } from "@
  */
 
 export type CatalogLifecycle =
+  /**
+   * Intended, and nobody has started. WRK-100-003: "unbuilt packs remain
+   * `PLANNED`".
+   *
+   * A different fact from `DRAFT`, which is "being written". The 24 provider
+   * packs the WRK-080/090/100 requirements name are all in this state, and the
+   * distinction is the whole reason they can be listed at all: a catalog row
+   * saying "Jira, planned, WRK-100-001" is a commitment somebody can hold the
+   * platform to, and the same row at `DRAFT` claims work that is not happening.
+   */
+  | "PLANNED"
   /** Being written. Not offered, not certified. */
   | "DRAFT"
   /** Submitted for certification. */
@@ -67,6 +95,9 @@ export type CatalogLifecycle =
   | "REVOKED"
 
 const LIFECYCLE_TRANSITIONS: Readonly<Record<CatalogLifecycle, readonly CatalogLifecycle[]>> = {
+  // Nothing transitions INTO planned. It is the entry point, and a pack that
+  // has been started cannot become un-started.
+  PLANNED: ["DRAFT", "REVOKED"],
   DRAFT: ["SUBMITTED", "REVOKED"],
   SUBMITTED: ["CERTIFIED", "DRAFT", "REVOKED"],
   CERTIFIED: ["PUBLISHED", "DEPRECATED", "REVOKED"],
@@ -196,6 +227,38 @@ export interface ConnectorEntry extends CatalogEntry {
   /** Where it talks to. Recorded because an outbound integration is an egress. */
   egressHosts: readonly string[]
   compatibility: CompatibilityRange
+  /**
+   * WRK-000-002 — every provider/product/capability/direction this connector
+   * claims, each classified in the seven-state vocabulary with its evidence.
+   *
+   * Required rather than optional, deliberately. Optional would mean a
+   * connector that says nothing about what it does compiles, and "no
+   * capabilities declared" would render identically to "nothing works" — which
+   * is the invisible-reads-like-done failure the whole WRK-000 section exists
+   * to stop. Making it required means `tsc` names every construction site that
+   * has not answered.
+   */
+  capabilities: readonly ConnectorCapability[]
+  /**
+   * WRK-040-003 — the scopes this connector asks the provider for.
+   *
+   * Required for the same reason: the subset check against `providerReview`
+   * cannot mean anything if one side of it may be absent. An empty list is a
+   * connector that asks for nothing, which is a statement; a missing list is
+   * nobody having considered the question.
+   */
+  requestedScopes: readonly string[]
+  /**
+   * Where the PROVIDER's own review stands — Google OAuth app verification,
+   * Microsoft publisher verification, a Slack app-directory listing.
+   *
+   * Optional in the type and refused at the gate, exactly like `certification`
+   * above: a connector that reached PUBLISHED without one is refused with
+   * `provider-review-missing` rather than passing by omission. Every other
+   * lifecycle state legitimately has none — nobody submits a pack for provider
+   * review before building it.
+   */
+  providerReview?: ProviderReview
 }
 
 /**
@@ -309,6 +372,15 @@ export function validatePackage(pkg: PackageVersion): readonly CatalogProblem[] 
 export type UsabilityReason =
   | "usable"
   | "revoked"
+  /**
+   * Declared and not started (WRK-100-003).
+   *
+   * Distinct from `not-published`, which covers DRAFT/SUBMITTED/CERTIFIED — a
+   * pack somebody is working on. Collapsing the two would tell an operator
+   * asking "when do we get Jira?" the same thing as one asking "when does the
+   * finished Jira pack list?", and only one of those has an answer.
+   */
+  | "planned"
   | "not-published"
   | "engine-incompatible"
   | "region-not-allowed"
@@ -319,6 +391,25 @@ export type UsabilityReason =
   | "uncertified"
   /** Certified once. The certification has lapsed and nobody renewed it. */
   | "certification-expired"
+  /**
+   * WRK-040-003. Tenure certified it; the PROVIDER has not — no record, or one
+   * that is NOT_SUBMITTED, IN_REVIEW or REJECTED.
+   */
+  | "provider-review-missing"
+  /** The provider approved it once and the approval has lapsed. */
+  | "provider-review-expired"
+  /**
+   * The provider approved it, and this connector asks for scopes the approval
+   * does not cover.
+   *
+   * A separate reason because it is a separate remedy: the first three are
+   * "go and get reviewed", this one is "stop asking for that scope". A
+   * connector can be fully Tenure-certified and fully provider-approved and
+   * still be requesting `https://www.googleapis.com/auth/drive` when the
+   * approval covers `drive.file` — which is the difference between reading one
+   * folder and reading everything.
+   */
+  | "scopes-exceed-provider-approval"
 
 /**
  * How long before expiry a certification is reported as needing renewal.
@@ -356,7 +447,10 @@ export function certificationState(
   now: string,
 ): CertificationState {
   if (!certification) return "absent"
-  if (certification.scope.length === 0 || certification.evidenceRefs.length === 0) return "absent"
+  // `claimIsUnproven` rather than the expression: the identical rule governs a
+  // capability's `AVAILABLE` claim in `connector-capability.ts`, and one
+  // implementation is what stops the two answers drifting apart.
+  if (claimIsUnproven(certification.scope, certification.evidenceRefs)) return "absent"
 
   const expires = Date.parse(certification.expiresAt)
   const at = Date.parse(now)
@@ -388,6 +482,13 @@ export interface UsabilityVerdict {
   disclaimer?: string
   /** Where the certification stands. `undefined` for entries that need none. */
   certification?: CertificationState
+  /**
+   * The provider's own review record, carried on the verdict for the same
+   * reason `disclaimer` is: an operator told `provider-review-missing` needs to
+   * know whether that means NOT_SUBMITTED or REJECTED, and those send them to
+   * completely different places. Only connectors have one.
+   */
+  providerReview?: ProviderReview
 }
 
 export function isUsable(
@@ -412,6 +513,26 @@ export function isUsable(
   },
 ): UsabilityVerdict {
   if (entry.lifecycle === "REVOKED") return { usable: false, reason: "revoked" }
+
+  // Before the generic not-published branch, because "we intend to build this"
+  // and "somebody is building this" are different answers to the one question
+  // an operator is asking, and the second branch cannot tell them apart.
+  if (entry.lifecycle === "PLANNED") {
+    return {
+      usable: false,
+      reason: "planned",
+      // Carried even here. A planned pack's disclaimer is the one sentence that
+      // stops the row reading as a product — "no connector code, no app
+      // registration, no certification exists" — and a refusal that drops it
+      // leaves a console showing a vendor name and a status word.
+      //
+      // Read directly: `ModelLifecycle` has no `PLANNED`, so this branch has
+      // already narrowed `entry` to a pack, and `tsc` refuses a `kind ===
+      // "model"` guard here as unreachable. A model nobody has integrated is
+      // simply absent from the catalog rather than planned in it.
+      disclaimer: entry.restrictions?.disclaimer,
+    }
+  }
 
   // DEPRECATED is still usable for those who already have it — that is what
   // distinguishes it from revoked, and collapsing the two would turn a planned
@@ -471,9 +592,45 @@ export function isUsable(
   }
 
   if (entry.kind === "connector") {
+    // WRK-040-003. The provider's own answer, before the engine range —
+    // an integration the provider never approved is not one a newer engine
+    // fixes, and reporting `engine-incompatible` would send somebody to
+    // upgrade a cell over a problem that lives at Google.
+    //
+    // `providerActivation` is the single implementation of this rule and lives
+    // in `@tenure/platform-config` so `apps/web` can call it too; see the
+    // header there. Reusing it means the console and the request path cannot
+    // disagree about whether an egress is authorised.
+    const activation = providerActivation(
+      entry.requestedScopes,
+      entry.providerReview,
+      context.now,
+    )
+    if (!activation.activated) {
+      return {
+        usable: false,
+        reason: activation.reason,
+        disclaimer,
+        certification,
+        providerReview: entry.providerReview,
+      }
+    }
+
     return engineIsCompatible(context.engineVersion, entry.compatibility)
-      ? { usable: true, reason: "usable", disclaimer, certification }
-      : { usable: false, reason: "engine-incompatible", disclaimer, certification }
+      ? {
+          usable: true,
+          reason: "usable",
+          disclaimer,
+          certification,
+          providerReview: entry.providerReview,
+        }
+      : {
+          usable: false,
+          reason: "engine-incompatible",
+          disclaimer,
+          certification,
+          providerReview: entry.providerReview,
+        }
   }
 
   const version = context.version
@@ -556,6 +713,20 @@ export interface CapabilityAvailabilityDecision {
   resolvedVersion?: string
   disclaimer?: string
   certification?: CertificationState
+  providerReview?: ProviderReview
+  /**
+   * WRK-000-002 — the per-(provider, product, capability, direction) rows, each
+   * with its seven-state status and whatever is wrong with the classification.
+   *
+   * On the decision rather than looked up separately by a console, for the same
+   * reason `disclaimer` is: one entry-level row saying "not available —
+   * uncertified" cannot say that three of this pack's capabilities are
+   * `PLANNED`, one is `CERTIFICATION_PENDING` and none is `AVAILABLE`, and a
+   * surface that has to join two sources to find out will render whichever it
+   * has. Present for connectors, absent for models and extensions, which
+   * declare no capabilities.
+   */
+  capabilities?: readonly ClassifiedCapability[]
   scope: { region: string; partition?: string; engineVersion: string; at: string }
 }
 
@@ -577,6 +748,18 @@ export function availabilityDecisions(
         available: false,
         reason: "marketplace-closed" as const,
         disclaimer: entry.kind === "model" ? undefined : entry.restrictions?.disclaimer,
+        // Classified against the closed marketplace too. A third-party pack
+        // whose author marked every capability AVAILABLE is making a false
+        // claim whether or not the marketplace is open, and hiding the rows
+        // until it opens would mean the claim is only checked on the day it
+        // starts mattering.
+        capabilities:
+          entry.kind === "connector"
+            ? classifyCapabilities(entry.capabilities, {
+                usable: false,
+                reason: "marketplace-closed",
+              })
+            : undefined,
         scope,
       }
     }
@@ -588,6 +771,14 @@ export function availabilityDecisions(
       resolvedVersion: verdict.resolvedVersion,
       disclaimer: verdict.disclaimer,
       certification: verdict.certification,
+      providerReview: verdict.providerReview,
+      capabilities:
+        entry.kind === "connector"
+          ? classifyCapabilities(entry.capabilities, {
+              usable: verdict.usable,
+              reason: verdict.reason,
+            })
+          : undefined,
       scope,
     }
   })
@@ -638,6 +829,34 @@ export const RELAY_ANTHROPIC_CONNECTOR: ConnectorEntry = {
   // The engine range this integration is written against. `lib/ai.ts` ships
   // with the cell, so any engine that has the call site has a compatible one.
   compatibility: { minEngine: "2026.1.0", maxEngine: null },
+  /**
+   * WRK-000-002 — the one thing that actually ships, classified.
+   *
+   * Not `AVAILABLE`. The code is written, reachable and exercised, and nobody
+   * has certified it — which is precisely `CERTIFICATION_PENDING`, and is the
+   * status the seven-state vocabulary exists to make sayable. The old
+   * vocabulary could only say PUBLISHED, which is what the entry's lifecycle
+   * says, and that is the overstatement WRK-GATE-000 is about.
+   *
+   * The evidence is the two files a reader can open to check the claim: the
+   * call site, and the partition matrix that decides where it may run.
+   */
+  capabilities: [
+    {
+      provider: "anthropic",
+      product: "messages-api",
+      capability: "completion",
+      // Outbound only. Tenure sends a prompt and reads a response; nothing at
+      // Anthropic is read or written as a system of record.
+      direction: "write",
+      status: "CERTIFICATION_PENDING",
+      evidenceRefs: ["apps/web/src/lib/ai.ts", "apps/web/src/lib/partition-services.ts"],
+    },
+  ],
+  // Declared in `@tenure/platform-config` so the cell's request path checks the
+  // same list this gate does.
+  requestedScopes: RELAY_ANTHROPIC_SCOPES,
+  providerReview: RELAY_ANTHROPIC_REVIEW,
   restrictions: {
     // The partition, not a list of regions. `apps/web/src/lib/partition-services.ts`
     // records that `api.anthropic.com` exists in the commercial partition and
@@ -658,5 +877,16 @@ export const RELAY_ANTHROPIC_CONNECTOR: ConnectorEntry = {
 
 export const CATALOG_ENTRIES: readonly AnyCatalogEntry[] = [
   RELAY_ANTHROPIC_CONNECTOR,
+  // WRK-100-003. The twenty-four packs the Bible names, every one `PLANNED`.
+  //
+  // This is not the wish list the header above refuses. A wish list is a row
+  // that reads as available; these read as `planned` through the same gate that
+  // decides everything else, they carry the requirement id that asks for them,
+  // and `tests/architecture/provider-packs-bind-requirements.test.mjs` fails if
+  // one of them advances past PLANNED while its requirement is still FAIL. The
+  // alternative — leaving them out — is what the tree had, and a named
+  // requirement with no row anywhere is invisible, which reads exactly like
+  // done.
+  ...PROVIDER_PACKS,
   ...MODEL_CATALOG,
 ]

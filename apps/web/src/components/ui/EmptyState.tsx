@@ -1,36 +1,57 @@
 import { type ReactNode } from "react"
+
+import { StateSurface } from "@/components/ui/StateSurface"
 import { type IconType } from "@/components/ui/icons"
 
 /**
- * One empty state for the whole product. A muted icon, a plain statement of
- * what would appear here, and an optional action — so a blank panel always
- * reads as "nothing yet", never as "something broke".
+ * TTES-020-001 — the product's blank panel, expressed through the state table.
+ *
+ * This used to be a bare `<div>` with a glyph and two lines of copy: no ARIA
+ * role, no politeness, and no way for a reader to tell "there is genuinely
+ * nothing here" from "your filter matched nothing". Both meanings went through
+ * the same component, which is precisely the drift `states.ts` was written to
+ * stop (see its header, "`no-results` is not `empty`").
+ *
+ * So it is now a thin wrapper over `StateSurface`, which reads the role and the
+ * politeness out of `STATE_SEMANTICS` rather than letting a call site decide
+ * them. That also gives `StateSurface` the production caller it did not have —
+ * before this, the whole fourteen-state vocabulary was reachable only from its
+ * own test.
+ *
+ * `state` is REQUIRED and deliberately has no default. A default is the
+ * optional-field-nobody-sets failure: it type-checks at every existing call
+ * site, every unit test keeps passing because tests build their own fixtures,
+ * and the filtered-to-nothing panels keep announcing "nothing yet" forever.
+ * Making it required means `tsc` names every site that has to choose.
  */
 export function EmptyState({
+  state,
   icon: Icon,
   title,
   description,
   action,
   className,
 }: {
+  /**
+   * `empty` — the query ran with no filters and the honest answer is "none yet".
+   * `no-results` — records exist, the viewer's filters excluded all of them.
+   */
+  state: "empty" | "no-results"
   icon: IconType
-  title: string
+  title?: string
   description?: string
   action?: ReactNode
   className?: string
 }) {
   return (
-    <div className={`flex flex-col items-center justify-center px-6 py-12 text-center ${className ?? ""}`}>
-      {/* Outline-only: a hairline ring rather than a filled plate, and a
-          light-weight glyph, so the state reads quiet instead of stamped. */}
-      <div className="grid h-14 w-14 place-items-center rounded-full border border-border text-text-3">
-        <Icon size={26} weight="light" aria-hidden />
-      </div>
-      <p className="mt-4 text-lead font-semibold text-text-1">{title}</p>
-      {description && (
-        <p className="mt-1.5 max-w-md text-sm text-text-2">{description}</p>
-      )}
-      {action && <div className="mt-5">{action}</div>}
-    </div>
+    <StateSurface
+      state={state}
+      icon={Icon}
+      title={title}
+      detail={description}
+      action={action}
+      centered
+      className={className}
+    />
   )
 }

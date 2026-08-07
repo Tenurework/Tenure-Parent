@@ -22,38 +22,151 @@
 ────────────────────────────────────────────────────────────────────────────── */
 @layer base {
   :root {
+    /* ─── Primitive tier ────────────────────────────────────────────────────
+       Raw values. No meaning and no theme: a primitive is a colour that
+       exists, a semantic token is a decision to use one. Every colour-valued
+       token below references one of these, and nothing below this block
+       writes a raw colour — the invariant tokens.test.ts holds the file to —
+       so "change the brand ramp" is an edit here rather than a find-and-
+       replace across the whole stylesheet.
+
+       Declared in :root unconditionally, so the dark and high-contrast
+       palettes reference the same pool instead of each carrying a private
+       copy of it. */
+    --tenure-forest-25: #f0f9f4;
+    --tenure-forest-50: #e4f2ea;
+    --tenure-forest-200: #6ee7b7;
+    --tenure-forest-300: #56d199;
+    --tenure-forest-350: #34d399;
+    --tenure-forest-400: #37c884;
+    --tenure-forest-500: #2bb673;
+    --tenure-forest-550: #23a869;
+    --tenure-forest-600: #1f9e63;
+    --tenure-forest-650: #1c8c5a;
+    --tenure-forest-700: #198052;
+    --tenure-forest-750: #14724a;
+    --tenure-forest-800: #0f6b42;
+    --tenure-forest-850: #115e3d;
+    --tenure-forest-900: #0f5132;
+    --tenure-forest-950: #06130c;
+    --tenure-forest-a14: rgba(43, 182, 115, 0.14);
+    --tenure-forest-a16: rgba(43, 182, 115, 0.16);
+    --tenure-amber-50: #f7efd8;
+    --tenure-amber-300: #e3bd78;
+    --tenure-amber-400: #d9a441;
+    --tenure-amber-600: #b8861d;
+    --tenure-amber-700: #b07a10;
+    --tenure-amber-800: #8a5c0f;
+    --tenure-amber-a15: rgba(217, 164, 65, 0.15);
+    --tenure-amber-a16: rgba(217, 164, 65, 0.16);
+    --tenure-red-50: #fae7e1;
+    --tenure-red-300: #f0977f;
+    --tenure-red-400: #e8674c;
+    --tenure-red-450: #e85a50;
+    --tenure-red-500: #d23f38;
+    --tenure-red-600: #c2402a;
+    --tenure-red-700: #a3331f;
+    --tenure-red-a15: rgba(232, 103, 76, 0.15);
+    --tenure-red-a16: rgba(232, 103, 76, 0.16);
+    --tenure-blue-50: #e8f1fb;
+    --tenure-blue-300: #7db4f0;
+    --tenure-blue-400: #4a90e6;
+    --tenure-blue-500: #2f7fd6;
+    --tenure-blue-600: #1f66b8;
+    --tenure-blue-a15: rgba(74, 144, 230, 0.15);
+    --tenure-teal-400: #17a0ad;
+    --tenure-teal-500: #0e9aa7;
+    --tenure-orange-400: #df6f33;
+    --tenure-orange-500: #e06a2e;
+    --tenure-violet-400: #8778e4;
+    --tenure-violet-600: #5a4bd0;
+    --tenure-berry-400: #d268a0;
+    --tenure-berry-500: #cf5f97;
+    --tenure-navy-50: #eef1f5;
+    --tenure-navy-700: #26364a;
+    --tenure-navy-800: #1a2634;
+    --tenure-navy-850: #16202c;
+    --tenure-slate-25: #f2f3f5;
+    --tenure-slate-100: #e5e7eb;
+    --tenure-slate-150: #e2e8f0;
+    --tenure-slate-200: #d1d5db;
+    --tenure-slate-250: #cbd5e1;
+    --tenure-slate-300: #b7bac0;
+    --tenure-slate-350: #9ca3af;
+    --tenure-slate-400: #99a1ad;
+    --tenure-slate-450: #7f8794;
+    --tenure-slate-500: #6b7280;
+    --tenure-slate-520: #69707e;
+    --tenure-slate-560: #63686f;
+    --tenure-slate-600: #565b62;
+    --tenure-slate-650: #4b5563;
+    --tenure-slate-700: #454a53;
+    --tenure-slate-750: #374151;
+    --tenure-slate-800: #2c3038;
+    --tenure-slate-820: #2a2e35;
+    --tenure-slate-850: #1f2937;
+    --tenure-slate-870: #1c1f24;
+    --tenure-slate-880: #1b1f25;
+    --tenure-slate-890: #191c21;
+    --tenure-slate-900: #15181c;
+    --tenure-slate-930: #0f1113;
+    --tenure-slate-940: #0b1220;
+    --tenure-slate-960: #08090a;
+    --tenure-slate-a14: rgba(203, 213, 225, 0.14);
+    --tenure-slate-a15: rgba(203, 213, 225, 0.15);
+    --tenure-paper-25: #fbfaf7;
+    --tenure-paper-50: #faf9f5;
+    --tenure-paper-100: #f1f0ea;
+    --tenure-paper-150: #f0efe9;
+    --tenure-paper-200: #ecebe5;
+    --tenure-paper-250: #ebeae3;
+    --tenure-paper-300: #e6e4dd;
+    --tenure-paper-400: #d6d4cc;
+    --tenure-paper-450: #d3d0c8;
+    --tenure-paper-600: #847f76;
+    --tenure-ink-900: #191a1c;
+    --tenure-ink-a05: rgba(23, 24, 26, 0.045);
+    --tenure-ink-a08: rgba(23, 24, 26, 0.075);
+    --tenure-ink-a50: rgba(20, 21, 24, 0.5);
+    --tenure-white: #ffffff;
+    --tenure-black: #000000;
+    --tenure-white-a05: rgba(255, 255, 255, 0.05);
+    --tenure-white-a07: rgba(255, 255, 255, 0.07);
+    --tenure-white-a09: rgba(255, 255, 255, 0.09);
+    --tenure-black-a72: rgba(2, 3, 4, 0.72);
+
     /* Shell — flat plane shared by header, side nav and footer. */
-    --shell-bg: #faf9f5;
-    --shell-bg-elevated: #f1f0ea;
-    --shell-text: #191a1c;
-    --shell-text-secondary: #565b62;
-    --shell-border: #e6e4dd;
-    --shell-item-hover: rgba(23, 24, 26, 0.045);
-    --shell-item-active: rgba(23, 24, 26, 0.075);
+    --shell-bg: var(--tenure-paper-50);
+    --shell-bg-elevated: var(--tenure-paper-100);
+    --shell-text: var(--tenure-ink-900);
+    --shell-text-secondary: var(--tenure-slate-600);
+    --shell-border: var(--tenure-paper-300);
+    --shell-item-hover: var(--tenure-ink-a05);
+    --shell-item-active: var(--tenure-ink-a08);
 
     /* Primary — "grove" green (forest-mint brand accent).
        Darkened from #1c8c5a by the GE-022-003 contrast audit: white on the old
        value was 4.24:1, below the 4.5:1 AA floor, on the most-clicked control
        in the product. #198052 is the same hue at 4.94:1. */
-    --primary: #198052;
-    --primary-hover: #14724a;
-    --primary-press: #115e3d;
-    --primary-light: #e4f2ea;
-    --primary-text: #ffffff;
+    --primary: var(--tenure-forest-700);
+    --primary-hover: var(--tenure-forest-750);
+    --primary-press: var(--tenure-forest-850);
+    --primary-light: var(--tenure-forest-25);
+    --primary-text: var(--tenure-white);
 
     /* Accent — the administration surface reads as its own, more authoritative
        plane. Ink-slate (neutral, not a second brand colour), harmonised warm. */
-    --accent: #26364a;
-    --accent-hover: #1a2634;
-    --accent-light: #eef1f5;
-    --accent-text: #ffffff;
-    --accent-strong: #16202c;
+    --accent: var(--tenure-navy-700);
+    --accent-hover: var(--tenure-navy-800);
+    --accent-light: var(--tenure-navy-50);
+    --accent-text: var(--tenure-white);
+    --accent-strong: var(--tenure-navy-850);
 
     /* Surfaces — calmer duller-paper base + soft off-white cards (not pure #fff) */
-    --bg-base: #f0efe9;
-    --bg-surface: #fbfaf7;
-    --bg-subtle: #ebeae3;
-    --bg-overlay: rgba(20, 21, 24, 0.5);
+    --bg-base: var(--tenure-paper-150);
+    --bg-surface: var(--tenure-paper-25);
+    --bg-subtle: var(--tenure-paper-250);
+    --bg-overlay: var(--tenure-ink-a50);
 
     /* Borders.
        Three tokens, not two, because WCAG 1.4.11 asks a different question of
@@ -62,18 +175,18 @@
        ONLY thing that identifies an input's boundary, so it must clear 3:1
        against every surface it sits on — 3.81 / 3.45 / 3.30 here. Using
        --border-strong (1.48:1) for a control edge was the audit's finding. */
-    --border: #e6e4dd;
-    --border-strong: #d3d0c8;
-    --border-control: #847f76;
-    --border-focus: #198052;
+    --border: var(--tenure-paper-300);
+    --border-strong: var(--tenure-paper-450);
+    --border-control: var(--tenure-paper-600);
+    --border-focus: var(--tenure-forest-700);
 
     /* Text — warm ink scale */
-    --text-1: #191a1c;
-    --text-2: #565b62;
-    --text-3: #868b92;
-    --text-disabled: #b7bac0;
-    --text-inverse: #ffffff;
-    --text-link: #14724a;
+    --text-1: var(--tenure-ink-900);
+    --text-2: var(--tenure-slate-600);
+    --text-3: var(--tenure-slate-560);
+    --text-disabled: var(--tenure-slate-300);
+    --text-inverse: var(--tenure-white);
+    --text-link: var(--tenure-forest-750);
 
     /* Status — info aligned to the chart-blue slot.
        Two steps per hue, the way the badges already work. The base hue is a
@@ -83,49 +196,49 @@
        all being used as text below the floor, and even --error, which clears
        it on a card, drops to 4.29:1 on --bg-subtle. Darkening the base hues
        instead would have made every status fill in the product heavier. */
-    --success: #1c8c5a;
-    --success-text: #14724a;
-    --success-light: #e4f2ea;
-    --warning: #b07a10;
-    --warning-text: #8a5c0f;
-    --warning-light: #f7efd8;
-    --error: #c2402a;
-    --error-text: #a3331f;
-    --error-light: #fae7e1;
-    --info: #2f7fd6;
-    --info-text: #1f66b8;
-    --info-light: #e8f1fb;
+    --success: var(--tenure-forest-650);
+    --success-text: var(--tenure-forest-750);
+    --success-light: var(--tenure-forest-50);
+    --warning: var(--tenure-amber-700);
+    --warning-text: var(--tenure-amber-800);
+    --warning-light: var(--tenure-amber-50);
+    --error: var(--tenure-red-600);
+    --error-text: var(--tenure-red-700);
+    --error-light: var(--tenure-red-50);
+    --info: var(--tenure-blue-500);
+    --info-text: var(--tenure-blue-600);
+    --info-light: var(--tenure-blue-50);
 
     /* Status badges — tints from the status hues, readable text step */
-    --badge-approved-bg: #e4f2ea;
-    --badge-approved-text: #14724a;
-    --badge-pending-bg: #f7efd8;
-    --badge-pending-text: #8a5c0f;
-    --badge-rejected-bg: #fae7e1;
-    --badge-rejected-text: #a3331f;
-    --badge-draft-bg: #ebeae3;
-    --badge-draft-text: #565b62;
-    --badge-accent-bg: #eef1f5;
-    --badge-accent-text: #26364a;
+    --badge-approved-bg: var(--tenure-forest-50);
+    --badge-approved-text: var(--tenure-forest-750);
+    --badge-pending-bg: var(--tenure-amber-50);
+    --badge-pending-text: var(--tenure-amber-800);
+    --badge-rejected-bg: var(--tenure-red-50);
+    --badge-rejected-text: var(--tenure-red-700);
+    --badge-draft-bg: var(--tenure-paper-250);
+    --badge-draft-text: var(--tenure-slate-600);
+    --badge-accent-bg: var(--tenure-navy-50);
+    --badge-accent-text: var(--tenure-navy-700);
 
     /* Segmented control — active chip pops above the subtle container */
-    --segment-active-bg: #ffffff;
+    --segment-active-bg: var(--tenure-white);
 
     /* Chart palette — validated CVD-safe on the #fbfaf7 card (data-viz gate).
        Warm-forward order: green · amber · teal · orange · violet · berry · blue · red */
-    --chart-1: #1c8c5a;
+    --chart-1: var(--tenure-forest-650);
     /* Darkened from #d99a20 (2.34:1) by the GE-022-003 audit; a chart series
        carries meaning, so 1.4.11 applies. #b07a10 is the same amber at 3.57:1,
        and it is the --warning hue, which the two were already close to. */
-    --chart-2: #b07a10;
-    --chart-3: #0e9aa7;
-    --chart-4: #e06a2e;
-    --chart-5: #5a4bd0;
-    --chart-6: #cf5f97;
-    --chart-7: #2f7fd6;
-    --chart-8: #d23f38;
-    --chart-grid: #ecebe5;
-    --chart-axis: #d6d4cc;
+    --chart-2: var(--tenure-amber-700);
+    --chart-3: var(--tenure-teal-500);
+    --chart-4: var(--tenure-orange-500);
+    --chart-5: var(--tenure-violet-600);
+    --chart-6: var(--tenure-berry-500);
+    --chart-7: var(--tenure-blue-500);
+    --chart-8: var(--tenure-red-500);
+    --chart-grid: var(--tenure-paper-200);
+    --chart-axis: var(--tenure-paper-400);
 
     /* Spacing scale — 4px base */
     --space-1: 4px;
@@ -162,8 +275,103 @@
     --shadow-lg: 0 16px 36px rgba(23, 24, 26, 0.14), 0 4px 10px rgba(23, 24, 26, 0.07);
     --shadow-focus: 0 0 0 3px rgba(25, 128, 82, 0.28);
 
+    /* ─── Z-LAYER CONTRACT ──────────────────────────────────────────────────
+       An ordered scale, one name per reason a thing is lifted. Before this the
+       product had twelve hand-picked numbers (z-10 … z-[100] plus a bare
+       `z-index: 39`) with no contract between them, so "does the drawer scrim
+       sit above the footer and below the nav?" could only be answered by
+       reading four files and guessing at DOM order.
+
+       Every value below is the value that already shipped, so nothing moves —
+       naming them is the change. The two exceptions are deliberate fixes:
+
+         · --z-skip-link is now ABOVE --z-overlay. Both were z-[100], which
+           made DOM order decide, and the modal is portalled to the end of
+           <body> — so a focused skip link rendered UNDERNEATH an open dialog.
+         · --z-chrome-popover is now a layer of its own rather than tying with
+           --z-header at 50. The side-rail tooltip and the header's search
+           results hang off fixed chrome and must clear it; sharing the header's
+           number left that to DOM order too.
+
+       The invariants (asserted in src/app/design-contracts.test.ts, because a
+       comment cannot fail a build):
+         · strictly increasing, no two layers equal
+         · --z-sticky  <  --z-scrim  <  --z-nav
+           The drawer scrim must dim the page AND the footer while leaving the
+           nav it belongs to on top. That is what the bare 39 encoded and what
+           nothing checked.
+         · --z-overlay <  --z-skip-link
+           2.4.1's escape hatch cannot be the one thing a dialog covers.
+
+       Bound in tailwind.config.ts → z-raised, z-marker, … ; eslint.config.mjs
+       reads these names out of this file to build the message its arbitraryZIndex
+       rule prints, so deleting a token here breaks the lint loudly. */
+    --z-raised: 10;          /* lifted above its own siblings inside a card */
+    --z-marker: 20;          /* in-grid indicator drawn over rows (the "now" line) */
+    --z-dragged: 30;         /* the element the pointer is currently carrying */
+    --z-popover: 31;         /* transient surface anchored to page content */
+    --z-sticky: 32;          /* the fixed footer — chrome, so above page popovers */
+    --z-scrim: 39;           /* narrow-screen nav drawer scrim */
+    --z-nav: 40;             /* the fixed side nav */
+    --z-header: 50;          /* the fixed header */
+    --z-chrome-popover: 51;  /* transient surface anchored to fixed chrome */
+    --z-assist-scrim: 60;    /* Tenure AI backdrop on narrow screens */
+    --z-assist: 61;          /* the Tenure AI panel itself */
+    --z-toast: 70;           /* system-wide banner (offline boundary) — above the assistant */
+    --z-overlay: 100;        /* modal dialogs */
+    --z-skip-link: 110;      /* WCAG 2.4.1 bypass — above everything, always */
+
+    /* ─── MOTION CONTRACT ───────────────────────────────────────────────────
+       Three durations and two curves, taken from the values already spread
+       across this file's keyframes (140/150/160/180/200ms) and the shell's
+       Tailwind classes (duration-200/300). Anything that enters uses --ease-entry
+       and anything that leaves uses --ease-exit, so the product never eases a
+       dismissal the way it eases an arrival.
+
+       The reduced-motion block further down collapses every one of these to
+       ~0ms; that override is on `transition-duration`/`animation-duration`
+       directly, so it wins regardless of which token produced the value.
+
+       Bound in tailwind.config.ts → duration-fast / duration-base / duration-slow
+       and ease-entry / ease-exit. */
+    --motion-fast: 120ms;    /* hover feedback, dismissals — must not be noticed */
+    --motion-base: 180ms;    /* the default: panels, drawers, frame reflow */
+    --motion-slow: 240ms;    /* a full-height surface travelling across the screen */
+    --ease-entry: cubic-bezier(0.16, 1, 0.3, 1);  /* decelerating — things arriving */
+    --ease-exit: cubic-bezier(0.4, 0, 1, 1);      /* accelerating — things leaving */
+
+    /* ─── DENSITY CONTRACT ──────────────────────────────────────────────────
+       Comfortable is the default and its values are exactly what shipped
+       before (control 40px = h-10, small 32px = h-8, large 44px = h-11, nav row
+       32px, bento gap 20px = --space-5), so turning the contract on changes
+       nothing until someone asks for compact.
+
+       `data-density` is stamped on <html> before hydration by the script in
+       src/app/layout.tsx and chosen in the UI by DensitySwitcher on
+       /settings. An attribute rather than a class so the two axes read
+       independently in a screenshot matrix and in the DOM.
+
+       Consumers: Button (all four sizes), TextField, Select, SideNav rows,
+       .bento-grid. */
+    --control-h-sm: 32px;
+    --control-h: 40px;
+    --control-h-lg: 44px;
+    --row-h: 32px;
+    --density-gap: var(--space-5);
+
     /* Typography */
     --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+  }
+
+  /* Compact: the same interface for someone reconciling four hundred rows.
+     Only the density contract moves — type, colour and radius are unchanged,
+     because shrinking those is a different (and mostly bad) idea. */
+  :root[data-density="compact"] {
+    --control-h-sm: 28px;
+    --control-h: 34px;
+    --control-h-lg: 38px;
+    --row-h: 28px;
+    --density-gap: var(--space-3);
   }
 
   /* ─── Dark theme "graphite" ────────────────────────────────────────────────
@@ -171,82 +379,82 @@
      layout resolves "system" against prefers-color-scheme. True near-black:
      page #08090a, cards #0f1113. Depth from borders, not heavy shadows. */
   html.dark {
-    --shell-bg: #08090a;
-    --shell-bg-elevated: #0f1113;
-    --shell-text: #f2f3f5;
-    --shell-text-secondary: #99a1ad;
-    --shell-border: #191c21;
-    --shell-item-hover: rgba(255, 255, 255, 0.05);
-    --shell-item-active: rgba(255, 255, 255, 0.09);
+    --shell-bg: var(--tenure-slate-960);
+    --shell-bg-elevated: var(--tenure-slate-930);
+    --shell-text: var(--tenure-slate-25);
+    --shell-text-secondary: var(--tenure-slate-400);
+    --shell-border: var(--tenure-slate-890);
+    --shell-item-hover: var(--tenure-white-a05);
+    --shell-item-active: var(--tenure-white-a09);
 
-    --primary: #2bb673;
-    --primary-hover: #37c884;
-    --primary-press: #23a869;
-    --primary-light: rgba(43, 182, 115, 0.14);
-    --primary-text: #06130c;
+    --primary: var(--tenure-forest-500);
+    --primary-hover: var(--tenure-forest-400);
+    --primary-press: var(--tenure-forest-550);
+    --primary-light: var(--tenure-forest-a14);
+    --primary-text: var(--tenure-forest-950);
 
-    --accent: #cbd5e1;
-    --accent-hover: #e2e8f0;
-    --accent-light: rgba(203, 213, 225, 0.14);
-    --accent-text: #0b1220;
-    --accent-strong: #e2e8f0;
+    --accent: var(--tenure-slate-250);
+    --accent-hover: var(--tenure-slate-150);
+    --accent-light: var(--tenure-slate-a14);
+    --accent-text: var(--tenure-slate-940);
+    --accent-strong: var(--tenure-slate-150);
 
-    --bg-base: #08090a;
-    --bg-surface: #0f1113;
-    --bg-subtle: #15181c;
-    --bg-overlay: rgba(2, 3, 4, 0.72);
+    --bg-base: var(--tenure-slate-960);
+    --bg-surface: var(--tenure-slate-930);
+    --bg-subtle: var(--tenure-slate-900);
+    --bg-overlay: var(--tenure-black-a72);
 
-    --border: #1c1f24;
-    --border-strong: #2a2e35;
+    --border: var(--tenure-slate-870);
+    --border-strong: var(--tenure-slate-820);
     /* 3.80 / 4.00 / 3.58 against the dark surface, base and subtle. */
-    --border-control: #69707e;
-    --border-focus: #2bb673;
+    --border-control: var(--tenure-slate-520);
+    --border-focus: var(--tenure-forest-500);
 
-    --text-1: #f2f3f5;
-    --text-2: #99a1ad;
-    --text-3: #6b7280;
-    --text-disabled: #454a53;
-    --text-inverse: #08090a;
-    --text-link: #37c884;
+    --text-1: var(--tenure-slate-25);
+    --text-2: var(--tenure-slate-400);
+    --text-3: var(--tenure-slate-450);
+    --text-disabled: var(--tenure-slate-700);
+    --text-inverse: var(--tenure-slate-960);
+    --text-link: var(--tenure-forest-400);
 
-    --success: #2bb673;
-    --success-text: #56d199;
-    --success-light: rgba(43, 182, 115, 0.14);
-    --warning: #d9a441;
-    --warning-text: #e3bd78;
-    --warning-light: rgba(217, 164, 65, 0.15);
-    --error: #e8674c;
-    --error-text: #f0977f;
-    --error-light: rgba(232, 103, 76, 0.15);
-    --info: #4a90e6;
-    --info-text: #7db4f0;
-    --info-light: rgba(74, 144, 230, 0.15);
+    --success: var(--tenure-forest-500);
+    --success-text: var(--tenure-forest-300);
+    --success-light: var(--tenure-forest-a14);
+    --warning: var(--tenure-amber-400);
+    --warning-text: var(--tenure-amber-300);
+    --warning-light: var(--tenure-amber-a15);
+    --error: var(--tenure-red-400);
+    --error-text: var(--tenure-red-300);
+    --error-light: var(--tenure-red-a15);
+    --info: var(--tenure-blue-400);
+    --info-text: var(--tenure-blue-300);
+    --info-light: var(--tenure-blue-a15);
 
-    --badge-approved-bg: rgba(43, 182, 115, 0.16);
-    --badge-approved-text: #56d199;
-    --badge-pending-bg: rgba(217, 164, 65, 0.16);
-    --badge-pending-text: #e3bd78;
-    --badge-rejected-bg: rgba(232, 103, 76, 0.16);
-    --badge-rejected-text: #f0977f;
-    --badge-draft-bg: rgba(255, 255, 255, 0.07);
-    --badge-draft-text: #99a1ad;
-    --badge-accent-bg: rgba(203, 213, 225, 0.15);
-    --badge-accent-text: #cbd5e1;
+    --badge-approved-bg: var(--tenure-forest-a16);
+    --badge-approved-text: var(--tenure-forest-300);
+    --badge-pending-bg: var(--tenure-amber-a16);
+    --badge-pending-text: var(--tenure-amber-300);
+    --badge-rejected-bg: var(--tenure-red-a16);
+    --badge-rejected-text: var(--tenure-red-300);
+    --badge-draft-bg: var(--tenure-white-a07);
+    --badge-draft-text: var(--tenure-slate-400);
+    --badge-accent-bg: var(--tenure-slate-a15);
+    --badge-accent-text: var(--tenure-slate-250);
 
-    --segment-active-bg: #1b1f25;
+    --segment-active-bg: var(--tenure-slate-880);
 
     /* Chart palette — validated CVD-safe on the #0f1113 dark card (data-viz gate).
        Same warm-forward order, stepped for the near-black surface. */
-    --chart-1: #1f9e63;
-    --chart-2: #b8861d;
-    --chart-3: #17a0ad;
-    --chart-4: #df6f33;
-    --chart-5: #8778e4;
-    --chart-6: #d268a0;
-    --chart-7: #4a90e6;
-    --chart-8: #e85a50;
-    --chart-grid: #1c1f24;
-    --chart-axis: #2c3038;
+    --chart-1: var(--tenure-forest-600);
+    --chart-2: var(--tenure-amber-600);
+    --chart-3: var(--tenure-teal-400);
+    --chart-4: var(--tenure-orange-400);
+    --chart-5: var(--tenure-violet-400);
+    --chart-6: var(--tenure-berry-400);
+    --chart-7: var(--tenure-blue-400);
+    --chart-8: var(--tenure-red-450);
+    --chart-grid: var(--tenure-slate-870);
+    --chart-axis: var(--tenure-slate-800);
 
     /* Dark leans on borders; soft large shadows only for overlays/popovers. */
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -285,7 +493,7 @@
     nav[aria-label="Primary navigation"] {
       width: var(--sidenav-width);
       transform: translateX(-100%);
-      transition: transform 180ms ease-out;
+      transition: transform var(--motion-base) var(--ease-entry);
       /* Off-canvas means off the layout too: a translated element still counts
          toward document scroll width, which would fail the very criterion this
          is here for. */
@@ -309,7 +517,9 @@
     html.nav-open .nav-drawer-scrim {
       position: fixed;
       inset: var(--shell-height) 0 0 0;
-      z-index: 39;
+      /* Strictly between --z-sticky (the footer it must dim) and --z-nav (the
+         drawer it belongs to). See the z-layer contract above. */
+      z-index: var(--z-scrim);
       background: var(--bg-overlay);
     }
   }
@@ -345,9 +555,18 @@
     margin: 0;
   }
 
-  /* React Aria focus visible ring */
+  /* React Aria focus visible ring.
+
+     TTES-010-004 — painted from --border-focus, never from --primary. A tenant's
+     branding arrives as an injected `:root { --primary: … }` block, so a ring
+     drawn in --primary is a ring an institution can set to anything its
+     marketing site uses — including a value with no contrast against the surface
+     it rings, which is the one indicator a keyboard user has. --border-focus is
+     declared per theme here and brandingCss never writes it, so the focus
+     indicator stays the platform's decision. tenant-brand.test.ts holds every
+     focus rule in the product to that. */
   [data-focus-visible] {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--border-focus);
     outline-offset: 2px;
   }
 
@@ -369,28 +588,28 @@
      users who prefer reduced motion. */
   @media (prefers-contrast: more) {
     :root {
-      --text-1: #000000;
-      --text-2: #1f2937;
-      --text-3: #374151;
-      --shell-text: #000000;
-      --shell-text-secondary: #1f2937;
-      --border: #6b7280;
-      --border-strong: #374151;
-      --border-control: #4b5563;
-      --primary: #0f6b42;
-      --text-link: #0f5132;
+      --text-1: var(--tenure-black);
+      --text-2: var(--tenure-slate-850);
+      --text-3: var(--tenure-slate-750);
+      --shell-text: var(--tenure-black);
+      --shell-text-secondary: var(--tenure-slate-850);
+      --border: var(--tenure-slate-500);
+      --border-strong: var(--tenure-slate-750);
+      --border-control: var(--tenure-slate-650);
+      --primary: var(--tenure-forest-800);
+      --text-link: var(--tenure-forest-900);
     }
     html.dark {
-      --text-1: #ffffff;
-      --text-2: #e5e7eb;
-      --text-3: #d1d5db;
-      --shell-text: #ffffff;
-      --shell-text-secondary: #e5e7eb;
-      --border: #9ca3af;
-      --border-strong: #d1d5db;
-      --border-control: #e5e7eb;
-      --primary: #34d399;
-      --text-link: #6ee7b7;
+      --text-1: var(--tenure-white);
+      --text-2: var(--tenure-slate-100);
+      --text-3: var(--tenure-slate-200);
+      --shell-text: var(--tenure-white);
+      --shell-text-secondary: var(--tenure-slate-100);
+      --border: var(--tenure-slate-350);
+      --border-strong: var(--tenure-slate-200);
+      --border-control: var(--tenure-slate-100);
+      --primary: var(--tenure-forest-350);
+      --text-link: var(--tenure-forest-200);
     }
     * {
       outline-width: 3px !important;
@@ -478,7 +697,7 @@
     outline: none;
   }
   .chart-hit:focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--border-focus);
     outline-offset: 1px;
     rx: 2px;
   }
@@ -525,8 +744,8 @@
   .tile-float {
     box-shadow: none;
     transition:
-      box-shadow 160ms ease,
-      border-color 160ms ease;
+      box-shadow var(--motion-fast) var(--ease-entry),
+      border-color var(--motion-fast) var(--ease-entry);
   }
   .tile-float:hover {
     box-shadow: var(--shadow-sm);
@@ -538,12 +757,15 @@
   .bento-grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: var(--space-5);
+    gap: var(--density-gap);
   }
 
+  /* Narrow screens tighten the comfortable gap. `:root` (0,0,1) loses to
+     `:root[data-density="compact"]` (0,1,1) whatever the media query, so
+     someone who asked for compact keeps compact at every width. */
   @media (max-width: 900px) {
-    .bento-grid {
-      gap: var(--space-4);
+    :root {
+      --density-gap: var(--space-4);
     }
   }
 }
@@ -642,13 +864,13 @@
     background: var(--bg-overlay);
     backdrop-filter: blur(6px);
   }
-  .overlay-backdrop[data-entering] { animation: tenure-overlay-in 180ms ease-out; }
-  .overlay-backdrop[data-exiting]  { animation: tenure-overlay-out 140ms ease-in; }
+  .overlay-backdrop[data-entering] { animation: tenure-overlay-in var(--motion-base) var(--ease-entry); }
+  .overlay-backdrop[data-exiting]  { animation: tenure-overlay-out var(--motion-fast) var(--ease-exit); }
 
-  .overlay-panel[data-entering] { animation: tenure-panel-in 200ms cubic-bezier(0.16, 1, 0.3, 1); }
-  .overlay-panel[data-exiting]  { animation: tenure-panel-out 140ms ease-in; }
+  .overlay-panel[data-entering] { animation: tenure-panel-in var(--motion-base) var(--ease-entry); }
+  .overlay-panel[data-exiting]  { animation: tenure-panel-out var(--motion-fast) var(--ease-exit); }
 
-  .pop-panel[data-entering] { animation: tenure-pop-in 150ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .pop-panel[data-entering] { animation: tenure-pop-in var(--motion-fast) var(--ease-entry); }
 
   /* ─── Live data motion — used by the chart kit (Phase 2) and live tickers.
      Respects prefers-reduced-motion via the global reduce block above. */
@@ -670,5 +892,28 @@
   }
   .live-dot {
     animation: tenure-pulse-soft 2s ease-in-out infinite;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   TTES-030-002 — the offline boundary
+
+   `OfflineBoundary` sets `data-offline` on <html> while the connection is
+   down, and the `offline` state's copy says in as many words that changes
+   will not save. This is what makes that a bound rather than a claim: the
+   submit affordances stop accepting the pointer for as long as the attribute
+   is there. The component sets `aria-disabled` on the same controls, because
+   a rule assistive technology cannot see is not a rule it can report.
+
+   `pointer-events: none` rather than the `disabled` attribute, deliberately:
+   a disabled control leaves the tab order, so a keyboard user who goes
+   offline mid-form loses their place and gets it back somewhere else when the
+   connection returns. This keeps focus exactly where it was.
+   ────────────────────────────────────────────────────────────────────────── */
+@layer components {
+  html[data-offline] form button[type="submit"],
+  html[data-offline] form input[type="submit"] {
+    pointer-events: none;
+    opacity: 0.6;
   }
 }

@@ -44,6 +44,16 @@ interface Field {
   input: "string" | "number" | "boolean" | "unsupported"
   defaultValue: string
   current: string | null
+  /**
+   * What this option costs, rendered by the server (NEXT-SESSION §7).
+   *
+   * A string rather than the price object, and formatted on the server rather
+   * than here, because the running total in the section below this form is the
+   * resolver's. A client that could compute money would eventually compute a
+   * different total than the engine, and the one on the screen would be the one
+   * nobody validated.
+   */
+  price: string
 }
 
 export function ConfigurationEditor({
@@ -102,6 +112,12 @@ export function ConfigurationEditor({
               <p className="hint">
                 {field.description}
                 {field.input === "unsupported" && " — lists and objects are read-only until there is an editor for them."}
+              </p>
+              {/* The price, beside the choice rather than on a summary the
+                  operator has to go and find. §7: cost is never a surprise at
+                  the end because it was never only at the end. */}
+              <p className="hint" data-price={field.key}>
+                {field.price}
               </p>
             </div>
           ))}

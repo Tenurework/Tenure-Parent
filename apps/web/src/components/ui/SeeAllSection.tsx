@@ -53,7 +53,7 @@ export function SeeAllSection({
               <button
                 type="button"
                 onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-text-link outline-none transition-colors hover:bg-base focus-visible:ring-2 focus-visible:ring-[--primary]"
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-text-link outline-none transition-colors hover:bg-base focus-visible:ring-2 focus-visible:ring-[--border-focus]"
               >
                 {label}
                 <ArrowRight size={15} className="shrink-0" />
@@ -61,7 +61,7 @@ export function SeeAllSection({
             ) : (
               <Link
                 href={href!}
-                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-text-link no-underline outline-none transition-colors hover:bg-base focus-visible:ring-2 focus-visible:ring-[--primary]"
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-medium text-text-link no-underline outline-none transition-colors hover:bg-base focus-visible:ring-2 focus-visible:ring-[--border-focus]"
               >
                 {label}
                 <ArrowRight size={15} className="shrink-0" />

@@ -13,7 +13,17 @@ const config = {
   // a second toolchain per package. Listing the roots explicitly (rather than
   // leaving rootDir to imply one) is what lets a file outside apps/web be
   // collected at all.
-  roots: ["<rootDir>/src", "<rootDir>/scripts", "<rootDir>/../../packages"],
+  // `apps/system-studio` has no jest of its own — its suite is Playwright, which
+  // transforms JSX with its own component-locator pragma and therefore cannot
+  // render a React tree to markup. The Studio's rendering assertions run here,
+  // through this app's next/jest transform, for the same reason the platform
+  // packages do: one toolchain rather than a second per app.
+  roots: [
+    "<rootDir>/src",
+    "<rootDir>/scripts",
+    "<rootDir>/../../packages",
+    "<rootDir>/../system-studio/src",
+  ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@tenure/configuration$": "<rootDir>/../../packages/configuration/src/index.ts",
@@ -28,8 +38,11 @@ const config = {
     "^@tenure/finops$": "<rootDir>/../../packages/finops/src/index.ts",
     "^@tenure/identity$": "<rootDir>/../../packages/identity/src/index.ts",
     "^@tenure/metadata$": "<rootDir>/../../packages/metadata/src/index.ts",
+    "^@tenure/payments$": "<rootDir>/../../packages/payments/src/index.ts",
+    "^@tenure/payments/gateway$": "<rootDir>/../../packages/payments/src/gateway.ts",
     "^@tenure/platform-config$": "<rootDir>/../../packages/platform-config/src/index.ts",
     "^@tenure/platform-config/money$": "<rootDir>/../../packages/platform-config/src/money.ts",
+    "^@tenure/platform-config/compatibility$": "<rootDir>/../../packages/platform-config/src/compatibility.ts",
   },
   // scripts/ ships as ESM .mjs into the runtime image; its logic is testable too
   moduleFileExtensions: ["js", "jsx", "ts", "tsx", "mjs", "json", "node"],

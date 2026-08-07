@@ -1,6 +1,12 @@
 import "server-only"
 
-import { allocate, reconcile, summarize, type AllocationDriver, type CostLine } from "@tenure/finops"
+import type { AllocationDriver, CostLine } from "@tenure/finops"
+
+// The pure half, in its own module so it can be rendered without a request.
+// Re-exported because the page and the view import `CostReport` from here.
+import { buildCostReport, type CostReport } from "./cost-report"
+
+export { CUR_ROUNDING, buildCostReport, periodCompleteness, type CostReport } from "./cost-report"
 
 /**
  * Where the FinOps Center's numbers come from.
@@ -26,13 +32,6 @@ import { allocate, reconcile, summarize, type AllocationDriver, type CostLine } 
 export type CostSource =
   | { state: "CONNECTED"; report: CostReport }
   | { state: "NOT_CONFIGURED"; why: string; operatorSteps: readonly string[] }
-
-export interface CostReport {
-  summary: ReturnType<typeof summarize>
-  reconciliation: ReturnType<typeof reconcile>
-  tenants: ReturnType<typeof allocate>["tenants"]
-  unallocated: ReturnType<typeof allocate>["unallocated"]
-}
 
 /**
  * The environment variables a real ingest would need.
@@ -73,26 +72,12 @@ export async function costSource(): Promise<CostSource> {
   const lines: CostLine[] = await readCurLines(bucket, prefix)
   const drivers: Readonly<Record<string, AllocationDriver>> = await readDrivers()
   const tenantIds = await tenantIdsInScope()
-
-  const result = allocate({ lines, drivers, tenantIds })
-  const asOf = new Date().toISOString()
+  const now = new Date()
 
   return {
     state: "CONNECTED",
-    report: {
-      summary: summarize(result, asOf, periodCompleteness(new Date()), new Date()),
-      reconciliation: reconcile(result),
-      tenants: result.tenants,
-      unallocated: result.unallocated,
-    },
+    report: buildCostReport({ lines, drivers, tenantIds, bucket, prefix, now }),
   }
-}
-
-/** How far through the current calendar month we are, 0–1. */
-export function periodCompleteness(now: Date): number {
-  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)
-  const end = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)
-  return (now.getTime() - start) / (end - start)
 }
 
 async function readCurLines(bucket: string, prefix: string): Promise<CostLine[]> {

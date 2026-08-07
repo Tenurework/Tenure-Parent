@@ -11,7 +11,10 @@ import {
 } from "@tenure/audit"
 import { stableStringify } from "@tenure/configuration"
 
+import { isPaymentMode, type PaymentMode } from "@tenure/contracts"
+
 import { db, type TxClient } from "@/lib/db"
+import { currentEnvironment } from "@/lib/tenancy/context"
 import type { UserContext } from "@/lib/rbac"
 
 /**
@@ -53,13 +56,21 @@ import type { UserContext } from "@/lib/rbac"
  * — a version field that is always "(unresolved)" reads like provenance and is
  * not. It stays out until something can answer it.
  *
- * ── No writer has been migrated onto this yet ───────────────────────────────
- * Stated plainly because the value of every property above is zero until one
- * is, and a header that implies otherwise would be the more expensive kind of
- * wrong. Thirty-eight `db.auditEvent.create` call sites still hand-assemble
- * their rows; the chain therefore has no links in it, and `verifyChain` over
- * production data today would report every record unchained. That is a true
- * statement about the audit trail, not a caveat about this file.
+ * ── Two writers use this; the rest do not ───────────────────────────────────
+ * Stated plainly because the value of every property above is zero for a writer
+ * that has not been migrated, and a header that implied otherwise would be the
+ * more expensive kind of wrong.
+ *
+ * On this today (PAY-000-007):
+ *   · `src/lib/admin/guard.ts` — `requireCapability`, the single gate every
+ *     privileged administration command passes through, allow and deny alike.
+ *   · `src/lib/provisioning/reconcile.ts` — the `Tenant.Reconciled` record,
+ *     written inside the reconciler's own transaction via `txAuditLedger`.
+ *
+ * The remaining `db.auditEvent.create` call sites still hand-assemble their
+ * rows, so their records carry no chain position and `verifyChain` reports them
+ * unchained. That is a true statement about the audit trail, not a caveat about
+ * this file.
  *
  * Migration is one call site at a time, and each is mechanical:
  *
@@ -88,6 +99,8 @@ export interface AuditEventRow {
   reason: string | null
   metadata: Record<string, unknown>
   traceId: string | null
+  /** PAY-000-007. "test" or "live" — which money-mode the action happened in. */
+  mode: PaymentMode
   occurredAt: Date
 }
 
@@ -104,6 +117,8 @@ export interface StoredAuditEvent {
   reason: string | null
   metadata: unknown
   traceId: string | null
+  /** PAY-000-007. Selected on the chain read so the read-back shape is honest. */
+  mode: string
   occurredAt: Date
 }
 
@@ -111,6 +126,17 @@ export interface StoredAuditEvent {
 export const CHANGE_METADATA_KEY = "_change"
 /** Where the acting seat lives inside `metadata`. */
 export const SEAT_METADATA_KEY = "_seat"
+/**
+ * Where the money-mode is mirrored inside `metadata`.
+ *
+ * The `mode` COLUMN is what queries filter on; this is the same value inside
+ * the blob the hash chain covers. Without the mirror the column would be the
+ * one field of an audit row that could be rewritten around the application
+ * without breaking a link — which is the exact property the chain exists to
+ * provide, and it would be missing from the field that says whether real money
+ * was involved.
+ */
+export const MODE_METADATA_KEY = "_mode"
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v)
@@ -199,6 +225,7 @@ const CHAIN_SELECT = {
   reason: true,
   metadata: true,
   traceId: true,
+  mode: true,
   occurredAt: true,
 } as const
 
@@ -410,6 +437,20 @@ export interface RecordAuditEventInput {
   sensitiveKeys?: readonly string[]
   change?: AuditChange
   traceId?: string
+  /**
+   * Which money-mode the action happened in (PAY-000-007).
+   *
+   * Defaults to the ambient `TenantScope.environment`, which is where every
+   * caller already is: `withTenantScope`, `withSystemTenantScope` and
+   * `forEachInstitution` all open one, and all three resolve it from the
+   * tenant's published `platform.payments.mode`. Threading it through every
+   * writer by hand is how one writer eventually does not.
+   *
+   * Explicit only for a caller genuinely outside a tenant scope — the
+   * provisioning reconciler, which materialises the tenant and therefore runs
+   * before one can be opened — and for a test that pins it.
+   */
+  mode?: PaymentMode
   occurredAt?: Date
   /**
    * The release the code was running under. Defaults to IMAGE_TAG, which is
@@ -433,7 +474,15 @@ export async function recordAuditEvent(
   const occurredAt = input.occurredAt ?? new Date()
   const releaseId = input.releaseId ?? process.env.IMAGE_TAG
 
+  // PAY-000-007. The mode the action happened in, taken from the tenant scope
+  // the writer is already inside. `test` when there is neither an explicit
+  // value nor a scope — the direction that claims the least, because a row
+  // that says `live` is a row somebody will read as "real money moved".
+  const ambient = currentEnvironment()
+  const mode: PaymentMode = isPaymentMode(input.mode) ? input.mode : (ambient ?? "test")
+
   const metadata: Record<string, unknown> = { ...(input.metadata ?? {}) }
+  metadata[MODE_METADATA_KEY] = mode
   if (input.seat) metadata[SEAT_METADATA_KEY] = input.seat
   if (input.change) metadata[CHANGE_METADATA_KEY] = changeBlockFor(input.change, input.sensitiveKeys)
 
@@ -478,6 +527,7 @@ export async function recordAuditEvent(
       // picking keys out here is how the hash stops matching what was stored.
       metadata: { ...record.metadata },
       traceId: record.traceId,
+      mode,
       occurredAt: new Date(record.occurredAt),
     }
   })

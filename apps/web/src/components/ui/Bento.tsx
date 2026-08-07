@@ -161,7 +161,7 @@ export function StatTile({
   )
   if (href) {
     return (
-      <Link href={href} className="block no-underline outline-none focus-visible:ring-2 focus-visible:ring-[--primary] rounded-lg">
+      <Link href={href} className="block no-underline outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus] rounded-lg">
         {inner}
       </Link>
     )

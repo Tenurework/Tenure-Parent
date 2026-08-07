@@ -17,6 +17,9 @@ async function requireUserId() {
 /** Post a collaboration call on behalf of one of your ACTIVE clubs. */
 export async function createFeedPost(formData: FormData) {
   const userId = await requireUserId()
+  // Cache invalidation happens after the scope closes, not inside it. See the
+  // rule stated on `withTenantScope` and enforced by
+  // tests/architecture/redirect-lives-outside-tenant-scope.test.mjs.
   await withTenantScope(userId, async () => {
     const organizationId = String(formData.get("organizationId") ?? "")
     const title = String(formData.get("title") ?? "").trim()
@@ -47,18 +50,20 @@ export async function createFeedPost(formData: FormData) {
         eventId,
       },
     })
-
-    revalidatePath("/feed")
   })
+
+  revalidatePath("/feed")
 }
 
 /** Comment on a post — open to any current member across clubs (and OSE). */
 export async function addFeedComment(formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  // `false` when there was nothing to say: an empty submission must not
+  // invalidate the feed.
+  const commented = await withTenantScope(userId, async () => {
     const postId = String(formData.get("postId") ?? "")
     const body = String(formData.get("body") ?? "").trim()
-    if (!body) return
+    if (!body) return false
 
     // Reachable by id from any signed-in account until the scope is open: this
     // lookup carries no tenant predicate of its own, and the query layer is
@@ -80,9 +85,10 @@ export async function addFeedComment(formData: FormData) {
       href: "/feed",
       excludeUserId: userId,
     })
-
-    revalidatePath("/feed")
+    return true
   })
+
+  if (commented) revalidatePath("/feed")
 }
 
 /**
@@ -150,9 +156,9 @@ export async function requestCollab(formData: FormData) {
       href: "/feed",
       excludeUserId: userId,
     })
-
-    revalidatePath("/feed")
   })
+
+  revalidatePath("/feed")
 }
 
 /** OSE Director decision — the middle of every collaboration. */
@@ -229,7 +235,7 @@ export async function decideCollab(formData: FormData) {
       href: "/feed",
       excludeUserId: userId,
     })
-
-    revalidatePath("/feed")
   })
+
+  revalidatePath("/feed")
 }

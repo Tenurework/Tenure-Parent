@@ -2,7 +2,34 @@
 
 import { useActionState, useMemo, useState } from "react"
 
+import { activationPreview, fromMinorUnits, toDecimal, type OptionPrice } from "@tenure/finops"
+
 import { composeTenant, type ComposeResult } from "../actions"
+
+/**
+ * PAY-160-002 — a price in whole minor units, rendered at its currency's own
+ * precision.
+ *
+ * Through `@tenure/finops` rather than `(minor / 100).toFixed(2)`: the divisor is
+ * not 100 for every currency, and `toDecimal` reads the exponent off the `Money`
+ * it is given. `half-even` because it is a display rounding with no bias, stated
+ * rather than defaulted.
+ */
+function priceLabel(minor: number, currency: string): string {
+  const rendered = toDecimal(fromMinorUnits(minor, currency), "half-even")
+  return currency === "USD" ? `$${rendered}` : `${rendered} ${currency}`
+}
+
+/**
+ * What ticking a coexistence domain does to the quote.
+ *
+ * Nothing — and saying so is the point. Handing a domain to an external system
+ * REMOVES what Tenure may write there; it does not add a charge, and the charge
+ * that does exist follows the modules. Rendering the sentence beside every
+ * domain is what stops an unpriced option reading as a free one.
+ */
+const DOMAIN_PRICE_NOTE =
+  "Not separately charged — what this costs follows the modules that write the domain."
 
 /**
  * The composer.
@@ -33,6 +60,14 @@ export interface ComposeModule {
   lifecycle: string
   /** Whether the resolver would accept it. Decided by `ENABLEABLE`, on the server. */
   enableable: boolean
+  /**
+   * PAY-160-002. The catalog's list price, per seat and per organization.
+   *
+   * Required, not optional. An option whose price the form never received
+   * renders as a blank beside a checkbox, and a blank price on a composer with a
+   * running total is indistinguishable from free.
+   */
+  price: OptionPrice
 }
 
 export function ComposeForm({
@@ -149,6 +184,40 @@ export function ComposeForm({
     setRemoved([])
   }
 
+  /* --------------------------------------------------------- PAY-160-002 --
+   * The quote, and what has to be settled before activation.
+   *
+   * Five stages and, before this, no price anywhere in any of them. Somebody
+   * ticking twelve module checkboxes was assembling a commercial arrangement
+   * with no idea what any of it cost, and an option with no price beside it does
+   * not read as unpriced on a form — it reads as free.
+   *
+   * The seat count is an input rather than an assumption. Per-seat and per-org
+   * are different prices and both matter: quote only the first and a
+   * two-hundred-officer faculty is charged like a two-person club; quote only
+   * the second and the reverse. The running total is computed by
+   * `quoteConfiguration` inside `activationPreview` from the SAME manifest
+   * prices the catalog validates, through integer `Money` arithmetic, so a
+   * mixed-currency catalog throws rather than adding dollars to euros.
+   */
+  const [seats, setSeats] = useState(25)
+
+  const preview = useMemo(
+    () =>
+      activationPreview(
+        modules
+          .filter((m) => checked(m.key))
+          .map((m) => ({ optionKey: m.key, price: m.price })),
+        Number.isFinite(seats) && seats >= 0 ? Math.trunc(seats) : 0,
+      ),
+    // `checked` closes over added/removed/preset, which is what makes the total
+    // move when a checkbox does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modules, seats, added, removed, preset],
+  )
+  const quote = preview.quote
+  const extendedFor = (key: string) => quote.lines.find((l) => l.optionKey === key)?.extendedMinor ?? 0
+
   const problemsFor = (field: string) => (result?.problems ?? []).filter((p) => p.field === field)
 
   const Field = ({
@@ -176,6 +245,55 @@ export function ComposeForm({
 
   return (
     <form action={action} className="compose">
+      {/* PAY-160-002 — the running total, across all five stages.
+          Sticky rather than a footer: the price of the composition has to be
+          visible while the composition is being made, not discovered after the
+          last stage. It is the figure `activationPreview` emits, not a second
+          arithmetic written here. */}
+      <div
+        data-testid="running-total"
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 2,
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "6px",
+          padding: "var(--space-3) var(--space-4)",
+          marginBottom: "var(--space-4)",
+        }}
+      >
+        <strong>
+          Running total{" "}
+          <span data-testid="running-total-amount">
+            {priceLabel(quote.runningTotalMinor, quote.currency)}
+          </span>{" "}
+          per month
+        </strong>
+        <p className="slug">
+          {quote.lines.length} option(s) at {quote.seatCount} seat(s), per-organization plus per-seat.
+          List price for the configuration below, not a contracted price — see the pre-activation
+          disclosure at the end.
+        </p>
+        <div className="field">
+          <label htmlFor="seatCount">Seats</label>
+          <input
+            id="seatCount"
+            name="seatCount"
+            type="number"
+            min={0}
+            step={1}
+            value={seats}
+            onChange={(e) => setSeats(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+          />
+          <p className="hint">
+            How many people hold a seat. Per-seat and whole-organization charges are quoted
+            separately below because they behave differently: a ledger costs the same for ten
+            officers and two hundred, and messaging does not.
+          </p>
+        </div>
+      </div>
+
       <section className="system">
         <header>
           <h2>Identity</h2>
@@ -324,6 +442,21 @@ export function ComposeForm({
                   {m.enableable && !preset.has(m.key) && checked(m.key) && (
                     <span className="slug">Added to the preset.</span>
                   )}
+                  {/* PAY-160-002 — per SEAT and per ORG, beside every option.
+                      Both, always: quoting one of them is how a two-person club
+                      gets charged like a faculty or the other way round. A
+                      module included at no charge says why, because zero is a
+                      commercial statement and a blank is not. */}
+                  <span className="slug" data-testid={`price-${m.key}`}>
+                    {m.price.perSeatMinor === 0 && m.price.perOrgMinor === 0
+                      ? `Included at no charge — ${m.price.includedBecause ?? "no reason stated"}`
+                      : `${priceLabel(m.price.perSeatMinor, m.price.currency)} per seat · ` +
+                        `${priceLabel(m.price.perOrgMinor, m.price.currency)} per organization · ` +
+                        `${priceLabel(
+                          checked(m.key) ? extendedFor(m.key) : m.price.perOrgMinor + m.price.perSeatMinor * seats,
+                          m.price.currency,
+                        )} at ${seats} seat(s)`}
+                  </span>
                   <span className="slug">{m.description}</span>
                 </span>
               </label>
@@ -431,10 +564,37 @@ export function ComposeForm({
                   <span className="slug">
                     unticked means Tenure is authoritative for {domain}
                   </span>
+                  {/* Every option on every stage carries a price statement, and
+                      for these the true one is that they carry no charge. A
+                      blank here would read as an unpriced option; the sentence
+                      says which side of the quote it is on. */}
+                  <span className="slug" data-testid={`price-domain-${domain}`}>
+                    {DOMAIN_PRICE_NOTE}
+                  </span>
                 </span>
               </label>
             ))}
           </div>
+        </Field>
+
+        {/* WRK-020-004. The grain below the domain. A domain map answers who
+            writes finance; it cannot answer which side writes an invoice's
+            internal note, and a bidirectional profile with no direction on it
+            cannot state which side may write which field at all. Free text
+            rather than a widget because an object is a record name and a field
+            is one of its columns — neither is a list this console can hold. */}
+        <Field
+          name="objectAuthority"
+          label="Object and field authority (optional)"
+          hint="One per line. `finance.Invoice external INBOUND` says the customer's system writes it and Tenure receives a copy. `finance.Invoice.internalNote tenure` says that one field is ours. An object may not disagree with its domain above, and BIDIRECTIONAL is refused outside COEXISTENCE_TRANSITION and HYBRID_PROCESS_SPLIT."
+        >
+          <textarea
+            id="objectAuthority"
+            name="objectAuthority"
+            rows={4}
+            spellCheck={false}
+            placeholder={"finance.Invoice external INBOUND\nfinance.Invoice.internalNote tenure"}
+          />
         </Field>
       </section>
 
@@ -454,6 +614,95 @@ export function ComposeForm({
         <Field name="notes" label="Notes" hint="Shown on the plan.">
           <textarea id="notes" name="notes" rows={3} />
         </Field>
+      </section>
+
+      {/* ── Before activation ────────────────────────────────────────────
+          PAY-160-002 / Bible §18. The seven things that must be settled
+          before a system is activated, each either DECIDED with where the
+          decision is recorded, or UNDECIDED naming what would record it.
+
+          There is deliberately no default. A panel that renders "Merchant of
+          record: Tenure" because a field was blank has made a legal claim on
+          the platform's behalf, and six of these seven are decisions no code
+          can make. What IS decided is the ledger preview: it is the quote
+          above, which is exactly what would be posted if this configuration
+          were activated today. */}
+      <section className="system" data-testid="pre-activation">
+        <header>
+          <h2>Before activation</h2>
+          <span className={`badge ${preview.readyToActivate ? "ok" : "warn"}`}>
+            {preview.readyToActivate
+              ? "every disclosure settled"
+              : `${preview.openTopics.length} undecided`}
+          </span>
+        </header>
+        <p>
+          Registering in <code>DRAFT</code> commits to none of this. Provisioning is a separate,
+          approved step, and it must not be taken while anything below is open — a system that
+          takes money before its merchant of record, funds flow and loss responsibility are
+          settled is one nobody can say who is liable for.
+        </p>
+        <table className="grid">
+          <thead>
+            <tr>
+              <th>Disclosure</th>
+              <th>State</th>
+              <th>What it says today</th>
+            </tr>
+          </thead>
+          <tbody>
+            {preview.disclosures.map((d) => (
+              <tr key={d.topic} data-testid={`disclosure-${d.topic}`}>
+                <td>{d.label}</td>
+                <td>
+                  <span className={`badge ${d.state === "DECIDED" ? "ok" : "warn"}`}>
+                    {d.state === "DECIDED" ? "decided" : "undecided"}
+                  </span>
+                </td>
+                <td>
+                  {d.statement}{" "}
+                  <span className="slug">
+                    {d.state === "DECIDED"
+                      ? `Recorded in ${d.recordedIn}.`
+                      : `Would be recorded by ${d.wouldRecordIt}.`}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <h3>Ledger preview</h3>
+        <table className="grid">
+          <thead>
+            <tr>
+              <th>Option</th>
+              <th className="num">Per seat</th>
+              <th className="num">Per organization</th>
+              <th className="num">At {quote.seatCount} seats</th>
+            </tr>
+          </thead>
+          <tbody>
+            {quote.lines.map((quoteLine) => (
+              <tr key={quoteLine.optionKey}>
+                <td>{quoteLine.optionKey}</td>
+                <td className="num">{priceLabel(quoteLine.perSeatMinor, quote.currency)}</td>
+                <td className="num">{priceLabel(quoteLine.perOrgMinor, quote.currency)}</td>
+                <td className="num">{priceLabel(quoteLine.extendedMinor, quote.currency)}</td>
+              </tr>
+            ))}
+            <tr>
+              <td>
+                <b>Total, per month</b>
+              </td>
+              <td className="num" />
+              <td className="num" />
+              <td className="num" data-testid="ledger-preview-total">
+                <b>{priceLabel(quote.runningTotalMinor, quote.currency)}</b>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       {(result?.problems.length ?? 0) > 0 && (

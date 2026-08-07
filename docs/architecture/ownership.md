@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**540 files · 13 domains with code · 1 declared and unbuilt · 21 shared.**
+**647 files · 13 domains with code · 1 declared and unbuilt · 22 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
@@ -14,21 +14,45 @@ defensible.
 
 ## Domains
 
-| Domain | Files | What it owns |
+| Domain | Files | Experience | What it owns |
+|---|---:|---|---|
+| `control-plane` | 82 | deployer + engine + tenant | Composing, provisioning and operating tenants. The engine, not any tenant. |
+| `identity` | 71 | engine + tenant | Who someone is: providers, sessions, the sign-in surface. |
+| `authorization` | 43 | engine + tenant | What someone may do: capabilities, policy decisions, delegation. |
+| `organization` | 45 | engine + tenant | The org graph: institutions, organizations, roles, seats, the directory. |
+| `configuration` | 103 | engine + tenant | Layered configuration, blueprints, module resolution, tenancy scoping. |
+| `workflow` | 19 | engine + tenant | Approvals, their gates and their state machine. |
+| `files` | 17 | tenant | Documents and attachments: storage, retrieval, editing. |
+| `search-memory` | 8 | tenant | Retrieval across everything a principal may already see, and org memory. |
+| `notifications` | 51 | tenant | Telling someone something happened: in-app notices, calendars, messaging. |
+| `reporting` | 40 | engine + tenant | Reading the estate back: reports, dashboards, the audit trail. |
+| `erp-modules` | 36 | tenant | The domain modules a tenant runs: finance, resources, and the module catalog. |
+| `integrations` | 23 | tenant | Outbound connections to anything Tenure does not run. |
+| `billing-metering` | 40 | engine + tenant | What a tenant consumes and what it is charged for. |
+
+## Experience — who the code is rendered to
+
+TTES-000-001. The table above says which platform **domain** a file belongs to.
+This says which **audience** reaches it, and they are genuinely different
+questions: a Studio configuration page and a tenant settings page are both
+`configuration`, and only one of them may be opened by a customer.
+
+Keeping only the domain answer is how `apps/system-studio/src/components/` came
+to be filed under "the shell and the design system — what every domain renders
+through". Nothing outside the operator console imports one of those six files,
+and nothing in `apps/web` could — the two apps are separate origins on purpose
+(PD-007). They are now owned by `control-plane`, and the claim that was false
+is gone rather than reworded.
+
+| Experience | Files | What it is |
 |---|---:|---|
-| `control-plane` | 68 | Composing, provisioning and operating tenants. The engine, not any tenant. |
-| `identity` | 71 | Who someone is: providers, sessions, the sign-in surface. |
-| `authorization` | 41 | What someone may do: capabilities, policy decisions, delegation. |
-| `organization` | 43 | The org graph: institutions, organizations, roles, seats, the directory. |
-| `configuration` | 99 | Layered configuration, blueprints, module resolution, tenancy scoping. |
-| `workflow` | 16 | Approvals, their gates and their state machine. |
-| `files` | 16 | Documents and attachments: storage, retrieval, editing. |
-| `search-memory` | 8 | Retrieval across everything a principal may already see, and org memory. |
-| `notifications` | 41 | Telling someone something happened: in-app notices, calendars, messaging. |
-| `reporting` | 36 | Reading the estate back: reports, dashboards, the audit trail. |
-| `erp-modules` | 29 | The domain modules a tenant runs: finance, resources, and the module catalog. |
-| `integrations` | 11 | Outbound connections to anything Tenure does not run. |
-| `billing-metering` | 5 | What a tenant consumes and what it is charged for. |
+| `tenant` | 369 | What a customer signs into. Everything it serves is scoped to one institution. |
+| `deployer` | 46 | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
+| `engine` | 232 | Library code with no surface of its own. It renders to nobody; it is rendered through by whichever app imports it, so it belongs to neither audience and is available to both. |
+
+### Rendered to no declared audience
+
+_None._
 
 ## Declared, and not built
 
@@ -51,7 +75,6 @@ list here would mean the domains are wrong rather than that the code is unusual.
 | `apps/web/src/components/ui/` | the shell and the design system — what every domain renders through |
 | `apps/web/src/components/shell/` | the shell and the design system — what every domain renders through |
 | `apps/web/src/components/brand/` | the shell and the design system — what every domain renders through |
-| `apps/system-studio/src/components/` | the shell and the design system — what every domain renders through |
 | `apps/web/src/lib/a11y/` | the shell and the design system — what every domain renders through |
 | `apps/web/src/instrumentation.ts` | the boot-time environment check |
 | `apps/web/src/app/(app)/error.tsx` | the application error boundary |
@@ -59,6 +82,8 @@ list here would mean the domains are wrong rather than that the code is unusual.
 | `apps/web/src/components/BackButton.tsx` | a navigation primitive |
 | `apps/web/src/components/ComingSoon.tsx` | a placeholder surface for unbuilt modules |
 | `apps/web/src/components/ThemeSwitcher.tsx` | a shell control |
+| `apps/web/src/components/DensitySwitcher.tsx` | a shell control, beside ThemeSwitcher — it sets how tightly every domain renders and belongs to none of them |
+| `apps/web/src/app/design-contracts.test.ts` | asserts design contracts across every surface at once; scoping it to a domain would mean the other domains stopped being checked |
 | `apps/web/src/lib/db.ts` | the database client itself — owned by no domain because every domain reads through it |
 | `apps/web/src/app/layout.tsx` | the root document |
 | `apps/web/src/app/(app)/layout.tsx` | the application shell |

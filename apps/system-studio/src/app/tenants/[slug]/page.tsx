@@ -3,12 +3,12 @@ import { notFound, redirect } from "next/navigation"
 
 import { getTenantBinding } from "@tenure/blueprints"
 import { buildSystem, compatibilityFor, planPromotion } from "@tenure/platform-config"
-import { RESIDUAL_COST, needsApproval, nextStates, planFor } from "@tenure/provisioning"
+import { REQUIRES_OWNER, needsApproval, nextStates, planFor } from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
 import { ArchivedState, PendingDeletionState } from "@/components/states"
-import { ARCHIVED_STATES, PURGE_STATES, riskOf } from "@/lib/tenant-state"
+import { ARCHIVED_STATES, PURGE_STATES, observedFor, residualFindings, riskOf } from "@/lib/tenant-state"
 import { fleet } from "@/lib/cells"
 import { getTenant, registryConfigured } from "@/lib/registry"
 import { AdvanceControls } from "./AdvanceControls"
@@ -119,7 +119,22 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
 
   const plan = planFor(tenant.manifest)
   const moves = nextStates(tenant.state)
-  const residual = RESIDUAL_COST[tenant.state]
+  /**
+   * WRK-120-005 — what this tenant is holding, from facts the registry owns.
+   *
+   * `serving` is read off the published artifact rather than off the lifecycle
+   * state, because the artifact IS the routing switch: `ACTIVATING` publishes
+   * one with `serving: true` and that is what makes a cell answer for the
+   * tenant. Reading the state instead would report a tenant as not serving the
+   * moment somebody moved the row, while the cell was still routing at it.
+   */
+  const observed = observedFor({
+    isolation: tenant.manifest.isolation,
+    hasDeployment: tenant.deployment !== undefined,
+    serving: tenant.deployment?.serving === true,
+    evidenceRecords: tenant.evidence.length,
+  })
+  const residual = residualFindings(tenant.state, observed)
   const readiness = releaseReadiness(tenant.slug, tenant.registry?.placement.cellId)
 
   return (
@@ -201,7 +216,30 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           />
         )}
 
-        {residual && <p className="refused">{residual}</p>}
+        {/* WRK-120-005. The note, and what it is wrong about. Rendering the
+            sentence alone is what made the claim unfalsifiable: it says what
+            this state is SUPPOSED to retain, and until the reconciliation
+            existed nothing compared it to what this tenant actually holds. */}
+        {residual && (
+          <>
+            <p className="refused">{residual.note}</p>
+            {residual.unexplained.length > 0 && (
+              <p className="error">
+                Retained beyond that note, and still billing:{" "}
+                {residual.unexplained.join(", ")}. Observed from{" "}
+                {tenant.manifest.isolation} placement, the published artifact and{" "}
+                {tenant.evidence.length} evidence records — not from anything inside the tenant.
+              </p>
+            )}
+            {residual.overclaimed.length > 0 && (
+              <p className="refused">
+                Claimed by that note and not held here: {residual.overclaimed.join(", ")}. An
+                operator told they are paying for something they are not stops believing the panel
+                that carries the real finding.
+              </p>
+            )}
+          </>
+        )}
 
         <dl className="kv">
           <dt>blueprint</dt>
@@ -230,10 +268,15 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           moves={moves.map((to) => ({
             to,
             needsApproval: needsApproval(tenant.state, to),
+            // WRK-120-005. The destinations that cannot be entered with nobody
+            // named as responsible afterwards. Read from the engine, like
+            // `needsApproval`, so the field an operator is shown is exactly the
+            // field the engine will refuse without.
+            needsOwner: REQUIRES_OWNER.has(to),
             // Computed here, on the server, from the transition graph itself.
             // Reversibility especially: a hand-written label saying "this can be
             // undone" is a claim, and the graph is the fact.
-            risk: riskOf(tenant.slug, tenant.state, to),
+            risk: riskOf(tenant.slug, tenant.state, to, observed),
           }))}
         />
       </section>

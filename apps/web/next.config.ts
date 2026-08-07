@@ -37,8 +37,10 @@ const nextConfig: NextConfig = {
   // without this the app fails at build with "Unexpected token 'export'"
   // reading the package's index.ts.
   transpilePackages: [
-    "@tenure/identity","@tenure/contracts", "@tenure/configuration", "@tenure/blueprints", "@tenure/organization-model", "@tenure/module-runtime", "@tenure/modules", "@tenure/authorization", "@tenure/releases", "@tenure/workflow", "@tenure/audit", "@tenure/metadata", "@tenure/platform-config", "@tenure/provisioning"],
+    "@tenure/identity","@tenure/contracts", "@tenure/configuration", "@tenure/finops", "@tenure/blueprints", "@tenure/organization-model", "@tenure/module-runtime", "@tenure/modules", "@tenure/authorization", "@tenure/releases", "@tenure/workflow", "@tenure/audit", "@tenure/metadata", "@tenure/platform-config", "@tenure/payments", "@tenure/provisioning"],
 
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
+  ...(process.env.NEXT_IGNORE_TYPE_ERRORS === "1" ? { typescript: { ignoreBuildErrors: true as const } } : {}),
   poweredByHeader: false,
 
   experimental: {

@@ -1,0 +1,81 @@
+[
+  {
+    "id": "TTES-010-002",
+    "title": "Light/dark/high-contrast themes ship, but the contrast audit omits the product's third text ramp (which fails AA) and there is no gamut check at all",
+    "why_open": "The four themes are real and parsed from the stylesheet (apps/web/src/lib/a11y/theme-tokens.ts:77-99), and the contrast audit is real arithmetic (apps/web/src/lib/a11y/contrast.ts:104-140). But the hand-curated pairing list at apps/web/src/lib/a11y/contrast.test.ts:163-168 covers --text-1 and --text-2 on all three surfaces and silently omits --text-3, which is the ramp the product actually writes metadata, table headers, timestamps and captions in: 294 occurrences across 80 files (apps/web/src/app/(app)/admin/audit/page.tsx:108, :172, :186, :197; apps/web/src/components/ai/TenureAIPanel.tsx:124). Measured from the real tokens: light --text-3 #868b92 (globals.css:71) is 3.29:1 on --bg-surface, 2.98:1 on --bg-base and 2.84:1 on --bg-subtle; dark --text-3 #6b7280 (globals.css:207) is 3.91:1 on the dark card and 4.12:1 on the dark page. All five are under the 4.5:1 body floor the same file enforces for --text-1/--text-2. `npx jest src/lib/a11y/contrast.test.ts` is 17/17 green today, which is exactly the failure mode contrast.test.ts:1-8 warns about. Second unaudited pairing: --primary on --primary-light is 4.28:1 in light, rendered by apps/web/src/components/ui/Badge.tsx:23 (info variant) and apps/web/src/components/ThemeSwitcher.tsx:51. Third: the requirement says 'contrast/gamut tests' and there is no gamut check anywhere — `grep -rn gamut apps packages tests tools` returns zero hits, so a token authored as oklch()/color(display-p3 ...) that parseColor cannot measure would simply never be audited unless someone happened to pair it.",
+    "files": [
+      "apps/web/src/lib/a11y/contrast.test.ts",
+      "apps/web/src/lib/a11y/contrast.ts",
+      "apps/web/src/lib/a11y/theme-tokens.ts",
+      "apps/web/src/app/globals.css",
+      "apps/web/src/components/ui/Badge.tsx",
+      "apps/web/src/components/ThemeSwitcher.tsx"
+    ],
+    "smallest_real_change": "1) Add the missing PAIRINGS rows to contrast.test.ts: --text-3 on --bg-surface / --bg-base / --bg-subtle (purpose 'body'), and --primary on --primary-light (purpose 'body'). Run the suite and CONFIRM light, dark and light-contrast now fail with the measured ratios — that is the proof the rows bite. 2) Fix the palette rather than the test: darken light --text-3 until it clears 4.5:1 on --bg-subtle (#ebeae3), the worst of the three, and lighten dark --text-3 until it clears on --bg-surface (#0f1113); adjust --primary-light or use --primary-text-on-light for the Badge/ThemeSwitcher pairing. Re-run: green. 3) Add `gamutViolations(theme: TokenMap)` to contrast.ts — for every declared token whose value looks like a colour, require parseColor to succeed and every channel to be inside 0-255 with alpha in 0-1, rejecting wide-gamut functions the audit cannot measure — and call it once per theme in contrast.test.ts across ALL_THEMES. Mutation proof: add `--probe: color(display-p3 1 0 0);` to :root in globals.css, confirm the new gamut test fails, remove it, confirm green. Mutate the producer, not the helper: revert --text-3 in globals.css to #868b92 and confirm the light theme test reds.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-GATE-010",
+    "title": "Nothing proves the contrast audit's pairing list covers what the product renders — the list is a hand-curated subset with no completeness ratchet",
+    "why_open": "The gate is 'visual foundations are original, consistent and accessible'. Originality and consistency have a real boundary (apps/web/eslint.config.mjs:92-139, driven by the real ESLint binary in apps/web/scripts/design-token-lint.test.mjs:41-53). Accessibility does not: apps/web/src/lib/a11y/contrast.test.ts:157-223 is a literal array a human maintains, and its own header calls it 'not a convenient subset, which would be theatre' — but nothing enforces that. --text-3 is the standing proof it is a convenient subset: the token is declared in globals.css:71 and :207, is bound to a Tailwind class in apps/web/tailwind.config.ts:49, is used 294 times, and appears in no pairing. Adding a token, or a new foreground-on-surface combination in a component, is invisible to the gate forever. There is also no per-theme assertion that a token declared in one theme exists in the others — theme-tokens.ts:116-124 throws on a missing token, but only for tokens something already pairs.",
+    "files": [
+      "apps/web/src/lib/a11y/contrast.test.ts",
+      "apps/web/src/lib/a11y/theme-tokens.ts",
+      "apps/web/src/app/globals.css",
+      "apps/web/tailwind.config.ts"
+    ],
+    "smallest_real_change": "Add a completeness ratchet to contrast.test.ts that derives its expectation from the real files rather than from the array: (a) enumerate every foreground-ish token declared in globals.css (names matching /^--(text|shell-text|.*-text|primary|accent|success|warning|error|info|chart-\\d)/) via readThemes(), (b) assert each one appears as `fg` in at least one PAIRINGS row, listing by name the ones that do not, and (c) assert every token bound to a colour utility in tailwind.config.ts resolves in all four themes. Mutation proof: delete the `--text-2 on --bg-subtle` PAIRINGS row and confirm the ratchet names --text-2 and fails; restore, confirm green. Then delete a token from the html.dark block and confirm (c) fails. This is the change that makes TTES-010-002's fix stay true instead of decaying.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-020-003",
+    "title": "The vendor-primitive boundary exists for icons only — six modules import react-aria-components raw, with no owned Menu or Tooltip wrapper to import instead",
+    "why_open": "Bible section 7 and 16 require domain modules to build on Tenure-owned wrappers and an ESLint rule that prevents vendor components. Half of that exists: apps/web/eslint.config.mjs:126-139 restricts lucide-react and @phosphor-icons/react, with a structural carve-out for the registry at eslint.config.mjs:224-229. react-aria-components — the actual behavioural primitive library (apps/web/package.json:29) — is not restricted at all, and six modules outside the owned wrapper layer import it directly: apps/web/src/components/shell/ShellHeader.tsx:5-10 (Button, Menu, MenuItem, MenuTrigger, Popover), apps/web/src/components/shell/SideNav.tsx:6-11 (Button, Focusable, Tooltip, TooltipTrigger), apps/web/src/components/shell/TenantSwitcher.tsx:4, apps/web/src/components/shell/NotificationBell.tsx:5-10, apps/web/src/components/CalendarSubscribe.tsx:4, apps/web/src/components/ClubImageEditor.tsx:3. There is a wrapper for Button (apps/web/src/components/ui/Button.tsx:3), Overlay, Select, Tabs, TextField and Segmented — but none for Menu/MenuTrigger/MenuItem/Popover or Tooltip/TooltipTrigger, so the rule cannot be turned on without first providing the sanctioned alternative the rule message must name.",
+    "files": [
+      "apps/web/eslint.config.mjs",
+      "apps/web/scripts/design-token-lint.test.mjs",
+      "apps/web/src/components/ui/Menu.tsx",
+      "apps/web/src/components/ui/Tooltip.tsx",
+      "apps/web/src/components/ui/Button.tsx",
+      "apps/web/src/components/ui/Overlay.tsx",
+      "apps/web/src/components/shell/ShellHeader.tsx",
+      "apps/web/src/components/shell/SideNav.tsx",
+      "apps/web/src/components/shell/TenantSwitcher.tsx",
+      "apps/web/src/components/shell/NotificationBell.tsx",
+      "apps/web/src/components/CalendarSubscribe.tsx",
+      "apps/web/src/components/ClubImageEditor.tsx"
+    ],
+    "smallest_real_change": "1) Add apps/web/src/components/ui/Menu.tsx (Menu, MenuTrigger, MenuItem, MenuPopover) and apps/web/src/components/ui/Tooltip.tsx (Tooltip, TooltipTrigger, Focusable re-export), each wrapping react-aria-components behind a Tenure API with the token classes the four call sites already hand-write — these are the sanctioned alternatives the rule message names. 2) Migrate the six modules to import Button from @/components/ui/Button and the new wrappers, deleting every react-aria-components import outside src/components/ui/. 3) Generalise RESTRICTED_ICON_IMPORTS into a vendor-primitive list in eslint.config.mjs: add react-aria-components and class-variance-authority to no-restricted-imports for PRODUCT_MODULES, and extend the structural carve-out from the single ICON_REGISTRY path to `src/components/ui/**` (the owned wrapper layer), which is the one place allowed to name a vendor. 4) Prove it in apps/web/scripts/design-token-lint.test.mjs using the existing lintAs() harness: assert `import { Menu } from \"react-aria-components\"` linted as src/components/shell/X.tsx reports the vendor message, and the same source linted as src/components/ui/Menu.tsx reports nothing. Mutation proof: remove react-aria-components from the restricted list, confirm the first assertion fails; restore, confirm green; then re-add the raw import to ShellHeader.tsx and confirm `npm run lint` reds.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-030-005",
+    "title": "Connection Center, missing-connection cards, resource selection, reauth/ask-admin and external-action receipts do not exist anywhere in the product",
+    "why_open": "Zero hits for Connection Center / ConnectionCenter / connection-center / missing-connection / ConnectionOpportunity across apps/web/src, packages/ and apps/web/prisma/schema.prisma — the only matches in the repo are the two ledger files that import the requirement text. apps/web/src/lib/auth-connections.ts is cell-level identity-provider configuration (Okta), not tenant workspace connections. The settings route, which is where such a centre would live, has Profile / Appearance / Seats / Backup approver and no connections section at all (apps/web/src/app/(app)/settings/page.tsx:73-161). The nearest real behaviour is the AI panel's unconnected state, which today is one line of prose rather than the specified card: apps/web/src/components/ai/TenureAIPanel.tsx:80 renders \"AI answers aren't set up for this workspace yet\" with no ownership, no ask-admin path, no resumption. HONESTY NOTE: the full requirement cannot be truthfully closed from the presentation layer — WRK-010-001/WRK-030-002 (Connection, ConnectionOpportunity, PendingActionIntent, ConnectionLaunchToken) exist in no package and no migration, and apps/web/prisma/schema.prisma is owned by another cluster run. Anything claiming a certified provider connection would be a canned value.",
+    "files": [
+      "apps/web/src/components/connections/MissingConnectionCard.tsx",
+      "apps/web/src/lib/connections/capability-resolution.ts",
+      "apps/web/src/lib/connections/capability-resolution.test.ts",
+      "apps/web/src/components/ai/TenureAIPanel.tsx",
+      "apps/web/src/app/(app)/settings/page.tsx",
+      "apps/web/src/lib/ai.ts"
+    ],
+    "smallest_real_change": "Build only the half that has real state behind it, and mark the provider half BLOCKED_EXTERNAL naming packages/work-graph and the Connection model. (a) apps/web/src/lib/connections/capability-resolution.ts: a pure function mapping a capability's real observable state to exactly one of the Bible's outcomes — CONNECTED, NEEDS_USER_CONNECT, NEEDS_ADMIN, NOT_CERTIFIED, UNAVAILABLE — plus the user-facing path for each, with the rule from WRK-030-005 that a non-certified capability must never yield a connect action. (b) apps/web/src/components/connections/MissingConnectionCard.tsx: the owned card (plain-language access, who owns it, connect vs ask-admin vs alternative, and the question preserved for resumption). (c) Real caller with real state: TenureAIPanel.tsx replaces the bare string at line 80 with the card, driven by the `aiEnabled` flag the route already returns from aiConfigured() (apps/web/src/lib/ai.ts:31-40) — this is genuine not-connected state, not a fixture. (d) A Connections section on the settings page listing the connections that actually exist today with their real health: the AI model connection (aiConfigured), object storage (storageConfigured, already imported at settings/page.tsx:89) and the per-user calendar ICS feed (apps/web/src/components/CalendarSubscribe.tsx), each with status and a disconnect/where-to-fix path. Prove with a jest test over capability-resolution.ts (mutate NOT_CERTIFIED to return a connect action, confirm the test reds) and one Playwright assertion that the panel renders the card with an ask-admin control when ANTHROPIC_API_KEY is unset (remove the aria-labelled control, confirm the spec fails).",
+    "already_done": false
+  },
+  {
+    "id": "TTES-050-001",
+    "title": "No persona task scorecard exists — no baselines, no targets, and nothing recorded from the journeys that already run",
+    "why_open": "`grep -rn -i scorecard apps/web/src apps/web/e2e tests tools` returns zero hits, and `persona` matches nothing in apps/web/src except unrelated 'personal data' strings (apps/web/src/lib/http/internal-headers.ts). Bible section 18 names the measures (completion, time, navigation steps, search time-to-object, form correction, approval comprehension) and section 18's closing line requires recording what is tested rather than a subjective claim. Thirty Playwright journeys already exist under apps/web/e2e and already sign in as named people (apps/web/e2e/a11y.spec.ts:54 signs in as Dana Whitfield), so the raw material for step-count and time-to-object baselines is being produced on every run and thrown away. The ledger marks this FAIL and it is genuinely FAIL.",
+    "files": [
+      "apps/web/src/lib/ux/task-scorecard.ts",
+      "apps/web/src/lib/ux/task-scorecard.test.ts",
+      "apps/web/e2e/support/scorecard.ts",
+      "apps/web/e2e/shell.spec.ts",
+      "apps/web/e2e/search-reports.spec.ts",
+      "apps/web/e2e/approvals.spec.ts"
+    ],
+    "smallest_real_change": "1) apps/web/src/lib/ux/task-scorecard.ts: a typed registry of persona x task entries (persona, task id, metric, baseline, target, how it is measured), plus `regressions(recorded, registry)` returning the entries whose recorded value is worse than target. Every entry must name a task an existing e2e journey performs — no aspirational rows. 2) apps/web/e2e/support/scorecard.ts: `measureTask(page, taskId, fn)` counting real user interactions (clicks, key presses, navigations) and wall-clock to the task's completion assertion, appending to a JSON artefact. 3) Instrument three existing journeys — command-search time-to-object (shell.spec.ts), an approval decision, and a report drill-through — so the baseline is recorded rather than declared. 4) apps/web/src/lib/ux/task-scorecard.test.ts asserts every registry entry has both a baseline and a strictly-better target, that no two entries share a task id, and that `regressions()` flags a recorded value past target. Mutation proof: set one target equal to its baseline and confirm the 'target must improve on baseline' test reds; feed a recorded value one step worse than target and confirm regressions() names it. HONESTY NOTE: this establishes measured baselines and targets, which is what the requirement asks; it does not by itself prove superiority (TTES-050-002/005) and must not be reported as doing so.",
+    "already_done": false
+  }
+]

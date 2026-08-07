@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader"
 import { StatGrid, StatTile } from "@/components/ui/Bento"
 import { Card, CardHeader } from "@/components/ui/Card"
 import { PortfolioSankey } from "@/components/finance/PortfolioSankey"
-import { formatCents } from "@/lib/finance"
+import { formatCentsIn, rollUpPortfolio } from "@/lib/finance"
 
 export const dynamic = "force-dynamic"
 
@@ -38,33 +38,70 @@ export default async function PortfolioFinancePage() {
         slug: true,
         budgetLines: {
           where: { academicYear: CURRENT_YEAR },
-          select: { budgetedCents: true, actualCents: true },
+          // `currency` is selected because the roll-up refuses to add lines
+          // that disagree about it. Dropping it from this select is how the
+          // page went back to summing bare integers.
+          select: {
+            category: true,
+            budgetedCents: true,
+            actualCents: true,
+            currency: true,
+          },
         },
       },
     })
 
-    const clubs = orgs
-      .map((o) => {
-        const budgeted = o.budgetLines.reduce((s, l) => s + l.budgetedCents, 0)
-        const actual = o.budgetLines.reduce((s, l) => s + l.actualCents, 0)
-        return { name: o.shortName ?? o.name, slug: o.slug, budgeted, actual, lines: o.budgetLines.length }
-      })
-      .filter((c) => c.budgeted > 0 || c.actual > 0)
+    // PAY-080-004. The totals are grouped by currency rather than summed into
+    // one figure: this page spans every club in the institution, which is
+    // exactly where two denominations meet.
+    const portfolio = rollUpPortfolio(
+      orgs.map((o) => ({
+        name: o.shortName ?? o.name,
+        slug: o.slug,
+        lines: o.budgetLines,
+      })),
+    )
+
+    const clubs = portfolio.clubs
+      .filter((c) => c.budgetedCents > 0 || c.actualCents > 0)
+      .map((c) => ({
+        name: c.name,
+        slug: c.slug,
+        currency: c.currency,
+        budgeted: c.budgetedCents,
+        actual: c.actualCents,
+        lines: c.lineCount,
+      }))
       .sort((a, b) => b.budgeted - a.budgeted)
 
-    const totalBudgeted = clubs.reduce((s, c) => s + c.budgeted, 0)
-    const totalActual = clubs.reduce((s, c) => s + c.actual, 0)
+    // The headline figures name their currency. When an institution runs more
+    // than one, the largest is shown and the rest are named in the hint —
+    // never added together.
+    const primary = portfolio.totals[0] ?? {
+      currency: "USD",
+      budgetedCents: 0,
+      actualCents: 0,
+      clubCount: 0,
+    }
+    const otherTotals = portfolio.totals.slice(1)
+    const money = (cents: number, currency: string | null) =>
+      formatCentsIn(cents, { locale: "en-US", currency: currency ?? primary.currency })
+    const totalBudgeted = primary.budgetedCents
+    const totalActual = primary.actualCents
     const utilPct = totalBudgeted > 0 ? Math.round((totalActual / totalBudgeted) * 100) : 0
     const overClubs = clubs.filter((c) => c.actual > c.budgeted).length
 
-    // Each club's budget splits into what's spent and what remains.
+    // Each club's budget splits into what's spent and what remains. Only the
+    // primary currency's clubs: a flow diagram whose ribbon widths are two
+    // different units is a picture of nothing.
+    const sankeyClubs = clubs.filter((c) => c.currency === primary.currency)
     const sankey = {
       nodes: [
-        ...clubs.map((c) => ({ id: `club:${c.slug}`, label: c.name })),
+        ...sankeyClubs.map((c) => ({ id: `club:${c.slug}`, label: c.name })),
         { id: "spent", label: "Spent", color: "var(--chart-1)" },
         { id: "remaining", label: "Remaining", color: "var(--border-strong)" },
       ],
-      links: clubs.flatMap((c) => [
+      links: sankeyClubs.flatMap((c) => [
         ...(c.actual > 0 ? [{ source: `club:${c.slug}`, target: "spent", value: c.actual }] : []),
         ...(c.budgeted - c.actual > 0
           ? [{ source: `club:${c.slug}`, target: "remaining", value: c.budgeted - c.actual }]
@@ -82,11 +119,29 @@ export default async function PortfolioFinancePage() {
 
         <div className="mb-5">
           <StatGrid>
-            <StatTile label="Clubs with budgets" value={clubs.length} icon={Building2} />
-            <StatTile label="Total budgeted" value={formatCents(totalBudgeted)} icon={DollarSign} />
             <StatTile
-              label="Total spent"
-              value={formatCents(totalActual)}
+              label="Clubs with budgets"
+              value={clubs.length}
+              hint={
+                portfolio.mixedCurrencyClubs.length > 0
+                  ? `${portfolio.mixedCurrencyClubs.length} not totalled — mixed currencies`
+                  : undefined
+              }
+              icon={Building2}
+            />
+            <StatTile
+              label={`Total budgeted (${primary.currency})`}
+              value={money(totalBudgeted, primary.currency)}
+              hint={
+                otherTotals.length > 0
+                  ? `plus ${otherTotals.map((t) => money(t.budgetedCents, t.currency)).join(", ")}`
+                  : undefined
+              }
+              icon={DollarSign}
+            />
+            <StatTile
+              label={`Total spent (${primary.currency})`}
+              value={money(totalActual, primary.currency)}
               hint={`${utilPct}% utilized`}
               icon={BarChart3}
             />
@@ -144,8 +199,8 @@ export default async function PortfolioFinancePage() {
                             {c.name}
                           </Link>
                         </td>
-                        <td className="px-3 py-2.5 text-right text-text-2">{formatCents(c.budgeted)}</td>
-                        <td className="px-3 py-2.5 text-right text-text-2">{formatCents(c.actual)}</td>
+                        <td className="px-3 py-2.5 text-right text-text-2">{money(c.budgeted, c.currency)}</td>
+                        <td className="px-3 py-2.5 text-right text-text-2">{money(c.actual, c.currency)}</td>
                         <td
                           className={`px-3 py-2.5 text-right tabular-nums ${over ? "text-[--error]" : "text-text-1"}`}
                         >

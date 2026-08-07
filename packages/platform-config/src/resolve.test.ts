@@ -106,19 +106,42 @@ describe("every shipped blueprint and binding is valid against the registry", ()
     expect(broken.blueprintId).toBeTruthy()
   })
 
-  it("declares no key that decides authority, and none that is a secret", () => {
-    // The fallback to platform defaults is only defensible while this holds. If
-    // a security-relevant key is ever added to this registry, this fails and the
-    // fallback has to be reconsidered rather than silently inherited.
-    //
-    // Sensitivity is about disclosure, not authority: fiscalYearStartMonth is
-    // "internal" because it is an operational detail, not because reading it
-    // grants anything. What would break the fallback is a key that gates a
-    // capability, or one whose default is a secret.
+  it("declares no key whose value is a secret", () => {
+    // The fallback to platform defaults is only defensible while this holds:
+    // an unbound institution resolves to every default in this registry, so a
+    // default that was itself a credential would be handed out by the fallback.
     for (const def of REGISTRY.all()) {
-      expect(def.requiresCapability).toBeUndefined()
       expect(def.sensitivity).not.toBe("secret")
       expect(def.sensitivity).not.toBe("confidential")
     }
+  })
+
+  // This assertion used to read `expect(def.requiresCapability).toBeUndefined()`
+  // for every key, with a comment saying that if a security-relevant key were
+  // ever added "this fails and the fallback has to be reconsidered rather than
+  // silently inherited". PAY-000-007 added the first ones, so the reconsideration
+  // is here rather than the assertion being deleted.
+  //
+  // What actually made the blanket rule safe was not the ABSENCE of authority
+  // keys — it was that the fallback can only ever hand out DEFAULTS. So the
+  // property that has to hold is narrower and stronger: every authority-gating
+  // key's default must grant nothing, so an institution nobody has configured
+  // inherits the powerless value. Pinned by key AND by default value, so adding
+  // a third one is a deliberate edit here rather than a silent inheritance.
+  it("gives every authority-gating key a default that grants nothing", () => {
+    const gated = REGISTRY.all()
+      .filter((d) => d.requiresCapability)
+      .map((d) => [d.key, d.default])
+      .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
+
+    expect(gated).toEqual([
+      // The threshold ladder: a currency the ladder does not price fails closed,
+      // so a default naming one currency does not weaken any other.
+      ["platform.payments.approvalThresholds", { USD: 500_000 }],
+      // Empty: names no legal entity, so the fallback binds no jurisdiction.
+      ["platform.payments.legalEntityId", ""],
+      // `test`, never `live`: an unconfigured tenant does not move real money.
+      ["platform.payments.mode", "test"],
+    ])
   })
 })

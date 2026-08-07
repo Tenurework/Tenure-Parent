@@ -2,6 +2,7 @@ import "server-only"
 import { createHash } from "node:crypto"
 
 import { db } from "@/lib/db"
+import { paymentModeForInstitution } from "@/lib/config/server"
 import { runInTenantScope } from "@/lib/tenancy/context"
 import { TENANT_SCOPED, UNENFORCEABLE } from "@/lib/tenancy/registry"
 
@@ -72,6 +73,10 @@ const SCOPED_READERS: Record<(typeof TENANT_SCOPED)[number], () => Promise<unkno
   // changes told the rest of the platform — and a dead-lettered row is exactly
   // the thing someone asks about after an incident.
   OutboxEvent: () => db.outboxEvent.findMany(),
+  // And what consumed them. Without this half an export says an event was
+  // delivered and cannot say to whom, which is the question a redelivery
+  // dispute is actually about.
+  InboxEvent: () => db.inboxEvent.findMany(),
   RoleTransfer: () => db.roleTransfer.findMany(),
   ApprovalDelegation: () => db.approvalDelegation.findMany(),
   Resource: () => db.resource.findMany(),
@@ -83,6 +88,37 @@ const SCOPED_READERS: Record<(typeof TENANT_SCOPED)[number], () => Promise<unkno
   Budget: () => db.budget.findMany(),
   Vendor: () => db.vendor.findMany(),
   FeedPost: () => db.feedPost.findMany(),
+  // PAY-030-007 / PAY-230-004. The posted ledger and the allocation of an
+  // inbound receipt across club, fund and event. Both gained an
+  // `institutionId`, which is what moved them into TENANT_SCOPED and therefore
+  // into this table — and an export of an institution's data that omitted its
+  // own financial record would be the one omission nobody would accept.
+  LedgerEntry: () => db.ledgerEntry.findMany(),
+  ReceiptAllocation: () => db.receiptAllocation.findMany(),
+  // PAY-150-003. The standing declarations behind a decision. An export that
+  // shows an approval was refused and cannot show the recusal that refused it
+  // does not answer the question it was requested for.
+  ConflictDeclaration: () => db.conflictDeclaration.findMany(),
+  Recusal: () => db.recusal.findMany(),
+  // PAY-020-004 / PAY-080-004 / PAY-130-004. The payments objects. Exported as
+  // stored: `ExternalReference` holds the provider's OWN id, which is a
+  // reference to an object in the provider's system rather than a credential
+  // for it — no key, no token, nothing that authenticates. The canonical id is
+  // Tenure's and belongs to the tenant by definition.
+  ExternalReference: () => db.externalReference.findMany(),
+  Settlement: () => db.settlement.findMany(),
+  ProviderBalanceTransaction: () => db.providerBalanceTransaction.findMany(),
+  // PAY-270-002. Which charge model each club runs under and who is liable for
+  // the money. Commercial terms the tenant agreed to, so they belong in the
+  // tenant's own export; it holds no credential — the provider account it names
+  // is an identifier, not a key.
+  //
+  // Its sibling `ProviderEventReceipt` is deliberately NOT here. That table is
+  // PLATFORM_GLOBAL: it records that the platform saw a provider event once,
+  // before the event is attributed to anybody, and it carries no institutionId
+  // to filter on. Exporting it under one tenant would hand that tenant rows
+  // about every other.
+  PaymentsFundsFlowConfig: () => db.paymentsFundsFlowConfig.findMany(),
 }
 
 /** Stable JSON so two exports of unchanged data produce the same digest. */
@@ -123,6 +159,15 @@ export async function exportTenant(
 ): Promise<TenantExport> {
   const scope = {
     institutionId,
+    // Bulk extraction of one tenant's own rows. Distinct from `support` (a
+    // diagnostic read) and from `model-exposure` (rows that leave for a vendor)
+    // because those are the two questions asked of an export after the fact:
+    // who read this, and did any of it go anywhere.
+    purpose: "export" as const,
+    // The tenant's own mode, resolved from its published configuration. An
+    // export is evidence of what a tenant held, and evidence that cannot say
+    // whether the tenant was live is evidence somebody will read the wrong way.
+    environment: await paymentModeForInstitution(institutionId),
     actor: { principalId: options.requestedBy, principalType: "support" as const },
   }
 

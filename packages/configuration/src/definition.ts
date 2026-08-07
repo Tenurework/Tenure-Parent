@@ -1,5 +1,7 @@
 import type { ZodType } from "zod"
 
+import { priceProblems, type OptionPrice } from "@tenure/finops"
+
 import type { ConfigScope } from "./scopes"
 import { isConfigScope } from "./scopes"
 import type { MergeStrategy } from "./merge"
@@ -57,8 +59,59 @@ export interface ConfigDefinition<T = unknown> {
    */
   overridable: boolean
 
-  /** Capability a principal must hold to SET this. Reading is governed elsewhere. */
+  /**
+   * Capability a principal must hold to SET this. Reading is governed elsewhere.
+   *
+   * Declared here and enforced in `planPublication`, which refuses a proposal
+   * touching this key unless the publisher's held capabilities include it. It
+   * was declared and enforced NOWHERE until PAY-000-007: a field that only
+   * documents an intention is indistinguishable from no field, and the first
+   * key that actually needed it would have been publishable by anyone.
+   */
   requiresCapability?: string
+
+  /**
+   * True when this key means nothing until the tenant is in live mode.
+   *
+   * The separation PAY-000-007 exists for, expressed where it can be enforced.
+   * A tenant in `test` mode publishing a live-only value has recorded a
+   * decision that governs money it is not moving — a legal entity that signs
+   * for nothing, a descriptor that appears on no statement — and the value then
+   * silently becomes effective the moment somebody flips the mode, which is the
+   * one moment nobody re-reads the configuration.
+   *
+   * So `planPublication` blocks it while the tenant's current resolved mode is
+   * `test`. Flipping the mode is its own publication, with its own diff and its
+   * own capability, and the live-only values follow it.
+   */
+  liveOnly?: boolean
+
+  /**
+   * What choosing this option costs — per seat AND for the whole organisation.
+   *
+   * Required, and required for a reason. NEXT-SESSION §7 is a standing product
+   * requirement: every option a tenant chooses, at every stage of setup, carries
+   * a price with a running total, "so cost is never a surprise at the end", and
+   * "a new config option without a price is incomplete."
+   *
+   * Required rather than optional is the whole enforcement. An optional field a
+   * caller does not set is invisible to `tsc` — it compiles, every unit test
+   * passes because tests build their own fixtures, and the gap appears only when
+   * a customer is looking at a quote with a blank cell in it. Declared required,
+   * a new definition that does not price itself fails to compile, and one built
+   * by spreading an older object fails `validateDefinition` at registration.
+   *
+   * An option that genuinely costs nothing writes zero on both axes AND says
+   * why, in `includedBecause`. Zero is a commercial statement — it says Tenure
+   * gives this away — and it is indistinguishable on a form from "nobody has
+   * priced this yet", so the reason is required rather than implied.
+   *
+   * `OptionPrice` is the platform's one price shape, shared with the module
+   * catalog's option prices, so a quote assembled from modules and one assembled
+   * from configuration are the same arithmetic rather than two that agree until
+   * they do not.
+   */
+  price: OptionPrice
 
   /** What it is for, in a sentence. Surfaced in the Studio. */
   description: string
@@ -122,6 +175,37 @@ export function validateDefinition(def: ConfigDefinition): void {
     if (!isConfigScope(scope)) {
       throw new ConfigDefinitionError(`${where} lists unknown scope ${JSON.stringify(scope)}.`)
     }
+  }
+
+  // NEXT-SESSION §7. Checked here, at registration, so an unpriced option is a
+  // startup failure — the same class of failure as an unnamed owner — rather
+  // than a blank column on the screen where a customer decides what to buy.
+  //
+  // `priceProblems` is the pricing engine's own rule set (missing price,
+  // fractional minor units, negative list price, bad currency, unstated
+  // rounding), reused rather than restated: a second copy here would be a second
+  // answer to "is this price usable".
+  const pricing = priceProblems(def.price, where)
+  if (pricing.length > 0) {
+    throw new ConfigDefinitionError(
+      `${pricing.join(" ")} Every configuration option is priced per seat AND for the whole ` +
+        `organisation (NEXT-SESSION §7); an option without a price is incomplete.`,
+    )
+  }
+  // Zero on both axes is a commercial statement — it says Tenure gives this
+  // away — and on a form it is indistinguishable from "nobody has priced this
+  // yet". The reason is what tells them apart, so it is required exactly where
+  // the amounts are zero and nowhere else.
+  if (
+    def.price.perSeatMinor === 0 &&
+    def.price.perOrgMinor === 0 &&
+    (typeof def.price.includedBecause !== "string" || def.price.includedBecause.trim() === "")
+  ) {
+    throw new ConfigDefinitionError(
+      `${where} is priced at zero per seat and zero for the organisation with no ` +
+        `includedBecause. "Included" is a promise somebody has to be able to withdraw, and one ` +
+        `nobody wrote down is indistinguishable from an option nobody has priced.`,
+    )
   }
 
   // A default that does not satisfy its own schema is a bug that would otherwise

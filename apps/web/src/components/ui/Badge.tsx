@@ -5,16 +5,13 @@ import {
   type EventStatus,
 } from "@prisma/client"
 
-type BadgeVariant =
-  | "default"
-  | "success"
-  | "warning"
-  | "error"
-  | "info"
-  | "draft"
-  | "accent"
-
-const variantStyles: Record<BadgeVariant, string> = {
+/**
+ * Exported so the visual-baseline catalogue (`src/components/ui/gallery-catalog.ts`)
+ * derives the variant list from here instead of re-listing it. Adding a variant
+ * therefore adds a screenshot cell with no baseline, and
+ * `e2e/visual-baselines.spec.ts` fails rather than shipping it unphotographed.
+ */
+export const BADGE_VARIANT_STYLES = {
   default: "bg-[--badge-draft-bg] text-[--badge-draft-text]",
   draft:   "bg-[--badge-draft-bg] text-[--badge-draft-text]",
   success: "bg-[--badge-approved-bg] text-[--badge-approved-text]",
@@ -22,7 +19,9 @@ const variantStyles: Record<BadgeVariant, string> = {
   error:   "bg-[--badge-rejected-bg] text-[--badge-rejected-text]",
   info:    "bg-[--primary-light] text-[--primary]",
   accent:  "bg-[--badge-accent-bg] text-[--badge-accent-text]",
-}
+} as const
+
+export type BadgeVariant = keyof typeof BADGE_VARIANT_STYLES
 
 export function Badge({
   children,
@@ -37,7 +36,7 @@ export function Badge({
     <span
       className={`
         inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[12px] font-semibold leading-none
-        ${variantStyles[variant]} ${className ?? ""}
+        ${BADGE_VARIANT_STYLES[variant]} ${className ?? ""}
       `}
     >
       {children}

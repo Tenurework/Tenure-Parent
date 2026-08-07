@@ -12,6 +12,7 @@ import { auth } from "@/lib/auth"
 import { getUserContext, isOseDirector } from "@/lib/rbac"
 import { requireCapability } from "@/lib/admin/guard"
 import { withTenantScope } from "@/lib/tenant-scope"
+import { configSnapshotForInstitution } from "@/lib/config/server"
 import { ORG_CATEGORIES, chartClub, clubCode, uniquePositionCode } from "@/lib/clubs"
 import { directory } from "@/lib/directory"
 import { notifyUsers } from "@/lib/notify"
@@ -63,20 +64,22 @@ async function upsertHolder(email: string, name?: string) {
 
 export async function adminCharterClub(formData: FormData) {
   const sessionUserId = await actingUserId()
-  await withTenantScope(sessionUserId, async () => {
+  const slug = await withTenantScope(sessionUserId, async () => {
     const { userId, institutionId } = await requireCapability("club.create")
     const name = String(formData.get("name") ?? "")
     const category = String(formData.get("category") ?? "") as OrgCategory
     const description = String(formData.get("description") ?? "")
     const club = await chartClub(institutionId, { name, category, description }, userId)
-    revalidateAdmin(club.slug)
-    redirect(`/admin/clubs/${club.slug}`)
+    return club.slug
   })
+
+  revalidateAdmin(slug)
+  redirect(`/admin/clubs/${slug}`)
 }
 
 export async function adminEditClub(formData: FormData) {
   const sessionUserId = await actingUserId()
-  await withTenantScope(sessionUserId, async () => {
+  const slug = await withTenantScope(sessionUserId, async () => {
     const organizationId = String(formData.get("organizationId") ?? "")
     const org = await orgOrThrow(organizationId)
     await requireCapability("club.edit", {
@@ -102,13 +105,15 @@ export async function adminEditClub(formData: FormData) {
         category,
       },
     })
-    revalidateAdmin(org.slug)
+    return org.slug
   })
+
+  revalidateAdmin(slug)
 }
 
 export async function adminSetOrgStatus(formData: FormData) {
   const sessionUserId = await actingUserId()
-  await withTenantScope(sessionUserId, async () => {
+  const slug = await withTenantScope(sessionUserId, async () => {
     const organizationId = String(formData.get("organizationId") ?? "")
     const status = String(formData.get("status") ?? "") as "ACTIVE" | "ARCHIVED"
     const org = await orgOrThrow(organizationId)
@@ -120,15 +125,17 @@ export async function adminSetOrgStatus(formData: FormData) {
     })
     if (!["ACTIVE", "ARCHIVED"].includes(status)) throw new Error("Invalid status")
     await db.organization.update({ where: { id: org.id }, data: { status } })
-    revalidateAdmin(org.slug)
+    return org.slug
   })
+
+  revalidateAdmin(slug)
 }
 
 // ─── Roles: assign / remove / transfer ────────────────────────────────────────
 
 export async function adminAssignSeat(formData: FormData) {
   const sessionUserId = await actingUserId()
-  await withTenantScope(sessionUserId, async () => {
+  const slug = await withTenantScope(sessionUserId, async () => {
     const organizationId = String(formData.get("organizationId") ?? "")
     const roleId = String(formData.get("roleId") ?? "")
     const email = String(formData.get("personEmail") ?? "")
@@ -159,13 +166,15 @@ export async function adminAssignSeat(formData: FormData) {
       body: status === "SHADOW" ? "Shadow access is read-only until your term begins." : undefined,
       href: `/orgs/${org.slug}/members`,
     })
-    revalidateAdmin(org.slug)
+    return org.slug
   })
+
+  revalidateAdmin(slug)
 }
 
 export async function adminRemoveAssignment(formData: FormData) {
   const sessionUserId = await actingUserId()
-  await withTenantScope(sessionUserId, async () => {
+  const slug = await withTenantScope(sessionUserId, async () => {
     const assignmentId = String(formData.get("assignmentId") ?? "")
     const mode = String(formData.get("mode") ?? "revoke") // "revoke" | "delete"
     const assignment = await db.roleAssignment.findUnique({
@@ -208,13 +217,15 @@ export async function adminRemoveAssignment(formData: FormData) {
         body: "Your day-to-day access ends here, but everything you built stays in the seat's memory for whoever comes next. Thank you for serving.",
       })
     }
-    revalidateAdmin(org.slug)
+    return org.slug
   })
+
+  revalidateAdmin(slug)
 }
 
 export async function adminTransferSeat(formData: FormData) {
   const sessionUserId = await actingUserId()
-  await withTenantScope(sessionUserId, async () => {
+  const slug = await withTenantScope(sessionUserId, async () => {
     const roleId = String(formData.get("roleId") ?? "")
     const email = String(formData.get("personEmail") ?? "")
     const name = String(formData.get("personName") ?? "")
@@ -263,15 +274,17 @@ export async function adminTransferSeat(formData: FormData) {
         title: `Your ${role.name} role at ${org.name} was transferred`,
         body: "Thank you for your service — the seat's knowledge stays for your successor.",
       })
-    revalidateAdmin(org.slug)
+    return org.slug
   })
+
+  revalidateAdmin(slug)
 }
 
 // ─── Seats (Role CRUD) ────────────────────────────────────────────────────────
 
 export async function adminCreateSeat(formData: FormData) {
   const sessionUserId = await actingUserId()
-  await withTenantScope(sessionUserId, async () => {
+  const slug = await withTenantScope(sessionUserId, async () => {
     const organizationId = String(formData.get("organizationId") ?? "")
     const name = String(formData.get("name") ?? "").trim()
     const scope = (String(formData.get("scope") ?? "FUNCTIONAL") as RoleScope) || "FUNCTIONAL"
@@ -300,13 +313,15 @@ export async function adminCreateSeat(formData: FormData) {
         seat: { create: { organizationId: org.id, positionCode } },
       },
     })
-    revalidateAdmin(org.slug)
+    return org.slug
   })
+
+  revalidateAdmin(slug)
 }
 
 export async function adminRenameSeat(formData: FormData) {
   const sessionUserId = await actingUserId()
-  await withTenantScope(sessionUserId, async () => {
+  const slug = await withTenantScope(sessionUserId, async () => {
     const roleId = String(formData.get("roleId") ?? "")
     const name = String(formData.get("name") ?? "").trim()
     const role = await db.role.findUnique({ where: { id: roleId }, include: { organization: true } })
@@ -319,13 +334,15 @@ export async function adminRenameSeat(formData: FormData) {
     })
     if (!name) throw new Error("Seat name is required")
     await db.role.update({ where: { id: roleId }, data: { name } })
-    revalidateAdmin(role.organization.slug)
+    return role.organization.slug
   })
+
+  revalidateAdmin(slug)
 }
 
 export async function adminDeleteSeat(formData: FormData) {
   const sessionUserId = await actingUserId()
-  await withTenantScope(sessionUserId, async () => {
+  const slug = await withTenantScope(sessionUserId, async () => {
     const roleId = String(formData.get("roleId") ?? "")
     const role = await db.role.findUnique({
       where: { id: roleId },
@@ -345,8 +362,10 @@ export async function adminDeleteSeat(formData: FormData) {
     if (assignments + holdings + memoryRecords > 0)
       throw new Error("This seat carries history and cannot be deleted — retire it instead")
     await db.role.delete({ where: { id: roleId } })
-    revalidateAdmin(role.organization.slug)
+    return role.organization.slug
   })
+
+  revalidateAdmin(slug)
 }
 
 // ─── Directory ────────────────────────────────────────────────────────────────
@@ -365,8 +384,9 @@ export async function adminAddDirectoryPerson(formData: FormData) {
       update: { name, kind, affiliation: affiliation || null },
       create: { name, email, kind, affiliation: affiliation || null },
     })
-    revalidateAdmin()
   })
+
+  revalidateAdmin()
 }
 
 // ─── Institution (OSE) access ─────────────────────────────────────────────────
@@ -441,16 +461,19 @@ export async function adminGrantInstitutionRole(formData: FormData) {
       body: `You've been given OSE ${roleName} access. The Admin console is open to you now — head over whenever you're ready to jump in.`,
       href: "/admin",
     })
-    revalidateAdmin()
   })
+
+  revalidateAdmin()
 }
 
 // ─── Approvals: force-decide (override the gates) ─────────────────────────────
 
 export async function adminDecideApproval(formData: FormData) {
   const sessionUserId = await actingUserId()
+  // Read before the scope opens: it is a form field, not a tenant row, and the
+  // cache bump that names it now happens after the scope has closed.
+  const approvalId = String(formData.get("approvalId") ?? "")
   await withTenantScope(sessionUserId, async () => {
-    const approvalId = String(formData.get("approvalId") ?? "")
     const decision = String(formData.get("decision") ?? "") as "APPROVED" | "REJECTED"
     const approval = await db.approvalRequest.findUnique({
       where: { id: approvalId },
@@ -468,6 +491,8 @@ export async function adminDecideApproval(formData: FormData) {
     if (["APPROVED", "REJECTED", "CANCELLED"].includes(approval.status))
       throw new Error("This request is already decided")
 
+    const configSnapshot = await configSnapshotForInstitution(approval.institutionId)
+
     await db.$transaction([
       db.approvalRequest.update({ where: { id: approvalId }, data: { status: decision } }),
       db.approvalStep.create({
@@ -479,6 +504,12 @@ export async function adminDecideApproval(formData: FormData) {
           actorRoleContext: "OSE Override",
           reason: "Administrator override",
           policySnapshot: { override: true },
+          // PAY-030-005. Which policy this override was taken against. An
+          // override is the transition an auditor reads first, so it is the
+          // last one that should be missing its revision.
+          configRevision: configSnapshot.revision,
+          configChecksum: configSnapshot.checksum,
+          authority: "approval.override",
         },
       }),
       ...(approval.event && decision === "APPROVED"
@@ -495,11 +526,12 @@ export async function adminDecideApproval(formData: FormData) {
       href: `/approvals/${approvalId}`,
       excludeUserId: userId,
     })
-    revalidateAdmin()
-    revalidatePath("/admin/approvals")
-    revalidatePath("/approvals")
-    revalidatePath(`/approvals/${approvalId}`)
   })
+
+  revalidateAdmin()
+  revalidatePath("/admin/approvals")
+  revalidatePath("/approvals")
+  revalidatePath(`/approvals/${approvalId}`)
 }
 
 export async function adminRevokeInstitutionRole(formData: FormData) {
@@ -567,8 +599,9 @@ export async function adminRevokeInstitutionRole(formData: FormData) {
         title: "Your OSE Admin access has been turned off",
         body: "Your access to the OSE Admin console has been removed. Your past activity stays on record. If you think this was a mistake, reach out to an OSE Director.",
       })
-    revalidateAdmin()
   })
+
+  revalidateAdmin()
 }
 
 // ─── OSE Director / administration transfer pipeline ──────────────────────────
@@ -662,8 +695,9 @@ export async function initiateRoleTransfer(formData: FormData) {
       }. Open the Admin people page to accept or decline. Nothing changes until you accept.`,
       href: "/admin/people",
     })
-    revalidateAdmin()
   })
+
+  revalidateAdmin()
 }
 
 /**
@@ -767,8 +801,9 @@ export async function acceptRoleTransfer(formData: FormData) {
           : `${successorName} has accepted the Director role. Your Director access has now wound down as you asked. Thank you for your leadership — the institution is in good hands.`,
       href: "/admin",
     })
-    revalidateAdmin()
   })
+
+  revalidateAdmin()
 }
 
 /** The named successor declines. The transfer closes DECLINED; the initiator
@@ -816,8 +851,9 @@ export async function declineRoleTransfer(formData: FormData) {
       body: `${successorName} isn't able to take over the Director role right now, so nothing changed — you're still the Director. You can start a new transfer with someone else whenever you're ready.`,
       href: "/admin/people",
     })
-    revalidateAdmin()
   })
+
+  revalidateAdmin()
 }
 
 /** The initiator (or any current Director) withdraws a still-pending transfer.
@@ -868,16 +904,17 @@ export async function cancelRoleTransfer(formData: FormData) {
       } if you have questions.`,
       href: "/admin/people",
     })
-    revalidateAdmin()
   })
+
+  revalidateAdmin()
 }
 
 // ─── Entity overrides: events, content, budgets ──────────────────────────────
 
 export async function adminSetEventStatus(formData: FormData) {
   const sessionUserId = await actingUserId()
+  const eventId = String(formData.get("eventId") ?? "")
   await withTenantScope(sessionUserId, async () => {
-    const eventId = String(formData.get("eventId") ?? "")
     const status = String(formData.get("status") ?? "") as "PUBLISHED" | "CANCELLED"
     const event = await db.event.findUnique({
       where: { id: eventId },
@@ -892,11 +929,12 @@ export async function adminSetEventStatus(formData: FormData) {
     })
     if (!["PUBLISHED", "CANCELLED"].includes(status)) throw new Error("Invalid status")
     await db.event.update({ where: { id: eventId }, data: { status } })
-    revalidateAdmin()
-    revalidatePath("/calendar")
-    revalidatePath(`/calendar/${eventId}`)
-    revalidatePath("/admin/overrides")
   })
+
+  revalidateAdmin()
+  revalidatePath("/calendar")
+  revalidatePath(`/calendar/${eventId}`)
+  revalidatePath("/admin/overrides")
 }
 
 export async function adminSetMemoryArchived(formData: FormData) {
@@ -916,9 +954,10 @@ export async function adminSetMemoryArchived(formData: FormData) {
       resourceId: memoryId,
     })
     await db.memoryRecord.update({ where: { id: memoryId }, data: { isArchived: archived } })
-    revalidateAdmin()
-    revalidatePath("/admin/overrides")
   })
+
+  revalidateAdmin()
+  revalidatePath("/admin/overrides")
 }
 
 export async function adminSetDocumentArchived(formData: FormData) {
@@ -938,9 +977,10 @@ export async function adminSetDocumentArchived(formData: FormData) {
       resourceId: documentId,
     })
     await db.document.update({ where: { id: documentId }, data: { isArchived: archived } })
-    revalidateAdmin()
-    revalidatePath("/admin/overrides")
   })
+
+  revalidateAdmin()
+  revalidatePath("/admin/overrides")
 }
 
 export async function adminAdjustBudget(formData: FormData) {
@@ -961,7 +1001,8 @@ export async function adminAdjustBudget(formData: FormData) {
       resourceId: budgetId,
     })
     await db.budget.update({ where: { id: budgetId }, data: { allocatedCents, notes: notes || null } })
-    revalidateAdmin()
-    revalidatePath("/admin/overrides")
   })
+
+  revalidateAdmin()
+  revalidatePath("/admin/overrides")
 }

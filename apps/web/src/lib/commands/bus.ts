@@ -3,6 +3,7 @@ import {
   parseCommand,
   replayable,
   type Command,
+  type ConfigSnapshot,
   type ContractError,
   type IdempotencyRecord,
   type TenantContext,
@@ -53,6 +54,19 @@ export interface CommandPorts {
 
   /** Release the claim so a failure can be retried rather than being stuck in-flight. */
   releaseIdempotency(key: string, tenantId: string): Promise<void>
+
+  /**
+   * The configuration this command will be decided against.
+   *
+   * Resolved by the caller — in this application, `configSnapshotForInstitution`
+   * — so the bus can check the one thing the command itself cannot: that the
+   * configuration it names is the configuration for the mode it declares.
+   *
+   * Null when the tenant has no resolvable configuration at all, which is
+   * itself a refusal: a command decided against nothing has no revision to
+   * explain it later.
+   */
+  configuration(context: TenantContext): Promise<ConfigSnapshot | null>
 
   /** Re-check at execution time. Not at render time, not at request start. */
   authorize(context: TenantContext, command: Command): Promise<{ allowed: boolean; reason: string | null }>
@@ -110,6 +124,61 @@ export async function dispatch<R>(
   const { context } = command
   const ttl = options.idempotencyTtlMs ?? 24 * 60 * 60 * 1000
   const expiresAt = new Date(Date.parse(context.at) + ttl).toISOString()
+
+  // 1a. PAY-020-003 / PAY-000-007 — the mode the command declares must be the
+  //     mode the configuration it names was resolved for.
+  //
+  //     Before the idempotency claim, deliberately: a mismatched command must
+  //     not burn its key. It is a refusal the caller can fix and resend, not a
+  //     request that happened.
+  //
+  //     This is the check that makes test and live separate rather than merely
+  //     labelled. Both modes resolve through the same engine in the same
+  //     process, so a test-mode command carrying a revision resolved in live
+  //     type-checks, parses, authorizes and executes — against thresholds,
+  //     approval chains and entity bindings that govern real money. Nothing
+  //     downstream can notice, because both values are well-formed strings.
+  //     Comparing them here is the only place both are in scope at once.
+  const configuration = await ports.configuration(context)
+
+  if (!configuration) {
+    return {
+      ok: false,
+      error: error(
+        "precondition",
+        "config.unresolved",
+        "This tenant has no resolvable configuration, so there is nothing to decide against.",
+        context.correlationId,
+      ),
+    }
+  }
+
+  if (configuration.environment !== context.environment) {
+    return {
+      ok: false,
+      error: error(
+        "precondition",
+        "config.mode-mismatch",
+        "This command and the configuration it would be decided against are in different modes.",
+        context.correlationId,
+      ),
+    }
+  }
+
+  if (configuration.revision !== context.configRevision) {
+    // A command naming a revision that is no longer the resolved one was
+    // decided against a configuration that has since moved. Retrying with the
+    // current revision is the fix, so this is not retryable as-is.
+    return {
+      ok: false,
+      error: error(
+        "precondition",
+        "config.revision-stale",
+        "The configuration changed since this request was prepared. Reload and try again.",
+        context.correlationId,
+      ),
+    }
+  }
 
   // 2. Claim the key BEFORE authorizing or executing. Claiming after the work
   //    means two concurrent retries both do the work and one loses the race to

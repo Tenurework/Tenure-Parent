@@ -1,3 +1,4 @@
+import { DataTable } from "@/components/ui/DataTable"
 import type { DocContent, PptxSlide, SheetData } from "@/components/documents/types"
 
 /**
@@ -72,42 +73,57 @@ export function DocContentView({
   }
 }
 
+/**
+ * TTES-020-002-GRID. A spreadsheet's first row IS its header row, and this
+ * used to render it as six more `<td>`s in a `<tbody>` with no `<thead>`, no
+ * `scope` and no caption — so a reader arriving at cell D17 of a budget was
+ * never told which column it was in. Through `DataTable` the header row becomes
+ * real `<th scope="col">` and the sheet's name becomes the table's caption.
+ *
+ * Not sortable: re-ordering somebody's spreadsheet rows changes what the
+ * document says. `DataTable` only offers sorting when a `sortHref` is supplied,
+ * so declining it here is the whole of the decision.
+ */
+type SheetRow = { cells: (string | number | null)[]; index: number }
+
 function SheetTables({ sheets }: { sheets: SheetData[] }) {
   if (sheets.length === 0) {
     return <p className="text-sm text-text-2">This spreadsheet has no readable sheets.</p>
   }
   return (
     <div className="space-y-6">
-      {sheets.map((sheet) => (
-        <div key={sheet.name}>
-          {sheets.length > 1 && (
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-3">
-              {sheet.name}
-            </p>
-          )}
-          <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full text-xs text-text-1">
-              <tbody>
-                {sheet.rows.map((row, i) => (
-                  <tr
-                    key={i}
-                    className={i === 0 ? "bg-base font-semibold" : "odd:bg-surface even:bg-base/50"}
-                  >
-                    {row.map((cell, j) => (
-                      <td
-                        key={j}
-                        className="whitespace-nowrap border border-border px-2 py-1 tabular-nums"
-                      >
-                        {cell === null ? "" : String(cell)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {sheets.map((sheet) => {
+        const [headerRow = [], ...bodyRows] = sheet.rows
+        // A ragged sheet is normal — a row can be longer than the header row.
+        // Column count is the widest row, so no cell is dropped.
+        const width = Math.max(headerRow.length, ...sheet.rows.map((r) => r.length), 1)
+        const rows: SheetRow[] = bodyRows.map((cells, index) => ({ cells, index }))
+        return (
+          <div key={sheet.name}>
+            {sheets.length > 1 && (
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-3">
+                {sheet.name}
+              </p>
+            )}
+            <DataTable
+              caption={`${sheet.name} — ${rows.length} rows`}
+              rows={rows}
+              rowKey={(r) => `row-${r.index}`}
+              className="rounded-md border border-border"
+              tableClassName="text-xs text-text-1"
+              columns={Array.from({ length: width }, (_, j) => ({
+                key: `col-${j}`,
+                header:
+                  headerRow[j] === null || headerRow[j] === undefined || headerRow[j] === ""
+                    ? `Column ${j + 1}`
+                    : String(headerRow[j]),
+                className: "whitespace-nowrap border border-border px-2 py-1 tabular-nums",
+                cell: (r: SheetRow) => (r.cells[j] === null || r.cells[j] === undefined ? "" : String(r.cells[j])),
+              }))}
+            />
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

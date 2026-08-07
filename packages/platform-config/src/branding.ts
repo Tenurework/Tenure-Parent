@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { defineConfig, type ConfigDefinition } from "@tenure/configuration"
+import { defineConfig, includedInPlan, type ConfigDefinition } from "@tenure/configuration"
 
 /**
  * Visual identity, as configuration.
@@ -40,6 +40,10 @@ export const primaryColor = defineConfig({
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,
+  price: includedInPlan(
+    "Part of the brand kit, which is charged once on platform.branding.wordmark. Pricing the " +
+      "accent colour separately would bill three times for one white-label decision.",
+  ),
   description: "The accent colour: active navigation, primary buttons, focus rings.",
 })
 
@@ -52,6 +56,11 @@ export const primaryTextColor = defineConfig({
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,
+  price: includedInPlan(
+    "Same kit as the accent colour above. It also exists because contrast is an accessibility " +
+      "requirement, and charging for legible text on a customer's own colour would be charging " +
+      "them to meet WCAG.",
+  ),
   description:
     "Text drawn on top of the accent colour. Separate from it because contrast is a decision, not a calculation.",
 })
@@ -65,6 +74,15 @@ export const wordmark = defineConfig({
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,
+  price: {
+    // The whole white-label charge sits here, on the one key that replaces
+    // "Tenure" with the institution's own name in front of its students. The
+    // colours that go with it are free and say so.
+    perSeatMinor: 0,
+    perOrgMinor: 9_900,
+    currency: "USD",
+    rounding: "half-up",
+  },
   description: "The name shown in the shell. Rendered as text, never as markup.",
 })
 
@@ -88,6 +106,10 @@ export const colorScheme = defineConfig({
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,
+  price: includedInPlan(
+    "Light, dark or follow the machine is a comfort and accessibility decision. An upsell on it " +
+      "would be an upsell on people who find one of them painful to read.",
+  ),
   description:
     "Default colour scheme: follow the viewer's machine, or pin light or dark. A viewer may still override it locally.",
 })

@@ -1,0 +1,143 @@
+[
+  {
+    "id": "REVIEW-FINDINGS-7",
+    "title": "P0 — ApprovalRequest.idempotencyKey is a client-supplied GLOBAL unique; a key collision resolves tenant B's retry onto tenant A's approval",
+    "why_open": "apps/web/prisma/schema.prisma:466 still reads `idempotencyKey String?        @unique` — a single-column global unique, exactly as REVIEW-FINDINGS #7 describes (its line cite 391 has drifted to 466). The DDL that created it is live: apps/web/prisma/migrations/20260730000000_baseline/migration.sql:740 `CREATE UNIQUE INDEX \"ApprovalRequest_idempotencyKey_key\" ON \"ApprovalRequest\"(\"idempotencyKey\")`. No later migration touches it (only 6 migrations exist; `ls apps/web/prisma/migrations` — outbox_events, membership_effective_state, seat_is_not_a_role, seat_carries_a_role_template, activation_gates_serving). Nothing in the codebase scopes it: the only non-test references are apps/web/scripts/census.mjs:176-177. There is no composite unique on ApprovalRequest at schema.prisma:475-476 (the two @@index are [organizationId,status] and [institutionId,status]).",
+    "files": [
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "apps/web/scripts/census.mjs"
+    ],
+    "smallest_real_change": "Replace `idempotencyKey String? @unique` at schema.prisma:466 with an unindexed `idempotencyKey String?` plus `@@unique([institutionId, idempotencyKey])`, and add a migration that DROPs \"ApprovalRequest_idempotencyKey_key\" and creates the composite. Because Postgres treats NULLs as distinct in a composite unique exactly as in a single-column one, existing rows (all NULL — no writer sets it) migrate with no backfill; assert that with a pre-flight `SELECT count(*) FROM \"ApprovalRequest\" WHERE \"idempotencyKey\" IS NOT NULL` in the migration comment. Prove it with an integration test (alongside apps/web/src/lib/tenancy/isolation.itest.ts, which already runs against real Postgres) that inserts the SAME key under two institutionIds and asserts both rows exist — mutate the schema back to the global unique and confirm the test reds with P2002. Do NOT stop at the schema: pair with PAY-060-007 below so a production writer actually supplies the key, or this is a schema change with no caller.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-060-007",
+    "title": "Duplicate submission protection using business idempotency — the two money-adjacent create paths have none",
+    "why_open": "Both production writers that raise a spend request create unconditionally, with no key and no dedupe read. apps/web/src/app/(app)/approvals/actions.ts:112-123 `tx.approvalRequest.create({ data: { ... metadata: amount ? { amount } : {} } })` — no idempotencyKey in the data object. apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts:430-449 `tx.approvalRequest.create({ ... metadata: { reimbursement: { budgetLineId, amountCents, documentId, ... } } })` — same, so a double-submitted reimbursement form raises two claims for the same receipt, each of which later auto-posts its own SPEND LedgerEntry. The one component that implements the whole business-idempotency protocol — claim/complete/release with requestDigest replay detection — is apps/web/src/lib/commands/bus.ts:86 `dispatch`, and grepping `dispatch(` across apps/ returns ONLY apps/web/src/lib/commands/bus.test.ts (18 hits, zero production). `IdempotencyRecord`/`replayable` in packages/contracts/src/index.ts:453-500 are likewise reached only through that unwired bus.",
+    "files": [
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/lib/commands/bus.ts",
+      "apps/web/prisma/schema.prisma",
+      "packages/contracts/src/index.ts"
+    ],
+    "smallest_real_change": "In `submitReimbursement` (finance/actions.ts:330) and `createApproval` (approvals/actions.ts:82), derive a tenant-scoped business key — e.g. `sha256(organizationId|submittedById|budgetLineId|amountCents|documentId)` for the reimbursement, `sha256(organizationId|submittedById|type|title|amount)` for the generic path — write it to the new `idempotencyKey` column, and wrap the create in a `try { create } catch (P2002) { return existing }` keyed on the composite unique from the item above. That makes the composite unique load-bearing rather than decorative. Test: submit the identical reimbursement form twice inside one org and assert exactly ONE ApprovalRequest and, after approval, exactly ONE LedgerEntry; then submit the same key from a second institution and assert it creates its own. Mutate the PRODUCER (delete the `idempotencyKey:` line in the create data), not the digest helper, and confirm the duplicate-count assertion reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-070-005",
+    "title": "The approved amount is never bound to the posting — approval reads a mutable JSON blob, so no digest survives the gate",
+    "why_open": "The money that gets posted is read at decision time out of an unversioned, unhashed JSON column. apps/web/prisma/schema.prisma:465 `metadata Json @default(\"{}\") // type-specific fields`. It is written at apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts:439-448 (`reimbursement: { budgetLineId, amountCents, documentId, category, academicYear }`) and read again — after both gates — at apps/web/src/app/(app)/approvals/actions.ts:315-330, which then posts `ledgerSignedCents(\"SPEND\", reimb.amountCents)` at actions.ts:345-362. Nothing hashes that payload, nothing records which version of it the president approved, and `ApprovalStep.policySnapshot` (schema.prisma:489) captures only `{ requesterIsPresident, reimbursement: true }` (finance/actions.ts:458) — never the amount, the line or the recipient. So the approved allocation and the posted allocation are two independent reads of one mutable field with no equality check between them, which is precisely what PAY-070-005 forbids.",
+    "files": [
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/prisma/schema.prisma",
+      "apps/web/src/lib/approvals.ts",
+      "apps/web/src/lib/finance.ts"
+    ],
+    "smallest_real_change": "Add a pure `allocationDigest(alloc: { budgetLineId; amountCents; documentId; recipientId }): string` to apps/web/src/lib/finance.ts (kernel-free, so it unit-tests without Prisma), persist it in `metadata.reimbursement.digest` at the point of submission (finance/actions.ts:439), and copy it into `ApprovalStep.policySnapshot.approvedDigest` on every gate transition (approvals/actions.ts:396-410). Before posting at approvals/actions.ts:344, recompute the digest from the CURRENT metadata and refuse the transition if it differs from the digest on the most recent approving step — 'post-approval mutation creates a new change', so the refusal must return the request to NEEDS_CHANGES rather than posting. Test: approve a request, mutate `metadata.reimbursement.amountCents` directly in the DB, run the final approval, assert no LedgerEntry was created and the status did not reach APPROVED. Mutation to prove it: make the comparison `!==` into `false` at the producer call site and confirm the test reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-120-001",
+    "title": "No refund/reversal state machine — a posted ledger entry is corrected by hard DELETE, destroying the accounting record",
+    "why_open": "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts:295-320 `deleteLedgerEntry` does `await tx.ledgerEntry.delete({ where: { id: entry.id } })` at line 307 and then recomputes `BudgetLine.actualCents` from the survivors. That is the entire correction path: a posted transaction is erased, not reversed, so there is no reversing entry, no reason, no approval and no record that money was ever recognised. `LedgerKind` (schema.prisma:810-814) has SPEND / REIMBURSEMENT / ADJUSTMENT and no REVERSAL, and `ledgerSignedCents` (apps/web/src/lib/finance.ts:257-261) has no reversal arm. There is no refund state anywhere: `ApprovalStatus` (schema.prisma:444-452) ends at APPROVED/REJECTED/CANCELLED, and the auto-post at approvals/actions.ts:331-344 guards only against double-posting (`db.ledgerEntry.findFirst({ where: { approvalId } })`) — a request cancelled AFTER final approval leaves its SPEND standing forever.",
+    "files": [
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "apps/web/src/lib/finance.ts",
+      "apps/web/prisma/schema.prisma",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "packages/workflow/src/definition.ts"
+    ],
+    "smallest_real_change": "Add `REVERSAL` to `LedgerKind` (schema.prisma:810) with a migration and a `reversesId String?` self-relation on LedgerEntry, extend `ledgerSignedCents` in apps/web/src/lib/finance.ts:257 to negate the reversed entry's signed amount exactly, and rewrite `deleteLedgerEntry` so it POSTS a reversal (carrying `reason`, `postedById`, `reversesId`) instead of calling `.delete()`, keeping the same `actualCents` recomputation. Gate it behind the approval that authorised the original where `approvalId` is set. Test against real Postgres: post a SPEND, reverse it, assert two rows survive, `actualCents` is back to zero, and the original row is still readable; then assert `ledgerEntry.delete` appears nowhere in apps/web/src (a grep-style architecture assertion beside tests/security/audit-writes.test.mjs). Mutation: restore the `.delete()` call and confirm both the row-count and the grep assertion red.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-030-007",
+    "title": "Transactions carry no legal entity, no institution, no currency and no durable owner seat — only a raw user id",
+    "why_open": "apps/web/prisma/schema.prisma:820-845 is the whole transaction record: `organizationId`, `budgetLineId`, `academicYear`, `kind`, `amountCents`, `description`, `memo`, `occurredAt`, `approvalId`, `vendorId`, `documentId`, `postedById`, `createdAt`. There is no `institutionId` (so tenant is reachable only by joining Organization), no `legalEntityId` — REVIEW-FINDINGS #11 says the same thing about the spec's `LedgerEntry_legalEntity_fkey`: 'LedgerEntry (schema.prisma:745-770) has no such column and no migration adds it' — and no fund/project dimension. `postedById String?` (schema.prisma:840) is a bare, nullable, unconstrained user id with no relation and no seat: the durable-owner concept exists as `Seat` (schema.prisma:263) and `SeatHolding` (schema.prisma:376) and neither is referenced here. There is also no `currency` on the entry even though `BudgetLine.currency` exists (schema.prisma:775), so a multi-entity ledger cannot say what an `amountCents` is denominated in. The `legalEntity` layer is already a first-class configuration scope (packages/configuration/src/scopes.ts:43) with nothing in the data model behind it.",
+    "files": [
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/",
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/lib/finance.ts"
+    ],
+    "smallest_real_change": "Add `institutionId String`, `currency String @default(\"USD\")` and `postedBySeatId String?` (relation to Seat) to LedgerEntry, plus an index `@@index([institutionId, occurredAt])`, in one migration that backfills `institutionId` from `Organization.institutionId` and `currency` from `BudgetLine.currency` before SET NOT NULL. THEN fix every construction site in the same change — there are exactly two, `postLedgerEntry` (finance/actions.ts:264-279) and the approval auto-post (approvals/actions.ts:347-362) — because a new required column that a caller does not set fails only at runtime. Hold off on `legalEntityId` until a LegalEntity model exists (that is PAY-040-001's, not this item's); state that honestly rather than adding a dangling string. Test: assert every LedgerEntry read through the tenant-scoped client is filterable by institutionId without a join, and that `postLedgerEntry` parses the amount with the LINE's currency (apps/web/src/lib/finance.ts:146 `parseMoneyToCents(value, format)` already takes one and finance/actions.ts:236 passes none, so a JPY tenant is off by 100x). Mutate: drop the `currency: line.currency` argument at the producer and confirm the JPY case reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-150-001",
+    "title": "Money-path authority is one coarse boolean; the granular capability catalog exists but is consumed by navigation only",
+    "why_open": "packages/authorization/src/permission-catalog.ts:275-286 declares twelve finance capabilities — `finance.budget.read/propose/approve/update`, `finance.ledger.read/post/export`, `finance.reimbursement.create/read/approve`, `finance.report.read/export`. The money path consults none of them. apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts:33-53 `requireFinanceManager` computes `const allowed = canManageFinance(ctx, org)` at line 38 and is the sole gate for SIX actions of wildly different risk: `Finance.EditLine` (:59), `Finance.DeleteLine` (:100), `Finance.SaveForecast` (:115), `Finance.Import` (:149), `Finance.PostLedger` (:222) and `Finance.DeleteLedger` (:298). `canManageFinance` (apps/web/src/lib/rbac.ts:327-338) is a role-SHAPE predicate — `isOseDirector(...) || orgRolesFor(...).some(r => r.status === \"ACTIVE\" && (r.scope === \"PRESIDENT\" || carriesFinanceAuthority(r)))` — it never reaches the catalog and there is no `finance.ledger.delete` capability at all. The only apps/web consumer of the catalog is apps/web/src/lib/authz/navigation-capabilities.ts, whose own header says it replaces `showReports={ctx.institutionRoles.length > 0}` in the layout: navigation, which is the exact thing this requirement says is not enough.",
+    "files": [
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "apps/web/src/lib/rbac.ts",
+      "packages/authorization/src/permission-catalog.ts",
+      "apps/web/src/lib/authz/navigation-capabilities.ts",
+      "apps/web/src/lib/authz/seat-world.ts"
+    ],
+    "smallest_real_change": "Add `finance.ledger.reverse` to the catalog (packages/authorization/src/permission-catalog.ts:281) and change `requireFinanceManager` to take a `PermissionKey` instead of a free-text `action: string`, resolving it through `decide(...)` with the seat world that apps/web/src/lib/authz/seat-world.ts already builds — the same engine navigation-capabilities.ts uses, so this is wiring an existing decision path onto the write path, not a new engine. Map each of the six call sites to its real capability (`finance.budget.update`, `finance.ledger.post`, `finance.ledger.reverse`, ...). Keep the audit write at :40-49 exactly as-is; it already records the DENY. Test: give a principal `finance.ledger.post` but not `finance.ledger.reverse` and assert `postLedgerEntry` succeeds while the reversal refuses with the catalog's own reason string. Mutate the PRODUCER — change the key passed at finance/actions.ts:298 back to the coarse predicate — and confirm the refusal test reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-020-003",
+    "title": "No command or query carries environment, legal entity, provider account or capability context — the context contract stops at tenant + actor",
+    "why_open": "packages/contracts/src/index.ts:77-87 is the whole of `TenantContext`: `tenantId, actorId, actorKind, channel, correlationId, configRevision, at`. `parseTenantContext` (:91-110) validates exactly those seven and rejects nothing else, so a command in a test environment and a command in a live one are byte-identical values. The app's own ambient scope is narrower still: apps/web/src/lib/tenancy/context.ts:13-28 `TenantScope = { institutionId, actor: { principalId, principalType } }`. `Command` (contracts:124-135) adds `resourceType/resourceId/expectedVersion/idempotencyKey/effectiveAt` and no capability. `Query` (:180-187) carries context + pagination only. The `legalEntity` layer is already a declared configuration scope (packages/configuration/src/scopes.ts:43 'a legal boundary inside a tenant — the level where jurisdiction lives') with nothing in either contract to name one. Grepping `environment|\"live\"|testMode|liveMode` across contracts, scopes.ts and tenancy/context.ts returns nothing; apps/web/src/lib/env.ts:33 has only `NODE_ENV`, which is a deployment fact, not a tenant's money-mode.",
+    "files": [
+      "packages/contracts/src/index.ts",
+      "apps/web/src/lib/tenancy/context.ts",
+      "apps/web/src/lib/commands/bus.ts",
+      "packages/configuration/src/scopes.ts",
+      "apps/web/src/lib/tenancy/request-context.ts"
+    ],
+    "smallest_real_change": "Add `environment: \"test\" | \"live\"` and `legalEntityId: string | null` to `TenantContext` (contracts:77) as REQUIRED fields, validated in `parseTenantContext` — required, not optional, because an optional money-mode is one the call site under time pressure omits. WIDENING WARNING: every construction site must be fixed in the same change. Grep `parseTenantContext|TenantContext` before touching anything; today the constructors are apps/web/src/lib/commands/bus.test.ts and the `context:` literal in apps/web/src/app/api/jobs/reminders/route.ts:63 area — enumerate them and name them in the commit, because an unset required field compiles fine when the value comes from JSON. Then thread `environment` through `runInTenantScope` (tenancy/context.ts:84) so the ambient scope carries it too. Test the refusal, not the type: `parseTenantContext` on an object missing `environment` must throw ContractViolation naming the field; and a command built for `test` must not resolve a `live` configuration revision. Mutate `parseTenantContext` to default `environment` to \"live\" and confirm the refusal test reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-000-007",
+    "title": "Test mode and live mode are not separated by anything — there is no mode concept at all to separate them by",
+    "why_open": "This requirement asks for proof of separation across account, keys, roles, secrets, configuration, UI, event destinations and evidence. None of the eight has a mode dimension. `grep -rn 'stripe|Stripe|payout|merchant|connected account' --glob **/*.{ts,tsx,prisma,mjs}` across the whole repo matches only tooling that reads the Bibles (tools/document-graph.mjs, tools/import-requirements.mjs, tools/loop/*.mjs, tests/architecture/document-graph.test.mjs) — there is zero provider code, so there is also no key, secret or event destination to segregate. On the platform side the only environment notion is `NODE_ENV: z.enum([\"development\",\"test\",\"production\"])` at apps/web/src/lib/env.ts:33, which is a deployment fact shared by every tenant, not a per-tenant money-mode. `CONFIG_SCOPES` (packages/configuration/src/scopes.ts:37-47) has no environment layer, so a tenant cannot hold different values in test and live. `AuditEvent` (schema.prisma:943) has no mode column, so the evidence trail cannot say which mode an action happened in.",
+    "files": [
+      "packages/contracts/src/index.ts",
+      "packages/configuration/src/scopes.ts",
+      "apps/web/src/lib/env.ts",
+      "apps/web/prisma/schema.prisma",
+      "apps/web/src/lib/audit-record.ts"
+    ],
+    "smallest_real_change": "Build the control-plane half only — no provider, no keys, no money. (a) Introduce `PaymentMode = \"test\" | \"live\"` in packages/contracts alongside the `environment` field from PAY-020-003 so there is ONE spelling. (b) Add a `mode` column to AuditEvent with a migration and set it in `buildAuditRecord` (apps/web/src/lib/audit-record.ts), so evidence is mode-stamped — note NEXT-SESSION §5 records that audit-record.ts currently has zero importers, so wiring the two existing writers named there (apps/web/src/lib/admin/guard.ts:70, apps/web/src/lib/provisioning/reconcile.ts:368) is part of making this real rather than declared. (c) Add a platform-config definition `payments.mode` (packages/platform-config/src/definitions.ts) that is `overridable: true` at `tenant` scope only and `requiresCapability`, so a mode change is an authorised configuration publication with a diff, not a code path. Test: a resolved config for a tenant in `test` mode must refuse to publish any value whose definition is marked live-only, and an AuditEvent written under `test` must be readable as such. Report the remaining half — separate provider accounts and separate signing secrets — as BLOCKED_EXTERNAL, naming that NEXT-SESSION §0.3 forbids the Stripe side; do not mark this PASS while it is half.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-060-001",
+    "title": "No canonical payment order/attempt state machine — the disbursement path is an `if` inside an approval handler",
+    "why_open": "The one real money-recognition path in the product is apps/web/src/app/(app)/approvals/actions.ts:315-377: an `if (target === \"APPROVED\" && reimb?.budgetLineId && typeof reimb.amountCents === \"number\" && reimb.amountCents > 0)` that reads a JSON blob and emits a LedgerEntry. There is no order, no attempt, no state and no history of either: `grep '^model ' apps/web/prisma/schema.prisma` lists 40 models and none is a payment order, payment attempt, payout or disbursement. The only states in play are `ApprovalStatus` (schema.prisma:444-452) — DRAFT / PENDING_PRESIDENT / NEEDS_CHANGES / PENDING_OSE / APPROVED / REJECTED / CANCELLED — which describe a REQUEST's governance, not a payment's lifecycle, and terminate the moment the request is approved. Meanwhile a real, production-wired state-machine engine already exists and is unused for this: packages/workflow/src/index.ts exports `publishDefinition`/`applyAction`/`availableActions`, and apps/web/src/lib/approvals.ts:152-160 already drives it from apps/web/src/lib/workflows/approval-definition.ts.",
+    "files": [
+      "apps/web/src/lib/workflows/approval-definition.ts",
+      "packages/workflow/src/definition.ts",
+      "packages/workflow/src/engine.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/prisma/schema.prisma"
+    ],
+    "smallest_real_change": "Publish a second definition beside apps/web/src/lib/workflows/approval-definition.ts — `disbursement-definition.ts`, using the SAME `publishDefinition` — with states REQUESTED → AUTHORISED → POSTED → REVERSED plus FAILED, and pin its version on the instance so an in-flight disbursement is unaffected by a redefinition (packages/workflow already does exactly this for approvals). Add a `Disbursement` model (institutionId, organizationId, approvalId, state, definitionVersion, amountCents, currency, ledgerEntryId, idempotencyKey) with a migration, and replace the bare `if` at approvals/actions.ts:325 with `applyAction(DISBURSEMENT_WORKFLOW, ...)` inside the existing `db.$transaction` at :389, so the transition and the LedgerEntry commit together. This is a Tenure-side state machine over Tenure's own ledger — it moves no money and calls no provider, which is what makes it buildable under NEXT-SESSION §0.3. Test the property the requirement names — state is independent of any provider object — by asserting a disbursement can reach POSTED and REVERSED with no external reference set at all, and that a transition rejected by the definition leaves BOTH the row and the ledger untouched. Mutate the definition's REVERSED transition guard and confirm the reversal test reds.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-SEC7-PRICED-CONFIG-OPTIONS",
+    "title": "NEXT-SESSION §7 standing requirement — no configuration option carries a price, per seat or per organisation, and no surface shows a running total",
+    "why_open": "§7 says every option a tenant chooses, at every stage of setup, must carry a per-seat AND whole-organisation price with a running total, and that an option without a price is incomplete. The option model has no price field: `ConfigDefinition` (packages/configuration/src/definition.ts:22-65) is key / owner / type / default / allowedScopes / mergeStrategy / sensitivity / overridable / requiresCapability / description. The resolver returns no cost — `ResolveResult` and `ResolvedConfig` (packages/configuration/src/resolve.ts:61,93) carry values, provenance and problems only. The Studio surface that renders the choices projects five fields and no money: apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx:75-81 maps each field to `{key, description, input, defaultValue, current}`, from `EditableField` at apps/system-studio/src/lib/editable-config.ts:23-31 which has no price either. The only price anywhere in the platform is whole-plan and monthly: `Plan.monthlyPriceCents` at packages/provisioning/src/commercial.ts:76 — and `commercialProjection` (:388-404) deliberately strips it ('No price, no contract dates'), so the tenant-facing projection shows cost to nobody. packages/finops has the correct integer-minor-unit `Money` (packages/finops/src/money.ts:24-28) and `allocateByWeight` (:116) but its only consumers are the Studio AWS cost page (apps/system-studio/src/lib/cost-source.ts:3, apps/system-studio/src/app/platform/cost/page.tsx:9) — nothing prices a config option.",
+    "files": [
+      "packages/configuration/src/definition.ts",
+      "packages/configuration/src/resolve.ts",
+      "packages/finops/src/money.ts",
+      "apps/system-studio/src/lib/editable-config.ts",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx",
+      "packages/platform-config/src/definitions.ts"
+    ],
+    "smallest_real_change": "Add a REQUIRED `price: { perSeatMinor: number; perOrgMinor: number; currency: string } | { free: true; because: string }` to `ConfigDefinition` (definition.ts:22) and enforce it in `validateDefinition` (:82) — a definition with neither a price nor an explicit free-with-reason is a registration-time throw, which is what makes 'an option without a price is incomplete' a rule rather than a wish. WIDENING WARNING: this breaks every definition literal; grep `defineConfig(` and the arrays in packages/platform-config/src/definitions.ts and fix them all in the same change, since a missing required field in an object literal DOES fail tsc but a spread-built one does not. Then have `resolveConfig` (resolve.ts:106) return `runningCost: { perSeat: Money; perOrg: Money; total: Money }` computed with `sum`/`add` from @tenure/finops (integer minor units, single currency, `CurrencyMismatchError` on a mixed set — never a float), carry it through `EditableField` (editable-config.ts:23) and render it in the projection at page.tsx:75-81 with a running total beneath the domain list, keeping e2e/layout.spec.ts green (#f2f0ed on #33302c). PROVE IT REDS: delete the `price` from one real definition in packages/platform-config/src/definitions.ts and confirm both the registration test throws AND the Studio Playwright spec that asserts the running total fails — assert on the total the RESOLVER emits, not on a helper called directly.",
+    "already_done": false
+  }
+]

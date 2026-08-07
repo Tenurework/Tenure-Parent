@@ -1,0 +1,14 @@
+{
+  "name": "@tenure/payments",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Provider-neutral payments primitives, quoting only: qualified external references (a raw provider id is never a key), balance-transaction ingest that can tell a retry from a conflict, the approved-capability registry, eligibility simulation, the responsibility matrix, funds-flow and charge-model decisions, posting templates, webhook verification and the money-movement refusal engine. No provider SDK, no network, no write verb.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./gateway": "./src/gateway.ts"
+  },
+  "//exports": "Two entry points, for the same reason @tenure/platform-config has two. The root reaches capability-registry.ts, which reads the approving ADR off disk with node:fs, and webhook.ts, which hashes with node:crypto — importing either from a module a client component also imports fails the Next build with UnhandledSchemeError. `./gateway` is the client-safe subset: the provider-neutral quoting surface, with no node builtin anywhere in its import graph. apps/web/src/lib/finance.ts is imported by client components and takes the second."
+}

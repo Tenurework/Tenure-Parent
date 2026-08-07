@@ -17,7 +17,7 @@ import { TenureLogo, TenureWordmark } from "@/components/brand/TenureLogo"
  */
 export function Footer() {
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-30 h-footer border-t border-border bg-surface">
+    <footer className="fixed bottom-0 left-0 right-0 z-sticky h-footer border-t border-border bg-surface">
       <div className="flex h-full items-center justify-between gap-3 px-3 sm:px-4">
         <span className="flex items-center gap-2 text-text-3">
           <TenureLogo size={14} color="currentColor" />

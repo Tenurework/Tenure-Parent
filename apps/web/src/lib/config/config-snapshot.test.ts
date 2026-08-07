@@ -37,6 +37,18 @@ describe("the resolved configuration, as a boundary value", () => {
     expect(snapshot.revision).toBe("university-student-organizations@1.0.0")
   })
 
+  // PAY-000-007. The snapshot carries the mode it resolved for, and the mode
+  // is a resolved configuration value — not NODE_ENV, which is one string for
+  // every tenant this container serves.
+  it("resolves test mode for a tenant that has published no payments.mode", async () => {
+    const snapshot = await configSnapshotForInstitution("inst_roch")
+    expect(snapshot.environment).toBe("test")
+    // The key itself resolves to the definition's default, which is what the
+    // snapshot's `environment` is read from — one value, not two that resemble
+    // each other.
+    expect(snapshot.values["platform.payments.mode"]).toBe("test")
+  })
+
   it("carries the resolved values, not an empty object", async () => {
     // A snapshot with a valid checksum over nothing would satisfy the contract
     // and be useless, so the values are asserted against one the registry

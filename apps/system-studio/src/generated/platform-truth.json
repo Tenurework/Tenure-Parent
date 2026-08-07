@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "6846a12",
+  "commit": "d965a5b",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 241,
@@ -1742,7 +1742,7 @@
     ],
     "totalItems": 2046,
     "totalGates": 181,
-    "decided": 145,
+    "decided": 211,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -3359,7 +3359,7 @@
         "source": "PAY",
         "items": 224,
         "gates": 0,
-        "done": 0
+        "done": 37
       },
       {
         "phase": "PLN · PLN-000 — Foundation",
@@ -3625,49 +3625,49 @@
         "source": "TTES",
         "items": 5,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "TTES · TTES-010 — Tokens and foundations",
         "source": "TTES",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 6
       },
       {
         "phase": "TTES · TTES-020 — Components and patterns",
         "source": "TTES",
         "items": 5,
         "gates": 1,
-        "done": 0
+        "done": 4
       },
       {
         "phase": "TTES · TTES-030 — Shell and journeys",
         "source": "TTES",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "TTES · TTES-040 — Accessibility, security and performance",
         "source": "TTES",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "TTES · TTES-050 — Superiority and governance",
         "source": "TTES",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "WRK · docs/implementation/universal-work-graph-execution-ledger.md",
         "source": "WRK",
         "items": 88,
         "gates": 14,
-        "done": 0
+        "done": 10
       }
     ]
   },
@@ -3772,22 +3772,22 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 27,
+      "files": 30,
       "what": "repository and deployment invariants"
     },
     {
       "name": "application unit",
-      "files": 55,
+      "files": 77,
       "what": "apps/web"
     },
     {
       "name": "tenant isolation",
-      "files": 11,
+      "files": 18,
       "what": "cross-tenant reads must fail"
     },
     {
       "name": "end to end",
-      "files": 45,
+      "files": 55,
       "what": "real browser"
     }
   ]

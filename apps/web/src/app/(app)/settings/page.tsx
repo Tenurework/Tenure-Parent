@@ -2,12 +2,20 @@ import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getUserContext } from "@/lib/rbac"
-import { withTenantScope } from "@/lib/tenant-scope"
+import { actingInstitutions, withTenantScope } from "@/lib/tenant-scope"
+import { BrandPreview } from "@/components/brand/BrandPreview"
 import { storageConfigured } from "@/lib/s3"
+import { aiConfigured } from "@/lib/ai"
+import {
+  resolveCapability,
+  type CapabilityState,
+  type ConnectionResolution,
+} from "@/lib/connections/capability-resolution"
 import { Card, CardHeader, Attribute } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { PageHeader } from "@/components/ui/PageHeader"
 import { ThemeSwitcher } from "@/components/ThemeSwitcher"
+import { DensitySwitcher } from "@/components/DensitySwitcher"
 import { ProfileImageEditor } from "@/components/ProfileImageEditor"
 import { updateProfile, setDelegation, revokeDelegation } from "./actions"
 
@@ -17,18 +25,86 @@ export default async function SettingsPage() {
   const session = await auth()
   if (!session?.user?.id) redirect("/signin")
 
-  return withTenantScope(session.user.id, async () => {
+  // `null` means "no user row behind this session" — the scope returns it and
+  // the redirect happens after the scope has closed. `redirect()` is a throw,
+  // and a throw crossing `runInTenantScope` aborts anything in flight; the guard
+  // in src/lib/tenancy/context.ts now refuses it outright rather than letting it
+  // pass on the pages that happen to have no write open.
+  const page = await withTenantScope(session.user.id, async () => {
     const [user, ctx] = await Promise.all([
       db.user.findUnique({ where: { id: session.user.id } }),
       getUserContext(session.user.id),
     ])
-    if (!user) redirect("/signin")
+    if (!user) return null
+
+    /**
+     * TTES-030-005. The connections that genuinely exist in this deployment,
+     * with their REAL health — each `configured` is read from the same
+     * function the feature gates on, so this page cannot say "connected" about
+     * something the feature would refuse.
+     *
+     * The provider half of the requirement (a certified third-party
+     * `Connection` with a launch token and a pending-action intent) is not
+     * here, and its absence is deliberate rather than an oversight: no
+     * `Connection` model exists in the schema, so a row claiming one would be
+     * a canned value.
+     */
+    const declaredConnections: { state: CapabilityState; whereToFix: string }[] = [
+      {
+        state: {
+          key: "ai.model",
+          label: "Tenure AI model",
+          certified: true,
+          configured: aiConfigured(),
+          reachable: true,
+          connectableBy: "admin",
+        },
+        whereToFix:
+          "Configured by your Tenure operator (ANTHROPIC_API_KEY on the application). Retrieval and search keep working without it — answers arrive as cited sources instead of prose.",
+      },
+      {
+        state: {
+          key: "documents.storage",
+          label: "Document storage",
+          certified: true,
+          configured: storageConfigured(),
+          reachable: true,
+          connectableBy: "admin",
+        },
+        whereToFix:
+          "Configured by your Tenure operator (S3_DOCUMENTS_BUCKET). Without it, document upload is hidden rather than broken — existing documents still open.",
+      },
+      {
+        state: {
+          key: "calendar.feed",
+          label: "Calendar subscription (ICS)",
+          certified: true,
+          // Per-user and always available: the feed is generated from rows this
+          // account can already read, so there is nothing to provision.
+          configured: true,
+          reachable: true,
+          connectableBy: "user",
+        },
+        whereToFix:
+          "Yours to connect: open the calendar and choose Subscribe to copy a private feed URL into Google, Outlook or Apple Calendar.",
+      },
+    ]
+    const connections: {
+      state: CapabilityState
+      resolved: ConnectionResolution
+      whereToFix: string
+    }[] = declaredConnections.map((c) => ({ ...c, resolved: resolveCapability(c.state) }))
 
     const seats = await db.roleAssignment.findMany({
       where: { userId: user.id, status: { in: ["ACTIVE", "SHADOW"] } },
       include: { role: { include: { seat: true, organization: { select: { name: true } } } } },
       orderBy: { startDate: "desc" },
     })
+
+    // The tenant whose branding this account actually renders under — the same
+    // resolution the shell layout uses, so the preview cannot show one
+    // institution's accent to somebody browsing under another's.
+    const activeSlug = (await actingInstitutions(session.user.id)).active?.slug ?? ""
 
     // Delegation: only gate owners (a president or OSE member) can name a backup.
     const isOse = ctx.institutionRoles.length > 0
@@ -96,6 +172,30 @@ export default async function SettingsPage() {
               subtitle="Choose a theme — System follows your device."
             />
             <ThemeSwitcher />
+          </Card>
+
+          {/* TTES-010-004. Beside Appearance because it answers the same
+              question from the other end: Appearance is the theme this person
+              chose, this is the accent their institution set and what it
+              measures against every theme the product ships. Rendered only for
+              an account with a tenant — there is nothing to preview without
+              one. */}
+          {activeSlug && (
+            <Card>
+              <CardHeader
+                title="Institution branding"
+                subtitle="Your institution's accent, as it is actually painted — and anything the contrast gate refused."
+              />
+              <BrandPreview institutionSlug={activeSlug} />
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader
+              title="Density"
+              subtitle="How much of a long table fits on screen. Compact tightens rows, buttons and inputs; nothing else changes."
+            />
+            <DensitySwitcher />
           </Card>
 
           <Card>
@@ -224,6 +324,46 @@ export default async function SettingsPage() {
             </Card>
           )}
 
+          {/* TTES-030-005 — the Connection Centre, for the connections that
+              genuinely exist today. Each row's status is READ from the same
+              function the feature itself gates on (aiConfigured,
+              storageConfigured), never from a stored flag that could be stale,
+              and the outcome + the one available path come from
+              resolveCapability so a non-certified capability can never grow a
+              Connect button. */}
+          <Card padding="none">
+            <div className="border-b border-border p-5">
+              <CardHeader
+                title="Connections"
+                subtitle="What this workspace is wired to, who owns each one, and where to fix it."
+              />
+            </div>
+            <ul className="divide-y divide-border">
+              {connections.map(({ state, resolved, whereToFix }) => (
+                <li
+                  key={state.key}
+                  className="px-5 py-4"
+                  data-connection={state.key}
+                  data-connection-outcome={resolved.outcome}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-text-1">{state.label}</p>
+                      <p className="mt-0.5 text-[13px] text-text-2">{resolved.explanation}</p>
+                      <p className="mt-1 text-meta uppercase tracking-wide text-text-3">
+                        Owned by {resolved.owner}
+                      </p>
+                    </div>
+                    <Badge variant={resolved.outcome === "CONNECTED" ? "success" : "default"}>
+                      {resolved.outcome === "CONNECTED" ? "Connected" : "Not connected"}
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-[13px] text-text-3">{whereToFix}</p>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
           <Card>
             <CardHeader title="Notifications" subtitle="Delivery preferences" />
             <p className="text-sm text-text-2">
@@ -235,4 +375,7 @@ export default async function SettingsPage() {
       </div>
     )
   })
+
+  if (!page) redirect("/signin")
+  return page
 }

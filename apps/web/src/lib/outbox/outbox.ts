@@ -1,4 +1,11 @@
-import { parseDomainEvent, type DomainEvent, type OutboxRecord, type OutboxState } from "@tenure/contracts"
+import { findSecretValues } from "@tenure/audit"
+import {
+  parseDomainEvent,
+  type DomainEvent,
+  type EventOrigin,
+  type OutboxRecord,
+  type OutboxState,
+} from "@tenure/contracts"
 
 /**
  * GE-021-006 — the transactional outbox.
@@ -51,8 +58,36 @@ export interface OutboxEventRow {
   resourceId: string
   correlationId: string
   causationId: string | null
+  /** PAY-020-006. Who authored `payload` — this platform, or a provider. */
+  origin: EventOrigin
   payload: Record<string, unknown>
   occurredAt: Date
+}
+
+/**
+ * PAY-020-006 — the refusal that keeps a provider's body out of the pipeline.
+ *
+ * Thrown rather than redacted, and that difference is the whole decision. An
+ * audit row that loses a field is still evidence, so `buildAuditRecord`
+ * redacts. An outbox row is different in two ways: it is written inside the
+ * business transaction that made the change, so a refusal aborts the change
+ * rather than half-recording it; and the payload it carries is what a consumer
+ * is about to act on, so quietly substituting `[redacted]` would hand a
+ * consumer a body that no longer says what happened. The caller has to fix the
+ * event, and fixing it means storing the provider reference and re-reading the
+ * provider — which is the pattern the platform already requires of consumers.
+ */
+export class ProviderPayloadRefused extends Error {
+  readonly paths: readonly string[]
+  constructor(paths: readonly string[], kinds: readonly string[]) {
+    super(
+      `Refusing to write a provider-origin outbox event carrying ${kinds.join(", ")} at ${paths.join(", ")}. ` +
+        `A provider payload becomes a log line the moment a dispatcher touches it. Carry the provider's ` +
+        `reference instead and have the consumer re-read it.`,
+    )
+    this.name = "ProviderPayloadRefused"
+    this.paths = paths
+  }
 }
 
 export function outboxEventRow(event: DomainEvent): OutboxEventRow {
@@ -69,6 +104,21 @@ export function outboxEventRow(event: DomainEvent): OutboxEventRow {
     )
   }
 
+  // Scanned only for provider-origin events, deliberately. Ours are built from
+  // columns this application owns; a provider's are whatever the provider sent,
+  // and that is the body that carries `whsec_…` in a field called `endpoint`.
+  // Scanning ours too would put a value scan on the hot path of every approval
+  // for a class of leak that would have to be committed by our own code.
+  if (valid.origin === "provider") {
+    const found = findSecretValues(payload, "payload")
+    if (found.length > 0) {
+      throw new ProviderPayloadRefused(
+        found.map((f) => f.path),
+        [...new Set(found.map((f) => f.kind))],
+      )
+    }
+  }
+
   return {
     institutionId: valid.tenantId,
     eventId: valid.eventId,
@@ -78,6 +128,7 @@ export function outboxEventRow(event: DomainEvent): OutboxEventRow {
     resourceId: valid.resourceId,
     correlationId: valid.correlationId,
     causationId: valid.causationId,
+    origin: valid.origin,
     payload: payload as Record<string, unknown>,
     occurredAt: new Date(valid.occurredAt),
   }
@@ -249,3 +300,71 @@ export async function replay(
 
 /** States from which a record will be attempted again. */
 export const RETRYABLE_STATES: readonly OutboxState[] = ["pending", "dispatching"]
+
+// ── Reconciliation ──────────────────────────────────────────────────────────
+
+/**
+ * PAY-140-007 — the half a dispatcher cannot tell you.
+ *
+ * `dispatchOnce` reports what it did. It cannot report what nobody did: if the
+ * job stops being invoked, or its route 500s on every call, every pass reports
+ * zero and zero is also what a healthy idle queue reports. The two are
+ * indistinguishable from the dispatcher's own output, and the failure mode is
+ * silent — rows pile up at `pending` and every event ever emitted becomes a gap.
+ *
+ * So the measurement is taken from the table, not from the run: how many
+ * records are due and still undelivered, how long the oldest has been waiting,
+ * and how many gave up. `overdueBy` is the number that matters — a queue with
+ * a hundred records one second overdue is working, and a queue with one record
+ * six hours overdue is not.
+ */
+export interface GapPorts {
+  /** Records past `availableAt` and not yet delivered, oldest first. */
+  overdue(now: string, limit: number): Promise<OutboxRecord[]>
+  /** How many are overdue in total — `overdue` is capped, this is not. */
+  countOverdue(now: string): Promise<number>
+  /** How many have stopped being retried and are waiting for a human. */
+  countDead(): Promise<number>
+}
+
+export interface GapReport {
+  /** Every record due for delivery and still undelivered. */
+  overdue: number
+  /** Dead-lettered records awaiting an operator. */
+  dead: number
+  /** Milliseconds the oldest overdue record has been waiting; 0 when none is. */
+  oldestOverdueByMs: number
+  /** The oldest few, so an operator sees what is stuck rather than a count. */
+  sample: readonly { outboxId: string; type: string; attempts: number; overdueByMs: number; lastError: string | null }[]
+}
+
+export async function gaps(
+  ports: GapPorts,
+  options: { now: string; sample?: number },
+): Promise<GapReport> {
+  const sampleSize = options.sample ?? 5
+  const nowMs = Date.parse(options.now)
+
+  const [oldest, overdue, dead] = await Promise.all([
+    ports.overdue(options.now, sampleSize),
+    ports.countOverdue(options.now),
+    ports.countDead(),
+  ])
+
+  const withAge = oldest.map((r) => ({
+    outboxId: r.outboxId,
+    type: r.event.type,
+    attempts: r.attempts,
+    // Clamped at zero: a record whose availableAt is in the future is not
+    // overdue, and a negative age would read as a queue running ahead of time.
+    overdueByMs: Math.max(0, nowMs - Date.parse(r.availableAt)),
+    lastError: r.lastError,
+  }))
+
+  return {
+    overdue,
+    dead,
+    oldestOverdueByMs: withAge.reduce((max, r) => Math.max(max, r.overdueByMs), 0),
+    sample: withAge,
+  }
+}

@@ -38,6 +38,15 @@ const mod = (over: Partial<ModuleManifest> = {}): ModuleManifest => ({
   description: "Assisted search.",
   owner: "platform",
   lifecycle: "development",
+  // PAY-160-002. Free, with the reason stated — the rule `validateManifest`
+  // holds the real catalog to applies to a fixture too.
+  price: {
+    perSeatMinor: 0,
+    perOrgMinor: 0,
+    currency: "USD",
+    rounding: "half-up",
+    includedBecause: "Fixture module declared in module-tools-and-chains.test.ts; it ships nowhere.",
+  },
   ...over,
 })
 

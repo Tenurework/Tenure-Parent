@@ -17,7 +17,16 @@ import {
   type ModelEntry,
   type PackageVersion,
 } from "./catalogs"
-import { MODEL_CATALOG, allowedModelIds, modelIsAllowed } from "@tenure/platform-config"
+import { PROVIDER_PACKS } from "./provider-packs"
+import { capabilityProblems, type ConnectorCapability } from "./connector-capability"
+import {
+  MODEL_CATALOG,
+  RELAY_ANTHROPIC_REVIEW,
+  allowedModelIds,
+  modelIsAllowed,
+  type ModelLifecycle,
+  type ProviderReview,
+} from "@tenure/platform-config"
 
 /**
  * GE-030-005 — the catalogs.
@@ -61,6 +70,18 @@ const EXTENSION: ExtensionEntry = {
   versions: [pkg()],
 }
 
+/**
+ * A provider review that is current at `NOW`, so a test aimed at something else
+ * is not silently exercising the activation gate.
+ */
+const PROVIDER_APPROVED: ProviderReview = {
+  program: "Example SIS partner programme",
+  state: "APPROVED",
+  approvedScopes: ["sis:roster.read", "sis:enrollment.read"],
+  verifiedAt: "2026-07-01T00:00:00.000Z",
+  expiresAt: "2027-07-01T00:00:00.000Z",
+}
+
 const CONNECTOR: ConnectorEntry = {
   kind: "connector",
   key: "tenure.sis",
@@ -70,6 +91,18 @@ const CONNECTOR: ConnectorEntry = {
   certification: CERTIFIED,
   egressHosts: ["sis.example.invalid"],
   compatibility: { minEngine: "2026.7.0", maxEngine: null },
+  capabilities: [
+    {
+      provider: "example-sis",
+      product: "roster",
+      capability: "student.list",
+      direction: "read",
+      status: "AVAILABLE",
+      evidenceRefs: ["review:sis-2026-004"],
+    },
+  ],
+  requestedScopes: ["sis:roster.read"],
+  providerReview: PROVIDER_APPROVED,
 }
 
 const MODEL: ModelEntry = {
@@ -335,7 +368,11 @@ describe("models are checked against the region they would be invoked from", () 
   })
 
   it("refuses a model that is only draft or submitted", () => {
-    for (const lifecycle of ["DRAFT", "SUBMITTED", "CERTIFIED"] as CatalogLifecycle[]) {
+    // `ModelLifecycle[]`, not `CatalogLifecycle[]`: models have no `PLANNED`
+    // state — a model nobody has integrated is simply not in the catalog —
+    // and the two vocabularies stopped being the same list when packs gained
+    // one (WRK-100-003).
+    for (const lifecycle of ["DRAFT", "SUBMITTED", "CERTIFIED"] as ModelLifecycle[]) {
       expect(modelIsAllowed(MODEL.modelId, "us-east-1", [{ ...MODEL, lifecycle }])).toBe(false)
     }
     // Deprecated still answers, like every other deprecated entry.
@@ -615,6 +652,245 @@ describe("the gate runs over a real catalog", () => {
     })
     expect(offered.length).toBeGreaterThan(0)
     expect(offered.every((e) => e.kind === "model")).toBe(true)
+  })
+})
+
+/* ------------------------------------------------------------- WRK-000-002 --
+ * Every provider/product/capability/direction classified in the seven-state
+ * vocabulary, with evidence — and asserted on what `availabilityDecisions`
+ * EMITS, because a helper called directly stays green when the production
+ * caller stops calling it.
+ */
+describe("each provider/product/capability/direction carries a status and its evidence", () => {
+  const SCOPE = {
+    engineVersion: "2026.8.0",
+    region: "us-east-1",
+    partition: "aws",
+    marketplaceEnabled: false,
+    now: NOW,
+  }
+
+  const relayDecision = () =>
+    availabilityDecisions(CATALOG_ENTRIES, SCOPE).find(
+      (d) => d.entry.key === "tenure.relay-anthropic",
+    )!
+
+  it("classifies the one capability that actually ships, and does not overstate it", () => {
+    // CERTIFICATION_PENDING, not AVAILABLE. The code is written and reachable
+    // and nobody has certified it, which is a state the old DRAFT/SUBMITTED/
+    // CERTIFIED vocabulary could not say at all.
+    expect(relayDecision().capabilities).toEqual([
+      {
+        provider: "anthropic",
+        product: "messages-api",
+        capability: "completion",
+        direction: "write",
+        status: "CERTIFICATION_PENDING",
+        evidenceRefs: ["apps/web/src/lib/ai.ts", "apps/web/src/lib/partition-services.ts"],
+        problems: [],
+      },
+    ])
+  })
+
+  it("covers the whole vocabulary, so nothing the Bible names is unsayable", () => {
+    // Seven states, exactly. A missing one is a fact somebody will express by
+    // picking the nearest word, which is how DEGRADED becomes AVAILABLE.
+    const declared: ConnectorCapability["status"][] = [
+      "PLANNED",
+      "DEVELOPMENT",
+      "CERTIFICATION_PENDING",
+      "AVAILABLE",
+      "DEGRADED",
+      "SUSPENDED",
+      "UNSUPPORTED",
+    ]
+    for (const status of declared) {
+      const cap: ConnectorCapability = {
+        provider: "p",
+        product: "q",
+        capability: "c",
+        direction: "read",
+        status,
+        evidenceRefs: ["evidence:1"],
+      }
+      // Only the two running statuses are held to anything; the other five are
+      // claims about work not done and prove nothing by construction.
+      expect(capabilityProblems(cap, { usable: true, reason: "usable" })).toEqual([])
+    }
+  })
+
+  it("refuses an AVAILABLE claim nobody can retrace", () => {
+    const entry: ConnectorEntry = {
+      ...CONNECTOR,
+      key: "tenure.unevidenced",
+      capabilities: [{ ...CONNECTOR.capabilities[0], evidenceRefs: [] }],
+    }
+    const [decision] = availabilityDecisions([entry], SCOPE)
+
+    expect(decision.available).toBe(true)
+    // The artifact passes and the capability's own claim does not. Both facts
+    // in one object, because a console holding only the first shows a green row.
+    expect(decision.capabilities?.[0].problems.map((p) => p.reason)).toEqual(["evidence-missing"])
+  })
+
+  it("refuses a status that disagrees with the artifact-level verdict", () => {
+    // The failure this whole requirement exists to stop: a green capability row
+    // on a connector the catalog gate refuses.
+    const entry: ConnectorEntry = {
+      ...CONNECTOR,
+      key: "tenure.disagrees",
+      certification: undefined,
+    }
+    const [decision] = availabilityDecisions([entry], SCOPE)
+
+    expect(decision.available).toBe(false)
+    expect(decision.reason).toBe("uncertified")
+    expect(decision.capabilities?.[0].problems.map((p) => p.reason)).toEqual([
+      "disagrees-with-artifact",
+    ])
+    expect(decision.capabilities?.[0].problems[0].detail).toContain("uncertified")
+  })
+
+  it("does not complain about a PLANNED capability on a refused connector", () => {
+    // Nobody has to prove they have not built something. Every planned pack
+    // would otherwise emit a problem apiece, which is 24 findings that mean
+    // nothing and hide the one that does.
+    const planned = availabilityDecisions(CATALOG_ENTRIES, SCOPE).filter(
+      (d) => d.reason === "planned",
+    )
+    expect(planned.length).toBeGreaterThan(0)
+    expect(planned.flatMap((d) => d.capabilities ?? []).flatMap((c) => c.problems)).toEqual([])
+  })
+})
+
+/* ------------------------------------------------------------- WRK-100-003 --
+ * Unbuilt packs are PLANNED, and PLANNED is refused with its own reason.
+ */
+describe("planned packs are listed, bound to a requirement, and refused as planned", () => {
+  const SCOPE = {
+    engineVersion: "2026.8.0",
+    region: "us-east-1",
+    partition: "aws",
+    marketplaceEnabled: false,
+    now: NOW,
+  }
+
+  it("returns `planned` for a planned pack, not `not-published`", () => {
+    // Two different answers to "when do we get Jira?". `not-published` covers
+    // DRAFT/SUBMITTED/CERTIFIED — work somebody is doing — and collapsing them
+    // tells an operator the pack is nearly ready when nobody has started.
+    const jira = availabilityDecisions(CATALOG_ENTRIES, SCOPE).find(
+      (d) => d.entry.key === "atlassian.jira",
+    )!
+    expect(jira.available).toBe(false)
+    expect(jira.reason).toBe("planned")
+    expect(jira.disclaimer).toMatch(/No connector code/)
+  })
+
+  it("lists every named provider, and offers none of them", () => {
+    expect(PROVIDER_PACKS).toHaveLength(24)
+    const decisions = availabilityDecisions(CATALOG_ENTRIES, SCOPE)
+    for (const pack of PROVIDER_PACKS) {
+      const decision = decisions.find((d) => d.entry.key === pack.key)!
+      expect(decision.available).toBe(false)
+      expect(decision.reason).toBe("planned")
+      expect(pack.requirementIds.length).toBeGreaterThan(0)
+    }
+  })
+
+  it("keeps PLANNED out of the middle of the pipeline", () => {
+    // Entered from nowhere, left only for DRAFT or REVOKED. A pack that has
+    // been started must not be able to become un-started.
+    expect(canAdvanceCatalog("PLANNED", "DRAFT")).toBe(true)
+    expect(canAdvanceCatalog("PLANNED", "REVOKED")).toBe(true)
+    expect(canAdvanceCatalog("PLANNED", "PUBLISHED")).toBe(false)
+    expect(canAdvanceCatalog("PLANNED", "CERTIFIED")).toBe(false)
+    for (const from of ["DRAFT", "SUBMITTED", "CERTIFIED", "PUBLISHED", "DEPRECATED"] as CatalogLifecycle[]) {
+      expect(canAdvanceCatalog(from, "PLANNED")).toBe(false)
+    }
+  })
+})
+
+/* ------------------------------------------------------------- WRK-040-003 --
+ * The PROVIDER's review, as an activation gate.
+ */
+describe("a provider's own review gates activation", () => {
+  const SCOPE = {
+    engineVersion: "2026.8.0",
+    region: "us-east-1",
+    partition: "aws",
+    marketplaceEnabled: false,
+    now: NOW,
+  }
+
+  it("refuses a published connector the provider never reviewed", () => {
+    // Passing by omission is the failure: a connector Tenure certified, with no
+    // record at all of what the provider said, used to be `usable`.
+    const { providerReview: _none, ...unreviewed } = CONNECTOR
+    expect(isUsable(unreviewed, CTX)).toMatchObject({
+      usable: false,
+      reason: "provider-review-missing",
+    })
+  })
+
+  it("refuses scopes the provider's approval does not cover", () => {
+    // The reason this is separate from the one above: a connector can be fully
+    // Tenure-certified and fully provider-approved and still be asking for
+    // `drive` when the approval covers `drive.file`.
+    const overreaching: ConnectorEntry = {
+      ...CONNECTOR,
+      key: "tenure.overreach",
+      requestedScopes: ["sis:roster.read", "sis:grades.write"],
+    }
+    expect(isUsable(overreaching, CTX)).toMatchObject({
+      usable: false,
+      reason: "scopes-exceed-provider-approval",
+    })
+
+    // Widen the approval and the same connector passes, so the refusal is the
+    // subset test and not the connector being broken some other way.
+    expect(
+      isUsable(
+        {
+          ...overreaching,
+          providerReview: {
+            ...PROVIDER_APPROVED,
+            approvedScopes: [...PROVIDER_APPROVED.approvedScopes, "sis:grades.write"],
+          },
+        },
+        CTX,
+      ).usable,
+    ).toBe(true)
+  })
+
+  it("refuses an approval that has lapsed, and says so distinctly", () => {
+    const lapsed: ConnectorEntry = {
+      ...CONNECTOR,
+      key: "tenure.lapsed",
+      providerReview: { ...PROVIDER_APPROVED, expiresAt: "2026-07-31T00:00:00.000Z" },
+    }
+    expect(isUsable(lapsed, CTX).reason).toBe("provider-review-expired")
+  })
+
+  it("carries the review record onto the decision, so NOT_SUBMITTED and REJECTED are told apart", () => {
+    const rejected: ConnectorEntry = {
+      ...CONNECTOR,
+      key: "tenure.rejected",
+      providerReview: { ...PROVIDER_APPROVED, state: "REJECTED" },
+    }
+    const [decision] = availabilityDecisions([rejected], SCOPE)
+    expect(decision.reason).toBe("provider-review-missing")
+    // Both are "not approved" and they send an operator to completely
+    // different places. The reason alone cannot say which.
+    expect(decision.providerReview?.state).toBe("REJECTED")
+  })
+
+  it("records honestly that nobody has reviewed the Relay egress", () => {
+    expect(RELAY_ANTHROPIC_REVIEW.state).toBe("NOT_SUBMITTED")
+    expect(RELAY_ANTHROPIC_REVIEW.approvedScopes).toEqual([])
+    // Certification is still the first thing wrong with it, and the gate says
+    // the first thing rather than the most recently added one.
+    expect(isUsable(RELAY_ANTHROPIC_CONNECTOR, CTX).reason).toBe("uncertified")
   })
 })
 

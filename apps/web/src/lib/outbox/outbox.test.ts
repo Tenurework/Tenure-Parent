@@ -11,10 +11,13 @@ import type { DomainEvent, OutboxRecord } from "@tenure/contracts"
 
 import {
   MAX_ATTEMPTS,
+  ProviderPayloadRefused,
   backoffMs,
   dispatchOnce,
+  gaps,
   outboxEventRow,
   replay,
+  type GapPorts,
   type OutboxPorts,
   type ReplayPorts,
 } from "./outbox"
@@ -31,6 +34,7 @@ const event = (over: Partial<DomainEvent> = {}): DomainEvent => ({
   occurredAt: NOW,
   correlationId: "corr-1",
   causationId: "cmd-1",
+  origin: "tenure",
   payload: {},
   ...over,
 })
@@ -96,6 +100,60 @@ describe("recording an event", () => {
     // A row whose institutionId disagreed with the event it carries is an event
     // delivered under the wrong tenant, and nothing downstream could tell.
     expect(outboxEventRow(event({ tenantId: "t-midtown" })).institutionId).toBe("t-midtown")
+  })
+
+  /**
+   * PAY-020-006 — the classification, and the refusal it makes possible.
+   *
+   * Before `origin` existed a provider's webhook body and a payload this
+   * platform built were the same opaque JSON, so no sink could refuse one: the
+   * dispatcher logs what it delivers, and a `whsec_…` inside that body becomes
+   * a log line the moment anything touches it.
+   */
+  it("carries who wrote the payload onto the row", () => {
+    expect(outboxEventRow(event()).origin).toBe("tenure")
+    expect(outboxEventRow(event({ origin: "provider", payload: { ref: "evt_1" } })).origin).toBe(
+      "provider",
+    )
+  })
+
+  it("refuses a provider payload carrying a secret, rather than storing it", () => {
+    // Thrown inside the caller's transaction, which is the point: the change
+    // and the event commit together, so refusing here refuses both. Redacting
+    // instead would hand a consumer a body that no longer says what happened.
+    expect(() =>
+      outboxEventRow(
+        event({
+          origin: "provider",
+          payload: { data: { object: { endpoint: "whsec_9RtYbN2xQv8LmPk4Ws7Za" } } },
+        }),
+      ),
+    ).toThrow(ProviderPayloadRefused)
+
+    expect(() =>
+      outboxEventRow(event({ origin: "provider", payload: { key: "sk_live_51H8xQpKz0fbGh2mNq7Tc" } })),
+    ).toThrow(/provider-origin outbox event/)
+  })
+
+  it("names the path, so the fix is not a hunt", () => {
+    try {
+      outboxEventRow(
+        event({ origin: "provider", payload: { charge: { token: "AKIAIOSFODNN7EXAMPLE" } } }),
+      )
+      throw new Error("expected a refusal")
+    } catch (err) {
+      expect(err).toBeInstanceOf(ProviderPayloadRefused)
+      expect((err as ProviderPayloadRefused).paths).toEqual(["payload.charge.token"])
+    }
+  })
+
+  it("still accepts a provider event that carries only a reference", () => {
+    // The refusal has to leave the correct pattern available, or it is a ban on
+    // provider events rather than on provider secrets.
+    const row = outboxEventRow(
+      event({ origin: "provider", payload: { providerEventId: "evt_1JK2", account: "acct_9" } }),
+    )
+    expect(row.payload).toEqual({ providerEventId: "evt_1JK2", account: "acct_9" })
   })
 })
 
@@ -262,6 +320,8 @@ describe("replay", () => {
   })
 
   it("requeues only records that are actually dead", async () => {
+    // (see below for the gap report, which is what tells an operator there is
+    // anything to replay in the first place)
     // Requeuing a pending or in-flight record duplicates it deliberately, which
     // is the one duplication this design does not accept.
     const requeue = jest.fn(async () => {})
@@ -276,5 +336,84 @@ describe("replay", () => {
     expect(out.refused).toEqual(["ob-pending"])
     expect(requeue).toHaveBeenCalledTimes(1)
     expect(requeue).toHaveBeenCalledWith("ob-dead", NOW)
+  })
+})
+
+/**
+ * PAY-140-007 — reconciliation, which is the half a dispatch report cannot give.
+ *
+ * A pass that dispatched nothing and a schedule that stopped firing produce the
+ * same report: zeros. What is still due once a pass has finished is what tells
+ * the two apart, and nothing measured it — so every `ApprovalDecided` ever
+ * emitted sat at `pending` and no counter anywhere went up.
+ */
+describe("gap detection", () => {
+  function gapPorts(over: Partial<GapPorts> = {}): GapPorts {
+    return {
+      overdue: async () => [],
+      countOverdue: async () => 0,
+      countDead: async () => 0,
+      ...over,
+    }
+  }
+
+  const minutesAgo = (n: number) => new Date(Date.parse(NOW) - n * 60_000).toISOString()
+
+  it("reports an empty queue as no gap at all", async () => {
+    expect(await gaps(gapPorts(), { now: NOW })).toEqual({
+      overdue: 0,
+      dead: 0,
+      oldestOverdueByMs: 0,
+      sample: [],
+    })
+  })
+
+  it("ages the oldest overdue record, which is the number that matters", async () => {
+    // A hundred records one second overdue is a working queue. One record six
+    // hours overdue is a downstream that never learned an approval was decided.
+    const report = await gaps(
+      gapPorts({
+        overdue: async () => [
+          record({ outboxId: "ob-old", availableAt: minutesAgo(90), attempts: 3, lastError: "down" }),
+          record({ outboxId: "ob-new", availableAt: minutesAgo(2) }),
+        ],
+        countOverdue: async () => 12,
+        countDead: async () => 2,
+      }),
+      { now: NOW },
+    )
+
+    expect(report.overdue).toBe(12)
+    expect(report.dead).toBe(2)
+    expect(report.oldestOverdueByMs).toBe(90 * 60_000)
+    expect(report.sample[0]).toEqual({
+      outboxId: "ob-old",
+      type: "ApprovalDecided",
+      attempts: 3,
+      overdueByMs: 90 * 60_000,
+      lastError: "down",
+    })
+  })
+
+  it("counts beyond the sample, so a capped list cannot understate the backlog", async () => {
+    // `overdue()` takes a limit and `countOverdue()` does not. Reporting the
+    // sample's length would show "5 overdue" for a queue of fifty thousand.
+    const report = await gaps(
+      gapPorts({
+        overdue: async () => [record({ availableAt: minutesAgo(5) })],
+        countOverdue: async () => 4821,
+      }),
+      { now: NOW },
+    )
+    expect(report.overdue).toBe(4821)
+    expect(report.sample).toHaveLength(1)
+  })
+
+  it("never reports a record due in the future as overdue by a negative age", async () => {
+    const report = await gaps(
+      gapPorts({ overdue: async () => [record({ availableAt: "2026-08-01T13:00:00.000Z" })] }),
+      { now: NOW },
+    )
+    expect(report.oldestOverdueByMs).toBe(0)
   })
 })

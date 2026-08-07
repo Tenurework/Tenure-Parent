@@ -1,6 +1,5 @@
 import Link from "next/link"
 import type { Metadata } from "next"
-import { notFound } from "next/navigation"
 import type { EventStatus } from "@prisma/client"
 import { CheckCircle, X, Archive, ArchiveRestore, CalendarDays, BookOpen, FileText } from "@/components/ui/icons"
 import { db } from "@/lib/db"
@@ -12,6 +11,7 @@ import { hasCapability } from "@/lib/admin/capabilities"
 import { Card, CardHeader } from "@/components/ui/Card"
 import { EventBadge, Badge } from "@/components/ui/Badge"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { StateSurface } from "@/components/ui/StateSurface"
 import { ConfirmSubmit } from "@/components/ui/ConfirmDialog"
 import {
   adminSetEventStatus,
@@ -30,7 +30,15 @@ export default async function AdminOverridesPage() {
     const tz = await institutionTimeZone(institutionId)
     const canEvent = hasCapability(ctx, "event.override", institutionId)
     const canContent = hasCapability(ctx, "content.override", institutionId)
-    if (!canEvent && !canContent) notFound()
+    // TTES-040-002. NOT notFound(). This page sits behind admin/layout.tsx's
+    // `if (!isAdmin(ctx)) notFound()`, so the viewer is already known to be an
+    // administrator and the console's own nav rendered the link they clicked.
+    // Telling them the page does not exist is a lie they can disprove in one
+    // click, and it hides nothing: no object is named here. The refusal states
+    // in `states.ts` were written for exactly this — a capability refusal on a
+    // surface the person legitimately reached. Object-level notFound()s
+    // (orgs/[slug]/documents, calendar/[id], messages/[id]) stay as they are.
+    if (!canEvent && !canContent) return <StateSurface state="permission-denied" />
 
     const [events, memory, documents] = await Promise.all([
       canEvent
@@ -73,7 +81,7 @@ export default async function AdminOverridesPage() {
               <CardHeader title="Events" subtitle="Publish or cancel any club event." />
             </div>
             {events.length === 0 ? (
-              <EmptyState icon={CalendarDays} title="No events" description="Club events appear here." />
+              <EmptyState state="empty" icon={CalendarDays} title="No events" description="Club events appear here." />
             ) : (
               <ul className="divide-y divide-border">
                 {events.map((e) => (
@@ -162,7 +170,7 @@ function ContentCard({
         <CardHeader title={title} subtitle="Archive or restore across the institution." />
       </div>
       {items.length === 0 ? (
-        <EmptyState icon={Icon} title={`No ${title.toLowerCase()}`} />
+        <EmptyState state="empty" icon={Icon} title={`No ${title.toLowerCase()}`} />
       ) : (
         <ul className="divide-y divide-border">
           {items.map((it) => (

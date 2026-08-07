@@ -154,3 +154,40 @@ describe("the client the application actually imports", () => {
     expect(recordedViolations()).toHaveLength(0)
   })
 })
+
+// ── PAY-030-005: ApprovalStep is append-only too, and now actually is ────────
+//
+// schema.prisma has commented this model "append-only" since it existed, and
+// `actOnApproval` told its reader it appended to "a trail the schema declares
+// immutable". Both were false — the set below had one member. ApprovalStep is
+// the platform's ONLY state-transition history, so it is the one place where a
+// silent rewrite loses the answer to "who decided this, when, and under what
+// policy".
+
+describe("ApprovalStep is append-only", () => {
+  it.each(MUTATING_OPERATIONS)("refuses %s on ApprovalStep", (operation) => {
+    const refusal = appendOnlyRefusal("ApprovalStep", operation)
+
+    expect(refusal).toBeInstanceOf(AuditAppendOnlyError)
+    expect(refusal!.model).toBe("ApprovalStep")
+  })
+
+  it.each([...READ_OPERATIONS, ...APPEND_OPERATIONS])(
+    "permits %s on ApprovalStep",
+    (operation) => {
+      expect(appendOnlyRefusal("ApprovalStep", operation)).toBeNull()
+    },
+  )
+
+  it("refuses a step rewrite issued through the client the application imports", async () => {
+    const { db } = await import("@/lib/db")
+
+    // The wiring half. The rule above would pass with "ApprovalStep" in the set
+    // and the extension never attached — which is exactly the state the model's
+    // own comment described.
+    await expect(
+      db.approvalStep.updateMany({ where: {}, data: { reason: "rewritten" } }),
+    ).rejects.toBeInstanceOf(AuditAppendOnlyError)
+    await expect(db.approvalStep.deleteMany({})).rejects.toBeInstanceOf(AuditAppendOnlyError)
+  })
+})

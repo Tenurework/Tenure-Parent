@@ -109,6 +109,23 @@ export const ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "approvals.request.decide",
       "approvals.request.cancel",
       "finance.reimbursement.create",
+      // PAY-150-001. The club president has been able to edit budget lines,
+      // import a tracker and post to the ledger since `canManageFinance`
+      // shipped — that predicate reads `scope === "PRESIDENT"` directly. Naming
+      // it here is what lets the finance write path ask the engine instead of
+      // asking the predicate; leaving it out would have been a silent
+      // revocation dressed up as a refactor.
+      //
+      // `finance.ledger.reverse` is deliberately NOT here, and it is the one
+      // answer that changes. Reversing a posted transaction restates money the
+      // institution has already recognised, and that belongs to the seat
+      // accountable for the ledger — `finance.officer` — or to the oversight
+      // office, not to whoever happens to run the club this year.
+      "finance.budget.read",
+      "finance.budget.update",
+      "finance.ledger.read",
+      "finance.ledger.post",
+      "finance.report.read",
       "approvals.request.assign",
       "approvals.policy.read",
       "events.event.create",
@@ -141,6 +158,11 @@ export const ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "finance.budget.update",
       "finance.ledger.read",
       "finance.ledger.post",
+      // The seat that keeps the ledger is the seat that corrects it. A
+      // correction it cannot make is a correction that does not happen, and the
+      // control this protects is that the correction is a visible opposite
+      // entry rather than a deletion — not that it takes a second person.
+      "finance.ledger.reverse",
       "finance.reimbursement.create",
       "finance.reimbursement.read",
       "finance.report.read",
@@ -338,6 +360,12 @@ export const ROLE_TEMPLATES: readonly RoleTemplate[] = [
       "finance.budget.read",
       "finance.budget.update",
       "finance.ledger.read",
+      // PAY-150-001. `canManageFinance` returns true for the OSE Director at
+      // every club in the institution, and that includes posting and removing
+      // ledger entries. Both are named here so the engine answers the finance
+      // write path the same way the predicate did.
+      "finance.ledger.post",
+      "finance.ledger.reverse",
       "finance.report.read",
       "resources.resource.read",
       "resources.resource.create",

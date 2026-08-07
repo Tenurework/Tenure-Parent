@@ -5,10 +5,12 @@ import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { withTenantScope } from "@/lib/tenant-scope"
+import { configSnapshotForInstitution, institutionSlugFor } from "@/lib/config/server"
+import { localizationFor } from "@tenure/platform-config"
 import { detectConflicts } from "@/lib/calendar"
 import { institutionTimeZone } from "@/lib/institution-time"
 import { formatInZone, parseDateTimeLocal } from "@/lib/time"
-import { nextStatus } from "@/lib/approvals"
+import { approvalDigest, nextStatus } from "@/lib/approvals"
 import { notifyUsers, orgPresidentIds, oseMemberIds } from "@/lib/notify"
 
 /**
@@ -22,7 +24,12 @@ export async function createEvent(formData: FormData) {
   if (!session?.user?.id) throw new Error("Not signed in")
   const userId = session.user.id
 
-  await withTenantScope(userId, async () => {
+  // The scope returns the new event's id and closes before anything navigates.
+  // This body opens a `db.$transaction` that writes the ApprovalRequest, the
+  // ApprovalStep, the Event, its ConflictRecords and the audit row; a
+  // `redirect()` reached from inside it is a throw that aborts all six while the
+  // browser follows a 307 to an event that no longer exists.
+  const eventId = await withTenantScope(userId, async () => {
     const organizationId = String(formData.get("organizationId") ?? "")
     const title = String(formData.get("title") ?? "").trim()
     const description = String(formData.get("description") ?? "").trim()
@@ -75,7 +82,28 @@ export async function createEvent(formData: FormData) {
     )
 
     const requesterIsPresident = membership.role.scope === "PRESIDENT"
-    const submitTarget = nextStatus("submit", "DRAFT", { requesterIsPresident })!
+    // PAY-150-002. An event proposal moves no money, so it can never exceed the
+    // ladder — stated rather than defaulted, because `exceedsThreshold` is a
+    // required option precisely so a caller with an amount cannot forget it.
+    const submitTarget = nextStatus("submit", "DRAFT", {
+      requesterIsPresident,
+      exceedsThreshold: false,
+    })!
+
+    // PAY-030-005. The configuration this submission is raised against.
+    const configSnapshot = await configSnapshotForInstitution(org.institutionId)
+    // PAY-150-002 / PAY-150-004. The currency the request is denominated in,
+    // even with no amount on it: the digest below covers it, so an institution
+    // that changes currency cannot silently revalue a request in flight.
+    const currency = localizationFor(
+      await institutionSlugFor(org.institutionId),
+    ).currency.toUpperCase()
+    const metadata = {
+      venue,
+      currency,
+      startAt: startAt.toISOString(),
+      endAt: endAt.toISOString(),
+    }
 
     const event = await db.$transaction(async (tx) => {
       const approval = await tx.approvalRequest.create({
@@ -90,7 +118,7 @@ export async function createEvent(formData: FormData) {
             (description ? `\n\n${description}` : ""),
           submittedById: userId,
           status: submitTarget,
-          metadata: { venue, startAt: startAt.toISOString(), endAt: endAt.toISOString() },
+          metadata,
         },
       })
       await tx.approvalStep.create({
@@ -100,7 +128,24 @@ export async function createEvent(formData: FormData) {
           toStatus: submitTarget,
           actorId: userId,
           actorRoleContext: membership.role.name,
-          policySnapshot: { requesterIsPresident, conflictCount: conflicts.length },
+          // PAY-150-004. The schedule and venue this gate is being asked about.
+          // `syncApprovalSnapshot` (calendar-write.ts) rewrites exactly these
+          // fields when the grid moves an event, so this is the digest that
+          // makes a reschedule between the two gates a refusal instead of a
+          // silently different approval.
+          policySnapshot: {
+            requesterIsPresident,
+            conflictCount: conflicts.length,
+            payloadDigest: approvalDigest(metadata, {
+              organizationId,
+              type: "EVENT",
+              amountMinorUnits: null,
+              currency,
+            }),
+          },
+          configRevision: configSnapshot.revision,
+          configChecksum: configSnapshot.checksum,
+          authority: "approvals.requester",
         },
       })
       const e = await tx.event.create({
@@ -163,8 +208,10 @@ export async function createEvent(formData: FormData) {
       excludeUserId: userId,
     })
 
-    revalidatePath("/calendar")
-    revalidatePath("/approvals")
-    redirect(`/calendar/${event.id}`)
+    return event.id
   })
+
+  revalidatePath("/calendar")
+  revalidatePath("/approvals")
+  redirect(`/calendar/${eventId}`)
 }

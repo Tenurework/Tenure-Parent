@@ -24,6 +24,8 @@
       "@tenure/module-runtime": ["../../packages/module-runtime/src/index.ts"],
       "@tenure/modules": ["../../modules/index.ts"],
       "@tenure/releases": ["../../packages/releases/src/index.ts"],
+      "@tenure/payments": ["../../packages/payments/src/index.ts"],
+      "@tenure/payments/gateway": ["../../packages/payments/src/gateway.ts"],
       "@tenure/platform-config": ["../../packages/platform-config/src/index.ts"],
       "@tenure/provisioning": ["../../packages/provisioning/src/index.ts"],
       "@tenure/finops": ["../../packages/finops/src/index.ts"]

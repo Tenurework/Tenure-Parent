@@ -22,6 +22,12 @@ import { publishDefinition, type WorkflowDefinition } from "@tenure/workflow"
  * A president's own request skips their own gate: submit → PENDING_OSE. That is
  * the `requesterIsPresident` condition, and it is the reason `when`/`unless`
  * exist on transitions at all.
+ *
+ * PAY-150-002 adds the second condition, `exceedsThreshold`: above the ceiling
+ * this institution publishes, the final gate is the staff-office DIRECTOR's
+ * rather than any staff-office seat's. The host resolves both and passes them
+ * in — see `availableActions` and `nextStatus` in lib/approvals.ts, which are
+ * the only two places that build a `WorkflowContext` for this definition.
  */
 
 /** Roles an actor can play for one approval request. Resolved by the host. */
@@ -29,6 +35,12 @@ export const APPROVAL_ROLES = {
   requester: "requester",
   president: "president",
   oseGate: "oseGate",
+  /**
+   * PAY-150-002 — the extra gate money reaches. Held by the staff office's
+   * DIRECTOR, which `oseGate` is not: any institution membership satisfies
+   * that, advisors included.
+   */
+  oseDirectorGate: "oseDirectorGate",
 } as const
 
 export const APPROVAL_WORKFLOW: WorkflowDefinition = publishDefinition({
@@ -97,11 +109,31 @@ export const APPROVAL_WORKFLOW: WorkflowDefinition = publishDefinition({
       label: "Cancel",
     },
 
+    // PAY-150-002 — final approval is amount-aware. Below the institution's
+    // published ceiling any staff-office seat may give it; above it, only the
+    // director's. Two transitions on one action split by a condition, exactly
+    // as the president gate-skip is — which is what the condition channel is
+    // for, and what makes "a $5 request and a $500,000 request take the
+    // identical two gates" no longer true.
+    //
+    // The ordinary one is listed first so the button order a reviewer sees
+    // (approve, request changes, reject) is unchanged in the common case;
+    // `candidates` filters on the condition, so exactly one of the two is ever
+    // offered.
     {
       action: "approve",
       from: "PENDING_OSE",
       to: "APPROVED",
+      unless: "exceedsThreshold",
       allowedRoles: [APPROVAL_ROLES.oseGate],
+      label: "Approve",
+    },
+    {
+      action: "approve",
+      from: "PENDING_OSE",
+      to: "APPROVED",
+      when: "exceedsThreshold",
+      allowedRoles: [APPROVAL_ROLES.oseDirectorGate],
       label: "Approve",
     },
     {

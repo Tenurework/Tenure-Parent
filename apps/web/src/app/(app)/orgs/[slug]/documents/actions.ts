@@ -78,15 +78,19 @@ export async function uploadDocumentAction(slug: string, formData: FormData) {
         },
       }),
     ])
-
-    revalidatePath(`/orgs/${slug}/documents`)
   })
+
+  revalidatePath(`/orgs/${slug}/documents`)
 }
 
 /** Permission-checked, short-lived download redirect. */
 export async function downloadDocumentAction(slug: string, formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  // The signed URL comes out of the scope; the navigation happens after it.
+  // `redirect()` is a throw — reached from inside, the Document.Downloaded audit
+  // row above it is written into a request that then unwinds, and an audit trail
+  // that loses the read it was recording is worse than none.
+  const url = await withTenantScope(userId, async () => {
     const documentId = String(formData.get("documentId") ?? "")
     const doc = await db.document.findUnique({
       where: { id: documentId },
@@ -109,9 +113,10 @@ export async function downloadDocumentAction(slug: string, formData: FormData) {
       },
     })
 
-    const url = await documentDownloadUrl(doc.objectKey, doc.title)
-    redirect(url)
+    return documentDownloadUrl(doc.objectKey, doc.title)
   })
+
+  redirect(url)
 }
 
 /**
@@ -146,8 +151,9 @@ export async function deleteDocumentAction(slug: string, formData: FormData) {
     if (!allowed) throw new Error("Only the uploader or club leadership can delete this")
 
     await db.document.update({ where: { id: doc.id }, data: { isArchived: true } })
-    revalidatePath(`/orgs/${slug}/documents`)
   })
+
+  revalidatePath(`/orgs/${slug}/documents`)
 }
 
 /**
@@ -181,14 +187,15 @@ export async function restoreDocumentAction(slug: string, formData: FormData) {
     if (!allowed) throw new Error("Only the uploader or club leadership can restore this")
 
     await db.document.update({ where: { id: doc.id }, data: { isArchived: false } })
-    revalidatePath(`/orgs/${slug}/documents`)
   })
+
+  revalidatePath(`/orgs/${slug}/documents`)
 }
 
 /** Permission-checked inline view (opens in the browser tab). */
 export async function viewDocumentAction(slug: string, formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  const url = await withTenantScope(userId, async () => {
     const documentId = String(formData.get("documentId") ?? "")
     const doc = await db.document.findUnique({
       where: { id: documentId },
@@ -211,6 +218,8 @@ export async function viewDocumentAction(slug: string, formData: FormData) {
       },
     })
 
-    redirect(await documentViewUrl(doc.objectKey))
+    return documentViewUrl(doc.objectKey)
   })
+
+  redirect(url)
 }

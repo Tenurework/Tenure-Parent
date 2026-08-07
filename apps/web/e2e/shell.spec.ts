@@ -32,6 +32,89 @@ test.describe("shell + brand", () => {
     await panel.getByRole("button", { name: "Close Tenure AI" }).click()
   })
 
+  /**
+   * TTES-030-001 — Bible §5.1's "Global command/search (⌘/Ctrl K) with
+   * permission-aware actions and recent objects".
+   *
+   * There was no ⌘K anywhere in the tenant product: the only key handler in the
+   * whole shell was an onKeyDown on the search input itself, so the palette was
+   * unreachable from the keyboard from every route. The operator console has
+   * had one since GE-022-007.
+   */
+  test("Ctrl-K opens the command palette from any route, with combobox semantics", async ({
+    page,
+  }) => {
+    await signIn(page, "Maya Johnson")
+
+    for (const route of ["/dashboard", "/calendar"]) {
+      await page.goto(route)
+      await page.waitForLoadState("networkidle")
+
+      const combobox = page.getByRole("combobox", { name: "Search Tenure" })
+      await expect(combobox).toHaveAttribute("aria-expanded", "false")
+
+      // Pressed on the document, with nothing focused — the point of the item.
+      await page.keyboard.press("Control+k")
+
+      await expect(combobox).toBeFocused()
+      await expect(combobox).toHaveAttribute("aria-expanded", "true")
+      await expect(combobox).toHaveAttribute("aria-controls", "shell-search-listbox")
+
+      // Permission-aware ACTIONS, not only objects. They come from the same
+      // capability-filtered navigation the side nav renders, so an action this
+      // principal does not hold was never in the list to be filtered out.
+      const listbox = page.locator("#shell-search-listbox")
+      await expect(listbox).toHaveAttribute("role", "listbox")
+      const options = listbox.getByRole("option")
+      expect(await options.count()).toBeGreaterThan(0)
+      await expect(options.first()).toContainText("Go to")
+
+      // Maya is a plain member: the admin console is not in her navigation, so
+      // it cannot be offered here either.
+      await expect(listbox).not.toContainText("Admin Console")
+
+      // Arrowing tracks aria-activedescendant, which is the whole reason a
+      // screen-reader user can follow the selection.
+      await expect(combobox).not.toHaveAttribute("aria-activedescendant", /.+/)
+      await page.keyboard.press("ArrowDown")
+      await expect(combobox).toHaveAttribute("aria-activedescendant", "shell-search-opt-0")
+      await expect(options.first()).toHaveAttribute("aria-selected", "true")
+      await page.keyboard.press("ArrowDown")
+      await expect(combobox).toHaveAttribute("aria-activedescendant", "shell-search-opt-1")
+
+      await page.keyboard.press("Escape")
+      await expect(combobox).toHaveAttribute("aria-expanded", "false")
+    }
+  })
+
+  test("the palette offers an admin their admin actions, and remembers what they opened", async ({
+    page,
+  }) => {
+    await signIn(page, "Dana Whitfield")
+    await page.goto("/dashboard")
+    await page.waitForLoadState("networkidle")
+
+    await page.keyboard.press("Control+k")
+    const listbox = page.locator("#shell-search-listbox")
+    await expect(listbox).toBeVisible()
+    // The director's navigation carries the console, so the palette does too —
+    // the same resolution, not a second list that could disagree with it.
+    await expect(listbox).toContainText("Admin Console")
+
+    // Recent objects (§5.1). Open one from a search, then reopen the palette
+    // with an empty query and it is offered back.
+    await page.getByRole("combobox", { name: "Search Tenure" }).fill("Simon Consulting")
+    const result = listbox.getByRole("option").filter({ hasText: "Simon Consulting" }).first()
+    await expect(result).toBeVisible({ timeout: 10_000 })
+    await result.click()
+    await page.waitForLoadState("networkidle")
+
+    await page.keyboard.press("Control+k")
+    // Empty query: the palette offers the actions and then the objects this
+    // person opened recently — §5.1's "recent objects", which did not exist.
+    await expect(page.locator("#shell-search-listbox")).toContainText("Simon Consulting")
+  })
+
   test("footer with wordmark and copyright renders on every page", async ({ page }) => {
     await signIn(page, "Maya Johnson")
     for (const path of ["/dashboard", "/orgs", "/calendar", "/messages"]) {
@@ -54,6 +137,57 @@ test.describe("shell + brand", () => {
     const settingsBox = (await settings.boundingBox())!
     const opsBox = (await nav.getByText("Operations").boundingBox())!
     expect(settingsBox.y).toBeGreaterThan(opsBox.y)
+  })
+
+  /**
+   * TTES-GATE-030 — the menu offers a person what they can do, and nothing else.
+   *
+   * Nothing proved this before, and the near-misses are the interesting part.
+   * `navigation-capabilities.test.ts` does exercise `navigationCapabilitiesFor`
+   * — freezing that function to `new Set(Object.values(NAV_CAPABILITIES))` reds
+   * four of its cases — but every one of those calls the function DIRECTLY with
+   * a hand-built `UserContext`. None of them says the layout still passes the
+   * result on. Change `(app)/layout.tsx` to hand `navigationForSystem` a `null`
+   * capability set — its documented "show everything, for operator views" —
+   * and the whole unit suite stays green while every signed-in member is
+   * offered an Admin Console link. That is the mutate-the-producer hole, and it
+   * is the mutation this case is proven against.
+   *
+   * `admin-console.spec.ts` came closest and still missed it: it asserts a
+   * member cannot reach the /admin PAGE, never that the member's side nav stops
+   * offering it. A hidden page behind a visible link is still clutter, and it is
+   * still the gate failing.
+   *
+   * So this reads the RENDERED nav — the thing `(app)/layout.tsx` emits after
+   * `navigationCapabilitiesFor` has filtered `navigationForSystem` — for two
+   * seeded personas against the same database, in one test so that neither
+   * reading can be explained away by a different fixture.
+   *
+   * The `Calendar` / `Messages` assertions in the member half are not padding.
+   * `toHaveCount(0)` passes just as happily against a nav that failed to render
+   * at all, and a suite that cannot tell "correctly scoped" from "absent" is
+   * measuring nothing. Those two entries carry no `requiresCapability`, so they
+   * are what the menu looks like when it is working and still narrow.
+   */
+  test("the side nav offers privileged entries to the director and not to a member", async ({
+    page,
+  }) => {
+    const nav = page.getByRole("navigation", { name: "Primary navigation" })
+
+    // Dana Whitfield holds OSE_DIRECTOR, which maps to both navigation
+    // capabilities: admin.console.read (Admin Console) and finance.report.read
+    // (Reports).
+    await signIn(page, "Dana Whitfield")
+    await expect(nav.getByRole("link", { name: "Admin Console" })).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Reports" })).toBeVisible()
+
+    // Maya Johnson holds a club seat and no institution membership, so she holds
+    // neither capability. Same database, same nav, same run.
+    await signIn(page, "Maya Johnson")
+    await expect(nav.getByRole("link", { name: "Admin Console" })).toHaveCount(0)
+    await expect(nav.getByRole("link", { name: "Reports" })).toHaveCount(0)
+    await expect(nav.getByRole("link", { name: "Calendar" })).toBeVisible()
+    await expect(nav.getByRole("link", { name: "Messages" })).toBeVisible()
   })
 
   test("the bell opens a centered notifications overlay (no side-nav entry)", async ({ page }) => {

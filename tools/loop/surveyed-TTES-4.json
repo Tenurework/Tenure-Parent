@@ -1,0 +1,161 @@
+[
+  {
+    "id": "TTES-020-001",
+    "title": "Implement/test the complete component inventory and behavior contracts",
+    "why_open": "The one component that encodes the Bible's behaviour contract is dead code. `apps/web/src/components/ui/StateSurface.tsx:65` exports `StateSurface`, and the ONLY import of it anywhere under apps/web/src is its own test at `apps/web/src/components/ui/states.test.ts:19` (the only other mention is a prose comment at `apps/web/src/components/ui/Skeleton.tsx:20`). So the fourteen-state ARIA/`presentsAsComplete`/`retryable` table at `apps/web/src/components/ui/states.ts:40-78` is a declaration with no production caller. What the product actually renders is `apps/web/src/components/ui/EmptyState.tsx:23` — a bare `<div>` with no `role`, no `aria-live` and no incompleteness marker — from 13 real call sites, and it is used for BOTH meanings the table exists to separate: `apps/web/src/components/ResourcesBrowser.tsx:290` renders the filtered no-results case (\"No matching resources\") through the same component as the genuinely-empty case, which `states.ts:22-27` names as the exact drift the table was built to stop. Separately, most of the Bible §6 inventory has no implementation at all: grep for `export function|export const` over apps/web/src/components finds no Toast, Menu, Dropdown, Breadcrumb, Pagination, Stepper, DataGrid, Table, Combobox, Switch, Checkbox, Radio, Progress, Banner, Drawer, Popover, Inspector, Timeline or Alert, while `apps/web/src/app/(app)/admin/audit/page.tsx:170` and five other files hand-roll a raw `<table>`.",
+    "files": [
+      "apps/web/src/components/ui/StateSurface.tsx",
+      "apps/web/src/components/ui/states.ts",
+      "apps/web/src/components/ui/EmptyState.tsx",
+      "apps/web/src/components/ui/states.test.ts",
+      "apps/web/src/components/ResourcesBrowser.tsx",
+      "apps/web/src/app/(app)/admin/audit/page.tsx",
+      "apps/web/src/app/(app)/admin/overrides/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx",
+      "apps/web/e2e/a11y.spec.ts"
+    ],
+    "smallest_real_change": "Give `StateSurface` a production caller instead of adding more components. Re-express `EmptyState` as a thin wrapper that delegates to `StateSurface` with an explicit `state` prop (`empty` | `no-results`), so the ARIA role and aria-live from `STATE_SEMANTICS` reach the DOM; then fix every one of the 13 call sites in the same change (grep `EmptyState` under apps/web/src — admin/approvals, admin/audit, admin/overrides, calendar/new, orgs/[slug]/handoff, ResourcesBrowser) to say which of the two states it means, because a defaulted `state` is exactly the optional-field-nobody-sets failure that compiles and is invisible. Make `state` REQUIRED so tsc names every site. Prove it at the producer, not the helper: extend `apps/web/e2e/a11y.spec.ts` with a case that loads /resources, types a filter that matches nothing, and asserts the rendered no-results surface carries `role=\"status\"`/`aria-live=\"polite\"` and the no-results copy (not the empty copy); mutation = change ResourcesBrowser.tsx:290 back to the empty state, or drop the role off StateSurface, and confirm the e2e reds.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-030-003",
+    "title": "Implement contextual Relay and memory continuity",
+    "why_open": "Relay is a chat window pasted over the product, which the Bible §10 forbids by name. `apps/web/src/components/ai/AIProvider.tsx:5-10` — the whole shared context value is `{open, openPanel, closePanel, toggle}`; nothing carries the tenant, the current route, the record being viewed or the selection, so \"ask from any record/worklist/selection\" has no mechanism. `apps/web/src/components/ai/TenureAIPanel.tsx:70` posts `body: JSON.stringify({ question: q, history })` — the request is context-free, and `apps/web/src/app/api/ai/chat/route.ts` therefore ranks the whole corpus identically whichever page you asked from. There is no scope indicator (the Bible's Relay component list requires the panel to always show tenant, active scope and the sources it may use), no stop/cancel (no AbortController anywhere in the file), and no privacy notice. Memory continuity does not exist either: `TenureAIPanel.tsx:37` holds the thread in `useState`, so a reload or a navigation that remounts the shell loses it, and nothing persists it — `apps/web/src/lib/memory.ts` is 28 lines of memory-card VISIBILITY rules and has nothing to do with conversation continuity.",
+    "files": [
+      "apps/web/src/components/ai/AIProvider.tsx",
+      "apps/web/src/components/ai/TenureAIPanel.tsx",
+      "apps/web/src/app/(app)/layout.tsx",
+      "apps/web/src/app/api/ai/chat/route.ts",
+      "apps/web/e2e/memory.spec.ts"
+    ],
+    "smallest_real_change": "Anchor the panel to context and show it. In AIProvider add a `scope` derived from `usePathname()` plus an `AIScopeAnchor` component that a record page mounts to declare `{ kind, id, label }`; render the resolved scope in the panel header as a visible, named indicator (\"Asking within: <org> · <record label>\"), and include `scope` in the POST body at TenureAIPanel.tsx:70. On the server side, have `apps/web/src/app/api/ai/chat/route.ts` pass the scope to `rankDocs` as a bias term and echo the scope it actually used back in the response, so the panel can display what Relay was allowed to see rather than a claim. Add an AbortController wired to a Stop button while `loading` is true. Prove it in e2e (extend apps/web/e2e/memory.spec.ts or add e2e/relay-scope.spec.ts): open a specific org record, open the panel, assert the header names THAT org, then intercept the /api/ai/chat request and assert the body carries the record id. Mutation = drop `scope` from the POST body; the e2e reds. Do NOT prove this by calling a scope helper directly — assert on what the panel emits.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-040-004",
+    "title": "Pass localization/RTL/zoom/high-contrast/reduced-motion tests",
+    "why_open": "RTL, zoom and reduced-motion are genuinely proven (apps/web/e2e/a11y.spec.ts:80,315,325 and apps/web/e2e/localization.spec.ts:59-92), but LOCALIZATION of rendered dates is not — every date in the product is formatted in US English regardless of the tenant. `apps/web/src/lib/time.ts:187` (`formatInZone`), `:196` (`formatDateKey`) and `:233` (`zoneAbbreviation`) all hardcode `new Intl.DateTimeFormat(\"en-US\", …)`, and those three are what the UI renders through: `apps/web/src/app/(app)/calendar/page.tsx:116,205`, `apps/web/src/components/CalendarMiniMonth.tsx:55,89`, `apps/web/src/components/CalendarTimeGrid.tsx:830`, `apps/web/src/components/calendar/EventInspector.tsx:97-107`, `apps/web/src/app/(app)/calendar/[id]/page.tsx:79,88`, `apps/web/src/app/(app)/feed/page.tsx:260`, `apps/web/src/app/(app)/admin/overrides/page.tsx:87` — 34 call sites. `apps/web/e2e/localization.spec.ts:57-70` proves the `fixture-rtl` tenant reaches `<html lang=\"ar-AE\" dir=\"rtl\">`; the dates on that same page are still \"Sep 5\" in Latin digits in US month-day order. `<html lang>` claiming ar-AE over en-US content is the WCAG 3.1.1 mismatch the spec's own header comment says it was written to close. High contrast is also only ever proven arithmetically (apps/web/src/lib/a11y/contrast.test.ts:96); no browser test emulates `prefers-contrast` — apps/web/e2e/a11y.spec.ts:325 is the only `emulateMedia` call and it is reducedMotion.",
+    "files": [
+      "apps/web/src/lib/time.ts",
+      "apps/web/src/lib/time.test.ts",
+      "apps/web/src/app/(app)/calendar/page.tsx",
+      "apps/web/src/app/(app)/calendar/[id]/page.tsx",
+      "apps/web/src/components/CalendarMiniMonth.tsx",
+      "apps/web/src/components/CalendarTimeGrid.tsx",
+      "apps/web/src/components/calendar/EventInspector.tsx",
+      "apps/web/src/app/(app)/feed/page.tsx",
+      "apps/web/e2e/localization.spec.ts"
+    ],
+    "smallest_real_change": "Add a REQUIRED `locale: string` parameter to `formatInZone`, `formatDateKey` and `zoneAbbreviation` in apps/web/src/lib/time.ts (required, not optional with an en-US default — an optional locale nobody passes compiles clean and keeps rendering US dates forever, which is precisely the invisible-optional-field failure). Fix all 34 call sites in the same change: server pages read the tenant locale from the already-existing `documentLocalization()` (apps/web/src/lib/tenancy/locale-cookie.ts — READ ONLY, do not edit, that path belongs to another run) and pass it down; the three client components (CalendarMiniMonth, CalendarTimeGrid, EventInspector) take it as a prop from their server parent. Prove at the producer: extend apps/web/e2e/localization.spec.ts to set the `fixture-rtl` / `midtown-arts` cookie, load /calendar, and assert a real rendered day heading is the ar-AE / en-GB formatting rather than the en-US one. Mutation = restore the `\"en-US\"` literal at time.ts:196 and confirm the e2e reds. Also add one `emulateMedia({ forcedColors: 'active' })` / `contrast: 'more'` case to apps/web/e2e/a11y.spec.ts so the high-contrast theme is proven in a browser, not only by arithmetic.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-030-002",
+    "title": "Implement responsive desktop/tablet/mobile and bounded offline patterns",
+    "why_open": "The offline half does not exist and the mobile half is untested. `apps/web/src/components/ui/states.ts:49` declares `offline` as one of the fourteen surface states, and `DEFAULT_COPY.offline` promises the reader \"changes will not save\" — but nothing in apps/web/src ever enters that state: a grep for `navigator.onLine`, `\"offline\"` or an `online`/`offline` event listener across app/, components/ and lib/ returns only states.ts and states.test.ts. Bible §16 requires \"route-level error/loading/empty/offline boundaries\"; the tree has 5 `error.tsx` and 2 `not-found.tsx` under apps/web/src/app and ZERO `loading.tsx` and zero offline boundary. On responsive: `apps/web/e2e/layout.spec.ts:46` walks widths 1280/1024/768 asserting only that nothing scrolls sideways, and apps/web/e2e/a11y.spec.ts:84 checks 320px reflow — no test drives `apps/web/src/components/shell/NavDrawerToggle.tsx` at a phone width to prove the nav is reachable and dismissible, so the mobile navigation contract is unproven.",
+    "files": [
+      "apps/web/src/components/shell/NavDrawerToggle.tsx",
+      "apps/web/src/components/shell/ShellHeader.tsx",
+      "apps/web/src/components/shell/SideNav.tsx",
+      "apps/web/src/components/ui/StateSurface.tsx",
+      "apps/web/src/components/ui/states.ts",
+      "apps/web/src/app/(app)/layout.tsx",
+      "apps/web/e2e/layout.spec.ts"
+    ],
+    "smallest_real_change": "Add `apps/web/src/components/shell/ConnectionStatus.tsx`: a client component mounted once in apps/web/src/app/(app)/layout.tsx that subscribes to the real `online`/`offline` window events (seeded from `navigator.onLine`) and renders `<StateSurface state=\"offline\">` in the shell when the browser is offline, so the declared state finally has a production caller and the aria-live announcement in STATE_SEMANTICS.offline actually fires. Prove it with Playwright's real network control, not a stub: in apps/web/e2e/layout.spec.ts add a case that signs in, calls `page.context().setOffline(true)`, and asserts the offline surface appears with its role/aria-live and the honest copy, then `setOffline(false)` and asserts it disappears. Mutation = remove the `offline` event listener; the e2e reds. In the same file add a 390px-wide case that opens the nav via NavDrawerToggle, asserts the drawer is focus-reachable and Escape-dismissible.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-010-005",
+    "title": "Eliminate production raw style values outside approved exceptions",
+    "why_open": "Half-built, and the config says so in writing. `apps/web/eslint.config.mjs` enforces literal colours, arbitrary colour utilities, arbitrary shadows, unregistered fonts and unregistered icon imports — real, tested by apps/web/scripts/design-token-lint.test.mjs. Its own 'WHAT IS NOT ENFORCED' block then states that arbitrary spacing (237 occurrences across 58 files) and arbitrary z-index are unenforced, and that a z-index rule would have nothing to point at because 'tailwind.config.ts extends no zIndex scale and globals.css declares no --z-* tokens'. Both are confirmed today: `grep -- '--z-' apps/web/src/app/globals.css` returns nothing across all 674 lines, `grep zIndex apps/web/tailwind.config.ts` returns nothing across all 114 lines, and the raw values are still in the tree at `apps/web/src/components/ai/TenureAIPanel.tsx:99` (`z-[60]`), `:110` (`z-[61]`), `apps/web/src/components/shell/SkipLink.tsx:20` (`focus:z-[100]`) and `apps/web/src/components/ui/Overlay.tsx:67` (`z-[100]`). Four hand-picked stacking values with no scale is how the AI drawer ends up above or below the skip link by accident.",
+    "files": [
+      "apps/web/src/app/globals.css",
+      "apps/web/tailwind.config.ts",
+      "apps/web/eslint.config.mjs",
+      "apps/web/scripts/design-token-lint.test.mjs",
+      "apps/web/src/components/ai/TenureAIPanel.tsx",
+      "apps/web/src/components/shell/SkipLink.tsx",
+      "apps/web/src/components/ui/Overlay.tsx"
+    ],
+    "smallest_real_change": "Declare the z-layer contract the config says is missing: add a named `--z-*` scale to apps/web/src/app/globals.css in the existing token layer (base / sticky-shell / drawer-backdrop / drawer / overlay / skip-link, ordered so the skip link is above every overlay), bind it as `zIndex` in apps/web/tailwind.config.ts, replace the four `z-[…]` occurrences with the scale classes, then add an `arbitraryZIndex` entry to `DESIGN_TOKEN_RULES` in apps/web/eslint.config.mjs (selector matching `\\bz-\\x5B`, same shape as ARBITRARY_SHADOW_UTILITY). Prove by mutation twice: (1) reintroduce `z-[60]` in TenureAIPanel.tsx and confirm `npm run lint` errors naming that file — restore, confirm green; (2) add a case to apps/web/scripts/design-token-lint.test.mjs asserting the new key is in the emitted config and that an exception listing it is accepted, so the rule cannot be silently dropped. Do not attempt the 237 spacing occurrences in the same change — that is a separate cleanup, and this change should not red CI on files it does not own.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-040-003",
+    "title": "Meet route/component/bundle/RUM performance budgets",
+    "why_open": "Nothing exists. No dependency on `web-vitals` in apps/web/package.json; no `PerformanceObserver`, `onLCP`, `onCLS`, `onINP` or `reportWebVitals` anywhere under apps/web/src; no budget of any kind in apps/web/next.config.ts or either package.json; no performance spec among the 31 files in apps/web/e2e. Bible §17 requires a measured budget per route/device, bundle ownership and regression budgets enforced in CI, and RUM partitioned by route/device/tenant tier — so the requirement currently has zero of four clauses. The Bible §7 component behaviour contract also names 'performance budget' as a per-component obligation, and no component declares one.",
+    "files": [
+      "apps/web/e2e/performance.spec.ts",
+      "apps/web/src/lib/perf/budgets.ts",
+      "apps/web/src/lib/perf/budgets.test.ts",
+      "apps/web/next.config.ts",
+      "apps/web/e2e/support"
+    ],
+    "smallest_real_change": "Start with the deterministic half so it can live in CI. Add `apps/web/src/lib/perf/budgets.ts` exporting a per-route table of budgets (first-load JS bytes, and a CLS ceiling) with the routes named from the real page files, plus a pure `overBudget(route, measured)` returning the named breaches. Add `apps/web/e2e/performance.spec.ts` that, against the production build, (a) reads real `layout-shift` entries via `PerformanceObserver` for /dashboard, /orgs, /calendar and asserts cumulative shift is under the table's ceiling, and (b) sums the transferred JS for each navigation from `page.on('response')` and asserts it is under the byte budget. Prove it bites at the producer: add a deliberate 300ms-delayed image with no width/height to /dashboard, confirm the CLS assertion fails naming /dashboard, then remove it and confirm green. Keep the initial numbers at the measured value plus a small margin and record the measurement in the ledger entry, so the budget is a ratchet rather than an aspiration. RUM (clause four) needs an ingest endpoint and should be reported BLOCKED on the http/jobs area, which belongs to another run — do not add it here.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-050-004",
+    "title": "Publish adoption/exception/visual-debt dashboards and ownership",
+    "why_open": "The debt is measured nowhere it can be read. The design-token exception table lives inside `apps/web/eslint.config.mjs` (`DESIGN_TOKEN_EXCEPTIONS`, each with a `reason` and an `expires`) and nothing publishes it — no generated doc, no dashboard, no test that reports how many exceptions are live or which expire next. The unenforced debt the same file quantifies in prose (237 arbitrary-spacing occurrences, 4 arbitrary z-index) is a comment, so it silently drifts: the real count today is 234 spacing occurrences, already out of step with the number written in the config. `docs/architecture/ownership.md:51-55` does cover the design system ('the shell and the design system — what every domain renders through'), generated by tools/ownership-map.mjs and enforced by tests/architecture/ownership.test.mjs — so the ownership clause is the one part that IS done. Adoption is unmeasured too: no artefact reports how many product surfaces render through apps/web/src/components/ui versus hand-rolled markup (6 raw `<table>` elements, 22 raw `<select>` elements).",
+    "files": [
+      "tools/design-system-debt.mjs",
+      "docs/architecture/design-system-debt.md",
+      "tests/architecture/design-system-debt.test.mjs",
+      "apps/web/eslint.config.mjs"
+    ],
+    "smallest_real_change": "Add `tools/design-system-debt.mjs` that imports `DESIGN_TOKEN_EXCEPTIONS` from apps/web/eslint.config.mjs (it is already exported) and walks apps/web/src counting the real, current debt — arbitrary spacing utilities, arbitrary z-index, raw `<table>`/`<select>` versus wrapped components, and components in apps/web/src/components/ui with zero production importers (StateSurface is one today). It writes `docs/architecture/design-system-debt.md` with the live exception table, each expiry, and the counts. Add `tests/architecture/design-system-debt.test.mjs` that regenerates and asserts (a) the checked-in doc matches, so the dashboard cannot go stale, and (b) each count is <= a ratchet constant in the test, so the debt may only shrink — the same shape as the `UNIMPORTED` ratchet in tests/architecture/document-graph.test.mjs:196-213. Prove by mutation: add one `p-[7px]` to a component, confirm the test fails with the new count and names the file; remove it, confirm green. Do NOT fix the counts in this change; publishing them honestly is the requirement.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-000-004",
+    "title": "Audit current deployed tenant product across personas/themes/viewports/accessibility",
+    "why_open": "No such audit exists. `docs/architecture/CURRENT-STATE-INVENTORY.md` is 208 lines about infrastructure and data — its only UI sentence is line 208 ('institution-specific content compiled in ... literals across UI') — and there is no persona, theme or viewport matrix anywhere in docs/. `tests/architecture/nav-hrefs-are-served.test.mjs` proves a module manifest's href points at a page file that exists, which is a different and much weaker claim than 'the routes this persona is offered actually render for this persona, in each theme, at each viewport, without accessibility violations'. The material to make it real is already in the tree and unused for this: `apps/web/src/lib/authz/navigation-capabilities.ts:91` (`worldFor`) and `:145` (`navigationCapabilitiesFor`) compute exactly what each persona is offered, and apps/web/e2e/support already seeds distinct personas.",
+    "files": [
+      "apps/web/e2e/tenant-product-audit.spec.ts",
+      "apps/web/src/lib/authz/navigation-capabilities.ts",
+      "apps/web/e2e/support",
+      "docs/architecture/tenant-product-audit.md"
+    ],
+    "smallest_real_change": "Add `apps/web/e2e/tenant-product-audit.spec.ts` that, for each seeded persona, derives the persona's offered routes from `navigationCapabilitiesFor` (imported, not hand-listed — a hand-listed set is the fake test that nav-hrefs-are-served.test.mjs's own header describes) and visits each one at 3 viewports (390 / 834 / 1440) in light and dark, asserting on each: HTTP < 400, exactly one `<main>` and one `<h1>`, no horizontal overflow, and every visible interactive control >= 24px. Emit the pass/fail matrix to `docs/architecture/tenant-product-audit.md` as the audit artefact so the requirement's deliverable is generated from the run rather than written by hand. Prove it bites: temporarily add a 900px-wide fixed-width block to one route, confirm the spec names that route + persona + viewport, remove it, confirm green. Report honestly in the ledger any route that fails rather than trimming the matrix to get green.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-050-005",
+    "title": "Block \"best\" claims until measured release gates pass",
+    "why_open": "There is no gate. `tests/architecture/pass-requires-evidence.test.mjs` requires a ledger PASS entry to name evidence containing a number or a command, which is a general anti-adjective rule for ledgers — it says nothing about superlative claims in user-facing copy, marketing surfaces or design-system documentation, and it does not condition any claim on the TTES-050 scorecard. TTES-050-001 (task scorecard baselines by persona) and TTES-050-002 (competitor workflow comparisons) are both unbuilt, so there is no measurement for a claim to be gated on in the first place; nothing in the repository knows what 'the measured release gates' are.",
+    "files": [
+      "tests/architecture/ux-claims-are-measured.test.mjs",
+      "docs/implementation/tenant-experience-execution-ledger.md",
+      "docs/architecture/capability-completeness-registry.yaml"
+    ],
+    "smallest_real_change": "Add `tests/architecture/ux-claims-are-measured.test.mjs` that scans user-facing copy (apps/web/src/app/**, apps/web/src/components/**, README.md, docs/architecture/*.md) for superlative UX claims — 'best', 'best-in-class', 'world-class', 'industry-leading', 'fastest', 'unmatched', 'superior' used about the product — and fails unless TTES-050-001 and TTES-050-002 are recorded PASS in docs/implementation/tenant-experience-execution-ledger.md, reading the status through tools/document-graph.mjs rather than a second parser (tests/architecture/work-queue.test.mjs:180 documents what a second parser costs). Include a small allowlist for non-claims (e.g. the existing 'best-matching column index' comment at apps/web/src/lib/finance.ts:293 — read only, that file belongs to another run) with the same reason+expiry shape the design-token exceptions use. Prove by mutation: add 'the best ERP experience' to a real page, confirm the test fails naming that file and line while the two ledger items are FAIL; remove it, confirm green. This item is honestly a governance gate, not product code — say so in the ledger entry.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-GATE-050",
+    "title": "Tenant UX superiority is evidence-backed and continuously governed",
+    "why_open": "A section gate that cannot pass while its five members are unbuilt. All of TTES-050-001..005 are FAIL in docs/implementation/tenant-experience-execution-ledger.md:114-132, and the code confirms it: no persona scorecard, no competitor comparison record, no design-system version or release notes (apps/web/package.json carries the app version, and no component declares a deprecation/migration policy as Bible §7 requires), no adoption/exception/visual-debt dashboard (see TTES-050-004), and no claim gate (see TTES-050-005). Nothing anywhere computes or asserts the gate itself, so today it is not merely failing, it is unmeasured.",
+    "files": [
+      "tests/architecture/ttes-gates.test.mjs",
+      "docs/implementation/tenant-experience-execution-ledger.md",
+      "tools/document-graph.mjs"
+    ],
+    "smallest_real_change": "Do not attempt to pass this gate — implement the gate so it is measured. Add `tests/architecture/ttes-gates.test.mjs` that reads the TTES ledger through tools/document-graph.mjs and asserts, for each of the six TTES-GATE-0x0 rows, that its status is PASS only when every TTES-0x0-* member is PASS — i.e. a gate can never be marked PASS ahead of its section. Prove by mutation: flip TTES-GATE-050 to PASS in the ledger while TTES-050-001 is FAIL and confirm the test reds naming both ids; restore and confirm green. Then leave TTES-GATE-050 recorded FAIL with the five open members named as the reason. Marking it anything else would be exactly the false PASS the programme rules forbid.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-000-003",
+    "title": "Import every TTES-* item into the canonical ledger",
+    "why_open": "ALREADY DONE — reported so the next run does not re-survey it. docs/implementation/tenant-experience-execution-ledger.md:22-156 carries all 34 TTES rows; every TTES row in docs/architecture/capability-completeness-registry.yaml:17356-17660 is `imported: true` and points at that ledger; tests/architecture/work-queue.test.mjs:175-177 asserts TTES reaches the queue at all; tests/architecture/document-graph.test.mjs:196-213 ratchets the unimported count downward; and tools/import-requirements.mjs:46 is the generator that wrote it. The ledger's own status is FAIL only because the seeder writes FAIL for everything, which its header at lines 5-8 states explicitly.",
+    "files": [
+      "docs/implementation/tenant-experience-execution-ledger.md",
+      "docs/architecture/capability-completeness-registry.yaml",
+      "tests/architecture/work-queue.test.mjs",
+      "tests/architecture/document-graph.test.mjs"
+    ],
+    "smallest_real_change": "Record TTES-000-003 as PASS in docs/implementation/tenant-experience-execution-ledger.md with evidence naming the 34 imported rows, work-queue.test.mjs:175-177 and the document-graph unimported ratchet — and prove it by mutation first: delete one TTES row from the ledger, run `npm run test:platform`, confirm a test reds, restore, confirm green. If no test reds when a TTES row is deleted, then the import is NOT actually guarded and this item stays FAIL.",
+    "already_done": true
+  }
+]

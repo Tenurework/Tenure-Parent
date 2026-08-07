@@ -8,7 +8,9 @@ import {
   actorRoles,
   availableActions,
   nextStatus,
+  NO_STANDING_DECLARATIONS,
   type ApprovalActionName,
+  type ApprovalAuthority,
   type ApprovalView,
 } from "@/lib/approvals";
 import type { UserContext } from "@/lib/rbac";
@@ -112,12 +114,22 @@ const ORG = "org1";
 const INST = "inst1";
 const ME = "me";
 
+/**
+ * The ladder every case here is decided against. Irrelevant by construction —
+ * no case carries an amount — which is exactly what makes this an equivalence
+ * proof rather than a new set of expectations.
+ */
+const LADDER: ApprovalAuthority = { thresholds: { USD: 500_000 } };
+
 /** A UserContext that produces the requested actor roles for this request. */
-function contextFor(roles: {
-  requester: boolean;
-  president: boolean;
-  ose: boolean;
-}): {
+function contextFor(
+  roles: {
+    requester: boolean;
+    president: boolean;
+    ose: boolean;
+  },
+  requesterHoldsPresidency = false,
+): {
   ctx: UserContext;
   approval: ApprovalView;
 } {
@@ -145,10 +157,20 @@ function contextFor(roles: {
       id: "a1",
       status: "DRAFT",
       submittedById: roles.requester ? ME : "someone-else",
+      preparedById: null,
       organizationId: ORG,
       institutionId: INST,
+      controlWorld: NO_STANDING_DECLARATIONS,
       // These cases are about workflow roles, not the club lifecycle.
       organizationStatus: "ACTIVE" as const,
+      // …nor about money. PAY-150-002 made authority amount-aware, and this
+      // oracle is the proof that it changed NOTHING for a request that carries
+      // no amount: `exceedsThreshold` is false for every case below, so the
+      // definition must still reproduce the pre-delegation switch exactly.
+      // The over-threshold divergence is asserted in approvals.test.ts.
+      amountMinorUnits: null,
+      currency: "USD",
+      requesterIsPresident: roles.requester && requesterHoldsPresidency,
     },
   };
 }
@@ -168,7 +190,7 @@ describe("the definition reproduces the switch exactly", () => {
           `ose=${combo.ose} · requesterIsPresident=${requesterIsPresident}`;
 
         it(`offers the same actions — ${name}`, () => {
-          const { ctx, approval } = contextFor(combo);
+          const { ctx, approval } = contextFor(combo, requesterIsPresident);
           const expected = referenceAvailableActions(ctx, {
             ...approval,
             status,
@@ -184,7 +206,11 @@ describe("the definition reproduces the switch exactly", () => {
           // The shipping function, not the engine — this has to prove what
           // callers actually get, and roles are unused by it beyond ctx.
           void roles;
-          const actual = availableActions(ctx, { ...approval, status });
+          const actual = availableActions(
+            ctx,
+            { ...approval, status },
+            LADDER,
+          );
 
           expect([...actual].sort()).toEqual([...expected].sort());
           // Order matters too: the detail page renders buttons in this order.
@@ -216,9 +242,12 @@ describe("the definition reaches the same next status", () => {
           // Every role, so role filtering cannot mask a routing difference —
           // this compares where the flow GOES, which nextStatus also ignores
           // roles for.
-          expect(nextStatus(action, status, { requesterIsPresident })).toBe(
-            expected,
-          );
+          expect(
+            nextStatus(action, status, {
+              requesterIsPresident,
+              exceedsThreshold: false,
+            }),
+          ).toBe(expected);
         });
       }
     }

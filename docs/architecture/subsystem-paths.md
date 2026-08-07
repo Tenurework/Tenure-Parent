@@ -77,7 +77,7 @@ currently "the older one", which is the opposite of the intended direction.
 > answers a different question (who holds what seat) and stays. It is
 > `admin/capabilities.ts` whose 16 ids must become policies the engine decides.
 
-## 3. Audit — 38 writes, 6 through the audit package
+## 3. Audit — 36 writes, 4 through the audit package
 
 ```
 $ grep -rho 'auditEvent\.create' apps/web/src --include=*.ts --include=*.tsx | wc -l
@@ -91,7 +91,7 @@ The other 32 construct a `db.auditEvent.create({ ... })` payload by hand.
 conflict records are built by `buildAuditRecord`, which is what enforces
 that a DENY carries a reason and that metadata is redacted before storage.
 
-What the 34 therefore skip:
+What the 32 therefore skip:
 
 - **Validation.** `buildAuditRecord` throws when `tenantId`, `actor.principalId`,
   `action` or `resourceType` is missing, and when a `DENY` carries no reason.
@@ -102,10 +102,16 @@ What the 34 therefore skip:
   events tamper-evident. A hand-built row does not participate.
 
 This is not a latent risk; it is the current state of the evidence trail. The
-audit log that a school would be shown in an incident review is 32/38
-unvalidated. The ratchet in `tests/security/audit-writes.test.mjs` is what makes
+audit log that a school would be shown in an incident review is unvalidated in
+the majority: **32 of 36 audit writes bypass** the package.
+The ratchet in `tests/security/audit-writes.test.mjs` is what makes
 that number able only to improve: the reconciler was a *new* write, and it went
-through the package rather than adding a 35th raw one.
+through the package rather than adding a 35th raw one. It held again on
+2026-08-07 — a cluster run added two hand-built rows, a refused money movement
+in `approvals/actions.ts` and a ledger reversal in `finance/actions.ts`, taking
+the count to 34 against a ceiling of 32. Both were converted to
+`recordAuditEvent` rather than the ceiling being raised, which is the whole
+purpose of the number.
 
 > Owned by: GE-120s. The fix is mechanical — route every write through one
 > helper — and the test that keeps it fixed is the same shape as

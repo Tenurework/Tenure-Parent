@@ -102,6 +102,12 @@ export const PERMISSION_ACTIONS = [
   "grant",
   "revoke",
   "post",
+  // Undoing a posting is its own verb, and deliberately not `update` or
+  // `archive`. A posted transaction is never edited and never removed — it is
+  // answered by a second, opposite posting — so the authority to do that is a
+  // different question from the authority to record one in the first place, and
+  // a catalog with no word for it forces the two to share a key.
+  "reverse",
   "export",
   "execute",
   "configure",
@@ -226,14 +232,27 @@ export interface PermissionDefinition {
   description: string
 }
 
-const define = (
-  domain: PermissionDomain,
-  resource: PermissionResource,
-  action: PermissionAction,
+/**
+ * The type parameters are what make `PermissionKey` below a real union.
+ *
+ * Each argument is a member of a closed string union, so TypeScript infers the
+ * literal rather than widening to the union, and `key` comes out as the exact
+ * template literal type. Without them every entry would have `key: string` and
+ * `PermissionKey` would be `string` wearing a name — which is what a call site
+ * asking for a "PermissionKey" would then be given, typo and all.
+ */
+const define = <
+  D extends PermissionDomain,
+  R extends PermissionResource,
+  A extends PermissionAction,
+>(
+  domain: D,
+  resource: R,
+  action: A,
   module: ModuleKey | null,
   description: string,
-): PermissionDefinition => ({
-  key: `${domain}.${resource}.${action}`,
+) => ({
+  key: `${domain}.${resource}.${action}` as `${D}.${R}.${A}`,
   domain,
   resource,
   action,
@@ -247,7 +266,7 @@ const define = (
  * Covers the modules the platform ships. Relay/AI tool permissions and records
  * management are absent on purpose — see the honest limits in the ledger entry.
  */
-export const PERMISSIONS: readonly PermissionDefinition[] = [
+export const PERMISSIONS = [
   // ── organization ──────────────────────────────────────────────────────────
   define("org", "unit", "read", "organizations", "See an organizational unit and its details."),
   define("org", "unit", "create", "organizations", "Create a new organizational unit."),
@@ -278,6 +297,12 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   define("finance", "budget", "update", "budgeting", "Change a budget line that is already in force."),
   define("finance", "ledger", "read", "budgeting", "See the transactions behind a budget's actuals."),
   define("finance", "ledger", "post", "budgeting", "Record a transaction against a budget line."),
+  // PAY-150-001. Separate from `post` because correcting the record is a larger
+  // authority than adding to it: a reversal restates money the institution has
+  // already recognised, and the only alternative the platform used to have was
+  // deleting the row, which needed no permission of its own because it needed
+  // no concept of its own.
+  define("finance", "ledger", "reverse", "budgeting", "Reverse a posted transaction with an opposite entry, stating why."),
   define("finance", "ledger", "export", "budgeting", "Take a copy of ledger data out of the platform."),
   define("finance", "reimbursement", "create", "reimbursements", "File a claim to be reimbursed."),
   define("finance", "reimbursement", "read", "reimbursements", "See a reimbursement claim and its supporting documents."),
@@ -332,7 +357,18 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   define("config", "setting", "read", null, "See a governed configuration value and where it came from."),
   define("config", "setting", "update", null, "Change a governed configuration value at a layer you may write."),
   define("config", "release", "promote", null, "Promote a configuration release to an environment."),
-]
+] as const
+
+/**
+ * Every key the catalog declares, as a union of the literals themselves.
+ *
+ * PAY-150-001, and the reason it is not `string`: the money write path takes
+ * one of these instead of the free-text `action` it used to take, so a call
+ * site that asks for `finance.ledger.reveerse` fails to compile rather than
+ * reaching `decide()`, being answered UNKNOWN_PERMISSION, and refusing
+ * everybody — a typo that fails closed is still an outage.
+ */
+export type PermissionKey = (typeof PERMISSIONS)[number]["key"]
 
 const BY_KEY: ReadonlyMap<string, PermissionDefinition> = new Map(
   PERMISSIONS.map((p) => [p.key, p]),
@@ -343,7 +379,7 @@ export function lookupPermission(key: string): PermissionDefinition | null {
   return BY_KEY.get(key) ?? null
 }
 
-export function isPermissionKey(key: string): boolean {
+export function isPermissionKey(key: string): key is PermissionKey {
   return BY_KEY.has(key)
 }
 

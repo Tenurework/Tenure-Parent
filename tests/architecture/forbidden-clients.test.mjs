@@ -267,6 +267,14 @@ const DATABASE_EXEMPT = new Map([
     'GE-020-005 read-only divergence report across every tenant; the counts it exists to produce are estate-wide, and a scoped client would report one tenant and call it the database',
   ],
   [
+    'apps/web/src/lib/outbox/prisma-ports.itest.ts',
+    'PAY-020-005: it constructs the client but attaches `tenancyExtension("enforce")` to it, so the hazard this rule exists to stop — an unextended client no isolation test covers — is not present. It builds its own rather than importing `@/lib/db` because it proves properties of PostgreSQL rather than of TypeScript: that FOR UPDATE SKIP LOCKED stops two dispatchers claiming one row, and that a UNIQUE index stops a redelivery running a handler twice. Both need a second, independently-connected client to observe a concurrent claim, which a single shared module-level instance cannot provide',
+  ],
+  [
+    'apps/web/src/lib/payments/ledger-attribution.itest.ts',
+    'an unextended client on purpose: every claim in it is a property of the DDL rather than of any function — that the tenant-scoped idempotency index admits two institutions and refuses one, that six financial foreign keys RESTRICT, that a qualified provider key separates test from live. An extended client would filter or stamp the very rows the constraints are being asserted over, and a failure could then mean the constraint broke or that the scope did',
+  ],
+  [
     'apps/web/scripts/person-reach.itest.ts',
     'GE-020-005: it builds one person reaching TWO institutions and asserts a census query sees them, which a client scoped to either one could not set up or observe',
   ],
@@ -452,7 +460,7 @@ test('the exemption lists are reasoned, real, and have not grown silently', () =
   // precisely to prove the append-only extension refuses a delete. Bumped
   // deliberately and with the reason recorded beside the entry, which is what
   // this assertion is for — it forbids the list GROWING SILENTLY, not growing.
-  assert.equal(DATABASE_EXEMPT.size, 13, 'the raw-database-client exemption list changed')
+  assert.equal(DATABASE_EXEMPT.size, 15, 'the raw-database-client exemption list changed')
   assert.equal(AWS_EXEMPT.size, 0, 'a file was exempted from the AWS client rule')
   assert.equal(PROVIDER_EXEMPT.size, 0, 'a file was exempted from the provider endpoint rule')
 

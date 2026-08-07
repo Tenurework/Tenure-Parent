@@ -16,6 +16,34 @@
 import fs from "node:fs"
 import path from "node:path"
 
+/**
+ * The parser itself lives in `./css-declarations.mjs`.
+ *
+ * It was here, with one consumer. TTES-000-001 gave it a second — the design
+ * token inventory in `tools/entry-point-inventory.mjs`, which runs under plain
+ * `node` on the Node 20 CI pins and so cannot import a `.ts` module at all. The
+ * choice was a second parser or one file both can reach, and two readers of the
+ * same stylesheet that disagree about what it says is precisely the drift this
+ * module was written to remove. It is re-exported here so this stays the name
+ * anything inside `apps/web` reaches for.
+ */
+import { blockAt, declarationsIn, paletteOf, resolveToken, tokenNamesIn } from "./css-declarations.mjs"
+
+export { blockAt, declarationsIn, paletteOf, tokenNamesIn }
+
+/**
+ * TTES-010-001 — the base palette is `paletteOf`, not the first `:root` block.
+ *
+ * `globals.css` declares tokens in THREE unconditional `:root` blocks: the
+ * colour ramp in `@layer base`, the layout scale (`--content-max`, `--gutter`)
+ * in `@layer components`, and the type scale (`--step-00 … --step-4`,
+ * `--font-display`) in a second `@layer base`. A first-match scan saw only the
+ * first, so nine tokens were declared, bound to Tailwind utilities, and
+ * invisible to every audit built on this file. A completeness ratchet standing
+ * on a parser that cannot see a third of the tokens has a hole in it by
+ * construction, which is why the ratchet and this change land together.
+ */
+
 export type ThemeName = "light" | "dark" | "light-contrast" | "dark-contrast"
 
 export type TokenMap = Readonly<Record<string, string>>
@@ -24,60 +52,50 @@ export type TokenMap = Readonly<Record<string, string>>
 export const GLOBALS_CSS = path.join(__dirname, "..", "..", "app", "globals.css")
 
 /**
- * Pulls `--name: value;` declarations out of one brace-balanced block.
- *
- * Brace-balanced rather than "until the next `}`", because the high-contrast
- * blocks are nested inside `@media` and a naive scan stops at the wrong line —
- * silently returning a partial palette, which is worse than returning none.
- */
-function declarationsIn(css: string, openIndex: number): Record<string, string> {
-  let depth = 0
-  let end = openIndex
-  for (let i = openIndex; i < css.length; i++) {
-    if (css[i] === "{") depth++
-    else if (css[i] === "}") {
-      depth--
-      if (depth === 0) {
-        end = i
-        break
-      }
-    }
-  }
-
-  const body = css.slice(openIndex + 1, end)
-  const out: Record<string, string> = {}
-  // Only declarations at this block's own depth; a nested rule's declarations
-  // belong to that rule, not to this one.
-  let nesting = 0
-  for (const line of body.split("\n")) {
-    const opens = (line.match(/\{/g) ?? []).length
-    const closes = (line.match(/\}/g) ?? []).length
-    if (nesting === 0) {
-      const decl = /^\s*(--[\w-]+)\s*:\s*([^;]+);/.exec(line)
-      if (decl) out[decl[1]] = decl[2].trim()
-    }
-    nesting += opens - closes
-  }
-  return out
-}
-
-/** Finds a selector's block at top level of the file and returns its declarations. */
-function blockAt(css: string, pattern: RegExp): Record<string, string> {
-  const match = pattern.exec(css)
-  if (!match) return {}
-  const open = css.indexOf("{", match.index + match[0].length - 1)
-  if (open === -1) return {}
-  return declarationsIn(css, open)
-}
-
-/**
  * Resolves each theme by applying the cascade in the order a browser would:
  * base `:root`, then `html.dark`, then the `prefers-contrast: more` overrides.
  */
 export function readThemes(cssPath: string = GLOBALS_CSS): Record<ThemeName, TokenMap> {
+  const blocks = readBlocks(cssPath)
+
+  const light = { ...blocks.root }
+  const darkResolved = { ...blocks.root, ...blocks.dark }
+
+  return {
+    light,
+    dark: darkResolved,
+    "light-contrast": { ...light, ...blocks.rootContrast },
+    "dark-contrast": { ...darkResolved, ...blocks.darkContrast },
+  }
+}
+
+/** The four declaration blocks the cascade is assembled from, unmerged. */
+export interface ThemeBlocks {
+  /** Every unconditional `:root` block, merged in document order. */
+  root: Record<string, string>
+  /** The unconditional `html.dark` block. */
+  dark: Record<string, string>
+  /** `:root` inside `@media (prefers-contrast: more)`. */
+  rootContrast: Record<string, string>
+  /** `html.dark` inside `@media (prefers-contrast: more)`. */
+  darkContrast: Record<string, string>
+}
+
+/**
+ * The blocks before the cascade merges them.
+ *
+ * Exposed because *which block* declares a token is load-bearing rather than an
+ * implementation detail. `html.dark` has specificity (0,1,1); `:root` has
+ * (0,1,0). A tenant's branding arrives as an injected `:root { … }`, so every
+ * token `html.dark` restates outranks it — which is precisely why tenant
+ * branding reaches the light themes and never the dark ones. `tenant-brand.ts`
+ * asserts that from here instead of asserting it in a comment.
+ */
+export function readBlocks(cssPath: string = GLOBALS_CSS): ThemeBlocks {
   const css = fs.readFileSync(cssPath, "utf8")
 
-  const root = blockAt(css, /(^|\n)\s*:root\s*\{/)
+  // Every unconditional `:root`, not the first: see the TTES-010-001 note above.
+  const root = paletteOf(css)
   const dark = blockAt(css, /(^|\n)\s*html\.dark\s*\{/)
 
   // The high-contrast overrides live inside the @media block; slice to it first
@@ -87,15 +105,22 @@ export function readThemes(cssPath: string = GLOBALS_CSS): Record<ThemeName, Tok
   const rootContrast = blockAt(contrastCss, /(^|\n)\s*:root\s*\{/)
   const darkContrast = blockAt(contrastCss, /(^|\n)\s*html\.dark\s*\{/)
 
-  const light = { ...root }
-  const darkResolved = { ...root, ...dark }
+  return { root, dark, rootContrast, darkContrast }
+}
 
-  return {
-    light,
-    dark: darkResolved,
-    "light-contrast": { ...light, ...rootContrast },
-    "dark-contrast": { ...darkResolved, ...darkContrast },
-  }
+/**
+ * Every custom property the four themes declare, sorted.
+ *
+ * Derived from the parsed blocks rather than from a regex over the whole file:
+ * a name declared only inside `@media (max-width: 700px)` is a responsive
+ * override, not a palette token, and a catalog of the theme layer should not
+ * have to account for it. This is the set `tokens.ts` is reconciled against.
+ */
+export function declaredTokenNames(cssPath: string = GLOBALS_CSS): string[] {
+  const themes = readThemes(cssPath)
+  const names = new Set<string>()
+  for (const name of ALL_THEMES) for (const key of Object.keys(themes[name])) names.add(key)
+  return [...names].sort()
 }
 
 export const ALL_THEMES: readonly ThemeName[] = [
@@ -114,11 +139,11 @@ export const ALL_THEMES: readonly ThemeName[] = [
  * renders.
  */
 export function token(theme: TokenMap, name: string, seen: Set<string> = new Set()): string {
-  const value = theme[name]
-  if (value === undefined) throw new Error(`no such token in this theme: ${name}`)
-  const indirect = /^var\((--[\w-]+)\)$/.exec(value.trim())
-  if (!indirect) return value
-  if (seen.has(name)) throw new Error(`token ${name} resolves in a cycle`)
-  seen.add(name)
-  return token(theme, indirect[1], seen)
+  // The body moved to `./css-declarations.mjs` at TTES-000-001, unchanged, so
+  // the design-token inventory in `tools/entry-point-inventory.mjs` resolves
+  // indirection the same way this audit does. It must: `apps/web` declares
+  // `--accent: var(--tenure-navy-700)` and `apps/system-studio` declares a
+  // literal, and a comparison that did not follow the alias would be comparing
+  // spellings rather than colours. This stays the name apps/web reaches for.
+  return resolveToken(theme as Record<string, string>, name, seen)
 }

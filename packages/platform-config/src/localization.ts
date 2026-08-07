@@ -1,5 +1,6 @@
 import { z } from "zod"
-import { defineConfig, type ConfigDefinition } from "@tenure/configuration"
+import { defineConfig, includedInPlan, type ConfigDefinition } from "@tenure/configuration"
+import { simulateCurrencySelection } from "@tenure/payments"
 
 import type { BusinessCalendar } from "./business-calendar"
 import type { TextDirection } from "./direction"
@@ -48,6 +49,10 @@ export const locale = defineConfig({
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,
+  price: includedInPlan(
+    "A reader's language is theirs. Charging for it would charge for the product being usable, " +
+      "and it is settable per user precisely because nobody should have to ask.",
+  ),
   description:
     "BCP 47 locale for dates, numbers and sorting. Settable per user, because a reader's language is theirs.",
 })
@@ -69,7 +74,32 @@ export const currency = defineConfig({
         }
       },
       { message: "not a currency this runtime can format" },
-    ),
+    )
+    // PAY-010-006 — refused at SELECTION, not at first charge.
+    //
+    // Being formattable is not being settleable. `Intl` will happily format
+    // XPF, and a tenant published in a currency no registered payments
+    // capability can settle looks configured for months and then fails on the
+    // first payment — by which point every budget, every ledger entry and
+    // every approval is denominated in it, and the fix is a migration rather
+    // than a setting.
+    //
+    // The reader is `@tenure/payments`'s eligibility simulation over the
+    // registry's declared support matrix, so there is one answer to "can Tenure
+    // take money in this" rather than a list here that drifts from the one the
+    // capability leaves declare. The blocker's own `whatWouldUnblock` is
+    // surfaced as the message, because "invalid currency" sends an operator to
+    // support and "settleable currencies today are …" does not.
+    .superRefine((code, ctx) => {
+      const verdict = simulateCurrencySelection(code)
+      if (verdict.eligible) return
+      for (const blocker of verdict.blockers) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${blocker.detail} ${blocker.whatWouldUnblock}`,
+        })
+      }
+    }),
   default: "USD",
   // NOT user-settable, unlike locale. A person may read dates in their own
   // language; they may not decide what currency a budget is denominated in.
@@ -78,6 +108,16 @@ export const currency = defineConfig({
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,
+  price: {
+    // Multi-currency. The default is USD; a tenant — or a legal entity under
+    // one — denominated differently is a second set of books to reconcile, and
+    // that reconciliation is the work being charged for, once, for the
+    // organisation.
+    perSeatMinor: 0,
+    perOrgMinor: 4_900,
+    currency: "USD",
+    rounding: "half-up",
+  },
   description:
     "ISO 4217 currency the tenant's money is denominated in. A legal entity may differ from its tenant.",
 })
@@ -91,6 +131,9 @@ export const firstDayOfWeek = defineConfig({
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,
+  price: includedInPlan(
+    "A month grid that starts on the right day is table stakes, not a feature.",
+  ),
   description: "First column of a month grid. 0 = Sunday, 1 = Monday.",
 })
 
@@ -105,6 +148,10 @@ export const fiscalYearStartMonth = defineConfig({
   mergeStrategy: "replace",
   sensitivity: "internal",
   overridable: true,
+  price: includedInPlan(
+    "The fiscal year decides which budget period a transaction lands in. Billing for the correct " +
+      "answer would be billing for correctness.",
+  ),
   description:
     "Month the fiscal year opens. 7 = July, which is the academic year most universities budget on.",
 })
@@ -126,6 +173,10 @@ export const workingDays = defineConfig({
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,
+  price: includedInPlan(
+    "Working days decide whether a deadline has passed, and that has to be the same answer for " +
+      "the person waiting and the person approving. Same reason as the fiscal year.",
+  ),
   description:
     "Days the institution works, 0 = Sunday. A list, because a four-day week and a Friday–Saturday weekend are both real.",
 })
@@ -144,6 +195,9 @@ export const holidays = defineConfig({
   mergeStrategy: "replace",
   sensitivity: "public",
   overridable: true,
+  price: includedInPlan(
+    "Closures are the other half of the working calendar above, and are free for the same reason.",
+  ),
   description:
     "Dates the institution is closed, YYYY-MM-DD. Plain dates, because a closure is a date rather than an instant.",
 })

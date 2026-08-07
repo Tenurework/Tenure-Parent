@@ -1,4 +1,5 @@
-import { dirname } from "path"
+import { readFileSync } from "node:fs"
+import { dirname, join } from "path"
 import { fileURLToPath } from "url"
 import { FlatCompat } from "@eslint/eslintrc"
 
@@ -41,19 +42,51 @@ const compat = new FlatCompat({
      icon set stays a one-file change, and its own header already says "never
      from a vendor package directly". That was prose; it is now a rule.
      Baseline: zero violations outside the registry itself.
+   * Vendor component libraries — `react-aria-components` (the behavioural
+     primitives) and `class-variance-authority` (how a variant API is built).
+     Bible §7 ends "Domain apps cannot import raw third-party components" and
+     §16 asks for a rule "preventing … vendor components". The icon rule above
+     covered the decorative half only; these are the primitives that carry
+     behaviour and appearance, and a domain module that names one restyles the
+     primitive locally. That had already happened twice — `CalendarSubscribe`
+     and `ClubImageEditor` each hand-wrote the secondary-button class string
+     that `src/components/ui/Button.tsx` owns, and the two copies had already
+     drifted apart (`h-10` vs `h-9`, `border-border-strong` with no
+     `data-[pressed]` state). The sanctioned alternative is the owned wrapper
+     layer, `src/components/ui/**`: Button, Menu, Tooltip, Overlay, Select,
+     Tabs, TextField, Segmented. Baseline: zero violations outside that layer.
+
+   * Raw z-index — BOTH `z-[60]`-style arbitrary values AND Tailwind's own
+     numeric `z-10 … z-50`, plus an inline `zIndex` property. This entry used to
+     say the opposite ("the rule would have no sanctioned alternative to name"),
+     and it was correct at the time: there was no scale. TTES-010-003 declared
+     one — thirteen ordered `--z-*` tokens in `globals.css` bound to
+     `zIndex` in `tailwind.config.ts` — and migrated all fourteen call sites
+     onto it, so the alternative now exists and the numbers are what is left to
+     forbid. Numeric `z-40` is banned as firmly as `z-[62]`, because "pick a
+     number and hope" is the failure either way; the sanctioned names are read
+     out of `globals.css` below, so the message can never name a class that is
+     not declared. Baseline: zero.
+   * Raw transition durations — `duration-[200ms]` and Tailwind's numeric
+     `duration-150 … duration-1000`. Same shape and same reason: `--motion-fast`
+     / `--motion-base` / `--motion-slow` exist and are bound to
+     `transitionDuration`. Baseline: zero.
 
    WHAT IS NOT ENFORCED, and why not — stated so nobody reads silence as safety
 
-   * Arbitrary spacing (`text-[13px]`, `p-[7px]`, …). 237 occurrences across 58
-     files today, including nine in `src/components/ui`. A rule here is a
-     cleanup project across the whole product, not a boundary, and it would red
-     CI on files this change does not own.
-   * Arbitrary z-index (`z-[60]`, `z-[100]`; four occurrences). Worse than
-     spacing: `tailwind.config.ts` extends no `zIndex` scale and `globals.css`
-     declares no `--z-*` tokens, so the rule would have no sanctioned
-     alternative to name. The layering scale has to exist before its use can be
-     required. Both of these need `tailwind.config.ts`, which this change does
-     not own.
+   * Arbitrary spacing and type (`text-[13px]`, `p-[7px]`, `w-[min(…)]`, …).
+     243 occurrences across 59 files as of 2026-08-07, including seven in
+     `src/components/ui`. (The number this comment carried before — "237 across
+     58" — had drifted; re-measure with:
+       node -e "const fs=require('fs'),p=require('path');const rx=/\b(?:p|px|py|pt|pb|pl|pr|ps|pe|m|mx|my|mt|mb|ml|mr|ms|me|gap|gap-x|gap-y|space-x|space-y|w|h|min-w|min-h|max-w|max-h|top|bottom|left|right|inset|inset-x|inset-y|start|end|text|leading|tracking|basis|size)-\[(?!--|#)/g;const f=[];(function w(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){const q=p.join(d,e.name);if(e.isDirectory())w(q);else if(/\.tsx?$/.test(e.name)&&!/\.(test|itest)\.tsx?$/.test(e.name))f.push(q)}})('src');let n=0,c=0;for(const x of f){const m=fs.readFileSync(x,'utf8').match(rx);if(m){n+=m.length;c++}}console.log(n,c)"
+     The `(?!--|#)` is what keeps `text-[--error]` and `bg-[#fff]` out of the
+     count — those are a token reference and a colour, and the colour rules
+     above already own the second.) A rule here is a cleanup project across the
+     whole product rather than a boundary, so it is the debt-ratchet item
+     (TTES-050-004), not something that can go green today.
+   * Easing keywords (`ease-out`, `ease-in`). `--ease-entry` / `--ease-exit`
+     exist and the shell uses them, but `ease-out` is a CSS keyword rather than
+     a magic number, and banning it would red files this change does not own.
 
    THE EXCEPTION PROCESS
 
@@ -76,6 +109,19 @@ const PRODUCT_MODULE_EXCLUSIONS = ["**/*.test.ts", "**/*.test.tsx", "**/*.itest.
 /** The one module allowed to name the icon vendor. */
 const ICON_REGISTRY = "src/components/ui/icons.tsx"
 
+/**
+ * The owned wrapper layer — the one place allowed to name a vendor component
+ * library. Every Tenure primitive lives here (Button, Menu, Tooltip, Overlay,
+ * Select, Tabs, TextField, Segmented), so a vendor swap stays inside it.
+ *
+ * It is deliberately NOT allowed to bypass the icon registry: the carve-out
+ * below re-states the icon restriction for this glob, so `src/components/ui/**`
+ * may name `react-aria-components` and may not name `lucide-react`. A blanket
+ * `"no-restricted-imports": "off"` here would have quietly widened the icon
+ * boundary from one file to twenty.
+ */
+const OWNED_WRAPPERS = "src/components/ui/**"
+
 /* Regex sources for esquery attribute matching. `\x5B` rather than `\[`:
    esquery parses `[` inside a selector regex as the start of a character class
    and rejects the escaped form, which throws a selector SyntaxError mid-lint. */
@@ -83,6 +129,42 @@ const COLOR_VALUE = String.raw`#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8
 const ARBITRARY_COLOR_UTILITY = String.raw`\x5B(?:#[0-9a-fA-F]{3,8}|(?:rgba?|hsla?|oklch|oklab|color-mix)\()`
 const ARBITRARY_SHADOW_UTILITY = String.raw`\b(?:shadow|drop-shadow)-\x5B`
 const ARBITRARY_FONT_UTILITY = String.raw`\bfont-\x5B`
+/* Both forms, not just the arbitrary one: `z-[62]` and `z-40` are the same
+   decision, and only `z-[62]` looking wrong is why nine hand-picked numeric
+   layers accumulated without anyone noticing. Same for `duration-300`. */
+const RAW_Z_INDEX_UTILITY = String.raw`\bz-(?:\x5B|\d)`
+const RAW_DURATION_UTILITY = String.raw`\bduration-(?:\x5B|\d)`
+
+/**
+ * The token names the messages below name, read out of the stylesheet that
+ * declares them.
+ *
+ * Hardcoding the list here would let `globals.css` drop a layer while the lint
+ * message kept advertising it — a rule pointing at a class Tailwind no longer
+ * generates is worse than no rule, because the fix it demands does not work.
+ * Throwing on an empty match is the other half: deleting the contract has to
+ * break `npm run lint` loudly rather than quietly leaving the rule pointing at
+ * nothing.
+ *
+ * @param prefix {string} e.g. "z" for `--z-nav`, "motion" for `--motion-base`
+ * @param rename {(name: string) => string} token name → Tailwind class
+ */
+function tokenClasses(prefix, rename) {
+  const css = readFileSync(join(__dirname, "src/app/globals.css"), "utf8")
+  const found = [...css.matchAll(new RegExp(String.raw`^\s*--${prefix}-([a-z0-9-]+)\s*:`, "gm"))]
+  const names = [...new Set(found.map((m) => m[1]))]
+  if (names.length === 0) {
+    throw new Error(
+      `apps/web/src/app/globals.css declares no --${prefix}-* tokens, so the design-token rule that ` +
+        `requires them has no sanctioned alternative to name. Restore the contract, or remove the rule ` +
+        `from DESIGN_TOKEN_RULES deliberately — do not leave a rule pointing at classes that do not exist.`
+    )
+  }
+  return names.map(rename)
+}
+
+const Z_LAYER_CLASSES = tokenClasses("z", (n) => `z-${n}`)
+const MOTION_CLASSES = tokenClasses("motion", (n) => `duration-${n}`)
 
 /**
  * The restricted-syntax rules, keyed so an exception can suspend one without
@@ -121,21 +203,122 @@ export const DESIGN_TOKEN_RULES = {
     message:
       "Unregistered font family. Use font-sans or font-display (tailwind.config.ts fontFamily → --font-inter / --font-display-face), which are the faces next/font actually loads.",
   },
+  arbitraryZIndex: {
+    selectors: [
+      `Literal[value=/${RAW_Z_INDEX_UTILITY}/]`,
+      `TemplateElement[value.raw=/${RAW_Z_INDEX_UTILITY}/]`,
+      `Property[key.name="zIndex"]`,
+    ],
+    message: `Raw z-index. Pick the layer that says WHY the thing is lifted, from the ordered contract in globals.css: ${Z_LAYER_CLASSES.join(", ")}. Numeric z-40 counts as raw here as much as z-[62] does — twelve hand-picked numbers with no contract between them is what this replaced, and the one invariant that mattered (the nav drawer scrim sits above the footer and below the nav) was encoded in a bare 39 that nothing checked. If a new surface genuinely needs a layer none of these describes, add a token to globals.css and bind it in tailwind.config.ts zIndex rather than reaching for a number.`,
+  },
+  arbitraryDuration: {
+    selectors: [
+      `Literal[value=/${RAW_DURATION_UTILITY}/]`,
+      `TemplateElement[value.raw=/${RAW_DURATION_UTILITY}/]`,
+      `Property[key.name="transitionDuration"]`,
+      `Property[key.name="animationDuration"]`,
+    ],
+    message: `Raw transition duration. Use the motion scale: ${MOTION_CLASSES.join(", ")} (globals.css --motion-* → tailwind.config.ts transitionDuration), paired with ease-entry for something arriving and ease-exit for something leaving. Two transitions on opposite edges of the same frame with different literal durations is a visible tear, and that is exactly what duration-200 beside duration-300 was.`,
+  },
+}
+
+/* ─── TTES-050-003 · deprecation is enforced, not narrated ────────────────────
+   `src/components/ui/design-system.ts` carries the design system's version,
+   its release notes, its migration notes and `DEPRECATIONS`. This turns that
+   last one into a rule: importing a deprecated name from the design system is
+   reported, with the replacement and the version it disappears in.
+
+   Read at config load with a regex rather than by importing the module: this
+   file is ESM loaded by ESLint's own resolver, `design-system.ts` is
+   TypeScript, and a config that needs a transform to load is a config that
+   breaks the lint run the day the transform moves. The register is a flat
+   object literal, and a malformed one throws below rather than silently
+   enforcing nothing.
+
+   Empty today, and that is honest: nothing has been deprecated yet. The rule
+   still exists, so the day something is, one line in the register makes every
+   import of it red.
+──────────────────────────────────────────────────────────────────────────── */
+const DESIGN_SYSTEM_MODULE = "@/components/ui/design-system"
+
+export function deprecatedNamesFrom(source) {
+  const block = /export const DEPRECATIONS[^=]*=\s*\{\n([\s\S]*?)\n\}\n/.exec(source)
+  if (!block) {
+    throw new Error(
+      "Could not find `export const DEPRECATIONS = { ... }` in design-system.ts. The deprecation lint rule reads it textually; if the declaration was reformatted, update the reader in eslint.config.mjs rather than dropping the rule.",
+    )
+  }
+  const body = block[1]
+  const names = []
+  for (const match of body.matchAll(/^\s*(?:"([^"]+)"|'([^']+)'|([A-Za-z_$][\w$]*))\s*:\s*\{/gm)) {
+    names.push(match[1] ?? match[2] ?? match[3])
+  }
+  return names
+}
+
+export function deprecationImportRules(names) {
+  if (names.length === 0) return []
+  return [
+    {
+      name: "tenure/design-system-deprecations",
+      files: PRODUCT_MODULES,
+      ignores: PRODUCT_MODULE_EXCLUSIONS,
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: DESIGN_SYSTEM_MODULE,
+                importNames: names,
+                message: `Deprecated design-system export. See DEPRECATIONS in ${DESIGN_SYSTEM_MODULE.replace("@/", "src/")}.ts for the replacement and the version it is removed in — the register carries both, and a version entry in VERSIONS carries the migration.`,
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ]
 }
 
 const ICON_IMPORT_MESSAGE = `Import icons from "@/components/ui/icons", never from the vendor package. The registry aliases every icon the product uses, which is what keeps swapping the icon set a one-file change — see the header of ${ICON_REGISTRY}.`
 
-const RESTRICTED_ICON_IMPORTS = [
+const ICON_PATHS = [{ name: "lucide-react", message: ICON_IMPORT_MESSAGE }]
+const ICON_PATTERNS = [
+  {
+    group: ["@phosphor-icons/react", "@phosphor-icons/react/*"],
+    message: ICON_IMPORT_MESSAGE,
+  },
+]
+
+/**
+ * Named alternatives, not a bare "no". Every wrapper listed here exists and is
+ * imported by a product module today, so the rule can be obeyed by editing an
+ * import line rather than by opening an exception.
+ */
+const VENDOR_COMPONENT_MESSAGE = `Vendor component library in a product module. Build on the Tenure-owned wrappers in ${OWNED_WRAPPERS}: Button (@/components/ui/Button), Menu / MenuTrigger / MenuItem / MenuPopover (@/components/ui/Menu), Tooltip / TooltipTrigger / Focusable (@/components/ui/Tooltip), Overlay / PopoverDialog (@/components/ui/Overlay), Select, Tabs, TextField, Segmented. Those wrappers are the one layer allowed to name react-aria-components or class-variance-authority; a domain module that names one restyles the primitive locally, and the owned variant drifts away from it in the next change.`
+
+const VENDOR_COMPONENT_PATHS = [
+  { name: "react-aria-components", message: VENDOR_COMPONENT_MESSAGE },
+  { name: "class-variance-authority", message: VENDOR_COMPONENT_MESSAGE },
+]
+const VENDOR_COMPONENT_PATTERNS = [
+  { group: ["react-aria-components/*"], message: VENDOR_COMPONENT_MESSAGE },
+]
+
+/** What a product module may not name: neither the icon vendor nor a component vendor. */
+const RESTRICTED_VENDOR_IMPORTS = [
   "error",
   {
-    paths: [{ name: "lucide-react", message: ICON_IMPORT_MESSAGE }],
-    patterns: [
-      {
-        group: ["@phosphor-icons/react", "@phosphor-icons/react/*"],
-        message: ICON_IMPORT_MESSAGE,
-      },
-    ],
+    paths: [...ICON_PATHS, ...VENDOR_COMPONENT_PATHS],
+    patterns: [...ICON_PATTERNS, ...VENDOR_COMPONENT_PATTERNS],
   },
+]
+
+/** What the owned wrapper layer may not name: the icon vendor, still. */
+const RESTRICTED_ICON_IMPORTS = [
+  "error",
+  { paths: ICON_PATHS, patterns: ICON_PATTERNS },
 ]
 
 /**
@@ -165,6 +348,13 @@ export const DESIGN_TOKEN_EXCEPTIONS = [
     allow: ["colorLiteral"],
     reason:
       "Deterministic monogram swatch: four hsl() values computed from a hash of the person's name so a roster reads as distinct discs. A fixed token cannot vary per person; the light/dark pair is still handed to `.avatar-monogram` in globals.css to resolve.",
+    expires: "2027-08-06",
+  },
+  {
+    files: ["src/components/ui/design-system.ts"],
+    allow: ["colorLiteral"],
+    reason:
+      "A changelog of the token layer, not a surface that renders. Its release notes record that --primary was darkened from #1c8c5a to #198052 because white on the old value measured 4.24:1, under the 4.5:1 AA floor, and shipped to every tenant with no version and no migration. Those two literals ARE the record — writing them as var(--primary) would resolve both to today's value and destroy the only statement the entry makes. Nothing in this file reaches a stylesheet, so the contrast audit loses nothing by not seeing them.",
     expires: "2027-08-06",
   },
 ]
@@ -217,8 +407,18 @@ export function designTokenConfigs(exceptions, today) {
       ignores: PRODUCT_MODULE_EXCLUSIONS,
       rules: {
         "no-restricted-syntax": ["error", ...restrictedSyntax()],
-        "no-restricted-imports": RESTRICTED_ICON_IMPORTS,
+        "no-restricted-imports": RESTRICTED_VENDOR_IMPORTS,
       },
+    },
+    {
+      // The wrapper layer is the boundary for vendor *components*, so it may
+      // name them — and only it. The icon restriction is re-stated rather than
+      // dropped: this glob covers ~20 files, and turning the rule off wholesale
+      // would let any of them import lucide-react directly.
+      name: "tenure/design-tokens-owned-wrappers",
+      files: [OWNED_WRAPPERS],
+      ignores: PRODUCT_MODULE_EXCLUSIONS,
+      rules: { "no-restricted-imports": RESTRICTED_ICON_IMPORTS },
     },
     {
       // The registry is the boundary. It is the one module whose job is to name
@@ -282,9 +482,15 @@ export function designTokenConfigs(exceptions, today) {
   return configs
 }
 
+const DESIGN_SYSTEM_SOURCE = readFileSync(
+  new URL("./src/components/ui/design-system.ts", import.meta.url),
+  "utf8",
+)
+
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   ...designTokenConfigs(DESIGN_TOKEN_EXCEPTIONS, lintToday()),
+  ...deprecationImportRules(deprecatedNamesFrom(DESIGN_SYSTEM_SOURCE)),
 ]
 
 export default eslintConfig

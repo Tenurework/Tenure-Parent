@@ -5,6 +5,7 @@ import {
   parseToolRegistration,
   type ToolRegistration,
 } from "@tenure/contracts"
+import { priceProblems, type OptionPrice } from "@tenure/finops"
 
 /**
  * What a module declares about itself.
@@ -122,6 +123,38 @@ export interface DimensionAssessment {
 export interface ModuleGap {
   dimension: CompletenessDimension
   detail: string
+}
+
+/**
+ * WRK-120-003 — one thing a module promises, and what to open when it stops
+ * being true.
+ *
+ * The `observability-slo-and-finops` dimension above was a gap on all twelve
+ * modules, and it was an honest gap: nothing anywhere declared an objective, so
+ * nothing could evaluate one. A dimension that no manifest can ever pass is a
+ * row of text, and this is the shape that makes passing it possible — and
+ * `validateManifest` refuses the dimension as `pass` unless at least one of
+ * these is declared, so it stays impossible to pass by editing a sentence.
+ *
+ * Every field is load-bearing:
+ *
+ *   `objective`  what is promised, in a sentence somebody can disagree with.
+ *   `target`     the fraction of measurements that must be good. Strictly
+ *                between 0 and 1: a target of 1 is not an objective, it is a
+ *                zero error budget, and burn against it is undefined.
+ *   `window`     the period the target is measured over.
+ *   `measure`    the path to the code that computes ONE measurement. A target
+ *                with nothing measuring it is the claim the dimension already
+ *                was, so this is stated as a path a reader can open.
+ *   `runbook`    the path whoever is paged opens. An alert that fires into a
+ *                channel with no runbook behind it is a notification.
+ */
+export interface ModuleSlo {
+  objective: string
+  target: number
+  window: string
+  measure: string
+  runbook: string
 }
 
 /**
@@ -278,6 +311,40 @@ export interface ModuleManifest {
   /** Dimensions this module does not satisfy, and what is missing. */
   gaps?: readonly ModuleGap[]
 
+  /**
+   * WRK-120-003 — the service objectives this module is held to.
+   *
+   * Optional, because a module that has not got one has to be able to say so —
+   * that is what the `observability-slo-and-finops` gap on eleven of the twelve
+   * modules IS. What it may not do is claim the dimension passes while
+   * declaring nothing; `validateManifest` refuses that pairing, which is what
+   * stops the dimension being flipped to `pass` by rewriting its evidence.
+   *
+   * Evaluated by `sloBurn` in this package, called per tenant from
+   * `apps/web/src/app/api/jobs/slo/route.ts`.
+   */
+  slo?: readonly ModuleSlo[]
+
+  /**
+   * PAY-160-002 — what enabling this module costs, per seat and per organization.
+   *
+   * Required, and required for a reason that has bitten this repository twice:
+   * an OPTIONAL field a construction site does not set is invisible to `tsc`. It
+   * compiles, every unit test passes because tests build their own fixtures, and
+   * the surface renders a blank where a price should be — which on a composer
+   * showing a running total is indistinguishable from free. So it is required,
+   * `validateManifest` refuses a manifest without a usable one, and adding a
+   * module to the catalog does not compile until somebody has said what it costs.
+   *
+   * This is a LIST price the composer quotes, not a contracted one.
+   * `Plan.monthlyPriceCents` in `@tenure/provisioning` stays `null` because no
+   * price has been AGREED with any tenant, and those are different facts: what
+   * the catalog asks and what a contract says. Zero on both axes is allowed and
+   * is also a commercial statement — it says Tenure gives this away — so a module
+   * priced at zero says why in `includedBecause`.
+   */
+  price: OptionPrice
+
   /** Ordered tiers this module sells, lowest first. Position is the rank. */
   tiers?: readonly string[]
 
@@ -401,6 +468,17 @@ export function validateManifest(m: ModuleManifest): void {
   }
   if (m.mode !== undefined && !CAPABILITY_MODES.includes(m.mode)) {
     problems.push(`${where} has unknown capability mode ${JSON.stringify(m.mode)}.`)
+  }
+  // PAY-160-002. The rule lives on the price type in `@tenure/finops` rather
+  // than being written a second time here, so the composer that quotes a module
+  // and the validator that admits one agree by construction.
+  problems.push(...priceProblems(m.price, where))
+  if (m.price && m.price.perSeatMinor === 0 && m.price.perOrgMinor === 0 && !m.price.includedBecause?.trim()) {
+    problems.push(
+      `${where} is priced at zero on both axes and says nothing about why. Zero is a commercial ` +
+        `statement — it says Tenure gives this away — and on a running total it is indistinguishable ` +
+        `from an option nobody has priced. State \`includedBecause\`.`,
+    )
   }
   if (m.requiresOperatingModel !== undefined && m.requiresOperatingModel.length === 0) {
     problems.push(
@@ -535,6 +613,75 @@ export function validateManifest(m: ModuleManifest): void {
         `${where} assesses "${dimension}" as a gap but does not list it in \`gaps\`. The ` +
           `assessment says what exists; the gap says what is missing, and the second is the ` +
           `sentence somebody deciding whether to enable it needs.`,
+      )
+    }
+  }
+
+  // ── WRK-120-003, the service objectives ───────────────────────────────────
+  //
+  // One rule, in one direction, and the asymmetry is deliberate.
+  //
+  // A `pass` on `observability-slo-and-finops` with no objective declared is
+  // refused: that assessment is a sentence about a promise nothing can be wrong
+  // about, which is exactly what the seventeen-dimension contract replaced.
+  //
+  // The converse is NOT a rule. This dimension is observability AND FinOps, and
+  // a module can genuinely have a service objective, an evaluator and a runbook
+  // while still attributing no per-module cost — which is the state `approvals`
+  // is in. Refusing that pairing would force the catalog to overclaim the half
+  // that is not built in order to record the half that is.
+  const OBSERVABILITY: CompletenessDimension = "observability-slo-and-finops"
+  const observability = assessed[OBSERVABILITY]
+  const slos = m.slo ?? []
+
+  if (observability?.status === "pass" && slos.length === 0) {
+    problems.push(
+      `${where} assesses "${OBSERVABILITY}" as a pass and declares no service objective. That is ` +
+        `the dimension: an objective, something that measures it, and a runbook for when it stops ` +
+        `being met. Without one the assessment is a sentence, which is exactly what the ` +
+        `seventeen-dimension contract replaced. State a gap, or declare the objective.`,
+    )
+  }
+
+  const objectives = new Set<string>()
+  for (const slo of slos) {
+    const at = `${where} objective ${JSON.stringify(slo?.objective ?? "(unnamed)")}`
+    if ((slo?.objective ?? "").trim().length < 10) {
+      problems.push(
+        `${where} declares a service objective with no statement of what is promised. ` +
+          `"99.9%" is a number; the objective is the sentence it is a number about.`,
+      )
+      continue
+    }
+    if (objectives.has(slo.objective)) {
+      problems.push(`${where} declares the objective ${JSON.stringify(slo.objective)} twice.`)
+    }
+    objectives.add(slo.objective)
+
+    if (typeof slo.target !== "number" || !(slo.target > 0 && slo.target < 1)) {
+      problems.push(
+        `${at} has target ${JSON.stringify(slo.target)}, which is not a fraction strictly ` +
+          `between 0 and 1. A target of 1 is not an objective — it is a zero error budget, and ` +
+          `burn against it is undefined rather than infinite.`,
+      )
+    }
+    if (!/^\d+[hdw]$/.test(slo.window ?? "")) {
+      problems.push(
+        `${at} is measured over ${JSON.stringify(slo.window)}, which is not a window such as ` +
+          `24h, 30d or 4w. A target with no period is a target that can always be met by ` +
+          `choosing a shorter one.`,
+      )
+    }
+    if (!(slo.measure ?? "").trim()) {
+      problems.push(
+        `${at} names nothing that measures it. The path to the code computing one measurement is ` +
+          `what makes the objective falsifiable rather than aspirational.`,
+      )
+    }
+    if (!(slo.runbook ?? "").trim().endsWith(".md")) {
+      problems.push(
+        `${at} names runbook ${JSON.stringify(slo.runbook)}, which is not a document path. ` +
+          `Whoever is paged at 3am opens this; an alert with nothing behind it is a notification.`,
       )
     }
   }

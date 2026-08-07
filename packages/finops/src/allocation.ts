@@ -1,13 +1,15 @@
 import {
   CurrencyMismatchError,
-  allocateByWeight,
   add,
+  allocateByWeight,
   isZero,
   money,
   sum,
   zero,
   type Money,
+  type RoundingMode,
 } from "./money"
+import { splitAmount, type RecordedSplit } from "./split"
 
 /**
  * STUDIO-120-008 — allocate cost to tenants, and be honest about what cannot be.
@@ -137,6 +139,16 @@ export interface AllocationResult {
   unallocatedTotal: Money
   /** Lines that were read. Reported so a partial ingest cannot look complete. */
   lineCount: number
+  /**
+   * PAY-070-004 — every shared cost that was actually split, recorded.
+   *
+   * One entry per service a driver covered, naming the recipients and what each
+   * received. Kept because a split is only defensible if it can be reversed to
+   * exactly the amounts it assigned: re-deriving the reversal from the weights
+   * reshuffles the leftover units between recipients, so the assignment has to
+   * survive as data. `reverseSplit` in `./split` replays these.
+   */
+  splits: readonly RecordedSplit[]
 }
 
 export interface AllocationInput {
@@ -151,6 +163,17 @@ export interface AllocationInput {
   drivers: Readonly<Record<string, AllocationDriver>>
   /** Tenants in scope. A driver may not allocate to a tenant outside this set. */
   tenantIds: readonly string[]
+  /**
+   * How a share that does not land on a unit is rounded — PAY-030-002.
+   *
+   * Required, and required to be stated by whoever is ingesting rather than
+   * chosen here, because it is the difference between a tenant's share being
+   * rounded up and rounded down and there is no answer that is right for every
+   * fleet. The CUR reader states `down`: a billed line is already authoritative
+   * to more places than are kept, and rounding a million of them up would
+   * invent money.
+   */
+  rounding: RoundingMode
 }
 
 /**
@@ -161,7 +184,7 @@ export interface AllocationInput {
  * covering both is wrong in a way that looks right.
  */
 export function allocate(input: AllocationInput): AllocationResult {
-  const { lines, drivers, tenantIds } = input
+  const { lines, drivers, tenantIds, rounding } = input
 
   if (lines.length === 0) {
     return {
@@ -172,6 +195,7 @@ export function allocate(input: AllocationInput): AllocationResult {
       unallocated: [],
       unallocatedTotal: zero("USD"),
       lineCount: 0,
+      splits: [],
     }
   }
 
@@ -212,6 +236,7 @@ export function allocate(input: AllocationInput): AllocationResult {
   }
 
   const unallocated: UnallocatedCost[] = []
+  const splits: RecordedSplit[] = []
 
   // ── Shared lines, grouped by service so one driver covers one kind of thing ──
   const byService = new Map<string, CostLine[]>()
@@ -245,9 +270,19 @@ export function allocate(input: AllocationInput): AllocationResult {
     }
 
     // Largest-remainder, so the parts add back to exactly the shared total.
-    const weights = targets.map((id) => driver.weights[id]!)
-    const shares = allocateByWeight(groupTotal, weights)
-    const amortizedShares = allocateByWeight(groupAmortized, weights)
+    // Recorded as a split with named recipients rather than a bare array, so the
+    // assignment can be reversed to exactly these amounts — PAY-070-004.
+    const rules = targets.map((id) => ({ recipientId: id, weight: driver.weights[id]! }))
+    const split = splitAmount(groupTotal, rules, rounding, `${driver.id}:${service}`)
+    const amortizedSplit = splitAmount(
+      groupAmortized,
+      rules,
+      rounding,
+      `${driver.id}:${service}:amortized`,
+    )
+    splits.push(split)
+    const shares = split.parts.map((part) => part.amount)
+    const amortizedShares = amortizedSplit.parts.map((part) => part.amount)
 
     targets.forEach((tenantId, index) => {
       allocated.set(tenantId, add(allocated.get(tenantId)!, shares[index]))
@@ -300,6 +335,7 @@ export function allocate(input: AllocationInput): AllocationResult {
     unallocated,
     unallocatedTotal: sum(unallocated.map((u) => u.amount), currency),
     lineCount: lines.length,
+    splits,
   }
 }
 
@@ -343,4 +379,95 @@ export function reconcile(result: AllocationResult): Reconciliation {
     unallocated: result.unallocatedTotal,
     discrepancy,
   }
+}
+
+/* ───────────────────────────────────────────── PAY-230-004: receipt splitting ── */
+
+/**
+ * Where one slice of an inbound receipt lands.
+ *
+ * A dues payment, an event ticket batch or a sponsorship arrives as ONE amount
+ * and belongs to several things at once — the club that banked it, the fund it
+ * counts against, the event it was collected at. Each target names as many of
+ * those as apply and carries the weight it is entitled to.
+ */
+export interface ReceiptTarget {
+  organizationId: string
+  fundCode?: string | null
+  eventId?: string | null
+  /**
+   * Relative share. Any non-negative finite number: headcount, tickets sold,
+   * an agreed percentage. It is a WEIGHT, not a percentage, so the caller never
+   * has to make a set of them add to 100 and then explain the rounding.
+   */
+  weight: number
+}
+
+export interface ReceiptSlice extends ReceiptTarget {
+  /** Whole minor units, in `currency`. */
+  minorUnits: number
+  currency: string
+}
+
+/**
+ * Split a receipt across its targets so the slices add back to exactly the
+ * receipt.
+ *
+ * Delegates to `allocateByWeight` rather than rounding each share on its own.
+ * That matters here for the same reason it matters for a NAT gateway: three
+ * clubs splitting a $100.00 sponsorship by 1/1/1 get 3333/3333/3334, and any
+ * implementation that rounds each share independently gets 3333/3333/3333 and
+ * loses a cent — from a receipt, where the missing cent is money the platform
+ * says arrived and then cannot say where it went.
+ *
+ * `allocateByWeight` is pure integer largest-remainder: it never inspects
+ * `SCALE`, it only guarantees Σ parts === the whole. So the minor units go in
+ * as `Money.units` and come straight back out in the same unit — the receipt is
+ * counted in cents here, not in the CUR ingest path's 10^-6 minor units, and
+ * nothing in between converts.
+ *
+ * Refusals, not silent repairs:
+ *   - no targets — there is nothing to split across, and returning [] would let
+ *     a caller post a receipt that is allocated nowhere;
+ *   - a negative receipt — a refund is a reversal, not an allocation;
+ *   - all weights zero — `allocateByWeight` would hand the entire amount to the
+ *     first bucket, which is a driver nobody chose.
+ */
+export function allocateReceipt(input: {
+  minorUnits: number
+  currency: string
+  targets: readonly ReceiptTarget[]
+}): ReceiptSlice[] {
+  const { minorUnits, currency, targets } = input
+
+  if (targets.length === 0) {
+    throw new RangeError(
+      "A receipt must be allocated to at least one target. Posting one with no allocation " +
+        "records money arriving and nowhere for it to have gone.",
+    )
+  }
+  if (!Number.isInteger(minorUnits) || minorUnits < 0) {
+    throw new RangeError(
+      `A receipt is a non-negative whole number of minor units, got ${minorUnits}. ` +
+        "A refund reverses a receipt; it is not a negative allocation of one.",
+    )
+  }
+  if (targets.every((target) => target.weight === 0)) {
+    throw new RangeError(
+      "Every allocation weight is zero, so no driver decides this split. Give one target a " +
+        "weight, or post the receipt against a single target.",
+    )
+  }
+
+  // `down` — truncate toward zero before the largest-remainder step hands the
+  // leftover units out. Stated rather than defaulted (PAY-030-002): it is the
+  // mode that never rounds a slice up past its exact share, so no target is
+  // credited a unit the receipt did not contain before the remainder is
+  // distributed deterministically.
+  const parts = allocateByWeight(money(minorUnits, currency), targets.map((t) => t.weight), "down")
+  return targets.map((target, index) => ({
+    ...target,
+    minorUnits: parts[index].units,
+    currency,
+  }))
 }

@@ -65,6 +65,49 @@ function id(contract: string, field: string, value: unknown): string {
 // ── 1. Tenant context ───────────────────────────────────────────────────────
 
 /**
+ * Which money-mode an operation is happening in. **One spelling, platform-wide.**
+ *
+ * `test` and `live` are not deployment environments. A single production
+ * deployment serves both: a tenant still onboarding runs its whole system in
+ * `test` while the tenant next to it moves real money in `live`, and the same
+ * container, the same database and the same request path serve them. So this
+ * cannot be derived from `NODE_ENV`, which is a fact about the process rather
+ * than about the tenant.
+ *
+ * It lives here rather than in the configuration engine or the app because
+ * every one of those needs the same two words, and two spellings of a
+ * money-mode is how a value that reads `"testing"` in one module compares
+ * unequal to `"test"` in another and silently takes the live branch.
+ *
+ * The default, everywhere one is taken, is `test`. A mode that cannot be
+ * established is not evidence that real money may move.
+ */
+export type PaymentMode = "test" | "live"
+
+export const PAYMENT_MODES: readonly PaymentMode[] = ["test", "live"]
+
+export function isPaymentMode(value: unknown): value is PaymentMode {
+  return value === "test" || value === "live"
+}
+
+/**
+ * The configuration key the platform's payment mode is published under.
+ *
+ * Named here, in the package both the configuration engine and the application
+ * already depend on, so the engine that refuses a publication and the request
+ * path that reads the resolved value cannot disagree about the string.
+ */
+export const PAYMENT_MODE_CONFIG_KEY = "platform.payments.mode"
+
+/**
+ * The configuration key naming the legal entity a tenant's money moves under.
+ *
+ * The producer of `TenantContext.legalEntityId`. Empty means "the tenant
+ * itself", which resolves to `null` on the context.
+ */
+export const LEGAL_ENTITY_CONFIG_KEY = "platform.payments.legalEntityId"
+
+/**
  * Who is acting, in which tenant, with what assurance.
  *
  * `actorKind` is not decoration. `system` and `support` are both
@@ -83,6 +126,34 @@ export interface TenantContext {
   correlationId: string
   /** The configuration revision this request was decided against. */
   configRevision: string
+  /**
+   * Test or live money-mode. **Required, and deliberately not optional.**
+   *
+   * Without it a command raised while a tenant is still being set up and one
+   * raised against real money are byte-identical values, so nothing downstream
+   * — an audit row, a command bus, a provider adapter — can tell them apart,
+   * and "we ran the migration against live by mistake" has no field to have
+   * prevented it.
+   *
+   * Optional would be worse than absent. The call site that omits it is the one
+   * written under time pressure, and an omitted mode has to default to
+   * something; whichever default is chosen is wrong for half the callers and
+   * silent for all of them.
+   */
+  environment: PaymentMode
+  /**
+   * The legal entity inside the tenant this acts for, or `null` for the tenant
+   * itself.
+   *
+   * `legalEntity` is already a configuration scope — the level where
+   * jurisdiction lives (`@tenure/configuration`'s `CONFIG_SCOPES`) — and until
+   * this field existed nothing crossing a module boundary could name one, so a
+   * layer set for a specific legal entity could be resolved but never
+   * requested. Explicitly `null` rather than absent, for the same reason
+   * `Command.expectedVersion` is: "this is the tenant's own entity" is a
+   * statement, and a missing field is not.
+   */
+  legalEntityId: string | null
   at: string
 }
 
@@ -98,6 +169,21 @@ export function parseTenantContext(input: unknown): TenantContext {
     fail(C, "actorKind", `must be one of ${ACTOR_KINDS.join(", ")}`)
   }
 
+  // No default. A context that does not say which mode it is in is refused,
+  // because the alternative — defaulting to one — is a value nobody chose being
+  // recorded as though somebody had.
+  if (!isPaymentMode(o.environment)) {
+    fail(
+      C,
+      "environment",
+      `is required and must be one of ${PAYMENT_MODES.join(", ")}; a context that cannot say whether it is moving real money is not one anything downstream can act on`,
+    )
+  }
+
+  if (!("legalEntityId" in o)) {
+    fail(C, "legalEntityId", "is required; use null to mean 'the tenant's own legal entity'")
+  }
+
   return {
     tenantId: id(C, "tenantId", o.tenantId),
     actorId: id(C, "actorId", o.actorId),
@@ -105,6 +191,11 @@ export function parseTenantContext(input: unknown): TenantContext {
     channel: str(C, "channel", o.channel, 64),
     correlationId: id(C, "correlationId", o.correlationId),
     configRevision: str(C, "configRevision", o.configRevision, 128),
+    environment: o.environment as PaymentMode,
+    legalEntityId:
+      o.legalEntityId === null || o.legalEntityId === undefined
+        ? null
+        : id(C, "legalEntityId", o.legalEntityId),
     at: instant(C, "at", o.at),
   }
 }
@@ -217,6 +308,23 @@ export function parseQuery(input: unknown): Query {
  * tenant data" — so events carry references, and a sensitive consumer rereads
  * and reauthorizes.
  */
+/**
+ * Who wrote the payload.
+ *
+ * `provider` means the body came from outside the platform — a webhook, a
+ * bank file, a processor callback — and has not been through anything of ours.
+ * Nothing could previously tell such a body apart from one this platform built,
+ * which is why nothing could refuse to log it: a sink that receives opaque JSON
+ * has no basis on which to say no.
+ *
+ * Required rather than defaulted to `"tenure"`. A default is the answer given
+ * when the caller did not think about it, and the caller who did not think
+ * about it is precisely the one forwarding a processor's payload.
+ */
+export type EventOrigin = "tenure" | "provider"
+
+export const EVENT_ORIGINS: readonly EventOrigin[] = ["tenure", "provider"]
+
 export interface DomainEvent<P = unknown> {
   eventId: string
   tenantId: string
@@ -229,6 +337,8 @@ export interface DomainEvent<P = unknown> {
   correlationId: string
   /** The command that caused it, when there was one. */
   causationId: string | null
+  /** Whether this platform authored the payload, or an external provider did. */
+  origin: EventOrigin
   payload: P
 }
 
@@ -263,6 +373,15 @@ export function parseDomainEvent<P = unknown>(input: unknown): DomainEvent<P> {
     fail(C, "schemaVersion", "must be a positive integer; a consumer that cannot tell which shape it received cannot refuse one it does not understand")
   }
 
+  const origin = o.origin
+  if (origin !== "tenure" && origin !== "provider") {
+    fail(
+      C,
+      "origin",
+      `must be one of ${EVENT_ORIGINS.join(", ")} — a payload nothing can classify as provider-sourced is a payload nothing can keep out of a log`,
+    )
+  }
+
   return {
     eventId: id(C, "eventId", o.eventId),
     tenantId: id(C, "tenantId", o.tenantId),
@@ -273,6 +392,7 @@ export function parseDomainEvent<P = unknown>(input: unknown): DomainEvent<P> {
     occurredAt: instant(C, "occurredAt", o.occurredAt),
     correlationId: id(C, "correlationId", o.correlationId),
     causationId: o.causationId === null || o.causationId === undefined ? null : id(C, "causationId", o.causationId),
+    origin: origin as EventOrigin,
     payload: o.payload as P,
   }
 }
@@ -633,6 +753,17 @@ export interface ConfigSnapshot {
   tenantId: string
   revision: string
   checksum: string
+  /**
+   * The money-mode these values were resolved for.
+   *
+   * A revision alone cannot answer "was this decided under test or live". Both
+   * modes resolve through the same engine in the same process, so two snapshots
+   * for two modes would otherwise be indistinguishable — and a command raised
+   * in `test` deciding against a revision resolved in `live` is exactly the
+   * confusion nothing could previously detect. `dispatch` compares this against
+   * the command's own `context.environment` and refuses a mismatch.
+   */
+  environment: PaymentMode
   values: Readonly<Record<string, unknown>>
 }
 
@@ -645,10 +776,19 @@ export function parseConfigSnapshot(input: unknown): ConfigSnapshot {
     fail(C, "values", "expected an object")
   }
 
+  if (!isPaymentMode(o.environment)) {
+    fail(
+      C,
+      "environment",
+      `is required and must be one of ${PAYMENT_MODES.join(", ")}; a snapshot that cannot say which mode it resolved for cannot be matched against the command deciding against it`,
+    )
+  }
+
   return {
     tenantId: id(C, "tenantId", o.tenantId),
     revision: str(C, "revision", o.revision, 128),
     checksum: str(C, "checksum", o.checksum, 128),
+    environment: o.environment as PaymentMode,
     values: o.values as Record<string, unknown>,
   }
 }

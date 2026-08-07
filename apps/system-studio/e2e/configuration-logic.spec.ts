@@ -55,6 +55,15 @@ test.describe("the editable set is derived, not listed", () => {
           default: "us-east-1",
           overridable: true,
           allowedScopes: ["tenant"],
+          // Priced because every real definition is (NEXT-SESSION §7); the
+          // authority gates under test are indifferent to the number.
+          price: {
+            perSeatMinor: 0,
+            perOrgMinor: 0,
+            currency: "USD",
+            rounding: "half-up" as const,
+            includedBecause: "A fixture for the authority gates, not for the price.",
+          },
         },
       ],
     )
@@ -75,6 +84,15 @@ test.describe("the editable set is derived, not listed", () => {
           default: "Seat",
           overridable: true,
           allowedScopes: ["blueprint"],
+          // Priced because every real definition is (NEXT-SESSION §7); the
+          // authority gates under test are indifferent to the number.
+          price: {
+            perSeatMinor: 0,
+            perOrgMinor: 0,
+            currency: "USD",
+            rounding: "half-up" as const,
+            includedBecause: "A fixture for the authority gates, not for the price.",
+          },
         },
       ],
     )
@@ -126,6 +144,13 @@ test.describe("parsing a submitted value", () => {
     domain: "d",
     defaultValue: input === "number" ? 0 : input === "boolean" ? false : "",
     input,
+    price: {
+      perSeatMinor: 0,
+      perOrgMinor: 0,
+      currency: "USD",
+      rounding: "half-up",
+      includedBecause: "A fixture for the parser, not for the price.",
+    },
   })
 
   test("treats an empty box as 'leave it alone', not as an empty value", () => {

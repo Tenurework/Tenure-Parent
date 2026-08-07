@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Button as AriaButton } from "react-aria-components"
+import { Button } from "@/components/ui/Button"
 import { CalendarDays, ExternalLink } from "@/components/ui/icons"
 import { Overlay } from "@/components/ui/Overlay"
 
@@ -28,9 +28,9 @@ export function CalendarSubscribe({ feedPath }: { feedPath: string }) {
   }
 
   const trigger = (
-    <AriaButton className="inline-flex h-10 items-center gap-2 rounded-md border border-border-strong bg-surface px-4 text-sm font-medium text-text-1 outline-none transition-colors data-[hovered]:bg-base data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--primary]">
+    <Button variant="secondary" size="md">
       <CalendarDays size={16} className="text-text-3" /> Subscribe
-    </AriaButton>
+    </Button>
   )
 
   return (

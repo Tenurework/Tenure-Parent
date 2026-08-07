@@ -10,6 +10,7 @@ import {
   type AdoptionEvidence,
   type CoexistenceDeclaration,
   type IsolationTier,
+  type ObjectAuthority,
   type SystemOfRecordMap,
   type TenantManifest,
   type TenantRegistryRecord,
@@ -97,8 +98,18 @@ function requireFirstCellRegion(): string {
 function coexistenceForBinding(declared: CoexistenceDeclaration | undefined): {
   profile: CoexistenceDeclaration["profile"]
   systemOfRecord: SystemOfRecordMap
+  objectAuthority?: readonly ObjectAuthority[]
 } {
-  if (declared) return { profile: declared.profile, systemOfRecord: declared.systemOfRecord }
+  if (declared)
+    return {
+      profile: declared.profile,
+      systemOfRecord: declared.systemOfRecord,
+      // WRK-020-004. Carried, not dropped. A binding that states which objects
+      // move and in which direction and an adopted manifest that states only
+      // the domains are two different coexistence contracts for one running
+      // system, and the manifest is the one that gets diffed and approved.
+      objectAuthority: declared.objectAuthority,
+    }
   return {
     profile: "TENURE_CLOUD_PRIMARY",
     systemOfRecord: Object.fromEntries(BUSINESS_DOMAINS.map((d) => [d, "tenure" as const])),
@@ -156,6 +167,7 @@ export function manifestForBinding(slug: string): TenantManifest {
     // is ours" has to be visible to be reviewable.
     coexistence: coexistenceForBinding(binding.coexistence).profile,
     systemOfRecord: coexistenceForBinding(binding.coexistence).systemOfRecord,
+    objectAuthority: coexistenceForBinding(binding.coexistence).objectAuthority,
     // The overlay this tenant is already configured with.
     configuration: binding.values,
     secretRefs: {},

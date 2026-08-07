@@ -43,7 +43,7 @@ export function TabItem({ children, ...props }: TabProps) {
         data-[hovered]:text-text-1
         data-[selected]:after:absolute data-[selected]:after:bottom-0 data-[selected]:after:left-0
         data-[selected]:after:right-0 data-[selected]:after:h-[2.5px] data-[selected]:after:rounded-full data-[selected]:after:bg-[--primary]
-        data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--primary] data-[focus-visible]:ring-inset
+        data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--border-focus] data-[focus-visible]:ring-inset
       `}
     >
       {children}

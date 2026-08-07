@@ -12,6 +12,7 @@ import {
 import { hasCapability } from "@/lib/admin/capabilities"
 import { getUserContext, isOse, type UserContext } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
+import { configSnapshotForInstitution } from "@/lib/config/server"
 import { institutionTimeZone } from "@/lib/institution-time"
 import { formatInZone, parseDateKey, zonedTimeToUtc } from "@/lib/time"
 import { notifyUsers, orgPresidentIds } from "@/lib/notify"
@@ -96,7 +97,7 @@ export function canEditEvent(
 type LoadedEvent = Prisma.EventGetPayload<{
   include: {
     organization: { select: { name: true; institutionId: true } }
-    approval: { select: { id: true; status: true; description: true } }
+    approval: { select: { id: true; status: true; description: true; metadata: true } }
   }
 }>
 
@@ -128,6 +129,10 @@ async function syncApprovalSnapshot(
     (next.venue ? ` at ${next.venue}` : "") +
     (next.description ? `\n\n${next.description}` : "")
 
+  // PAY-030-005. An amendment is a state transition on the approval like any
+  // other, so it records which configuration it happened under.
+  const configSnapshot = await configSnapshotForInstitution(event.organization.institutionId)
+
   await db.$transaction([
     db.approvalRequest.update({
       where: { id: event.approval.id },
@@ -135,6 +140,13 @@ async function syncApprovalSnapshot(
         title: next.title,
         description: rebuilt,
         metadata: {
+          // Carried across rather than dropped: the currency is what the
+          // digest and the approval ladder read the request in, and a rewrite
+          // that silently removed it would re-denominate a request in flight.
+          ...(typeof (event.approval.metadata as { currency?: unknown } | null)
+            ?.currency === "string"
+            ? { currency: (event.approval.metadata as { currency: string }).currency }
+            : {}),
           venue: next.venue,
           startAt: next.startAt.toISOString(),
           endAt: next.endAt.toISOString(),
@@ -142,6 +154,14 @@ async function syncApprovalSnapshot(
         },
       },
     }),
+    // PAY-150-004. This step deliberately records NO `payloadDigest`, and that
+    // is the control rather than an omission. It rewrites the very fields the
+    // digest covers (the venue and the times), so a digest here would let a
+    // reschedule re-bless itself and the next gate would compare the amended
+    // payload against the amended payload. `isGateStep` also excludes it for
+    // being a same-status step; both together mean the president's approval
+    // stops covering an event that has since moved, which is exactly what a
+    // reader of this timeline would expect it to mean.
     db.approvalStep.create({
       data: {
         approvalId: event.approval.id,
@@ -153,6 +173,9 @@ async function syncApprovalSnapshot(
           event.status === "PUBLISHED"
             ? `Amended after approval — now ${when}${next.venue ? ` at ${next.venue}` : ""}`
             : `Updated before decision — now ${when}${next.venue ? ` at ${next.venue}` : ""}`,
+        configRevision: configSnapshot.revision,
+        configChecksum: configSnapshot.checksum,
+        authority: "calendar.event.amend",
       },
     }),
   ])
@@ -170,7 +193,7 @@ async function requireEditable(userId: string, eventId: string): Promise<Guarded
     where: { id: eventId },
     include: {
       organization: { select: { name: true, institutionId: true } },
-      approval: { select: { id: true, status: true, description: true } },
+      approval: { select: { id: true, status: true, description: true, metadata: true } },
     },
   })
   if (!event) return { error: "That event no longer exists." }
@@ -682,7 +705,7 @@ export async function loadEditableEvent(
       where: { id: eventId },
       include: {
         organization: { select: { name: true, institutionId: true } },
-        approval: { select: { id: true, status: true, description: true } },
+        approval: { select: { id: true, status: true, description: true, metadata: true } },
       },
     })
     if (!event) return null

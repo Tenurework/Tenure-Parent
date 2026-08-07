@@ -21,16 +21,29 @@
  * the high-contrast overrides — no raw hex ever reaches a mark.
  */
 
-/** The eight categorical slots, in fixed order. */
+import { cssVar } from "@/lib/a11y/tokens"
+
+/**
+ * The eight categorical slots, in fixed order.
+ *
+ * TTES-010-001 — built with `cssVar`, not written out as eight literal
+ * `"var(--chart-N)"` strings. They were a third hand-maintained copy of the
+ * token list, alongside `globals.css` and `tailwind.config.ts`, and nothing
+ * reconciled the three: deleting `--chart-8` from the stylesheet left this
+ * emitting `var(--chart-8)` into a `fill` attribute, where an undeclared custom
+ * property renders as no fill at all and no test could see it. `cssVar` takes a
+ * `TokenName`, so the same deletion now fails `tsc` here — at the rendering call
+ * site, which is the only place the failure is cheap.
+ */
 export const CHART_SLOTS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-  "var(--chart-6)",
-  "var(--chart-7)",
-  "var(--chart-8)",
+  cssVar("--chart-1"),
+  cssVar("--chart-2"),
+  cssVar("--chart-3"),
+  cssVar("--chart-4"),
+  cssVar("--chart-5"),
+  cssVar("--chart-6"),
+  cssVar("--chart-7"),
+  cssVar("--chart-8"),
 ] as const
 
 /** Colour for categorical slot `i` (0-based). Single-series charts pass 0. */
@@ -98,18 +111,18 @@ export function slotsForKeys(keys: Iterable<string>): Map<string, string> {
 }
 
 /** Recessive chart furniture. */
-export const CHART_GRID = "var(--chart-grid)"
-export const CHART_AXIS = "var(--chart-axis)"
+export const CHART_GRID = cssVar("--chart-grid")
+export const CHART_AXIS = cssVar("--chart-axis")
 
 /** The card surface a chart sits on — used for gaps and marker rings. */
-export const SURFACE = "var(--bg-surface)"
+export const SURFACE = cssVar("--bg-surface")
 
 /** Reserved status tokens — only where the colour *means* good / bad. */
 export const STATUS = {
-  error: "var(--error)",
-  success: "var(--success)",
-  warning: "var(--warning)",
-  info: "var(--info)",
+  error: cssVar("--error"),
+  success: cssVar("--success"),
+  warning: cssVar("--warning"),
+  info: cssVar("--info"),
 } as const
 
 /**
@@ -122,11 +135,11 @@ export const STATUS = {
  * exists to draw attention to. Use `MUTED_SERIES` for a real series that should
  * read as secondary.
  */
-export const REFERENCE = "var(--border-strong)"
+export const REFERENCE = cssVar("--border-strong")
 
 /**
  * For a data series that is genuinely secondary — vacant, remaining, in flight
  * — but still has to be seen and compared. Carries enough weight to read as a
  * filled area in both themes without competing with the primary series.
  */
-export const MUTED_SERIES = "var(--text-3)"
+export const MUTED_SERIES = cssVar("--text-3")

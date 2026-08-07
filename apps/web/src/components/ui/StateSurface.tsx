@@ -1,5 +1,6 @@
 import { type ReactNode } from "react"
 
+import { type IconType } from "@/components/ui/icons"
 import { Skeleton, type SkeletonGeometry } from "@/components/ui/Skeleton"
 import {
   DEFAULT_COPY,
@@ -66,18 +67,38 @@ export function StateSurface({
   state,
   title,
   detail,
+  icon: Icon,
   onRetry,
   retryLabel,
   geometry,
+  action,
+  centered = false,
   children,
   className,
 }: {
   state: SurfaceState
-  title?: string
+  title?: ReactNode
   detail?: ReactNode
+  /**
+   * An optional glyph above the copy. Decorative — `aria-hidden`, because the
+   * title and detail already say what the state is, and a reader hearing the
+   * icon's name as well hears the same fact twice.
+   */
+  icon?: IconType
   /** Ignored when the state says a retry cannot help; see `retryAdvice`. */
   onRetry?: () => void
   retryLabel?: string
+  /**
+   * The one thing a reader can do from here — "Add a resource", "Clear
+   * filters". Distinct from `onRetry`, which repeats the request that just
+   * happened and is suppressed for the states where repeating it cannot help.
+   */
+  action?: ReactNode
+  /**
+   * Centre the copy in the space the missing content would have filled, for a
+   * surface standing in for a whole panel rather than annotating rows above it.
+   */
+  centered?: boolean
   /**
    * The shape of the content this surface is standing in for. Supplying it
    * makes `loading` reserve that exact box instead of collapsing to a one-line
@@ -103,10 +124,11 @@ export function StateSurface({
     <div
       className={[
         "state-surface",
-        showsSkeleton ? "" : "rounded-md border px-4 py-3",
+        showsSkeleton ? "" : centered ? "px-6 py-12 text-center" : "rounded-md border px-4 py-3",
+        centered && !showsSkeleton ? "flex flex-col items-center justify-center" : "",
         `state-${state}`,
         `tone-${semantics.tone}`,
-        showsSkeleton ? "" : tone.frame,
+        showsSkeleton || centered ? "" : tone.frame,
         className,
       ]
         .filter(Boolean)
@@ -118,18 +140,34 @@ export function StateSurface({
       data-state={state}
       data-complete={semantics.presentsAsComplete}
     >
+      {/* Outline-only: a hairline ring rather than a filled plate, matching the
+          rest of the product's iconography. Decorative by construction. */}
+      {Icon && !showsSkeleton ? (
+        <div className="mb-4 grid h-14 w-14 place-items-center rounded-full border border-border text-text-3">
+          <Icon size={26} weight="light" aria-hidden />
+        </div>
+      ) : null}
+
       {/* Still announced, just not occupying height the reservation has to
           account for. `sr-only` keeps it in the accessibility tree. */}
       <p
         className={
-          showsSkeleton ? "state-title sr-only" : `state-title text-sm font-semibold ${tone.title}`
+          showsSkeleton
+            ? "state-title sr-only"
+            : centered
+              ? `state-title text-lead font-semibold ${tone.title}`
+              : `state-title text-sm font-semibold ${tone.title}`
         }
       >
         {title ?? copy.title}
       </p>
       <p
         className={
-          showsSkeleton ? "state-detail sr-only" : `state-detail mt-0.5 text-sm ${tone.body}`
+          showsSkeleton
+            ? "state-detail sr-only"
+            : centered
+              ? `state-detail mt-1.5 max-w-md text-sm ${tone.body}`
+              : `state-detail mt-0.5 text-sm ${tone.body}`
         }
       >
         {detail ?? copy.detail}
@@ -154,6 +192,8 @@ export function StateSurface({
           {retryLabel ?? "Try again"}
         </button>
       ) : null}
+
+      {action ? <div className="state-action mt-5">{action}</div> : null}
 
       {children ? <div className="state-body mt-3">{children}</div> : null}
     </div>

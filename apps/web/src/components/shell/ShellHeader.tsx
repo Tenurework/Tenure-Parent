@@ -1,13 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import {
-  Button,
-  Menu,
-  MenuItem,
-  MenuTrigger,
-  Popover,
-} from "react-aria-components"
+import { Button } from "@/components/ui/Button"
+import { Menu, MenuItem, MenuPopover, MenuTrigger } from "@/components/ui/Menu"
 import { ChevronDown, LogOut, UserRound } from "@/components/ui/icons"
 import { TenureAIMark, TenureLogo } from "@/components/brand/TenureLogo"
 import { EmailLink } from "@/components/EmailLink"
@@ -15,6 +10,7 @@ import { SearchCommand } from "./SearchCommand"
 import { NavDrawerToggle } from "./NavDrawerToggle"
 import { NotificationBell } from "./NotificationBell"
 import { TenantSwitcher, type TenantOption } from "./TenantSwitcher"
+import type { NavSectionView } from "./SideNav"
 import { useAI } from "@/components/ai/AIProvider"
 
 interface ShellHeaderProps {
@@ -32,6 +28,18 @@ interface ShellHeaderProps {
   onSwitchTenant?: (institutionId: string) => Promise<void>
   unreadNotifications?: number
   onSignOut?: () => Promise<void>
+  /**
+   * The capability-filtered navigation, resolved by the layout. Passed through
+   * to `SearchCommand` so the command palette's actions are exactly the ones
+   * this principal holds.
+   *
+   * REQUIRED, deliberately. Every other prop here is optional with a default,
+   * and an optional `sections` would compile at the one construction site
+   * unchanged while shipping a palette with no actions in it — the
+   * optional-field-nobody-sets failure, invisible to `tsc` and to every unit
+   * test that builds its own fixture.
+   */
+  sections: readonly NavSectionView[]
 }
 
 export function ShellHeader({
@@ -43,11 +51,12 @@ export function ShellHeader({
   onSwitchTenant,
   unreadNotifications = 0,
   onSignOut,
+  sections,
 }: ShellHeaderProps) {
   const { openPanel } = useAI()
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-50 flex h-shell items-center gap-2.5 px-3 sm:px-4"
+      className="fixed top-0 left-0 right-0 z-header flex h-shell items-center gap-2.5 px-3 sm:px-4"
       style={{ background: "var(--shell-bg)", borderBottom: "1px solid var(--shell-border)" }}
     >
       {/* Below 700px the side nav is off-canvas; this is how it opens. */}
@@ -94,18 +103,14 @@ export function ShellHeader({
             Tenure AI
           </button>
 
-          <SearchCommand />
+          <SearchCommand sections={sections} />
         </div>
 
         <NotificationBell initialUnread={unreadNotifications} />
 
         {/* User menu */}
         <MenuTrigger>
-          <Button
-            className="flex h-9 items-center gap-2 rounded-lg px-1.5 pr-2.5 transition-colors outline-none data-[hovered]:bg-[--shell-item-hover] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--primary]"
-            style={{ color: "var(--shell-text-secondary)" }}
-            aria-label="User menu"
-          >
+          <Button variant="shell" size="shell" aria-label="User menu">
             {userImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -124,10 +129,7 @@ export function ShellHeader({
             <span className="hidden text-sm text-[--shell-text] sm:block">{userName}</span>
             <ChevronDown size={14} />
           </Button>
-          <Popover
-            placement="bottom end"
-            className="pop-panel min-w-60 rounded-lg border border-border bg-surface shadow-lg outline-none"
-          >
+          <MenuPopover placement="bottom end" className="min-w-60">
             <div className="border-b border-border px-4 py-3.5">
               <p className="flex items-center gap-2 text-sm font-semibold text-text-1">
                 <UserRound size={15} className="text-text-3" /> {userName}
@@ -138,16 +140,13 @@ export function ShellHeader({
                 </p>
               )}
             </div>
-            <Menu className="p-1.5 outline-none">
-              <MenuItem
-                onAction={() => onSignOut?.()}
-                className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2.5 text-sm text-text-1 outline-none data-[focused]:bg-base"
-              >
+            <Menu>
+              <MenuItem onAction={() => onSignOut?.()}>
                 <LogOut size={15} className="text-text-3" />
                 Sign out / switch user
               </MenuItem>
             </Menu>
-          </Popover>
+          </MenuPopover>
         </MenuTrigger>
       </div>
     </header>

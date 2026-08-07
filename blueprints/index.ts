@@ -193,6 +193,35 @@ export const TENANT_BINDINGS: readonly TenantBinding[] = [
         identity: "tenure",
         config: "tenure",
       },
+      // WRK-020-004. The grain below the domain, and the reason this fixture
+      // was extended rather than a second one invented: `finance: "external"`
+      // says the customer's ERP owns the money. It does not say that Tenure
+      // ever RECEIVES a posted entry, and until a direction was recordable the
+      // honest reading of this binding was that the two systems never speak.
+      //
+      // `NONE` on the budget is not an omission either. The customer's ERP
+      // holds its own budget and Tenure is not shown it; saying so out loud is
+      // what stops somebody reading the blank as "not decided yet".
+      objectAuthority: [
+        {
+          domain: "finance",
+          object: "LedgerEntry",
+          authority: "external",
+          direction: "INBOUND",
+          fields: [
+            // Written in Tenure by the person who approved the spend, and never
+            // sent back — which is exactly why the object needs a channel. A
+            // field the other side owns with `direction: "NONE"` is refused.
+            { field: "memo", authority: "tenure" },
+          ],
+        },
+        {
+          domain: "finance",
+          object: "Budget",
+          authority: "external",
+          direction: "NONE",
+        },
+      ],
     },
     values: {
       "platform.terminology.staffOfficeName": "Shared Services",

@@ -39,7 +39,7 @@ export async function switchTenantAction(institutionId: string): Promise<void> {
 
   // Validated against this user's own memberships. A caller-supplied
   // institution is a request, not a fact.
-  const scope = await resolveTenantScope(session.user.id, institutionId)
+  const scope = await resolveTenantScope(session.user.id, institutionId, "interactive")
   await chooseActingInstitution(session.user.id, scope.institutionId)
 
   revalidatePath("/", "layout")

@@ -1,8 +1,10 @@
 import {
+  MixedCurrencyError,
   formatCents,
   formatCentsIn,
   ledgerSignedCents,
   parseMoneyToCents,
+  rollUpPortfolio,
   summarize,
   parseBudgetSheet,
 } from "./finance"
@@ -198,6 +200,7 @@ describe("money invariants across the ledger", () => {
       category: r.category,
       budgetedCents: parseMoneyToCents(r.budgeted) as number,
       actualCents: parseMoneyToCents(r.actual) as number,
+      currency: "USD",
     }))
     expect(lines.map((l) => l.budgetedCents)).toEqual([100001, 50050, 15])
     expect(lines.map((l) => l.actualCents)).toEqual([80015, -5001, 0])
@@ -222,15 +225,17 @@ describe("money invariants across the ledger", () => {
     const res = parseBudgetSheet(rows)
     const total = res.rows.reduce((a, r) => a + r.budgetedCents, 0)
     expect(total).toBe(1500)
-    expect(summarize(res.rows.map((r) => ({ ...r }))).totalBudgetedCents).toBe(1500)
+    expect(
+      summarize(res.rows.map((r) => ({ ...r, currency: "USD" }))).totalBudgetedCents
+    ).toBe(1500)
   })
 })
 
 describe("summarize", () => {
   it("computes variance, remaining and savings", () => {
     const s = summarize([
-      { category: "Catering", budgetedCents: 100000, actualCents: 80000 },
-      { category: "Venue", budgetedCents: 50000, actualCents: 60000 },
+      { category: "Catering", budgetedCents: 100000, actualCents: 80000, currency: "USD" },
+      { category: "Venue", budgetedCents: 50000, actualCents: 60000, currency: "USD" },
     ])
     expect(s.totalBudgetedCents).toBe(150000)
     expect(s.totalActualCents).toBe(140000)
@@ -243,7 +248,7 @@ describe("summarize", () => {
 
   it("uses forecast when there is no actual yet", () => {
     const s = summarize([
-      { category: "Swag", budgetedCents: 40000, actualCents: 0, forecastCents: 45000 },
+      { category: "Swag", budgetedCents: 40000, actualCents: 0, forecastCents: 45000, currency: "USD" },
     ])
     // Projected = forecast 45k, so variance is a 5k overspend
     expect(s.totalProjectedCents).toBe(45000)
@@ -253,7 +258,7 @@ describe("summarize", () => {
   })
 
   it("does not divide by zero with an empty budget", () => {
-    const s = summarize([{ category: "x", budgetedCents: 0, actualCents: 0 }])
+    const s = summarize([{ category: "x", budgetedCents: 0, actualCents: 0, currency: "USD" }])
     expect(s.utilizationPct).toBe(0)
   })
 })
@@ -306,5 +311,92 @@ describe("parseBudgetSheet", () => {
       { category: "Catering", budgetedCents: 100000, actualCents: 0 },
     ])
     expect(res.warnings.some((w) => /actual/i.test(w))).toBe(true)
+  })
+})
+
+// ── PAY-080-004: a total across currencies is not a total ─────────────────────
+
+describe("summarize refuses a mixed-currency set", () => {
+  const usd = { category: "Catering", budgetedCents: 100_000, actualCents: 80_000, currency: "USD" }
+  const jpy = { category: "Venue", budgetedCents: 50_000, actualCents: 60_000, currency: "JPY" }
+
+  it("throws rather than adding integers of different denominations", () => {
+    expect(() => summarize([usd, jpy])).toThrow(MixedCurrencyError)
+  })
+
+  it("names both currencies, so the refusal is one an operator can act on", () => {
+    try {
+      summarize([usd, jpy])
+      throw new Error("summarize should have refused")
+    } catch (error) {
+      expect(error).toBeInstanceOf(MixedCurrencyError)
+      expect((error as MixedCurrencyError).currencies).toEqual(["JPY", "USD"])
+    }
+  })
+
+  it("reports the single currency it summed in", () => {
+    expect(summarize([usd]).currency).toBe("USD")
+    expect(summarize([jpy]).currency).toBe("JPY")
+  })
+
+  it("takes the platform default for an empty set — nothing to be wrong about", () => {
+    expect(summarize([]).currency).toBe(DEFAULT_MONEY_FORMAT.currency)
+  })
+})
+
+// The producer. `rollUpPortfolio` is what /reports/finance calls, and it is the
+// function that used to be a bare `reduce` over every club's lines. Asserting on
+// `summarize` alone would stay green the day the page stopped calling it.
+describe("rollUpPortfolio", () => {
+  const club = (name: string, lines: { budgetedCents: number; actualCents: number; currency: string }[]) => ({
+    name,
+    slug: name.toLowerCase(),
+    lines: lines.map((l, i) => ({ category: `c${i}`, ...l })),
+  })
+
+  it("totals PER CURRENCY rather than producing one wrong number", () => {
+    const rolled = rollUpPortfolio([
+      club("Alpha", [{ budgetedCents: 100_000, actualCents: 40_000, currency: "USD" }]),
+      club("Beta", [{ budgetedCents: 300_000, actualCents: 10_000, currency: "USD" }]),
+      club("Gamma", [{ budgetedCents: 900_000, actualCents: 500_000, currency: "JPY" }]),
+    ])
+
+    expect(rolled.totals).toEqual([
+      { currency: "JPY", budgetedCents: 900_000, actualCents: 500_000, clubCount: 1 },
+      { currency: "USD", budgetedCents: 400_000, actualCents: 50_000, clubCount: 2 },
+    ])
+    // The bug this replaced: 100_000 + 300_000 + 900_000 rendered with a $.
+    expect(rolled.totals.some((t) => t.budgetedCents === 1_300_000)).toBe(false)
+  })
+
+  it("reports a club whose own lines disagree instead of dropping or totalling it", () => {
+    const rolled = rollUpPortfolio([
+      club("Delta", [
+        { budgetedCents: 100_000, actualCents: 0, currency: "USD" },
+        { budgetedCents: 900_000, actualCents: 0, currency: "JPY" },
+      ]),
+    ])
+
+    expect(rolled.mixedCurrencyClubs.map((c) => c.name)).toEqual(["Delta"])
+    expect(rolled.clubs[0].currency).toBeNull()
+    expect(rolled.clubs[0].budgetedCents).toBe(0)
+    expect(rolled.totals).toEqual([])
+  })
+})
+
+// ── PAY-230-004: RECEIPT is inbound, so it signs opposite to SPEND ───────────
+
+describe("ledgerSignedCents RECEIPT", () => {
+  it("signs a receipt opposite to a spend of the same magnitude", () => {
+    expect(ledgerSignedCents("RECEIPT", 4_500)).toBe(-4_500)
+    expect(ledgerSignedCents("RECEIPT", 4_500)).toBe(-ledgerSignedCents("SPEND", 4_500))
+  })
+
+  it("ignores the sign the caller typed — a receipt is money in either way round", () => {
+    expect(ledgerSignedCents("RECEIPT", -4_500)).toBe(-4_500)
+  })
+
+  it("a spend and a receipt of the same size cancel to zero on the line", () => {
+    expect(ledgerSignedCents("SPEND", 12_345) + ledgerSignedCents("RECEIPT", 12_345)).toBe(0)
   })
 })

@@ -52,7 +52,9 @@ export function Select({
       className={`flex flex-col gap-1.5 ${className ?? ""}`}
     >
       {label && <Label className="text-[13px] font-semibold text-text-2">{label}</Label>}
-      <Button className="flex h-10 items-center justify-between gap-2 rounded-md border border-border bg-surface px-3.5 text-[15px] text-text-1 outline-none transition-colors data-[hovered]:border-[--border-strong] data-[focus-visible]:border-[--border-focus] data-[focus-visible]:[box-shadow:var(--shadow-focus)]">
+      {/* h-control (globals.css --control-h) so the trigger tracks Button and
+          TextField through a density change rather than drifting out of line. */}
+      <Button className="flex h-control items-center justify-between gap-2 rounded-md border border-border bg-surface px-3.5 text-[15px] text-text-1 outline-none transition-colors data-[hovered]:border-[--border-strong] data-[focus-visible]:border-[--border-focus] data-[focus-visible]:[box-shadow:var(--shadow-focus)]">
         <SelectValue className="truncate data-[placeholder]:text-text-3" />
         <ChevronDown size={16} className="shrink-0 text-text-3" />
       </Button>

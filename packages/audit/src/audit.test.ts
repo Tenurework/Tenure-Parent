@@ -129,6 +129,70 @@ describe("sensitive values never reach the table", () => {
     cyclic.self = cyclic
     expect(() => buildAuditRecord(input({ metadata: cyclic }))).not.toThrow()
   })
+
+  /**
+   * PAY-020-006 — the case the key-name rule is blind to.
+   *
+   * Every assertion here passes through `buildAuditRecord`, not through the
+   * scanner: a test that called `redactSecretValues` directly would stay green
+   * the day the builder stopped calling it, which is the only way this
+   * regression can actually happen.
+   */
+  it("redacts a live key under an innocuous key name", () => {
+    const r = buildAuditRecord(
+      input({ metadata: { note: "rotated to sk_live_51H8xQpKz0fbGh2mNq7Tc today" } }),
+    )
+    expect(r.metadata.note).toBe(REDACTED)
+  })
+
+  it("redacts a provider webhook body copied wholesale into metadata", () => {
+    // The realistic shape: nothing in the path is called "secret", and the
+    // whole body was forwarded because forwarding it was easier than choosing.
+    const r = buildAuditRecord(
+      input({
+        metadata: {
+          body: { id: "evt_1", data: { object: { endpoint: "whsec_9RtYbN2xQv8LmPk4Ws7Za" } } },
+        },
+      }),
+    )
+    const body = r.metadata.body as Record<string, unknown>
+    const data = body.data as Record<string, unknown>
+    expect((data.object as Record<string, unknown>).endpoint).toBe(REDACTED)
+    // And the identifiers around it survive, or the row stops being evidence.
+    expect(body.id).toBe("evt_1")
+  })
+
+  it("redacts an AWS key id, a private key and a bearer JWT", () => {
+    const r = buildAuditRecord(
+      input({
+        metadata: {
+          detail: "AKIAIOSFODNN7EXAMPLE",
+          pem: "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIB\n",
+          header: "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r",
+        },
+      }),
+    )
+    expect(r.metadata.detail).toBe(REDACTED)
+    expect(r.metadata.pem).toBe(REDACTED)
+    expect(r.metadata.header).toBe(REDACTED)
+  })
+
+  it("leaves the identifiers an audit row exists to carry", () => {
+    // A high-entropy heuristic would redact all of these, and the trail would
+    // stop being readable. The rule matches published credential prefixes only.
+    const r = buildAuditRecord(
+      input({
+        metadata: {
+          approvalId: "clx8fj2k90001abcd1234efgh",
+          hash: "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+          email: "president@example.edu",
+        },
+      }),
+    )
+    expect(r.metadata.approvalId).toBe("clx8fj2k90001abcd1234efgh")
+    expect(r.metadata.hash).toBe("sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08")
+    expect(r.metadata.email).toBe("president@example.edu")
+  })
 })
 
 describe("a record carries the context an incident review needs", () => {

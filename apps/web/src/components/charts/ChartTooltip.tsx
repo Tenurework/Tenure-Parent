@@ -37,7 +37,7 @@ export function ChartTooltip({
       ref={ref}
       data-testid="chart-tooltip"
       role="tooltip"
-      className="pointer-events-none absolute z-30 rounded-md border border-border bg-surface px-2.5 py-2 shadow-lg"
+      className="pointer-events-none absolute z-popover rounded-md border border-border bg-surface px-2.5 py-2 shadow-lg"
       style={{ left, top, minWidth: 108, maxWidth: 240 }}
     >
       {children}

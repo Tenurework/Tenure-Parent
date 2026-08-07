@@ -21,7 +21,7 @@ export function AdvanceControls({
   moves,
 }: {
   slug: string
-  moves: Array<{ to: string; needsApproval: boolean; risk: HighRisk }>
+  moves: Array<{ to: string; needsApproval: boolean; needsOwner: boolean; risk: HighRisk }>
 }) {
   const [result, action, pending] = useActionState<AdvanceResult | null, FormData>(
     advanceState,
@@ -82,6 +82,29 @@ export function AdvanceControls({
               <p className="hint">
                 This transition spends money, routes real users, or deletes data. It needs a second
                 identity, and it cannot be your own.
+              </p>
+            </div>
+          )}
+
+          {/*
+            WRK-120-005. Suspend, hibernate and offboard are the moves that
+            follow an owner's departure, and the engine refuses them without a
+            successor — so the field is here, and, like the approver above,
+            hiding it is a courtesy rather than the control.
+          */}
+          {chosen.needsOwner && (
+            <div className="field">
+              <label htmlFor="ownerPrincipalId">Successor owner</label>
+              <input
+                id="ownerPrincipalId"
+                name="ownerPrincipalId"
+                type="email"
+                required
+                placeholder="who answers for this tenant now"
+              />
+              <p className="hint">
+                Not the person leaving — the person responsible afterwards. Without one this tenant
+                becomes an orphan: retained data, a residual bill, and nobody to ask about either.
               </p>
             </div>
           )}

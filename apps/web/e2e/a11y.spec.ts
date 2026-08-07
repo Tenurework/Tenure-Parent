@@ -320,6 +320,113 @@ test.describe("WCAG 2.2 AA", () => {
     if (max) expect(Number(max[1])).toBeGreaterThanOrEqual(2)
   })
 
+  test("4.1.3 Status Messages — an answer arriving is announced", async ({ page }) => {
+    // The gap: the assistant answer was appended to a plain <div> and the
+    // "thinking" indicator was another plain <div>, so a screen-reader user was
+    // told nothing at all when either changed. `grep -rn aria-live src` had
+    // eight hits and none of them were in components/ai.
+    //
+    // The live region is rendered BY THE PRODUCTION PANEL from the same state
+    // the visible UI renders, so deleting its aria-live reds this.
+    await signIn(page, "Dana Whitfield")
+    await page.goto("/dashboard")
+    await page.getByRole("button", { name: "Ask Tenure AI" }).click()
+    const panel = page.getByRole("complementary", { name: "Tenure AI assistant" })
+    await expect(panel).toBeVisible()
+
+    const status = panel.getByTestId("relay-live-status")
+    // Mounted before there is anything to say. A region that appears together
+    // with its text is not announced, because nothing was watching it.
+    await expect(status).toHaveAttribute("aria-live", "polite")
+    await expect(status).toHaveAttribute("role", "status")
+    await expect(status).toHaveAttribute("aria-atomic", "true")
+    await expect(status).toHaveText("")
+
+    await panel.getByRole("textbox", { name: "Ask Tenure AI" }).fill("what deadlines are coming up")
+    await panel.getByRole("button", { name: "Send to Tenure AI" }).click()
+
+    // The text changes, which is what a polite live region announces.
+    await expect(status).toHaveText(/Answer ready, \d+ sources/, { timeout: 30_000 })
+  })
+
+  test("2.5.7 Dragging Movements — a duration can be set without dragging", async ({ page }) => {
+    // New in WCAG 2.2 and genuinely failed: the only way to change how long an
+    // event ran was to drag a 6px, aria-hidden handle on its edge. The move
+    // path had arrow keys; the resize path had nothing at all.
+    const on = new Date(Date.now() + 400 * 864e5).toISOString().slice(0, 10)
+    const title = `E2E Resize ${Date.now()}`
+
+    await signIn(page, "Victor Chen")
+    await page.goto("/calendar/new")
+    await page.getByLabel("Title").fill(title)
+    await page.getByLabel("Starts").fill(`${on}T13:00`)
+    await page.getByLabel("Ends").fill(`${on}T15:00`)
+    await page.getByRole("button", { name: /Check conflicts/ }).click()
+    await page.waitForURL((url) => /^\/calendar\/[a-z0-9]{8,}$/.test(url.pathname))
+
+    await page.goto(`/calendar?d=${on}`)
+    const chip = page.getByRole("button", { name: new RegExp(title) })
+    await expect(chip).toBeVisible()
+    await expect(chip).toHaveAccessibleName(/1:00 PM to 3:00 PM/)
+    // The chip advertises the alternative, because there is now one to name.
+    await expect(chip).toHaveAccessibleName(/Alt/)
+
+    // Path 1 — keyboard. Alt+ArrowDown lengthens by one 15-minute slot.
+    // (Shift+Arrow is already "move by an hour" and is asserted by
+    // calendar.spec.ts, so taking it for resize would break a real test.)
+    await chip.focus()
+    await page.keyboard.press("Alt+ArrowDown")
+    await expect(
+      page.getByRole("button", { name: new RegExp(`${title}.*1:00 PM to 3:15 PM`) }),
+    ).toBeVisible({ timeout: 15_000 })
+
+    // And it persisted — this is the server's answer, not an optimistic paint.
+    await page.reload()
+    await expect(
+      page.getByRole("button", { name: new RegExp(`${title}.*1:00 PM to 3:15 PM`) }),
+    ).toBeVisible({ timeout: 15_000 })
+
+    // Path 2 — single pointer, no dragging. Open the event (one click) and
+    // press a button (one click). This is what the criterion literally asks for.
+    await page.getByRole("button", { name: new RegExp(title) }).click()
+    const dialog = page.getByRole("dialog")
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole("button", { name: "Make this event 15 minutes longer" }).click()
+    await page.keyboard.press("Escape")
+    await expect(
+      page.getByRole("button", { name: new RegExp(`${title}.*1:00 PM to 3:30 PM`) }),
+    ).toBeVisible({ timeout: 15_000 })
+
+    await page.reload()
+    await expect(
+      page.getByRole("button", { name: new RegExp(`${title}.*1:00 PM to 3:30 PM`) }),
+    ).toBeVisible({ timeout: 15_000 })
+  })
+
+  test("1.3.1 / 4.1.3 — a filtered-to-nothing list says so, and says it politely", async ({
+    page,
+  }) => {
+    // TTES-020-001. `EmptyState` was a bare <div> with no role and no
+    // politeness, and it rendered BOTH meanings: /resources used the same
+    // component for "nothing published" and "your filter matched nothing".
+    // It now delegates to StateSurface with an explicit state, so the role and
+    // the politeness come from STATE_SEMANTICS.
+    await signIn(page, "Dana Whitfield")
+    await page.goto("/resources")
+    await page.waitForLoadState("networkidle")
+
+    await page.getByLabel("Search resources").fill("zzzz-no-such-resource-zzzz")
+
+    const surface = page.locator('[data-state="no-results"]')
+    await expect(surface).toBeVisible()
+    await expect(surface).toHaveAttribute("role", "status")
+    await expect(surface).toHaveAttribute("aria-live", "polite")
+    // The no-results copy points at the FILTER. The empty copy would send
+    // somebody hunting for records that are behind the chip they left on.
+    await expect(surface).toContainText("excluded all of them")
+    await expect(page.locator('[data-state="empty"]')).toHaveCount(0)
+  })
+
   test("2.3.3 / reduced motion — the preference actually reaches the CSS", async ({ page }) => {
     await signIn(page, "Dana Whitfield")
     await page.emulateMedia({ reducedMotion: "reduce" })
@@ -353,6 +460,10 @@ test.describe("WCAG 2.2 AA", () => {
  *         first time a video is embedded.
  *   1.4.3 Contrast — proved by arithmetic in src/lib/a11y/contrast.test.ts
  *         across all four themes, which a browser check would only sample.
+ *   2.5.7 for the calendar's MOVE gesture — a drag also moves an event, and the
+ *         keyboard alternative for that (arrow keys, Shift for an hour) is
+ *         covered by calendar.spec.ts rather than repeated here. The RESIZE
+ *         gesture, which had no alternative at all, is covered above.
  *   2.4.11 for elements reached by mouse or programmatic focus — this walks the
  *         Tab order, which is the path a keyboard user takes.
  *   3.x   Understandable — error identification and consistent help are

@@ -7,6 +7,7 @@ import {
   type ModuleManifest,
 } from "@tenure/module-runtime"
 import type { ProcessChain } from "@tenure/contracts"
+import { includedInPlan, type OptionPrice } from "@tenure/finops"
 
 /**
  * The module catalog.
@@ -103,6 +104,32 @@ const mayUse = (module: string, range = ">=1.0.0"): ModuleDependency => ({
  */
 const ENGINE = "2026.8.0"
 
+/**
+ * PAY-160-002 — the catalog's list price for an option, per seat and per
+ * organization, per month, in whole US cents.
+ *
+ * These are LIST prices: what the composer quotes when somebody ticks the box.
+ * They are deliberately not the same fact as `Plan.monthlyPriceCents` in
+ * `@tenure/provisioning`, which stays `null` because no price has been AGREED
+ * with any tenant — what a catalog asks and what a contract says are different
+ * things and conflating them is how a quote becomes an invoice nobody signed.
+ *
+ * They live here, in the manifest, because the manifest is the one place a
+ * module's own facts are declared and because `validateManifest` refuses a
+ * module without one. Before this the composer showed twelve checkboxes and no
+ * number anywhere, which does not read as "unpriced" — it reads as free.
+ *
+ * `half-up` on every one of them: a part-period that lands between cents rounds
+ * toward the platform, stated rather than left to whoever renders the figure.
+ * Changing any number here is a commercial decision and changes every quote.
+ */
+const listPrice = (perSeatMinor: number, perOrgMinor: number): OptionPrice => ({
+  perSeatMinor,
+  perOrgMinor,
+  currency: "USD",
+  rounding: "half-up",
+})
+
 // Facts that are true of every module, written once. Repeating a sentence
 // twelve times is how twelve copies come to disagree.
 const NO_RUNBOOK =
@@ -142,6 +169,7 @@ const organizations: ModuleManifest = {
     "DirectoryPerson",
   ],
   lifecycle: "certified-limited",
+  price: listPrice(300, 5_000),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   ...assess([
@@ -185,6 +213,7 @@ const feed: ModuleManifest = {
   owner: "notifications",
   objects: ["FeedPost", "FeedComment", "CollabInterest"],
   lifecycle: "certified-limited",
+  price: listPrice(50, 1_500),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   dependsOn: [needs("organizations")],
@@ -229,6 +258,7 @@ const messaging: ModuleManifest = {
   owner: "notifications",
   objects: ["Conversation", "Participant", "Message", "Attachment", "Delivery"],
   lifecycle: "certified-limited",
+  price: listPrice(100, 1_500),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   dependsOn: [needs("organizations")],
@@ -271,8 +301,18 @@ const approvals: ModuleManifest = {
   name: "Requests and approvals",
   description: "Multi-gate approval requests with delegation and an audited decision trail.",
   owner: "workflow",
-  objects: ["ApprovalRequest", "ApprovalStep", "ApprovalDelegation"],
+  objects: [
+    "ApprovalRequest",
+    "ApprovalStep",
+    "ApprovalDelegation",
+    // PAY-150-003. The standing declarations the decision gate reads: a
+    // declared interest is a fact about a person, a recusal an act about one
+    // decision, and both belong to the module that decides.
+    "ConflictDeclaration",
+    "Recusal",
+  ],
   lifecycle: "certified-limited",
+  price: listPrice(150, 4_000),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   dependsOn: [needs("organizations")],
@@ -291,10 +331,39 @@ const approvals: ModuleManifest = {
     ["search-analytics-and-memory", "pass", "apps/web/src/lib/search-data.ts indexes approvals within the principal's scope."],
     ["relay-boundaries-and-evaluations", "gap", NO_RELAY_POLICY, "No declared limit on what Relay may retrieve from a decision trail."],
     ["localization-legal-and-certification", "gap", NO_LEGAL_SCOPE, "No declared evidentiary or records-retention standard for the decision trail."],
-    ["observability-slo-and-finops", "gap", "apps/web/src/lib/approvals-sla.ts computes an SLA per request.", "Nothing alerts on the aggregate, so a queue that has stopped moving is visible only to whoever opens it."],
+    ["observability-slo-and-finops", "gap", "WRK-120-003: the `slo` block below declares one objective, and apps/web/src/app/api/jobs/slo/route.ts evaluates it PER INSTITUTION through sloBurn — reporting attained, burn against the error budget, the breaching request ids, whether to alert, and docs/runbooks/approvals-queue-stalled.md. Proven end to end by apps/web/src/lib/jobs/approvals-slo.itest.ts, which seeds a stale queue and asserts what the endpoint emits.", "The aggregate is now visible, and the FinOps half of this dimension is not: nothing attributes what this module actually CONSUMES — queries, storage, job time — to a tenant or to the module. `price` below is a list price the composer quotes, which is what a customer is charged and not what the capability costs to run."],
     ["upgrade-rollback-and-deprecation", "pass", RELEASE_LIFECYCLE],
     ["test-and-certification-evidence", "pass", "apps/web/src/lib/approvals.test.ts, approvals-sla.test.ts and the packages/workflow suite."],
   ]),
+  /**
+   * WRK-120-003 — the first real objective in the catalog.
+   *
+   * This module and no other, because this is the one whose measurement
+   * already existed: `approvals-sla.ts` has computed a per-request SLA for as
+   * long as the queue has had a page, and what was missing was an aggregate
+   * anybody sees without opening it. The other eleven modules still declare
+   * this dimension as a gap and still are one — inventing eleven objectives
+   * with nothing measuring them would recreate exactly the unfalsifiable claim
+   * the seventeen-dimension contract replaced.
+   *
+   * The dimension above stays a `gap` even so, and that is not an oversight.
+   * It is observability AND FinOps, and nothing attributes what this module
+   * consumes to a tenant. Flipping it to `pass` would trade the half that is
+   * now true for a claim about the half that is not.
+   *
+   * 0.95 over 30 days, not 0.99: six working days is already the point at which
+   * `approvals-sla.ts` calls a request overdue, and a target that treats one
+   * stuck request in a hundred as an incident is a target people switch off.
+   */
+  slo: [
+    {
+      objective: "a pending approval is decided within its SLA",
+      target: 0.95,
+      window: "30d",
+      measure: "apps/web/src/lib/approvals-sla.ts",
+      runbook: "docs/runbooks/approvals-queue-stalled.md",
+    },
+  ],
   permissions: ["approvals.request.create", "approvals.request.read", "approvals.request.decide", "approvals.request.cancel", "approvals.request.assign", "approvals.policy.read"],
   // Both are written to the transactional outbox by
   // `apps/web/src/app/(app)/approvals/actions.ts`, in the same transaction as
@@ -327,6 +396,7 @@ const events: ModuleManifest = {
   owner: "notifications",
   objects: ["Event", "ConflictRecord"],
   lifecycle: "certified-limited",
+  price: listPrice(75, 2_500),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   dependsOn: [needs("organizations")],
@@ -371,6 +441,7 @@ const resources: ModuleManifest = {
   owner: "erp-modules",
   objects: ["Resource"],
   lifecycle: "certified-limited",
+  price: listPrice(25, 1_500),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   dependsOn: [needs("organizations")],
@@ -414,6 +485,7 @@ const search: ModuleManifest = {
   description: "Assisted search and drafting across everything the principal can already see.",
   owner: "search-memory",
   lifecycle: "certified-limited",
+  price: listPrice(400, 7_500),
   // Bible §11. It ingests, views and searches what the principal can already
   // see, and writes nothing back to any record: a draft leaves as text for a
   // person to use, not as a row. Declaring it produces a standing advisory on
@@ -501,6 +573,7 @@ const memory: ModuleManifest = {
   owner: "search-memory",
   objects: ["MemoryRecord", "Document"],
   lifecycle: "certified-limited",
+  price: listPrice(100, 3_000),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   dependsOn: [needs("organizations")],
@@ -509,7 +582,7 @@ const memory: ModuleManifest = {
     ["business-outcomes-and-personas", "pass", "Every seat reads; memory.note.read_sensitive is held separately, which is the distinction a successor's handover actually turns on."],
     ["canonical-objects-and-invariants", "pass", "MemoryRecord and Document in apps/web/prisma/schema.prisma, both carrying a sensitivity."],
     ["state-machines-and-effective-dating", "gap", "A card exists or it does not.", "No review or supersession state, so a card that has gone stale is indistinguishable from one that is current — which is the failure mode of institutional memory."],
-    ["commands-events-and-idempotency", "gap", "The manifest declares it consumes ApprovalDecided so a decision becomes part of the record.", "Nothing delivers that event yet: dispatchOnce takes a `deliver` port and no runner supplies one, so the consumption is declared and not running."],
+    ["commands-events-and-idempotency", "pass", "The declared ApprovalDecided consumption runs: apps/web/src/app/api/jobs/outbox/route.ts drives dispatchOnce per institution over apps/web/src/lib/outbox/prisma-ports.ts, and apps/web/src/lib/outbox/consumers.ts writes the decision into MemoryRecord inside the same transaction as its InboxEvent row, so a redelivery cannot record it twice."],
     ["authorization-privacy-and-sod", "pass", "canSeeMemoryCard in apps/web/src/lib/memory.ts, proven by memory.test.ts, gates the sensitive tier separately."],
     ["configuration-inheritance-and-terminology", "pass", "Card categories and the office's name resolve through the configuration registry."],
     ["accounting-controls-and-reconciliation", "not-applicable", "A knowledge card records no money."],
@@ -528,14 +601,14 @@ const memory: ModuleManifest = {
   // why is the institutional record a successor needs, and it belongs to the
   // module whose whole purpose is outliving the officers who made it.
   //
-  // Honest about what this does and does not buy today. Declaring it is what
-  // makes a system composed WITHOUT this module refuse — `validateSystem` will
-  // not release an approvals-without-memory system, because the process would
-  // accept requests it can never finish recording. It does not by itself
-  // deliver the event: `dispatchOnce` takes a `deliver` port and no runner
-  // supplies one yet, so nothing consumes `ApprovalDecided` at runtime. That
-  // runner is the next piece, and it will be held to this declaration rather
-  // than inventing its own list.
+  // Declaring it is what makes a system composed WITHOUT this module refuse —
+  // `validateSystem` will not release an approvals-without-memory system,
+  // because the process would accept requests it can never finish recording.
+  //
+  // The runner now exists and is held to this declaration rather than to a list
+  // of its own: `apps/web/src/lib/outbox/consumers.ts` refuses at import time if
+  // a handler's module does not name the event type here, so a consumer the
+  // catalog cannot see cannot ship.
   consumes: ["ApprovalDecided"],
 }
 
@@ -545,8 +618,32 @@ const budgeting: ModuleManifest = {
   name: "Budgeting",
   description: "Budgets, lines, actuals and the portfolio roll-up across organizations.",
   owner: "erp-modules",
-  objects: ["Budget", "BudgetLine", "Transaction", "Vendor", "LedgerEntry"],
+  objects: [
+    "Budget",
+    "BudgetLine",
+    "Transaction",
+    "Vendor",
+    "LedgerEntry",
+    // PAY-020-004 / PAY-080-004 / PAY-130-004 / PAY-230-004. The payments half
+    // of the finance module: the provider-neutral id table, the settlement a
+    // payout lands as, the ingested provider balance transaction, and the
+    // allocation of an inbound receipt across club / fund / event.
+    "ExternalReference",
+    "Settlement",
+    "ProviderBalanceTransaction",
+    "ReceiptAllocation",
+    // PAY-000-007 / PAY-270-002. The provider event this institution has already
+    // ingested — the row that makes a redelivered webhook idempotent — and the
+    // per-club funds-flow decision (charge model, liable party, region) that
+    // says how money for a capability is allowed to move. Both sit in the same
+    // module as the four above for the same reason: they are the payments half
+    // of finance, and a model no module governs is one no entitlement can turn
+    // off.
+    "ProviderEventReceipt",
+    "PaymentsFundsFlowConfig",
+  ],
   lifecycle: "certified-limited",
+  price: listPrice(200, 9_000),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   dependsOn: [needs("organizations")],
@@ -608,6 +705,7 @@ const reimbursements: ModuleManifest = {
   description: "Three-way matched reimbursement claims that post to the ledger on approval.",
   owner: "erp-modules",
   lifecycle: "certified-limited",
+  price: listPrice(100, 4_000),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   dependsOn: [
@@ -647,6 +745,11 @@ const dashboard: ModuleManifest = {
   description: "The landing surface. Always on; every system has a front door.",
   owner: "reporting",
   lifecycle: "certified-limited",
+  price: includedInPlan(
+    "Every system has a front door. The dashboard is the surface everything else is sold on, it is in " +
+      "ALWAYS_ON_MODULES and cannot be turned off, so a separate charge for it would be a charge nobody " +
+      "can decline.",
+  ),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   ...assess([
@@ -689,6 +792,11 @@ const administration: ModuleManifest = {
   owner: "reporting",
   objects: ["AuditEvent"],
   lifecycle: "certified-limited",
+  price: includedInPlan(
+    "The audit trail and the staff console are how a system is governed. Charging for them would put a " +
+      "price on being able to see what happened inside your own tenant, which is not something Tenure " +
+      "is willing to sell separately.",
+  ),
   mode: "TENURE_NATIVE",
   requiresEngine: ENGINE,
   dependsOn: [needs("organizations")],

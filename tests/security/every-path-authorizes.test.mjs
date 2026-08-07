@@ -38,7 +38,15 @@ const INVENTORY = "docs/architecture/entry-points.md"
  * MAY ONLY SHRINK. Raising it to make a build pass is the failure this number
  * exists to prevent, and the assertion says so in both directions.
  */
-const UNAUTHORIZED_MUTATORS = 30
+// 30 -> 25. Not debt anybody repaid by hand: the inventory learned to see two
+// authorization decisions it had been reading straight over — the console's
+// `isOperator()` and finance's `decideFinanceAction` — and 5 paths it had been
+// counting as naked turned out to be gated all along. The number moved because
+// the detector got better, which is the only direction it is allowed to move
+// for that reason; a detector that got WORSE would show the same drop and is
+// why `the detector separates a permission decision from a session check`
+// asserts on both halves.
+const UNAUTHORIZED_MUTATORS = 25
 
 /**
  * Mutating paths that legitimately have no guard, and why.
@@ -100,7 +108,17 @@ function inventoryRows() {
  * capability in the object sense and not one this platform decided to confer.
  */
 function decidesPermission(row) {
-  return /capability|shared-secret/i.test(row.guards)
+  // `operator` belongs here, and its absence was invisible while this ran over
+  // `apps/web` alone: the platform-operator check exists only in the System
+  // Studio, so no row ever carried it. The moment the deployer experience
+  // joined the inventory, six console actions that call `isOperator()` —
+  // composeTenant, adoptTenantAction, publish, rollback, review, advanceState —
+  // read as "proves only that somebody is signed in", which is the opposite of
+  // true: it is the strongest gate in the product, and the console has no
+  // tenant capabilities to check because it acts on tenants rather than inside
+  // one. Counting them as debt would have driven someone to "fix" the console
+  // by weakening what operator means.
+  return /capability|shared-secret|operator/i.test(row.guards)
 }
 
 function mutatingRows() {

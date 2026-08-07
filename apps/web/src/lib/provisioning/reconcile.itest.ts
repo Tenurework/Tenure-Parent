@@ -247,6 +247,20 @@ describe("reconcile", () => {
     const meta = audit!.metadata as Record<string, unknown>;
     expect(meta.deploymentDigest).toBe(signed().digest);
     expect(meta.configurationChecksum).toBe("cfg-abc123");
+
+    // PAY-000-007. The row round-trips through the real column: a tenant coming
+    // into existence has published no `platform.payments.mode`, so it is in
+    // test mode, and the evidence says so rather than leaving it to be guessed
+    // from the timestamp.
+    expect(audit!.mode).toBe("test");
+    expect(meta._mode).toBe("test");
+
+    // And the row is CHAINED, which it was not before this writer moved onto
+    // `recordAuditEvent`: it was built by `buildAuditRecord` directly, which
+    // produces a record with no chain position — the state `verifyChain`
+    // reports as unchained.
+    expect(meta._sequence).toBe(0);
+    expect(typeof meta._recordHash).toBe("string");
   });
 });
 

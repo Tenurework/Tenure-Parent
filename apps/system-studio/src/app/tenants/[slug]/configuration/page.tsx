@@ -8,6 +8,9 @@ import { DynamoConfigStore } from "@/lib/config-store"
 import { editableDomains, reservedDomains, withheldDomains } from "@/lib/editable-config"
 import { compareRevisions, dependantsOf, dependencyGraph, renderComparison, summarise } from "@/lib/revisions"
 import { MODULES } from "@tenure/modules"
+import { resolveConfig, type ConfigLayer, type OptionPrice } from "@tenure/configuration"
+import { REGISTRY, layersFor } from "@tenure/platform-config"
+import { toDecimal, type Money } from "@tenure/finops"
 import { EmptyState } from "@/components/states"
 import { RollbackControls } from "./RollbackControls"
 import { PartialDataState, PermissionDeniedState } from "@/components/states"
@@ -24,12 +27,54 @@ export const dynamic = "force-dynamic"
  * reason, because an administrator who cannot find where to change something
  * deserves to be told it is not theirs to change rather than left searching.
  */
-export default async function ConfigurationPage({ params }: { params: Promise<{ slug: string }> }) {
+/** Amount as a decimal string. `half-even` because this is a display total. */
+function amount(value: Money): string {
+  return `${toDecimal(value, "half-even")} ${value.currency}`
+}
+
+/**
+ * A field's price, as one line an operator reads without doing arithmetic.
+ *
+ * Both halves are always shown, even the zero one: §7 asks for a per-seat AND a
+ * whole-organisation figure, and dropping the zero would leave the reader to
+ * guess whether it is nothing or unstated.
+ */
+function priceLabel(price: OptionPrice): string {
+  if (price.perSeatMinor === 0 && price.perOrgMinor === 0) {
+    return `included — ${price.includedBecause ?? "no reason recorded"}`
+  }
+  const seat = `${(price.perSeatMinor / 100).toFixed(2)} ${price.currency} per seat`
+  const org = `${(price.perOrgMinor / 100).toFixed(2)} ${price.currency} for the organisation`
+  return `${seat} · ${org}, per month`
+}
+
+/**
+ * How many seats the running total is quoted for.
+ *
+ * Off the query string, because there is nowhere else it could honestly come
+ * from: no seat count is recorded against a tenant anywhere in the registry, and
+ * a number invented here would be a number on a quote that nobody chose. The
+ * form below lets the operator state it, and `runningCost.seats` echoes back
+ * whichever number was used.
+ */
+function seatsFrom(raw: string | string[] | undefined): number {
+  const value = Number(Array.isArray(raw) ? raw[0] : raw)
+  return Number.isInteger(value) && value > 0 && value <= 1_000_000 ? value : 1
+}
+
+export default async function ConfigurationPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const session = await auth()
   if (!session?.user?.email) redirect("/signin")
   if (!isOperator(session.user.email)) return <PermissionDeniedState />
 
   const { slug } = await params
+  const seats = seatsFrom((await searchParams).seats)
   if (!registryConfigured()) {
     return <PartialDataState what="Configuration" missing={["TENANT_TABLE — the tenant registry"]} />
   }
@@ -48,6 +93,36 @@ export default async function ConfigurationPage({ params }: { params: Promise<{ 
   // "what did the last publication actually do" — and it needs no controls.
   const previous = history.length >= 2 ? history[history.length - 2] : null
   const lastChange = previous && latest ? renderComparison(compareRevisions(previous, latest)) : null
+
+  /* ------------------------------------------------------------- §7 pricing --
+   * What this tenant's configuration costs, per seat and for the organisation.
+   *
+   * The number comes from the RESOLVER, not from summing the fields rendered
+   * below. Two places that both compute a total are two totals, and the one on
+   * the screen would be the one nobody validated — while the engine's is the one
+   * a contract would be written against.
+   *
+   * `collectProblems`, because a tenant whose published overlay no longer
+   * validates must still see a page: the problems are already surfaced by the
+   * editor, and a 500 here would take the whole configuration screen out over a
+   * pricing panel.
+   */
+  const fileLayers = layersFor(slug)
+  const layers: ConfigLayer[] = [
+    ...fileLayers,
+    ...(latest
+      ? [
+          {
+            scope: "tenant" as const,
+            id: slug,
+            label: `revision ${latest.revision}`,
+            values: latest.values,
+          },
+        ]
+      : []),
+  ]
+  const { config: resolved } = resolveConfig(REGISTRY, layers, { collectProblems: true, seats })
+  const runningCost = resolved?.runningCost ?? null
 
   return (
     <>
@@ -78,9 +153,90 @@ export default async function ConfigurationPage({ params }: { params: Promise<{ 
               input: f.input,
               defaultValue: String(f.defaultValue),
               current: latest?.values[f.key] === undefined ? null : String(latest.values[f.key]),
+              // NEXT-SESSION §7 — every option carries its price, at the moment
+              // it is being chosen rather than on a summary somebody has to go
+              // and find.
+              price: priceLabel(f.price),
             })),
           }))}
         />
+      </section>
+
+      <section className="system">
+        <header>
+          <h2>What this costs</h2>
+          <span className="badge">{runningCost ? amount(runningCost.total) : "not resolved"}</span>
+        </header>
+        <p>
+          Every option carries a price — per seat and for the whole organisation — and this is the
+          running total for the configuration as published, so the cost is never a surprise at the
+          end. The figures come from the configuration resolver, not from adding up the boxes above:
+          two places that both compute a total are two totals.
+        </p>
+
+        {!runningCost ? (
+          <PartialDataState
+            what="The running total"
+            missing={[
+              "a configuration that resolves — the published revision has problems, listed by the editor above",
+            ]}
+          />
+        ) : (
+          <>
+            <form method="get" className="field">
+              <label htmlFor="seats">Seats</label>
+              <input id="seats" name="seats" type="number" min="1" defaultValue={runningCost.seats} />
+              <button type="submit">Re-quote</button>
+              <p className="hint">
+                No seat count is recorded against a tenant anywhere in the registry, so this one is
+                stated rather than guessed. The total below is for exactly{" "}
+                <b>{runningCost.seats}</b> seat{runningCost.seats === 1 ? "" : "s"}.
+              </p>
+            </form>
+
+            <div className="chips">
+              <span className="chip">
+                <b>{amount(runningCost.perSeat)}</b> per seat
+              </span>
+              <span className="chip">
+                <b>{amount(runningCost.organization)}</b> for the organisation
+              </span>
+              <span className="chip">
+                <b>{amount(runningCost.total)}</b> running total, per month
+              </span>
+            </div>
+
+            {runningCost.lines.length === 0 ? (
+              <EmptyState
+                what="charged options"
+                because="This tenant is on the platform defaults for every option that carries a charge, so there is nothing on the quote yet."
+              />
+            ) : (
+              <table className="grid">
+                <thead>
+                  <tr>
+                    <th>Option</th>
+                    <th className="num">Per seat</th>
+                    <th className="num">Organisation</th>
+                    <th className="num">At {runningCost.seats} seats</th>
+                    <th>Why</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runningCost.lines.map((line) => (
+                    <tr key={line.key}>
+                      <td className="id">{line.key}</td>
+                      <td className="num">{amount(line.perSeat)}</td>
+                      <td className="num">{amount(line.organization)}</td>
+                      <td className="num">{amount(line.total)}</td>
+                      <td className="slug">{line.includedBecause ?? "charged"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
       </section>
 
       <section className="system">

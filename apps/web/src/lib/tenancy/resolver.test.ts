@@ -247,10 +247,17 @@ describe("contextFrom", () => {
         channel: "web",
         correlationId: "corr-1",
         configRevision: "cfg-1",
+        environment: "live",
+        legalEntityId: "le-ny",
         at: "2026-08-01T00:00:00.000Z",
       },
     )
     expect(ctx.tenantId).toBe("t-roch")
     expect(ctx.actorKind).toBe("user")
+    // PAY-020-003. The money-mode and the legal entity are carried through
+    // rather than invented here: a context built with a mode this function
+    // chose would be a mode nobody published.
+    expect(ctx.environment).toBe("live")
+    expect(ctx.legalEntityId).toBe("le-ny")
   })
 })

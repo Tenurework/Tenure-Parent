@@ -1,0 +1,150 @@
+[
+  {
+    "id": "PAY-150-004",
+    "title": "Approval digest invalidation for amount, recipient, destination, schedule, split or provider changes",
+    "why_open": "No digest of the money-bearing payload is computed or compared anywhere. `ApprovalStep.policySnapshot` is the only thing captured at a gate and it carries authorization flags, not the payload: `apps/web/src/app/(app)/approvals/actions.ts:132` writes `{ requesterIsPresident }`, `apps/web/src/app/(app)/approvals/actions.ts:404` the same at decision time, `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts:459` writes `{ requesterIsPresident, reimbursement: true }`, `apps/web/src/app/(app)/calendar/actions.ts:103` `{ requesterIsPresident, conflictCount }`. `grep -rn digest apps/web/src/lib/approvals.ts apps/web/src/app/(app)/approvals` returns nothing. Meanwhile the amount that actually posts money is re-read from client-writable JSON at DECISION time, not at approval time: `apps/web/src/app/(app)/approvals/actions.ts:316-323` casts `approval.metadata` to `{ reimbursement: { budgetLineId, amountCents, documentId } }` and `:345-370` posts `ledgerSignedCents(\"SPEND\", reimb.amountCents)` into `db.ledgerEntry.create` and `db.budgetLine.update({ data: { actualCents: { increment: signed } } })`. The two-gate flow (PENDING_PRESIDENT -> PENDING_OSE, `apps/web/src/lib/approvals.ts:22-31`) therefore lets the president approve one amount and the OSE gate post a different one; the compare-and-swap at `actions.ts:392` guards only `status`, never the payload. CO-LOCATED P0 (REVIEW-FINDINGS #7): `apps/web/prisma/schema.prisma:466` is still `idempotencyKey String? @unique` — a client-supplied GLOBAL unique, so tenant B's retry resolves to tenant A's approval. Same files, same migration, one agent.",
+    "files": [
+      "apps/web/src/lib/approvals.ts",
+      "apps/web/src/lib/approvals.test.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "apps/web/src/app/(app)/calendar/actions.ts",
+      "apps/web/src/lib/calendar-write.ts",
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/"
+    ],
+    "smallest_real_change": "Add `approvalDigest(metadata, { organizationId, type })` to `apps/web/src/lib/approvals.ts` — a stable, key-sorted SHA-256 over exactly the decision-relevant fields (amountCents, budgetLineId, documentId, organizationId, recipient/vendorId, occursAt) returning `{ digest, fields }`. Every gate writes it into the existing `ApprovalStep.policySnapshot` Json column (no migration needed for this half): `approvals/actions.ts:132`, `:404`, `finance/actions.ts:459`, `calendar/actions.ts:103`. In `actOnApproval` (`approvals/actions.ts:186`), before building `reimbursementOps`, recompute the digest from the row just read and compare it with the digest recorded on the LAST ApprovalStep whose `toStatus` was a PENDING_* gate; on mismatch refuse the approve/reject and force the request back to NEEDS_CHANGES with a named reason. Add the digest to the `where` of the compare-and-swap at `:392` via a `policySnapshot` predicate is not possible in Prisma, so do the comparison inside the same `db.$transaction` by re-reading the step. SEPARATELY, in the same migration: change `schema.prisma:466` to `idempotencyKey String?` plus `@@unique([institutionId, idempotencyKey])`, write the Prisma migration (drop the old index, add the composite), and grep the three ApprovalRequest constructors (`approvals/actions.ts:112`, `calendar/actions.ts:81`, `finance/actions.ts:432`) — none currently sets the field, so nothing breaks, but the census query at `apps/web/scripts/census.mjs:176-177` must be updated to count per tenant. MUTATION PROOF: freeze `approvalDigest` to a constant and the digest-mismatch test must red; separately change `reimb.amountCents` between the president step and the OSE decision in an itest and assert the ledger entry is NOT created.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-180-004",
+    "title": "Redact/tokenize financial identifiers in prompts, logs, traces and model outputs",
+    "why_open": "`apps/web/src/lib/ai.ts:95 aiComplete` is the single model entry point (`tests/architecture/forbidden-clients.test.mjs:18-20` says so in as many words) and it performs zero redaction in either direction. `ai.ts:106-110` serialises `system` and `user` verbatim into the request body; `ai.ts:127` returns the model's text verbatim to the caller; `ai.ts:132-134` logs the provider's raw response body with `detail.slice(0, 500)` to `console.error`, and `ai.ts:140` logs the raw thrown error. The callers push exactly the data this requirement names: `ai.ts:181 summarizeDocument` sends `content.slice(0, 24_000)` of a club document and its own system prompt at `ai.ts:186` asks the model to extract \"names, amounts, dates, deadlines\"; `ai.ts:148 synthesizeAnswer` interpolates 1,200 chars of each retrieved source body; `ai.ts:172 draftText`'s memory prompt asks for \"concrete details, names, amounts, dates\". No module named redact/scrub/tokenize exists on this path — the only redaction in the repo is `packages/audit/src/record.ts:179 redactMetadata`, which is key-name based and reachable only from `buildAuditRecord`.",
+    "files": [
+      "apps/web/src/lib/ai.ts",
+      "apps/web/src/lib/ai-redaction.ts",
+      "apps/web/src/lib/ai-redaction.test.ts",
+      "apps/web/src/lib/relay-tools.ts",
+      "packages/audit/src/record.ts"
+    ],
+    "smallest_real_change": "New `apps/web/src/lib/ai-redaction.ts` exporting `tokenizeFinancialIdentifiers(text): { text, tokens: Map<string,string> }` and `restore(text, tokens)`. Pattern set, value-based (not key-based, because a prompt is prose): PAN-shaped 13-19 digit runs that pass Luhn, IBAN, ABA routing + account pairs, Stripe object ids (`acct_`, `cus_`, `pi_`, `ch_`, `po_`, `ba_`, `card_`, `fa_`, `sk_live_`, `rk_live_`, `whsec_`), and bare `sk-`/`sk-ant-` keys. Each match becomes a stable opaque token (`[[FIN-3]]`) so the model can still reason about co-reference. Wire it inside `aiComplete` at `ai.ts:106` — over `system` and `user` before `JSON.stringify`, over `data.content` text before returning at `ai.ts:127`, and over `detail` before `console.error` at `ai.ts:132-134`. Doing it inside `aiComplete` rather than at each caller is what makes it unavoidable: `synthesizeAnswer`, `draftText` and `summarizeDocument` all funnel through it and none has to remember. MUTATION PROOF: delete the Luhn check so real 16-digit card numbers pass through, and the ai-redaction test asserting the outbound body contains no PAN must red; separately assert `console.error` receives no `sk_live_` after mutating the log-path call to pass `detail` raw.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-020-006",
+    "title": "Prohibit provider event payloads and secrets from general logs, analytics, Relay indexes and client responses",
+    "why_open": "There is no classification of a payload as provider-sourced anywhere, and the three sinks the requirement names all accept opaque JSON today. `apps/web/src/lib/outbox/outbox.ts:54` declares `payload: Record<string, unknown>` and `outboxEventRow` at `:59` copies `valid.payload` into the row with no sensitivity check at all — the only validation is \"is it a JSON object\" (`:64-71`). `apps/web/src/lib/relay-tools.ts:66 relayToolsFor` / `:81 authorizeRelayTools` gate tools by permission but never touch tool RESULT payloads. `packages/audit/src/record.ts:179 redactMetadata` exists and is key-name driven, but it is reached only from `buildAuditRecord` (`record.ts:265`) and NEXT-SESSION.md §5/GE-063-001 records that 32 of 38 audit writes bypass that builder entirely. `packages/configuration/src/definition.ts:50` has a `sensitivity: Sensitivity` field on config definitions but there is no equivalent on `DomainEvent`/`OutboxEventRow` in `packages/contracts/src/index.ts`. Net: nothing in the repo can distinguish a provider event body from a business payload, so nothing can refuse to log one.",
+    "files": [
+      "apps/web/src/lib/outbox/outbox.ts",
+      "apps/web/src/lib/outbox/outbox.test.ts",
+      "apps/web/src/lib/ai-redaction.ts",
+      "packages/contracts/src/index.ts",
+      "packages/audit/src/record.ts",
+      "apps/web/src/lib/relay-tools.ts"
+    ],
+    "smallest_real_change": "Reuse the scanner from PAY-180-004 rather than writing a second one. (1) In `packages/contracts/src/index.ts` add a required `origin: \"tenure\" | \"provider\"` to the `DomainEvent` shape and set it in `parseDomainEvent`; grep every construction site of `DomainEvent` before landing it — `apps/web/src/lib/outbox/outbox.ts:59` and `apps/web/src/app/(app)/approvals/actions.ts:5` (`outboxEventRow`) are the only production ones today, plus `packages/contracts/src/contracts.test.ts:232`. (2) In `outboxEventRow` (`outbox.ts:59`) refuse — throw, the way the array/scalar guard at `:64` already does — when `origin === \"provider\"` and the payload carries anything the scanner matches, so a webhook body can never become an outbox row that a dispatcher logs. (3) In `packages/audit/src/record.ts`, run the value scanner after `redactMetadata` at `:340` so a secret that arrives under an innocuous key name is still caught. MUTATION PROOF: remove the `origin === \"provider\"` branch and the outbox test that pushes a `whsec_`-bearing payload must red; remove the value scan in `record.ts` and the audit test asserting a `sk_live_` under key `note` is `[redacted]` must red.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-220-002",
+    "title": "Prevent tenant purge with open disputes, refunds, payouts, negative balances, cards, financial accounts or retention holds",
+    "why_open": "`packages/provisioning/src/lifecycle.ts:200 advance()` is the whole rule set for tenant transitions and it checks exactly three things: terminality (`:206`), transition legality (`:210`), and a verified human approver (`:220-253`). `PURGE_PENDING: [\"PURGING\", ...]` at `lifecycle.ts:86` is therefore reachable with nothing more than two operator identities; `REQUIRES_APPROVAL` at `lifecycle.ts:98-105` names `PURGE_PENDING -> PURGING` but approval is the only gate. `AdvanceOptions` (`lifecycle.ts:163-180`) has no slot for outstanding obligations. The single production caller is `apps/system-studio/src/lib/registry.ts:462 advanceTenant`, which forwards `options` straight into `advance` at `:474` and then does the DynamoDB write — so nothing between the button and the irreversible delete asks whether money is still in flight. Note the file already has the exact precedent for how to do this correctly: `approverIsOperator` (`lifecycle.ts:167-177`) takes the ANSWER not the data, and undefined is a refusal.",
+    "files": [
+      "packages/provisioning/src/lifecycle.ts",
+      "packages/provisioning/src/provisioning.test.ts",
+      "apps/system-studio/src/lib/registry.ts",
+      "apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx",
+      "apps/system-studio/src/app/tenants/actions.ts"
+    ],
+    "smallest_real_change": "Add `financialObligations?: { openDisputes: number; openRefunds: number; pendingPayouts: number; negativeBalanceMinor: number; activeCards: number; openFinancialAccounts: number; retentionHolds: number }` to `AdvanceOptions` and a `PURGE_BLOCKING` guard inside `advance()` that runs for `OFFBOARDING -> PURGE_PENDING` and `PURGE_PENDING -> PURGING`: undefined is a REFUSAL (the `approverIsOperator` precedent at `lifecycle.ts:175-177`), and any non-zero counter throws a `LifecycleError` naming every non-zero line. Export the blocking set as `PURGE_BLOCKERS` so the Studio can render the reasons rather than restating them. Then fix the ONE consumer in the same change — `apps/system-studio/src/lib/registry.ts:462 advanceTenant` must gather the counts and pass them; today Tenure has no payments tables, so the honest gatherer returns all-zero WITH a recorded provenance string (\"no payments provider is connected to this tenant\") rather than silently defaulting, and `AdvanceControls.tsx` renders it. That keeps the field from being the invisible-optional failure NEXT-SESSION warns about. MUTATION PROOF: set `openDisputes: 1` and assert `advance('PURGE_PENDING','PURGING', ...)` throws; then delete the guard and confirm the test reds. Also assert the DEFAULT (field omitted) refuses — that is the arm that catches a future caller who forgets.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-040-002",
+    "title": "Responsibility matrix covering merchant display, fee payer, losses, refunds, disputes, KYC updates, account collection and support",
+    "why_open": "Absent from the repo entirely: `grep -rin \"feePayer|fee payer|lossPayer|merchantOfRecord|responsibilityMatrix|directCharge|destination charge\" --include=*.ts --include=*.tsx packages apps modules blueprints` returns zero hits. There is no `packages/payments` (`ls packages` -> audit, authorization, configuration, contracts, finops, identity, metadata, module-runtime, organization-model, platform-config, provisioning, releases, workflow) and no `docs/payments/` directory. The nearest thing that exists is `packages/provisioning/src/commercial.ts`, which models plans/quotas/entitlements and stops at `monthlyPriceCents` (`commercial.ts:76`) — commercial terms, never liability. Bible §6 (lines 257-277) requires each of the eight responsibilities to be an explicit decision per funds-flow model; nothing in the codebase can represent one.",
+    "files": [
+      "packages/payments/src/responsibility.ts",
+      "packages/payments/src/responsibility.test.ts",
+      "packages/payments/src/index.ts",
+      "packages/payments/package.json",
+      "packages/provisioning/src/commercial.ts"
+    ],
+    "smallest_real_change": "New quoting-only package `packages/payments` (no provider SDK, no network — mirror `packages/finops`'s charter comment). `responsibility.ts` declares the eight axes as a closed union (`merchantDisplay | feePayer | lossPayer | refundPayer | disputeOwner | kycUpdateOwner | accountCollectionOwner | supportOwner`), the closed set of parties (`TENURE | TENANT | PROVIDER | CUSTOMER`), and `resolveResponsibility(fundsFlow, config): { axis, party, source: \"default\" | \"tenant-override\", blockers: string[] }[]` returning ALL eight — never a partial map, so an unanswered axis is impossible to construct. Every axis whose party is unset resolves to a named blocker rather than a default, because a silent default here is the exact \"Tenure is not automatically merchant of record\" failure Bible §2 (lines 72-86) forbids. Its production caller is PAY-070-002 below, in the same package. MUTATION PROOF: make an unset axis default to `TENANT` instead of emitting a blocker, and the test asserting `resolveResponsibility` on an empty config returns eight blockers must red.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-070-002",
+    "title": "Default eligible tenant merchants to direct charges where responsibility decisions are satisfied",
+    "why_open": "Same evidence as PAY-040-002 — no funds-flow model exists in code at all (zero hits for `directCharge`/`destination charge` across packages, apps, modules, blueprints), so there is no default to be eligible for and nothing that could check the precondition. This is listed separately because it is what makes PAY-040-002's matrix a live rule rather than a declared type: without a caller, `resolveResponsibility` is dead code, which the quality bar explicitly forbids.",
+    "files": [
+      "packages/payments/src/funds-flow.ts",
+      "packages/payments/src/funds-flow.test.ts",
+      "packages/payments/src/responsibility.ts",
+      "packages/payments/src/index.ts"
+    ],
+    "smallest_real_change": "`funds-flow.ts` exports `FUNDS_FLOWS = [\"direct\", \"destination\", \"separate_charges_and_transfers\"]` and `chooseFundsFlow(merchant, config): { flow, reason, refusedFlows: {flow, blockers}[] }`. It calls `resolveResponsibility` (PAY-040-002) FIRST and returns `direct` only when all eight axes resolve with zero blockers AND the merchant is eligible; otherwise it returns the flow whose blockers are satisfiable, each refusal carrying the axis names that failed. No provider call, no money movement — a pure decision the activation preview (PAY-160-002) renders. MUTATION PROOF: make `chooseFundsFlow` return `direct` unconditionally and the test asserting a merchant with an unset `lossPayer` does NOT get `direct` must red. Assert on the value `chooseFundsFlow` EMITS, not on `resolveResponsibility` called directly — otherwise the test survives the caller dropping the check.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-130-002",
+    "title": "Posting templates with balanced-entry validation and effective dating",
+    "why_open": "The live ledger is single-sided and has no template, no balance rule and no effective date. `apps/web/prisma/schema.prisma:820-845 model LedgerEntry` carries one `amountCents Int` (`:829`), one `budgetLineId` (`:824`), a `kind` enum (`:827`) and `occurredAt`/`createdAt` (`:832`, `:841`) — there is no debit account, no credit account, no journal id grouping the two halves, and no `effectiveAt` distinct from when the row was written. The posting rule is a single signum function: `apps/web/src/lib/finance.ts:257 ledgerSignedCents(kind, magnitudeCents)` returns one signed number, and its only production caller `apps/web/src/app/(app)/approvals/actions.ts:345` writes exactly one row plus a denormalised `budgetLine.actualCents` increment at `:369-379`. Nothing anywhere asserts debits equal credits — `grep -rin \"balanced|debit|credit\" --include=*.ts packages apps` finds no posting logic. `tests/architecture/ledger-statuses.test.mjs` is about execution-ledger markdown, not accounting.",
+    "files": [
+      "packages/payments/src/posting.ts",
+      "packages/payments/src/posting.test.ts",
+      "apps/web/src/lib/finance.ts",
+      "apps/web/src/lib/finance.test.ts",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/prisma/schema.prisma",
+      "apps/web/prisma/migrations/"
+    ],
+    "smallest_real_change": "`packages/payments/src/posting.ts`: `PostingTemplate = { id, effectiveFrom, effectiveTo|null, lines: {account, side: \"debit\"|\"credit\", from: AmountRef}[] }`, plus `postingFor(templateId, at)` (effective-dated lookup that REFUSES when no template is effective at `at` rather than falling back to the newest) and `buildJournal(template, amounts): { journalId, effectiveAt, entries[] }` which throws unless the debit total equals the credit total in integer minor units of one currency. Give it a real caller in the same change: replace the single `db.ledgerEntry.create` at `apps/web/src/app/(app)/approvals/actions.ts:345` with `buildJournal(REIMBURSEMENT_TEMPLATE, ...)` and persist both halves — which needs a migration adding `journalId String`, `account String`, `side` enum and `effectiveAt DateTime` to `LedgerEntry`, and backfilling existing rows as the SPEND half of a synthetic journal. `ledgerSignedCents` in `finance.ts:257` stays as the display projection so the 36 client call sites are untouched. MUTATION PROOF: change one template line's `side` from credit to debit and the balanced-entry test must red; separately set the system clock before `effectiveFrom` and assert `postingFor` refuses rather than returning the later template.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-080-006",
+    "title": "Prevent internal subledger balances from being presented as bank-held funds",
+    "why_open": "The product already presents an internal budget residual as if it were money on hand, with no provenance anywhere on the surface. `apps/web/src/components/finance/FinanceDashboard.tsx:128-132` renders a `SummaryCard label=\"Remaining\" value={formatCents(totals.remaining)}` and `:110` puts \"Remaining\" in the utilization donut; `totals.remaining` is `totalBudgetedCents - totalActualCents` computed at `apps/web/src/lib/finance.ts:221` — a plan residual, not a balance, and certainly not a bank-held figure. Nothing on the card, in `apps/web/src/lib/finance.ts:25-40 FinanceSummary`, or in `apps/web/src/components/finance/BudgetUpload.tsx:172` (\"Totals: X budgeted - Y spent\") states that these are Tenure subledger figures rather than funds. Bible §2 (lines 72-88) forbids exactly this class of copy, and no test or lint asserts the distinction; `tests/architecture/` contains no content lint at all.",
+    "files": [
+      "apps/web/src/components/finance/FinanceDashboard.tsx",
+      "apps/web/src/components/finance/BudgetUpload.tsx",
+      "apps/web/src/lib/finance.ts",
+      "apps/web/src/lib/finance.test.ts",
+      "apps/web/src/components/finance/BudgetBarChart.tsx"
+    ],
+    "smallest_real_change": "Make provenance a property of the number, not of the label. Add `source: \"subledger\"` (a required literal, so every construction site must say it) to `FinanceSummary` in `apps/web/src/lib/finance.ts:25` and set it in `summarize` at `:223`; grep the consumers before landing — `FinanceDashboard.tsx:11`, `BudgetBarChart.tsx:4`, `BudgetUpload.tsx:10` are the three importers of `@/lib/finance` in components. Then rename the tile at `FinanceDashboard.tsx:129` to \"Remaining in budget\" and have `SummaryCard` render a required `provenance` note (\"Tenure budget record - not a bank balance\") derived from `summary.source`, so a future `source: \"provider\"` renders differently instead of inheriting the wrong caption. MUTATION PROOF: hardcode the provenance note to the empty string and the RTL test asserting the Remaining tile carries \"not a bank balance\" must red. Pair with PAY-000-004's lint so a new surface cannot reintroduce the bare word.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-000-004",
+    "title": "Prohibited-claim lint rules and content review for payments UI, docs and Relay responses",
+    "why_open": "`ls tests/architecture` shows 15 repo-level tests — document-graph, forbidden-clients, guards-do-not-write-into-the-tree, ledger-statuses, live-membership, module-graph-callers-carry-provides, module-objects, module-resolution-declares-its-engine, nav-hrefs-are-served, ownership, pass-requires-evidence, permission-catalog-is-tenant-blind, prompt-matches-ledger, status-assertions-are-exact, work-queue — and not one of them scans user-facing STRINGS. `tests/security/` likewise. The phrases Bible §2 line 88 forbids verbatim (\"Tenure bank account\", \"Tenure holds your funds\", \"Tenure-issued card\", \"insured by Tenure\", \"payments available globally\") are unguarded, and PAY-080-006 above shows the failure mode is already live in shipped copy. Relay is doubly exposed: `apps/web/src/lib/ai.ts:164 draftText` and `:181 summarizeDocument` return free model text straight to the UI with no content check.",
+    "files": [
+      "tests/architecture/prohibited-payment-claims.test.mjs",
+      "tools/run-platform-tests.mjs",
+      "apps/web/src/lib/ai.ts",
+      "apps/web/src/components/finance/FinanceDashboard.tsx",
+      "docs/payments/prohibited-claims.md"
+    ],
+    "smallest_real_change": "New `tests/architecture/prohibited-payment-claims.test.mjs` built on the exact shape `tests/architecture/forbidden-clients.test.mjs:33-45` already uses (git ls-files --others --exclude-standard survey + reasoned, size-asserted allowlist). Scan `apps/**/*.{ts,tsx}` string and JSX-text literals plus `docs/**/*.md` for the §2 phrase list, held in ONE exported array in `docs/payments/prohibited-claims.md`-adjacent source so the doc and the lint cannot drift. No runner registration is needed — `tools/run-platform-tests.mjs:37` auto-discovers every `*.test.mjs` under `tests/` and passes explicit paths, so dropping the file in is enough for `npm run test:platform` to pick it up. Then give it a RUNTIME arm, not only a build-time one: a `refuseProhibitedClaim(text)` in the same module, called on the model output inside `aiComplete` (`apps/web/src/lib/ai.ts:127`) so Relay cannot emit a claim the lint would have caught in source. MUTATION PROOF: insert `\"your Tenure bank account\"` into `FinanceDashboard.tsx` and the lint must red; delete the allowlist size assertion and the self-check must red; feed `refuseProhibitedClaim` a model response containing \"insured by Tenure\" and assert `aiComplete` returns null rather than the text.",
+    "already_done": false
+  },
+  {
+    "id": "PAY-160-002",
+    "title": "Render legal merchant, funds flow, fees, loss responsibility, tax, settlement and ledger preview before activation — with per-seat AND whole-org price and a running total",
+    "why_open": "The Studio's setup flow has five stages and zero prices. `apps/system-studio/src/app/tenants/new/ComposeForm.tsx` renders `<h2>Identity</h2>` (`:181`), `System` (`:203`), `Placement` (`:367`), `Coexistence` (`:403`), `First administrator` (`:443`), with per-option checkbox lists at `:265` (modules) and `:427` (coexistence domains) — and `grep -n \"price|Price|cost|Cost|seat|Seat\"` over that file returns NOTHING. `apps/system-studio/src/lib/editable-config.ts` mentions cost only in a prose comment at `:59`. The only price in the platform is plan-grain and unset: `packages/provisioning/src/commercial.ts:76 monthlyPriceCents: number | null` with `packages/provisioning/src/plan-catalog.ts:45` and `:61` both `monthlyPriceCents: null`. `ModuleManifest` (`packages/module-runtime/src/manifest.ts:239-364`) has `tiers`, `requiresEntitlement` (`:300`), `requiresOperatingModel`, `supportEndsAt` — no price field at all. `packages/finops` is AWS cost allocation (`packages/finops/src/index.ts:1-9`), not option pricing. So NEXT-SESSION.md §7's standing requirement — every option, every stage, per seat AND whole org, running total — is unimplemented end to end, and the payments activation preview Bible §18 asks for does not exist either.",
+    "files": [
+      "packages/finops/src/pricing.ts",
+      "packages/finops/src/pricing.test.ts",
+      "packages/finops/src/index.ts",
+      "packages/module-runtime/src/manifest.ts",
+      "modules/index.ts",
+      "apps/system-studio/src/app/tenants/new/ComposeForm.tsx",
+      "apps/system-studio/src/lib/editable-config.ts",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/ConfigurationEditor.tsx"
+    ],
+    "smallest_real_change": "Three coupled steps, all integer minor units. (1) `packages/finops/src/pricing.ts`: `OptionPrice = { perSeatMinor: number; perOrgMinor: number; currency: string; rounding: \"half-up\" }` and `quoteConfiguration(options, seatCount): { lines: {optionKey, perSeatMinor, perOrgMinor, extendedMinor}[]; runningTotalMinor; currency }`, built on the existing `money`/`add`/`sum` in `packages/finops/src/money.ts` so nothing floats. (2) Add a REQUIRED `price: OptionPrice` to `ModuleManifest` (`packages/module-runtime/src/manifest.ts:239`) and to `validateManifest` (`manifest.ts:384`) so a module without one fails validation at boot — then fill it in for all 12 entries in `modules/index.ts` (keys at `:129,181,225,269,323,367,411,497,543,605,644,685`); making it required rather than optional is the whole point, because an optional price is invisible to `tsc` and reads exactly like free. `tests/architecture/module-objects.test.mjs` already walks the catalog and is the natural place to assert it. (3) Render it: `ComposeForm.tsx` shows per-seat and per-org figures beside every checkbox at `:265` and `:427`, a sticky running total across all five stages, and a final pre-activation panel listing legal merchant / funds flow (from PAY-070-002's `chooseFundsFlow`) / fees / loss responsibility (PAY-040-002) / tax / settlement / ledger preview; keep `apps/system-studio/e2e/layout.spec.ts` green (#f2f0ed on #33302c, no pure white or black). MUTATION PROOF: delete `price` from ONE entry in `modules/index.ts` and `validateManifest` must throw and the catalog test must red; set `perSeatMinor` to 0 on another and the running-total test must red on the emitted total, not on `quoteConfiguration` called directly.",
+    "already_done": false
+  }
+]

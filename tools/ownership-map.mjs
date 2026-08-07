@@ -24,7 +24,15 @@
  * Usage:  node tools/ownership-map.mjs [--check]
  */
 import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
+
+// TTES-000-001. The experience list is declared once, in the entry-point
+// inventory, and read here. Two copies of "which app is the deployer console"
+// is how the two documents would eventually disagree about it — and the whole
+// point of both is that they cannot.
+import { EXPERIENCES } from './entry-point-inventory.mjs'
 
 const OUT = 'docs/architecture/ownership.md'
 
@@ -128,7 +136,10 @@ const DOMAINS = [
       // Which AWS services the running partition actually offers. It answers a
       // question only cellContext() can raise, so it belongs beside it.
       'apps/web/src/lib/partition-services',
-      'apps/web/src/lib/institution-time.ts',
+      // Prefix, not the exact file: `institution-time.test.ts` proves the
+      // React.cache() tenant-key invariant (REVIEW-FINDINGS.md:54) and belongs
+      // to the same domain as the loader it is about.
+      'apps/web/src/lib/institution-time',
       'apps/web/src/lib/time',
       'packages/configuration/',
       'packages/platform-config/',
@@ -145,6 +156,10 @@ const DOMAINS = [
       'apps/web/src/lib/workflows/',
       'apps/web/src/lib/commands/',
       'apps/web/src/lib/approvals',
+      // The digest an approval is notified with. `lib/approvals` above is a
+      // prefix that catches `approvals.ts` and `approvals-sla.ts`, but not this
+      // file, whose name breaks the pattern at the hyphen.
+      'apps/web/src/lib/approval-digest.itest.ts',
       'apps/web/src/app/(app)/approvals/',
       'packages/workflow/',
     ],
@@ -159,6 +174,9 @@ const DOMAINS = [
       'apps/web/src/lib/s3.test.ts',
       'apps/web/src/app/api/documents/',
       'apps/web/src/app/api/attachment/',
+      // Images are attachments with a different viewer. The gallery reads the
+      // same storage this domain owns.
+      'apps/web/src/app/(app)/gallery/',
       'apps/web/src/lib/forms/',
       'apps/web/src/lib/schemas/',
     ],
@@ -252,7 +270,16 @@ const DOMAINS = [
       // "what may we hand to a model vendor", which is this domain's whole
       // subject — the authorization engine it calls is owned where it lives.
       'apps/web/src/lib/relay-tools.ts',
-      'apps/web/src/lib/relay-tools.test.ts'],
+      'apps/web/src/lib/relay-tools.test.ts',
+      // What may be projected to a model vendor and where the assistant's
+      // surface stops — the same question as `relay-tools.ts` above, asked of
+      // the payload rather than of the tool.
+      'apps/web/src/lib/relay/',
+      // Whether a capability is connected, and the card shown when it is not.
+      // This domain's subject exactly: a connection to something Tenure does
+      // not run.
+      'apps/web/src/lib/connections/',
+      'apps/web/src/components/connections/'],
   },
   {
     key: 'billing-metering',
@@ -270,7 +297,20 @@ const DOMAINS = [
       'rather than a boundary; an account per tenant is what makes it exact, and that needs ' +
       'GE-010. The Studio surface at apps/system-studio/src/app/platform/cost belongs to ' +
       'control-plane, which owns that whole tree — the engine is here, the console is there.',
-    owns: ['packages/finops/'],
+    owns: [
+      'packages/finops/',
+      // The provider-neutral payments kernel: charge model, eligibility,
+      // capability registry, pinned API version, balance transactions. Quoting
+      // and control-plane only — NEXT-SESSION §0.3 forbids money movement, and
+      // nothing here moves any.
+      'packages/payments/',
+      // Money leaving or arriving: how a ledger entry is attributed, and the
+      // provider's own event feed. Here rather than under `erp-modules` because
+      // what these decide is what a tenant is charged and by whom, which is
+      // this domain's subject; the budget the charge lands against is not.
+      'apps/web/src/lib/payments/',
+      'apps/web/src/app/api/payments/',
+    ],
   },
 ]
 
@@ -302,12 +342,59 @@ const SHARED_PREFIXES = [
   'apps/web/src/components/ui/',
   'apps/web/src/components/shell/',
   'apps/web/src/components/brand/',
-  'apps/system-studio/src/components/',
+  // `apps/system-studio/src/components/` USED TO BE HERE, and the line was
+  // false (TTES-000-001). Those six files — the command palette, the nav, the
+  // offline banner, the preferences menu, the state components — are not "what
+  // every domain renders through". Nothing outside the operator console imports
+  // one; they cannot be imported from `apps/web` at all, since the two apps are
+  // deliberately separate origins (PD-007), and they are styled from a
+  // stylesheet that shares nine token names with the product's and disagrees
+  // with it on four of them. They belong to `control-plane`, which already owns
+  // `apps/system-studio/src/`, and now fall there.
+  //
+  // The distinction the old line elided is exactly the one the experience
+  // section below draws: shared BY DOMAIN (every domain renders through it)
+  // versus shared BY EXPERIENCE (both audiences see it). This was the second.
+  //
   // Accessibility is a property of the design system, not of any one domain.
   // Giving it to a domain would mean the contrast audit belonged to whoever
   // happened to add it, and the next domain would grow its own.
   'apps/web/src/lib/a11y/',
 ]
+
+/**
+ * TTES-000-001 — which AUDIENCE a source file is rendered to.
+ *
+ * A second axis, not a replacement for the domain map. A Studio configuration
+ * page and a tenant settings page are both `configuration`; only one of them may
+ * be reached by a customer, and the domain column cannot say so. Answering both
+ * questions from one file is what stops them drifting apart.
+ *
+ * `engine` is deliberately its own answer rather than "both". `packages/` is
+ * library code with no surface of its own: it does not render to anybody, it is
+ * rendered THROUGH by whichever app imports it. Calling that "both" would put
+ * the authorization engine in the same bucket as a component two apps import,
+ * and only one of those is a boundary question.
+ */
+export const EXPERIENCE_OF_SOURCE = [
+  ...EXPERIENCES.map((e) => ({
+    key: e.key,
+    prefix: `${e.app}/src/`,
+    what: e.what,
+  })),
+  {
+    key: 'engine',
+    prefix: 'packages/',
+    what:
+      'Library code with no surface of its own. It renders to nobody; it is rendered through by ' +
+      'whichever app imports it, so it belongs to neither audience and is available to both.',
+  },
+]
+
+/** The experience a source path is rendered to, or `null` if nothing claims it. */
+export function experienceOf(file) {
+  return EXPERIENCE_OF_SOURCE.find((e) => file.startsWith(e.prefix))?.key ?? null
+}
 
 const SHARED = new Map([
   ['apps/web/src/instrumentation.ts', 'the boot-time environment check'],
@@ -316,6 +403,8 @@ const SHARED = new Map([
   ['apps/web/src/components/BackButton.tsx', 'a navigation primitive'],
   ['apps/web/src/components/ComingSoon.tsx', 'a placeholder surface for unbuilt modules'],
   ['apps/web/src/components/ThemeSwitcher.tsx', 'a shell control'],
+  ['apps/web/src/components/DensitySwitcher.tsx', 'a shell control, beside ThemeSwitcher — it sets how tightly every domain renders and belongs to none of them'],
+  ['apps/web/src/app/design-contracts.test.ts', 'asserts design contracts across every surface at once; scoping it to a domain would mean the other domains stopped being checked'],
   ['apps/web/src/lib/db.ts', 'the database client itself — owned by no domain because every domain reads through it'],
   ['apps/web/src/app/layout.tsx', 'the root document'],
   ['apps/web/src/app/(app)/layout.tsx', 'the application shell'],
@@ -331,10 +420,22 @@ const SHARED = new Map([
 export function classify() {
   const files = listFiles()
   const byDomain = new Map(DOMAINS.map((d) => [d.key, []]))
+  const byExperience = new Map(EXPERIENCE_OF_SOURCE.map((e) => [e.key, []]))
+  // A source file no experience claims. Empty today by construction — ROOTS and
+  // EXPERIENCE_OF_SOURCE describe the same three trees — and it stops being
+  // empty the moment a fourth app is added to ROOTS without deciding who sees
+  // it, which is the decision this axis exists to force.
+  const unplaced = []
   const orphans = []
   const ambiguous = []
+  /** domain key → Set of experience keys, so a domain that straddles is visible. */
+  const domainExperiences = new Map(DOMAINS.map((d) => [d.key, new Set()]))
 
   for (const file of files) {
+    const experience = experienceOf(file)
+    if (experience === null) unplaced.push(file)
+    else byExperience.get(experience).push(file)
+
     if (SHARED.has(file)) continue
     if (SHARED_PREFIXES.some((prefix) => file.startsWith(prefix))) continue
 
@@ -345,16 +446,18 @@ export function classify() {
       ambiguous.push(`${file} — claimed by ${matches.map((m) => m.key).join(' and ')}`)
     } else {
       byDomain.get(matches[0].key).push(file)
+      if (experience !== null) domainExperiences.get(matches[0].key).add(experience)
     }
   }
 
-  return { files, byDomain, orphans, ambiguous }
+  return { files, byDomain, byExperience, domainExperiences, unplaced, orphans, ambiguous }
 }
 
 export { DOMAINS, SHARED, SHARED_PREFIXES }
 
 function render() {
-  const { files, byDomain, orphans, ambiguous } = classify()
+  const { files, byDomain, byExperience, domainExperiences, unplaced, orphans, ambiguous } =
+    classify()
   const built = DOMAINS.filter((d) => !d.unbuilt)
   const unbuilt = DOMAINS.filter((d) => d.unbuilt)
 
@@ -374,11 +477,42 @@ defensible.
 
 ## Domains
 
-| Domain | Files | What it owns |
-|---|---:|---|
+| Domain | Files | Experience | What it owns |
+|---|---:|---|---|
 ${built
-  .map((d) => `| \`${d.key}\` | ${byDomain.get(d.key).length} | ${d.what} |`)
+  .map(
+    (d) =>
+      `| \`${d.key}\` | ${byDomain.get(d.key).length} | ${[...domainExperiences.get(d.key)].sort().join(' + ') || '—'} | ${d.what} |`,
+  )
   .join('\n')}
+
+## Experience — who the code is rendered to
+
+TTES-000-001. The table above says which platform **domain** a file belongs to.
+This says which **audience** reaches it, and they are genuinely different
+questions: a Studio configuration page and a tenant settings page are both
+\`configuration\`, and only one of them may be opened by a customer.
+
+Keeping only the domain answer is how \`apps/system-studio/src/components/\` came
+to be filed under "the shell and the design system — what every domain renders
+through". Nothing outside the operator console imports one of those six files,
+and nothing in \`apps/web\` could — the two apps are separate origins on purpose
+(PD-007). They are now owned by \`control-plane\`, and the claim that was false
+is gone rather than reworded.
+
+| Experience | Files | What it is |
+|---|---:|---|
+${EXPERIENCE_OF_SOURCE.map(
+  (e) => `| \`${e.key}\` | ${byExperience.get(e.key).length} | ${e.what} |`,
+).join('\n')}
+
+### Rendered to no declared audience
+
+${
+  unplaced.length === 0
+    ? '_None._'
+    : unplaced.map((f) => `- \`${f}\``).join('\n')
+}
 
 ## Declared, and not built
 
@@ -415,19 +549,40 @@ ${ambiguous.length === 0 ? '_None._' : ambiguous.map((a) => `- ${a}`).join('\n')
 `
 }
 
-const generated = render()
+/**
+ * Only when run as a command — never on import.
+ *
+ * This body used to run on import, and an ESM import runs the whole module. Two
+ * tests import `classify` from here (`ownership.test.mjs`, and TTES-000-001's
+ * `experience-separation.test.mjs`), so merely importing it REWROTE
+ * `ownership.md` — and then the staleness assertion's `--check` subprocess
+ * compared the freshly healed file against the generator and reported it up to
+ * date. It passed on every possible input, including a domain prefix somebody
+ * had just deleted: the committed map would quietly change to agree with the
+ * mutation and the test would confirm the map was current.
+ *
+ * `tools/entry-point-inventory.mjs` carries the same guard and documents the
+ * same incident from the other side; this file was never given it. Found while
+ * proving TTES-000-001's own staleness assertion could fail — it could not.
+ */
+const isCommand =
+  !!process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 
-if (process.argv.includes('--check')) {
-  const current = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : ''
-  if (current !== generated) {
-    console.error(`::error::${OUT} is stale. Run: node tools/ownership-map.mjs`)
-    process.exit(1)
+if (isCommand) {
+  const generated = render()
+
+  if (process.argv.includes('--check')) {
+    const current = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : ''
+    if (current !== generated) {
+      console.error(`::error::${OUT} is stale. Run: node tools/ownership-map.mjs`)
+      process.exit(1)
+    }
+    console.log(`${OUT} is up to date.`)
+  } else {
+    fs.writeFileSync(OUT, generated)
+    const { orphans, ambiguous } = classify()
+    console.log(
+      `Wrote ${OUT} — ${orphans.length} unclaimed, ${ambiguous.length} claimed twice.`,
+    )
   }
-  console.log(`${OUT} is up to date.`)
-} else {
-  fs.writeFileSync(OUT, generated)
-  const { orphans, ambiguous } = classify()
-  console.log(
-    `Wrote ${OUT} — ${orphans.length} unclaimed, ${ambiguous.length} claimed twice.`,
-  )
 }

@@ -42,9 +42,22 @@ export {
 } from "./definition"
 export type { ConfigDefinition, Sensitivity } from "./definition"
 
+/**
+ * The price model, re-exported from `@tenure/finops`.
+ *
+ * `ConfigDefinition.price` is typed as `OptionPrice`, so anything declaring a
+ * definition needs the type. Re-exported here rather than making every
+ * definition file import a second package for one field — the pricing engine is
+ * still the owner, and `@tenure/finops` is still where the arithmetic lives.
+ */
+export { includedInPlan } from "@tenure/finops"
+export type { OptionPrice, RunningTotal, RunningTotalLine } from "@tenure/finops"
+
 export {
   ConfigResolutionError,
+  DEFAULT_QUOTE_SEATS,
   checksumOf,
+  isChargeable,
   redact,
   resolveConfig,
   resolveConfigOrThrow,
@@ -128,7 +141,7 @@ export {
 } from "./expression"
 export type { EvaluationResult, ExprType, Limits, Node as ExpressionNode, TypeEnv, ValueEnv } from "./expression"
 
-export { lint, planPublication, renderDiff, simulate } from "./publication"
+export { currentPaymentMode, lint, planPublication, renderDiff, simulate } from "./publication"
 export type { Fixture, Impact, LintFinding, PublicationInput, PublicationPlan, SimulationResult } from "./publication"
 
 export { ConfigStoreError, InMemoryConfigStore, commit, rollbackTarget } from "./store"

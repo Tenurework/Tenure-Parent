@@ -53,9 +53,13 @@ export default async function CalendarPage({
   if (!session?.user?.id) redirect("/signin")
   const userId = session.user.id
 
-  return withTenantScope(userId, async () => {
+  return withTenantScope(userId, async (scope) => {
     const ctx = await getUserContext(userId)
-    const timeZone = await viewerTimeZone(userId)
+    // The tenant is passed in, not derived: `viewerTimeZone` is React.cache()d
+    // and reads a TENANT_SCOPED Organization, so the memo key has to carry the
+    // tenant or the first scope opened in this request answers for every later
+    // one. See the invariant beside `runInTenantScope`.
+    const timeZone = await viewerTimeZone(userId, scope.institutionId)
     const canCreate = ctx.orgRoles.some((r) => r.status === "ACTIVE")
     const feedPath = `/api/calendar/ics/${calendarToken(userId)}`
 

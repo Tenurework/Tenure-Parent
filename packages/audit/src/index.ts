@@ -50,6 +50,20 @@ export type {
   HashableRecord,
 } from "./record"
 
+/**
+ * Redaction by VALUE, for the case key names cannot see: a provider payload
+ * copied into metadata, or a live key pasted into a `note`. `buildAuditRecord`
+ * applies it here; the outbox uses the same scanner to refuse a provider
+ * payload rather than to redact one (see outbox.ts for why they differ).
+ */
+export {
+  containsSecretValue,
+  findSecretValues,
+  redactSecretValues,
+  secretKindOf,
+} from "./secret-values"
+export type { SecretMatch } from "./secret-values"
+
 export { projectForQuery, verifyChain } from "./verify"
 export type {
   AuditProjection,

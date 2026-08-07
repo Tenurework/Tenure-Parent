@@ -118,8 +118,9 @@ export async function assignMember(slug: string, formData: FormData) {
           : undefined,
       href: `/orgs/${slug}/members`,
     })
-    revalidatePath(`/orgs/${slug}/members`)
   })
+
+  revalidatePath(`/orgs/${slug}/members`)
 }
 
 /**
@@ -186,6 +187,7 @@ export async function transitionAssignment(slug: string, formData: FormData) {
           : "Thank you for everything you did here. Your day-to-day access ends now, but the knowledge you leave behind stays ready for whoever comes next.",
       href: to === "ACTIVE" ? `/orgs/${slug}/members` : undefined,
     })
-    revalidatePath(`/orgs/${slug}/members`)
   })
+
+  revalidatePath(`/orgs/${slug}/members`)
 }

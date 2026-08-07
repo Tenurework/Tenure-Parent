@@ -12,8 +12,16 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 
-import { AA_THRESHOLD, composite, contrastRatio, meetsAA, parseColor, relativeLuminance } from "./contrast"
-import { ALL_THEMES, readThemes, token } from "./theme-tokens"
+import {
+  AA_THRESHOLD,
+  composite,
+  contrastRatio,
+  gamutViolations,
+  meetsAA,
+  parseColor,
+  relativeLuminance,
+} from "./contrast"
+import { ALL_THEMES, declaredTokenNames, readThemes, token } from "./theme-tokens"
 
 describe("the arithmetic", () => {
   it("agrees with the two ratios everyone knows", () => {
@@ -166,11 +174,33 @@ const PAIRINGS: ReadonlyArray<{
   { fg: "--text-2", bg: "--bg-surface", purpose: "body", where: "secondary text on a card" },
   { fg: "--text-2", bg: "--bg-base", purpose: "body", where: "secondary text on the page" },
   { fg: "--text-2", bg: "--bg-subtle", purpose: "body", where: "secondary text in a panel" },
+
+  // TTES-010-002 — the third text ramp. It was omitted from this list while
+  // being the ramp the product writes metadata, table headers, timestamps and
+  // captions in: 294 occurrences across 80 files (admin/audit/page.tsx:108,
+  // ai/TenureAIPanel.tsx:124, .micro-label in globals.css). Light was 3.29 /
+  // 2.98 / 2.84 and dark 3.91 / 4.12 / 3.68 — all five under the 4.5:1 floor
+  // this same file enforces two lines up — and the suite was 17/17 green,
+  // which is precisely the failure the header warns about. The palette moved
+  // (#868b92 → #63686f light, #6b7280 → #7f8794 dark); the floor did not.
+  { fg: "--text-3", bg: "--bg-surface", purpose: "body", where: "metadata and captions on a card" },
+  { fg: "--text-3", bg: "--bg-base", purpose: "body", where: "metadata on the page" },
+  { fg: "--text-3", bg: "--bg-subtle", purpose: "body", where: "metadata in a panel" },
+
   { fg: "--text-link", bg: "--bg-surface", purpose: "body", where: "links" },
   { fg: "--shell-text", bg: "--shell-bg", purpose: "body", where: "header and side nav" },
   { fg: "--shell-text-secondary", bg: "--shell-bg", purpose: "body", where: "nav secondary text" },
   { fg: "--primary-text", bg: "--primary", purpose: "body", where: "primary button label" },
   { fg: "--accent-text", bg: "--accent", purpose: "body", where: "accent button label" },
+  // The accent carries words as well as fills: admin/clubs/page.tsx:105 writes
+  // its "Manage" link in it. Found by the TTES-GATE-010 ratchet below on its
+  // first run — it was declared, rendered as text, and in no row.
+  { fg: "--accent", bg: "--bg-surface", purpose: "body", where: "administration link on a card" },
+  // The accent on its own tint. Rendered by ui/Badge.tsx:23 (the `info`
+  // variant), ThemeSwitcher.tsx:51 (the selected theme chip) and
+  // CalendarFilters.tsx:50. It measured 4.28:1 in light and was in no pairing;
+  // --primary-light moved #e4f2ea → #f0f9f4 to clear the floor.
+  { fg: "--primary", bg: "--primary-light", purpose: "body", where: "accent label on an accent tint" },
   { fg: "--badge-approved-text", bg: "--badge-approved-bg", purpose: "body", where: "approved badge" },
   { fg: "--badge-pending-text", bg: "--badge-pending-bg", purpose: "body", where: "pending badge" },
   { fg: "--badge-rejected-text", bg: "--badge-rejected-bg", purpose: "body", where: "rejected badge" },
@@ -220,6 +250,15 @@ const PAIRINGS: ReadonlyArray<{
   { fg: "--chart-6", bg: "--bg-surface", purpose: "nonText", where: "chart series 6" },
   { fg: "--chart-7", bg: "--bg-surface", purpose: "nonText", where: "chart series 7" },
   { fg: "--chart-8", bg: "--bg-surface", purpose: "nonText", where: "chart series 8" },
+
+  // The hover and press steps carry the same label the resting fill does, so
+  // they are the same 4.5:1 question asked of a different colour.
+  { fg: "--primary-text", bg: "--primary-hover", purpose: "body", where: "primary button label, hovered" },
+  { fg: "--primary-text", bg: "--primary-press", purpose: "body", where: "primary button label, pressed" },
+  { fg: "--accent-text", bg: "--accent-hover", purpose: "body", where: "accent button label, hovered" },
+  // ui/Button.tsx:44 presses to --accent-strong, and admin/layout.tsx:52 writes
+  // the administration badge in it.
+  { fg: "--accent-strong", bg: "--bg-base", purpose: "body", where: "administration plane label" },
 ]
 
 describe("WCAG 2.2 AA contrast, in every theme", () => {
@@ -247,4 +286,166 @@ describe("WCAG 2.2 AA contrast, in every theme", () => {
       expect(failures).toEqual([])
     })
   }
+})
+
+/**
+ * TTES-010-002 — the gamut half.
+ *
+ * `parseColor` measures sRGB hex and `rgb()/rgba()`. A token authored in
+ * `oklch()` or `color(display-p3 …)` is a valid colour that it cannot reach, so
+ * a pairing naming it would throw and a token nothing paired would simply never
+ * be audited — absent rather than failing, which is the quieter of the two.
+ */
+describe("every declared colour is one the audit can actually measure", () => {
+  const themes = readThemes()
+
+  for (const theme of ALL_THEMES) {
+    it(`${theme}`, () => {
+      expect(gamutViolations(themes[theme])).toEqual([])
+    })
+  }
+
+  it("rejects the syntaxes it cannot measure, rather than skipping them", () => {
+    expect(gamutViolations({ "--probe": "color(display-p3 1 0 0)" })).toEqual([
+      { token: "--probe", value: "color(display-p3 1 0 0)", reason: expect.stringContaining("cannot measure") },
+    ])
+    expect(gamutViolations({ "--probe": "oklch(0.7 0.15 150)" })).toHaveLength(1)
+    // Out of sRGB by number rather than by syntax. parseColor CLAMPS this to
+    // pure red, so the audit would measure a colour nobody authored — the same
+    // class of problem as oklch, reached a different way.
+    expect(gamutViolations({ "--probe": "rgb(300, 0, 0)" })).toEqual([
+      { token: "--probe", value: "rgb(300, 0, 0)", reason: expect.stringContaining("outside sRGB") },
+    ])
+    expect(gamutViolations({ "--probe": "rgba(0, 0, 0, 4)" })).toHaveLength(1)
+  })
+
+  it("leaves values that merely contain a colour alone", () => {
+    // A shadow's alpha is an elevation decision, not a contrast one, and a
+    // gradient has no single ratio. Flagging them would make the check noise,
+    // and a noisy check gets an exception rather than a fix.
+    expect(gamutViolations({ "--shadow-md": "0 4px 12px rgba(23, 24, 26, 0.08)" })).toEqual([])
+    expect(gamutViolations({ "--space-4": "16px", "--font-sans": "var(--font-inter), system-ui" })).toEqual([])
+  })
+})
+
+/**
+ * TTES-GATE-010 — the completeness ratchet.
+ *
+ * Everything above measures the pairings in PAIRINGS. Nothing, until here,
+ * measured PAIRINGS itself. Its own header calls it "not a convenient subset,
+ * which would be theatre" — and `--text-3` was the standing proof that it was
+ * exactly that: declared in globals.css, bound to `text-text-3` in
+ * tailwind.config.ts, rendered 294 times across 80 files, and in no row. Adding
+ * a token, or a new foreground, was invisible to this gate forever.
+ *
+ * So the expectation is derived from the real files rather than from the array.
+ */
+
+/** Every token the product can render as a foreground. Anchored, not prefixed:
+ *  `--primary-light` starts with "primary" and is a background. */
+const FOREGROUND_TOKEN =
+  /^--(text-[123]|text-link|text-inverse|text-disabled|shell-text|shell-text-secondary|[\w-]+-text|primary|accent|accent-strong|success|warning|error|info|chart-[1-8]|border-control|border-focus)$/
+
+/**
+ * The foregrounds that are deliberately in no pairing, each with the reason and
+ * — where the reason is "nothing renders it" — a check that the reason is still
+ * true. An exemption nobody re-verifies is how a subset calls itself complete.
+ */
+const NOT_PAIRED: ReadonlyArray<{ token: string; why: string; renderedNowhere?: true }> = [
+  {
+    token: "--text-disabled",
+    why:
+      "WCAG 1.4.3 exempts text that is part of an inactive user interface component. It is the disabled-control ink and the breadcrumb chevron; holding it to 4.5:1 would make a disabled control indistinguishable from an active one, which is a worse outcome for the same users.",
+  },
+  {
+    token: "--text-inverse",
+    why:
+      "declared but rendered nowhere — it is bound to no Tailwind utility and named by no component, so there is no pairing to measure. The check below fails the moment that stops being true and this becomes a row instead of an exemption.",
+    renderedNowhere: true,
+  },
+]
+
+describe("TTES-GATE-010 — the pairing list is complete, not convenient", () => {
+  const themes = readThemes()
+  const pairedAsForeground = new Set(PAIRINGS.map((p) => p.fg))
+  const exempt = new Map(NOT_PAIRED.map((e) => [e.token, e]))
+
+  it("every foreground the stylesheet declares appears in a pairing", () => {
+    const foregrounds = declaredTokenNames().filter((name) => FOREGROUND_TOKEN.test(name))
+    // A guard on the guard: if the pattern stops matching anything, this test
+    // passes vacuously and the ratchet is gone without a failure.
+    expect(foregrounds.length).toBeGreaterThan(20)
+
+    const unaudited = foregrounds.filter((name) => !pairedAsForeground.has(name) && !exempt.has(name))
+    expect(unaudited).toEqual([])
+  })
+
+  it("the exemptions are still true", () => {
+    // Every exempt token must still be declared — an exemption for a token that
+    // no longer exists is dead weight that hides the next one.
+    const declared = new Set(declaredTokenNames())
+    for (const entry of NOT_PAIRED) {
+      expect(declared.has(entry.token)).toBe(true)
+      expect(pairedAsForeground.has(entry.token)).toBe(false)
+      expect(entry.why.length).toBeGreaterThan(40)
+    }
+
+    // And "nothing renders it" is verified rather than asserted.
+    const src = path.join(__dirname, "..", "..")
+    const sources: string[] = []
+    const walk = (dir: string) => {
+      // `src/lib/a11y` is excluded: these modules name every token in order to
+      // AUDIT it — tokens.ts is a generated catalog of all 224 — and a scan that
+      // counted that as a render would make every exemption unprovable.
+      if (path.resolve(dir) === path.resolve(__dirname)) return
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) walk(full)
+        else if (/\.(tsx?|css)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) sources.push(full)
+      }
+    }
+    walk(src)
+    for (const entry of NOT_PAIRED) {
+      if (!entry.renderedNowhere) continue
+      const users = sources.filter((file) => {
+        // globals.css DECLARES it; that is not rendering it.
+        const text = fs.readFileSync(file, "utf8").replace(/^\s*--[\w-]+:.*$/gm, "")
+        return text.includes(entry.token)
+      })
+      expect(users.map((f) => path.relative(src, f))).toEqual([])
+    }
+  })
+
+  it("every token a colour utility is bound to resolves in all four themes", () => {
+    // The other half. A token can be in a pairing and still be missing from one
+    // theme — theme-tokens throws on a missing token, but only for tokens
+    // something already pairs, so a Tailwind class bound to a token the dark
+    // block dropped renders as an undeclared property and nothing notices.
+    const config = fs.readFileSync(path.join(__dirname, "..", "..", "..", "tailwind.config.ts"), "utf8")
+    const start = config.indexOf("colors: {")
+    expect(start).toBeGreaterThan(0)
+    let depth = 0
+    let end = start
+    for (let i = config.indexOf("{", start); i < config.length; i++) {
+      if (config[i] === "{") depth++
+      else if (config[i] === "}" && --depth === 0) {
+        end = i
+        break
+      }
+    }
+    const colours = [...new Set([...config.slice(start, end).matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]))]
+    expect(colours.length).toBeGreaterThan(25)
+
+    const missing: string[] = []
+    for (const theme of ALL_THEMES) {
+      for (const name of colours) {
+        try {
+          token(themes[theme], name)
+        } catch {
+          missing.push(`${theme}: ${name}`)
+        }
+      }
+    }
+    expect(missing).toEqual([])
+  })
 })

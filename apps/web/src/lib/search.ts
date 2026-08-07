@@ -4,13 +4,30 @@
  * then these rank whatever the user is allowed to see.
  */
 
+import type { ProjectedKind, ProjectionMode } from "@/lib/relay/projection-policy"
+
 export interface SearchDoc {
   id: string
-  kind: "memory" | "document" | "approval" | "event" | "organization"
+  kind: ProjectedKind
   title: string
   body: string
   href: string
   context: string // e.g. club name — shown with the citation
+  /**
+   * WRK-010-003. How much of this source may be projected (Bible §3.4).
+   *
+   * Required, not optional, and that is the whole point: an optional field a
+   * builder forgets to set compiles, passes every unit test that writes its own
+   * fixtures, and fails only in production. Making it required means `tsc`
+   * enumerates every construction site — the five in `search-data.ts`, the
+   * fixture helper in `search.test.ts`, and any future one — and each has to
+   * answer the question rather than inherit an answer.
+   *
+   * A `REFERENCE_ONLY` doc carries no `body` at all: `loadSearchCorpus` drops
+   * it at construction, so it is absent from scoring, from `/api/search`'s
+   * snippets, and from the model prompt.
+   */
+  mode: ProjectionMode
 }
 
 export interface ScoredDoc extends SearchDoc {

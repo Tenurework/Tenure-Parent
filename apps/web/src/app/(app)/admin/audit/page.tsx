@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { notFound } from "next/navigation"
 import type { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
 import { requireAdminContext } from "@/lib/admin/guard"
@@ -9,6 +8,9 @@ import { hasCapability } from "@/lib/admin/capabilities"
 import { Card } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { EmptyState } from "@/components/ui/EmptyState"
+import { StateSurface } from "@/components/ui/StateSurface"
+import { DataTable } from "@/components/ui/DataTable"
+import { formatSortParam, parseSortParam } from "@/components/ui/data-table-model"
 import { ScrollText, Search } from "@/components/ui/icons"
 
 export const metadata: Metadata = { title: "Admin · Audit log" }
@@ -27,19 +29,38 @@ function summarizeMetadata(meta: Prisma.JsonValue): string {
     .join(" · ")
 }
 
+/**
+ * Audit rows about club content — a memory card, a document — can quote the
+ * moderator's own reason in `detail`. That sentence is about a body the reader
+ * may not be able to open, so it is redacted from anyone who does not hold the
+ * content-override capability. The ROW stays: dropping it would say the object
+ * does not exist, which is the enumeration leak the API refusals avoid.
+ */
+const CONTENT_RESOURCE_TYPES = new Set(["MemoryRecord", "Document", "memory", "document"])
+
 export default async function AdminAuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ outcome?: string; q?: string }>
+  searchParams: Promise<{ outcome?: string; q?: string; sort?: string }>
 }) {
   const { userId, ctx, institutionId } = await requireAdminContext()
-  if (!hasCapability(ctx, "audit.view", institutionId)) notFound()
+  // TTES-040-002. See the note in admin/overrides/page.tsx: a capability
+  // refusal inside a console the viewer was already admitted to is the
+  // `permission-denied` state, not a 404. Nothing about the audit log's
+  // CONTENTS is disclosed by saying the seat does not include it.
+  if (!hasCapability(ctx, "audit.view", institutionId)) {
+    return <StateSurface state="permission-denied" />
+  }
 
   return withTenantScope(userId, async () => {
     const sp = await searchParams
     const outcomeFilter: OutcomeFilter =
       sp.outcome === "deny" ? "deny" : sp.outcome === "allow" ? "allow" : ""
     const q = (sp.q ?? "").trim().slice(0, 80)
+    // The grid's order is a URL parameter rather than component state: this
+    // page is a server component, and a sort you cannot reload into or send to
+    // a colleague is not a sort an audit reader can work with.
+    const sort = parseSortParam(sp.sort)
 
     const where: Prisma.AuditEventWhereInput = {
       institutionId,
@@ -88,6 +109,26 @@ export default async function AdminAuditPage({
       const s = params.toString()
       return `/admin/audit${s ? `?${s}` : ""}`
     }
+    /** Where a header links to. Cycles asc -> desc -> unsorted, per `nextSort`. */
+    const sortHref = (key: string) => {
+      const next =
+        !sort || sort.key !== key
+          ? { key, direction: "asc" as const }
+          : sort.direction === "asc"
+            ? { key, direction: "desc" as const }
+            : null
+      const params = new URLSearchParams()
+      if (outcomeFilter) params.set("outcome", outcomeFilter)
+      if (q) params.set("q", q)
+      const formatted = formatSortParam(next)
+      if (formatted) params.set("sort", formatted)
+      const s = params.toString()
+      return `/admin/audit${s ? `?${s}` : ""}`
+    }
+
+    const canReadRestricted = hasCapability(ctx, "content.override", institutionId)
+    const redactedResourceTypes = CONTENT_RESOURCE_TYPES
+
     const TABS: { label: string; val: OutcomeFilter }[] = [
       { label: "All", val: "" },
       { label: "Allowed", val: "allow" },
@@ -157,6 +198,11 @@ export default async function AdminAuditPage({
 
         {events.length === 0 ? (
           <EmptyState
+            // Two different sentences, so two different states: a filtered log
+            // that matched nothing is not an empty log, and telling an
+            // administrator "no audit events yet" while an outcome chip is
+            // still applied sends them looking for a logging failure.
+            state={q || outcomeFilter ? "no-results" : "empty"}
             icon={ScrollText}
             title={q || outcomeFilter ? "No matching events" : "No audit events yet"}
             description={
@@ -166,58 +212,99 @@ export default async function AdminAuditPage({
             }
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm tabular-nums">
-              <thead>
-                <tr className="border-b border-border text-left text-[13px] text-text-3">
-                  <th className="px-5 py-2.5 font-medium">When</th>
-                  <th className="px-5 py-2.5 font-medium">Actor</th>
-                  <th className="px-5 py-2.5 font-medium">Action</th>
-                  <th className="px-5 py-2.5 font-medium">Resource</th>
-                  <th className="px-5 py-2.5 font-medium">Detail</th>
-                  <th className="px-5 py-2.5 font-medium">Outcome</th>
-                </tr>
-              </thead>
-              <tbody>
-                {events.map((e) => {
-                  const detail = e.reason || summarizeMetadata(e.metadata)
-                  return (
-                    <tr key={e.id} className="border-b border-border last:border-0 align-top">
-                      <td className="whitespace-nowrap px-5 py-2.5 text-[13px] text-text-3">
-                        {e.occurredAt.toLocaleString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="px-5 py-2.5 text-text-1">
-                        {e.actorId ? actorNames.get(e.actorId) ?? "Unknown" : "System"}
-                        {e.actorRole && (
-                          <span className="ml-1 text-[13px] text-text-3">({e.actorRole.replace("OSE_", "")})</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-2.5 font-medium text-text-1">{e.action}</td>
-                      <td className="px-5 py-2.5 text-[13px] text-text-2">
-                        {e.organizationId ? orgNames.get(e.organizationId) ?? e.resourceType : e.resourceType}
-                        {e.resourceId && (
-                          <span className="ml-1 text-text-3">#{e.resourceId.slice(-6)}</span>
-                        )}
-                      </td>
-                      <td className="max-w-[280px] px-5 py-2.5 text-[13px] text-text-3">
-                        <span className="line-clamp-2">{detail || "—"}</span>
-                      </td>
-                      <td className="px-5 py-2.5">
-                        <Badge variant={e.outcome === "DENY" ? "error" : "success"}>
-                          {e.outcome.toLowerCase()}
-                        </Badge>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          /* TTES-020-002-GRID. The densest surface in the product, through the
+             owned contract: a caption, `scope="col"` on every header, a real
+             `aria-sort`, and a redaction rule for a cell the viewer may not
+             read. It was six bare <th> and nothing else. */
+          <DataTable
+            caption={`Audit log — ${events.length} of ${totalCount.toLocaleString()} events${
+              outcomeFilter ? `, ${outcomeFilter} only` : ""
+            }${q ? `, matching “${q}”` : ""}`}
+            rows={events}
+            rowKey={(e) => e.id}
+            sort={sort}
+            sortHref={sortHref}
+            tableClassName="min-w-[820px] tabular-nums"
+            columns={[
+              {
+                key: "when",
+                header: "When",
+                sortValue: (e) => e.occurredAt,
+                className: "whitespace-nowrap text-[13px] text-text-3",
+                cell: (e) =>
+                  e.occurredAt.toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  }),
+              },
+              {
+                key: "actor",
+                header: "Actor",
+                sortValue: (e) => (e.actorId ? actorNames.get(e.actorId) ?? "Unknown" : "System"),
+                className: "text-text-1",
+                cell: (e) => (
+                  <>
+                    {e.actorId ? actorNames.get(e.actorId) ?? "Unknown" : "System"}
+                    {e.actorRole && (
+                      <span className="ml-1 text-[13px] text-text-3">
+                        ({e.actorRole.replace("OSE_", "")})
+                      </span>
+                    )}
+                  </>
+                ),
+              },
+              {
+                key: "action",
+                header: "Action",
+                sortValue: (e) => e.action,
+                className: "font-medium text-text-1",
+                cell: (e) => e.action,
+              },
+              {
+                key: "resource",
+                header: "Resource",
+                sortValue: (e) => e.resourceType,
+                className: "text-[13px] text-text-2",
+                cell: (e) => (
+                  <>
+                    {e.organizationId
+                      ? orgNames.get(e.organizationId) ?? e.resourceType
+                      : e.resourceType}
+                    {e.resourceId && (
+                      <span className="ml-1 text-text-3">#{e.resourceId.slice(-6)}</span>
+                    )}
+                  </>
+                ),
+              },
+              {
+                key: "detail",
+                header: "Detail",
+                // The one column that can carry a reason written about a row
+                // the reader may not open. Redacted rather than dropped: an
+                // absent row would say the object does not exist.
+                redactable: true,
+                className: "max-w-[280px] text-[13px] text-text-3",
+                cell: (e) => (
+                  <span className="line-clamp-2">
+                    {e.reason || summarizeMetadata(e.metadata) || "—"}
+                  </span>
+                ),
+              },
+              {
+                key: "outcome",
+                header: "Outcome",
+                sortValue: (e) => e.outcome,
+                cell: (e) => (
+                  <Badge variant={e.outcome === "DENY" ? "error" : "success"}>
+                    {e.outcome.toLowerCase()}
+                  </Badge>
+                ),
+              },
+            ]}
+            redact={(e) => redactedResourceTypes.has(e.resourceType) && !canReadRestricted}
+          />
         )}
       </Card>
     )

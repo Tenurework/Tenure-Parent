@@ -2,14 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import {
-  Button,
-  Dialog,
-  DialogTrigger,
-  Popover,
-} from "react-aria-components"
+import { Button } from "@/components/ui/Button"
 import { Bell, BellOff, CheckCheck } from "@/components/ui/icons"
-import { Overlay } from "@/components/ui/Overlay"
+import { Overlay, PopoverDialog } from "@/components/ui/Overlay"
 
 interface NotificationItem {
   id: string
@@ -147,110 +142,108 @@ export function NotificationBell({ initialUnread = 0 }: { initialUnread?: number
 
   return (
     <>
-      <DialogTrigger onOpenChange={(open) => open && refresh()}>
-        <Button
-          aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
-          className="relative grid h-9 w-9 place-items-center rounded-lg text-[--shell-text-secondary] outline-none transition-colors data-[hovered]:bg-[--shell-item-hover] data-[hovered]:text-[--shell-text] data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--primary]"
-        >
-          <Bell size={18} />
-          {unread > 0 && (
-            <span
-              className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full px-0.5 text-[10px] font-bold text-white"
-              style={{ background: "var(--error)" }}
-            >
-              {unread > 9 ? "9+" : unread}
-            </span>
-          )}
-        </Button>
-
-        <Popover
-          placement="bottom end"
-          offset={10}
-          className="pop-panel w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-border bg-surface shadow-lg outline-none"
-        >
-          <Dialog className="outline-none" aria-label="Notifications">
-            {({ close }) => (
-              <div className="flex max-h-[70vh] flex-col">
-                <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-                  <p className="font-display text-base font-semibold text-text-1">
-                    Notifications{unread > 0 ? ` · ${unread} new` : ""}
-                  </p>
-                  {unread > 0 && (
-                    <button
-                      onClick={markAllRead}
-                      className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-medium text-text-link outline-none transition-colors hover:bg-base focus-visible:ring-2 focus-visible:ring-[--primary]"
-                    >
-                      <CheckCheck size={14} /> Mark all read
-                    </button>
-                  )}
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  {loaded && items.length === 0 ? (
-                    <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-                      <BellOff size={22} className="text-text-3" />
-                      <p className="text-sm text-text-2">You&apos;re all caught up.</p>
-                    </div>
-                  ) : (
-                    <ul className="divide-y divide-border">
-                      {items.map((n) => {
-                        const unreadItem = !n.readAt
-                        const inner = (
-                          <div className="flex items-start gap-3 px-4 py-3">
-                            <span
-                              className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${unreadItem ? "bg-[--primary]" : "bg-transparent"}`}
-                              aria-hidden
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className={`text-sm ${unreadItem ? "font-semibold text-text-1" : "text-text-2"}`}>
-                                {n.title}
-                              </p>
-                              {n.body && <p className="mt-0.5 line-clamp-2 text-[13px] text-text-2">{n.body}</p>}
-                              <p className="mt-0.5 text-meta text-text-3">{ago(n.createdAt)}</p>
-                            </div>
-                          </div>
-                        )
-                        return (
-                          <li key={n.id} className="transition-colors hover:bg-base">
-                            {n.href ? (
-                              <Link
-                                href={n.href}
-                                onClick={() => {
-                                  markOneRead(n.id)
-                                  close()
-                                }}
-                                className="block no-underline"
-                              >
-                                {inner}
-                              </Link>
-                            ) : (
-                              <button onClick={() => markOneRead(n.id)} className="block w-full text-left outline-none">
-                                {inner}
-                              </button>
-                            )}
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                </div>
-
-                <div className="border-t border-border px-4 py-2.5">
-                  <button
-                    onClick={() => {
-                      close()
-                      openHistory()
-                    }}
-                    className="block w-full rounded-md py-1.5 text-center text-[13px] font-medium text-text-link outline-none transition-colors hover:bg-base focus-visible:ring-2 focus-visible:ring-[--primary]"
-                  >
-                    See all notifications
-                  </button>
-                </div>
-              </div>
+      <PopoverDialog
+        label="Notifications"
+        onOpenChange={(open) => open && refresh()}
+        trigger={
+          <Button
+            variant="shell"
+            size="shellIcon"
+            className="relative"
+            aria-label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
+          >
+            <Bell size={18} />
+            {unread > 0 && (
+              <span
+                className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full px-0.5 text-[10px] font-bold text-white"
+                style={{ background: "var(--error)" }}
+              >
+                {unread > 9 ? "9+" : unread}
+              </span>
             )}
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
+          </Button>
+        }
+      >
+        {({ close }) => (
+          <div className="flex max-h-[70vh] flex-col">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <p className="font-display text-base font-semibold text-text-1">
+              Notifications{unread > 0 ? ` · ${unread} new` : ""}
+            </p>
+            {unread > 0 && (
+              <button
+                onClick={markAllRead}
+                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-medium text-text-link outline-none transition-colors hover:bg-base focus-visible:ring-2 focus-visible:ring-[--border-focus]"
+              >
+                <CheckCheck size={14} /> Mark all read
+              </button>
+            )}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {loaded && items.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+                <BellOff size={22} className="text-text-3" />
+                <p className="text-sm text-text-2">You&apos;re all caught up.</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {items.map((n) => {
+                  const unreadItem = !n.readAt
+                  const inner = (
+                    <div className="flex items-start gap-3 px-4 py-3">
+                      <span
+                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${unreadItem ? "bg-[--primary]" : "bg-transparent"}`}
+                        aria-hidden
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-sm ${unreadItem ? "font-semibold text-text-1" : "text-text-2"}`}>
+                          {n.title}
+                        </p>
+                        {n.body && <p className="mt-0.5 line-clamp-2 text-[13px] text-text-2">{n.body}</p>}
+                        <p className="mt-0.5 text-meta text-text-3">{ago(n.createdAt)}</p>
+                      </div>
+                    </div>
+                  )
+                  return (
+                    <li key={n.id} className="transition-colors hover:bg-base">
+                      {n.href ? (
+                        <Link
+                          href={n.href}
+                          onClick={() => {
+                            markOneRead(n.id)
+                            close()
+                          }}
+                          className="block no-underline"
+                        >
+                          {inner}
+                        </Link>
+                      ) : (
+                        <button onClick={() => markOneRead(n.id)} className="block w-full text-left outline-none">
+                          {inner}
+                        </button>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+
+          <div className="border-t border-border px-4 py-2.5">
+            <button
+              onClick={() => {
+                close()
+                openHistory()
+              }}
+              className="block w-full rounded-md py-1.5 text-center text-[13px] font-medium text-text-link outline-none transition-colors hover:bg-base focus-visible:ring-2 focus-visible:ring-[--border-focus]"
+            >
+              See all notifications
+            </button>
+          </div>
+          </div>
+        )}
+      </PopoverDialog>
 
       <Overlay
         title="Notifications"
@@ -262,7 +255,7 @@ export function NotificationBell({ initialUnread = 0 }: { initialUnread?: number
           unread > 0 ? (
             <button
               onClick={markAllRead}
-              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-link outline-none transition-colors hover:bg-base focus-visible:ring-2 focus-visible:ring-[--primary]"
+              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium text-text-link outline-none transition-colors hover:bg-base focus-visible:ring-2 focus-visible:ring-[--border-focus]"
             >
               <CheckCheck size={15} /> Mark all read
             </button>

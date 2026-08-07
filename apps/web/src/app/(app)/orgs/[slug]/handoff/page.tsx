@@ -16,6 +16,8 @@ import { Card, CardHeader } from "@/components/ui/Card"
 import { StatGrid, StatTile } from "@/components/ui/Bento"
 import { Badge, ApprovalBadge } from "@/components/ui/Badge"
 import { OrgTabs } from "@/components/OrgTabs"
+import { PageHeader } from "@/components/ui/PageHeader"
+import { AIScopeAnchor } from "@/components/ai/AIProvider"
 import { EmailLink } from "@/components/EmailLink"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { formatCents } from "@/lib/finance"
@@ -97,12 +99,41 @@ export default async function HandoffPage({
 
     return (
       <div className="w-full">
-        <div className="mb-6">
-          <h1 className="text-text-1">{org.name}</h1>
-          <p className="mt-1 text-lead text-text-2">
-            Transition &amp; handoff — everything a new officer needs on day one, live from the seat lifecycle.
-          </p>
-        </div>
+        {/* TTES-030-003. Declares the record this page is showing, so a
+            question asked from here is asked about THIS club: the panel names
+            it in its scope line and the id travels with the request. Renders
+            nothing; clears on navigation. */}
+        <AIScopeAnchor id={org.slug} label={org.name} />
+
+        {/* TTES-030-001, Bible section 5.3 — record anatomy through the shared
+            primitive: identity, then state, then the primary actions, in that
+            order and in the same place on every record. This page hand-rolled
+            an h1 and a lead paragraph and had nowhere to put the state. */}
+        <PageHeader
+          breadcrumbs={[{ label: "Clubs", href: "/orgs" }, { label: org.name }]}
+          eyebrow="Transition and handoff"
+          title={org.name}
+          subtitle="Everything a new officer needs on day one, live from the seat lifecycle."
+          status={
+            <>
+              <Badge variant={filledSeats === seats.length ? "success" : "info"}>
+                {filledSeats}/{seats.length} seats filled
+              </Badge>
+              <Badge variant={pendingApprovals.length ? "info" : "default"}>
+                {pendingApprovals.length} open approvals
+              </Badge>
+              <Badge variant="default">{CURRENT_YEAR}</Badge>
+            </>
+          }
+          actions={
+            <Link
+              href={`/orgs/${slug}/memory`}
+              className="inline-flex h-9 items-center rounded-md border border-border-strong px-3 text-sm font-medium text-text-1 no-underline transition-colors hover:bg-subtle"
+            >
+              Open institutional memory
+            </Link>
+          }
+        />
         <OrgTabs slug={slug} />
 
         <div className="mb-5">
@@ -252,6 +283,7 @@ export default async function HandoffPage({
         {seats.length === 0 && (
           <Card className="mt-5">
             <EmptyState
+              state="empty"
               icon={Handshake}
               title="No board seats yet"
               description="Once this club has board positions, each one's handoff contacts and knowledge will appear here."

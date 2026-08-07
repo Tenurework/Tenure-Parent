@@ -3,7 +3,7 @@ import { z } from "zod"
 import { ConfigRegistry, defineConfig } from "./definition"
 import { requiresApproval, type VersionedLayer } from "./layer-schema"
 import { resolveVersionedLayers } from "./layer-bridge"
-import { lint, planPublication, renderDiff, simulate } from "./publication"
+import { currentPaymentMode, lint, planPublication, renderDiff, simulate } from "./publication"
 
 /**
  * GE-031-006 — the publication plan.
@@ -18,6 +18,7 @@ const LATER = new Date("2026-08-03T00:00:00Z")
 
 const registry = ConfigRegistry.of([
   defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
     key: "platform.localization.currency",
     owner: "platform",
     type: z.string(),
@@ -29,6 +30,7 @@ const registry = ConfigRegistry.of([
     description: "Currency.",
   }),
   defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
     key: "platform.terminology.seatSingular",
     owner: "platform",
     type: z.string(),
@@ -40,6 +42,7 @@ const registry = ConfigRegistry.of([
     description: "What a seat is called.",
   }),
   defineConfig({
+  price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
     key: "platform.flags.aiAssistant.enabled",
     owner: "platform",
     type: z.boolean(),
@@ -348,5 +351,133 @@ describe("rejections always block", () => {
     })
     expect(plan.blocked).toBe(true)
     expect(plan.rejections.map((r) => r.rule)).toContain("unentitled-feature")
+  })
+})
+
+/**
+ * PAY-000-007 — test and live are separated by something a publication respects.
+ *
+ * Two controls, and they are different questions. `requiresCapability` asks
+ * "may this principal set this key at all" — it had been a declared field with
+ * no enforcement anywhere, which is indistinguishable from no field. `liveOnly`
+ * asks "does this key mean anything in the mode this tenant is currently in".
+ *
+ * The registry here declares both against real keys, so the check is exercised
+ * through `planPublication` — the function the Studio calls — rather than
+ * against a helper.
+ */
+const MODE_KEY = "platform.payments.mode"
+const ENTITY_KEY = "platform.payments.legalEntityId"
+
+const paymentsRegistry = registry.with([
+  defineConfig({
+    price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
+    key: MODE_KEY,
+    owner: "platform",
+    type: z.enum(["test", "live"]),
+    default: "test",
+    allowedScopes: ["tenant"],
+    mergeStrategy: "replace",
+    sensitivity: "internal",
+    overridable: true,
+    requiresCapability: "payments.mode.publish",
+    description: "Which money-mode this tenant is in.",
+  }),
+  defineConfig({
+    price: { perSeatMinor: 0, perOrgMinor: 0, currency: "USD", rounding: "half-up", includedBecause: "A test fixture, priced at nothing so the arithmetic under test is the test's own." },
+    key: ENTITY_KEY,
+    owner: "platform",
+    type: z.string(),
+    default: "",
+    allowedScopes: ["tenant"],
+    mergeStrategy: "replace",
+    sensitivity: "internal",
+    overridable: true,
+    requiresCapability: "payments.legalEntity.publish",
+    liveOnly: true,
+    description: "The legal entity this tenant's money moves under.",
+  }),
+])
+
+/** A tenant whose current configuration puts it in `mode`. */
+const inMode = (mode: "test" | "live") => ({
+  values: { ...resolvedValues(CURRENT_LAYERS), [MODE_KEY]: mode },
+  revision: 4,
+})
+
+const paymentsPlan = (over: Partial<Parameters<typeof planPublication>[0]> = {}) =>
+  planPublication({
+    registry: paymentsRegistry,
+    current: inMode("test"),
+    proposed: [layer("tenantOverlay", "acme", { [MODE_KEY]: "live" })],
+    publishedBy: "operator:publisher",
+    publisherCapabilities: ["payments.mode.publish"],
+    activateAt: LATER,
+    now: NOW,
+    ...over,
+  })
+
+describe("money-mode is an authorised publication", () => {
+  it("blocks a mode change published by someone who does not hold the capability", () => {
+    // The failure this closes: `requiresCapability` was declared on the type and
+    // read by nothing, so the field said the key was governed while anyone who
+    // could reach the form could set it.
+    const plan = paymentsPlan({ publisherCapabilities: [] })
+    expect(plan.blocked).toBe(true)
+    expect(plan.blockers.join("\n")).toMatch(/payments\.mode\.publish/)
+  })
+
+  it("lets the mode change through for a principal who holds it, with a diff", () => {
+    const plan = paymentsPlan()
+    expect(plan.blocked).toBe(false)
+    // A change with a diff, not a switch somebody flipped: the operator signing
+    // it sees the before and the after.
+    expect(plan.diff).toContainEqual({
+      key: MODE_KEY,
+      change: "changed",
+      before: "test",
+      after: "live",
+    })
+    expect(plan.rollbackTo).toBe(4)
+  })
+
+  it("refuses a live-only value while the tenant is in test mode", () => {
+    const plan = paymentsPlan({
+      proposed: [layer("tenantOverlay", "acme", { [ENTITY_KEY]: "le-ny" })],
+      publisherCapabilities: ["payments.legalEntity.publish"],
+    })
+    expect(plan.blocked).toBe(true)
+    expect(plan.blockers.join("\n")).toMatch(/only means anything in live mode/)
+  })
+
+  it("accepts the same live-only value once the tenant is live", () => {
+    const plan = paymentsPlan({
+      current: inMode("live"),
+      proposed: [layer("tenantOverlay", "acme", { [ENTITY_KEY]: "le-ny" })],
+      publisherCapabilities: ["payments.legalEntity.publish"],
+    })
+    expect(plan.blocked).toBe(false)
+  })
+
+  it("refuses one publication that both flips the mode and sets a live-only value", () => {
+    // The ordering is the control. The tenant's mode is what its CURRENT
+    // configuration says, not what this proposal would make it — so a live-only
+    // value cannot ride in on the same change that makes it meaningful, with
+    // nobody having reviewed it under a live tenant.
+    const plan = paymentsPlan({
+      proposed: [layer("tenantOverlay", "acme", { [MODE_KEY]: "live", [ENTITY_KEY]: "le-ny" })],
+      publisherCapabilities: ["payments.mode.publish", "payments.legalEntity.publish"],
+    })
+    expect(plan.blocked).toBe(true)
+    expect(plan.blockers.join("\n")).toMatch(/only means anything in live mode/)
+  })
+
+  it("reads the tenant's mode off its current configuration, defaulting to test", () => {
+    // A first publication has no `current` at all. Treating that as live would
+    // make the most dangerous mode the one a tenant gets by having no history.
+    expect(currentPaymentMode(null)).toBe("test")
+    expect(currentPaymentMode({ values: {} })).toBe("test")
+    expect(currentPaymentMode({ values: { [MODE_KEY]: "sandbox" } })).toBe("test")
+    expect(currentPaymentMode({ values: { [MODE_KEY]: "live" } })).toBe("live")
   })
 })

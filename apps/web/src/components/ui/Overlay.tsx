@@ -7,6 +7,7 @@ import {
   Modal,
   ModalOverlay,
   Heading,
+  Popover,
   Button as AriaButton,
 } from "react-aria-components"
 import { X } from "@/components/ui/icons"
@@ -64,7 +65,7 @@ export function Overlay({
       isDismissable={isDismissable}
       isOpen={isOpen}
       onOpenChange={onOpenChange}
-      className="overlay-backdrop fixed inset-0 z-[100] flex min-h-full items-center justify-center p-4 sm:p-6"
+      className="overlay-backdrop fixed inset-0 z-overlay flex min-h-full items-center justify-center p-4 sm:p-6"
     >
       <Modal
         className={`overlay-panel w-full ${SIZES[size]} max-h-[86vh] overflow-hidden rounded-xl border border-border bg-surface shadow-lg outline-none flex flex-col`}
@@ -86,7 +87,7 @@ export function Overlay({
                   <AriaButton
                     onPress={close}
                     aria-label="Close"
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-text-3 outline-none transition-colors data-[hovered]:bg-base data-[hovered]:text-text-1 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--primary]"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-text-3 outline-none transition-colors data-[hovered]:bg-base data-[hovered]:text-text-1 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[--border-focus]"
                   >
                     <X size={18} />
                   </AriaButton>
@@ -118,4 +119,45 @@ export function Overlay({
     )
   }
   return modal
+}
+
+/**
+ * Overlay's anchored sibling: a dialog in a popover rather than a centered
+ * modal, for a panel that belongs to the control that opened it. The
+ * notification bell is the caller — its dropdown is a dialog (it holds a list,
+ * a "mark all read" control and a footer link, none of which are menu items),
+ * but it hangs off the bell instead of dimming the page.
+ *
+ * Placement, offset and width are not props. There is one shell dropdown shape
+ * in the product and this is it; a `placement` prop would only be a way to have
+ * two. `shell/NotificationBell.tsx` used to spell the same panel out inline
+ * against the vendor's Popover — the class string that lives here now.
+ */
+export function PopoverDialog({
+  trigger,
+  label,
+  onOpenChange,
+  children,
+}: {
+  /** The control the panel hangs off. A Button from @/components/ui/Button. */
+  trigger: ReactNode
+  /** Accessible name — the panel has no `Heading slot="title"` to borrow one from. */
+  label: string
+  onOpenChange?: (isOpen: boolean) => void
+  children: Renderable
+}) {
+  return (
+    <DialogTrigger onOpenChange={onOpenChange}>
+      {trigger}
+      <Popover
+        placement="bottom end"
+        offset={10}
+        className="pop-panel w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-border bg-surface shadow-lg outline-none"
+      >
+        <Dialog className="outline-none" aria-label={label}>
+          {({ close }) => <>{typeof children === "function" ? children({ close }) : children}</>}
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
+  )
 }

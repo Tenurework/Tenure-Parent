@@ -42,9 +42,12 @@ export async function setClubStatus(formData: FormData) {
         },
       }),
     ])
-
-    revalidatePath("/orgs")
   })
+
+  // Outside the scope. `revalidatePath` inside a tenant scope is the same rule
+  // `redirect()` breaks more loudly — see `withTenantScope` and
+  // tests/architecture/redirect-lives-outside-tenant-scope.test.mjs.
+  revalidatePath("/orgs")
 }
 
 // ─── Club images ─────────────────────────────────────────────────────────────
@@ -59,6 +62,18 @@ async function requireOrgManager(userId: string, organizationId: string) {
   if (!canManageOrg(ctx, org))
     throw new Error("You do not have permission to edit this club")
   return org
+}
+
+/**
+ * The three routes a club image appears on.
+ *
+ * Called after the tenant scope has closed, never inside it: `revalidatePath`
+ * belongs outside the body for the same reason `redirect()` does.
+ */
+function bumpClub(slug: string) {
+  revalidatePath("/orgs")
+  revalidatePath(`/orgs/${slug}/members`)
+  revalidatePath("/admin/clubs")
 }
 
 async function auditImage(org: { id: string; institutionId: string }, actorId: string, action: string) {
@@ -78,7 +93,7 @@ async function auditImage(org: { id: string; institutionId: string }, actorId: s
 /** Point a club's image at an external URL (works without object storage). */
 export async function setOrgImageUrl(formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  const slug = await withTenantScope(userId, async () => {
     const organizationId = String(formData.get("organizationId") ?? "")
     const url = String(formData.get("imageUrl") ?? "").trim()
     const org = await requireOrgManager(userId, organizationId)
@@ -99,16 +114,16 @@ export async function setOrgImageUrl(formData: FormData) {
       data: { logoUrl: url, imageKey: null },
     })
     await auditImage(org, userId, "Club.ImageSet")
-    revalidatePath("/orgs")
-    revalidatePath(`/orgs/${org.slug}/members`)
-    revalidatePath("/admin/clubs")
+    return org.slug
   })
+
+  bumpClub(slug)
 }
 
 /** Upload a club image to object storage; the /api/org-image proxy serves it. */
 export async function uploadOrgImage(formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  const slug = await withTenantScope(userId, async () => {
     const organizationId = String(formData.get("organizationId") ?? "")
     const org = await requireOrgManager(userId, organizationId)
 
@@ -139,16 +154,16 @@ export async function uploadOrgImage(formData: FormData) {
       data: { imageKey: key, logoUrl: `/api/org-image/${org.id}?v=${Date.now()}` },
     })
     await auditImage(org, userId, "Club.ImageUploaded")
-    revalidatePath("/orgs")
-    revalidatePath(`/orgs/${org.slug}/members`)
-    revalidatePath("/admin/clubs")
+    return org.slug
   })
+
+  bumpClub(slug)
 }
 
 /** Remove a club's image, reverting to the generated monogram. */
 export async function removeOrgImage(formData: FormData) {
   const userId = await requireUserId()
-  await withTenantScope(userId, async () => {
+  const slug = await withTenantScope(userId, async () => {
     const organizationId = String(formData.get("organizationId") ?? "")
     const org = await requireOrgManager(userId, organizationId)
     await db.organization.update({
@@ -156,8 +171,8 @@ export async function removeOrgImage(formData: FormData) {
       data: { logoUrl: null, imageKey: null },
     })
     await auditImage(org, userId, "Club.ImageRemoved")
-    revalidatePath("/orgs")
-    revalidatePath(`/orgs/${org.slug}/members`)
-    revalidatePath("/admin/clubs")
+    return org.slug
   })
+
+  bumpClub(slug)
 }

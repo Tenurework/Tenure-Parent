@@ -11,6 +11,7 @@ import {
   type AuditLedger,
   type StoredAuditEvent,
 } from "@/lib/audit-record"
+import { runInTenantScope } from "@/lib/tenancy/context"
 import type { UserContext } from "@/lib/rbac"
 
 /**
@@ -144,6 +145,100 @@ describe("a recorded event goes through the validated builder", () => {
   })
 })
 
+/**
+ * PAY-000-007 — evidence can say which money-mode an action happened in.
+ *
+ * The mode is taken from the ambient tenant scope, which resolves it from the
+ * tenant's published `platform.payments.mode`. These drive the PRODUCTION
+ * writer (`recordAuditEvent`) inside a real `runInTenantScope`, not the helper
+ * that reads the scope — a test that called `currentEnvironment()` directly
+ * would stay green the day `recordAuditEvent` stopped calling it.
+ */
+describe("the money-mode on the row", () => {
+  it("reads back the mode of the scope the action ran in", async () => {
+    const ledger = new FakeLedger()
+
+    await runInTenantScope(
+      {
+        institutionId: INSTITUTION,
+        environment: "live",
+        purpose: "interactive",
+        actor: { principalId: "user_1", principalType: "user" },
+      },
+      () => recordAuditEvent(base, ledger),
+    )
+
+    expect(ledger.rows[0].mode).toBe("live")
+    // Mirrored inside the hash-covered metadata too, so the column cannot be
+    // rewritten around the application without breaking the chain.
+    expect(ledger.metadataOf(0)._mode).toBe("live")
+  })
+
+  it("records a test-mode action as test, in the same code path", async () => {
+    const ledger = new FakeLedger()
+
+    await runInTenantScope(
+      {
+        institutionId: INSTITUTION,
+        environment: "test",
+        purpose: "interactive",
+        actor: { principalId: "user_1", principalType: "user" },
+      },
+      () => recordAuditEvent(base, ledger),
+    )
+
+    expect(ledger.rows[0].mode).toBe("test")
+    expect(ledger.metadataOf(0)._mode).toBe("test")
+  })
+
+  it("claims the least when there is no scope to read a mode from", async () => {
+    // Outside a tenant scope entirely. `test` is the honest default: a row
+    // saying `live` is one somebody will read as "real money moved".
+    const ledger = new FakeLedger()
+    await recordAuditEvent(base, ledger)
+    expect(ledger.rows[0].mode).toBe("test")
+  })
+
+  it("lets the reconciler state a mode it has no scope for", async () => {
+    // `reconcile` materialises the tenant, so it runs before a scope can be
+    // opened for one. It says `test` outright rather than inheriting a default.
+    const ledger = new FakeLedger()
+    await recordAuditEvent({ ...base, mode: "test" }, ledger)
+    expect(ledger.rows[0].mode).toBe("test")
+  })
+
+  it("keeps two tenants' modes apart within one process", async () => {
+    // The separation, stated as the thing it is for: one deployment, one
+    // process, two tenants, different modes. Nothing derived from NODE_ENV
+    // could produce two different answers here.
+    const ledger = new FakeLedger()
+
+    await runInTenantScope(
+      {
+        institutionId: "inst_live",
+        environment: "live",
+        purpose: "interactive",
+        actor: { principalId: "user_1", principalType: "user" },
+      },
+      () => recordAuditEvent({ ...base, institutionId: "inst_live" }, ledger),
+    )
+    await runInTenantScope(
+      {
+        institutionId: "inst_test",
+        environment: "test",
+        purpose: "interactive",
+        actor: { principalId: "user_2", principalType: "user" },
+      },
+      () => recordAuditEvent({ ...base, institutionId: "inst_test" }, ledger),
+    )
+
+    expect(ledger.rows.map((r) => [r.institutionId, r.mode])).toEqual([
+      ["inst_live", "live"],
+      ["inst_test", "test"],
+    ])
+  })
+})
+
 describe("the hash chain", () => {
   it("starts at sequence 0 with nothing before it", async () => {
     const ledger = new FakeLedger()
@@ -262,6 +357,9 @@ describe("the hash chain", () => {
       reason: null,
       metadata: {},
       traceId: null,
+      // The column's DEFAULT, which is what an unmigrated writer's row carries:
+      // it never passes a mode, so the database supplies "test".
+      mode: "test",
       occurredAt: new Date("2026-08-01T12:03:00Z"),
     })
 
@@ -287,6 +385,7 @@ describe("rehydrating a stored row", () => {
     reason: null,
     metadata: {},
     traceId: null,
+    mode: "test",
     occurredAt: new Date("2026-08-01T12:00:00Z"),
   }
 

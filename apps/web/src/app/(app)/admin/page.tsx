@@ -12,7 +12,10 @@ import {
 import { db } from "@/lib/db"
 import { requireAdminContext } from "@/lib/admin/guard"
 import { withTenantScope } from "@/lib/tenant-scope"
-import { CAPABILITIES, capabilitiesForRole } from "@/lib/admin/capabilities"
+import { CAPABILITIES, capabilitiesForRole, hasCapability } from "@/lib/admin/capabilities"
+import { gaps } from "@/lib/outbox/outbox"
+import { prismaOutboxPorts } from "@/lib/outbox/prisma-ports"
+import { redriveOutboxEvent } from "./outbox-actions"
 import { StatGrid, StatTile, BentoGrid, BentoTile } from "@/components/ui/Bento"
 import { Badge } from "@/components/ui/Badge"
 import { DonutChart, slotColor, STATUS, REFERENCE } from "@/components/charts"
@@ -22,7 +25,7 @@ export const metadata: Metadata = { title: "Admin" }
 export const dynamic = "force-dynamic"
 
 export default async function AdminOverviewPage() {
-  const { userId, institutionId, role } = await requireAdminContext()
+  const { userId, ctx, institutionId, role } = await requireAdminContext()
 
   return withTenantScope(userId, async () => {
     const now = new Date()
@@ -91,6 +94,23 @@ export default async function AdminOverviewPage() {
       ])
 
     const caps = capabilitiesForRole(role)
+
+    /**
+     * PAY-140-007 — event delivery, measured from the table rather than from
+     * the dispatcher's own report.
+     *
+     * A dispatch pass that reports zeros and a schedule that stopped firing are
+     * the same output. What is still due after a pass is not: an event overdue
+     * by hours is a downstream that never learned an approval was decided, and
+     * until this tile existed nothing in the product could say so.
+     */
+    const outboxPorts = prismaOutboxPorts({ institutionId })
+    const [delivery, dead] = await Promise.all([
+      gaps(outboxPorts, { now: now.toISOString() }),
+      outboxPorts.listDead(5),
+    ])
+    const mayRedrive = hasCapability(ctx, "outbox.redrive", institutionId)
+    const minutes = (ms: number) => Math.floor(ms / 60_000)
 
     // Seat-fill breakdown for the donut, and a pending-approvals volume trend.
     const seatTotal = filledRoles + shadowRoles + vacantSeats
@@ -245,6 +265,66 @@ export default async function AdminOverviewPage() {
             >
               Full audit log <ArrowRight size={13} />
             </Link>
+          </BentoTile>
+
+          {/* Event delivery — the outbox, and what is stuck in it */}
+          <BentoTile span={6}>
+            <h2 className="mb-1 font-display text-base font-semibold text-text-1">Event delivery</h2>
+            <p className="mb-4 text-[13px] text-text-2">
+              Events written alongside a decision, and whether anything has consumed them yet.
+            </p>
+
+            <div className="flex gap-6">
+              <div>
+                <p className="text-xl font-semibold text-text-1">{delivery.overdue}</p>
+                <p className="text-[13px] text-text-3">
+                  awaiting delivery
+                  {delivery.oldestOverdueByMs > 0 &&
+                    ` · oldest ${minutes(delivery.oldestOverdueByMs)}m`}
+                </p>
+              </div>
+              <div>
+                <p className="text-xl font-semibold text-text-1">{delivery.dead}</p>
+                <p className="text-[13px] text-text-3">gave up after retrying</p>
+              </div>
+            </div>
+
+            {dead.length === 0 ? (
+              <p className="mt-4 text-sm text-text-3">
+                {delivery.overdue === 0
+                  ? "Everything emitted has been delivered."
+                  : "Nothing has been dead-lettered; the queue is still working through it."}
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {dead.map((record) => (
+                  <li key={record.outboxId} className="flex items-start gap-2.5">
+                    <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[--error]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] text-text-1">
+                        <span className="font-medium">{record.event.type}</span>{" "}
+                        <span className="text-text-2">after {record.attempts} attempts</span>
+                      </p>
+                      {/* The stored failure, and never the payload: the reason
+                          is what an operator has to read before deciding, and
+                          the payload is what PAY-020-006 keeps out of a page. */}
+                      <p className="truncate text-meta text-text-3">{record.lastError ?? "no reason recorded"}</p>
+                    </div>
+                    {mayRedrive && (
+                      <form action={redriveOutboxEvent}>
+                        <input type="hidden" name="outboxId" value={record.outboxId} />
+                        <button
+                          type="submit"
+                          className="rounded-md border border-border px-2.5 py-1 text-[13px] font-medium text-text-1 transition-colors hover:border-[--accent] hover:bg-base"
+                        >
+                          Redrive
+                        </button>
+                      </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </BentoTile>
         </BentoGrid>
       </div>

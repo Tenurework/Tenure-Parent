@@ -56,7 +56,7 @@ export function DocumentRow({
         type="button"
         data-testid="document-row"
         onClick={() => setOpen(true)}
-        className="-mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1 text-left transition-colors hover:bg-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--primary]"
+        className="-mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1 text-left transition-colors hover:bg-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus]"
       >
         <FileText size={16} className="shrink-0 text-text-3" />
         <span className="min-w-0 flex-1">

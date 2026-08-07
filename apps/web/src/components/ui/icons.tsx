@@ -50,6 +50,9 @@ export {
   Lightbulb,
   LinkSimple as Link2,
   ListChecks as ListTodo,
+  // The two density modes on /settings — comfortable rows vs. tight rows.
+  Rows as RowsComfortable,
+  ListDashes as RowsCompact,
   CircleNotch as Loader2,
   SignOut as LogOut,
   Envelope as Mail,

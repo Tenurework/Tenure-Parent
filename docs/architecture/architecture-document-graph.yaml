@@ -6,13 +6,13 @@
 # duplicate upload cannot double-count the requirements it states.
 
 generated_from: tools/document-graph.mjs
-document_count: 33
+document_count: 34
 alias_count: 6
 requirement_statements: 4014
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
 authorities: 24
-references: 9
+references: 10
 documents:
   - id: "aws-current-state"
     title: AWS current state
@@ -37,8 +37,8 @@ documents:
     family: "subsystem-paths"
     superseded_by: null
     supersedes: []
-    sha256: "69556ab4e543d8bc6869379c34fb372aeee48248e19947f101d7049eebe55d06"
-    bytes: 12359
+    sha256: "665b0bbe6855f023f46934506e0af2c5910a3b69f0292032cd8faf322583f187"
+    bytes: 12756
     aliases: []
     requirement_prefixes:
       - GE
@@ -74,6 +74,21 @@ documents:
     requirement_prefixes: []
     states_requirements: 0
     mentions_requirement_ids: 0
+  - id: "ux-task-scorecard"
+    title: UX task scorecard — what a job costs a person
+    version: unversioned
+    canonical_path: "docs/architecture/ux-task-scorecard.md"
+    role: reference
+    family: "ux-task-scorecard"
+    superseded_by: null
+    supersedes: []
+    sha256: b62e9bd51af353eb426939298f997bd621784caaaddbaa7ad113757db64d493a
+    bytes: 7876
+    aliases: []
+    requirement_prefixes:
+      - TTES
+    states_requirements: 0
+    mentions_requirement_ids: 2
   - id: "adr-0007-tenure-owned-aws-organization"
     title: "ADR-0007 — Tenure owns the AWS Organization; no customer or personal account is ever required"
     version: unversioned
@@ -157,13 +172,14 @@ documents:
     family: "payments-treasury-execution-ledger"
     superseded_by: null
     supersedes: []
-    sha256: d13e6996fde9900730c01160513f7fbf9d95b5e30124f32f94c7831efc753e2c
-    bytes: 60910
+    sha256: "815ade22fb9a2e5b61ca0cebfef509e6e556530a12f3e1fab59668253a113490"
+    bytes: 180056
     aliases: []
     requirement_prefixes:
+      - GE
       - PAY
     states_requirements: 224
-    mentions_requirement_ids: 224
+    mentions_requirement_ids: 226
   - id: "system-studio-aws-control-plane-execution-ledger"
     title: "Tenure System Studio + AWS-Authoritative Control Plane — execution ledger"
     version: unversioned
@@ -250,13 +266,13 @@ documents:
     family: "universal-work-graph-execution-ledger"
     superseded_by: null
     supersedes: []
-    sha256: b9802e8c357475c80ed70ba6fb9d722c33b32961a354d8e6ed6a4c808f72da48
-    bytes: 26141
+    sha256: "2a2aa2aaa8cacfe3256c157e1837328e18ba104e3fc0fee34243750ac5386f11"
+    bytes: 83913
     aliases: []
     requirement_prefixes:
       - WRK
     states_requirements: 88
-    mentions_requirement_ids: 74
+    mentions_requirement_ids: 75
   - id: "tenure-behemoth-capability-completeness-audit-v1-0"
     title: Tenure Behemoth Capability Completeness Audit
     version: "1.0"

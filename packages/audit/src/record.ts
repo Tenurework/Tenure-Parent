@@ -32,6 +32,10 @@ import { createHash } from "node:crypto"
 // too many, and a chain whose hash depends on JSON key order is not a chain.
 import { stableStringify } from "@tenure/configuration"
 
+// Redaction by value rather than by key name. See secret-values.ts for why the
+// two rules are both needed and why this one is prefix-based.
+import { redactSecretValues } from "./secret-values"
+
 export type AuditOutcome = "ALLOW" | "DENY"
 
 /** How much damage disclosing a metadata value does. Drives redaction. */
@@ -337,9 +341,15 @@ export function buildAuditRecord(input: AuditRecordInput): AuditRecord {
 
   if (problems.length > 0) throw new AuditRecordError(problems)
 
-  const metadata: Record<string, unknown> = redactMetadata(
-    input.metadata ?? {},
-    input.sensitiveKeys,
+  // Two passes, and the second is the one that catches what happens in
+  // practice. `redactMetadata` is key-name driven, so `{ note: "sk_live_…" }`
+  // and `{ body: { data: { object: "whsec_…" } } }` both walk straight through
+  // it — the key is innocuous and the value is a credential. PAY-020-006:
+  // scanning the values afterwards is what stops a provider webhook body from
+  // becoming a permanent row in an append-only table.
+  const metadata: Record<string, unknown> = redactSecretValues(
+    redactMetadata(input.metadata ?? {}, input.sensitiveKeys),
+    REDACTED,
   )
 
   // Provenance lives in metadata rather than in new columns, because the schema

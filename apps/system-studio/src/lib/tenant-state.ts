@@ -1,4 +1,16 @@
-import { RESIDUAL_COST, SERVING, needsApproval, nextStates, type TenantState } from "@tenure/provisioning"
+import {
+  REQUIRES_OWNER,
+  RESIDUAL_CLAIMS,
+  RESIDUAL_COST,
+  SERVING,
+  needsApproval,
+  nextStates,
+  observeResidual,
+  reconcileResidual,
+  type ObservedTenantResources,
+  type ResourceClass,
+  type TenantState,
+} from "@tenure/provisioning"
 
 import type { HighRisk } from "@/components/states"
 
@@ -51,24 +63,89 @@ export function canReachServing(state: TenantState): boolean {
  * residual-cost note the fleet page already shows, the policy is whether the
  * lifecycle demands an approver, and reversibility comes from `canReachServing`.
  */
-export function riskOf(slug: string, from: TenantState, to: TenantState): HighRisk {
+/**
+ * WRK-120-005 — what this tenant is actually holding, said in the residual
+ * vocabulary.
+ *
+ * A thin projection so both the risk panel and the state panel observe from the
+ * same four facts. Every one of them is something the registry already owns —
+ * `tests/security/operator-plane-content.test.mjs` fails if the console ever
+ * needs a row from a tenant's database to answer an operational question.
+ */
+export function observedFor(input: ObservedTenantResources): readonly ResourceClass[] {
+  return observeResidual(input)
+}
+
+/**
+ * The residual claim for a state, checked against what is retained.
+ *
+ * Returns `null` for a state that claims nothing — ACTIVE, DRAFT, anything
+ * still running. That is deliberately not an empty reconciliation: "we compared
+ * and found nothing wrong" and "there was nothing to compare" are different
+ * statements, and a panel that renders the second as the first is telling an
+ * operator a check ran that did not.
+ */
+export function residualFindings(
+  state: TenantState,
+  observed: readonly ResourceClass[],
+): { note: string; unexplained: readonly ResourceClass[]; overclaimed: readonly ResourceClass[] } | null {
+  const claim = RESIDUAL_CLAIMS[state]
+  if (!claim) return null
+  const { unexplained, overclaimed } = reconcileResidual(claim, observed)
+  return { note: claim.note, unexplained, overclaimed }
+}
+
+export function riskOf(
+  slug: string,
+  from: TenantState,
+  to: TenantState,
+  /**
+   * What the tenant is holding right now.
+   *
+   * Required rather than defaulted to empty. An empty default would make every
+   * caller that forgot it report "nothing unexplained", which is the answer an
+   * operator most wants to be true and the one they must not be given by
+   * accident — so `tsc` names the caller instead.
+   */
+  observed: readonly ResourceClass[],
+): HighRisk {
   const oneWay = !canReachServing(to)
   const residual = RESIDUAL_COST[to]
+  // WRK-120-005. The sentence was unfalsifiable on its own: it says what the
+  // destination state is SUPPOSED to retain, and nothing compared it to what
+  // this tenant actually holds. A hibernated tenant still running a dedicated
+  // task rendered identically to one that is not.
+  const findings = residualFindings(to, observed)
 
   return {
     target: `${slug} — currently ${from}`,
     impact: [
       SERVING.has(to) ? "Serves traffic in this state." : "Does not serve traffic in this state.",
       residual ?? "",
+      findings && findings.unexplained.length > 0
+        ? `Retained beyond that claim, and still billing: ${findings.unexplained.join(", ")}.`
+        : "",
+      findings && findings.overclaimed.length > 0
+        ? `Claimed by that note and not held here: ${findings.overclaimed.join(", ")}.`
+        : "",
     ]
       .filter(Boolean)
       .join(" "),
     policy: needsApproval(from, to)
       ? `Lifecycle requires a recorded approver for ${from} → ${to}.`
       : `Lifecycle permits ${from} → ${to} without a second approver.`,
-    approval: needsApproval(from, to)
-      ? "A second operator identity. The engine refuses the same person as actor and approver."
-      : "None required.",
+    approval: [
+      needsApproval(from, to)
+        ? "A second operator identity. The engine refuses the same person as actor and approver."
+        : "None required.",
+      // The owner is not the approver, and saying so here is the point: one
+      // agrees to the move, the other answers for the tenant afterwards.
+      REQUIRES_OWNER.has(to)
+        ? `A successor owner must be named — ${to} without one is how a departure leaves an orphan.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
     reversibility: oneWay
       ? `IRREVERSIBLE. No path back to a serving state exists from ${to}.`
       : `Reversible. A serving state is reachable again from ${to}.`,

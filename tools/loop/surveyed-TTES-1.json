@@ -1,0 +1,110 @@
+[
+  {
+    "id": "TTES-010-003",
+    "title": "Implement typography, spacing, density, shape, elevation, motion and z-layer contracts",
+    "why_open": "Four of the seven contracts exist; three do not. Typography (globals.css:557-563 --step-00..--step-4), spacing (globals.css:131-140 --space-1..16), shape (globals.css:152-156 --radius-*) and elevation (globals.css:159-163 --shadow-*) are declared and bound in tailwind.config.ts:91-110. MOTION: no --motion-* / --ease-* token exists anywhere in apps/web/src/app/globals.css; durations are literals at globals.css:288 (180ms), :527-529 (160ms), :620-628 (180/140/200/150ms), TenureAIPanel.tsx:110 (duration-300), SideNav.tsx:193 (duration-200). Z-LAYER: no --z-* token and no `zIndex` key in tailwind.config.ts (theme.extend ends at boxShadow, :102-109); apps/web/eslint.config.mjs:51-56 says so in prose — \"tailwind.config.ts extends no zIndex scale and globals.css declares no --z-* tokens, so the rule would have no sanctioned alternative to name. The layering scale has to exist before its use can be required.\" The consequence is live: SkipLink.tsx:20 and ui/Overlay.tsx:67 both claim z-[100], SearchCommand.tsx:141 and ShellHeader.tsx:50 both claim z-50, TenureAIPanel.tsx:99,110 claim z-[60]/z-[61], SideNav.tsx:193 z-40, Footer.tsx:20 z-30, DirectoryPicker.tsx:99 and ChartTooltip.tsx:40 z-30, CalendarTimeGrid.tsx:749,817 z-30/z-20, and globals.css:312 hard-codes z-index:39 for the nav scrim. DENSITY: zero occurrences of a density token or a comfortable/compact mode in apps/web; Bible 4.8 requires both modes driven through tokens with a persisted preference, and ThemeSwitcher.tsx is the only appearance control the settings page renders (settings/page.tsx:9,309). The deployer console already ships what the tenant product lacks - apps/system-studio/src/app/globals.css:134-136 declares --motion-fast/--motion-base/--ease-entry and :91 declares --tap.",
+    "files": [
+      "apps/web/src/app/globals.css",
+      "apps/web/tailwind.config.ts",
+      "apps/web/eslint.config.mjs",
+      "apps/web/scripts/design-token-lint.test.mjs",
+      "apps/web/src/components/shell/SkipLink.tsx",
+      "apps/web/src/components/shell/ShellHeader.tsx",
+      "apps/web/src/components/shell/SearchCommand.tsx",
+      "apps/web/src/components/shell/SideNav.tsx",
+      "apps/web/src/components/shell/Footer.tsx",
+      "apps/web/src/components/ui/Overlay.tsx",
+      "apps/web/src/components/ai/TenureAIPanel.tsx",
+      "apps/web/src/components/admin/DirectoryPicker.tsx",
+      "apps/web/src/components/charts/ChartTooltip.tsx",
+      "apps/web/src/components/CalendarTimeGrid.tsx",
+      "apps/web/src/components/ThemeSwitcher.tsx",
+      "apps/web/src/app/(app)/settings/page.tsx",
+      "apps/web/src/app/(app)/layout.tsx"
+    ],
+    "smallest_real_change": "1) In globals.css declare an ordered z-layer scale (--z-content, --z-sticky-footer, --z-nav, --z-nav-scrim, --z-header, --z-assist, --z-overlay, --z-skip) with each name's purpose, a motion scale (--motion-fast 120ms, --motion-base 180ms, --motion-slow 240ms, --ease-entry, --ease-exit) reusing the values already in the keyframes, and a density contract (--control-h, --row-h, --density-gap) with a `:root[data-density=\"compact\"]` override block. 2) Bind them in tailwind.config.ts as `zIndex`, `transitionDuration`, `transitionTimingFunction` and `height` extensions so every use site has a named class. 3) Replace every raw z-index and duration listed above with the token class, which also resolves the two real collisions (SkipLink vs Overlay, SearchCommand vs ShellHeader). 4) Set data-density on <html> from a persisted preference in the same pre-hydration script that already sets html.dark/html.nav-collapsed in app/(app)/layout.tsx, and render a DensitySwitcher beside ThemeSwitcher on the settings page so the token has a production caller. 5) Add `arbitraryZIndex` and `arbitraryDuration` entries to DESIGN_TOKEN_RULES in eslint.config.mjs and flip the pinned case at design-token-lint.test.mjs:115-130 (which today asserts `z-[60]` produces zero messages) to assert it is now rejected and names the scale. Mutation to prove it: delete the zIndex block from tailwind.config.ts and the lint test's z-index case must fail; set --motion-base to 0s and the reduced-motion e2e must still pass while a new duration-token test fails.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-GATE-020",
+    "title": "Domain teams build from stable Tenure-owned patterns",
+    "why_open": "The Bible's frontend-architecture rule (section 16) is \"ESLint/codemods preventing raw colors, spacing, z-index, vendor components and ad hoc modal/toast patterns\" and section 7 ends \"Domain apps cannot import raw third-party components.\" The boundary that exists (apps/web/eslint.config.mjs:126-145, RESTRICTED_ICON_IMPORTS) bans vendor ICON packages only. Nothing bans vendor COMPONENT imports, and domain modules bypass the owned wrappers today: apps/web/src/components/CalendarSubscribe.tsx:4 and apps/web/src/components/ClubImageEditor.tsx:3 both `import { Button as AriaButton } from \"react-aria-components\"`, then hand-write the secondary-button class string at CalendarSubscribe.tsx:30-33 and ClubImageEditor.tsx:28-35 that apps/web/src/components/ui/Button.tsx:26-30 already owns as `variant=\"secondary\"`. Those two hand-rolled copies already differ from the owned variant (h-10 vs h-9, border-border-strong with no data-[pressed] state), which is exactly the drift the gate exists to stop. There is also no owned Menu/Popover wrapper: shell/NotificationBell.tsx:10, shell/ShellHeader.tsx:10, shell/SideNav.tsx:11 and shell/TenantSwitcher.tsx:4 each import react-aria Menu/MenuItem/MenuTrigger/Popover directly and restyle them locally.",
+    "files": [
+      "apps/web/eslint.config.mjs",
+      "apps/web/scripts/design-token-lint.test.mjs",
+      "apps/web/src/components/CalendarSubscribe.tsx",
+      "apps/web/src/components/ClubImageEditor.tsx",
+      "apps/web/src/components/ui/Button.tsx",
+      "apps/web/src/components/ui/Menu.tsx",
+      "apps/web/src/components/shell/TenantSwitcher.tsx",
+      "apps/web/src/components/shell/NotificationBell.tsx",
+      "apps/web/src/components/shell/SideNav.tsx",
+      "apps/web/src/components/shell/ShellHeader.tsx"
+    ],
+    "smallest_real_change": "Add a `vendorComponent` restricted-import entry to eslint.config.mjs beside RESTRICTED_ICON_IMPORTS banning `react-aria-components` everywhere under PRODUCT_MODULES, with the same structural carve-out shape already used for ICON_REGISTRY - allow it only in `src/components/ui/**` (the owned wrapper layer). Then make the carve-out true: point CalendarSubscribe and ClubImageEditor at `<Button variant=\"secondary\" size=\"md\">` from @/components/ui/Button (deleting both hand-rolled class strings), and add `src/components/ui/Menu.tsx` wrapping MenuTrigger/Menu/MenuItem/Popover with the token classes the four shell files currently repeat, then rewrite those four to consume it. Add a case to design-token-lint.test.mjs that lints a react-aria import as `src/components/CalendarSubscribe.tsx` and expects the message, and as `src/components/ui/Menu.tsx` and expects zero - the same two-sided shape the existing icon-registry case at :170-184 uses. Mutation to prove it: delete the vendorComponent entry from eslint.config.mjs and the new lint case must fail; re-add the raw AriaButton to ClubImageEditor and `npm run lint` must red.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-040-001",
+    "title": "Pass WCAG 2.2 AA automated/manual/assistive-technology tests",
+    "why_open": "Real and substantial coverage exists (apps/web/e2e/a11y.spec.ts covers 2.4.1, 1.4.10, 2.5.8, 2.4.11, 2.4.7, 2.1.2, 1.3.1, 1.4.4 and reduced motion; src/lib/a11y/contrast.ts computes 1.4.3 across four themes), and the spec even names its own gaps at :348-360. But two Level-AA criteria are neither covered nor named, and both are genuinely failed in the product. (a) SC 4.1.3 Status Messages: apps/web/src/components/ai/TenureAIPanel.tsx renders the assistant's answer into a plain div at :162-190 and the pending state \"Tenure AI is thinking...\" into a plain div at :194-198; grep for aria-live/role=status across apps/web/src returns 8 hits and none is in components/ai, so a screen-reader user gets no announcement that an answer arrived. The panel is a live production surface - mounted at apps/web/src/app/(app)/layout.tsx:73,94 and opened from ShellHeader.tsx:47 and SideNav.tsx:98. (b) SC 2.5.7 Dragging Movements (new in 2.2, Level AA): apps/web/src/components/CalendarTimeGrid.tsx:761-775 attaches the resize-start/resize-end handles as aria-hidden, onPointerDown-only spans, and the keyboard alternative `nudge()` at :528-557 handles ArrowUp/Down/Left/Right for MOVE only - there is no single-pointer or keyboard path to change an event's duration. The chip's own aria-label at :722-725 advertises \"Drag to reschedule, or use arrow keys\" and says nothing about resizing, because there is nothing to say.",
+    "files": [
+      "apps/web/src/components/ai/TenureAIPanel.tsx",
+      "apps/web/src/components/CalendarTimeGrid.tsx",
+      "apps/web/e2e/a11y.spec.ts",
+      "apps/web/src/components/ui/states.ts",
+      "apps/web/src/components/ui/StateSurface.tsx",
+      "apps/web/src/components/calendar/EventInspector.tsx"
+    ],
+    "smallest_real_change": "4.1.3: add one `role=\"status\" aria-live=\"polite\" aria-atomic` node inside TenureAIPanel whose text is derived from the same state the visible UI renders - \"Tenure AI is thinking\" while loading, \"Answer ready, N sources\" when the last message is an assistant turn - so removing the attribute changes what a reader is told. 2.5.7: extend `nudge()` with a resize branch (Shift+ArrowUp/Down changes end time, clamped by MIN_EVENT_MIN and clampToGrid, committed through the existing commit()), update the chip aria-label to advertise it, and give the two handles an accessible name instead of aria-hidden. Then add two tests to e2e/a11y.spec.ts named for their criteria: \"4.1.3 Status Messages\" opens the AI panel, submits a question, and asserts the live region's text changes (asserting on the region the PRODUCTION panel renders, not a helper); \"2.5.7 Dragging Movements\" focuses an editable event chip, presses Shift+ArrowDown, and asserts the persisted end time moved via the same reload path the existing calendar spec uses. Mutation to prove it: delete aria-live from the panel - the 4.1.3 test must fail; delete the resize branch from nudge() - the 2.5.7 test must fail.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-020-004",
+    "title": "Provide state/theme/density/locale/viewport stories and visual baselines",
+    "why_open": "Nothing of this exists. `find apps/web/src -name \"*.stories.*\"` returns zero files; there is no .storybook directory; `grep -rl \"toHaveScreenshot\" apps/web/e2e` returns nothing, so there are no visual baselines of any kind. The raw material is there and unused: apps/web/src/components/ui/states.ts:39-53 enumerates fourteen SurfaceStates and apps/web/src/components/ui/StateSurface.tsx renders all of them from that table, but each is only ever reached when a production caller happens to be in that state, so no state is rendered in dark, high-contrast, compact, RTL or at 320px on any run. states.test.ts asserts on semantics and on the source text (:262) rather than on a rendered matrix. Bible section 16 requires \"Storybook or equivalent with every state/theme/locale/density/viewport\" plus \"Visual regression, accessibility, interaction and performance CI\".",
+    "files": [
+      "apps/web/src/app/(app)/gallery/page.tsx",
+      "apps/web/src/components/ui/gallery-catalog.ts",
+      "apps/web/src/components/ui/states.ts",
+      "apps/web/src/components/ui/StateSurface.tsx",
+      "apps/web/src/components/ui/Button.tsx",
+      "apps/web/src/components/ui/Badge.tsx",
+      "apps/web/src/components/ui/TextField.tsx",
+      "apps/web/src/components/ui/Select.tsx",
+      "apps/web/e2e/visual-baselines.spec.ts",
+      "apps/web/playwright.config.ts"
+    ],
+    "smallest_real_change": "Add `src/components/ui/gallery-catalog.ts` - a declarative catalogue that names every entry to render (every SurfaceState key read FROM states.ts rather than re-listed, plus each Button/Badge/TextField/Select variant read from its cva config) - and a `/gallery` route that renders it, gated to non-production the same way the dev-login gate already is so it cannot ship to the pilot. Then `e2e/visual-baselines.spec.ts` walks the route across the matrix: light/dark/high-contrast x comfortable/compact (needs the density token from TTES-010-003) x ltr/rtl x 320/768/1440, asserting toHaveScreenshot per cell with a named baseline. Two things keep it honest rather than decorative: the catalogue must be DERIVED from states.ts and the cva variant maps, so adding a state or a variant without a baseline fails the run rather than being silently unphotographed; and the baselines must be pinned to one platform (a Playwright container project in playwright.config.ts) or CI will red on font rendering. Mutation to prove it: add a fifteenth SurfaceState to states.ts - the spec must fail with \"no baseline\"; change a TONE class in StateSurface.tsx - the affected cell's screenshot must fail.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-000-001",
+    "title": "Inventory tenant and System Studio routes/components/tokens and classify ownership",
+    "why_open": "There are three inventories and none of them does this. (1) Routes: tools/entry-point-inventory.mjs:30 hard-codes `const APP_ROOT = 'apps/web/src/app'` and grep for 'system-studio' in that file returns zero hits, so docs/architecture/entry-points.md:10's headline \"22 API routes - 36 pages\" counts the tenant app only and none of the 8 System Studio pages is inventoried anywhere. (2) Components: docs/architecture/ownership.md classifies by platform DOMAIN, not by tenant-vs-deployer experience, and at :54 files `apps/system-studio/src/components/` under \"the shell and the design system - what every domain renders through\", which is not true of it. (3) Tokens: nothing inventories tokens at all, and the two apps have silently diverged. apps/web/src/app/globals.css declares 99 token names; apps/system-studio/src/app/globals.css declares 21; only 9 names overlap (--accent, --border, --border-strong, --space-1..6) and the overlapping ones disagree in value - --border is #e6e4dd at globals.css:65 and #dbd6cf at system-studio globals.css:23; --accent is #26364a at globals.css:46 and #7a6440 at system-studio globals.css:30. Nothing detects that, so the same token name means two different colours across the two experiences and there is no record saying whether that is intended.",
+    "files": [
+      "tools/entry-point-inventory.mjs",
+      "tools/ownership-map.mjs",
+      "docs/architecture/entry-points.md",
+      "docs/architecture/ownership.md",
+      "tests/architecture/experience-separation.test.mjs",
+      "apps/web/src/lib/a11y/theme-tokens.ts",
+      "apps/web/src/app/globals.css",
+      "apps/system-studio/src/app/globals.css"
+    ],
+    "smallest_real_change": "Generalise tools/entry-point-inventory.mjs from one APP_ROOT to a list of {app, experience} roots so both apps/web and apps/system-studio are walked, and add an `Experience` column (tenant | deployer) to the generated entry-points.md. Add a token section generated by reusing the existing brace-balanced CSS parser in apps/web/src/lib/a11y/theme-tokens.ts (declarationsIn/blockAt) against both globals.css files, listing every token name with its owning experience and, for names declared in both, whether the values agree. Then add tests/architecture/experience-separation.test.mjs that fails when a page file belongs to neither experience, and when a token name is declared in both apps with different values without an explicit entry in a checked-in SHARED_TOKENS table stating the divergence is deliberate - which is the only thing that makes the inventory a ratchet rather than a snapshot. NOTE for the implementer: this item's real work is in tools/ and tests/, not in the presentation layer; the only apps/web change is exporting the CSS parser from theme-tokens.ts so the generator reuses it instead of writing a second one.",
+    "already_done": false
+  },
+  {
+    "id": "TTES-050-002",
+    "title": "Run lawful competitor workflow comparisons without copied trade dress",
+    "why_open": "Genuinely unimplemented - grep across docs/ and apps/ finds no competitor comparison artefact, no task-time measurement harness, and no scorecard. It is also the weakest of my six as a code item: the requirement's substance is measured task times for the same job in a competitor product, which needs lawful access to those products and human subjects, neither of which exists in this repo. Its dependency TTES-050-001 (persona task-scorecard baselines) is likewise unbuilt, and comparing against a competitor before the platform's own baseline exists would produce a number with nothing to compare it to.",
+    "files": [
+      "docs/implementation/tenant-experience-execution-ledger.md",
+      "apps/web/e2e/support/journey-metrics.ts",
+      "docs/architecture/ux-task-scorecard.md"
+    ],
+    "smallest_real_change": "Honest answer first: this should be recorded BLOCKED_EXTERNAL in the ledger, naming what would unblock it (lawful licensed access to the named competitor products and a human-subjects protocol), rather than marked PASS on a written comparison nobody measured. The real code half that CAN be built now, and should be built first, is the measurement side of TTES-050-001: a `journey-metrics` helper the existing e2e journeys call, recording clicks-to-complete, keystrokes and wall-clock per persona per journey into a checked-in baseline file, with a test that fails when a journey regresses past its recorded budget. That gives the comparison a left-hand side. Do NOT implement the comparison itself from model knowledge of competitor UIs - that is exactly the fabricated-evidence failure the requirement's \"lawful\" and \"without copied trade dress\" wording is guarding against.",
+    "already_done": false
+  }
+]

@@ -203,7 +203,21 @@ export async function resolveTenant(
 export function contextFrom(
   tenant: ResolvedTenant,
   actor: { principalId: string; kind: TenantContext["actorKind"] },
-  request: { channel: string; correlationId: string; configRevision: string; at: string },
+  request: {
+    channel: string
+    correlationId: string
+    configRevision: string
+    /**
+     * The tenant's money-mode, resolved from its published configuration
+     * (`paymentModeForInstitution`). Required rather than defaulted here: a
+     * context built with a mode this function invented would be a mode nobody
+     * published, recorded as though somebody had.
+     */
+    environment: TenantContext["environment"]
+    /** The legal entity acted for, or null for the tenant itself. */
+    legalEntityId: string | null
+    at: string
+  },
 ): TenantContext {
   return {
     tenantId: tenant.tenantId,
@@ -212,6 +226,8 @@ export function contextFrom(
     channel: request.channel,
     correlationId: request.correlationId,
     configRevision: request.configRevision,
+    environment: request.environment,
+    legalEntityId: request.legalEntityId,
     at: request.at,
   }
 }

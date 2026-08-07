@@ -66,7 +66,18 @@ function manifests() {
     const owner = /\bowner:\s*"([^"]+)"/.exec(body)?.[1]
     const objectsBlock = /\bobjects:\s*\[([\s\S]*?)\]/.exec(body)?.[1] ?? ""
     const objects = [...objectsBlock.matchAll(/"([^"]+)"/g)].map((m) => m[1])
-    out.push({ declaration: match[1], key, owner, objects })
+    // PAY-160-002. `price: listPrice(perSeat, perOrg)` or `price:
+    // includedInPlan("…")` — the two forms the catalog uses. Parsed rather than
+    // imported for the same reason everything else here is: this suite runs
+    // under `node --test` with no TypeScript transform.
+    const priced = /\bprice:\s*listPrice\(\s*([\d_]+)\s*,\s*([\d_]+)\s*\)/.exec(body)
+    const free = /\bprice:\s*includedInPlan\(\s*\n?\s*"([^"]{10,})/.exec(body)
+    const price = priced
+      ? { perSeatMinor: Number(priced[1].replace(/_/g, "")), perOrgMinor: Number(priced[2].replace(/_/g, "")) }
+      : free
+        ? { perSeatMinor: 0, perOrgMinor: 0, includedBecause: free[1] }
+        : null
+    out.push({ declaration: match[1], key, owner, objects, price })
   }
   return out
 }
@@ -79,14 +90,29 @@ function manifests() {
  * a build pass, which is the failure this exists to prevent, and a declaration
  * nobody maintains is worse than none.
  *
- * The eleven are the platform's own tables rather than any module's — the
+ * The twelve are the platform's own tables rather than any module's — the
  * NextAuth trio (`Account`, `Session`, `VerificationToken`), the identity
  * spine (`User`, `Institution`, `InstitutionMembership`), the notification pair,
- * the deliverables pair, and the transactional outbox. Each belongs to a domain
- * that ships no module manifest today. Claiming them for a module to make this
- * number smaller would be the wrong kind of smaller.
+ * the deliverables pair, and the transactional outbox AND inbox. Each belongs to
+ * a domain that ships no module manifest today. Claiming them for a module to
+ * make this number smaller would be the wrong kind of smaller.
+ *
+ * 11 -> 12, and this is the one direction this number is not supposed to move,
+ * so it is argued rather than adjusted. `InboxEvent` arrived with the outbox
+ * dispatcher (PAY-020-005) as the consumed-once half of the same pattern
+ * `OutboxEvent` is the produced-once half of. `OutboxEvent` is already in this
+ * list, named in the paragraph above, for the reason that it is platform
+ * infrastructure with no tenant-facing module — and its twin is the same table
+ * in the other direction. The alternative was to invent a module to own them
+ * both, which is precisely what the last sentence above forbids.
+ *
+ * Three OTHER models arrived in the same session and are NOT here, because they
+ * did have an owner: `ProviderEventReceipt` and `PaymentsFundsFlowConfig` went
+ * into `budgeting`'s `objects` beside the four payments models it already
+ * claims. That is the move this ratchet is asking for; this entry is the
+ * exception it could not produce.
  */
-const UNCLAIMED = 11
+const UNCLAIMED = 12
 
 test("the readers actually read something", () => {
   // Every assertion below passes on an empty list, and both lists come from
@@ -103,6 +129,58 @@ test("the readers actually read something", () => {
   assert.ok(
     declared.every((m) => m.key),
     "a parsed manifest has no key, so the body regex is matching the wrong thing",
+  )
+})
+
+test("every module states a list price, and a free one says why", () => {
+  /**
+   * PAY-160-002. The Studio's composer shows a running total across its five
+   * stages, and every option on it has to contribute a number. A module with no
+   * price does not render as "unpriced" beside a checkbox — it renders as
+   * nothing, which reads as free, and free is a commercial statement nobody
+   * made. `validateManifest` refuses one at catalog construction; this is the
+   * same rule checked against the source, so it fails whether or not the
+   * TypeScript happens to be loaded.
+   *
+   * Zero on both axes is allowed and is deliberately NOT the easy way out: it
+   * has to carry `includedBecause`, so pricing a module at nothing is a sentence
+   * somebody wrote rather than a field somebody skipped.
+   */
+  const offenders = []
+  let charged = 0
+  for (const m of manifests()) {
+    if (!m.price) {
+      offenders.push(`${m.key}: declares no price`)
+      continue
+    }
+    if (m.price.perSeatMinor === 0 && m.price.perOrgMinor === 0) {
+      if (!m.price.includedBecause) {
+        offenders.push(`${m.key}: priced at zero on both axes without saying why`)
+      }
+      continue
+    }
+    if (!Number.isInteger(m.price.perSeatMinor) || !Number.isInteger(m.price.perOrgMinor)) {
+      offenders.push(`${m.key}: price is not whole minor units`)
+      continue
+    }
+    charged++
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `these manifests cannot be quoted:\n  ${offenders.join("\n  ")}\n` +
+      `Every option on the composer contributes to a running total. A module with no price shows a ` +
+      `blank beside its checkbox, which is indistinguishable from free.`,
+  )
+
+  // And the catalog is not satisfied by pricing everything at zero: the whole
+  // requirement is a running total that is a number, and a catalog of free
+  // modules would pass every assertion above with a total of nothing.
+  assert.ok(
+    charged >= 8,
+    `only ${charged} of 12 modules carry a non-zero list price. A catalog priced entirely at zero ` +
+      `makes the composer's running total a constant, which is the state PAY-160-002 exists to end.`,
   )
 })
 

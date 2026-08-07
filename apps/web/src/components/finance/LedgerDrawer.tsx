@@ -1,17 +1,18 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { Fragment, useState, useTransition } from "react"
 import Link from "next/link"
-import { ExternalLink, FileText, Store, Trash2, Plus } from "@/components/ui/icons"
+import { ExternalLink, FileText, Store, ArchiveRestore, Plus } from "@/components/ui/icons"
 import { Overlay } from "@/components/ui/Overlay"
 import { Badge } from "@/components/ui/Badge"
 import {
   formatCents,
+  ledgerDisclosure,
   LEDGER_KINDS,
   LEDGER_KIND_LABEL,
   type LedgerKindName,
 } from "@/lib/finance"
-import { postLedgerEntry, deleteLedgerEntry } from "@/app/(app)/orgs/[slug]/finance/actions"
+import { postLedgerEntry, reverseLedgerEntry } from "@/app/(app)/orgs/[slug]/finance/actions"
 
 export type LedgerEntryRow = {
   id: string
@@ -23,6 +24,10 @@ export type LedgerEntryRow = {
   approval: { id: string; title: string } | null
   vendor: { id: string; name: string } | null
   document: { id: string; title: string } | null
+  /** PAY-120-001. The entry this one reverses, when it is a reversal. */
+  reversesId: string | null
+  /** The reversal answering this entry, when it has been reversed. */
+  reversedById: string | null
 }
 
 export type LedgerSources = {
@@ -33,10 +38,15 @@ export type LedgerSources = {
 
 export type LedgerLine = { id: string; category: string; actualCents: number; budgetedCents: number }
 
-const KIND_VARIANT: Record<LedgerKindName, "default" | "success" | "info"> = {
+const KIND_VARIANT: Record<LedgerKindName, "default" | "success" | "info" | "warning"> = {
   SPEND: "default",
   REIMBURSEMENT: "success",
   ADJUSTMENT: "info",
+  RECEIPT: "success",
+  // A reversal is a correction, not a normal posting: it reads differently on
+  // purpose, because a reader scanning the line needs to see that a pair
+  // cancels rather than that two things happened.
+  REVERSAL: "warning",
 }
 
 function fmtDate(iso: string): string {
@@ -49,6 +59,9 @@ export function LedgerDrawer({
   entries,
   sources,
   canManage,
+  canReverse,
+  merchantLegalName,
+  merchantStatementDescriptor,
   isOpen,
   onOpenChange,
 }: {
@@ -57,17 +70,45 @@ export function LedgerDrawer({
   entries: LedgerEntryRow[]
   sources: LedgerSources
   canManage: boolean
+  /**
+   * PAY-150-001. Separate from `canManage`, because they are now separate
+   * capabilities: `finance.ledger.post` records a transaction,
+   * `finance.ledger.reverse` corrects one. The club president holds the first
+   * and not the second, so a single flag would offer them a control the server
+   * refuses.
+   */
+  canReverse: boolean
+  /**
+   * PAY-040-007. The registered legal name of the entity that sells, and the
+   * descriptor a payer would see on a statement. Passed in from the server —
+   * the drawer must not invent either, which is exactly what a literal here
+   * would be.
+   */
+  merchantLegalName: string
+  merchantStatementDescriptor: string
   isOpen: boolean
   onOpenChange: (open: boolean) => void
 }) {
   const [today] = useState(() => new Date().toISOString().slice(0, 10))
   const [pending, start] = useTransition()
+  const [reversing, setReversing] = useState<string | null>(null)
   const post = postLedgerEntry.bind(null, slug)
-  const del = deleteLedgerEntry.bind(null, slug)
+  const reverse = reverseLedgerEntry.bind(null, slug)
 
   // The line's actual IS the sum of these entries — derive it here so it updates
   // live as entries are posted or removed (the stored actualCents is the cache).
   const ledgerActual = entries.reduce((sum, e) => sum + e.amountCents, 0)
+
+  // PAY-020-002 / PAY-040-007. Through the payments port. The responsibility
+  // configuration passed here is empty because no club has one recorded yet —
+  // and passing an empty one is the point: the port answers "not decided"
+  // rather than letting this component invent a merchant of record.
+  const disclosure = ledgerDisclosure({
+    legalName: merchantLegalName,
+    statementDescriptor: merchantStatementDescriptor,
+    fundsFlow: "direct",
+    responsibility: {},
+  })
 
   return (
     <Overlay
@@ -85,6 +126,25 @@ export function LedgerDrawer({
             <Stat label="Entries" value={String(entries.length)} />
           </div>
 
+          {/*
+            PAY-040-007. The legal merchant, from the payments port rather than
+            from a string in this file. Bible §6 asks for it on every payment
+            preview and receipt; Bible §2 forbids implying Tenure is the seller,
+            the bank or the holder of funds. Both are satisfied by the sentence
+            being GENERATED from the resolved responsibility matrix — which,
+            today, is unanswered for every club, so the honest rendering is that
+            it has not been decided rather than a confident name.
+          */}
+          <p className="rounded-lg border border-border bg-base px-4 py-2 text-[13px] text-text-3">
+            {disclosure.sentence}
+            {disclosure.blockers.length > 0 && (
+              <span className="ml-1 text-text-3">
+                ({disclosure.blockers.length} responsibility decision
+                {disclosure.blockers.length === 1 ? "" : "s"} outstanding.)
+              </span>
+            )}
+          </p>
+
           {entries.length === 0 ? (
             <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-text-3">
               No transactions posted to this line yet.
@@ -100,50 +160,89 @@ export function LedgerDrawer({
                     <th className="px-3 py-2 font-medium">Description</th>
                     <th className="px-3 py-2 font-medium">Source</th>
                     <th className="px-3 py-2 text-right font-medium">Amount</th>
-                    {canManage && <th className="px-3 py-2" />}
+                    {canReverse && <th className="px-3 py-2" />}
                   </tr>
                 </thead>
                 <tbody>
                   {entries.map((e) => (
-                    <tr key={e.id} className="border-b border-border last:border-0">
-                      <td className="whitespace-nowrap px-4 py-2.5 text-text-2">{fmtDate(e.occurredAt)}</td>
-                      <td className="px-3 py-2.5">
-                        <Badge variant={KIND_VARIANT[e.kind]}>{LEDGER_KIND_LABEL[e.kind]}</Badge>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <span className="text-text-1">{e.description}</span>
-                        {e.memo && <span className="ml-2 text-[13px] text-text-3">{e.memo}</span>}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <SourceLink slug={slug} entry={e} />
-                      </td>
-                      <td
-                        className={`whitespace-nowrap px-3 py-2.5 text-right tabular-nums ${
-                          e.amountCents < 0 ? "text-[--primary]" : "text-text-1"
-                        }`}
-                      >
-                        {formatCents(e.amountCents)}
-                      </td>
-                      {canManage && (
-                        <td className="px-3 py-2.5 text-right">
-                          <button
-                            type="button"
-                            aria-label="Delete entry"
-                            disabled={pending}
-                            onClick={() =>
-                              start(async () => {
-                                const fd = new FormData()
-                                fd.set("id", e.id)
-                                await del(fd)
-                              })
-                            }
-                            className="text-text-3 hover:text-[--error] disabled:opacity-50"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                    <Fragment key={e.id}>
+                      <tr className="border-b border-border last:border-0">
+                        <td className="whitespace-nowrap px-4 py-2.5 text-text-2">{fmtDate(e.occurredAt)}</td>
+                        <td className="px-3 py-2.5">
+                          <Badge variant={KIND_VARIANT[e.kind]}>{LEDGER_KIND_LABEL[e.kind]}</Badge>
                         </td>
+                        <td className="px-3 py-2.5">
+                          <span className="text-text-1">{e.description}</span>
+                          {e.memo && <span className="ml-2 text-[13px] text-text-3">{e.memo}</span>}
+                          {e.reversedById && (
+                            <span className="ml-2 text-[13px] text-text-3">(reversed)</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <SourceLink slug={slug} entry={e} />
+                        </td>
+                        <td
+                          className={`whitespace-nowrap px-3 py-2.5 text-right tabular-nums ${
+                            e.amountCents < 0 ? "text-[--primary]" : "text-text-1"
+                          }`}
+                        >
+                          {formatCents(e.amountCents)}
+                        </td>
+                        {canReverse && (
+                          <td className="px-3 py-2.5 text-right">
+                            {/* A posted transaction is corrected by an opposite
+                                entry, never removed — so there is no delete
+                                control here to offer, and a reversal that has
+                                already happened cannot happen twice. */}
+                            {e.reversesId == null && e.reversedById == null && (
+                              <button
+                                type="button"
+                                aria-label={`Reverse ${e.description}`}
+                                disabled={pending}
+                                onClick={() => setReversing(reversing === e.id ? null : e.id)}
+                                className="text-text-3 hover:text-text-1 disabled:opacity-50"
+                              >
+                                <ArchiveRestore size={14} />
+                              </button>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                      {canReverse && reversing === e.id && (
+                        <tr className="border-b border-border bg-base last:border-0">
+                          <td colSpan={6} className="px-4 py-3">
+                            <form
+                              action={(fd) =>
+                                start(async () => {
+                                  await reverse(fd)
+                                  setReversing(null)
+                                })
+                              }
+                              className="flex flex-wrap items-end gap-2"
+                            >
+                              <input type="hidden" name="id" value={e.id} />
+                              <label className="flex flex-1 flex-col gap-1 text-[11px] font-medium uppercase tracking-wide text-text-3">
+                                Why is this being reversed?
+                                <input
+                                  name="reason"
+                                  required
+                                  maxLength={500}
+                                  placeholder="Posted against the wrong line"
+                                  className="h-9 w-full rounded border border-border bg-surface px-2 text-sm normal-case text-text-1"
+                                />
+                              </label>
+                              <button
+                                type="submit"
+                                disabled={pending}
+                                className="inline-flex h-9 items-center rounded border border-border px-3 text-sm font-medium text-text-1 hover:bg-surface disabled:opacity-50"
+                              >
+                                Post reversal
+                              </button>
+                            </form>
+                          </td>
+                        </tr>
                       )}
-                    </tr>
+                    </Fragment>
                   ))}
                 </tbody>
               </table>

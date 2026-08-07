@@ -77,7 +77,7 @@ describe("what a user may act as", () => {
   })
 
   it("resolves a requested tenant the user belongs to", async () => {
-    const scope = await resolveTenantScope(memberOfBoth, B)
+    const scope = await resolveTenantScope(memberOfBoth, B, "interactive")
     expect(scope.institutionId).toBe(B)
   })
 })
@@ -86,11 +86,11 @@ describe("a requested tenant is a claim, not a fact", () => {
   it("refuses a tenant the user does not belong to", async () => {
     // The whole property. `memberOfA` naming B is exactly what a forged or
     // stale cookie looks like by the time it reaches this function.
-    await expect(resolveTenantScope(memberOfA, B)).rejects.toThrow(TenantContextError)
+    await expect(resolveTenantScope(memberOfA, B, "interactive")).rejects.toThrow(TenantContextError)
   })
 
   it("refuses a tenant that does not exist at all", async () => {
-    await expect(resolveTenantScope(memberOfBoth, "inst-does-not-exist")).rejects.toThrow(
+    await expect(resolveTenantScope(memberOfBoth, "inst-does-not-exist", "interactive")).rejects.toThrow(
       TenantContextError,
     )
   })
@@ -100,14 +100,14 @@ describe("a requested tenant is a claim, not a fact", () => {
     // rather than trusting what an earlier one decided. Revoking the membership
     // between two identical calls is the only way to tell the difference: a
     // cached answer keeps working, a re-derived one stops.
-    const before = await resolveTenantScope(memberOfBoth, B)
+    const before = await resolveTenantScope(memberOfBoth, B, "interactive")
     expect(before.institutionId).toBe(B)
 
     await db.institutionMembership.deleteMany({
       where: { userId: memberOfBoth, institutionId: B },
     })
 
-    await expect(resolveTenantScope(memberOfBoth, B)).rejects.toThrow(TenantContextError)
+    await expect(resolveTenantScope(memberOfBoth, B, "interactive")).rejects.toThrow(TenantContextError)
 
     // And the switcher stops offering it, so the UI cannot keep showing a
     // tenant the server would now refuse.
@@ -125,7 +125,7 @@ describe("a requested tenant is a claim, not a fact", () => {
       data: { email: `orphan-${SUFFIX}@example.invalid`, name: "No tenants" },
     })
     try {
-      await expect(resolveTenantScope(orphan.id)).rejects.toThrow(TenantContextError)
+      await expect(resolveTenantScope(orphan.id, undefined, "interactive")).rejects.toThrow(TenantContextError)
       const options = await actingInstitutions(orphan.id)
       expect(options.options).toEqual([])
     } finally {
@@ -138,12 +138,12 @@ describe("the active tenant is one of the user's own", () => {
   it("defaults to a tenant the user belongs to when none is requested", async () => {
     // No request means the server picks, and what it picks must still be a
     // membership rather than, say, the first Institution row in the table.
-    const scope = await resolveTenantScope(memberOfA)
+    const scope = await resolveTenantScope(memberOfA, undefined, "interactive")
     expect(scope.institutionId).toBe(A)
   })
 
   it("never defaults to a tenant the user does not belong to", async () => {
-    const scope = await resolveTenantScope(memberOfA)
+    const scope = await resolveTenantScope(memberOfA, undefined, "interactive")
     const allowed = (await actingInstitutions(memberOfA)).options.map((o) => o.id)
     expect(allowed).toContain(scope.institutionId)
     expect(scope.institutionId).not.toBe(B)

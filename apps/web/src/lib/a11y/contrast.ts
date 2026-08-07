@@ -172,3 +172,84 @@ export function meetsAA(
     ratio: Math.round(ratio * 100) / 100,
   }
 }
+
+/**
+ * TTES-010-002 — the gamut half of "contrast/gamut tests".
+ *
+ * The contrast audit is only as complete as `parseColor`, and `parseColor`
+ * understands sRGB hex and `rgb()/rgba()` and nothing else. That is a deliberate
+ * limit — a ratio is only defined once you can get to relative luminance — but
+ * it is also a hole: a token authored as `oklch(0.7 0.15 150)` or
+ * `color(display-p3 1 0 0)` is a perfectly valid colour that this audit cannot
+ * measure, so it would simply never be checked. It would not fail; it would be
+ * absent, which is the quieter failure.
+ *
+ * So every declared value that IS a colour must be one the audit can measure,
+ * with channels inside sRGB's 0–255 and alpha inside 0–1. A wide-gamut function
+ * is rejected by name, not silently skipped.
+ *
+ * Values that merely CONTAIN a colour — `--shadow-md: 0 4px 12px rgba(…)` — are
+ * not colour tokens and are not checked here; a shadow's alpha is an elevation
+ * decision, not a contrast one.
+ */
+const LOOKS_LIKE_A_COLOUR =
+  /^(#|rgba?\(|hsla?\(|hwb\(|lab\(|lch\(|oklab\(|oklch\(|color\(|color-mix\(|light-dark\()/i
+
+export interface GamutViolation {
+  token: string
+  value: string
+  reason: string
+}
+
+export function gamutViolations(theme: Readonly<Record<string, string>>): GamutViolation[] {
+  const violations: GamutViolation[] = []
+  for (const [name, raw] of Object.entries(theme)) {
+    const value = raw.trim()
+    if (!LOOKS_LIKE_A_COLOUR.test(value)) continue
+
+    const parsed = parseColor(value)
+    if (!parsed) {
+      violations.push({
+        token: name,
+        value,
+        reason:
+          "a colour the contrast audit cannot measure — use sRGB hex or rgb()/rgba(), or teach parseColor this syntax before shipping the token",
+      })
+      continue
+    }
+    // Range is checked on what was WRITTEN, not on what parseColor returned:
+    // parseColor clamps, so `rgb(300, 0, 0)` parses cleanly as pure red and the
+    // audit would then measure a colour nobody authored. An out-of-range channel
+    // is an author asking for something outside sRGB, which is the same class of
+    // problem as asking for it in oklch — the measured value is not the intent.
+    const fn = /^rgba?\(([^)]+)\)$/i.exec(value)
+    if (fn) {
+      const parts = fn[1].split(/[,/\s]+/).filter(Boolean)
+      const channels = ["red", "green", "blue"] as const
+      parts.slice(0, 3).forEach((part, i) => {
+        const limit = part.endsWith("%") ? 100 : 255
+        const amount = parseFloat(part)
+        if (!(amount >= 0 && amount <= limit)) {
+          violations.push({
+            token: name,
+            value,
+            reason: `${channels[i]} channel ${part} is outside sRGB 0–${limit}${part.endsWith("%") ? "%" : ""}`,
+          })
+        }
+      })
+      if (parts[3] !== undefined) {
+        const limit = parts[3].endsWith("%") ? 100 : 1
+        const alpha = parseFloat(parts[3])
+        if (!(alpha >= 0 && alpha <= limit)) {
+          violations.push({ token: name, value, reason: `alpha ${parts[3]} is outside 0–${limit}` })
+        }
+      }
+    }
+    // Referenced so the parse is not merely a syntax check: a value that parses
+    // to something with no luminance is not a colour this audit can use.
+    if (!Number.isFinite(relativeLuminance({ ...parsed, a: 1 }))) {
+      violations.push({ token: name, value, reason: "has no computable relative luminance" })
+    }
+  }
+  return violations
+}

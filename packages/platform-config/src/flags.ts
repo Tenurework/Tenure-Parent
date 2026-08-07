@@ -1,9 +1,11 @@
 import { z } from "zod"
 import {
   defineConfig,
+  includedInPlan,
   type ConfigDefinition,
   type ConfigScope,
   type MergeStrategy,
+  type OptionPrice,
   type ResolvedConfig,
 } from "@tenure/configuration"
 
@@ -158,6 +160,16 @@ interface FlagSpec {
    * not a control.
    */
   scopes: readonly ConfigScope[]
+  /**
+   * What the feature costs while it is switched on (NEXT-SESSION §7).
+   *
+   * On the spec rather than defaulted inside `defineFlag`, so adding a flag is
+   * a decision about what it costs as well as what it does. A default here
+   * would make every future flag free by omission, which is the exact shape §7
+   * calls incomplete — and it would be free in the direction that loses money
+   * rather than the one anybody notices.
+   */
+  price: OptionPrice
   description: string
 }
 
@@ -175,6 +187,11 @@ function defineFlag(spec: FlagSpec): readonly ConfigDefinition[] {
     // key in this registry ever becomes confidential or capability-gated.
     sensitivity: "internal",
     overridable: true,
+    // The switch carries the charge, because the switch is what is on. A boolean
+    // option is charged by `isChargeable` while its effective value is `true`,
+    // so turning the flag off removes the charge — which is the only direction
+    // that makes sense for a restrict-only flag.
+    price: spec.price,
     description: spec.description,
   })
 
@@ -191,6 +208,14 @@ function defineFlag(spec: FlagSpec): readonly ConfigDefinition[] {
     mergeStrategy: "min",
     sensitivity: "internal",
     overridable: true,
+    // Always included, for every flag, and not a `FlagSpec` field: the dial can
+    // only narrow who the `enabled` key already admits, so it cannot add a seat
+    // and there is nothing for it to charge for. Pricing it would bill twice for
+    // one feature.
+    price: includedInPlan(
+      "The rollout dial only narrows who the flag already admits — it cannot add a subject, so " +
+        "there is nothing here to charge for. The feature itself is priced on its enabled key.",
+    ),
     description: `Percentage of subjects admitted to "${spec.name}", 0–100. Deterministic per subject.`,
   })
 
@@ -201,6 +226,15 @@ const aiAssistant = defineFlag({
   name: "aiAssistant",
   shipsOn: true,
   scopes: ["blueprint", "tenant"],
+  // Per seat, because the cost driver is per seat: every question is a paid call
+  // to the model vendor, and a faculty of two hundred asks two hundred people's
+  // worth of them. Nothing for the organisation — there is no fixed cost to
+  // having the feature available, only to people using it.
+  //
+  // The flag ships on, so this is what an unmodified tenant sees on their
+  // running total. Turning it off removes the line, which is the whole reason
+  // the price sits on the switch.
+  price: { perSeatMinor: 400, perOrgMinor: 0, currency: "USD", rounding: "half-up" },
   description:
     "Tenure AI: the retrieval assistant behind /api/ai/chat and the drafting helper behind " +
     "/api/ai/draft. Off means this tenant's content is not sent to the model vendor — chat " +
@@ -228,6 +262,10 @@ const killed = defineConfig({
   mergeStrategy: "unionSet",
   sensitivity: "internal",
   overridable: true,
+  price: includedInPlan(
+    "An emergency stop is never billable. A tenant that hesitates over the cost of killing a " +
+      "misbehaving feature is a tenant this platform has priced into an outage.",
+  ),
   description:
     "Flags stopped in an emergency. A deny list, merged by union, so a layer can add a kill " +
     "and no layer below it can remove one.",

@@ -22,6 +22,12 @@ playwright-report/
 
 # next.js
 .next/
+# A build with a custom distDir, used by the visual-regression run. It bakes
+# seeded rows into its server chunks and its webpack cache, so it arrives
+# carrying real roster names — `tests/security/no-personal-data.test.mjs`
+# caught it sitting untracked-but-not-ignored, one `git add -A` away from
+# committing people's names into the repository.
+.next-visual/
 out/
 
 # production

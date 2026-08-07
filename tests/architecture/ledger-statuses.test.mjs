@@ -145,7 +145,12 @@ function entryBody(lines, statusIndex) {
 
 /** Whether an entry body carries commands an operator could actually run. */
 function hasRunnableCommands(body) {
-  return /```/.test(body) || /\b(aws|gh|terraform|docker|psql)\s+[a-z-]+\s/.test(body)
+  // `npm`/`npx`/`node` belong beside the infrastructure tools. The list was
+  // written when every blocker was an AWS or GitHub resource, so an entry whose
+  // unblock step is `npm exec --workspace apps/web -- prisma migrate dev` — a
+  // migration, the single most common thing a blocked item here waits on — read
+  // as carrying no commands at all.
+  return /```/.test(body) || /\b(aws|gh|terraform|docker|psql|npm|npx|node)\s+[a-z-]+\s/.test(body)
 }
 
 /** Whether it instead points at the thing that is blocking it. */
@@ -154,7 +159,13 @@ function namesItsBlocker(body) {
   // blocked on one missing AWS Organization, and repeating the same four
   // commands under each would be six copies to keep in step. What matters is
   // that a reader can follow it to something runnable.
-  return /\b(GE|EXT|STUDIO|SIMON)-[\w-]+/.test(body) || /\bADR-\d+/.test(body)
+  // Any requirement id, not four prefixes. Sixteen prefixes own requirements
+  // today and this list named four — the same blindness that hid 755
+  // requirements from the queue. An item blocked on `WRK-010-001` was pointing
+  // at exactly the thing stopping it and read as pointing at nothing, so the
+  // shape is matched rather than an enumeration that goes stale every time a
+  // Bible is added.
+  return /\b[A-Z]{2,8}-\d{3}-\d{3}\b/.test(body) || /\b[A-Z]{2,8}-GATE-\d+/.test(body) || /\bADR-\d+/.test(body)
 }
 
 test("every BLOCKED_EXTERNAL entry leads to something an operator can run", () => {

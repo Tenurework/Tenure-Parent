@@ -40,12 +40,30 @@ const dollars = (cents: number) => (cents / 100).toFixed(2)
 export function FinanceDashboard({
   slug,
   canManage,
+  canReverse,
+  merchantLegalName,
+  merchantStatementDescriptor,
   lines,
   ledgerByLine,
   sources,
 }: {
   slug: string
   canManage: boolean
+  /**
+   * PAY-150-001. `finance.ledger.reverse`, decided separately from the budget
+   * capability `canManage` stands for. Threaded through rather than reused so
+   * the drawer offers the correction control to exactly the people the server
+   * will accept it from.
+   */
+  canReverse: boolean
+  /**
+   * PAY-040-007. The legal seller and the statement descriptor, resolved on the
+   * server from the institution rather than written into a component. Bible §6
+   * asks for both on every payment preview; Bible §2 forbids implying Tenure is
+   * the seller, so neither may be a literal in the client bundle.
+   */
+  merchantLegalName: string
+  merchantStatementDescriptor: string
   lines: DashboardLine[]
   ledgerByLine: Record<string, LedgerEntryRow[]>
   sources: LedgerSources
@@ -361,6 +379,9 @@ export function FinanceDashboard({
           entries={ledgerByLine[ledgerLine.id] ?? []}
           sources={sources}
           canManage={canManage}
+          canReverse={canReverse}
+          merchantLegalName={merchantLegalName}
+          merchantStatementDescriptor={merchantStatementDescriptor}
           isOpen={ledgerLine !== null}
           onOpenChange={(open) => {
             if (!open) setLedgerLine(null)

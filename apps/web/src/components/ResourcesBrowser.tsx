@@ -150,7 +150,7 @@ function ResourceCard({
     )
   }
 
-  const linkClass = "block no-underline outline-none focus-visible:ring-2 focus-visible:ring-[--primary] rounded-[10px]"
+  const linkClass = "block no-underline outline-none focus-visible:ring-2 focus-visible:ring-[--border-focus] rounded-[10px]"
   const inner = resource.external ? (
     <a href={resource.href} target="_blank" rel="noopener noreferrer" className={linkClass}>
       {body}
@@ -230,6 +230,12 @@ export function ResourcesBrowser({
   // on an empty panel with no control to get back to the board.
   const activeTab = archived.length > 0 ? tab : "live"
   const showing = activeTab === "live" ? total : retired.length
+  /**
+   * Whether the viewer has narrowed the board. This is what decides between the
+   * `no-results` and `empty` states below — the one distinction `states.ts`
+   * exists to keep, and the one this component used to collapse.
+   */
+  const filtering = q.length > 0 || kind !== null || mineOnly
 
   return (
     <div>
@@ -288,17 +294,35 @@ export function ResourcesBrowser({
       </div>
 
       {showing === 0 ? (
-        <EmptyState
-          icon={Search}
-          title={activeTab === "retired" ? "Nothing retired" : "No matching resources"}
-          description={
-            activeTab === "retired"
-              ? "Resources you retire are kept here and can be restored."
-              : canManage
-                ? "Try a different search, or publish the resource your officers keep asking for."
-                : "Try a different search or clear the filters."
-          }
-        />
+        // The filtered case and the genuinely-empty case were the same surface,
+        // with the same copy, saying "No matching resources" to someone who had
+        // applied no filter at all. `filtering` is the fact that separates them
+        // — a search box with text in it, a type chip, or "My seats only".
+        filtering ? (
+          <EmptyState
+            state="no-results"
+            icon={Search}
+            title="No matching resources"
+            description={
+              canManage
+                ? "Records exist here — your search, type filter or “My seats only” excluded all of them. Clear or widen them, or publish the resource your officers keep asking for."
+                : "Records exist here — your search, type filter or “My seats only” excluded all of them. Clear or widen them."
+            }
+          />
+        ) : (
+          <EmptyState
+            state="empty"
+            icon={Search}
+            title={activeTab === "retired" ? "Nothing retired" : "No resources yet"}
+            description={
+              activeTab === "retired"
+                ? "Resources you retire are kept here and can be restored."
+                : canManage
+                  ? "Nothing has been published to this board yet. Add the resource your officers keep asking for."
+                  : "Nothing has been published to this board yet."
+            }
+          />
+        )
       ) : activeTab === "retired" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {retired.map((r) => (

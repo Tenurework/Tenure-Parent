@@ -6,12 +6,14 @@ import { ShellHeader } from "@/components/shell/ShellHeader"
 import { SideNav } from "@/components/shell/SideNav"
 import { Footer } from "@/components/shell/Footer"
 import { SkipLink } from "@/components/shell/SkipLink"
+import { OfflineBoundary } from "@/components/shell/OfflineBoundary"
 import { MainRegion } from "@/components/shell/MainRegion"
 import { AIProvider } from "@/components/ai/AIProvider"
 import { TenureAIPanel } from "@/components/ai/TenureAIPanel"
 import { brandingCss } from "@tenure/platform-config"
 import { brandingFor } from "@tenure/platform-config"
 import { modulesFor, navigationForSystem } from "@tenure/platform-config"
+import { assessBrand } from "@/lib/a11y/tenant-brand"
 import { navigationCapabilitiesFor } from "@/lib/authz/navigation-capabilities"
 import { actingInstitutions } from "@/lib/tenant-scope"
 import { signOutAction, switchTenantAction } from "./actions"
@@ -67,13 +69,23 @@ export default async function AppLayout({
   // adds no bytes to the document. The values are validated to `#rgb`/`#rrggbb`
   // at publication AND again inside brandingCss, because this is the point where
   // they actually enter a page.
-  const brandCss = brandingCss(brandingFor(institution.slug))
+  //
+  // TTES-010-004 — and MEASURED here, which the syntax validation never did. A
+  // tenant accent that cannot carry its own label, or that has no edge against
+  // the card it sits on, is dropped back to the platform default before it
+  // reaches the document; `assessBrand` returns the reasons, and
+  // /settings shows them. This is the only place tenant colours enter a page,
+  // so it is the only place the check has to be.
+  const brandCss = brandingCss(assessBrand(brandingFor(institution.slug)).accepted)
 
   return (
     <AIProvider>
       {brandCss && <style dangerouslySetInnerHTML={{ __html: brandCss }} />}
       {/* First in the DOM so it is the first thing Tab reaches. */}
       <SkipLink />
+      {/* TTES-030-002. Beside the skip link so it is early in the DOM, and
+          rendered for every route inside the shell rather than per page. */}
+      <OfflineBoundary />
       <ShellHeader
         userName={session.user.name ?? session.user.email ?? "User"}
         userEmail={session.user.email ?? undefined}
@@ -83,6 +95,13 @@ export default async function AppLayout({
         onSwitchTenant={switchTenantAction}
         unreadNotifications={unreadNotifications}
         onSignOut={signOutAction}
+        // TTES-030-001. The command palette's ACTIONS come from the same
+        // capability-filtered navigation the side nav renders, resolved above
+        // by `navigationForSystem(institution.slug, capabilities)`. Passing the
+        // resolved sections rather than a static list is what makes an action a
+        // user's capabilities do not grant unlistable: it was never in
+        // `navSections` to begin with.
+        sections={navSections}
       />
       <SideNav sections={navSections} />
       {/* Width and gutters live inside MainRegion, which also squeezes the
@@ -91,7 +110,10 @@ export default async function AppLayout({
       {/* Hardened frame: header + side nav + footer stay put; only this main
           content region scrolls. */}
       <Footer />
-      <TenureAIPanel />
+      {/* The panel must always name the workspace it is reading. `scope` is a
+          required prop and this is its only construction site, so it cannot be
+          silently unset. */}
+      <TenureAIPanel scope={{ tenantName: tenants.active?.name ?? "this workspace" }} />
     </AIProvider>
   )
 }
