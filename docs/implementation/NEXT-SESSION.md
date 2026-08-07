@@ -165,8 +165,17 @@ for f in docs/implementation/*execution-ledger.md; do
 | `8152933` | `ACTIVATING` actually gates reachability (`Institution.serving`) | red → fixed |
 | `13dc466` | `serving` in untyped `.mjs` fixtures | red → fixed |
 | `2583a8d` | Archived clubs stop taking writes (GE-085-004) | **green** |
-| `892a167` | Ten requirements, seven refuter-confirmed | CI green, Deploy Studio red |
+| `892a167` | Ten requirements, seven refuter-confirmed | **both red** — see below |
 | `234f430` | Restore wrongly-deleted `packages/finops` | verify on next run |
+| `daa605d` | This handoff | — |
+| `a61a0c4` | Fix a broken command inside this handoff | — |
+
+One deletion caused every failure on `892a167`, in three places at once:
+`Studio · Playwright / Build the Studio` (`Module not found: @tenure/finops`),
+platform guard **35** — *every domain with code actually has some*, which is
+precisely a guard for "a domain just lost all its code" — and guard **75**, the
+audit counts. `234f430` restores the package; 75 was fixed separately. The
+lesson is in §0.4, and guard 35 existed to catch exactly this.
 
 ---
 
