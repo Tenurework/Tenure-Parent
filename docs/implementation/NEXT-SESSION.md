@@ -91,9 +91,27 @@ reach a 15-20% wave.** Do not attempt it.
 ### 1.2 The lever is items-per-agent, not agents-per-wave
 
 An agent's cost is dominated by reading itself into a file area, not by the
-edit. Eight requirements in one area cost barely more than one. Use
-`tools/loop/cluster-workflow.mjs`, which is built for exactly this and has
-**never had a full run** — it was launched and killed within the hour.
+edit. Eight requirements in one area cost barely more than one.
+
+`tools/loop/cluster-workflow.mjs` **has now had a full run**, and it works.
+Measured, PACK domain, 2026-08-07:
+
+| | |
+|---|---|
+| Agents | 16 (4 surveyors, 6 clusters, 6 refuters) |
+| Tokens | **4.04M** |
+| Wall clock | ~94 min |
+| Requirements attempted | 28 |
+| Confirmed by refuter | **17** |
+| Refuted (reclassified FAIL) | 2 |
+| Honest FAIL from the agent itself | 9 |
+
+**~144k tokens per confirmed requirement**, against ~180-200k at one item per
+agent — and that is with the refuter included. The refuters are worth their
+share: they caught two claims that were false, one of which was a total outage.
+
+A third defect got through both the agent and its refuter and was caught only by
+the Studio Playwright suite. **Run both e2e suites after every domain lands.**
 
 ### 1.3 Budget rules
 
@@ -119,44 +137,64 @@ edit. Eight requirements in one area cost barely more than one. Use
 
 ### 2.1 The honest denominator
 
-| Metric | Value |
-|---|---|
-| Requirements across all Bibles | **2,046** (16 domain prefixes, 23 authority documents) |
-| PASS | **~132** (~6.5%) |
-| Undecided | 841 |
-| **Ledgers with ZERO PASS** | **13 of 15** |
+Regenerate it — never quote from memory:
 
-**The platform is ~6% complete, not 10%.** 122 of the PASS entries live in two
-ledgers (`global-engine` 119/432, `system-studio` 3/18). These 13 have nothing:
+```bash
+node tools/loop/next-batch.mjs | head -1
+grep -c 'Status: PASS' docs/implementation/*execution-ledger.md | sort -t: -k2 -rn
+```
+
+| Metric | 2026-08-07, start | 2026-08-07, after this session |
+|---|---|---|
+| Requirements the QUEUE could see | **1,219** | **2,046** |
+| Decided | 133 | **145** |
+| Ledgers with ZERO PASS | 13 of 15 | **12 of 15** |
+
+**The denominator moved because the queue was blind, not because work was lost.**
+`next-batch.mjs` named four prompts and three ledgers by hand; twenty-three
+authorities and fifteen ledgers exist, so 755 requirements — every zero-PASS
+domain — were not in the queue at all. It now derives both from
+`tools/document-graph.mjs`, which discovers them from the filesystem. Adding a
+Bible or a ledger needs no edit there.
+
+Two more parsing defects fell out of that consolidation, both of which the queue
+had already fixed in its own copy while the graph still had them: a bolded
+`Status: **BLOCKED_EXTERNAL**` read as `FAIL` (eleven entries), and with the bold
+readable, `GE-042-007` was ticked done while blocked — a false PASS among the 119.
+
+Still at zero:
 
 ```
 payments-treasury            224   universal-work-graph          88
 declarative-configurator      79   integration-ecosystem         65
-connection-composer           59   erp-pack-factory              53
-financial-management          34   tenant-experience             34
-people-hr-workforce           33   operations-cloud              32
-analytics-reporting           27   planning-epm                  27
-simon-ose-absorption          14
-```
-
-Regenerate the true numbers — never quote from memory:
-
-```bash
-node tools/document-graph.mjs
-for f in docs/implementation/*execution-ledger.md; do
-  printf "%4s %s\n" "$(grep -c 'Status: PASS' "$f")" "$(basename $f)"; done
+connection-composer           59   financial-management          34
+tenant-experience             34   people-hr-workforce           33
+operations-cloud              32   analytics-reporting           27
+planning-epm                  27   simon-ose-absorption          14
 ```
 
 ### 2.2 Test and guard baseline (must not regress)
 
-| Check | Value at `234f430` |
+| Check | Value at `c97b71c` |
 |---|---|
 | `npm run type-check` | 0 errors |
-| `npm run lint` | clean |
-| `npm run test --workspace apps/web -- --ci` | **3184 passing, 130 suites** |
-| `npm run test:platform` | **216 pass, 0 fail** |
+| `npm run studio:type-check` | 0 errors |
+| `npm run lint` | 0 errors (pre-existing warnings only) |
+| `npm run test --workspace apps/web -- --ci` | **3448 passing, 137 suites** |
+| `npm run test:platform` | **238 pass, 0 fail** |
 | `npm run build` | apps/web compiles |
 | `npm run build --workspace apps/system-studio` | compiles |
+| apps/web Playwright | **152/152** on a fresh migrate+seed |
+| Studio Playwright | **185/185** on a pristine registry table |
+
+**The last two are not optional and are not blocked.** They are the only checks
+that caught either of the two total outages in the PACK run — both invisible to
+`tsc`, both green in every unit test. See §8 for how to run them; it takes
+minutes, not the "record the operator commands" this file used to advise.
+
+`adoption.spec.ts` (Studio) and the apps/web suite are **not idempotent**. A
+reused table or database fails them; a fresh one passes. Re-create before
+believing a failure.
 
 ### 2.3 Commits this session
 
