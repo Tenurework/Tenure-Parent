@@ -31,8 +31,23 @@ const OWNS = D.owns || []
 const FOCUS = D.focus || ''
 const SURVEYORS = D.surveyors ?? 6
 const MAX_CLUSTERS = D.maxClusters ?? 8
+// Set to re-buy a survey that is already on disk. Default is to reuse it.
+const FRESH_SURVEY = D.freshSurvey === true
 
 if (!DOMAIN) return { error: 'no domain supplied — args did not arrive' }
+
+// Where each surveyor persists its slice, before a single line of code is written.
+//
+// Survey is ~30-35% of a run and used to produce NOTHING durable, so a run killed
+// anywhere in the implement phase lost everything it had paid for in the first phase.
+// That is exactly how CFG+WRK+PAY burned 4.21M tokens for zero requirements on
+// 2026-08-07 while PACK spent 4.04M and landed seventeen.
+//
+// `resumeFromRunId` does not cover this: it is same-session only, and no workflow
+// transcript survived the session that died — so those three runs were never in fact
+// resumable, whatever the handoff claimed. Disk is the only thing that outlives a
+// session, so the survey goes to disk.
+const surveyPath = (i) => `tools/loop/surveyed-${DOMAIN}-${i}.json`
 
 const RULES = `
 You are implementing the Tenure platform in C:/Users/satvi/Tenure-Parent (branch main).
@@ -152,9 +167,34 @@ const VERDICT_SCHEMA = {
 }
 
 phase('Survey')
-log(`${DOMAIN}: ${SURVEYORS} surveyors over ${OWNS.length} owned paths`)
 
-const surveys = await parallel(
+// Replay a paid-for survey before buying another one. One cheap agent reads what
+// the last run's surveyors wrote; if it comes back with items, the whole survey
+// phase — a third of the run — is free.
+const replayed = FRESH_SURVEY
+  ? null
+  : await agent(
+      `Read every file matching \`tools/loop/surveyed-${DOMAIN}-*.json\` in
+C:/Users/satvi/Tenure-Parent (use Glob, then Read each one).
+
+Each holds a JSON array of survey items persisted by an earlier run of this workflow.
+Return every item from every file, concatenated, in the \`items\` field. Preserve each
+item's fields exactly as written — do not re-word, re-judge or re-verify anything, and
+do not read any other file or any source code.
+
+If no such file exists, return \`{"items": []}\`. That is a normal answer, not a failure.`,
+      { label: `replay-survey:${DOMAIN}`, phase: 'Survey', schema: SURVEY_SCHEMA, effort: 'low' },
+    )
+
+const replayedItems = (replayed?.items || []).filter((it) => it && !it.already_done && (it.files || []).length > 0)
+
+if (replayedItems.length > 0) {
+  log(`${DOMAIN}: replayed ${replayedItems.length} surveyed items from disk — survey phase skipped`)
+} else {
+  log(`${DOMAIN}: ${SURVEYORS} surveyors over ${OWNS.length} owned paths`)
+}
+
+const surveys = replayedItems.length > 0 ? [] : await parallel(
   Array.from({ length: SURVEYORS }, (_, i) => () =>
     agent(
       `${RULES}
@@ -177,16 +217,27 @@ Report up to 10 genuinely-open items. For each give file:line evidence, the exac
 smallest change that would make it really true. Group your files tightly — items that share a
 file area will be implemented together by one agent, so name real neighbouring files.
 
-Do not edit anything in this phase.`,
+BEFORE YOU RETURN, WRITE YOUR FINDINGS TO \`${surveyPath(i + 1)}\`.
+
+Write a JSON array of your items — the same objects you are about to return, same field names
+(id, title, why_open, files, smallest_real_change, already_done) — and nothing else in the file.
+This is the one durable artefact of the survey phase. If this workflow is killed during
+implementation, that file is what stops the next session paying for this survey a second time;
+three runs died that way in one session and burned 4.21M tokens for nothing. Write the file even
+if you found only one item, and write \`[]\` if you found none.
+
+Do not edit anything else in this phase — that file is the only write you may make.`,
       { label: `survey:${DOMAIN}:${i + 1}`, phase: 'Survey', schema: SURVEY_SCHEMA },
     ),
   ),
 )
 
-const pool = surveys
-  .filter(Boolean)
-  .flatMap((s) => s.items || [])
-  .filter((it) => it && !it.already_done && (it.files || []).length > 0)
+const pool = replayedItems.length > 0
+  ? replayedItems
+  : surveys
+      .filter(Boolean)
+      .flatMap((s) => s.items || [])
+      .filter((it) => it && !it.already_done && (it.files || []).length > 0)
 
 // Cluster by file area rather than one agent per requirement.
 //
