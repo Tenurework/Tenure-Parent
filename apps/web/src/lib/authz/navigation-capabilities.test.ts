@@ -1,10 +1,14 @@
-import { isPermissionKey, lookupPermission } from "@tenure/authorization"
+import { isPermissionKey, lookupPermission } from "@tenure/authorization";
 
-import type { InstitutionRole } from "@prisma/client"
+import type { InstitutionRole } from "@prisma/client";
 
-import type { OrgRole, UserContext } from "@/lib/rbac"
+import type { OrgRole, UserContext } from "@/lib/rbac";
 
-import { NAV_CAPABILITIES, navigationCapabilitiesFor, worldFor } from "./navigation-capabilities"
+import {
+  NAV_CAPABILITIES,
+  navigationCapabilitiesFor,
+  worldFor,
+} from "./navigation-capabilities";
 
 /**
  * The one place `apps/web` asks the authorization engine anything.
@@ -17,8 +21,8 @@ import { NAV_CAPABILITIES, navigationCapabilitiesFor, worldFor } from "./navigat
  * The first test below is the one that would have caught it in two seconds.
  */
 
-const AT = "2026-08-03T12:00:00Z"
-const INSTITUTION = "inst-1"
+const AT = "2026-08-03T12:00:00Z";
+const INSTITUTION = "inst-1";
 
 const SEAT: OrgRole = {
   organizationId: "club-1",
@@ -27,16 +31,16 @@ const SEAT: OrgRole = {
   templateKey: "unit.lead",
   scope: "PRESIDENT",
   status: "ACTIVE",
-}
+};
 
 const ctx = (over: Partial<UserContext> = {}): UserContext => ({
   userId: "u1",
   institutionRoles: [{ institutionId: INSTITUTION, role: "OSE_DIRECTOR" }],
   orgRoles: [],
   ...over,
-})
+});
 
-const ALL_MODULES = ["administration", "budgeting"]
+const ALL_MODULES = ["administration", "budgeting"];
 
 describe("every navigation capability is a real permission", () => {
   it("names keys the catalog declares", () => {
@@ -45,23 +49,27 @@ describe("every navigation capability is a real permission", () => {
     // engine, which is exactly why nothing else would notice.
     const unknown = Object.entries(NAV_CAPABILITIES)
       .filter(([, key]) => !isPermissionKey(key))
-      .map(([name, key]) => `${name} -> "${key}"`)
-    expect(unknown).toEqual([])
-  })
+      .map(([name, key]) => `${name} -> "${key}"`);
+    expect(unknown).toEqual([]);
+  });
 
   it("names keys whose modules are the ones these entries belong to", () => {
     // The module gate is the reason these are permissions rather than booleans.
-    expect(lookupPermission(NAV_CAPABILITIES.administer)?.module).toBe("administration")
-    expect(lookupPermission(NAV_CAPABILITIES.viewReports)?.module).toBe("budgeting")
-  })
-})
+    expect(lookupPermission(NAV_CAPABILITIES.administer)?.module).toBe(
+      "administration",
+    );
+    expect(lookupPermission(NAV_CAPABILITIES.viewReports)?.module).toBe(
+      "budgeting",
+    );
+  });
+});
 
 describe("who sees the menu entries", () => {
   it("gives an OSE Director both", () => {
-    const held = navigationCapabilitiesFor(ctx(), INSTITUTION, ALL_MODULES, AT)
-    expect(held.has(NAV_CAPABILITIES.administer)).toBe(true)
-    expect(held.has(NAV_CAPABILITIES.viewReports)).toBe(true)
-  })
+    const held = navigationCapabilitiesFor(ctx(), INSTITUTION, ALL_MODULES, AT);
+    expect(held.has(NAV_CAPABILITIES.administer)).toBe(true);
+    expect(held.has(NAV_CAPABILITIES.viewReports)).toBe(true);
+  });
 
   it("gives OSE Staff and Advisor the same, deliberately", () => {
     // Unchanged from `institutionRoles.length > 0`. Narrowing Advisor is a
@@ -73,12 +81,12 @@ describe("who sees the menu entries", () => {
         INSTITUTION,
         ALL_MODULES,
         AT,
-      )
+      );
       expect([...held].sort()).toEqual(
         [NAV_CAPABILITIES.administer, NAV_CAPABILITIES.viewReports].sort(),
-      )
+      );
     }
-  })
+  });
 
   it("gives a club officer with no institution role neither", () => {
     const held = navigationCapabilitiesFor(
@@ -89,9 +97,9 @@ describe("who sees the menu entries", () => {
       INSTITUTION,
       ALL_MODULES,
       AT,
-    )
-    expect([...held]).toEqual([])
-  })
+    );
+    expect([...held]).toEqual([]);
+  });
 
   it("still counts a club officer as a member of the tenant", () => {
     // Without the membership projection they would resolve to NO_MEMBERSHIP,
@@ -103,29 +111,41 @@ describe("who sees the menu entries", () => {
       }),
       INSTITUTION,
       ALL_MODULES,
-    )
-    expect(world.memberships).toHaveLength(1)
-    expect(world.memberships[0].state).toBe("ACTIVE")
-  })
-})
+    );
+    expect(world.memberships).toHaveLength(1);
+    expect(world.memberships[0].state).toBe("ACTIVE");
+  });
+});
 
 describe("a capability belonging to a module the system does not run is not held", () => {
   it("drops the admin entry when administration is off", () => {
-    const held = navigationCapabilitiesFor(ctx(), INSTITUTION, ["budgeting"], AT)
-    expect(held.has(NAV_CAPABILITIES.administer)).toBe(false)
-    expect(held.has(NAV_CAPABILITIES.viewReports)).toBe(true)
-  })
+    const held = navigationCapabilitiesFor(
+      ctx(),
+      INSTITUTION,
+      ["budgeting"],
+      AT,
+    );
+    expect(held.has(NAV_CAPABILITIES.administer)).toBe(false);
+    expect(held.has(NAV_CAPABILITIES.viewReports)).toBe(true);
+  });
 
   it("drops the reports entry when budgeting is off", () => {
-    const held = navigationCapabilitiesFor(ctx(), INSTITUTION, ["administration"], AT)
-    expect(held.has(NAV_CAPABILITIES.viewReports)).toBe(false)
-    expect(held.has(NAV_CAPABILITIES.administer)).toBe(true)
-  })
+    const held = navigationCapabilitiesFor(
+      ctx(),
+      INSTITUTION,
+      ["administration"],
+      AT,
+    );
+    expect(held.has(NAV_CAPABILITIES.viewReports)).toBe(false);
+    expect(held.has(NAV_CAPABILITIES.administer)).toBe(true);
+  });
 
   it("drops both when the system runs neither", () => {
-    expect([...navigationCapabilitiesFor(ctx(), INSTITUTION, [], AT)]).toEqual([])
-  })
-})
+    expect([...navigationCapabilitiesFor(ctx(), INSTITUTION, [], AT)]).toEqual(
+      [],
+    );
+  });
+});
 
 describe("the world is built from what the application stores", () => {
   it("grants only roles held in the institution being asked about", () => {
@@ -138,18 +158,22 @@ describe("the world is built from what the application stores", () => {
       }),
       INSTITUTION,
       ALL_MODULES,
-    )
-    expect(world.grants).toHaveLength(1)
-    expect(world.grants[0].tenantId).toBe(INSTITUTION)
-  })
+    );
+    expect(world.grants).toHaveLength(1);
+    expect(world.grants[0].tenantId).toBe(INSTITUTION);
+  });
 
   it("does not hand a role held elsewhere any capability here", () => {
     const held = navigationCapabilitiesFor(
-      ctx({ institutionRoles: [{ institutionId: "other-inst", role: "OSE_DIRECTOR" }] }),
+      ctx({
+        institutionRoles: [
+          { institutionId: "other-inst", role: "OSE_DIRECTOR" },
+        ],
+      }),
       INSTITUTION,
       ALL_MODULES,
       AT,
-    )
-    expect([...held]).toEqual([])
-  })
-})
+    );
+    expect([...held]).toEqual([]);
+  });
+});

@@ -1,8 +1,14 @@
-import type { ApprovalStatus } from "@prisma/client"
-import { applyAction, availableActions as engineActions } from "@tenure/workflow"
+import type { ApprovalStatus, OrgStatus } from "@prisma/client";
+import {
+  applyAction,
+  availableActions as engineActions,
+} from "@tenure/workflow";
 
-import { canManageRoster, isOse, type UserContext } from "@/lib/rbac"
-import { APPROVAL_ROLES, APPROVAL_WORKFLOW } from "@/lib/workflows/approval-definition"
+import { canManageRoster, isOse, type UserContext } from "@/lib/rbac";
+import {
+  APPROVAL_ROLES,
+  APPROVAL_WORKFLOW,
+} from "@/lib/workflows/approval-definition";
 
 /**
  * Approval state machine (blueprint §Approvals):
@@ -17,24 +23,30 @@ import { APPROVAL_ROLES, APPROVAL_WORKFLOW } from "@/lib/workflows/approval-defi
  */
 
 export type ApprovalActionName =
-  | "submit"
-  | "approve"
-  | "request_changes"
-  | "reject"
-  | "resubmit"
-  | "cancel"
+  "submit" | "approve" | "request_changes" | "reject" | "resubmit" | "cancel";
 
 export interface ApprovalView {
-  id: string
-  status: ApprovalStatus
-  submittedById: string
-  organizationId: string
-  institutionId: string
+  id: string;
+  status: ApprovalStatus;
+  submittedById: string;
+  organizationId: string;
+  institutionId: string;
+  /**
+   * The club's lifecycle status, carried on the view because the approval
+   * actions are writes and an archived club takes none of them. Required
+   * rather than optional so a new producer of this view has to answer the
+   * question rather than inherit a default that silently re-opens the hole.
+   */
+  organizationStatus: OrgStatus;
 }
 
 /** Role the actor plays for THIS request. */
 export function actorRoles(ctx: UserContext, approval: ApprovalView) {
-  const org = { id: approval.organizationId, institutionId: approval.institutionId }
+  const org = {
+    id: approval.organizationId,
+    institutionId: approval.institutionId,
+    status: approval.organizationStatus,
+  };
   return {
     isRequester: ctx.userId === approval.submittedById,
     // The president gate: the club's ACTIVE president (OSE Director also
@@ -43,11 +55,11 @@ export function actorRoles(ctx: UserContext, approval: ApprovalView) {
       (r) =>
         r.organizationId === approval.organizationId &&
         r.scope === "PRESIDENT" &&
-        r.status === "ACTIVE"
+        r.status === "ACTIVE",
     ),
     isOseGate: isOse(ctx, approval.institutionId),
     canAdmin: canManageRoster(ctx, org),
-  }
+  };
 }
 
 /**
@@ -66,22 +78,22 @@ export function actorRoles(ctx: UserContext, approval: ApprovalView) {
  */
 export function availableActions(
   ctx: UserContext,
-  approval: ApprovalView
+  approval: ApprovalView,
 ): ApprovalActionName[] {
   return engineActions(APPROVAL_WORKFLOW, {
     state: approval.status,
     roles: workflowRolesFor(ctx, approval),
-  }).map((a) => a.action as ApprovalActionName)
+  }).map((a) => a.action as ApprovalActionName);
 }
 
 /** The roles this actor plays for THIS request, as the definition names them. */
 function workflowRolesFor(ctx: UserContext, approval: ApprovalView): string[] {
-  const { isRequester, isPresident, isOseGate } = actorRoles(ctx, approval)
-  const roles: string[] = []
-  if (isRequester) roles.push(APPROVAL_ROLES.requester)
-  if (isPresident) roles.push(APPROVAL_ROLES.president)
-  if (isOseGate) roles.push(APPROVAL_ROLES.oseGate)
-  return roles
+  const { isRequester, isPresident, isOseGate } = actorRoles(ctx, approval);
+  const roles: string[] = [];
+  if (isRequester) roles.push(APPROVAL_ROLES.requester);
+  if (isPresident) roles.push(APPROVAL_ROLES.president);
+  if (isOseGate) roles.push(APPROVAL_ROLES.oseGate);
+  return roles;
 }
 
 /**
@@ -96,18 +108,22 @@ function workflowRolesFor(ctx: UserContext, approval: ApprovalView): string[] {
 export function nextStatus(
   action: ApprovalActionName,
   current: ApprovalStatus,
-  opts: { requesterIsPresident: boolean }
+  opts: { requesterIsPresident: boolean },
 ): ApprovalStatus | null {
   const result = applyAction(
     APPROVAL_WORKFLOW,
     {
       state: current,
-      roles: [APPROVAL_ROLES.requester, APPROVAL_ROLES.president, APPROVAL_ROLES.oseGate],
+      roles: [
+        APPROVAL_ROLES.requester,
+        APPROVAL_ROLES.president,
+        APPROVAL_ROLES.oseGate,
+      ],
       conditions: { requesterIsPresident: opts.requesterIsPresident },
     },
-    action
-  )
-  return result.ok ? (result.to as ApprovalStatus) : null
+    action,
+  );
+  return result.ok ? (result.to as ApprovalStatus) : null;
 }
 
 /**
@@ -126,7 +142,7 @@ export function isConcurrentDecision(error: unknown): boolean {
     error !== null &&
     "code" in error &&
     (error as { code?: unknown }).code === "P2025"
-  )
+  );
 }
 
 export const ACTION_LABELS: Record<ApprovalActionName, string> = {
@@ -136,4 +152,4 @@ export const ACTION_LABELS: Record<ApprovalActionName, string> = {
   reject: "Reject",
   resubmit: "Resubmit",
   cancel: "Cancel request",
-}
+};

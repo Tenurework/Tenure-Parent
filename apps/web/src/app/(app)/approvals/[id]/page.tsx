@@ -1,49 +1,54 @@
-import { notFound, redirect } from "next/navigation"
-import { auth } from "@/lib/auth"
-import { db } from "@/lib/db"
-import { canViewOrg, getUserContext } from "@/lib/rbac"
-import { withTenantScope } from "@/lib/tenant-scope"
-import { availableActions, ACTION_LABELS } from "@/lib/approvals"
-import { formatCents } from "@/lib/finance"
-import { approvalSla, slaColor } from "@/lib/approvals-sla"
-import { documentLocalization } from "@/lib/tenancy/locale-cookie"
-import { effectiveApprovalContext } from "@/lib/delegation"
-import { mayBorrowAuthority } from "@/lib/authz/borrowed-authority"
-import Link from "next/link"
-import { Card, CardHeader, Attribute } from "@/components/ui/Card"
-import { BackButton } from "@/components/BackButton"
-import { ApprovalBadge, SeverityBadge } from "@/components/ui/Badge"
-import { ConfirmInlineSubmit } from "@/components/ui/ConfirmInlineSubmit"
-import { actOnApproval } from "../actions"
-import { openApprovalThread } from "../../messages/actions"
+import { notFound, redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { canViewOrg, getUserContext } from "@/lib/rbac";
+import { withTenantScope } from "@/lib/tenant-scope";
+import { availableActions, ACTION_LABELS } from "@/lib/approvals";
+import { formatCents } from "@/lib/finance";
+import { approvalSla, slaColor } from "@/lib/approvals-sla";
+import { documentLocalization } from "@/lib/tenancy/locale-cookie";
+import { effectiveApprovalContext } from "@/lib/delegation";
+import { mayBorrowAuthority } from "@/lib/authz/borrowed-authority";
+import Link from "next/link";
+import { Card, CardHeader, Attribute } from "@/components/ui/Card";
+import { BackButton } from "@/components/BackButton";
+import { ApprovalBadge, SeverityBadge } from "@/components/ui/Badge";
+import { ConfirmInlineSubmit } from "@/components/ui/ConfirmInlineSubmit";
+import { actOnApproval } from "../actions";
+import { openApprovalThread } from "../../messages/actions";
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 export default async function ApprovalDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = await params
-  const session = await auth()
-  if (!session?.user?.id) redirect("/signin")
+  const { id } = await params;
+  const session = await auth();
+  if (!session?.user?.id) redirect("/signin");
 
   return withTenantScope(session.user.id, async () => {
     const approval = await db.approvalRequest.findUnique({
       where: { id },
       include: {
-        organization: { select: { name: true, slug: true, institutionId: true } },
+        organization: {
+          select: { name: true, slug: true, institutionId: true, status: true },
+        },
         steps: { orderBy: { occurredAt: "asc" } },
         event: { include: { conflicts: { orderBy: { createdAt: "asc" } } } },
       },
-    })
-    if (!approval) notFound()
+    });
+    if (!approval) notFound();
 
-    const ctx = await getUserContext(session.user.id)
+    const ctx = await getUserContext(session.user.id);
     const canView =
       ctx.userId === approval.submittedById ||
-      canViewOrg(ctx, { id: approval.organizationId, institutionId: approval.institutionId })
-    if (!canView) notFound()
+      canViewOrg(ctx, {
+        id: approval.organizationId,
+        institutionId: approval.institutionId,
+      });
+    if (!canView) notFound();
 
     // Delegation-aware: a backup approver sees (and can use) the gates they hold
     // on someone's behalf, not just their own — except on their own request.
@@ -55,50 +60,68 @@ export default async function ApprovalDetailPage({
     const borrow = mayBorrowAuthority({
       actorId: session.user.id,
       requestedByPrincipalId: approval.submittedById,
-    })
+    });
     const { ctx: effCtx, delegators } = borrow.ok
-      ? await effectiveApprovalContext(session.user.id, ctx, approval.institutionId)
-      : { ctx, delegators: [] as { id: string; name: string }[] }
-    const actions = availableActions(effCtx, approval)
-    const GATE_ACTIONS = ["approve", "reject", "request_changes"]
-    const directGate = availableActions(ctx, approval).some((a) => GATE_ACTIONS.includes(a))
+      ? await effectiveApprovalContext(
+          session.user.id,
+          ctx,
+          approval.institutionId,
+        )
+      : { ctx, delegators: [] as { id: string; name: string }[] };
+    // The approval actions are writes, and an archived club takes none. The
+    // status travels on the view so the rules can see it rather than the page
+    // deciding separately and drifting.
+    const view = {
+      ...approval,
+      organizationStatus: approval.organization.status,
+    };
+    const actions = availableActions(effCtx, view);
+    const GATE_ACTIONS = ["approve", "reject", "request_changes"];
+    const directGate = availableActions(ctx, view).some((a) =>
+      GATE_ACTIONS.includes(a),
+    );
     const backupFor =
-      !directGate && delegators.length > 0 && actions.some((a) => GATE_ACTIONS.includes(a))
+      !directGate &&
+      delegators.length > 0 &&
+      actions.some((a) => GATE_ACTIONS.includes(a))
         ? delegators[0]
-        : null
-    const actWithId = actOnApproval.bind(null, approval.id)
+        : null;
+    const actWithId = actOnApproval.bind(null, approval.id);
     // The institution's own working days and closures (GE-022-004).
-    const { businessCalendar } = await documentLocalization()
+    const { businessCalendar } = await documentLocalization();
 
     const actorIds = [
-      ...new Set([approval.submittedById, ...approval.steps.map((s) => s.actorId)]),
-    ]
+      ...new Set([
+        approval.submittedById,
+        ...approval.steps.map((s) => s.actorId),
+      ]),
+    ];
     const actors = new Map(
       (
         await db.user.findMany({
           where: { id: { in: actorIds } },
           select: { id: true, name: true, email: true },
         })
-      ).map((u) => [u.id, u.name ?? u.email ?? "Unknown"])
-    )
+      ).map((u) => [u.id, u.name ?? u.email ?? "Unknown"]),
+    );
 
     const meta = approval.metadata as {
-      amount?: string
+      amount?: string;
       reimbursement?: {
-        budgetLineId?: string
-        amountCents?: number
-        documentId?: string | null
-        category?: string
-      }
-    }
-    const reimb = meta.reimbursement
-    let lineRemaining: number | null = null
+        budgetLineId?: string;
+        amountCents?: number;
+        documentId?: string | null;
+        category?: string;
+      };
+    };
+    const reimb = meta.reimbursement;
+    let lineRemaining: number | null = null;
     if (reimb?.budgetLineId) {
       const bl = await db.budgetLine.findUnique({
         where: { id: reimb.budgetLineId },
         select: { budgetedCents: true, actualCents: true },
-      })
-      if (bl) lineRemaining = bl.budgetedCents - bl.actualCents
+      });
+      if (bl) lineRemaining = bl.budgetedCents - bl.actualCents;
     }
 
     return (
@@ -107,10 +130,17 @@ export default async function ApprovalDetailPage({
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-text-1">{approval.title}</h1>
-            <p className="text-sm text-text-2 mt-1">{approval.organization.name}</p>
+            <p className="text-sm text-text-2 mt-1">
+              {approval.organization.name}
+            </p>
             {(() => {
-              const sla = approvalSla(approval.status, approval.updatedAt, new Date(), businessCalendar)
-              if (sla.level === "none") return null
+              const sla = approvalSla(
+                approval.status,
+                approval.updatedAt,
+                new Date(),
+                businessCalendar,
+              );
+              if (sla.level === "none") return null;
               return (
                 <p
                   className="mt-1.5 inline-flex items-center gap-1.5 text-[13px] font-medium"
@@ -123,10 +153,14 @@ export default async function ApprovalDetailPage({
                       aria-hidden
                     />
                   )}
-                  {sla.level === "overdue" ? "Overdue — " : sla.level === "attention" ? "Aging — " : ""}
+                  {sla.level === "overdue"
+                    ? "Overdue — "
+                    : sla.level === "attention"
+                      ? "Aging — "
+                      : ""}
                   {sla.label}
                 </p>
-              )
+              );
             })()}
           </div>
           <div className="flex items-center gap-3 shrink-0">
@@ -145,7 +179,10 @@ export default async function ApprovalDetailPage({
             <CardHeader title="Details" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Attribute label="Type" value={approval.type.toLowerCase()} />
-              <Attribute label="Requested by" value={actors.get(approval.submittedById)} />
+              <Attribute
+                label="Requested by"
+                value={actors.get(approval.submittedById)}
+              />
               <Attribute
                 label="Created"
                 value={approval.createdAt.toLocaleDateString("en-US", {
@@ -154,7 +191,10 @@ export default async function ApprovalDetailPage({
                   year: "numeric",
                 })}
               />
-              <Attribute label="Amount" value={meta.amount ? `$${meta.amount}` : "—"} />
+              <Attribute
+                label="Amount"
+                value={meta.amount ? `$${meta.amount}` : "—"}
+              />
             </div>
             {approval.description && (
               <p className="mt-4 text-sm text-text-1 whitespace-pre-wrap">
@@ -173,10 +213,17 @@ export default async function ApprovalDetailPage({
                 <Attribute label="Budget line" value={reimb.category ?? "—"} />
                 <Attribute
                   label="Amount"
-                  value={typeof reimb.amountCents === "number" ? formatCents(reimb.amountCents) : "—"}
+                  value={
+                    typeof reimb.amountCents === "number"
+                      ? formatCents(reimb.amountCents)
+                      : "—"
+                  }
                 />
                 {lineRemaining !== null && (
-                  <Attribute label="Line remaining" value={formatCents(lineRemaining)} />
+                  <Attribute
+                    label="Line remaining"
+                    value={formatCents(lineRemaining)}
+                  />
                 )}
                 <Attribute
                   label="Receipt"
@@ -198,7 +245,8 @@ export default async function ApprovalDetailPage({
                 lineRemaining !== null &&
                 reimb.amountCents > lineRemaining && (
                   <p className="mt-3 text-[13px] text-[--warning]">
-                    Heads up — this exceeds the line&apos;s remaining budget of {formatCents(lineRemaining)}.
+                    Heads up — this exceeds the line&apos;s remaining budget of{" "}
+                    {formatCents(lineRemaining)}.
                   </p>
                 )}
             </Card>
@@ -246,10 +294,13 @@ export default async function ApprovalDetailPage({
               {backupFor && (
                 <p
                   className="mb-3 rounded-md px-3 py-2 text-[13px]"
-                  style={{ background: "var(--primary-light)", color: "var(--primary)" }}
+                  style={{
+                    background: "var(--primary-light)",
+                    color: "var(--primary)",
+                  }}
                 >
-                  You&apos;re acting as a backup for {backupFor.name} — your decision is recorded on
-                  their behalf.
+                  You&apos;re acting as a backup for {backupFor.name} — your
+                  decision is recorded on their behalf.
                 </p>
               )}
               <form action={actWithId} className="space-y-3">
@@ -266,13 +317,15 @@ export default async function ApprovalDetailPage({
                         ? "h-9 rounded bg-[--primary] px-4 text-sm font-medium text-[--primary-text] hover:opacity-90"
                         : a === "reject"
                           ? "h-9 rounded bg-[--error] px-4 text-sm font-medium text-white hover:opacity-90"
-                          : "h-9 rounded border border-border px-4 text-sm font-medium text-text-2 hover:bg-base"
+                          : "h-9 rounded border border-border px-4 text-sm font-medium text-text-2 hover:bg-base";
 
                     // Final OSE approval is terminal + publishes the linked event;
                     // reject and cancel are terminal. Those get a confirm. Every
                     // other step just advances the flow, so it stays one click.
-                    const finalApprove = a === "approve" && approval.status === "PENDING_OSE"
-                    const needsConfirm = a === "reject" || a === "cancel" || finalApprove
+                    const finalApprove =
+                      a === "approve" && approval.status === "PENDING_OSE";
+                    const needsConfirm =
+                      a === "reject" || a === "cancel" || finalApprove;
 
                     if (!needsConfirm) {
                       return (
@@ -285,7 +338,7 @@ export default async function ApprovalDetailPage({
                         >
                           {ACTION_LABELS[a]}
                         </button>
-                      )
+                      );
                     }
 
                     const copy =
@@ -308,7 +361,7 @@ export default async function ApprovalDetailPage({
                               description:
                                 "This is the final OSE approval. The request is approved for good, any linked event is published to the shared calendar, and the requester is notified. It can't be reopened.",
                               confirmLabel: "Approve request",
-                            }
+                            };
 
                     return (
                       <ConfirmInlineSubmit
@@ -323,7 +376,7 @@ export default async function ApprovalDetailPage({
                       >
                         {ACTION_LABELS[a]}
                       </ConfirmInlineSubmit>
-                    )
+                    );
                   })}
                 </div>
               </form>
@@ -332,7 +385,10 @@ export default async function ApprovalDetailPage({
 
           <Card padding="none">
             <div className="p-5 border-b border-border">
-              <CardHeader title="History" subtitle="Append-only decision trail" />
+              <CardHeader
+                title="History"
+                subtitle="Append-only decision trail"
+              />
             </div>
             {approval.steps.length === 0 ? (
               <p className="px-5 py-6 text-sm text-text-3 text-center">
@@ -343,16 +399,28 @@ export default async function ApprovalDetailPage({
                 {approval.steps.map((s) => (
                   <li key={s.id} className="px-5 py-3.5">
                     <p className="text-sm text-text-1">
-                      <span className="font-medium">{actors.get(s.actorId)}</span>
+                      <span className="font-medium">
+                        {actors.get(s.actorId)}
+                      </span>
                       {s.actorRoleContext ? (
-                        <span className="text-text-3"> ({s.actorRoleContext})</span>
+                        <span className="text-text-3">
+                          {" "}
+                          ({s.actorRoleContext})
+                        </span>
                       ) : null}{" "}
                       moved this from{" "}
-                      <span className="font-medium">{s.fromStatus.replace(/_/g, " ")}</span> to{" "}
-                      <span className="font-medium">{s.toStatus.replace(/_/g, " ")}</span>
+                      <span className="font-medium">
+                        {s.fromStatus.replace(/_/g, " ")}
+                      </span>{" "}
+                      to{" "}
+                      <span className="font-medium">
+                        {s.toStatus.replace(/_/g, " ")}
+                      </span>
                     </p>
                     {s.reason && (
-                      <p className="text-sm text-text-2 mt-1 italic">“{s.reason}”</p>
+                      <p className="text-sm text-text-2 mt-1 italic">
+                        “{s.reason}”
+                      </p>
                     )}
                     <p className="text-xs text-text-3 mt-1">
                       {s.occurredAt.toLocaleString("en-US", {
@@ -369,6 +437,6 @@ export default async function ApprovalDetailPage({
           </Card>
         </div>
       </div>
-    )
-  })
+    );
+  });
 }

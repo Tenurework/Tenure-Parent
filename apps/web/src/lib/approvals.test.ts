@@ -1,113 +1,181 @@
-import type { ApprovalStatus } from "@prisma/client"
+import type { ApprovalStatus, OrgStatus } from "@prisma/client";
 import {
   availableActions,
   isConcurrentDecision,
   nextStatus,
   type ApprovalView,
-} from "./approvals"
-import type { UserContext } from "./rbac"
+} from "./approvals";
+import type { UserContext } from "./rbac";
 
-const INST = "inst_1"
-const ORG = "org_1"
+const INST = "inst_1";
+const ORG = "org_1";
 
-function approval(status: ApprovalStatus, submittedById = "vp_user"): ApprovalView {
-  return { id: "ap_1", status, submittedById, organizationId: ORG, institutionId: INST }
+function approval(
+  status: ApprovalStatus,
+  submittedById = "vp_user",
+  // ACTIVE unless a test says otherwise: these cases are about who may act on a
+  // request, not about the club's lifecycle.
+  organizationStatus: OrgStatus = "ACTIVE",
+): ApprovalView {
+  return {
+    id: "ap_1",
+    status,
+    submittedById,
+    organizationId: ORG,
+    institutionId: INST,
+    organizationStatus,
+  };
 }
 
-function ctx(userId: string, overrides: Partial<UserContext> = {}): UserContext {
-  return { userId, institutionRoles: [], orgRoles: [], ...overrides }
+function ctx(
+  userId: string,
+  overrides: Partial<UserContext> = {},
+): UserContext {
+  return { userId, institutionRoles: [], orgRoles: [], ...overrides };
 }
 
 const vp = ctx("vp_user", {
   orgRoles: [
-    { organizationId: ORG, roleId: "r_vp", roleName: "VP Finance", templateKey: "finance.officer", scope: "FUNCTIONAL", status: "ACTIVE" },
+    {
+      organizationId: ORG,
+      roleId: "r_vp",
+      roleName: "VP Finance",
+      templateKey: "finance.officer",
+      scope: "FUNCTIONAL",
+      status: "ACTIVE",
+    },
   ],
-})
+});
 const president = ctx("pres_user", {
   orgRoles: [
-    { organizationId: ORG, roleId: "r_p", roleName: "President", templateKey: "unit.lead", scope: "PRESIDENT", status: "ACTIVE" },
+    {
+      organizationId: ORG,
+      roleId: "r_p",
+      roleName: "President",
+      templateKey: "unit.lead",
+      scope: "PRESIDENT",
+      status: "ACTIVE",
+    },
   ],
-})
+});
 const oseDirector = ctx("ose_user", {
   institutionRoles: [{ institutionId: INST, role: "OSE_DIRECTOR" }],
-})
-const outsider = ctx("random_user")
+});
+const outsider = ctx("random_user");
 
 describe("availableActions", () => {
   it("lets the requester submit or cancel a draft", () => {
-    expect(availableActions(vp, approval("DRAFT"))).toEqual(["submit", "cancel"])
-    expect(availableActions(president, approval("DRAFT"))).toEqual([])
-  })
+    expect(availableActions(vp, approval("DRAFT"))).toEqual([
+      "submit",
+      "cancel",
+    ]);
+    expect(availableActions(president, approval("DRAFT"))).toEqual([]);
+  });
 
   it("gates PENDING_PRESIDENT on the active president", () => {
-    const a = approval("PENDING_PRESIDENT")
-    expect(availableActions(president, a)).toEqual(["approve", "request_changes", "reject"])
-    expect(availableActions(vp, a)).toEqual(["cancel"]) // requester may withdraw
-    expect(availableActions(oseDirector, a)).toEqual([]) // not their gate yet
-  })
+    const a = approval("PENDING_PRESIDENT");
+    expect(availableActions(president, a)).toEqual([
+      "approve",
+      "request_changes",
+      "reject",
+    ]);
+    expect(availableActions(vp, a)).toEqual(["cancel"]); // requester may withdraw
+    expect(availableActions(oseDirector, a)).toEqual([]); // not their gate yet
+  });
 
   it("gates PENDING_OSE on OSE staff", () => {
-    const a = approval("PENDING_OSE")
-    expect(availableActions(oseDirector, a)).toEqual(["approve", "request_changes", "reject"])
-    expect(availableActions(president, a)).toEqual([])
-  })
+    const a = approval("PENDING_OSE");
+    expect(availableActions(oseDirector, a)).toEqual([
+      "approve",
+      "request_changes",
+      "reject",
+    ]);
+    expect(availableActions(president, a)).toEqual([]);
+  });
 
   it("lets only the requester resubmit after NEEDS_CHANGES", () => {
-    const a = approval("NEEDS_CHANGES")
-    expect(availableActions(vp, a)).toEqual(["resubmit", "cancel"])
-    expect(availableActions(president, a)).toEqual([])
-  })
+    const a = approval("NEEDS_CHANGES");
+    expect(availableActions(vp, a)).toEqual(["resubmit", "cancel"]);
+    expect(availableActions(president, a)).toEqual([]);
+  });
 
   it("offers nothing on terminal states or to outsiders", () => {
-    expect(availableActions(vp, approval("APPROVED"))).toEqual([])
-    expect(availableActions(vp, approval("REJECTED"))).toEqual([])
-    expect(availableActions(vp, approval("CANCELLED"))).toEqual([])
-    expect(availableActions(outsider, approval("PENDING_PRESIDENT"))).toEqual([])
-  })
-})
+    expect(availableActions(vp, approval("APPROVED"))).toEqual([]);
+    expect(availableActions(vp, approval("REJECTED"))).toEqual([]);
+    expect(availableActions(vp, approval("CANCELLED"))).toEqual([]);
+    expect(availableActions(outsider, approval("PENDING_PRESIDENT"))).toEqual(
+      [],
+    );
+  });
+});
 
 describe("nextStatus", () => {
   it("routes VP submissions through the president gate", () => {
-    expect(nextStatus("submit", "DRAFT", { requesterIsPresident: false })).toBe("PENDING_PRESIDENT")
-  })
+    expect(nextStatus("submit", "DRAFT", { requesterIsPresident: false })).toBe(
+      "PENDING_PRESIDENT",
+    );
+  });
 
   it("skips the president gate for the president's own requests", () => {
-    expect(nextStatus("submit", "DRAFT", { requesterIsPresident: true })).toBe("PENDING_OSE")
-    expect(nextStatus("resubmit", "NEEDS_CHANGES", { requesterIsPresident: true })).toBe("PENDING_OSE")
-  })
+    expect(nextStatus("submit", "DRAFT", { requesterIsPresident: true })).toBe(
+      "PENDING_OSE",
+    );
+    expect(
+      nextStatus("resubmit", "NEEDS_CHANGES", { requesterIsPresident: true }),
+    ).toBe("PENDING_OSE");
+  });
 
   it("moves through both gates to APPROVED", () => {
-    expect(nextStatus("approve", "PENDING_PRESIDENT", { requesterIsPresident: false })).toBe("PENDING_OSE")
-    expect(nextStatus("approve", "PENDING_OSE", { requesterIsPresident: false })).toBe("APPROVED")
-  })
+    expect(
+      nextStatus("approve", "PENDING_PRESIDENT", {
+        requesterIsPresident: false,
+      }),
+    ).toBe("PENDING_OSE");
+    expect(
+      nextStatus("approve", "PENDING_OSE", { requesterIsPresident: false }),
+    ).toBe("APPROVED");
+  });
 
   it("returns null for illegal transitions", () => {
-    expect(nextStatus("submit", "APPROVED", { requesterIsPresident: false })).toBeNull()
-    expect(nextStatus("approve", "DRAFT", { requesterIsPresident: false })).toBeNull()
-    expect(nextStatus("resubmit", "DRAFT", { requesterIsPresident: false })).toBeNull()
-    expect(nextStatus("cancel", "APPROVED", { requesterIsPresident: false })).toBeNull()
-  })
-})
+    expect(
+      nextStatus("submit", "APPROVED", { requesterIsPresident: false }),
+    ).toBeNull();
+    expect(
+      nextStatus("approve", "DRAFT", { requesterIsPresident: false }),
+    ).toBeNull();
+    expect(
+      nextStatus("resubmit", "DRAFT", { requesterIsPresident: false }),
+    ).toBeNull();
+    expect(
+      nextStatus("cancel", "APPROVED", { requesterIsPresident: false }),
+    ).toBeNull();
+  });
+});
 
 describe("isConcurrentDecision", () => {
   // The status update names the status the decision was read at, so a P2025 from
   // that statement means another approver moved the request first.
   it("recognises Prisma P2025", () => {
-    expect(isConcurrentDecision({ code: "P2025", message: "Record to update not found." })).toBe(true)
-  })
+    expect(
+      isConcurrentDecision({
+        code: "P2025",
+        message: "Record to update not found.",
+      }),
+    ).toBe(true);
+  });
 
   it("ignores every other Prisma error code", () => {
-    expect(isConcurrentDecision({ code: "P2002" })).toBe(false)
-    expect(isConcurrentDecision({ code: "P1001" })).toBe(false)
-  })
+    expect(isConcurrentDecision({ code: "P2002" })).toBe(false);
+    expect(isConcurrentDecision({ code: "P1001" })).toBe(false);
+  });
 
   // A connection failure or a bug must not be reported to the user as though a
   // colleague had beaten them to the decision.
   it("ignores errors that carry no code", () => {
-    expect(isConcurrentDecision(new Error("boom"))).toBe(false)
-    expect(isConcurrentDecision(null)).toBe(false)
-    expect(isConcurrentDecision(undefined)).toBe(false)
-    expect(isConcurrentDecision("P2025")).toBe(false)
-    expect(isConcurrentDecision({ code: 2025 })).toBe(false)
-  })
-})
+    expect(isConcurrentDecision(new Error("boom"))).toBe(false);
+    expect(isConcurrentDecision(null)).toBe(false);
+    expect(isConcurrentDecision(undefined)).toBe(false);
+    expect(isConcurrentDecision("P2025")).toBe(false);
+    expect(isConcurrentDecision({ code: 2025 })).toBe(false);
+  });
+});

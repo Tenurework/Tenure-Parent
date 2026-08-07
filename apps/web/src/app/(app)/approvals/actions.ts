@@ -1,38 +1,43 @@
-"use server"
+"use server";
 
-import { mayBorrowAuthority } from "@/lib/authz/borrowed-authority"
-import { revalidatePath } from "next/cache"
-import { redirect } from "next/navigation"
-import type { ApprovalType, Prisma } from "@prisma/client"
-import { auth } from "@/lib/auth"
-import { db } from "@/lib/db"
-import { getUserContext } from "@/lib/rbac"
-import { withTenantScope } from "@/lib/tenant-scope"
-import { effectiveApprovalContext } from "@/lib/delegation"
-import { ledgerSignedCents } from "@/lib/finance"
+import { mayBorrowAuthority } from "@/lib/authz/borrowed-authority";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import type { ApprovalType, Prisma } from "@prisma/client";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { getUserContext } from "@/lib/rbac";
+import { withTenantScope } from "@/lib/tenant-scope";
+import { effectiveApprovalContext } from "@/lib/delegation";
+import { ledgerSignedCents } from "@/lib/finance";
 import {
   availableActions,
   isConcurrentDecision,
   nextStatus,
   type ApprovalActionName,
-} from "@/lib/approvals"
+} from "@/lib/approvals";
 import {
   notifyUsers,
   orgCurrentMemberIds,
   orgPresidentIds,
   oseMemberIds,
-} from "@/lib/notify"
+} from "@/lib/notify";
 
 /** Alert whoever owns the next gate of this request. */
 async function notifyGate(
-  approval: { id: string; title: string; organizationId: string; institutionId: string },
+  approval: {
+    id: string;
+    title: string;
+    organizationId: string;
+    institutionId: string;
+  },
   target: "PENDING_PRESIDENT" | "PENDING_OSE",
-  actorId: string
+  actorId: string,
 ) {
   const gateUsers =
     target === "PENDING_PRESIDENT"
       ? await orgPresidentIds(approval.organizationId)
-      : await oseMemberIds(approval.institutionId)
+      : await oseMemberIds(approval.institutionId);
   await notifyUsers(gateUsers, {
     title: `${approval.title} needs your approval`,
     body:
@@ -41,7 +46,7 @@ async function notifyGate(
         : "It's now with the OSE team for a final decision.",
     href: `/approvals/${approval.id}`,
     excludeUserId: actorId,
-  })
+  });
 }
 
 const APPROVAL_TYPES: ApprovalType[] = [
@@ -52,12 +57,12 @@ const APPROVAL_TYPES: ApprovalType[] = [
   "DOCUMENT",
   "EXCEPTION",
   "ROSTER",
-]
+];
 
 async function requireUser() {
-  const session = await auth()
-  if (!session?.user?.id) throw new Error("Not signed in")
-  return session.user.id
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not signed in");
+  return session.user.id;
 }
 
 /** Is this user the club's ACTIVE president? (Determines gate routing.) */
@@ -68,38 +73,38 @@ async function isActivePresident(userId: string, organizationId: string) {
       status: "ACTIVE",
       role: { organizationId, scope: "PRESIDENT" },
     },
-  })
-  return !!seat
+  });
+  return !!seat;
 }
 
 export async function createApproval(formData: FormData) {
-  const userId = await requireUser()
+  const userId = await requireUser();
   await withTenantScope(userId, async () => {
-    const organizationId = String(formData.get("organizationId") ?? "")
-    const type = String(formData.get("type") ?? "") as ApprovalType
-    const title = String(formData.get("title") ?? "").trim()
-    const description = String(formData.get("description") ?? "").trim()
-    const amount = String(formData.get("amount") ?? "").trim()
-    const asDraft = formData.get("intent") === "draft"
+    const organizationId = String(formData.get("organizationId") ?? "");
+    const type = String(formData.get("type") ?? "") as ApprovalType;
+    const title = String(formData.get("title") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
+    const amount = String(formData.get("amount") ?? "").trim();
+    const asDraft = formData.get("intent") === "draft";
 
-    if (!title) throw new Error("Title is required")
-    if (!APPROVAL_TYPES.includes(type)) throw new Error("Invalid request type")
+    if (!title) throw new Error("Title is required");
+    if (!APPROVAL_TYPES.includes(type)) throw new Error("Invalid request type");
 
     // Must hold an ACTIVE seat in the org to submit requests from it
     const membership = await db.roleAssignment.findFirst({
       where: { userId, status: "ACTIVE", role: { organizationId } },
       include: { role: { include: { organization: true } } },
-    })
-    if (!membership) throw new Error("You need an active role in this club")
+    });
+    if (!membership) throw new Error("You need an active role in this club");
 
-    const org = membership.role.organization
+    const org = membership.role.organization;
     const requesterIsPresident =
       membership.role.scope === "PRESIDENT" ||
-      (await isActivePresident(userId, organizationId))
+      (await isActivePresident(userId, organizationId));
 
     const target = asDraft
       ? null
-      : nextStatus("submit", "DRAFT", { requesterIsPresident })
+      : nextStatus("submit", "DRAFT", { requesterIsPresident });
 
     const approval = await db.$transaction(async (tx) => {
       const a = await tx.approvalRequest.create({
@@ -113,7 +118,7 @@ export async function createApproval(formData: FormData) {
           status: target ?? "DRAFT",
           metadata: amount ? { amount } : {},
         },
-      })
+      });
       if (target) {
         await tx.approvalStep.create({
           data: {
@@ -124,7 +129,7 @@ export async function createApproval(formData: FormData) {
             actorRoleContext: membership.role.name,
             policySnapshot: { requesterIsPresident },
           },
-        })
+        });
       }
       await tx.auditEvent.create({
         data: {
@@ -137,31 +142,38 @@ export async function createApproval(formData: FormData) {
           resourceId: a.id,
           outcome: "ALLOW",
         },
-      })
-      return a
-    })
+      });
+      return a;
+    });
 
     if (target === "PENDING_PRESIDENT" || target === "PENDING_OSE") {
-      await notifyGate(approval, target, userId)
+      await notifyGate(approval, target, userId);
     }
 
-    revalidatePath("/approvals")
-    redirect(`/approvals/${approval.id}`)
-  })
+    revalidatePath("/approvals");
+    redirect(`/approvals/${approval.id}`);
+  });
 }
 
 export async function actOnApproval(approvalId: string, formData: FormData) {
-  const userId = await requireUser()
+  const userId = await requireUser();
   await withTenantScope(userId, async () => {
-    const action = String(formData.get("action") ?? "") as ApprovalActionName
-    const reason = String(formData.get("reason") ?? "").trim() || null
+    const action = String(formData.get("action") ?? "") as ApprovalActionName;
+    const reason = String(formData.get("reason") ?? "").trim() || null;
 
-    const approval = await db.approvalRequest.findUnique({ where: { id: approvalId } })
-    if (!approval) throw new Error("Request not found")
+    const row = await db.approvalRequest.findUnique({
+      where: { id: approvalId },
+      include: { organization: { select: { status: true } } },
+    });
+    if (!row) throw new Error("Request not found");
+    // Every action below is a write to the club, and an archived club takes
+    // none of them. Carried on the view so the rules decide it, not this
+    // function.
+    const approval = { ...row, organizationStatus: row.organization.status };
 
-    const ctx = await getUserContext(userId)
-    let allowed = availableActions(ctx, approval).includes(action)
-    let onBehalfOf: { id: string; name: string } | null = null
+    const ctx = await getUserContext(userId);
+    let allowed = availableActions(ctx, approval).includes(action);
+    let onBehalfOf: { id: string; name: string } | null = null;
 
     // Delegation: if the actor can't act directly, they may hold an active backup
     // grant from someone who can — borrow that authority and record on whose behalf.
@@ -183,16 +195,19 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
     const borrow = mayBorrowAuthority({
       actorId: userId,
       requestedByPrincipalId: approval.submittedById,
-    })
+    });
     if (!allowed && borrow.ok) {
       const { ctx: effCtx, delegators } = await effectiveApprovalContext(
         userId,
         ctx,
-        approval.institutionId
-      )
-      if (delegators.length > 0 && availableActions(effCtx, approval).includes(action)) {
-        allowed = true
-        onBehalfOf = delegators[0]
+        approval.institutionId,
+      );
+      if (
+        delegators.length > 0 &&
+        availableActions(effCtx, approval).includes(action)
+      ) {
+        allowed = true;
+        onBehalfOf = delegators[0];
       }
     }
 
@@ -208,16 +223,19 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
           outcome: "DENY",
           reason: `Not permitted from ${approval.status}`,
         },
-      })
-      throw new Error("You cannot take this action on this request")
+      });
+      throw new Error("You cannot take this action on this request");
     }
 
     const requesterIsPresident = await isActivePresident(
       approval.submittedById,
-      approval.organizationId
-    )
-    const target = nextStatus(action, approval.status, { requesterIsPresident })
-    if (!target) throw new Error(`Illegal transition: ${action} from ${approval.status}`)
+      approval.organizationId,
+    );
+    const target = nextStatus(action, approval.status, {
+      requesterIsPresident,
+    });
+    if (!target)
+      throw new Error(`Illegal transition: ${action} from ${approval.status}`);
 
     // Actor's role label for the immutable step record
     const actorSeat = await db.roleAssignment.findFirst({
@@ -227,23 +245,37 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
         role: { organizationId: approval.organizationId },
       },
       include: { role: true },
-    })
+    });
     const oseRole = ctx.institutionRoles.find(
-      (m) => m.institutionId === approval.institutionId
-    )?.role
-    const baseRole = actorSeat?.role.name ?? oseRole ?? "Requester"
-    const roleContext = onBehalfOf ? `${baseRole}, on behalf of ${onBehalfOf.name}` : baseRole
+      (m) => m.institutionId === approval.institutionId,
+    )?.role;
+    const baseRole = actorSeat?.role.name ?? oseRole ?? "Requester";
+    const roleContext = onBehalfOf
+      ? `${baseRole}, on behalf of ${onBehalfOf.name}`
+      : baseRole;
 
     // Approval-linked publishing: an EVENT approval drives its event's lifecycle
-    const linkedEvent = await db.event.findUnique({ where: { approvalId: approval.id } })
+    const linkedEvent = await db.event.findUnique({
+      where: { approvalId: approval.id },
+    });
     const eventUpdates =
       linkedEvent == null
         ? []
         : target === "APPROVED"
-          ? [db.event.update({ where: { id: linkedEvent.id }, data: { status: "PUBLISHED" } })]
+          ? [
+              db.event.update({
+                where: { id: linkedEvent.id },
+                data: { status: "PUBLISHED" },
+              }),
+            ]
           : target === "REJECTED" || target === "CANCELLED"
-            ? [db.event.update({ where: { id: linkedEvent.id }, data: { status: "CANCELLED" } })]
-            : []
+            ? [
+                db.event.update({
+                  where: { id: linkedEvent.id },
+                  data: { status: "CANCELLED" },
+                }),
+              ]
+            : [];
 
     // Reimbursement auto-post: on FINAL approval, post the club spend to the ledger
     // — linking this approval + the receipt document — and recompute the budget
@@ -254,10 +286,14 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
     // manager rights — so the OSE approver can post without canManageFinance.
     const reimb = (
       approval.metadata as {
-        reimbursement?: { budgetLineId?: string; amountCents?: number; documentId?: string | null }
+        reimbursement?: {
+          budgetLineId?: string;
+          amountCents?: number;
+          documentId?: string | null;
+        };
       } | null
-    )?.reimbursement
-    let reimbursementOps: Prisma.PrismaPromise<unknown>[] = []
+    )?.reimbursement;
+    let reimbursementOps: Prisma.PrismaPromise<unknown>[] = [];
     if (
       target === "APPROVED" &&
       reimb?.budgetLineId &&
@@ -265,14 +301,20 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
       reimb.amountCents > 0
     ) {
       const [already, line] = await Promise.all([
-        db.ledgerEntry.findFirst({ where: { approvalId: approval.id }, select: { id: true } }),
+        db.ledgerEntry.findFirst({
+          where: { approvalId: approval.id },
+          select: { id: true },
+        }),
         db.budgetLine.findFirst({
-          where: { id: reimb.budgetLineId, organizationId: approval.organizationId },
+          where: {
+            id: reimb.budgetLineId,
+            organizationId: approval.organizationId,
+          },
           select: { id: true, academicYear: true },
         }),
-      ])
+      ]);
       if (!already && line) {
-        const signed = ledgerSignedCents("SPEND", reimb.amountCents)
+        const signed = ledgerSignedCents("SPEND", reimb.amountCents);
         reimbursementOps = [
           db.ledgerEntry.create({
             data: {
@@ -281,7 +323,10 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
               academicYear: line.academicYear,
               kind: "SPEND",
               amountCents: signed,
-              description: approval.title.replace(/^Reimbursement:\s*/i, "").slice(0, 140) || "Reimbursement",
+              description:
+                approval.title
+                  .replace(/^Reimbursement:\s*/i, "")
+                  .slice(0, 140) || "Reimbursement",
               approvalId: approval.id,
               documentId: reimb.documentId ?? null,
               postedById: userId,
@@ -299,7 +344,7 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
             // which PostgreSQL re-evaluates against the committed row.
             data: { actualCents: { increment: signed } },
           }),
-        ]
+        ];
       }
     }
 
@@ -348,14 +393,14 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
             metadata: onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {},
           },
         }),
-      ])
+      ]);
     } catch (error) {
       if (isConcurrentDecision(error)) {
         throw new Error(
-          "Someone else decided this request first. Reload to see where it stands."
-        )
+          "Someone else decided this request first. Reload to see where it stands.",
+        );
       }
-      throw error
+      throw error;
     }
 
     // ── Notifications (BP: notification system across all RBAC flows) ────────
@@ -370,30 +415,30 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
               ? "needs a few changes"
               : action === "cancel"
                 ? "was cancelled"
-                : "moved forward"
+                : "moved forward";
     await notifyUsers([approval.submittedById], {
       title: `Your request “${approval.title}” ${label}`,
       body: reason ?? undefined,
       href: `/approvals/${approval.id}`,
       excludeUserId: userId,
-    })
+    });
     if (target === "PENDING_OSE" || target === "PENDING_PRESIDENT") {
-      await notifyGate(approval, target, userId)
+      await notifyGate(approval, target, userId);
     }
     if (linkedEvent && target === "APPROVED") {
       await notifyUsers(await orgCurrentMemberIds(approval.organizationId), {
         title: `${linkedEvent.title} is approved and now on the calendar`,
         href: `/calendar/${linkedEvent.id}`,
         excludeUserId: userId,
-      })
+      });
     }
 
-    revalidatePath("/approvals")
-    revalidatePath(`/approvals/${approval.id}`)
-    revalidatePath("/dashboard")
+    revalidatePath("/approvals");
+    revalidatePath(`/approvals/${approval.id}`);
+    revalidatePath("/dashboard");
     if (linkedEvent) {
-      revalidatePath("/calendar")
-      revalidatePath(`/calendar/${linkedEvent.id}`)
+      revalidatePath("/calendar");
+      revalidatePath(`/calendar/${linkedEvent.id}`);
     }
-  })
+  });
 }

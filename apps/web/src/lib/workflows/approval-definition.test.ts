@@ -1,5 +1,8 @@
-import type { ApprovalStatus } from "@prisma/client"
-import { applyAction, availableActions as engineActions } from "@tenure/workflow"
+import type { ApprovalStatus } from "@prisma/client";
+import {
+  applyAction,
+  availableActions as engineActions,
+} from "@tenure/workflow";
 
 import {
   actorRoles,
@@ -7,10 +10,10 @@ import {
   nextStatus,
   type ApprovalActionName,
   type ApprovalView,
-} from "@/lib/approvals"
-import type { UserContext } from "@/lib/rbac"
+} from "@/lib/approvals";
+import type { UserContext } from "@/lib/rbac";
 
-import { APPROVAL_WORKFLOW } from "./approval-definition"
+import { APPROVAL_WORKFLOW } from "./approval-definition";
 
 /**
  * The definition must behave *identically* to the switch it replaced.
@@ -35,27 +38,27 @@ function referenceAvailableActions(
   ctx: UserContext,
   approval: ApprovalView,
 ): ApprovalActionName[] {
-  const { isRequester, isPresident, isOseGate } = actorRoles(ctx, approval)
-  const actions: ApprovalActionName[] = []
+  const { isRequester, isPresident, isOseGate } = actorRoles(ctx, approval);
+  const actions: ApprovalActionName[] = [];
 
   switch (approval.status) {
     case "DRAFT":
-      if (isRequester) actions.push("submit", "cancel")
-      break
+      if (isRequester) actions.push("submit", "cancel");
+      break;
     case "PENDING_PRESIDENT":
-      if (isPresident) actions.push("approve", "request_changes", "reject")
-      if (isRequester) actions.push("cancel")
-      break
+      if (isPresident) actions.push("approve", "request_changes", "reject");
+      if (isRequester) actions.push("cancel");
+      break;
     case "PENDING_OSE":
-      if (isOseGate) actions.push("approve", "request_changes", "reject")
-      if (isRequester) actions.push("cancel")
-      break
+      if (isOseGate) actions.push("approve", "request_changes", "reject");
+      if (isRequester) actions.push("cancel");
+      break;
     case "NEEDS_CHANGES":
-      if (isRequester) actions.push("resubmit", "cancel")
-      break
+      if (isRequester) actions.push("resubmit", "cancel");
+      break;
     // APPROVED / REJECTED / CANCELLED are terminal
   }
-  return actions
+  return actions;
 }
 
 /** ORACLE — the pre-delegation implementation. */
@@ -66,21 +69,23 @@ function referenceNextStatus(
 ): ApprovalStatus | null {
   switch (action) {
     case "submit":
-      if (current !== "DRAFT") return null
-      return opts.requesterIsPresident ? "PENDING_OSE" : "PENDING_PRESIDENT"
+      if (current !== "DRAFT") return null;
+      return opts.requesterIsPresident ? "PENDING_OSE" : "PENDING_PRESIDENT";
     case "resubmit":
-      if (current !== "NEEDS_CHANGES") return null
-      return opts.requesterIsPresident ? "PENDING_OSE" : "PENDING_PRESIDENT"
+      if (current !== "NEEDS_CHANGES") return null;
+      return opts.requesterIsPresident ? "PENDING_OSE" : "PENDING_PRESIDENT";
     case "approve":
-      if (current === "PENDING_PRESIDENT") return "PENDING_OSE"
-      if (current === "PENDING_OSE") return "APPROVED"
-      return null
+      if (current === "PENDING_PRESIDENT") return "PENDING_OSE";
+      if (current === "PENDING_OSE") return "APPROVED";
+      return null;
     case "request_changes":
-      if (current === "PENDING_PRESIDENT" || current === "PENDING_OSE") return "NEEDS_CHANGES"
-      return null
+      if (current === "PENDING_PRESIDENT" || current === "PENDING_OSE")
+        return "NEEDS_CHANGES";
+      return null;
     case "reject":
-      if (current === "PENDING_PRESIDENT" || current === "PENDING_OSE") return "REJECTED"
-      return null
+      if (current === "PENDING_PRESIDENT" || current === "PENDING_OSE")
+        return "REJECTED";
+      return null;
     case "cancel":
       if (
         current === "DRAFT" ||
@@ -88,8 +93,8 @@ function referenceNextStatus(
         current === "PENDING_OSE" ||
         current === "NEEDS_CHANGES"
       )
-        return "CANCELLED"
-      return null
+        return "CANCELLED";
+      return null;
   }
 }
 
@@ -101,20 +106,26 @@ const STATUSES: ApprovalStatus[] = [
   "APPROVED",
   "REJECTED",
   "CANCELLED",
-]
+];
 
-const ORG = "org1"
-const INST = "inst1"
-const ME = "me"
+const ORG = "org1";
+const INST = "inst1";
+const ME = "me";
 
 /** A UserContext that produces the requested actor roles for this request. */
-function contextFor(roles: { requester: boolean; president: boolean; ose: boolean }): {
-  ctx: UserContext
-  approval: ApprovalView
+function contextFor(roles: {
+  requester: boolean;
+  president: boolean;
+  ose: boolean;
+}): {
+  ctx: UserContext;
+  approval: ApprovalView;
 } {
   const ctx: UserContext = {
     userId: ME,
-    institutionRoles: roles.ose ? [{ institutionId: INST, role: "OSE_DIRECTOR" }] : [],
+    institutionRoles: roles.ose
+      ? [{ institutionId: INST, role: "OSE_DIRECTOR" }]
+      : [],
     orgRoles: roles.president
       ? [
           {
@@ -127,7 +138,7 @@ function contextFor(roles: { requester: boolean; president: boolean; ose: boolea
           },
         ]
       : [],
-  }
+  };
   return {
     ctx,
     approval: {
@@ -136,15 +147,17 @@ function contextFor(roles: { requester: boolean; president: boolean; ose: boolea
       submittedById: roles.requester ? ME : "someone-else",
       organizationId: ORG,
       institutionId: INST,
+      // These cases are about workflow roles, not the club lifecycle.
+      organizationStatus: "ACTIVE" as const,
     },
-  }
+  };
 }
 
 const ROLE_COMBINATIONS = [false, true].flatMap((requester) =>
   [false, true].flatMap((president) =>
     [false, true].map((ose) => ({ requester, president, ose })),
   ),
-)
+);
 
 describe("the definition reproduces the switch exactly", () => {
   for (const combo of ROLE_COMBINATIONS) {
@@ -152,32 +165,35 @@ describe("the definition reproduces the switch exactly", () => {
       for (const requesterIsPresident of [false, true]) {
         const name =
           `${status} · requester=${combo.requester} president=${combo.president} ` +
-          `ose=${combo.ose} · requesterIsPresident=${requesterIsPresident}`
+          `ose=${combo.ose} · requesterIsPresident=${requesterIsPresident}`;
 
         it(`offers the same actions — ${name}`, () => {
-          const { ctx, approval } = contextFor(combo)
-          const expected = referenceAvailableActions(ctx, { ...approval, status })
+          const { ctx, approval } = contextFor(combo);
+          const expected = referenceAvailableActions(ctx, {
+            ...approval,
+            status,
+          });
 
           // The host resolves which roles the actor plays for this instance —
           // exactly what actorRoles() does in the existing implementation.
-          const roles: string[] = []
-          if (combo.requester) roles.push("requester")
-          if (combo.president) roles.push("president")
-          if (combo.ose) roles.push("oseGate")
+          const roles: string[] = [];
+          if (combo.requester) roles.push("requester");
+          if (combo.president) roles.push("president");
+          if (combo.ose) roles.push("oseGate");
 
           // The shipping function, not the engine — this has to prove what
           // callers actually get, and roles are unused by it beyond ctx.
-          void roles
-          const actual = availableActions(ctx, { ...approval, status })
+          void roles;
+          const actual = availableActions(ctx, { ...approval, status });
 
-          expect([...actual].sort()).toEqual([...expected].sort())
+          expect([...actual].sort()).toEqual([...expected].sort());
           // Order matters too: the detail page renders buttons in this order.
-          expect(actual).toEqual(expected)
-        })
+          expect(actual).toEqual(expected);
+        });
       }
     }
   }
-})
+});
 
 describe("the definition reaches the same next status", () => {
   const ACTIONS: ApprovalActionName[] = [
@@ -187,63 +203,83 @@ describe("the definition reaches the same next status", () => {
     "reject",
     "resubmit",
     "cancel",
-  ]
+  ];
 
   for (const status of STATUSES) {
     for (const action of ACTIONS) {
       for (const requesterIsPresident of [false, true]) {
         it(`${action} from ${status} (president=${requesterIsPresident})`, () => {
-          const expected = referenceNextStatus(action, status, { requesterIsPresident })
+          const expected = referenceNextStatus(action, status, {
+            requesterIsPresident,
+          });
 
           // Every role, so role filtering cannot mask a routing difference —
           // this compares where the flow GOES, which nextStatus also ignores
           // roles for.
-          expect(nextStatus(action, status, { requesterIsPresident })).toBe(expected)
-        })
+          expect(nextStatus(action, status, { requesterIsPresident })).toBe(
+            expected,
+          );
+        });
       }
     }
   }
-})
+});
 
 describe("what the definition adds over the switch", () => {
   it("distinguishes why an action was refused", () => {
     // A wrong state is a stale page and should be reloaded; a permission
     // failure is a genuine denial and should be shown as one. The switch
     // collapses both into "not in the list".
-    const stale = applyAction(APPROVAL_WORKFLOW, {
-      state: "APPROVED",
-      roles: ["oseGate"],
-      conditions: {},
-    }, "approve")
-    expect(stale).toMatchObject({ ok: false, reason: "not-from-this-state" })
+    const stale = applyAction(
+      APPROVAL_WORKFLOW,
+      {
+        state: "APPROVED",
+        roles: ["oseGate"],
+        conditions: {},
+      },
+      "approve",
+    );
+    expect(stale).toMatchObject({ ok: false, reason: "not-from-this-state" });
 
-    const denied = applyAction(APPROVAL_WORKFLOW, {
-      state: "PENDING_OSE",
-      roles: ["requester"],
-      conditions: {},
-    }, "approve")
-    expect(denied).toMatchObject({ ok: false, reason: "actor-not-permitted" })
+    const denied = applyAction(
+      APPROVAL_WORKFLOW,
+      {
+        state: "PENDING_OSE",
+        roles: ["requester"],
+        conditions: {},
+      },
+      "approve",
+    );
+    expect(denied).toMatchObject({ ok: false, reason: "actor-not-permitted" });
 
-    const unknown = applyAction(APPROVAL_WORKFLOW, {
-      state: "DRAFT",
-      roles: ["requester"],
-      conditions: {},
-    }, "escalate")
-    expect(unknown).toMatchObject({ ok: false, reason: "unknown-action" })
-  })
+    const unknown = applyAction(
+      APPROVAL_WORKFLOW,
+      {
+        state: "DRAFT",
+        roles: ["requester"],
+        conditions: {},
+      },
+      "escalate",
+    );
+    expect(unknown).toMatchObject({ ok: false, reason: "unknown-action" });
+  });
 
   it("carries labels, so a UI does not need its own copy of them", () => {
     const actions = engineActions(APPROVAL_WORKFLOW, {
       state: "PENDING_OSE",
       roles: ["oseGate"],
       conditions: {},
-    })
-    expect(actions.map((a) => a.label)).toEqual(["Approve", "Request changes", "Reject"])
-  })
+    });
+    expect(actions.map((a) => a.label)).toEqual([
+      "Approve",
+      "Request changes",
+      "Reject",
+    ]);
+  });
 
   it("is a published, frozen version", () => {
-    expect(APPROVAL_WORKFLOW.version).toBe("1.0.0")
-    expect(Object.isFrozen(APPROVAL_WORKFLOW)).toBe(true)
-    expect(Object.isFrozen(APPROVAL_WORKFLOW.transitions)).toBe(true)
-  })
-})
+    expect(APPROVAL_WORKFLOW.version).toBe("1.0.0");
+    expect(Object.isFrozen(APPROVAL_WORKFLOW)).toBe(true);
+    expect(Object.isFrozen(APPROVAL_WORKFLOW.transitions)).toBe(true);
+  });
+});
