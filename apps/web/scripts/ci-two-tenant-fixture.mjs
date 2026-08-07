@@ -61,7 +61,10 @@ async function create() {
   await db.institution.upsert({
     where: { id: B.institutionId },
     update: {},
-    create: { id: B.institutionId, name: B.name, slug: B.slug },
+    // Serving from the moment it exists. `serving` is what activation switches
+    // on, and a fixture tenant that nobody activates is unreachable — every
+    // isolation assertion in this file is about a tenant a user CAN act in.
+    create: { id: B.institutionId, name: B.name, slug: B.slug, serving: true },
   })
 
   const org = await db.organization.upsert({
@@ -221,7 +224,11 @@ async function switcherTeardown() {
 async function switcherCreate() {
   await switcherTeardown()
 
-  await db.institution.createMany({ data: [SWITCHER.b, SWITCHER.c] })
+  // Same reason as tenant B above: the switcher spec signs in and switches
+  // between these, which `resolveTenantScope` only permits for a serving tenant.
+  await db.institution.createMany({
+    data: [SWITCHER.b, SWITCHER.c].map((i) => ({ ...i, serving: true })),
+  })
 
   const member = await db.user.findUnique({ where: { email: SWITCHER.member.email } })
   if (!member) {
