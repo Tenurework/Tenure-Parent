@@ -48,12 +48,21 @@ const configured = !!process.env.TENANT_TABLE && !!process.env.AWS_ENDPOINT_URL_
 
 // A skip that says what is missing. A suite that quietly passes with no database
 // is worse than none, because a requirement would cite it.
+//
+// `.bind(null, "SKIPPED — …")` PRE-BOUND the name, so the real call
+// `describeWithDynamo("the Studio audit ledger…", fn)` arrived as three
+// arguments and jest read the second — a string — where the callback belongs:
+// "Invalid second argument, the Studio audit ledger, against a real DynamoDB.
+// It must be a callback function." The suite did not skip, it failed to load,
+// which is the one outcome a skip helper must never produce. A wrapper keeps
+// the reason in the name without displacing the arguments.
 const describeWithDynamo = configured
   ? describe
-  : describe.skip.bind(
-      null,
-      "SKIPPED — needs TENANT_TABLE and AWS_ENDPOINT_URL_DYNAMODB pointing at a local DynamoDB",
-    ) as unknown as typeof describe
+  : (((name: string, fn: () => void) =>
+      describe.skip(
+        `${name} — SKIPPED: needs TENANT_TABLE and AWS_ENDPOINT_URL_DYNAMODB pointing at a local DynamoDB`,
+        fn,
+      )) as unknown as typeof describe)
 
 // Every case here is several round trips to a container. Jest's 5s default
 // times them out on the SDK's first call alone, which reads as a failure of the

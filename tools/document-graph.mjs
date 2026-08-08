@@ -118,7 +118,16 @@ export function sourceFiles() {
     }
   }
   walk(ROOT)
-  return out.sort()
+  // Sorted on the NORMALIZED relative path, not the native absolute one.
+  //
+  // `path.join` uses the platform separator, and `\` (0x5C) and `/` (0x2F) sort
+  // differently against the characters that can follow a directory name — so
+  // `docs/a.md` vs `docsX/b.md` orders one way on Linux and the other on
+  // Windows. The generated graph lists documents in this order, which made the
+  // output platform-dependent: `--check` passed on the machine that wrote the
+  // file and failed in CI with "is stale", pointing at content nobody had
+  // changed.
+  return out.sort((a, b) => (rel(a) < rel(b) ? -1 : rel(a) > rel(b) ? 1 : 0))
 }
 
 const rel = (p) => path.relative(ROOT, p).split(path.sep).join("/")
@@ -349,7 +358,11 @@ export function importedIds() {
   const dir = path.join(ROOT, LEDGER_DIR)
   if (!fs.existsSync(dir)) return seen
   const walk = (d) => {
-    for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+    // Sorted for the same reason the ledger read below is: `readdirSync` makes
+    // no ordering promise, and it differs between NTFS and ext4.
+    const entries = fs.readdirSync(d, { withFileTypes: true })
+    entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    for (const entry of entries) {
       const full = path.join(d, entry.name)
       if (entry.isDirectory()) walk(full)
       else if (entry.name.endsWith(".md")) {
@@ -369,7 +382,12 @@ export function ledgerStatuses() {
   const dir = path.join(ROOT, LEDGER_DIR)
   if (!fs.existsSync(dir)) return status
 
-  for (const name of fs.readdirSync(dir)) {
+  // `.sort()` because `readdirSync` gives no ordering guarantee at all: NTFS
+  // hands back names roughly sorted and ext4 hands back whatever the directory
+  // hash produces. Ledgers are read into a Map here, and a later file can
+  // overwrite an earlier one's entry for the same id — so the iteration order
+  // is not cosmetic, it decides which status wins.
+  for (const name of fs.readdirSync(dir).sort()) {
     if (!name.endsWith("-ledger.md")) continue
     const text = fs.readFileSync(path.join(dir, name), "utf8")
     // A ledger entry opens with the id and states `Status: X` before the next

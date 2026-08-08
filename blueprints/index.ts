@@ -103,6 +103,32 @@ export const TENANT_BINDINGS: readonly TenantBinding[] = [
     values: {
       "platform.terminology.staffOfficeName": "Midtown Program Office",
       "platform.terminology.staffOfficeShortName": "MPO",
+      // WRK-120-004. The only published model allowance in the repository, and
+      // the reason it is here rather than on the pilot.
+      //
+      // `platform.relay.modelTokenBudgetPerMonth` is authority-gating —
+      // `requiresCapability: "relay.modelBudget.publish"` — so its default is
+      // ZERO, because a default is what an institution NOBODY has configured
+      // inherits and that must grant nothing (pinned in
+      // `packages/platform-config/src/resolve.test.ts`). The consequence is
+      // that until some tenant layer sets it, every institution on the
+      // deployment resolves to a ceiling of zero and the key is a definition
+      // nothing publishes — indistinguishable, from the outside, from a
+      // constant.
+      //
+      // This line is what makes it configuration. It is the tenant layer, which
+      // is the store `apps/web/src/lib/config/server.ts` resolves through
+      // (`resolveSystemConfig` → `layersFor` → this binding), so a budget
+      // decision taken against real rows in Postgres reads a real published
+      // number — which is what `apps/web/src/lib/metering/model-usage.itest.ts`
+      // asserts, on this slug, in both directions.
+      //
+      // 2,000,000 tokens is about 550 assistant answers a month at the ~3,600
+      // input-plus-output tokens a cited answer costs. It is deliberately a
+      // FIXTURE's allowance and not the pilot's: `rochester` publishes nothing,
+      // so the pair is the falsifiable form of "the ceiling comes from the
+      // tenant's configuration" — same code, same month, opposite verdicts.
+      "platform.relay.modelTokenBudgetPerMonth": 2_000_000,
     },
   },
   {

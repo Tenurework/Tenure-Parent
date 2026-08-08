@@ -17,11 +17,21 @@
  * `usage` and reports a constant instead, because the total stops moving with
  * the fixture's response.
  *
+ * The budget half runs against TWO real institutions carrying identical usage:
+ * one whose slug has published an allowance and one whose slug no binding names,
+ * which therefore inherits the platform default of zero. The unit test proves
+ * the same claim with `resolveSystemConfig` wrapped; here nothing is wrapped, so
+ * the opposite verdicts are produced by a published configuration value and by
+ * rows in Postgres and by nothing else.
+ *
  * Needs a live database, so it is a `.itest.ts` and runs under
  * `npm run test:isolation`, not in the default jest run.
  */
 
 jest.setTimeout(60_000)
+
+import { getTenantBinding } from "@tenure/blueprints"
+import { MODEL_TOKEN_BUDGET_KEY, modelTokenBudgetPerMonth } from "@tenure/platform-config"
 
 import { db } from "@/lib/db"
 import { runUnscoped } from "@/lib/tenancy/context"
@@ -36,6 +46,42 @@ import {
 /** Distinct per run: this suite writes rows and is not idempotent. */
 const RUN = Date.now().toString(36)
 const institutionId = `inst-meter-${RUN}`
+
+/**
+ * The metered tenant carries a slug that has PUBLISHED an allowance, and the id
+ * is still unique per run so the rows below belong to nobody else.
+ *
+ * Configuration in this platform is keyed by slug, not by institution id:
+ * `modelTokenBudgetForInstitution` reads the row's `slug` and hands it to
+ * `resolveSystemConfig`, whose layers come from the tenant bindings in
+ * `blueprints/index.ts`. So "publish an allowance for this tenant" is not a
+ * write this test can make against a table — it is a tenant layer, and the way
+ * to test a budget against a published one is to be a tenant that has one.
+ * `midtown-arts` is that tenant: a fixture, deliberately not seeded into any
+ * database (see the binding), and the one binding in the repository that sets
+ * `platform.relay.modelTokenBudgetPerMonth`.
+ *
+ * Nothing is stubbed to arrange this. The resolver, the registry, the
+ * definition and the binding underneath are the shipped ones, which is the
+ * point: a mocked cap would make the flip below prove only that a mock changed.
+ */
+const PUBLISHED_SLUG = "midtown-arts"
+
+/**
+ * What that tenant published, read from the binding rather than restated, so a
+ * changed allowance is not a test that keeps asserting the old number.
+ */
+const PUBLISHED_CAP = getTenantBinding(PUBLISHED_SLUG)!.values[MODEL_TOKEN_BUDGET_KEY] as number
+
+/** What a tenant that published NOTHING inherits — zero, and read off the definition. */
+const DEFAULT_CAP = modelTokenBudgetPerMonth.default as number
+
+/**
+ * The other direction, and it needs a second real institution: a slug no
+ * binding names, which resolves to platform defaults.
+ */
+const unpublishedId = `inst-meter-unpublished-${RUN}`
+const unpublishedSlug = `meter-unpublished-${RUN}`
 
 const AT = new Date("2026-08-07T13:00:00.000Z")
 /** A different UTC month, to prove the period actually partitions the sum. */
@@ -60,14 +106,29 @@ beforeAll(async () => {
     )) as unknown as typeof fetch
 
   await runUnscoped("seed", "model-usage meter fixture tenant", async () => {
+    // `midtown-arts` is bound in configuration and seeded into no database, so
+    // a row on that slug can only be a previous crashed run of THIS suite —
+    // cleared rather than left to fail the unique index on `slug`.
+    await db.institution.deleteMany({ where: { slug: PUBLISHED_SLUG } })
+
     await db.institution.create({
       data: {
         id: institutionId,
         name: `Meter Fixture ${RUN}`,
-        slug: `meter-fixture-${RUN}`,
+        // The tenant that published an allowance. See PUBLISHED_SLUG.
+        slug: PUBLISHED_SLUG,
+        serving: true,
+      },
+    })
+
+    await db.institution.create({
+      data: {
+        id: unpublishedId,
+        name: `Meter Fixture (unpublished) ${RUN}`,
         // No blueprint binding for this slug, so the configuration resolves to
         // platform defaults — which is the honest state of a tenant nobody has
         // configured, and the case the budget must still have an answer for.
+        slug: unpublishedSlug,
         serving: true,
       },
     })
@@ -83,7 +144,7 @@ afterAll(async () => {
     // Cascades to ModelUsageMeter through the migration's foreign key, which is
     // itself worth exercising: a meter that outlived its institution would be
     // usage attributed to a tenant that no longer exists.
-    await db.institution.deleteMany({ where: { id: institutionId } })
+    await db.institution.deleteMany({ where: { id: { in: [institutionId, unpublishedId] } } })
   })
 })
 
@@ -157,8 +218,11 @@ describe("the vendor's numbers become a row", () => {
   })
 })
 
+/** The two metered calls in the first describe, which both tenants below are measured against. */
+const METERED_TOTAL = (INPUT_TOKENS + OUTPUT_TOKENS) * 2
+
 describe("the budget reads the rows back", () => {
-  it("allows a tenant whose real total is inside its resolved ceiling", async () => {
+  it("allows a tenant whose real total is inside the allowance it published", async () => {
     const verdict = await runUnscoped("seed", "decide the budget", () =>
       budgetVerdict(institutionId, AT),
     )
@@ -167,8 +231,42 @@ describe("the budget reads the rows back", () => {
     expect(verdict.period).toBe(periodOf(AT))
     // Not a fixture: the total came out of Postgres and moved with the two
     // metered calls above.
-    expect(verdict.usedTokens).toBe((INPUT_TOKENS + OUTPUT_TOKENS) * 2)
-    expect(verdict.capTokens).toBeGreaterThan(0)
+    expect(verdict.usedTokens).toBe(METERED_TOTAL)
+    // And not a constant either: the ceiling is the number this tenant's layer
+    // publishes, resolved through the shipped registry — not the default, which
+    // grants nothing.
+    expect(verdict.capTokens).toBe(PUBLISHED_CAP)
+    expect(verdict.capTokens).toBeGreaterThan(DEFAULT_CAP)
+  })
+
+  it("refuses the same real total for a tenant that published nothing", async () => {
+    // The other direction, and the one that makes the pair mean something. The
+    // usage is identical — the same token counts, the same month, real rows in
+    // the same table — and the only difference between the two institutions is
+    // that one of them has a published allowance and the other inherits the
+    // platform default. A reader that ignored configuration would give both the
+    // same answer, and a reader that ignored the rows would give neither one
+    // that moved.
+    await runUnscoped("seed", "meter the unpublished tenant", () =>
+      recordModelUsage({
+        institutionId: unpublishedId,
+        model: "claude-x",
+        inputTokens: INPUT_TOKENS * 2,
+        outputTokens: OUTPUT_TOKENS * 2,
+        at: AT,
+      }),
+    )
+
+    const verdict = await runUnscoped("seed", "decide the unpublished budget", () =>
+      budgetVerdict(unpublishedId, AT),
+    )
+
+    expect(verdict.usedTokens).toBe(METERED_TOTAL)
+    // Zero, because the key is authority-gating: what a tenant nobody has
+    // granted `relay.modelBudget.publish` inherits must grant nothing.
+    expect(verdict.capTokens).toBe(DEFAULT_CAP)
+    expect(verdict.allowed).toBe(false)
+    expect(verdict.reason).toBe("budget-exhausted")
   })
 
   it("refuses once the rows in the table exceed the ceiling", async () => {

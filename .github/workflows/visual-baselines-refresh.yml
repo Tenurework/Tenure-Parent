@@ -1,0 +1,190 @@
+# TTES-020-004 — produce the visual baselines, in the image they are pinned to.
+#
+# ## Why this workflow exists
+#
+# `apps/web/e2e/visual-baselines.spec.ts` compares the component catalogue
+# against reference PNGs in `apps/web/e2e/__screenshots__`. That directory has
+# never contained a file, so the suite has never had anything to compare
+# against — it failed 37/37 the first time it ran in CI (`db95980`, withdrawn in
+# `a8ceb8b`) for exactly that reason, and the blocking CI step has been withdrawn
+# again until the PNGs land. The spec, its `visual` project in
+# `playwright.config.ts` and the pinned-container step's own machinery are all
+# correct and all still in the tree; the only missing artifact is the images.
+#
+# They cannot be produced on the Windows development host. Font rasterisation is
+# a property of the platform — the same self-hosted Inter goes through
+# DirectWrite on Windows and FreeType on Linux and the two disagree on nearly
+# every antialiased pixel — so the capture has to happen in the same image the
+# comparison happens in. Three routes from Docker Desktop to an app on the
+# Windows loopback were tried and all three fail: `--network host` binds the
+# Linux VM rather than Windows; `--add-host localhost:host-gateway` loses to the
+# IPv6 loopback entry; and `host.docker.internal` reaches the app but the
+# post-login redirect returns the absolute `NEXTAUTH_URL`, which
+# `apps/web/src/lib/env.ts:176` requires to be https-or-loopback. That guard is
+# correct — the risk it names is a session cookie crossing a wire in clear, and
+# Docker's virtual network is a wire — so it was not weakened to manufacture
+# fixtures.
+#
+# A GitHub `ubuntu-latest` runner has none of that problem: the app and the
+# container share one Linux network namespace, `--network host` means what it
+# says, and `http://localhost:3000` is a loopback URL the environment contract
+# already accepts. So the capture happens here.
+#
+# ## What to do with it
+#
+# Run it from the Actions tab, download the `visual-baselines` artifact, unzip it
+# into `apps/web/e2e/__screenshots__/`, commit the PNGs, and restore the
+# "Visual baselines (pinned container)" step in `ci.yml` (its body is in this
+# repository's history at `6038a62`, unchanged and working). From then on the
+# comparison runs on every push and this workflow is only for deliberate
+# redesigns.
+#
+# ## Why it is dispatch-only, and why it never commits
+#
+# `workflow_dispatch` and nothing else. A baseline refresh that ran on a push
+# would rewrite the references it is supposed to be checked against, and a
+# screenshot suite whose baselines regenerate themselves cannot fail — which is
+# the same disabled-guard shape as a suite that passes with no references at
+# all. A human takes the artifact and commits it, so the images enter the
+# repository through review like any other change, and `permissions:` below
+# grants `contents: read` precisely so this job could not push them even if
+# somebody added a step that tried.
+name: Visual baselines · refresh
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Capture in the pinned container
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tenure
+          POSTGRES_PASSWORD: tenure
+          POSTGRES_DB: tenure
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tenure"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Identical to the `e2e` job in ci.yml, deliberately. The baselines have to
+    # be photographs of the app the comparison will run against, and any
+    # difference in how the server is configured here is a difference that shows
+    # up later as a diff nobody can explain.
+    env:
+      DATABASE_URL: postgresql://tenure:tenure@localhost:5432/tenure
+      AUTH_SECRET: e2e-not-a-placeholder-2f8c1d9b4a6e7350f1c2
+      AUTH_TRUST_HOST: "true"
+      AUTH_DEV_LOGIN: "true"
+      ALLOW_DEV_LOGIN_IN_PRODUCTION: "true"
+      DEV_LOGIN_PASSPHRASE: e2e-shared-pilot-passphrase
+      TENANCY_ENFORCE: "true"
+      NEXTAUTH_URL: http://localhost:3000
+      OKTA_CLIENT_ID: ""
+      OKTA_CLIENT_SECRET: ""
+      OKTA_ISSUER: ""
+      IMAGE_TAG: e2e-local
+      JOB_SECRET: e2e-not-a-placeholder-job-4b7d2e9a
+      AWS_REGION: us-east-1
+
+    steps:
+      # SHA-pinned rather than tagged, because `tests/security/workflow-drift.test.mjs`
+      # holds the number of tag-pinned references as a ratchet that may only
+      # shrink. These are the same commits `aws-inventory.yml` already pins.
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.2.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The gallery reads seeded data through the authenticated `(app)` group,
+      # so a baseline captured against an empty database is a photograph of an
+      # error page.
+      - name: Apply migrations + seed
+        working-directory: apps/web
+        run: |
+          npx prisma migrate deploy
+          node scripts/seed.mjs
+
+      # No `playwright install` here: the browsers live in the container image,
+      # and nothing on the runner drives a browser. The runner only serves the app.
+      - name: Build
+        run: npm run build
+
+      - name: Capture baselines
+        working-directory: apps/web
+        env:
+          # The gallery route is fail-closed on this and nothing else sets it —
+          # the pilot's task definition (infrastructure/terraform/ecs.tf) does
+          # not, which is why the route cannot reach the pilot.
+          TENURE_UI_GALLERY: "true"
+        run: |
+          npm run start > /tmp/visual-server.log 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -fsS http://localhost:3000/api/health > /dev/null && break
+            sleep 2
+          done
+          # Not part of the wait loop: this is the assertion that the loop
+          # succeeded rather than simply ran out, so a server that never came up
+          # fails here instead of as 37 confusing navigation timeouts — and, in
+          # this workflow specifically, instead of as an empty artifact somebody
+          # commits as "the baselines".
+          curl -fsS http://localhost:3000/api/health > /dev/null || {
+            echo "::error::the app did not start for the visual matrix"; cat /tmp/visual-server.log; exit 1;
+          }
+          # The same image, the same repository-local @playwright/test and the
+          # same project as the comparison step in ci.yml. Only
+          # `--update-snapshots` differs, and that one flag is the whole reason
+          # this workflow is separate from CI rather than a branch inside it.
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE:/work" -w /work/apps/web \
+            -e PLAYWRIGHT_BASE_URL=http://localhost:3000 \
+            -e DEV_LOGIN_PASSPHRASE \
+            mcr.microsoft.com/playwright:v1.61.1-noble \
+            node /work/node_modules/@playwright/test/cli.js test --project=visual --workers=4 --update-snapshots
+
+      # `always()`, because the images are worth collecting even when the run
+      # reports a failure — a cell that could not be photographed still leaves
+      # the other thirty-five on disk, and the reason it failed is easier to read
+      # next to them.
+      #
+      # `if-no-files-found: error` is the guard that matters here. Without it a
+      # run that captured nothing uploads an empty zip, and an empty zip is
+      # indistinguishable from a successful capture until somebody unpacks it
+      # over `__screenshots__/`, commits nothing, and restores a CI step that
+      # then fails 37/37 for the second time.
+      - name: Upload the baselines
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-baselines
+          path: apps/web/e2e/__screenshots__/
+          if-no-files-found: error
+          retention-days: 7
+
+      # Separate from the baselines: when a cell genuinely cannot be captured,
+      # this is what says why.
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          path: apps/web/test-results/
+          name: playwright-traces
+          retention-days: 7

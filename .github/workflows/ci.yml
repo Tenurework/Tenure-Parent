@@ -368,51 +368,33 @@ jobs:
       - name: Run e2e suite
         run: npm run e2e
 
-      # ── The visual matrix, in the image its baselines came out of ───────────
+      # ── The visual matrix — WITHDRAWN until its baselines exist ─────────────
       #
-      # `npm run e2e` above SKIPS `e2e/visual-baselines.spec.ts`. The spec
-      # fingerprints its container — linux, PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-      # (the Playwright images bake their browsers in; `npx playwright install`
-      # on this runner does not set it) and an `/etc/os-release` saying noble —
-      # and this runner is not that. That is deliberate: a screenshot comparison
-      # on a host whose font stack differs from the capture host measures
-      # fontconfig rather than the page, and that is exactly how the first
-      # version of this suite died — 37/37 red on its first CI run (`db95980`,
-      # withdrawn in `a8ceb8b`).
+      # TTES-020-004. A "Visual baselines (pinned container)" step stood here
+      # and its machinery was right: `npm run e2e` above SKIPS
+      # `e2e/visual-baselines.spec.ts` because the spec fingerprints its
+      # container (linux, PLAYWRIGHT_BROWSERS_PATH=/ms-playwright, an
+      # `/etc/os-release` saying noble) and this runner is not that, so the
+      # comparison was run separately in `mcr.microsoft.com/playwright:v1.61.1-noble`
+      # — the one image the references belong to — against the server this job
+      # already has built, with the health check asserted rather than merely
+      # waited on.
       #
-      # So the comparison happens here, in the one image the committed PNGs in
-      # `apps/web/e2e/__screenshots__` were produced in. The container mounts the
-      # workspace and runs the repository's OWN @playwright/test rather than
-      # installing a second copy: playwright-core is pure JavaScript and the
-      # image carries the browser build matching the pinned version, so the
-      # runner and the container cannot disagree about which Playwright this is.
-      # `--network host` is what lets it reach the server started below; the
-      # `Upload traces on failure` step below collects the actual/diff PNGs.
-      - name: Visual baselines (pinned container)
-        working-directory: apps/web
-        env:
-          # The gallery route is fail-closed on this and nothing else sets it —
-          # the pilot's task definition (infrastructure/terraform/ecs.tf) does
-          # not, which is why the route cannot reach the pilot.
-          TENURE_UI_GALLERY: "true"
-        run: |
-          npm run start > /tmp/visual-server.log 2>&1 &
-          for _ in $(seq 1 60); do
-            curl -fsS http://localhost:3000/api/health > /dev/null && break
-            sleep 2
-          done
-          # Not part of the wait loop: this is the assertion that the loop
-          # succeeded rather than simply ran out, so a server that never came up
-          # fails here instead of as 37 confusing navigation timeouts.
-          curl -fsS http://localhost:3000/api/health > /dev/null || {
-            echo "::error::the app did not start for the visual matrix"; cat /tmp/visual-server.log; exit 1;
-          }
-          docker run --rm --network host \
-            -v "$GITHUB_WORKSPACE:/work" -w /work/apps/web \
-            -e PLAYWRIGHT_BASE_URL=http://localhost:3000 \
-            -e DEV_LOGIN_PASSPHRASE \
-            mcr.microsoft.com/playwright:v1.61.1-noble \
-            node /work/node_modules/@playwright/test/cli.js test --project=visual --workers=4
+      # What it never had is references. `apps/web/e2e/__screenshots__` has never
+      # contained a file, so that step failed 4/4 on every run: a comparison
+      # against nothing is not a weak test, it is no test, and it was the only
+      # red in this workflow. It is withdrawn here rather than made to pass,
+      # because the two ways to make it pass — skipping when the directory is
+      # empty, or letting CI write its own baselines — both produce a screenshot
+      # suite that cannot fail.
+      #
+      # The step's body is unchanged in history at `6038a62` and goes back
+      # verbatim. The one thing standing between here and there is a set of PNGs
+      # captured on Linux, and `.github/workflows/visual-baselines-refresh.yml`
+      # is the button that produces them: same image, same project, same server,
+      # plus `--update-snapshots`, uploading `apps/web/e2e/__screenshots__/` as
+      # an artifact for a human to review and commit. Restore this step in the
+      # same change that lands the images.
 
       - name: Upload traces on failure
         if: failure()

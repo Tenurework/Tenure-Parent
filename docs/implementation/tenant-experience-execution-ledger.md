@@ -987,6 +987,36 @@ the commands or the ADR that would unblock it — if it cannot.
     preserved in commit `db95980`; what it lacks is reference images, and a screenshot
     suite with no baselines cannot pass anywhere. Shipping it red would have left CI red
     permanently, which is how a visual suite gets deleted for real.
+  - UPDATE (2026-08-08). The spec is back in the tree — a later run restored it and
+    added the CI step that runs it properly — and the reference images still do not
+    exist, so the step failed 4/4 on every push. What changed today is narrow and it is
+    NOT a status change: the SPEC and its `visual` project stay, the blocking CI step
+    is withdrawn, and the route to producing the images is now a workflow instead of a
+    paragraph.
+    * Kept, unchanged: `apps/web/e2e/visual-baselines.spec.ts`, its `visual` project in
+      `playwright.config.ts`, and `pinnedImageMismatch()` — the fingerprint (linux +
+      `PLAYWRIGHT_BROWSERS_PATH=/ms-playwright` + an `/etc/os-release` saying noble)
+      that makes the spec skip anywhere the baselines would measure the host font
+      stack rather than the page.
+    * Withdrawn from `.github/workflows/ci.yml`: the step "Visual baselines (pinned
+      container)", and only that step. Its body was correct — it started the app,
+      asserted the `/api/health` wait had SUCCEEDED rather than merely run out, and ran
+      `mcr.microsoft.com/playwright:v1.61.1-noble` with `--network host` against it —
+      and it is unchanged in history at `6038a62`, to be restored verbatim in the same
+      change that lands the PNGs. A comment in its place says so.
+    * Added: `.github/workflows/visual-baselines-refresh.yml` — `workflow_dispatch`
+      only, the same image and project and server configuration as the withdrawn step
+      plus `--update-snapshots`, uploading `apps/web/e2e/__screenshots__/` as an
+      artifact with `if-no-files-found: error` so a run that captured nothing fails
+      instead of shipping an empty zip somebody commits as "the baselines". It holds
+      `permissions: contents: read` and pushes nothing: a human downloads the artifact
+      and commits the images through review. Baselines a workflow regenerated for
+      itself are references nothing can fail against, which is the same shape as the
+      empty directory.
+    * What was NOT done, deliberately: making the spec skip when `__screenshots__` is
+      empty. A screenshot suite that passes with no reference images is a disabled
+      guard wearing a green tick, and this repository has been burned by that pattern
+      repeatedly. FAIL with a button next to it is the honest state.
   - BLOCKER, measured rather than assumed. The baselines must be captured on Linux —
     the same Inter renders through DirectWrite on Windows and FreeType on Linux and the
     two disagree on nearly every antialiased pixel. From this Windows host that means a
@@ -1004,10 +1034,22 @@ the commands or the ADR that would unblock it — if it cannot.
     `npx playwright test --project=visual --update-snapshots` and uploads the PNGs as an
     artifact for a human to commit. The second needs no new hardware and is the smaller
     change.
+  - The second of those is now BUILT (2026-08-08) rather than proposed:
+    `.github/workflows/visual-baselines-refresh.yml`. Three steps remain and all three
+    need a human: dispatch it, unzip `visual-baselines` into
+    `apps/web/e2e/__screenshots__/`, and commit those PNGs together with the restored
+    "Visual baselines (pinned container)" step from `6038a62`. This row goes to PASS
+    when the comparison runs green in CI against committed references — not when the
+    workflow exists, and not when an artifact has been downloaded.
   - Also to fix on restore: the floor `expect(ids.length).toBeGreaterThan(60)` is wrong.
     `GALLERY_ENTRIES` is 90 today, measured; 60 was a guess that happens to sit between
     the real count and the 41 an error page produces, so it fails for the right reason
     by accident rather than by design.
+    * DONE in the restored spec, and verified by reading it: the count is derived, not
+      guessed — `expect(idsWith("surface-")).toHaveLength(ALL_STATES.length * 2)`, with
+      every other catalogue group asserted non-empty and four named anchors. Neither
+      number can go stale, and a fifteenth `SurfaceState` fails on the count as well as
+      on the missing baseline.
   - Before this: `find apps/web/src -name '*.stories.*'` returned nothing, there was no
     `.storybook`, and `grep -rl 'toHaveScreenshot' apps/web/e2e` was empty. The raw
     material was there and unused — `apps/web/src/components/ui/states.ts` enumerates
