@@ -312,9 +312,26 @@ describe("engine and cell agree on what a digest covers", () => {
       }),
       validateTopology: () => ({ valid: true, problems: [] }),
       schemaVersion: () => "2026.07.31",
+      resolveSecretRefs: () => ({}),
     };
 
-    const evidence = [executeStep("CONFIGURING", tenantManifest, ctx)];
+    // STUDIO-060-010. The run this step belongs to. Required rather than
+    // optional: evidence that cannot be tied to the act that produced it is
+    // evidence nobody can follow back to a request.
+    const evidence = [
+      executeStep("CONFIGURING", tenantManifest, ctx, {
+        correlationId: "reconcile-itest-cross-check",
+        attempt: 1,
+        // STUDIO-070-005. The execution provenance a real caller threads through.
+        // Spelled out rather than defaulted: the point of the fields being
+        // required is that a fixture cannot omit them either.
+        awsRequestIds: [],
+        assumedRoleArn: null,
+        resourceHandles: [],
+        nextRetryAt: null,
+        compensation: null,
+      }),
+    ];
     const produced = deploymentManifest(tenantManifest, evidence, ctx, {
       createdAt: "2026-08-01T00:00:00.000Z",
       createdBy: "operator@tenure.example",

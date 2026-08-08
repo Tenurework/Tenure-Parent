@@ -105,7 +105,20 @@ const GUARDS = [
   // would have reported `session` and no more, which reads as "signed in is all
   // it takes to compose a tenant". The name appears nowhere in `apps/web`, so
   // this cannot promote a tenant-side handler.
-  { key: 'operator', label: 'platform operator', pattern: /isPlatformOperator|requireOperator|\bisOperator\(/ },
+  // STUDIO-020-005/006 replaced the boolean with a decision. `isOperator` is
+  // now the AUTHENTICATION half only; every page and every server action calls
+  // `authorizeCommand` / `authorizedOperator`, which decide a named
+  // resource/action against the caller's role family and the account, region
+  // and environment the request targets. A detector keyed on the old spelling
+  // would have reported nine paths that got strictly STRONGER as paths that had
+  // lost their guard — the same regression `decideFinanceAction` caused below,
+  // and the reason the comment there exists.
+  {
+    key: 'operator',
+    label: 'platform operator',
+    pattern:
+      /isPlatformOperator|requireOperator|\bisOperator\(|authorizeCommand|authorizedOperator|authorizeOperator/,
+  },
   // `decideFromSeats` is GE-051-005's shape: the authorization engine answering
   // from the bundle a seat carries. It belongs in this row because it makes the
   // same claim the others do — that something beyond "signed in" was checked —
@@ -237,9 +250,59 @@ function exportedActionsOf(file) {
   return out
 }
 
-/** The `{...}` block that follows `from`, by brace matching. */
+/**
+ * The body of the function declared at `from`, by brace matching.
+ *
+ * The opening brace is found by SKIPPING THE PARAMETER LIST first, which is the
+ * whole reason this is not `text.indexOf('{', from)`. It was, and a parameter
+ * with an object default swallowed the function whole:
+ *
+ *   async function authorizedOperator(
+ *     command: StudioCommand,
+ *     scope: Omit<CommandScope, "principalId"> = {},   ← first `{` in the file
+ *   ): Promise<string> {
+ *
+ * `indexOf` landed on the `{}` of `= {}` and returned it as the body, so the
+ * System Studio's actual authentication helper — the one that calls `auth()` and
+ * `authorizeCommand` — was recorded as reaching no guard at all. Every action
+ * that inherits its guard through it lost the `session` attribution, and the
+ * inventory reported `composeTenant`, `advanceState` and `adoptTenantAction` as
+ * `operator` alone: "anyone the console considers an operator, signed in or
+ * not", which is not a state that exists. Seven helpers across both apps were
+ * being read this way, so the helper-inheritance map that `exportedActionsOf`
+ * exists to build was empty for all of them.
+ *
+ * Under-reporting is the safe direction for `tests/security/entry-points.test.mjs`
+ * — a guard it cannot see reads as missing, which fails loudly — but it is the
+ * WRONG direction for this document, whose entire job under TTES-000-001 is to
+ * say truthfully what protects the deployer experience.
+ *
+ * The parameter list is matched by parens rather than assumed, so a default
+ * value containing its own parens or braces is skipped with it. Of the 113
+ * function declarations in the repository's `"use server"` modules, none has a
+ * brace inside a generic parameter and none annotates an object-literal return
+ * type — the two shapes that would put a brace between the `)` and the body —
+ * so "the first `{` after the matching `)`" is exact here rather than merely
+ * close, and an unbalanced parameter list yields '' rather than the rest of the
+ * file, which under-reports instead of silently over-reporting guards.
+ */
 function braceBody(text, from) {
-  const open = text.indexOf('{', from)
+  const lparen = text.indexOf('(', from)
+  if (lparen === -1) return ''
+
+  // The matching `)`, so a default like `= f(1)` or `= {}` cannot end it early.
+  let parens = 0
+  let rparen = -1
+  for (let i = lparen; i < text.length; i++) {
+    if (text[i] === '(') parens++
+    else if (text[i] === ')' && --parens === 0) {
+      rparen = i
+      break
+    }
+  }
+  if (rparen === -1) return ''
+
+  const open = text.indexOf('{', rparen)
   if (open === -1) return ''
   let depth = 0
   for (let i = open; i < text.length; i++) {

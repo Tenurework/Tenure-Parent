@@ -1,15 +1,21 @@
 import {
   allocate,
+  fromMinorUnits,
+  previewPlanCost,
   reconcile,
   reverseSplit,
   summarize,
+  toMinorUnits,
   type AllocationDriver,
+  type ApprovalLevel,
   type CostLine,
+  type CostThreshold,
   type FigureSource,
   type RecordedSplit,
   type RoundingMode,
   type SplitPart,
 } from "@tenure/finops"
+import { CONTROL_PLANE_SCHEMA_VERSIONS, parseCostFigure, type CostFigure } from "@tenure/contracts"
 
 /**
  * What the FinOps Center renders, and the one place a cost figure gets its
@@ -88,6 +94,119 @@ export function buildCostReport(input: {
       // Replayed from the recorded amounts, never re-derived from the weights.
       reversal: reverseSplit(split, split.amount),
     })),
+  }
+}
+
+/* ------------------------------------------- what a planned change commits -- */
+
+/**
+ * STUDIO-060-003 / STUDIO-120-010 — the recurring monthly cost of ADDING or
+ * REMOVING one resource, in whole USD minor units, or `null` where nothing here
+ * can honestly say.
+ *
+ * ## This is an estimate, and it is not the bill
+ *
+ * `costSource()` refuses to render a figure that did not come from the Cost and
+ * Usage Report, and that rule is untouched: nothing below ever reaches the
+ * FinOps Center's actual/amortized/forecast figures. These are LIST PRICES for
+ * a change that has not happened yet, which is the only kind of number a
+ * pre-execution approval threshold can possibly be assessed on — `approvalFor`
+ * takes `estimated`, and an approval gate with no estimate is a gate that
+ * approves everything.
+ *
+ * ## Every figure below is derived, not felt
+ *
+ * us-east-1 on-demand list price, one instance, 730 hours a month:
+ *
+ *   * `ecs:service` — Fargate, 0.5 vCPU + 1 GB, one task:
+ *     730 × (0.5 × $0.04048 + 1 × $0.004445) = $17.02 → 1702
+ *   * `rds:db` — db.t4g.medium single-AZ + 100 GiB gp3:
+ *     730 × $0.065 + 100 × $0.115 = $58.95 → 5895
+ *   * `cloudfront:distribution` — a distribution itself is not billed; its
+ *     traffic is, and traffic is not a property of creating one. `0`, which is
+ *     a statement, not an absence.
+ *   * `acm:certificate` — public certificates are free. `0`.
+ *
+ * Anything not listed is `null`: **not computed**, which an approval threshold
+ * must never read as free. The distinction is the reason the contract's
+ * `monthlyCostDeltaMinor` is `number | null` rather than defaulting to zero.
+ */
+export const RESOURCE_MONTHLY_ESTIMATE_MINOR: Readonly<Record<string, number>> = {
+  "ecs:service": 1702,
+  "rds:db": 5895,
+  "cloudfront:distribution": 0,
+  "acm:certificate": 0,
+}
+
+/** The estimate for a resource type, or null when this build has none. */
+export function estimateMonthlyMinor(resourceType: string): number | null {
+  return resourceType in RESOURCE_MONTHLY_ESTIMATE_MINOR
+    ? RESOURCE_MONTHLY_ESTIMATE_MINOR[resourceType]
+    : null
+}
+
+/** The currency the estimates above are quoted in. AWS list prices are USD. */
+export const ESTIMATE_CURRENCY = "USD"
+
+export interface PlanCostAssessment {
+  /** The published, versioned figure — the shape anything outside this process reads. */
+  figure: CostFigure
+  /** How much approval the plan's total needs, from the STUDIO-120-010 bands. */
+  level: ApprovalLevel
+  /** Net recurring monthly change, in whole minor units. Negative is a saving. */
+  totalMinor: number
+  /** Changes this build could not price. Named, because they are not free. */
+  unpriced: readonly string[]
+}
+
+/**
+ * Assess a plan's recurring cost through the published threshold engine.
+ *
+ * The one place `previewPlanCost` is reached from a request path. Before this,
+ * `packages/finops` could compute an approval level and nothing ever asked it
+ * to — the ledger records the threshold policy as "published and computable but
+ * not yet enforced", with no pipeline to wire into. `resourceChangeDiff` in
+ * `lib/aws/drift.ts` is that pipeline, and this is where its numbers become an
+ * approval level.
+ *
+ * The returned figure goes through `parseCostFigure`, so a figure that cannot
+ * state its currency, its period or where it came from does not exist rather
+ * than rendering as a number somebody trusts.
+ */
+export function assessPlanCost(input: {
+  changes: readonly { change: string; monthlyMinor: number | null }[]
+  now: Date
+  reference: string
+}): PlanCostAssessment {
+  const priced: CostThreshold[] = input.changes
+    .filter((c) => c.monthlyMinor !== null)
+    .map((c) => ({ change: c.change, estimated: fromMinorUnits(c.monthlyMinor as number, ESTIMATE_CURRENCY) }))
+
+  const preview = previewPlanCost(priced, ESTIMATE_CURRENCY)
+  const totalMinor = toMinorUnits(preview.total, CUR_ROUNDING)
+
+  const start = new Date(Date.UTC(input.now.getUTCFullYear(), input.now.getUTCMonth(), 1))
+  const end = new Date(Date.UTC(input.now.getUTCFullYear(), input.now.getUTCMonth() + 1, 1))
+
+  return {
+    figure: parseCostFigure({
+      schemaVersion: CONTROL_PLANE_SCHEMA_VERSIONS.CostFigure,
+      dimension: "plan",
+      key: input.reference,
+      // A plan's cost is a forecast of a recurring commitment, never an ACTUAL.
+      // Publishing it as ACTUAL is precisely how an estimate gets read as a bill.
+      kind: "FORECAST",
+      amountMinor: totalMinor,
+      currency: ESTIMATE_CURRENCY,
+      periodStart: start.toISOString(),
+      periodEnd: end.toISOString(),
+      sourceSystem: "tenure-plan-estimate",
+      sourceReference: input.reference,
+      retrievedAt: input.now.toISOString(),
+    }),
+    level: preview.level,
+    totalMinor,
+    unpriced: input.changes.filter((c) => c.monthlyMinor === null).map((c) => c.change),
   }
 }
 

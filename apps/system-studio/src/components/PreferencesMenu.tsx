@@ -64,6 +64,11 @@ function readStored(): Preferences {
       ["system", "on", "off"] as const,
       "system",
     ),
+    // STUDIO-030-007. Read here as well as in the pre-paint script, so the
+    // mount effect that re-stamps the attributes cannot drop `dir` a moment
+    // after the script set it — which is exactly the drift `preferences.spec`
+    // blocks the bundle to catch.
+    direction: read(STORAGE_KEYS.direction, ["ltr", "rtl"] as const, "ltr"),
   }
 }
 

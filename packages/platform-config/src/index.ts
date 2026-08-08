@@ -13,6 +13,11 @@ export { PLATFORM_DEFINITIONS } from "./definitions"
 // key must be a compile error, not a threshold that silently resolves to its
 // default and stops firing.
 export { APPROVAL_THRESHOLDS_KEY, approvalThresholds } from "./definitions"
+// WRK-120-004. Same reason: the model-token ceiling is read by symbol in
+// `apps/web/src/lib/config/server.ts`, so renaming the key breaks the build
+// rather than silently resolving to the platform default and un-capping a
+// tenant that had published its own.
+export { MODEL_TOKEN_BUDGET_KEY, modelTokenBudgetPerMonth } from "./definitions"
 export { BRANDING_DEFINITIONS, brandingCss } from "./branding"
 export type { Branding } from "./branding"
 export {
@@ -115,8 +120,11 @@ export type { ModelEntry, ModelLifecycle } from "./model-entry"
  * `ConnectorEntry`, so there is one definition and two importers.
  */
 export {
+  GRAPH_CALENDAR_REVIEW,
+  GRAPH_CALENDAR_SCOPES,
   RELAY_ANTHROPIC_REVIEW,
   RELAY_ANTHROPIC_SCOPES,
+  calendarSyncSentence,
   providerActivation,
 } from "./provider-review"
 export type {
@@ -125,6 +133,20 @@ export type {
   ProviderReview,
   ProviderReviewState,
 } from "./provider-review"
+
+/**
+ * WRK-020-001. Bible §4.1's connection classes, distributed to the cell for the
+ * same reason the provider review is: `apps/web/src/lib/relay-tools.ts` decides
+ * on every request whether a tool exceeds the class its capability is offered
+ * under, and it may not reach into `@tenure/provisioning` to ask.
+ */
+export {
+  CONNECTION_CLASSES,
+  RELAY_CAPABILITY_OFFERS,
+  connectionClassFor,
+  isConnectionClass,
+} from "./provider-review"
+export type { CapabilityOffer, ConnectionClass } from "./provider-review"
 
 export { ROLLOUT_PATH, buildSystem, planPromotion, systemUnderValidation } from "./build-system"
 export type {

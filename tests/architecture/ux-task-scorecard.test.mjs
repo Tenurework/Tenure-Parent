@@ -134,6 +134,54 @@ test("the harness's own rows carry real numbers, so the gate is switched on", ()
   assert.deepEqual(unmeasured, [], "The harness self-check rows must be measured, not declared.")
 })
 
+/**
+ * How many product rows are allowed to sit at `—`.
+ *
+ * The scorecard's own words: "a row that stays — forever is a gate that was
+ * never switched on". Nothing enforced that. Eight product journeys are
+ * declared and all eight are unmeasured, so a ninth could be added tomorrow,
+ * left unmeasured, and the document would still read as coverage — which is the
+ * exact shape of the failure `TTES-050-001` exists to close.
+ *
+ * A ratchet rather than a demand for zero, because measuring needs a Postgres,
+ * a seed and a built app (see "To record the rows" in the scorecard) and a check
+ * that cannot pass today is a check somebody deletes. It may only go down: fill
+ * rows in, lower the number in the same commit. It may never go up.
+ */
+const UNMEASURED_PRODUCT_ROW_BUDGET = 8
+
+test("the number of declared-but-unmeasured product journeys does not grow", () => {
+  // Harness rows are held to a stricter rule by the case above — they must be
+  // measured — so they are not counted against this budget.
+  const unmeasured = scorecardRows()
+    .filter((r) => !r.id.startsWith("J00-"))
+    .filter((r) => r.counts.some((c) => !/^\d+$/.test(c)))
+    .map((r) => r.id)
+
+  // Floor: this whole assertion is about a count, and a reader that found no
+  // product rows at all would report a clean document forever.
+  const product = scorecardRows().filter((r) => !r.id.startsWith("J00-"))
+  assert.ok(
+    product.length >= 5,
+    `Parsed ${product.length} product rows; the table shape has changed and this budget is measuring nothing.`,
+  )
+
+  assert.ok(
+    unmeasured.length <= UNMEASURED_PRODUCT_ROW_BUDGET,
+    `${unmeasured.length} product journeys are declared with no budget (${unmeasured.join(", ")}), and the ` +
+      `ratchet is ${UNMEASURED_PRODUCT_ROW_BUDGET}. A new journey has to arrive measured, or an existing ` +
+      `row has to be filled in to make room. Do not raise this number: it is the only thing stopping the ` +
+      `scorecard growing rows that can never fail.`,
+  )
+  assert.equal(
+    unmeasured.length,
+    UNMEASURED_PRODUCT_ROW_BUDGET,
+    `Only ${unmeasured.length} product journeys are unmeasured but the ratchet still says ` +
+      `${UNMEASURED_PRODUCT_ROW_BUDGET}. Lower it in the same commit that measured them — a ratchet that ` +
+      `keeps the old slack hands the next journey a free pass.`,
+  )
+})
+
 test("no competitor task time has been written down that nobody measured", () => {
   // TTES-050-002's substance is a measured comparison against products this
   // repository has no lawful access to and no human-subjects protocol for. A

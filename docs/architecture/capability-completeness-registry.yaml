@@ -30,9 +30,9 @@ by_prefix:
   WRK: 88
 by_status:
   BLOCKED_EXTERNAL: 13
-  FAIL: 2057
+  FAIL: 2047
   NOT_APPLICABLE: 1
-  PASS: 194
+  PASS: 204
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -17870,21 +17870,21 @@ requirements:
     statement: "Inventory current operator authentication, session storage, authorization enforcement, audit writes, lifecycle buttons, resource inventory, cost fields, alarm semantics, and AWS mutation paths."
   - id: "STUDIO-000-006"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "4. Phase 0 — Establish repository, AWS, product, and deployed truth"
-    status: FAIL
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Inventory Tenure-controlled AWS Organization, organizational units, accounts, regions, partitions, Control Tower enrollment/baselines, IAM Identity Center, identity providers, roles, permission boundaries, SCPs, resource policies, KMS, CloudTrail, Config, Security Hub, GuardDuty, Inspector, Macie, Detective if present, log archives, backups, budgets, and support contacts."
   - id: "STUDIO-000-007"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "4. Phase 0 — Establish repository, AWS, product, and deployed truth"
-    status: FAIL
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Treat denied API calls as unknown, not absent. Record principal, action, error, account/region, and minimum read permission."
   - id: "STUDIO-000-008"
     prefix: STUDIO
@@ -17915,21 +17915,21 @@ requirements:
     statement: "Create a current-state gap report with severity, exploit/failure scenario, affected resources/tenants, target control, remediation phase, and evidence. Do not expose secret values or raw sensitive logs."
   - id: "STUDIO-010-001"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "5.5 Control-plane account topology"
-    status: FAIL
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Separate AWS Organization management, Control Tower/log archive, security/audit, identity/shared services, network/edge, control-plane production, control-plane nonproduction, tooling/build, regional cells, dedicated tenants, backup/DR, and sandbox accounts as justified by actual scale."
   - id: "STUDIO-010-002"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "5.5 Control-plane account topology"
-    status: FAIL
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Keep day-to-day application workloads out of the Organizations management account."
   - id: "STUDIO-010-003"
     prefix: STUDIO
@@ -17978,12 +17978,12 @@ requirements:
     statement: "Make cross-account trust explicit, least-privilege, externally constrained where relevant, and validated by IAM Access Analyzer."
   - id: "STUDIO-010-008"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "5.5 Control-plane account topology"
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Centralize organization trails, Config aggregation, security findings, log immutability, backup policy, cost/CUR data, and incident evidence."
   - id: "STUDIO-010-009"
     prefix: STUDIO
@@ -18041,21 +18041,21 @@ requirements:
     statement: "Implement MFA enrollment/recovery, factor replacement, account recovery, disabled operator, locked operator, expired invitation, IdP outage, callback replay, clock skew, and session-expiry UX."
   - id: "STUDIO-020-005"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "6.2 Login flow"
-    status: FAIL
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Implement operator role families: Platform Super Admin, Tenant Implementation Lead, Cloud Platform Engineer, Security Administrator, Release Manager, Support Engineer, FinOps Analyst, Auditor/Read Only, and Emergency Responder."
   - id: "STUDIO-020-006"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "6.2 Login flow"
-    status: FAIL
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Define semantic permissions by resource/action/environment/tenant/account/region and enforce them server-side at every command, query, job, websocket/subscription, export, and evidence read."
   - id: "STUDIO-020-007"
     prefix: STUDIO
@@ -18401,12 +18401,12 @@ requirements:
     statement: "Validate authentication, CSRF, tenant/environment scope, semantic authorization, separation of duties, expected version, schema, policy, budget, quota, and idempotency at execution time—not only plan time."
   - id: "STUDIO-060-003"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "10. Change classification, preview, approvals, and command contract"
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: "STUDIO-120: FinOps Center"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Render a human-readable and machine-readable diff for app config, data/schema, IAM/security, AWS resources, domains, integrations, Relay, cost, operations, and rollback."
   - id: "STUDIO-060-004"
     prefix: STUDIO
@@ -18500,12 +18500,12 @@ requirements:
     statement: "Implement Account Factory/account enrollment state with uniqueness reservation, retry, timeout, human-wait, failure cleanup, and existing-account reconciliation."
   - id: "STUDIO-070-004"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "11.2 Stack layers"
-    status: FAIL
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Implement service adapters behind typed capabilities; no arbitrary service/action/parameter endpoint and no operator-supplied IAM JSON bypass."
   - id: "STUDIO-070-005"
     prefix: STUDIO
@@ -18581,12 +18581,12 @@ requirements:
     statement: "Create graph edges for network flow, trust, encryption, data, event, DNS, deployment, module, backup, monitoring, and cost allocation."
   - id: "STUDIO-080-003"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "Security, operations, and cost"
-    status: FAIL
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Add safe deep links to AWS Console only for authorized break-glass/platform engineers; never depend on them for normal operation."
   - id: "STUDIO-080-004"
     prefix: STUDIO
@@ -18626,12 +18626,12 @@ requirements:
     statement: "Detect orphans through IaC, tags, registry, Config, service APIs, CUR, and relationship graph; assign owner and expected cost."
   - id: "STUDIO-080-008"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "Security, operations, and cost"
-    status: FAIL
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Never render a green alarm solely because no data is present. Distinguish `OK`, `ALARM`, `INSUFFICIENT_DATA`, disabled, stale, missing, and unauthorized."
   - id: "STUDIO-090-001"
     prefix: STUDIO
@@ -18896,12 +18896,12 @@ requirements:
     statement: "Implement immutable/tamper-evident audit with validated event schemas, redaction, hashing/chaining or equivalent integrity, centralized protected storage, retention, and verification tooling."
   - id: "STUDIO-110-006"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "15. Security, privacy, governance, and supply chain"
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Aggregate Security Hub/GuardDuty/Inspector/Macie/Config/Access Analyzer findings with dedupe, severity, affected tenants, SLA, ownership, suppression justification/expiry, and remediation workflow."
   - id: "STUDIO-110-007"
     prefix: STUDIO
@@ -19049,12 +19049,12 @@ requirements:
     statement: "Prove control-plane outage does not silently weaken tenant auth/policy, and tenant failure does not take down the global control plane."
   - id: "STUDIO-130-001"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "17. API, event, and extension contracts"
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: "STUDIO-120: FinOps Center"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Publish versioned control-plane OpenAPI/AsyncAPI/JSON Schema contracts for tenants, manifests, plans, approvals, executions, resources, releases, lifecycle, evidence, cost, and drift."
   - id: "STUDIO-130-002"
     prefix: STUDIO
@@ -19166,12 +19166,12 @@ requirements:
     statement: "Prove every high-risk/destructive action fails closed without correct step-up, semantic permission, separation, digest-bound approval, and target confirmation."
   - id: "STUDIO-140-007"
     prefix: STUDIO
-    source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    section: "18. Testing and release proof"
-    status: FAIL
+    source_document: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    section: What was actually wrong
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Prove read-only actual state differs from access denied, missing, stale, and error in both API and UI."
   - id: "STUDIO-140-008"
     prefix: STUDIO

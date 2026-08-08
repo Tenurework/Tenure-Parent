@@ -134,6 +134,147 @@ the commands or the ADR that would unblock it — if it cannot.
     (`apps/web/src/lib/a11y/css-declarations.mjs`) is claimed by the existing
     `apps/web/src/lib/a11y/` shared prefix; and `platform-truth.mjs --check`
     reports stale, which is a different generator fed by the ledgers.
+  - **Re-verified 2026-08-07** by a later run that was handed this item as still
+    open. It is not: the survey that reopened it describes the pre-implementation
+    file (it cites `APP_ROOT` at `tools/entry-point-inventory.mjs:30`, a constant
+    that no longer exists — `EXPERIENCES` is at :64 and both roots are walked).
+    Rather than trust the entry above, four fresh mutations were run, each
+    restored and re-confirmed green:
+    1. `--space-3: 12px → 13px` in the REAL `apps/system-studio/src/app/globals.css`
+       — the producer, not a helper — → "a token declared by both experiences
+       with different values is recorded" reds naming `--space-3`. Restored → 11/11.
+    2. `apps/system-studio/src/components/` returned to `SHARED_PREFIXES` → "the
+       console components are owned, not filed as shared" reds. This is the exact
+       false classification the requirement names. Restored → 11/11.
+    3. `collect()` defaulted to `EXPERIENCES.slice(0, 1)` → 3 red, including
+       "the inventory covers both experiences". This is the original defect
+       itself. Restored → 11/11.
+    4. a `page.tsx` created outside both experience roots → "every page and route
+       in the repository belongs to a declared experience" reds naming it.
+       Removed → 11/11.
+    Consumers of the widened `collect()` re-checked by hand for the silent-widening
+    failure: `tests/security/entry-points.test.mjs:42` matches on prefixed `e.id`
+    (not `e.route`) and pins `INTENTIONALLY_PUBLIC.size` at 5;
+    `tests/architecture/nav-hrefs-are-served.test.mjs:62` filters
+    `.experience === 'tenant'`. Both correct.
+  - One real defect found and fixed by that run, in this item's own file: the
+    ownership ratchet was red on `apps/web/src/components/OrgRecordHeader.tsx`,
+    a component TTES-030-001 added concurrently and could not classify itself —
+    `tools/ownership-map.mjs` is not in that item's file set. Classified into
+    `organization`, which already owns the `OrgTabs` it composes and the six
+    `orgs/[slug]/*` surfaces that render it; both maps regenerated (644 → 645
+    files, `organization` 44 → 45).
+  - Commands (re-verification): `node --test
+    tests/architecture/experience-separation.test.mjs
+    tests/architecture/ownership.test.mjs tests/security/entry-points.test.mjs
+    tests/architecture/nav-hrefs-are-served.test.mjs` → **30/30**.
+    `npm run type-check` → 2 errors, neither in a file this item touches and
+    neither reproducible run-to-run: `src/app/(app)/orgs/[slug]/handoff/page.tsx`
+    (`OrgRecordHeader` not yet imported) and `src/components/charts/palette.ts`
+    (`--chart-8` absent from the token union in `lib/a11y/tokens.ts`, modified
+    concurrently). An earlier run of the same command reported a different set
+    naming a `shared/ui/ShellChrome` import that no longer exists — the tree is
+    being edited by other agents as this runs. This item changed no `.ts`/`.tsx`
+    file at all, so no type error can originate here.
+  - **Re-verified again 2026-08-07**, handed to a third run as still open. The
+    survey remains stale in the same way (it cites `APP_ROOT` at
+    `tools/entry-point-inventory.mjs:30`; that constant is gone). But `PASS` was
+    not true of the tree as this run received it — the suite was **red, 9/11** —
+    and the cause was not only drift.
+  - A real defect in this item's own file, and it was in the half this item
+    ADDED. `braceBody` took the function body as the first `{` after the
+    function's name. The System Studio's authentication helper is declared:
+
+    ```
+    async function authorizedOperator(
+      command: StudioCommand,
+      scope: Omit<CommandScope, "principalId"> = {},   ← first `{` in the file
+    ): Promise<string> {
+    ```
+
+    so its recorded body was the `{}` of the default value. The helper calls
+    `auth()` and `authorizeCommand`; the inventory read it as reaching neither,
+    the module-local helper map `exportedActionsOf` exists to build was empty
+    for it, and `composeTenant`, `advanceState` and `adoptTenantAction` — the
+    three actions that compose, advance and adopt tenants — were published as
+    `operator` with no `session`. That is authorized-but-not-signed-in, a state
+    that cannot exist in the code, and it is precisely the "reads as debt on a
+    path gated harder than most" failure the `requireAdminContext` comment in
+    `GUARDS` was written about. **Seven** helpers across both apps were read
+    this way (`authorizedOperator`, `notifyGate`, `resolvePreparer`,
+    `receiptTargetsFrom`, `auditRoster`, `auditImage`, `eligibleBackupWhere`).
+    Fixed by matching the parameter list by parens and taking the first `{`
+    after its `)`. Of the 113 function declarations in the repository's
+    `"use server"` modules, none has a brace inside a generic parameter and none
+    annotates an object-literal return type — the two shapes that would put a
+    brace between `)` and the body — measured, not assumed.
+  - Under-reporting was the safe direction for `tests/security/entry-points.test.mjs`
+    (a guard it cannot see reads as missing, which fails loudly) which is why
+    nothing caught it, and the wrong direction for this document, whose whole
+    job is to say truthfully what protects the deployer experience.
+  - New guard: `a deployer action guarded only through a helper still reports
+    its session`, asserting on what `collect()` EMITS rather than on the brace
+    reader — a test that called `braceBody` directly would stay green the moment
+    the inventory stopped using it. It states the general invariant (no console
+    action may report `operator` without `session`, because the console decides
+    every operator command against `principalId: session.user.email`, so a
+    caller with no session has no principal to decide about) plus the named
+    concrete case, so a refactor removing helper inheritance cannot pass by
+    leaving the general set empty. Suite is now 12 tests.
+  - The ownership ratchet was red again on four files from concurrent work that
+    could not classify themselves — `tools/ownership-map.mjs` is in no other
+    item's file set. `apps/web/src/lib/ai.test.ts` → `integrations` (matching is
+    by prefix and `…/ai.ts` does not prefix `…/ai.test.ts`, so the vendor call's
+    own test was an orphan); `apps/web/src/lib/metering/` → `billing-metering`,
+    which is its subject exactly — it is here rather than under `integrations`,
+    which owns the vendor CALL in `lib/ai.ts`, because the question it answers
+    is "how much did this tenant use", not "what may we hand to a vendor".
+  - That domain's own note read "Metering does not exist: nothing measures what
+    a tenant consumes". It stopped being true when WRK-120-004 landed
+    `recordModelUsage`, and nothing checks a prose note, so it would have gone
+    on reading that way. The CLAIM was corrected, not the classification: one
+    kind of consumption is now measured, in tokens rather than dollars, and
+    nothing bills for it.
+  - `apps/web/src/lib/a11y/theme-tokens.ts` claimed its re-export of
+    `blockAt`/`declarationsIn`/`paletteOf`/`tokenNamesIn` was "the name anything
+    inside `apps/web` reaches for". Nothing reaches for it: the four live paths
+    are internal (`readBlocks` → `paletteOf`/`blockAt`, `token` → `resolveToken`)
+    and the generator imports `./css-declarations.mjs` DIRECTLY because it is
+    `node` running `.mjs`. The re-export is a module boundary, not a call path,
+    and now says so — a comment implying a consumer that does not exist is the
+    failure that module's own header warns about.
+  - Evidence: 7 mutations, 7 caught, each restored and re-confirmed green.
+    1. `braceBody` reverted to `text.indexOf('{', from)` → the new helper-
+       inheritance test reds. Restored → 12/12. This is the defect above.
+    2. deployer `appRoot` pointed at a path that does not exist → **5** red,
+       including "covers both experiences" and "belongs to a declared
+       experience". Restored → 12/12.
+    3. `--space-1: 4px → 5px` in the real `apps/system-studio/src/app/globals.css`
+       — the producer — → "a token declared by both experiences with different
+       values is recorded" reds. Restored.
+    4. `--space-6: 28px → 24px`, unifying a recorded divergence → "a
+       SHARED_TOKENS entry cannot outlive the divergence it describes" reds.
+       Restored.
+    5. `--border` reclassified `deliberate → unreconciled` (budget is 1 and
+       `--ease-entry` already holds it) → "divergences nobody has decided about
+       do not accumulate" reds. Restored.
+    6. `packages/mutant-surface/src/app/page.tsx` created outside both roots →
+       "every page and route in the repository belongs to a declared experience"
+       reds naming it. Removed.
+    7. `EXPERIENCE_OF_SOURCE` prefixes narrowed to `${e.app}/src/components/` →
+       "every source file belongs to a declared experience" reds. Restored.
+  - Commands (third re-verification): `npm run type-check` → **0 errors**.
+    `node --test tests/architecture/experience-separation.test.mjs
+    tests/architecture/ownership.test.mjs
+    tests/architecture/nav-hrefs-are-served.test.mjs` → **24/24**.
+    `node --test tests/security/entry-points.test.mjs` → 6/7; the one failure is
+    `platform-truth.json is stale`, produced by `tools/platform-truth.mjs`,
+    which imports none of this item's files and derives from the ledgers via
+    `tools/loop/next-batch.mjs` — it was already stale when this run began,
+    from other agents' ledger entries, and is regenerated with this one.
+    Both generated documents were regenerated several times during this run
+    because concurrent agents kept adding pages beneath both app roots; that
+    churn is the ratchet working, not a fault in it.
 
 - [x] **TTES-000-002** — Define separate tenant/deployer shells and prevent navigation/pattern leakage.
   - Status: PASS
@@ -150,18 +291,18 @@ the commands or the ADR that would unblock it — if it cannot.
     about UI. Nothing forbade one app importing the other's components, a
     shared shell component both navigations render through, or a control-plane
     destination in the tenant menu.
-  - 6 guards, run by `npm run test:platform` (`tools/run-platform-tests.mjs`
+  - 8 guards, run by `npm run test:platform` (`tools/run-platform-tests.mjs`
     discovers `tests/**/*.test.mjs`; CI runs it at `.github/workflows/ci.yml:88`).
-    They assert three properties, every input derived rather than listed:
+    They assert four properties, every input derived rather than listed:
     1. No file under one application's `src` imports another's — by relative
        path or by workspace package name (`tenure`, `@tenure/system-studio`).
        1,000+ specifiers resolved across both apps.
     2. No component reachable from an application's own layouts imports a
-       first-party module outside that application. This is the one the
-       app-to-app check cannot see: a shell primitive published from
-       `packages/` would let both navigations render through one file.
+       first-party module outside that application.
     3. Every tenant menu destination — the 10 parsed from `modules/index.ts`
-       plus the 1 `SideNav.tsx` hard-codes — is a route `apps/web` serves and
+       plus the 4 the shell hard-codes itself (`SideNav.tsx` `href: "/settings"`,
+       `ShellHeader.tsx` `href="/dashboard"` and `href="/inbox"`,
+       `SearchCommand.tsx` `href="/search"`) — is a route `apps/web` serves and
        is under none of `/platform`, `/tenants`, `/api/platform`; and every
        destination in the console's `Nav.tsx` is a route the console serves and
        is not a tenant-only one. The control-plane prefixes are derived, not
@@ -170,10 +311,40 @@ the commands or the ADR that would unblock it — if it cannot.
        `tools/ownership-map.mjs` assigns to the `control-plane` domain
        (`apps/web/src/app/api/platform/` — a control-plane surface served by
        the customer application, which a hand-written list would miss).
+    4. No first-party workspace outside `apps/` defines a component, and no
+       shell file — layout included — reaches one. (4a) scans the 16 workspace
+       roots the workspace map yields that are not applications (`packages/*`,
+       `modules`, `blueprints`), 239 source files, and fails any that is a
+       `.tsx`/`.jsx`, carries `"use client"`/`"use server"`, imports
+       `react`/`react-dom`/`next`, or calls `createElement`. (4b) walks each
+       app's layouts plus its component graph and fails a first-party import
+       that resolves neither inside the app nor inside one of those surveyed
+       workspaces — the escape hatch of parking the same component in a
+       top-level `shared/` that (4a) does not cover.
+  - **Property 4 was added because property 2 did not do the job the previous
+    revision of this entry credited it with.** That revision said a shell
+    primitive published from `packages/` "would let both navigations render
+    through one file" and that property 2 stopped it, and said "no package
+    ships a `.tsx` today; this is what keeps that true". Neither was true, and
+    the gap was demonstrated rather than argued: creating
+    `packages/platform-config/src/ShellChrome.tsx` and importing it from BOTH
+    `apps/web/src/app/(app)/layout.tsx` and `apps/system-studio/src/app/layout.tsx`
+    left all 6 guards green. `shellGraph` walks *out of* the layouts but only
+    follows modules under the app's own `components/`, and the layouts are not
+    in the resulting set — so property 2 saw what `SideNav` imports and never
+    saw what the layout rendering `SideNav` imports. That is not an edge case:
+    the layout is where both navigations are mounted, so it is the likeliest
+    place for a shared chrome import to land. Property 2 could not simply be
+    widened to include layouts, because a layout legitimately imports
+    `@tenure/platform-config`; the distinction that matters is not *outside the
+    app* but *outside the app and renders*, which is what (4) tests.
   - Floors, because every assertion is an absence: fewer than 2 application
     source roots, a collapsed shell graph, fewer than 8 nav entries, fewer than
-    20 tenant routes, or a control-plane reader returning fewer than 5 paths all
-    fail rather than reporting a clean repository.
+    20 tenant routes, a control-plane reader returning fewer than 5 paths,
+    fewer than 8 surveyed shared workspaces, fewer than 100 files scanned by
+    (4a), or a component detector that fails to recognise `SideNav.tsx` and
+    `Nav.tsx` — or that flags `modules/index.ts`, which is pure data — all fail
+    rather than reporting a clean repository.
   - Mutation proof — 7 mutations, 7 caught, each restored and re-run green:
     1. `import { SideNav } from "../../../web/src/components/shell/SideNav"` in
        `apps/system-studio/src/lib/fleet-health.ts` → property 1 alone reds,
@@ -192,6 +363,50 @@ the commands or the ADR that would unblock it — if it cannot.
        control-plane derivation is live rather than decorative.
     7. `SideNav.tsx`'s hard-coded `href: "/settings"` → `"/settingz"` → reds,
        proving the shell's own destinations are checked and not just the catalog's.
+  - Mutation proof for property 4, and re-proof of 1 and 3 against the 8-guard
+    file — 6 more mutations, 6 caught, each restored and re-run 8/8 green:
+    8. `packages/platform-config/src/ShellChrome.tsx` created and imported from
+       BOTH layouts (`apps/web/src/app/(app)/layout.tsx`,
+       `apps/system-studio/src/app/layout.tsx`) → against the 6-guard file:
+       **8/8 pass, 0 fail — the leak this item exists to prevent, undetected.**
+       Against the 8-guard file: property 4a reds,
+       `packages/platform-config/src/ShellChrome.tsx is a .tsx/.jsx`. This is
+       the mutation that justifies the change.
+    9. the same component placed at `shared/ui/ShellChrome.tsx` — outside every
+       workspace, so invisible to 4a — and imported from both layouts by
+       relative path → property 4b reds, naming both layouts and
+       `shared/ui/ShellChrome, which no survey covers`.
+    10. `import { useState } from "react"` prepended to
+        `packages/platform-config/src/branding.ts` → 4a reds
+        `packages/platform-config/src/branding.ts imports react`, proving the
+        detector is not merely an extension check.
+    11. `uiEvidence()` stubbed to `return null` — the fail-open case — →
+        property 4a passes emptily and the floor reds: `the component detector
+        does not recognise apps/web/src/components/shell/SideNav.tsx as a
+        component`. This is why the floor asserts on the detector and not only
+        on the counts.
+    12. `SHARED_ROOTS` filtered to `[]` → the floor reds with `0 first-party
+        workspace(s) outside apps/ found, expected at least 8`, and both new
+        guards red rather than passing over an empty survey.
+    13. mutations 2 and 4 above re-run against the 8-guard file: the cross-app
+        import in `Nav.tsx` now reds properties 1, 2 **and 4b**; the
+        `href: "/platform/cost"` manifest entry still reds both halves of
+        property 3. Restored → 8/8.
+  - Commands (this revision): `node --test
+    tests/architecture/shell-separation.test.mjs` → **8/8**.
+    `npm run type-check` → **0 errors**. `npm run test:platform` → 309/313,
+    the failures being `ownership.md`/`document-graph` staleness and the
+    orphan-domain ratchet, all caused by source files other agents are adding
+    to the tree as this runs. Proven not to be this item's: reverting this
+    item's only changed file to `HEAD` and re-running
+    `node --test tests/architecture/ownership.test.mjs` leaves `the committed
+    map matches the code` red, and `node tools/ownership-map.mjs --check`
+    reports the same staleness. This item adds no source file and changes no
+    `.ts`/`.tsx`.
+  - Recorded because it confused a concurrent item: mutation 9 above is the
+    `shared/ui/ShellChrome` import that TTES-000-001's re-verification saw in a
+    `npm run type-check` run and correctly reported as no longer existing. It
+    was this mutation, held for one test run and removed.
   - Not fixed here, recorded because it is real: `tools/ownership-map.mjs` runs
     its CLI branch at module scope, so importing it writes
     `docs/architecture/ownership.md`. `tests/architecture/ownership.test.mjs`
@@ -199,6 +414,86 @@ the commands or the ADR that would unblock it — if it cannot.
     `--check` assertion runs — that assertion cannot currently fail. This guard
     therefore reads the map as text rather than importing it, per
     `tests/architecture/guards-do-not-write-into-the-tree.test.mjs`.
+  - **Re-verification pass — property 3 read only one of the two syntaxes a
+    shell writes a link in, and did not read the layouts at all.** The item was
+    re-opened and each property re-proved rather than trusted. Properties 1, 2
+    and 4 held. Property 3 did not, and the gap was demonstrated before it was
+    argued: `<Link href="/platform/cost">Fleet cost</Link>` added to
+    `apps/web/src/components/shell/ShellHeader.tsx` left **all 8 guards green,
+    exit 0**. The customer masthead offered a link into the operator console and
+    nothing said a word — which is this item's own stated failure mode, "the
+    first operator nav entry would be caught by review, or not at all".
+    Two causes, both fixed in `hardcodedDestinations`:
+    - The reader matched `/\bhref:\s*"(\/[^"]*)"/` — the object-property form
+      `SideNav` and the console's `ENTRIES` use — and nothing else. The JSX
+      attribute form `href="/x"` is how `ShellHeader` links the wordmark and
+      the work inbox and how anyone adding one link to the chrome writes it. It
+      is now `HREF_LITERAL = /\bhref\s*(:|=)\s*"(\/[^"]*)"/`, which reads both
+      and still ignores `href={expr}` (`NotificationBell` and `SearchCommand`
+      route to whatever a notification or a search hit names — data, not a
+      decision the shell made) and `href="#main"` (`SkipLink`).
+    - It scanned `SHELLS.modules` — the components a layout mounts — and not the
+      layouts themselves. The layout is where `<SideNav/>` and `<Nav/>` are
+      mounted, so it is where a link "added to the shell" lands. It now scans
+      `shellFiles(app)`, layouts included, and returns the file list it read so
+      the floor can assert on it.
+    The tenant shell's derived destinations went from 1 to 4: `/settings`
+    (property, `SideNav.tsx`), `/dashboard` and `/inbox` (attribute,
+    `ShellHeader.tsx`), `/search` (attribute, `SearchCommand.tsx`) — all four
+    served by `apps/web`, none under a control-plane prefix.
+  - Two floors added, because both halves of the widening fail open — a regex
+    that stops matching one syntax silently drops every link written that way,
+    and a file set that omits the layouts never looks where the leak lands:
+    every layout in each app's shell graph must appear in the scanned file list,
+    and the tenant shell must yield at least one destination of each syntax.
+    Both assert against files that exist today, so the reader cannot go quiet
+    without reddening.
+  - Mutation proof — 7 mutations, 7 caught, tree restored to 8/8 green:
+    1. `import { SideNav } from "../../../web/src/components/shell/SideNav"` in
+       `apps/system-studio/src/components/Nav.tsx` → **exit 1**, properties 1, 2
+       and 4b red (`not ok 2`, `not ok 3`, `not ok 5`), naming the file.
+    2. `href: "/dashboard"` → `href: "/platform/cost"` (with id `dashboard.cost`)
+       in `modules/index.ts` → **exit 1**, `not ok 6` and `not ok 7`:
+       `dashboard.cost -> /platform/cost (under /platform)`.
+    3. `ShellHeader.tsx` `href="/inbox"` → `href="/platform/cost"` — the JSX
+       attribute case, **green before this pass** → **exit 1**, `not ok 6` and
+       `not ok 7`: `apps/web/src/components/shell/ShellHeader.tsx hard-codes
+       /platform/cost (under /platform)`.
+    4. a `href: "/platform/cost"` nav item inlined into
+       `apps/web/src/app/(app)/layout.tsx`'s `<SideNav sections={...}/>` — the
+       layout case, also green before this pass → **exit 1**, `not ok 6` and
+       `not ok 7` naming `apps/web/src/app/(app)/layout.tsx`.
+    5. floor: `HREF_LITERAL` narrowed back to `(:)` → **exit 1**, `not ok 1`:
+       `no attribute-syntax destination was read out of the tenant shell`. The
+       guard reds instead of quietly under-reading.
+    6. floor: `scanned` reverted to `SHELLS.get(app.name).modules` → **exit 1**,
+       `not ok 1`: `apps/web/src/app/(app)/admin/layout.tsx is not among the
+       files scanned for hard-coded destinations`.
+    7. re-proof of property 4a against this revision:
+       `packages/platform-config/src/ShellChrome.tsx` created →  **exit 1**,
+       `not ok 4`: `packages/platform-config/src/ShellChrome.tsx is a .tsx/.jsx`.
+       Deleted → 8/8.
+  - Collateral repair, recorded because it was damage this pass caused: mutation
+    3's restore-from-copy overwrote a `<Link href="/inbox" aria-label="Work
+    inbox">` that TTES-030-001 wrote into `ShellHeader.tsx` inside the mutation
+    window, leaving its `ListTodo` import unused and its comment describing a
+    link that was gone. Reconstructed against what `apps/web/e2e/shell.spec.ts:137`
+    asserts — `getByRole("link", { name: "Work inbox" })` → `/inbox`, which
+    `apps/web/src/app/(app)/inbox/page.tsx` serves. `npm run type-check` → 0
+    errors; the e2e itself could not be run, see below.
+  - Commands (this revision): `node --test
+    tests/architecture/shell-separation.test.mjs` → **8/8, exit 0**.
+    `npm run type-check` → **0 errors**. `npm run test:platform` → 337/351; the
+    14 failures are generated-artifact staleness and other items' in-flight work
+    (`packages/contracts/src/index.ts` NUL byte, `ownership.md`/`document-graph`
+    /contract-schema staleness, the system-studio `advance()` and configuration
+    -revision guards, four ledger/prompt guards), none in a file this pass
+    touched and none among this file's 8 subtests. Not run: `apps/web/e2e` — the
+    Docker Desktop daemon answers `docker ps` with `500 Internal Server Error
+    ... check if the server supports the requested API version`, so Postgres is
+    unavailable. `docker version` reports the client only. Unblock with
+    `docker compose up -d` once the daemon restarts, then
+    `npx playwright test e2e/shell.spec.ts -g "work inbox"` from `apps/web`.
 
 - [ ] **TTES-000-003** — Import every `TTES-*` item into the canonical ledger.
   - Status: FAIL
@@ -368,6 +663,17 @@ the commands or the ADR that would unblock it — if it cannot.
       restored → exit 0.
   - Commands: `npx jest src/app/design-contracts.test.ts`,
     `npx jest scripts/design-token-lint.test.mjs`.
+  - Re-verified 2026-08-07 by a later batch that was handed this row as still open.
+    It is not. `apps/web/src/app/globals.css` declares the z-layer scale at :309-322,
+    the motion scale at :337-341 and the density contract at :356-375 with its
+    `:root[data-density="compact"]` override at :369; `apps/web/tailwind.config.ts`
+    binds all three at :104-129 (`zIndex`, `transitionDuration`,
+    `transitionTimingFunction`) and :84-87 (`height`); `apps/web/src/app/layout.tsx:57`
+    stamps `data-density` pre-hydration and `apps/web/src/app/(app)/settings/page.tsx:198`
+    renders `DensitySwitcher`. `npx jest src/app/design-contracts.test.ts` → 14/14, and
+    `npx eslint` over all twelve migrated call sites (`src/components/shell`,
+    `ui/Overlay.tsx`, `ai/TenureAIPanel.tsx`, `admin/DirectoryPicker.tsx`,
+    `charts/ChartTooltip.tsx`, `CalendarTimeGrid.tsx`, `ClubCard.tsx`) → exit 0.
 
 - [x] **TTES-010-004** — Implement safe tenant-brand overrides and rejection/preview.
   - Status: PASS
@@ -476,6 +782,18 @@ the commands or the ADR that would unblock it — if it cannot.
       fourteen layer classes; restored → exit 0, no output.
   - Baseline after the change: `npx eslint "src/**/*.ts" "src/**/*.tsx"` reports **zero**
     `arbitraryZIndex` / `arbitraryDuration` violations across `apps/web/src`.
+  - Re-verified 2026-08-07 by a later batch that was handed this row as still open.
+    It is not. `npx jest scripts/design-token-lint.test.mjs` → 9/9, including "rejects
+    raw z-index and raw duration, in both the arbitrary and the numeric form" and "names
+    the z-layer classes the stylesheet actually declares". `apps/web/eslint.config.mjs`
+    carries `arbitraryZIndex` at :206 and `arbitraryDuration` at :214 over
+    `RAW_Z_INDEX_UTILITY` / `RAW_DURATION_UTILITY` (:136-137), and the header's spacing
+    count reads "243 occurrences across 59 files as of 2026-08-07" with the `node -e`
+    command that reproduces it — the stale "237 across 58" is gone. `grep -rnE
+    'duration-(\[|[0-9])' apps/web/src --include=*.tsx` excluding tests returns nothing.
+    Note the file is a jest test, not a `node --test` one (its own header, :14-16, says
+    why): `node --test scripts/design-token-lint.test.mjs` fails with `__dirname is not
+    defined in ES module scope` and that failure is the runner, not the boundary.
 
 - [x] **TTES-020-001** - Implement/test the complete component inventory and behavior contracts.
   - Status: PASS
@@ -624,6 +942,30 @@ the commands or the ADR that would unblock it — if it cannot.
     `docker run -d -e POSTGRES_USER=tenure -e POSTGRES_PASSWORD=tenure -e POSTGRES_DB=tenure -p 5521:5432 postgres:16`,
     `DATABASE_URL=... npx prisma migrate deploy && node scripts/seed.mjs`,
     `npx playwright test e2e/shell.spec.ts e2e/calendar.spec.ts e2e/notifications.spec.ts`.
+  - RE-VERIFIED 2026-08-07, re-issued to a later agent as still-open and found
+    already satisfied — returned NOT_APPLICABLE rather than rebuilt. Each of the
+    six modules the survey named as importing the vendor raw now imports the
+    owned wrapper: `ShellHeader.tsx:4-5`, `SideNav.tsx:6`,
+    `TenantSwitcher.tsx:4-5`, `NotificationBell.tsx:5,7`,
+    `CalendarSubscribe.tsx:4,6`, `ClubImageEditor.tsx:3,5`. The sanctioned
+    alternatives the rule message names exist: `src/components/ui/Menu.tsx`
+    (`MenuTrigger` re-export :30, `MenuPopover` :61, `Menu` :73, `MenuItem` :83)
+    and `src/components/ui/Tooltip.tsx` (`Focusable` re-export :26, `Tooltip`
+    :39, `TooltipTrigger` :55). The restriction is live at
+    `eslint.config.mjs:310-316` with the wrapper carve-out at :413-422.
+  - Commands run in that re-verification, with results:
+    `npx jest scripts/design-token-lint.test.mjs` → 9 passed;
+    `npx jest src/components/ui/owned-wrappers.test.tsx` → 5 passed;
+    `npx next lint --file src/components/ClubImageEditor.tsx` → exit 0, clean.
+    Four fresh mutations (A–D) and their exact failure output are recorded under
+    TTES-GATE-020 below rather than duplicated here.
+  - `npm run type-check` reports 8 errors, and NONE are in this item's files.
+    They are `packages/provisioning/src/index.ts` (7, missing `./change-class`
+    and five `./execute` exports) and `src/app/(app)/inbox/page.tsx` (1, `Cannot
+    find name 'Inbox'`) plus its derived `.next/types/validator.ts` route error
+    — all in another agent's in-flight, partly-untracked work. Verified by
+    `git diff --name-only` over this item's file list coming back empty against
+    HEAD, so none of the failures can be attributable to it.
 
 - [ ] **TTES-020-004** — Provide state/theme/density/locale/viewport stories and visual baselines.
   - Status: FAIL
@@ -946,12 +1288,41 @@ the commands or the ADR that would unblock it — if it cannot.
     `pushState`, distinct pathnames — and holds each journey to the row it has in
     `docs/architecture/ux-task-scorecard.md`. Four persona journeys in
     `apps/web/e2e/journeys.spec.ts` call it. Their rows are declared and their budgets
-    are `—`: filling them in needs a signed-in browser, and on 2026-08-07
-    `node apps/web/scripts/seed.mjs` aborts with "Argument `institutionId` is missing"
-    against `apps/web/prisma/schema.prisma`, so no journey can sign in. This stays FAIL
-    rather than BLOCKED_EXTERNAL because nothing external is missing — the seed and the
-    schema have to agree, which is ordinary work, and the exact commands to record the
-    rows afterwards are in the scorecard.
+    are still `—`. This stays FAIL rather than BLOCKED_EXTERNAL because nothing
+    external is missing.
+  - **The seed blocker this entry recorded is gone, and was already gone when it was
+    still written down here.** It said `node apps/web/scripts/seed.mjs` aborted with
+    "Argument `institutionId` is missing"; `apps/web/scripts/seed.mjs:476` now sets it
+    and the whole setup runs clean —
+    `DATABASE_URL=postgresql://tenure:tenure@localhost:5462/tenure npm exec --workspace
+    apps/web -- prisma migrate deploy` then `node apps/web/scripts/seed.mjs` →
+    "Seed complete — 26 clubs, 235 seats, 172 directory people, 259 seat holdings,
+    34 deliverables, 15 board resources", and `npm run type-check` → 0 errors.
+    A stale blocker is the most expensive kind of stale sentence in a ledger, because
+    the loop skips the item for exactly as long as it stands. That observation is what
+    `tests/architecture/pass-requires-evidence.test.mjs` — "an entry that says a file is
+    absent is still right about it" — now exists to prevent for the claims a machine can
+    re-check.
+  - **The build blocker this entry recorded is gone as well, and it went the same way as
+    the seed one.** It said the four rows could not be filled in because `npm run build`
+    reported `Failed to compile` on `src/app/(app)/orgs/[slug]/finance/page.tsx:153`
+    (`'OrgRecordHeader' is not defined`) and `src/components/ClubImageEditor.tsx:3`
+    (restricted `react-aria-components` import), both another slice's work caught
+    half-applied, with `J01` and `J03` ending on those pages. That slice has landed.
+    Re-run from the repository root on 2026-08-07: `npm run build` → **exit 0**,
+    `✓ Compiled successfully`, `✓ Generating static pages (10/10)`, warnings only.
+    Corrected here by the batch holding `TTES-050-002`, whose own blocker names this
+    item's budgets as a precondition — two blockers written into this row and its
+    scorecard section have now each become false with nothing watching, which is the
+    pattern rather than the pair of incidents.
+  - What remains between here and four recorded numbers is therefore neither of the two
+    sentences above: it is that `npm run e2e` needs a Postgres to seed, and the two
+    Playwright suites need the app served against it. `apps/web/e2e/journeys.spec.ts`
+    drives eight journeys (`J01`…`J08`), not four — the connection paths added for
+    `WRK-110-005` are measured by the same harness — so eight rows are waiting, not four.
+    The commands are in `docs/architecture/ux-task-scorecard.md`; read the observed rows
+    before pasting them in, because a harness that writes its own baseline records
+    whatever regression it just measured and calls it the new normal.
   - Code: `apps/web/e2e/support/journey-metrics.ts`, `apps/web/e2e/journeys.spec.ts`,
     `docs/architecture/ux-task-scorecard.md`
   - Tests: `apps/web/e2e/support/journey-metrics.spec.ts` (5 cases against a real
@@ -986,6 +1357,15 @@ the commands or the ADR that would unblock it — if it cannot.
     With it, the right-hand columns go into `docs/architecture/ux-task-scorecard.md`
     beside the left-hand ones, and `TTES-050-001`'s budgets have to be recorded first —
     a comparison against an unmeasured baseline compares one number to nothing.
+  - **That `ls` line is now run, not just written.** `tests/architecture/pass-requires-evidence.test.mjs`
+    — "an entry that says a file is absent is still right about it" — parses
+    `ls <path>   # absent on <date>` out of every ledger entry and asserts the path is
+    still missing, failing with "re-decide the item rather than leaving it blocked" the
+    day the ADR lands. A blocked item is one `tools/loop/next-batch.mjs` stops offering,
+    so a blocker nobody re-checks is how a requirement disappears; this session found
+    exactly that on the sibling item, where `TTES-050-001` and the scorecard both still
+    recorded a seed failure that had since been fixed. Proven by creating the ADR path:
+    the case failed naming `TTES-050-002`; removed, it passes.
   - Code: the half that could be built now was: `apps/web/e2e/support/journey-metrics.ts`
     and `docs/architecture/ux-task-scorecard.md` give the comparison a measured
     left-hand side, so the day access exists there is something true to compare against.
@@ -995,6 +1375,34 @@ the commands or the ADR that would unblock it — if it cannot.
     `| Workday | Manager | Approve an expense | 9 | 0 | 4 | 3 |`: 1 of 6 failed;
     removed, 6 of 6 pass. That guard is the enforcement of this blocker — it is what
     stops the next agent closing this item with plausible numbers.
+  - **Re-verified 2026-08-07** by a later batch handed this item as still open on the
+    grounds that "grep across docs/ and apps/ finds no competitor comparison artefact, no
+    task-time measurement harness, and no scorecard". All three exist:
+    `docs/architecture/ux-task-scorecard.md`, `apps/web/e2e/support/journey-metrics.ts`
+    and its 5-case self-check, and the guard above. Nothing was taken on trust — every
+    claim in this entry was re-run:
+    1. `ls docs/decisions/ADR-0009-competitive-benchmarking.md` → still absent, and
+       `ls docs/decisions/` confirms 0009 is still the next free number (0001–0007, then
+       0008 twice). The blocker stands.
+    2. The absence guard re-proved by creating that path → "an entry that says a file is
+       absent is still right about it" reds naming this item; removed → green.
+    3. The competitor guard re-proved by the `Workday` row above → 1 of 6 red; removed →
+       6 of 6.
+    4. `npx playwright test e2e/support/journey-metrics.spec.ts` (with
+       `PLAYWRIGHT_BASE_URL` set so the fixture spec needs no application server) →
+       **5 passed**. The left-hand side's harness is not merely present, it runs.
+  - **The one thing that changed, and it is the sibling row's blocker, not this one's.**
+    This entry says `TTES-050-001`'s budgets have to be recorded before a comparison
+    means anything, and that item recorded `npm run build` as what stopped them. That is
+    now false — `npm run build` exits 0 — and the sentence is corrected in place on
+    `TTES-050-001` above. It does not move this item: the build was never this item's
+    blocker. Licensed access and a human-subjects protocol are, they are still absent,
+    and no amount of work inside this repository produces either.
+  - Not done, deliberately, and it is the whole point of the "lawful" wording: no
+    competitor number was written anywhere, and none was derived from any model's
+    recollection of those products' interfaces. The status stays BLOCKED_EXTERNAL rather
+    than FAIL because what is missing is not buildable here — it is a licence and an
+    ethics approval, both of which are decisions only a human may make.
 
 - [x] **TTES-050-003** - Implement design-system versioning, release notes, migration and deprecation.
   - Status: PASS
@@ -1093,22 +1501,77 @@ the commands or the ADR that would unblock it — if it cannot.
       correctly so — the cascade falls back to `:root`, so the survey's suggested
       mutation there would have proven nothing.
   - Commands: `npx jest src/lib/a11y/contrast.test.ts`.
+  - **HARDENING (2026-08-07) — the ratchet had the same hole it was built to close.**
+    `FOREGROUND_TOKEN` matched the two ramps by their SHIPPING INDEX RANGE,
+    `text-[123]` and `chart-[1-8]`. That put the ratchet's blind spot inside the very
+    pattern whose job is to find blind spots: a fourth rung of the ink scale is a
+    foreground by construction, and nothing in the ramp is closed-ended. Verified as a
+    live hole, not a theoretical one — adding `--text-4: var(--tenure-slate-350)`
+    (`#9ca3af`, 2.6:1 on the light card, a real AA failure) to `:root` left
+    `contrast.test.ts` **26/26 green** with the token declared and in no pairing, which
+    is verbatim the sentence this gate exists to make false. Both ranges widened to
+    `\d+`. No token changes hands today — there is no `--text-4` or `--chart-9` — so the
+    fix is a no-op against the current stylesheet and a ratchet against the next one.
+    - Discriminating mutations, each run against BOTH patterns, which is what shows the
+      widening is load-bearing rather than cosmetic:
+      1. `--text-4` declared in `:root` → OLD pattern **26/26 passed** (the hole);
+         NEW pattern reds with `["--text-4"]`. Removed → 26 passed.
+      2. `--chart-9` declared in `:root` → OLD pattern **26/26 passed** (the hole);
+         NEW pattern reds with `["--chart-9"]`. Removed → 26 passed.
+    - `globals.css` and `tokens.ts` were restored to byte-identical (`git diff --stat`
+      empty) after each; the only surviving change is the pattern and its comment.
+
+- **RE-VERIFICATION (2026-08-07)** of `TTES-010-001`, `TTES-010-002`, `TTES-010-004`
+  and `TTES-GATE-010`, re-surveyed as open and found already built. Every clause was
+  re-checked against the real files and every test independently mutation-proven rather
+  than trusted, since a green suite is the thing all four of these items are about:
+  - `TTES-010-004` — 4 mutations, 4 caught: the surface floor in `assessBrand` set to
+    `0` → "rejects a low-contrast accent" and "whatever it accepts, clears both floors"
+    red; `[data-focus-visible]` returned to `var(--primary)` → the globals scan reds
+    naming `[data-focus-visible] { … --primary }`; `layout.tsx` unwired to
+    `brandingCss(brandingFor(...))` → "is what the production path emits into the
+    document" reds; `<BrandPreview>` unmounted from `settings/page.tsx` → "the preview
+    is mounted where a user can reach it" reds. All restored → 19/19.
+  - `TTES-010-001` — 3 mutations, 3 caught: `--text-1` renamed in all four blocks →
+    the staleness case reds first, and after `node scripts/generate-design-tokens.mjs`
+    the tailwind-reconciliation case reds naming `--text-1`; `--primary` given the
+    literal `#198052` → both layering cases red naming it, **while the contrast suite
+    stayed green** — which is the re-layering safety proof, identical resolved colour;
+    `--chart-8` deleted from the catalog → `tsc` fails at
+    `src/components/charts/palette.ts(46,10)`, the rendering call site, confirming the
+    compile-time coupling is real and not decorative. All restored → 13/13.
+  - `TTES-010-002` — 2 mutations, 2 caught: light `--text-3` reverted to `#868b92` →
+    the light theme reds with exactly the three surveyed ratios, `3.29 / 2.98 / 2.84`
+    against the 4.5:1 floor; `--probe: color(display-p3 1 0 0)` added to `:root` → the
+    gamut check reds in all four themes naming `--probe`. Both restored → 26/26.
+  - `TTES-GATE-010` — the pre-existing mutations re-run and confirmed, plus the two new
+    ramp mutations above that found and closed a genuine hole.
+  - Commands: `npx jest src/lib/a11y src/components/charts scripts/design-token-lint`
+    → 8 suites, **111 passed**. `npm run type-check` → no error in this area; the only
+    errors in the tree are `packages/provisioning/src/index.ts` (`ExecutionEnvelope`,
+    `ManifestSignature`, `SecretRefResolution`, `SigningKey`, `StepExecution`,
+    `./change-class`), an uncommitted mid-edit by a concurrent run — that file is `M`
+    in `git status` and is not in this item's file set.
 
 - [ ] **TTES-GATE-020** — Domain teams build from stable Tenure-owned patterns.
   - Status: FAIL
-  - Why not PASS: a gate is proven by its children, and three of the four
-    TTES-020 requirements are unbuilt — 001 (component inventory and behaviour
-    contracts), 002 (owned form / grid / chart-frame / workflow / memory /
-    Relay patterns) and 004 (state / theme / density / locale / viewport
-    stories and visual baselines) are all still FAIL in this file. Only
-    TTES-020-003 is decided. The vendor-primitive boundary this gate's own
+  - Why not PASS: a gate is proven by its children, and ONE of the four
+    TTES-020 requirements is still unbuilt — 004 (state / theme / density /
+    locale / viewport stories and visual baselines) is FAIL in this file.
+    001, 002 and 003 are all PASS. The vendor-primitive boundary this gate's own
     description asks for — "ESLint/codemods preventing raw colors, spacing,
     z-index, vendor components and ad hoc modal/toast patterns" (§16) and
     "Domain apps cannot import raw third-party components" (§7) — is the part
     that landed, and it landed in full; it is recorded below so the next agent
-    does not rebuild it. The ratio is deliberately not stated as a
-    `Children: n of m` line: TTES-020-004 is being built concurrently, and a
-    hand-written ratio goes stale the moment it is decided.
+    does not rebuild it.
+  - CORRECTION (2026-08-07): the paragraph above previously read "three of the
+    four … are unbuilt — 001, 002 and 004". That went stale the moment 001 and
+    002 were decided, exactly as the note it replaced predicted a hand-written
+    ratio would. It is restated rather than deleted so the next reader knows the
+    gate's blocker narrowed rather than that someone quietly relaxed it. The
+    single remaining blocker is TTES-020-004; nothing in this gate's own file
+    area (`eslint.config.mjs`, the wrapper layer, the six migrated call sites)
+    can advance it, because 004 is a visual-baseline/story requirement.
   - Landed under this item, and complete: the vendor-component half of §16.
     Everything from here down is the evidence for that half only.
   - Code: `apps/web/eslint.config.mjs` — `OWNED_WRAPPERS`,
@@ -1153,20 +1616,144 @@ the commands or the ADR that would unblock it — if it cannot.
     the TenantSwitcher menu case failed with
     `received "outline-none min-w-64"`, which also shows the split: panel
     chrome from the wrapper, width from the caller. Restored → passes.
+  - RE-VERIFIED 2026-08-07 by a later agent that was re-issued this item as
+    still-open work. It is not: the survey's "open because" claims were each
+    checked against the tree and each is now false —
+    `CalendarSubscribe.tsx:31` renders `<Button variant="secondary" size="md">`,
+    `ClubImageEditor.tsx:29-33` the same, `src/components/ui/Menu.tsx` and
+    `src/components/ui/Tooltip.tsx` both exist, the four shell modules import
+    from them (`ShellHeader.tsx:5`, `TenantSwitcher.tsx:5`, `SideNav.tsx:6`,
+    `NotificationBell.tsx:7`), and `eslint.config.mjs:301-322` carries
+    `VENDOR_COMPONENT_PATHS` / `VENDOR_COMPONENT_PATTERNS` /
+    `RESTRICTED_VENDOR_IMPORTS`. Nothing was rebuilt. What was added is
+    independent proof that the boundary still bites:
+    - `npx jest scripts/design-token-lint.test.mjs` → 9 passed (291 s).
+    - `npx jest src/components/ui/owned-wrappers.test.tsx` → 5 passed.
+    - Mutation A: deleted the `react-aria-components` entry from
+      `VENDOR_COMPONENT_PATHS` → "refuses a vendor component library outside the
+      owned wrapper layer" failed with `Expected substring: "Vendor component
+      library in a product module" / Received string: ""`; restored → passes.
+    - Mutation B: re-added `import { Button as AriaButton } from
+      "react-aria-components"` to `ClubImageEditor.tsx` → `npx next lint --file
+      src/components/ClubImageEditor.tsx` exited 1 reporting
+      `'react-aria-components' import is restricted … no-restricted-imports`,
+      AND the tree-walk case failed with `["src/components/ClubImageEditor.tsx"]`;
+      restored → both clean.
+    - Mutation C (at the PRODUCER, not the helper): reverted
+      `CalendarSubscribe`'s trigger to the hand-rolled
+      `h-10 … border-border-strong … hover:bg-base` string this gate exists to
+      stop → `owned-wrappers.test.tsx` failed with `Received string:
+      "inline-flex h-10 … border-border-strong …"` against the expected
+      `data-[pressed]:bg-[--bg-subtle]`; restored → passes.
+    - Mutation D: changed `ui/Tooltip.tsx`'s owned `placement` default from
+      `"right"` to `"top"` → the collapsed-side-nav case reds. Worth recording
+      precisely because it did NOT red where expected: it failed earlier, at
+      `expect(tip).not.toBeNull()`, rather than on the `data-placement`
+      assertion. Restored → passes.
+  - Coverage check done at the same time, so "vendor components are banned" is
+    not read wider than it is true: the only UI-component vendors in
+    `apps/web/package.json` are `react-aria-components`,
+    `class-variance-authority`, `lucide-react` and `@phosphor-icons/react`, and
+    all four are in the restricted list. The remaining deps (`jszip`,
+    `mammoth`, `xlsx`, `zod`, the AWS SDKs) are not component libraries. So
+    there is no fifth vendor silently outside the boundary today — but the list
+    is hand-maintained, and adding a component dependency will not red anything
+    until someone adds it here too.
 
 - [ ] **TTES-GATE-030** — Users complete work without module/navigation clutter.
   - Status: FAIL
-  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+  - Children: 2 of 5 decided — `TTES-030-001` FAIL, `TTES-030-002` PASS,
+    `TTES-030-003` PASS, `TTES-030-004` FAIL, `TTES-030-005` BLOCKED_EXTERNAL.
+    A gate is proven by its children and by nothing else, so nothing written in
+    this row can make it PASS.
+  - **The PASS is withdrawn, and this is the record of it.** A run set this row
+    to `- [x]` / PASS with no `Children:` line while three of its five children
+    were undecided. `git show
+    HEAD:docs/implementation/tenant-experience-execution-ledger.md` still has it
+    as `- [ ]` / FAIL, so the PASS existed only in an uncommitted working tree,
+    and the run that wrote it was killed before anybody reviewed it. The batch
+    note under TTES-GATE-040 saw the same thing from the other side and recorded
+    it as two failures of `tests/architecture/pass-requires-evidence.test.mjs`
+    it deliberately would not fix in another agent's row — "a gate is PASS while
+    requirements it gates are not", and "PASS cites nothing checkable", both
+    naming this id. The verification below is real work and is kept in full; what
+    it proves is the two children already counted above, and two of five is not a
+    gate.
+  - **Verified, not newly written.** The two halves this gate needs
+    already shipped in `db95980` and the ledger had never been updated to say so;
+    the queue was still carrying it as "not yet implemented". Nothing was written
+    for it in this pass. What this pass did is the part that had never been done:
+    prove both halves fail when the behaviour they claim is removed. An
+    unexercised assertion and a missing one are worth the same, and until a
+    mutation had been run against these two nobody could tell which they were.
+  - The scoping half is `apps/web/e2e/shell.spec.ts:279`, "the side nav offers
+    privileged entries to the director and not to a member". It reads the
+    RENDERED nav — what `(app)/layout.tsx:66` emits after
+    `navigationCapabilitiesFor` has filtered `navigationForSystem` — for two
+    seeded personas against one database in one case: Dana Whitfield (OSE_DIRECTOR)
+    must see `Admin Console` and `Reports`; Maya Johnson (club seat, no
+    institution membership) must see neither, while `Calendar` and `Messages`
+    stay visible so that "correctly scoped" cannot be confused with "the nav
+    failed to render".
+  - The clutter half is `tests/architecture/nav-hrefs-are-served.test.mjs:177`
+    and `:201`. The catalog vocabulary is closed to five sections
+    (`SECTIONS`, `:116`) and no section may carry more than five entries
+    (`MAX_ENTRIES_PER_SECTION`, `:119`). The shipped catalog measures 10 entries
+    across Community 3 / Operations 2 / Knowledge 2 / Overview 2 /
+    Administration 1, so a sixth section or a sixth entry has to be an argued
+    change rather than one more line in a manifest.
+  - Mutations run — the first two are the ones that matter, because they are
+    mutations of the PRODUCER and the assertion is on what the production path
+    emits, not on what a helper returns:
+    - `navigationCapabilitiesFor` frozen to
+      `return new Set(Object.values(NAV_CAPABILITIES))` (the survey's own
+      mutation), rebuilt, spec re-run →
+      `expect(getByRole('navigation', {name:'Primary navigation'})
+      .getByRole('link', {name:'Admin Console'})).toHaveCount(0)` failed with
+      `Expected: 0 / Received: 1` at the member half. Restored → 1 passed.
+    - `(app)/layout.tsx` changed to `navigationForSystem(institution.slug, null)`
+      — the layout-level hole the spec's own header claims to be proven against,
+      and the one that leaves the whole unit suite green — rebuilt, spec re-run →
+      the same member assertion failed `Expected: 0 / Received: 1`. Restored →
+      2 passed. The header's claim is now a checked claim.
+    - `resources.library`'s `section` changed to `"Insights"` →
+      "every nav entry is placed in one of the five declared sections" reds;
+      restored → 5 passed.
+    - Every `Operations` and `Knowledge` entry moved into `Community` (7 in one
+      section) → "no navigation section carries more than five entries" reds
+      with the clutter-budget message; restored → 5 passed.
+  - Run against a production build (`next start`, `NEXT_DIST_DIR=.next-nav030`)
+    on its own Postgres, which is what CI does. A `next dev` server was tried
+    first and is not usable for this: it drops the tenant-scope AsyncLocalStorage
+    intermittently and renders the error boundary, so the nav is absent for a
+    reason that has nothing to do with capabilities. Recorded because the next
+    person will otherwise lose the same hour.
+  - Limit worth stating: the budget is over `modules/index.ts`, the catalog that
+    ships. `SideNav.tsx:211` also pins a `Settings` entry that no manifest
+    contributes, and a tenant pack authored outside this repository answers for
+    its own information architecture — `validateManifest` deliberately does not
+    carry this rule.
 
 - [ ] **TTES-GATE-040** — Experience is fast, secure, inclusive and low-fatigue.
   - Status: FAIL
-  - Children: 2 of 5 decided — `TTES-040-001` and `TTES-040-002` PASS, `003`…`005` FAIL. A gate is
+  - Children: 2 of 5 decided — `TTES-040-001` PASS, `TTES-040-002` PASS,
+    `TTES-040-003` FAIL, `TTES-040-004` FAIL, `TTES-040-005` FAIL. A gate is
     proven by its children and by nothing else, so this row cannot become PASS by
     anything done to this row. It is written out because "imported …; not yet
     implemented" read identically for a gate blocked on five separate slices and for one
     nobody had opened, and the difference is the whole of what a reader needs.
+  - **Each child is now named with its status rather than summarised as `003`…`005`,
+    because the ratio alone does not hold this row to the ledger.** A ratio is a count,
+    and a count survives the one edit this repository actually makes to a decided
+    requirement: a PASS being withdrawn. Two were withdrawn in a single session
+    (`PACK-GATE-000`, `PACK-GATE-020`). If `TTES-040-003` lands and `TTES-040-001` is
+    taken back, "2 of 5" still adds up, the ratio-truth assertion still passes, and both
+    sentences a reader actually reads are wrong. The new case in
+    `tests/architecture/pass-requires-evidence.test.mjs` — "an entry that states another
+    requirement's status states the true one" — reads the five names above and the five
+    below and holds every one of them to the child's own `Status:` line.
   - Reason, child by child — what is actually there, and what is missing:
-    - `TTES-040-001` WCAG 2.2 AA: real coverage exists and is not a rollup.
+    - `TTES-040-001` PASS — WCAG 2.2 AA: real coverage exists and is not a rollup.
       `apps/web/e2e/a11y.spec.ts` names nine criteria by number (2.4.1, 1.4.10, 2.5.8,
       2.4.11, 2.4.7, 2.1.2, 1.3.1, 1.4.4, 2.3.3) and `apps/web/src/lib/a11y/contrast.ts`
       proves 1.4.3 by arithmetic across all four themes. WCAG 2.2 AA is dozens of
@@ -1175,33 +1762,144 @@ the commands or the ADR that would unblock it — if it cannot.
       against this product. The fix belongs in `apps/web/e2e/a11y.spec.ts` plus a
       criterion-by-criterion table naming which are covered, which are not applicable
       and which are open.
-    - `TTES-040-002` UI security/privacy/export/session/forbidden-state: nothing.
-      `grep -rn "session expir\|step-up\|forbidden state\|redact" apps/web/e2e` returns
-      no lines. Would live in a new `apps/web/e2e/ui-security.spec.ts`.
-    - `TTES-040-003` performance budgets: no measurement of any kind. There is no
-      `tools/perf-budget.mjs`, no route/bundle budget file, and `grep -rl
-      "web-vitals\|reportWebVitals" apps/web/src` is empty, so the RUM half the
-      requirement names does not exist either. This is the "fast" leg of the gate and it
-      is the emptiest of the five.
-    - `TTES-040-004` localization/RTL/zoom/high-contrast/reduced-motion: partly real.
+    - `TTES-040-002` PASS — UI security/privacy/export/session/forbidden-state: **decided
+      since this row was written, and this line said "nothing" for as long as it took
+      somebody to re-read it.** The evidence is real — two console routes that answered
+      a capability refusal with `notFound()` now render `StateSurface
+      state="permission-denied"`, autosave latches a `session-expired` branch instead of
+      re-firing into a signed-out session forever, and `csvCell` enforces the
+      formula-injection rule — covered by `apps/web/e2e/admin-console.spec.ts` ("a
+      capability refusal inside the console is refused, not hidden"). The grep this line
+      cited (`session expir|step-up|forbidden state|redact` across `apps/web/e2e`) still
+      returns nothing, which is why it read as unbuilt: the coverage is spelled
+      `permission-denied`, and a gate row that greps for one vocabulary reports the
+      absence of the vocabulary, not of the work.
+    - `TTES-040-003` FAIL — performance budgets: no measurement of any kind. There is no
+      route/bundle budget file, and `grep -rl "web-vitals\|reportWebVitals"
+      apps/web/src` is empty, so the RUM half the requirement names does not exist
+      either. This is the "fast" leg of the gate and it is the emptiest of the five.
+      Re-checked on 2026-08-07 and still true; the file half of it is now re-checked by
+      a machine on every CI run rather than by whoever next reads this paragraph, in the
+      shape `tests/architecture/pass-requires-evidence.test.mjs` parses:
+
+      ```
+      ls tools/perf-budget.mjs   # absent on 2026-08-07
+      ```
+
+      The day somebody adds it, "an entry that says a file is absent is still right
+      about it" reds naming `TTES-GATE-040`, and this paragraph has to be re-decided
+      instead of quietly outliving its subject — which is exactly how the seed blocker
+      on `TTES-050-001` survived being fixed.
+    - `TTES-040-004` FAIL — localization/RTL/zoom/high-contrast/reduced-motion: partly real.
       `apps/web/e2e/localization.spec.ts` drives RTL through the real cookie and checks
       the frame moves, not only the text; `a11y.spec.ts` covers zoom (1.4.4) and
       reduced motion; `apps/web/src/lib/a11y/theme-tokens.ts` reads all four themes
       including high-contrast out of the real `globals.css`. Nothing has been rolled up
       against the requirement's own list, and no locale other than en-US/en-GB/ar-AE
       fixture is exercised.
-    - `TTES-040-005` long-session and frontline usability: nothing.
+    - `TTES-040-005` FAIL — long-session and frontline usability: nothing.
       `apps/web/e2e/support/journey-metrics.ts` (added for TTES-050-001) is the nearest
       thing — it can count what a task costs — but no long-session or frontline scenario
-      uses it.
+      uses it. Re-checked on 2026-08-07: eight journeys now call it and all eight are
+      single-task paths (`J01`…`J08` in `apps/web/e2e/journeys.spec.ts`); none holds a
+      session open, and "frontline" appears nowhere under `apps/web/e2e`.
   - Do not mark this PASS from a child's evidence.
-    `tests/architecture/pass-requires-evidence.test.mjs` now checks the ratio above
-    against the five children's actual statuses, and refuses PASS while any of them is
-    undecided.
-  - Tests: `tests/architecture/pass-requires-evidence.test.mjs` — "a gate that states
-    its child ratio states the true one" and "a gate is not PASS while a child it counts
-    is undecided". Proven by editing this line to `1 of 5`: 1 of 8 failed; restored,
-    8 of 8 pass.
+    `tests/architecture/pass-requires-evidence.test.mjs` checks the ratio above against
+    the five children's actual statuses and refuses PASS while any of them is undecided.
+  - **That refusal was conditional on this row's good manners until now, and the
+    condition was invisible.** The check derived a gate's children only when the gate
+    stated a ratio — so deleting the `Children:` line was one edit that made a false
+    PASS both unfalsifiable and unchecked, and the guard would have reported a clean
+    ledger. Two gates were already through it, in another ledger, unnoticed:
+    `PACK-GATE-000` was PASS over `PACK-000-001` (the inventory) and `PACK-000-003` (the
+    requirement import), both FAIL; `PACK-GATE-020` was PASS while `PACK-020-001` — the
+    archetype axes it is named for — was FAIL. Neither stated a ratio. Both PASSes are
+    withdrawn in `docs/implementation/erp-pack-factory-execution-ledger.md`, and the
+    check now derives children from the ids whether or not a ratio is written, refuses a
+    PASS gate that states none, and reads the prose spelling `**N of M children
+    decided**` as well as the keyed one — which caught four more stale ratios
+    (`PACK-GATE-010` 2→1 of 4, `PACK-GATE-030` 3→2 of 5, `PACK-GATE-060` 0→1 of 4,
+    `PACK-GATE-080` 0→3 of 5), every one of them a number a reader would have believed.
+  - Tests: `tests/architecture/pass-requires-evidence.test.mjs` — 10 cases, up from 8:
+    "a gate that states its child ratio states the true one", "a gate is not PASS while
+    a child it gates is undecided", "a gate that talks about a child ratio states it
+    where a checker can read it", and "an entry that says a file is absent is still
+    right about it". 6 mutations, 6 caught, each restored and re-run green:
+    1. this row's ratio edited to `3 of 5` → the truth case reds naming
+       `TTES-GATE-040: says 3 of 5, ledger says 2 of 5`.
+    2. `PACK-GATE-020` returned to `PASS`/`- [x]` with its `Children:` line renamed →
+       the PASS case reds naming `PACK-020-001=FAIL`. **The discriminating half:** with
+       the old `statedChildRatio(entry.body) && gateChildren(…)` derivation restored the
+       same ledger reports `[]`, and with the new one it reports
+       `["PACK-GATE-020: PACK-020-001"]`. That pair is the proof the widening is
+       load-bearing rather than cosmetic.
+    3. `PACK-GATE-010`'s ratio put back to the prose spelling `**2 of 4 children
+       decided.**` → the truth case reds, proving the second spelling is parsed and not
+       merely tolerated.
+    4. `PACK-GATE-060` returned to "and 0 of 4 are complete" with no keyed line → the
+       unreadable-ratio case reds naming it.
+    5. `TTES-GATE-010`'s `Children:` line reworded to prose without a ratio → the PASS
+       case reds with `TTES-GATE-010: PASS with 5 children and no stated ratio`, which
+       is the branch that closes the delete-the-line escape.
+    6. `docs/decisions/ADR-0009-competitive-benchmarking.md` created → the absence case
+       reds naming `TTES-050-002`; removed → green.
+  - **Re-verified and strengthened 2026-08-07** by a later batch handed this row as still
+    open. The ratio was re-derived and is unchanged at 2 of 5, and every claim the row
+    makes about its children was re-run rather than believed: `ls tools/perf-budget.mjs`
+    → absent, `grep -rl "web-vitals\|reportWebVitals" apps/web/src` → empty (so
+    `TTES-040-003` really is the emptiest leg), `grep -c "measureJourney" apps/web/e2e`
+    → 8 single-task journeys and no long session (so `TTES-040-005` really is nothing).
+    The row stays FAIL: a gate is proven by its children, three are undecided, and two of
+    the three sit outside this batch's file set.
+  - What the re-verification changed, because the row had a hole the ratio could not see.
+    A ratio is a COUNT. The one edit this repository actually makes to a decided
+    requirement is a PASS being withdrawn — it has done it twice in one session — and a
+    withdrawal paired with a landing leaves the count untouched while both names go
+    stale. `003` landing and `001` being taken back would still read "2 of 5", the
+    ratio-truth assertion would still pass, and the two sentences a reader reads would
+    both be wrong. So the `Children:` line now names all five with their statuses, each
+    per-child paragraph repeats its own, and a new case holds every one of them to the
+    child's `Status:` line.
+  - Tests: `tests/architecture/pass-requires-evidence.test.mjs` — 11 cases, up from 10.
+    New: **"an entry that states another requirement's status states the true one"**,
+    over `statedChildStatuses()`, applied to every entry in every ledger (a stale status
+    claim is not a gate-only failure) with a floor of 5 parsed claims so a parser that
+    stopped matching could not report a clean repository. 4 further mutations, 4 caught,
+    each restored and re-run green:
+    7. this row's first child claim edited from PASS to FAIL → the new case reds naming
+       `TTES-GATE-040`, the child, the claimed status and the ledger's. (The message is
+       described rather than quoted: the canonical shape is a claim wherever it appears,
+       including inside a quoted failure message, and pasting one here would make this
+       paragraph assert it. That is a real constraint on evidence prose, found by pasting
+       it.) **The discriminating half:** in the same run "a gate states its child ratio
+       states the true one"
+       stays GREEN, because 2 of 5 is still arithmetically true. That pair is the proof
+       the new case is not the ratio check in disguise.
+    8. the other direction — `TTES-040-004`'s own `Status:` changed `FAIL` →
+       `BLOCKED_EXTERNAL`, which is still undecided so the ratio does not move and the
+       checkbox still agrees → cases 4 and 6 stay green and the new case alone reds,
+       naming that child, the status this row claims for it and the status its own entry
+       now declares. Both sides of the comparison are therefore live. (De-quoted for the
+       reason in 7.)
+    9. `statedChildStatuses` blinded to `return out` → the new case reds on its floor
+       (`Only 0 per-requirement status claims parsed`) rather than passing over an empty
+       list, and the detector-exercise case reds too.
+    10. `tools/perf-budget.mjs` created → "an entry that says a file is absent is still
+       right about it" reds naming `TTES-GATE-040`, which is the `TTES-040-003` paragraph
+       above being held to its own claim; removed → green.
+  - Command: `node --test tests/architecture/pass-requires-evidence.test.mjs` → **9 of 11
+    pass**. The two failures are not this row's and are not in this batch's files: a
+    concurrent agent has set `TTES-GATE-030` to PASS in this same ledger over three
+    children still undecided as this ran (`TTES-030-001`, `TTES-030-004`,
+    `TTES-030-005`) and with no `Children:` line, and `WRK-GATE-050` the same over its
+    three in `docs/implementation/universal-work-graph-execution-ledger.md`. Their
+    statuses are deliberately NOT pinned in the canonical `` `ID` STATUS `` shape here —
+    that row is somebody else's work in flight, and a checked claim about it would red
+    their build for finishing it. `git show
+    HEAD:docs/implementation/tenant-experience-execution-ledger.md` has `TTES-GATE-030`
+    as `- [ ]` / FAIL, so that PASS arrived in the working tree during this batch. Both
+    findings are the existing cases 3 and 8 working exactly as intended, on somebody
+    else's row.
 
 - [ ] **TTES-GATE-050** — Tenant UX superiority is evidence-backed and continuously governed.
   - Status: FAIL

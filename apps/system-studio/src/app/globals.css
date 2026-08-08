@@ -86,6 +86,15 @@
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
+  /*
+   * 28px, and it diverges from the tenant app's 24px on purpose — see the
+   * `--space-6` entry in SHARED_TOKENS (tools/entry-point-inventory.mjs).
+   * TTES-000-001's mutation 4 set this to 24px to prove the stale-entry guard
+   * fires, and the ledger records it as restored; the run that ran that
+   * mutation was killed before it restored anything, so the mutant survived in
+   * the working tree and "a SHARED_TOKENS entry cannot outlive the divergence
+   * it describes" was reading a divergence a mutation had removed.
+   */
   --space-6: 28px;
   /* Minimum interactive box. WCAG 2.2 AA 2.5.8 asks for 24x24 CSS pixels. */
   --tap: 24px;
@@ -198,7 +207,7 @@ body {
  * margins splitting the gap between them.
  */
 .masthead .preferences {
-  margin-left: auto;
+  margin-inline-start: auto;
   position: relative;
 }
 
@@ -298,7 +307,7 @@ body {
 }
 
 .masthead .internal {
-  margin-left: 0.6rem;
+  margin-inline-start: 0.6rem;
   color: var(--accent);
   border: 1px solid var(--accent);
   border-radius: 3px;
@@ -351,7 +360,7 @@ p {
   color: var(--muted);
 }
 .badge {
-  margin-left: auto;
+  margin-inline-start: auto;
   border-radius: 3px;
   padding: 0 0.45rem;
   font-size: 11px;
@@ -487,8 +496,9 @@ table.grid {
 }
 table.grid th,
 table.grid td {
-  text-align: left;
-  padding: 0.4rem 0.75rem 0.4rem 0;
+  text-align: start;
+  padding-block: 0.4rem;
+  padding-inline: 0 0.75rem;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
@@ -500,7 +510,7 @@ table.grid th {
   color: var(--muted);
 }
 table.grid td.num,
-table.grid th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.grid th.num { text-align: end; font-variant-numeric: tabular-nums; }
 table.grid td.state { width: 1.5rem; color: var(--muted); }
 table.grid td.id {
   white-space: nowrap;
@@ -748,20 +758,20 @@ form.compose button[type="submit"]:disabled,
  */
 .state {
   border: 1px solid var(--border);
-  border-left-width: 3px;
+  border-inline-start-width: 3px;
   background: var(--surface);
   border-radius: 4px;
   padding: var(--space-3) var(--space-4);
   margin: var(--space-3) 0;
 }
 .state-quiet {
-  border-left-color: var(--border-strong);
+  border-inline-start-color: var(--border-strong);
 }
 .state-warn {
-  border-left-color: var(--warn);
+  border-inline-start-color: var(--warn);
 }
 .state-bad {
-  border-left-color: var(--bad);
+  border-inline-start-color: var(--bad);
 }
 
 .state-label {
@@ -802,7 +812,72 @@ form.compose button[type="submit"]:disabled,
 
 .state-list {
   margin: var(--space-1) 0 0;
-  padding-left: var(--space-4);
+  padding-inline-start: var(--space-4);
+}
+
+/*
+ * ── retrying and degraded (STUDIO-030-006) ─────────────────────────────────
+ *
+ * No new colour. `retrying` is `state-warn` and `degraded` is `state-bad`, so
+ * both reuse the muted left-border tokens already declared above — the layout
+ * suite measures off-white #f2f0ed on #33302c and a third accent here would be
+ * a palette invented at a component, which Bible §26.2 forbids in as many
+ * words. What these rules add is structure, because both states carry facts a
+ * paragraph cannot hold: a retry has a countdown, and a degradation has two
+ * halves that have to be readable side by side.
+ */
+
+/* attempt / next attempt / how many are left, on one line. `flex-wrap` rather
+   than a fixed row: at 900px the third item wraps under the first instead of
+   printing over the card edge, which the layout suite treats as a defect. */
+.state-retry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0 0 var(--space-1);
+}
+.state-retry b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* What answered, and what did not. Two columns where there is room and one
+   where there is not — `min(240px, 100%)` is what stops the track floor
+   exceeding a narrow card and pushing the list past the section's right edge. */
+.state-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+/* `min-width: 0` on the grid items: without it a long source name sets the
+   track's minimum to its own intrinsic width, and the second column spills. */
+.state-split > div {
+  min-width: 0;
+}
+.state-split-head {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.state-split .state-list {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The field that turns the high-risk panel from a display into a gate
+ * (STUDIO-140-006). Separated from the five facts by a rule, because it is the
+ * one part of the panel that is an instruction rather than a statement.
+ */
+.state-confirm {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.state-confirm code {
+  color: var(--text);
 }
 
 /* The five fields a high-risk confirmation must show. Laid out as pairs so a
@@ -922,7 +997,7 @@ form.compose button[type="submit"]:disabled,
   justify-content: space-between;
   gap: var(--space-3);
   font: inherit;
-  text-align: left;
+  text-align: start;
   color: var(--text);
   background: none;
   border: 0;
@@ -969,4 +1044,102 @@ form.compose button[type="submit"]:disabled,
 .palette-pin:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+
+/*
+ * ── Direction (STUDIO-030-007) ─────────────────────────────────────────────
+ *
+ * There is not a single physical-direction declaration left in this file:
+ * `margin-inline-start`, `padding-inline`, `border-inline-start-*` and
+ * `text-align: start/end` throughout. That is what "RTL readiness" means here —
+ * not that a translation exists, but that setting `dir="rtl"` on <html> mirrors
+ * the layout instead of breaking it. `layout.spec.ts` sets the attribute and
+ * re-runs the overlap detector on every route, so a physical declaration that
+ * creeps back in reds a test rather than waiting for a reader of Arabic.
+ *
+ * The one thing that must NOT mirror is a table of numbers read against a
+ * fixed unit, and `text-align: end` handles that by definition.
+ */
+
+/*
+ * ── Wide tables (STUDIO-100-001) ───────────────────────────────────────────
+ *
+ * `table.grid` already scrolls inside itself. `.table-scroll` is the wrapper for
+ * a table wide enough that its own scroller is not obvious — the fleet's sixteen
+ * columns — and it exists so the scroll region has a border a reader can see the
+ * edge of. Without the visible edge, a table that continues past the fold reads
+ * as a table that ends there.
+ */
+.table-scroll {
+  overflow-x: auto;
+  border-inline-start: 1px solid var(--border);
+  padding-inline-start: var(--space-2);
+  max-width: 100%;
+}
+table.grid.fleet {
+  /* Sixteen columns do not fit at any width this console is read at, so the
+     table is allowed to be wider than the page and scroll inside the wrapper
+     above. `min-content` rather than a pixel width: the columns size to their
+     content instead of to a number that is wrong in the other density. */
+  width: max-content;
+  min-width: 100%;
+}
+
+/* The fleet's search and filter. A GET form, so the result is a URL. */
+.fleet-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+.fleet-filter .field {
+  margin: 0;
+}
+.fleet-filter input,
+.fleet-filter select {
+  min-height: var(--tap);
+}
+
+/*
+ * ── Irreversible actions (STUDIO-030-004) ──────────────────────────────────
+ *
+ * Every lifecycle move used to render as an identical chip in one row, so the
+ * PURGE button sat pixel-adjacent to an ordinary transition at the same size and
+ * the same colour. This is the separation, and it is SPATIAL rather than
+ * chromatic on purpose:
+ *
+ *   * a saturated fill would break the desaturated palette `preferences.spec.ts`
+ *     measures contrast against in eight theme/density/contrast combinations;
+ *   * meaning carried by colour alone is forbidden (Bible §26.3.2), so the
+ *     heading names what cannot be undone and the border is only support.
+ *
+ * The margin above the fieldset is what the geometric assertion in
+ * `layout.spec.ts` measures — a minimum vertical gap between the irreversible
+ * button and the nearest ordinary one. Proving it by class name would survive a
+ * restyle that put the two back in one row; proving it by rectangle does not.
+ */
+fieldset.destructive {
+  margin-block-start: var(--space-6);
+  border: 1px solid var(--border-strong);
+  border-inline-start-width: 3px;
+  border-radius: 4px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-2);
+}
+fieldset.destructive legend {
+  padding-inline: var(--space-2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+fieldset.destructive .hint {
+  margin-block: 0 var(--space-3);
+}
+fieldset.destructive .chip {
+  /* Deliberately taller than an ordinary chip, so the two are distinguishable
+     without colour and without reading the heading. */
+  min-height: calc(var(--tap) + var(--space-2));
 }

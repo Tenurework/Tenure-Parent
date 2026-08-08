@@ -982,8 +982,25 @@ the commands or the ADR that would unblock it — if it cannot.
   - Status: FAIL
   - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
 
-- [x] **PACK-GATE-000** — Catalog truth matches implemented/certified scope.
-  - Status: PASS
+- [ ] **PACK-GATE-000** — Catalog truth matches implemented/certified scope.
+  - Status: FAIL
+  - Children: 2 of 4 decided. PACK-000-002 (17-dimension classification) and
+    PACK-000-004 (false `Available` claims removed) are PASS; PACK-000-001
+    (inventory every module, route, schema, service, flag, integration and
+    tenant customization) and PACK-000-003 (import every `PACK-*` requirement
+    into the canonical ledger) are FAIL.
+  - **PASS withdrawn.** A gate is proven by its children and by nothing else,
+    and this one was ticked over an inventory that has not been taken and a
+    requirement import that has not happened — the two children that decide
+    whether "catalog truth" has anything to be true about. It survived because
+    `tests/architecture/pass-requires-evidence.test.mjs` only compared a gate to
+    its children when the gate stated a child ratio, and this entry stated none:
+    the one edit that makes a false PASS unfalsifiable also switched off the
+    check for it. That test now derives the children from the ids whether or not
+    a ratio is written, and refuses a PASS gate that writes no ratio at all.
+  - The work recorded below is real and is not withdrawn with the status — it is
+    the evidence for the catalog-governance code, which is a part of this gate
+    and not the whole of it.
   - Code/config: `packages/module-runtime/src/resolve.ts` — `CatalogGovernance`
     and the reconciliation inside `ModuleCatalog.of`: every manifest key must be
     in `MODULE_KEYS` and every `MODULE_KEYS` entry must have a manifest, in both
@@ -1017,10 +1034,14 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PACK-GATE-010** — Packs extend one secure kernel.
   - Status: FAIL
-  - **2 of 4 children decided.** PACK-010-001 (one platform kernel) and
-    PACK-010-002 (guarded extension points and dependency rules) are PASS;
+  - Children: 1 of 4 decided. PACK-010-002 (guarded extension points and
+    dependency rules) is PASS; PACK-010-001 (one platform kernel),
     PACK-010-003 (no pack reaching another pack's private storage) and
     PACK-010-004 (no tenant fork or hard-coded tenant branch) are FAIL.
+    Corrected from "2 of 4", which counted PACK-010-001 as PASS while the
+    ledger has it FAIL — written in the keyed form because
+    `tests/architecture/pass-requires-evidence.test.mjs` could not read the
+    prose one, so the number went stale with nothing watching.
   - Closed in this pass, and the reason the gate moved at all: dependency and
     conflict rules were REPORTED and not ENFORCED.
     `packages/module-runtime/src/resolve.ts` pushed a `missing-dependency` or
@@ -1047,8 +1068,18 @@ the commands or the ADR that would unblock it — if it cannot.
     `tests/architecture/module-objects.test.mjs`), which is the definition of
     "another pack's private storage" that did not exist before.
 
-- [x] **PACK-GATE-020** — Tenant systems are multi-axis compositions.
-  - Status: PASS
+- [ ] **PACK-GATE-020** — Tenant systems are multi-axis compositions.
+  - Status: FAIL
+  - Children: 3 of 4 decided. PACK-020-002, PACK-020-003 and PACK-020-004 are
+    PASS; PACK-020-001 — "implement scale, organization, operating,
+    system-of-record, deployment, geography, functional, industry and provider
+    axes", the axes this gate is named for — is FAIL, and its own entry says so
+    ("The next axis to build is `system-of-record`").
+  - **PASS withdrawn**, same mechanism as PACK-GATE-000: no stated ratio, so
+    `tests/architecture/pass-requires-evidence.test.mjs` never compared it to
+    its children. A gate called "multi-axis compositions" cannot be PASS while
+    the requirement that implements the axes is FAIL — the composer offers the
+    axes that exist, which is the achievement recorded below, not all nine.
   - Code/config: `packages/module-runtime/src/manifest.ts`
     (`requiresOperatingModel`), `packages/module-runtime/src/resolve.ts`
     (`operatingModel` input, `wrong-operating-model` problem reason),
@@ -1090,12 +1121,13 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PACK-GATE-030** — Pack truth is versioned, contextual and enforced.
   - Status: FAIL
-  - **3 of 5 children decided.** PACK-030-001 (canonical pack objects,
-    versions, signatures, lifecycle, scope), PACK-030-003 (dependencies,
-    alternatives, conflicts, compatibility) and PACK-030-004 (deprecation,
-    suspension, end-of-support, retirement) are PASS. PACK-030-002 (exact
-    availability decisions) and PACK-030-005 (UI/API never labels unsupported
-    scope available) are FAIL.
+  - Children: 2 of 5 decided. PACK-030-001 (canonical pack objects, versions,
+    signatures, lifecycle, scope) and PACK-030-004 (deprecation, suspension,
+    end-of-support, retirement) are PASS. PACK-030-002 (exact availability
+    decisions), PACK-030-003 (dependencies, alternatives, conflicts,
+    compatibility) and PACK-030-005 (UI/API never labels unsupported scope
+    available) are FAIL. Corrected from "3 of 5", which counted PACK-030-003 as
+    PASS while the ledger has it FAIL.
   - Closed in this pass — the half of REVIEW-FINDINGS P0 #5 that was missing.
     `decide()` implemented the ordered tier comparison the finding demands
     (`tierRank` at `packages/authorization/src/decide.ts`, `current < required`
@@ -1139,12 +1171,14 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PACK-GATE-060** — Modules form coherent business systems.
   - Status: FAIL
-  - A gate is proven by its children, and 0 of 4 are complete at the time of
-    writing: PACK-060-001 (process-chain contracts), -002 (universal accounting
-    events), -003 (exceptions, compensation, reconciliation, drill-through) and
-    -004 (E2E chain tests across module boundaries) are all open. What follows is
-    what landed against this gate, recorded so the next session does not rebuild
-    it — not a claim that the gate is met.
+  - Children: 1 of 4 decided. A gate is proven by its children. PACK-060-001
+    (process-chain contracts) is PASS; PACK-060-002 (universal accounting
+    events), PACK-060-003 (exceptions, compensation, reconciliation,
+    drill-through) and PACK-060-004 (E2E chain tests across module boundaries)
+    are open. Corrected from "0 of 4 are complete at the time of writing" —
+    true when written, false once PACK-060-001 landed, and stated in a shape no
+    checker could read. What follows is what landed against this gate, recorded
+    so the next session does not rebuild it — not a claim that the gate is met.
   - Code/config: `packages/releases/src/validate.ts` (the `coherence` chain rule),
     `packages/platform-config/src/build-system.ts` (`systemUnderValidation`),
     consuming the `ProcessChain` declarations in `modules/index.ts` and
@@ -1181,9 +1215,11 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PACK-GATE-080** — Pack lifecycle is safe across the tenant fleet.
   - Status: FAIL
-  - Reason: **0 of 5 children decided** — PACK-080-001 through PACK-080-005 are
-    all FAIL, and so is PACK-030-004 (deprecation, suspension, end-of-support,
-    retirement). A gate is proven by its children; this one has none to cite.
+  - Children: 3 of 5 decided — PACK-080-001, PACK-080-003 and PACK-080-005 are
+    PASS; PACK-080-002 and PACK-080-004 are FAIL. Corrected from "0 of 5
+    children decided", which was true when written and false once three of them
+    landed, and which named PACK-030-004 as FAIL when the ledger now has it
+    PASS. A gate is proven by its children, and two of these are still open.
     Bible §19:643 requires global updates to reach Simon and all tenants through
     release compatibility **and** wave policies. The compatibility half is now
     reachable; the wave half — adoption, wave, canary, hold, rollback, forward

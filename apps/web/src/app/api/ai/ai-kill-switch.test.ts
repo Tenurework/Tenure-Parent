@@ -32,6 +32,7 @@ import {
 /** The instant every provider-review decision below is made for. */
 const NOW = "2026-08-01T00:00:00.000Z"
 import { resolveConfigOrThrow, type ConfigLayer } from "@tenure/configuration"
+import { projectTenureRecord } from "@/lib/relay/citation"
 
 const ENABLED_KEY = "platform.flags.aiAssistant.enabled"
 const ROLLOUT_KEY = "platform.flags.aiAssistant.rolloutPercent"
@@ -56,12 +57,38 @@ let mockTenantValues: Record<string, unknown> = {}
  */
 let mockExtraTools: import("@tenure/contracts").ToolRegistration[] = []
 
+/**
+ * The §4.1 connection class each module's capability is offered under, per test.
+ *
+ * Absent means "ask the shipped record", so every test that says nothing gets
+ * the production answer.
+ */
+let mockConnectionClasses: Record<
+  string,
+  import("@tenure/platform-config").ConnectionClass | null
+> = {}
+
 jest.mock("@tenure/platform-config", () => {
   const actual = jest.requireActual<typeof import("@tenure/platform-config")>(
     "@tenure/platform-config",
   )
   return {
     ...actual,
+    /**
+     * WRK-020-001. The §4.1 class each module's capability is offered under.
+     *
+     * The shipped record names one module (`search`, APPLICATION_ORG_WIDE), so a
+     * gate exercised only against it is a gate exercised only against the case
+     * it does not fire on. This is the same kind of stand-in as `modulesFor`
+     * above and for the same reason: `RELAY_CAPABILITY_OFFERS` is a record, and
+     * adding a row to it is precisely the change that lands when the platform
+     * catalogues its second connection. Everything the lookup then feeds —
+     * `refuseEscalation`, `CLASS_AUTHORITY`, `authorizeRegistrations` — is real.
+     */
+    connectionClassFor: (moduleKey: string) =>
+      Object.prototype.hasOwnProperty.call(mockConnectionClasses, moduleKey)
+        ? mockConnectionClasses[moduleKey]
+        : actual.connectionClassFor(moduleKey),
     modulesFor: (slug: string, at?: string) => {
       const resolved = at ? actual.modulesFor(slug, at) : actual.modulesFor(slug)
       if (mockExtraTools.length === 0) return resolved
@@ -152,7 +179,15 @@ jest.mock("@/lib/config/server", () => ({
   // Resolved from `platform.payments.legalEntityId`; null is the real answer
   // for a tenant that has published none, which is every tenant today.
   legalEntityIdForInstitution: async () => null,
+  // The token ceiling `budgetVerdict` reads. Faked at the id→slug database read
+  // only, exactly like the three above: `budgetVerdict` itself, `periodOf` and
+  // the SUM over the meter are the real ones, so a route that stopped consulting
+  // the budget would still be caught here.
+  modelTokenBudgetForInstitution: async () => mockModelTokenBudget,
 }))
+
+/** This tenant's token ceiling, per test. Null means "unreadable". */
+let mockModelTokenBudget: number | null = 5_000_000
 
 /**
  * The corpus, per principal — because the real loader is per principal.
@@ -163,21 +198,38 @@ jest.mock("@/lib/config/server", () => ({
  * whose data to read" unfalsifiable here: the assertion is that the route calls
  * it with the acting session's user and with nothing the request body proposed.
  */
-const mockLoadSearchCorpus = jest.fn(async (userId: string) => [
-  {
-    id: `doc_${userId}`,
-    kind: "document",
-    title: "Budget request process",
-    body: "Submit the budget request two weeks before the event, with quotes attached.",
+const mockLoadSearchCorpus = jest.fn(async (userId: string) => {
+  const now = new Date()
+  // WRK-070-003. The state and the §9.3 citation come from the REAL
+  // `projectTenureRecord`, the same function the corpus loader calls, so the
+  // two fields agree by construction here for the same reason they do in
+  // production. Hand-writing a citation object would be a fixture that cannot
+  // go out of date with the thing it stands in for.
+  const projected = projectTenureRecord({
+    tenant: "inst_test",
+    externalId: `doc_${userId}`,
     href: "/resources/doc_1",
-    context: userId === "user_test" ? "Ainslie OSE" : "Somebody else's institution",
-    // WRK-010-003. The real loader stamps a §3.4 projection mode on every
-    // doc; a stand-in that omitted it would be projected as REFERENCE_ONLY
-    // (the fail-closed default) and the body would silently stop reaching the
-    // prompt — which is not what a `document` does in production.
-    mode: "SEARCH_PROJECTION",
-  },
-])
+    asOf: now,
+    now,
+  })
+  return [
+    {
+      id: `doc_${userId}`,
+      kind: "document",
+      title: "Budget request process",
+      body: "Submit the budget request two weeks before the event, with quotes attached.",
+      href: "/resources/doc_1",
+      context: userId === "user_test" ? "Ainslie OSE" : "Somebody else's institution",
+      // WRK-010-003. The real loader stamps a §3.4 projection mode on every
+      // doc; a stand-in that omitted it would be projected as REFERENCE_ONLY
+      // (the fail-closed default) and the body would silently stop reaching the
+      // prompt — which is not what a `document` does in production.
+      mode: "SEARCH_PROJECTION",
+      state: projected.state,
+      citation: projected.citation,
+    },
+  ]
+})
 
 jest.mock("@/lib/search-data", () => ({
   loadSearchCorpus: (...args: unknown[]) => mockLoadSearchCorpus(...(args as [string])),
@@ -189,9 +241,72 @@ jest.mock("@/lib/ai", () => ({
   aiConfigured: () => mockAiConfigured(),
 }))
 
+/**
+ * WRK-GATE-040. `/api/ai/chat` now records its authorization decision through
+ * `recordAuditEvent`, which reads the institution's latest chained row and
+ * appends the successor inside ONE transaction — so this stand-in implements
+ * the callback form of `$transaction` as well as the array form. Without the
+ * callback form the route throws before it can answer, and every assertion in
+ * this file would fail for a reason none of them is about.
+ *
+ * It stores rows rather than swallowing them, so "a refusal is recorded too" is
+ * asserted below on the same path the flag assertions run on.
+ */
+const mockAuditRows: Record<string, unknown>[] = []
+
+/**
+ * The token meter rows, standing in for `ModelUsageMeter`.
+ *
+ * `budgetVerdict` and `modelTokensUsedInPeriod` run for real against this — the
+ * aggregate really filters by institution and period and really sums both token
+ * columns — so a route that stopped consulting the budget, or consulted it for
+ * the wrong tenant, is caught rather than being mocked past.
+ */
+const mockMeterRows: Record<string, unknown>[] = []
+
+jest.mock("@/lib/db", () => {
+  const tx = {
+    auditEvent: {
+      findFirst: async () => mockAuditRows[mockAuditRows.length - 1] ?? null,
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        mockAuditRows.push(data)
+        return data
+      },
+    },
+  }
+  const modelUsageMeter = {
+    create: async ({ data }: { data: Record<string, unknown> }) => {
+      mockMeterRows.push(data)
+      return data
+    },
+    aggregate: async ({ where }: { where: { institutionId: string; period: string } }) => {
+      const matching = mockMeterRows.filter(
+        (r) => r.institutionId === where.institutionId && r.period === where.period,
+      )
+      return {
+        _sum: {
+          inputTokens: matching.reduce((n, r) => n + (r.inputTokens as number), 0),
+          outputTokens: matching.reduce((n, r) => n + (r.outputTokens as number), 0),
+        },
+      }
+    },
+  }
+  return {
+    db: {
+      ...tx,
+      modelUsageMeter,
+      $transaction: (arg: unknown) =>
+        typeof arg === "function"
+          ? (arg as (client: unknown) => Promise<unknown>)(tx)
+          : Promise.all(arg as Promise<unknown>[]),
+    },
+  }
+})
+
 import { lookupPermission } from "@tenure/authorization"
 import { parseTenantContext, parseToolRegistration } from "@tenure/contracts"
 
+import { __resetCellContext, cellContext } from "@/lib/cell-context"
 import { authorizeRelayTools, relayToolsFor } from "@/lib/relay-tools"
 import { POST as chat } from "./chat/route"
 import { POST as draft } from "./draft/route"
@@ -217,10 +332,133 @@ beforeEach(() => {
   mockTenantValues = {}
   mockInstitutionRoles = [{ institutionId: "inst_test", role: "OSE_STAFF" }]
   mockExtraTools = []
+  mockConnectionClasses = {}
   mockAiComplete.mockClear()
   mockDraftText.mockClear()
   mockLoadSearchCorpus.mockClear()
   mockAiConfigured.mockReturnValue(true)
+  mockAuditRows.length = 0
+  mockMeterRows.length = 0
+  mockModelTokenBudget = 5_000_000
+})
+
+/**
+ * WRK-GATE-040 — a refusal leaves a trace, on the branch that produces one.
+ *
+ * The refusal asserted here is the PERMISSION one: no seat, so `decide()`
+ * refuses `search.index.query` and the tool is never offered. That is the case
+ * "the assistant was not allowed to" describes, and until this it left nothing
+ * behind at all — the browser was told, and nobody else was.
+ */
+describe("/api/ai/chat records a permission refusal, not only an allow", () => {
+  it("writes a DENY naming the tool and carrying no policy revision to invent", async () => {
+    mockInstitutionRoles = []
+
+    await chat(chatRequest())
+
+    expect(mockAuditRows).toHaveLength(1)
+    const row = mockAuditRows[0] as Record<string, unknown>
+    const metadata = row.metadata as Record<string, unknown>
+
+    expect(row.action).toBe("Relay.ToolRefused")
+    expect(row.outcome).toBe("DENY")
+    expect(row.resourceId).toBe("search.corpus")
+    // Refused, so there is no offered decision to read a revision off. Null is
+    // the honest answer; a fabricated one would be the canned value the audit
+    // trail exists to avoid.
+    expect(metadata.policyRevision).toBeNull()
+    expect(metadata.sourceCount).toBe(0)
+    expect(String(row.reason).length).toBeGreaterThan(0)
+  })
+
+  it("writes an ALLOW when the same requester holds the seat", async () => {
+    // The contrast. Without it the assertion above passes for a route that
+    // writes DENY unconditionally.
+    await chat(chatRequest())
+
+    const row = mockAuditRows[0] as Record<string, unknown>
+    expect(row.action).toBe("Relay.ToolInvoked")
+    expect(row.outcome).toBe("ALLOW")
+    expect(typeof (row.metadata as Record<string, unknown>).policyRevision).toBe("string")
+  })
+})
+
+/**
+ * WRK-GATE-050 — an assistant that reads a tenant's corpus leaves an
+ * attributable record of WHO asked, WHICH tool ran, at WHAT risk class, under
+ * WHICH connector verdict, over WHICH sources.
+ *
+ * Each of those five was missing, and each is asserted here through the ROUTE
+ * rather than against `recordAuditEvent` — a metadata field proven by calling
+ * the writer directly stays green when the route stops passing it, which is
+ * exactly how a control becomes a comment.
+ */
+describe("/api/ai/chat records what the assistant was allowed to read", () => {
+  it("names the tool, its risk class, the connector verdict and the sources by id", async () => {
+    await chat(chatRequest())
+
+    expect(mockAuditRows).toHaveLength(1)
+    const row = mockAuditRows[0] as Record<string, unknown>
+    const metadata = row.metadata as Record<string, unknown>
+
+    // WHO, and under what authority. `seatFor` derives the seat from the same
+    // permission context the decision was made from.
+    expect(row.actorId).toBe("user_test")
+    expect((metadata._seat as Record<string, unknown>).institutionRole).toBe("OSE_STAFF")
+
+    // WHICH tool, at WHAT class — `riskOf`'s own answer, not a literal.
+    expect(row.resourceId).toBe("search.corpus")
+    expect(metadata.riskClass).toBe("READ")
+    expect(metadata.surfaceAllow).toBe("read-only")
+
+    // The connector verdict. Currently closed, so the rows were retrieved and
+    // NOT sent — and the row is what distinguishes those two outcomes.
+    expect(metadata.connectorActivated).toBe(false)
+    expect(metadata.connectorReason).toBe("provider-review-missing")
+    expect(metadata.modelExposure).toBe(false)
+
+    // WHICH sources, by identity and kind. Never a title and never a body.
+    expect(metadata.sourceCount).toBe(1)
+    expect(metadata.sources).toEqual([
+      { id: "doc_user_test", kind: "document", mode: "SEARCH_PROJECTION" },
+    ])
+    // The corpus row's title and body are genuinely in play — the response
+    // carries the title — and neither is in the audit row.
+    const serialized = JSON.stringify(row)
+    expect(serialized).not.toContain("Budget request process")
+    expect(serialized).not.toContain("two weeks before the event")
+    // Nor the question the person asked.
+    expect(serialized).not.toContain("budget request")
+  })
+
+  it("carries the digest of the exact plan that ran", async () => {
+    await chat(chatRequestWith({ args: { query: "budget" } }))
+
+    const metadata = (mockAuditRows[0] as Record<string, unknown>).metadata as Record<
+      string,
+      unknown
+    >
+    expect(metadata.planDigest).toMatch(/^sha256:[0-9a-f]{64}$/)
+
+    // And it is a digest OF THE PLAN, not a constant: the same request with a
+    // different argument produces a different one.
+    mockAuditRows.length = 0
+    await chat(chatRequestWith({ args: { query: "catering" } }))
+    const second = (mockAuditRows[0] as Record<string, unknown>).metadata as Record<string, unknown>
+    expect(second.planDigest).not.toBe(metadata.planDigest)
+  })
+
+  it("records the refusal of an undeclared tool as a DENY naming it", async () => {
+    mockExtraTools = [undeclaredRegistration()]
+
+    await chat(chatRequestWith({ toolKey: "search.snippets" }))
+
+    const row = mockAuditRows[0] as Record<string, unknown>
+    expect(row.outcome).toBe("DENY")
+    expect(row.resourceId).toBe("search.snippets")
+    expect(String(row.reason)).toContain("declares no argument schema")
+    expect((row.metadata as Record<string, unknown>).sourceCount).toBe(0)
+  })
 })
 
 /* ---------------------------------------------------------------- WRK-040-003 --
@@ -435,6 +673,60 @@ const writingRegistration = () =>
     readOnly: false,
     reauthorizesPerCall: true,
   })
+
+/**
+ * A SECOND read-only registration, contributed by the real `search` manifest.
+ *
+ * The exact change that lands when this platform declares its second tool: one
+ * more entry in `modules/index.ts`'s `tools` array, through the same
+ * `parseToolRegistration`, gated on a permission this requester genuinely holds
+ * — so it IS offered, and the only thing standing between it and the model is
+ * that nobody has declared what arguments it takes.
+ */
+const undeclaredRegistration = () =>
+  parseToolRegistration({
+    toolKey: "search.snippets",
+    module: "search",
+    description: "Return short passages around a match, for a preview list rather than an answer.",
+    requiredPermission: "search.index.query",
+    readOnly: true,
+    reauthorizesPerCall: true,
+  })
+
+/**
+ * WRK-050-001 — an undeclared tool is the unusable one, not the permissive one.
+ */
+describe("/api/ai/chat refuses a registration whose arguments nobody declared", () => {
+  it("refuses it even though it is offered and read-only", async () => {
+    mockExtraTools = [undeclaredRegistration()]
+
+    const body = await (await chat(chatRequestWith({ toolKey: "search.snippets" }))).json()
+
+    // Offered — this is not the permission or the surface ceiling answering.
+    expect(body.relayTools.offered.map((t: { toolKey: string }) => t.toolKey)).toEqual([
+      "search.corpus",
+      "search.snippets",
+    ])
+    expect(body.toolRemedy).toEqual({ kind: "PROPOSAL_NOT_ACCEPTED", rejected: "toolKey" })
+    // The exact sentence matters: without the fail-closed branch the proposal
+    // falls through to the surface's executable list and gets "The assistant
+    // cannot do that here", which is a different and less true statement — the
+    // tool is not runnable anywhere, not merely here.
+    expect(body.toolRefusal).toBe("That capability has not been set up for the assistant to use yet.")
+    expect(body.sources).toEqual([])
+    expect(mockLoadSearchCorpus).not.toHaveBeenCalled()
+    expect(mockAiComplete).not.toHaveBeenCalled()
+  })
+
+  it("still runs the declared one, so this is the declaration and not the count", async () => {
+    mockExtraTools = [undeclaredRegistration()]
+
+    const body = await (await chat(chatRequest())).json()
+
+    expect(body.toolRefusal).toBeNull()
+    expect(body.sources).toHaveLength(1)
+  })
+})
 
 /**
  * WRK-050-005 / WRK-050-001 — the route says what each tool would do, and
@@ -719,5 +1011,206 @@ describe("the decision the routes consume is the engine's, not a stub", () => {
       enabled: true,
       reason: "enabled",
     })
+  })
+})
+
+/* ─────────────────────────────────────────────────────── WRK-070-001 ──────
+ * The projection is scoped to where the tenant's data actually is.
+ *
+ * `projectionModeFor(kind)` used to decide over a module-level constant, so
+ * every tenant, in every cell, in every region got the same retention answer.
+ * `lib/ai.ts` already refused to INVOKE a model from a partition with no route
+ * to the vendor (GE-010-007) — the CORPUS was never capped, so a GovCloud cell
+ * assembled full-retention bodies and held them ready to post.
+ *
+ * Asserted on what the ROUTE emits, never on `projectionModeFor` directly: a
+ * property proven by calling the helper stays true after the route stops calling
+ * it, which is exactly how a control becomes a comment.
+ */
+describe("/api/ai/chat projects sources at the residency the cell is in", () => {
+  /**
+   * The five variables `resolveCellContext` reads, saved and restored.
+   *
+   * All five, not two. `resolveCellContext` falls back to its development
+   * default WHOLESALE when any of them is unresolved — which is correct
+   * behaviour and would have made this test pass against `us-east-1` while
+   * claiming to run in GovCloud. Setting the whole set is what a deployed cell's
+   * task definition does.
+   */
+  const CELL_VARS = [
+    "AWS_PARTITION",
+    "AWS_ACCOUNT_ID",
+    "AWS_REGION",
+    "DEPLOY_ENVIRONMENT",
+    "CELL_ID",
+  ] as const
+  const previous = Object.fromEntries(CELL_VARS.map((v) => [v, process.env[v]]))
+
+  /** Move this process into a partition, the way the task definition would. */
+  function runningIn(partition: string, region: string) {
+    process.env.AWS_PARTITION = partition
+    process.env.AWS_ACCOUNT_ID = "000000000001"
+    process.env.AWS_REGION = region
+    process.env.DEPLOY_ENVIRONMENT = "production"
+    process.env.CELL_ID = "cell-test-01"
+    __resetCellContext()
+    // Guards the test itself: if any of the five were unresolved, the context
+    // would silently be the development default and every assertion below would
+    // be made about `us-east-1`.
+    expect(cellContext()).toMatchObject({ partition, region, resolved: "environment" })
+  }
+
+  afterEach(() => {
+    for (const variable of CELL_VARS) {
+      const restored = previous[variable]
+      if (restored === undefined) delete process.env[variable]
+      else process.env[variable] = restored
+    }
+    __resetCellContext()
+  })
+
+  it("caps every source at REFERENCE_ONLY from a partition the vendor is not in", async () => {
+    runningIn("aws-us-gov", "us-gov-west-1")
+
+    const body = await (await chat(chatRequest())).json()
+
+    // The corpus stamped SEARCH_PROJECTION — the mock is unchanged and says so —
+    // and the route narrowed it, because the narrowing is the residency's and
+    // not the corpus's.
+    expect(body.sources).toHaveLength(1)
+    for (const source of body.sources) expect(source.mode).toBe("REFERENCE_ONLY")
+    // Still citable: the title and the link go, the words do not.
+    expect(body.sources[0].title).toBe("Budget request process")
+    expect(JSON.stringify(body)).not.toContain("two weeks before the event")
+    expect(mockAiComplete).not.toHaveBeenCalled()
+  })
+
+  it("leaves the commercial partition's sources at their declared mode", async () => {
+    // The contrast that makes the assertion above about residency rather than
+    // about a route that withholds everything.
+    runningIn("aws", "us-east-1")
+
+    const body = await (await chat(chatRequest())).json()
+
+    expect(body.sources[0].mode).toBe("SEARCH_PROJECTION")
+  })
+
+  it("refuses a residency whose region and partition contradict each other", async () => {
+    // Two environment variables, and nothing had ever checked they describe the
+    // same place. A cell claiming commercial AWS while running in `us-gov-west-1`
+    // gets the least-retentive answer, not the commercial one.
+    runningIn("aws", "us-gov-west-1")
+
+    const body = await (await chat(chatRequest())).json()
+
+    expect(body.sources[0].mode).toBe("REFERENCE_ONLY")
+  })
+})
+
+/* ─────────────────────────────────────────────────────── WRK-020-001 ──────
+ * A tool may not exceed the §4.1 class its capability is offered under.
+ *
+ * The probe is a capability offered at WEBHOOK_ONLY — "inbound signed events
+ * without general read/write authority" — whose tool derives WRITE. Before this,
+ * a webhook-only grant and an organization-wide application identity were the
+ * same thing to every decision the route makes.
+ */
+describe("/api/ai/chat refuses a tool that exceeds its connection class", () => {
+  it("names both classes and the ceiling, through the route", async () => {
+    mockExtraTools = [writingRegistration()]
+    mockConnectionClasses = { approvals: "WEBHOOK_ONLY" }
+
+    const body = await (await chat(chatRequestWith({ toolKey: "approvals.raise" }))).json()
+
+    const refused = body.relayTools.refused.find(
+      (r: { toolKey: string }) => r.toolKey === "approvals.raise",
+    )
+    expect(refused).toBeDefined()
+    expect(refused.riskClass).toBe("WRITE")
+    expect(refused.remedy).toEqual({
+      kind: "CONNECTION_CLASS_EXCEEDED",
+      grantedClass: "WEBHOOK_ONLY",
+      requestedRisk: "WRITE",
+      // The NARROWEST class that would carry it — advising ADMIN_DELEGATED for a
+      // WRITE would be advising six risk classes more than the act needs.
+      requiredClass: "SERVICE_ACCOUNT",
+    })
+    // The proposal named that tool, so this is the refusal the person is given.
+    expect(body.toolRefusal).toContain("reconnect it with wider authority")
+    // And the engine's own words, and the permission key, are still not on the
+    // wire — a class refusal must not become a disclosure.
+    expect(JSON.stringify(body)).not.toContain("approvals.request.create")
+    // Retrieval is unaffected: refusing one capability is not refusing the
+    // surface.
+    expect(body.relayTools.retrievalAvailable).toBe(true)
+  })
+
+  it("still offers the READ tool under the same webhook-only connection", async () => {
+    // A gate that refused everything would be indistinguishable from a broken
+    // one. WEBHOOK_ONLY reaches READ, and `search.corpus` is a READ.
+    mockConnectionClasses = { search: "WEBHOOK_ONLY" }
+
+    const body = await (await chat(chatRequest())).json()
+
+    // `toContain`, not `toEqual`: the claim is that a READ survives the class
+    // gate, and pinning the whole offered list would red on any registration the
+    // catalog grows — which is a different fact and somebody else's test.
+    expect(body.relayTools.offered.map((t: { toolKey: string }) => t.toolKey)).toContain(
+      "search.corpus",
+    )
+    expect(body.relayTools.refused).toEqual([])
+    expect(body.sources).toHaveLength(1)
+  })
+
+  it("refuses even the read tool when the class may not serve the tenant at all", async () => {
+    // §4.1 prohibits a user-owned connection from tenant-wide use outright, and
+    // every relay tool is tenant-wide by construction.
+    mockConnectionClasses = { search: "PERSONAL_PRODUCTIVITY" }
+
+    const body = await (await chat(chatRequest())).json()
+
+    expect(body.relayTools.offered).toEqual([])
+    expect(body.sources).toEqual([])
+    expect(body.relayTools.refused[0].remedy).toMatchObject({
+      kind: "CONNECTION_CLASS_EXCEEDED",
+      grantedClass: "PERSONAL_PRODUCTIVITY",
+    })
+    expect(mockLoadSearchCorpus).not.toHaveBeenCalled()
+  })
+})
+
+/* ─────────────────────────────────────────────────────── WRK-GATE-020 ─────
+ * A granted connection has a direction and a set of selected resources, and
+ * this route states both.
+ *
+ * `RelayInvocationLimits` bounded recipients and tool keys and named no
+ * container, mailbox, folder or channel — so §4.1's "never turn a user token
+ * into organization-wide data access by iterating over discoverable resources"
+ * was unenforceable by construction.
+ */
+describe("/api/ai/chat refuses an argument naming a resource the grant never selected", () => {
+  it("names the empty selection, through the route", async () => {
+    const body = await (
+      await chat(chatRequestWith({ args: { folder: "Shared/Finance" } }))
+    ).json()
+
+    expect(body.toolRemedy).toEqual({
+      kind: "RESOURCE_NOT_SELECTED",
+      argument: "folder",
+      requested: "Shared/Finance",
+      selected: [],
+    })
+    expect(body.toolRefusal).toContain("no folders or channels selected")
+    // Nothing was retrieved: a refused proposal does not run.
+    expect(body.sources).toEqual([])
+    expect(mockLoadSearchCorpus).not.toHaveBeenCalled()
+    expect(mockAiComplete).not.toHaveBeenCalled()
+  })
+
+  it("keeps the ordinary proposal working, so the gate is the selection", async () => {
+    const body = await (await chat(chatRequestWith({ args: { query: "budget" } }))).json()
+
+    expect(body.toolRefusal).toBeNull()
+    expect(body.sources).toHaveLength(1)
   })
 })

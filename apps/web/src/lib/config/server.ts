@@ -13,6 +13,7 @@ import {
 } from "@tenure/contracts"
 import {
   decideFlag,
+  MODEL_TOKEN_BUDGET_KEY,
   recordFlagExposure,
   resolveSystemConfig,
   terminologyFor,
@@ -172,6 +173,37 @@ export const legalEntityIdForInstitution = cache(
     const slug = await institutionSlugFor(institutionId)
     const value = resolveSystemConfig(slug).values[LEGAL_ENTITY_CONFIG_KEY]
     return typeof value === "string" && value.trim() !== "" ? value : null
+  },
+)
+
+/**
+ * WRK-120-004 — how many model tokens this tenant may spend in a month.
+ *
+ * The same id→slug bridge as everything above, for the same reason. It resolves
+ * through the configuration engine rather than a constant in the metering
+ * module: one number compiled into the application would be one allowance for
+ * every institution the deployment serves, which is the `NODE_ENV` mistake
+ * `paymentModeForInstitution` exists to avoid, in a different currency.
+ *
+ * An institution that has published nothing resolves to the definition's own
+ * default, which is a real allowance rather than a placeholder — the same
+ * shape as `terminologyForInstitution`, where an unbound tenant gets platform
+ * defaults instead of an error.
+ *
+ * `null` is reserved for the case where the key resolves to something that is
+ * not a number at all, which can only mean the definition has left the
+ * registry. That is NOT reported as zero: zero is a real budget meaning "spend
+ * nothing", and collapsing "unreadable" into it would tell an operator their
+ * tenant is at its ceiling when in fact the ceiling has gone missing.
+ * `budgetVerdict` refuses on either, and names which it was.
+ *
+ * The producer for `budgetVerdict` in `src/lib/metering/model-usage.ts`.
+ */
+export const modelTokenBudgetForInstitution = cache(
+  async (institutionId: string): Promise<number | null> => {
+    const slug = await institutionSlugFor(institutionId)
+    const value = resolveSystemConfig(slug).values[MODEL_TOKEN_BUDGET_KEY]
+    return typeof value === "number" && Number.isFinite(value) ? value : null
   },
 )
 

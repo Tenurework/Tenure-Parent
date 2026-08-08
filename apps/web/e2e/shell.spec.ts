@@ -115,6 +115,113 @@ test.describe("shell + brand", () => {
     await expect(page.locator("#shell-search-listbox")).toContainText("Simon Consulting")
   })
 
+  /**
+   * TTES-030-001 — Bible §5.1's "Work inbox with approvals, tasks, exceptions,
+   * mentions and due items", which did not exist: the product had `/approvals`,
+   * `/notifications` and `/calendar` and nothing that answered "what needs me".
+   *
+   * Asserts on what the PRODUCTION page emits — the bucket headings the route
+   * renders from `groupWorkItems`, and the ordering that puts the overdue band
+   * above every other one. A test that called `orderWorkItems` directly would
+   * stay green if the page stopped calling it, which is the failure this repo
+   * has shipped before.
+   */
+  test("the work inbox is reachable from the shell and orders overdue work first", async ({
+    page,
+  }) => {
+    await signIn(page, "Dana Whitfield")
+    await page.goto("/dashboard")
+
+    // §5.1 puts the inbox in the UNIVERSAL SHELL, so it must be reachable from
+    // a route that is not itself the inbox.
+    await page.getByRole("link", { name: "Work inbox" }).click()
+    await page.waitForURL(/\/inbox/)
+
+    await expect(page.getByRole("heading", { name: "Inbox", level: 1 })).toBeVisible()
+    // The page's state, in the header's status band — the count of what
+    // genuinely needs attention, which is `needsAttentionCount`'s output and
+    // not a total. (`Badge` forwards no `data-testid`, so this reads the band
+    // the shared `PageHeader` marks, which is what production renders.)
+    await expect(page.locator("[data-slot='record-status']")).toContainText(/needs? attention/)
+
+    const groups = page.getByTestId("inbox-groups")
+    await expect(groups).toBeVisible()
+
+    // The bands the page actually rendered, in the order it rendered them.
+    const buckets = await groups.locator("h2[data-bucket]").evaluateAll((els) =>
+      els.map((e) => e.getAttribute("data-bucket")),
+    )
+    expect(buckets.length).toBeGreaterThan(0)
+
+    // Whatever subset of bands this seed produces, they must be in §5.1's
+    // urgency order — overdue before today before this-week before later
+    // before undated. This is the assertion that reds if `orderWorkItems` /
+    // `groupWorkItems` stops being what the page renders from.
+    const ORDER = ["overdue", "today", "this-week", "later", "no-date"]
+    const indices = buckets.map((b) => ORDER.indexOf(b!))
+    expect(indices).toEqual([...indices].sort((a, b) => a - b))
+    expect(indices.every((i) => i >= 0)).toBe(true)
+
+    // Every row names which of the five kinds it is, so an exception is not
+    // filed among twenty budget requests.
+    const kinds = await groups.locator("li[data-work-kind]").evaluateAll((els) =>
+      els.map((e) => e.getAttribute("data-work-kind")),
+    )
+    expect(kinds.length).toBeGreaterThan(0)
+    for (const k of kinds) {
+      expect(["approval", "exception", "task", "mention", "due"]).toContain(k)
+    }
+  })
+
+  /**
+   * TTES-030-001 — Bible §5.3, record anatomy.
+   *
+   * "Every important record uses a stable anatomy: identity + status + primary
+   * actions / summary and key facts / work-content tabs." The club is the
+   * product's central record and its six surfaces each hand-rolled their own
+   * header; five emitted a bare `<h1>{org.name}</h1>` with nowhere to put the
+   * state at all. They now all go through `OrgRecordHeader`.
+   *
+   * The assertion is deliberately on ALL SIX, in one case: the requirement is a
+   * STABLE anatomy, and a spec that checked one surface would pass while five
+   * disagreed — which is exactly the state this found.
+   */
+  test("every club surface shows the same record anatomy: identity, then state, then tabs", async ({
+    page,
+  }) => {
+    // Six server-rendered club surfaces in one case, deliberately — see above.
+    // Six full page loads do not fit the suite's 45s default, and splitting
+    // them into six cases would let five pass while one disagreed, which is
+    // the state this case exists to catch.
+    test.slow()
+    await signIn(page, "Maya Johnson")
+
+    for (const section of ["members", "finance", "documents", "memory", "handoff", "impact"]) {
+      await page.goto(`/orgs/simon-consulting-club/${section}`)
+
+      const header = page.locator("header").filter({ has: page.getByRole("heading", { level: 1 }) })
+
+      // Identity: the breadcrumb back to the record's collection, and the name.
+      await expect(
+        page.getByRole("navigation", { name: "Breadcrumb" }),
+        `${section} has no breadcrumb`,
+      ).toBeVisible()
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Simon Consulting Club")
+
+      // Status: the band that did not exist. At least one badge of real state,
+      // rendered INSIDE the header — above the tabs, below the identity.
+      const status = header.locator("[data-slot='record-status']")
+      await expect(status, `${section} renders no record status`).toBeVisible()
+      await expect(status.locator("> *")).not.toHaveCount(0)
+
+      // Work/content tabs, the third band, on every one of them.
+      await expect(
+        page.getByRole("navigation", { name: "Club sections" }),
+        `${section} has no section tabs`,
+      ).toBeVisible()
+    }
+  })
+
   test("footer with wordmark and copyright renders on every page", async ({ page }) => {
     await signIn(page, "Maya Johnson")
     for (const path of ["/dashboard", "/orgs", "/calendar", "/messages"]) {

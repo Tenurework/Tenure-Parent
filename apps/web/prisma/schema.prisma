@@ -82,6 +82,8 @@ model Institution {
   resources     Resource[]
   outboxEvents  OutboxEvent[]
   inboxEvents   InboxEvent[]
+  modelUsage    ModelUsageMeter[]
+  connectionLaunchTokens ConnectionLaunchToken[]
 }
 
 enum InstitutionRole {
@@ -144,6 +146,14 @@ model User {
   // uploaded pictures, resolved to a signed URL by the proxy.
   image         String?
   imageKey      String?
+  // WRK-030-006. The revocation counter for this user's calendar feed token.
+  // A calendar client polls a subscription URL forever, so there is no moment a
+  // token is "consumed" and single-use would break the only feature the token
+  // has. Bumping this number is what invalidates every token already issued —
+  // the honest analogue of already-consumed for a credential that is meant to
+  // be replayed. `verifyCalendarToken` refuses a token whose embedded epoch is
+  // not this one; `calendarTokenEpochFor` in src/lib/calendar-data.ts reads it.
+  calendarTokenEpoch Int   @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -162,6 +172,7 @@ model User {
   notificationPrefs     NotificationPreference[]
   deliverableReminders  DeliverableReminder[]
   resourcesAuthored     Resource[] @relation("ResourceAuthor")
+  connectionLaunchTokens ConnectionLaunchToken[]
 }
 
 // ─── Organizations & Role Seats ───────────────────────────────────────────────
@@ -1566,4 +1577,132 @@ model InboxEvent {
 
   @@unique([institutionId, eventId, consumer])
   @@index([institutionId, consumedAt])
+}
+
+/// WRK-120-004 — what one model call cost, per tenant.
+///
+/// The vendor reports `usage.input_tokens` and `usage.output_tokens` on every
+/// successful response. Before this table `apps/web/src/lib/ai.ts` parsed the
+/// response with a cast that named only `content`, so those two numbers arrived
+/// on the wire and were dropped: no tenant could be charged, and no budget could
+/// be enforced, because nothing anywhere knew a call had happened.
+///
+/// One row per provider call, not a running total. A counter can only answer
+/// "how much", and every question worth asking afterwards — which model, which
+/// month, was it one runaway loop or steady use — needs the calls themselves.
+/// The aggregate is a SUM over `[institutionId, period]`, which the index below
+/// exists for.
+///
+/// `period` is stored rather than derived at read time for the same reason: the
+/// budget is a calendar-month allowance, and a query that computed the month
+/// from `occurredAt` in SQL could not use an index and would disagree with the
+/// application's own UTC month boundary the first time a server ran in another
+/// zone.
+model ModelUsageMeter {
+  id String @id @default(cuid())
+
+  /// Scoped like every other tenant row; `src/lib/tenancy/registry.ts`
+  /// classifies it TENANT_SCOPED. A meter readable across tenants would expose
+  /// how much another institution uses the assistant, which is a usage profile.
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  /// The model id actually invoked, from the allowed-model catalog. Two models
+  /// do not cost the same, so a meter that forgot which one ran cannot be
+  /// priced later even though it was measured correctly.
+  model String
+
+  /// As reported by the vendor. Never estimated from string lengths — an
+  /// estimate that disagreed with the invoice would be worse than no meter.
+  inputTokens  Int
+  outputTokens Int
+
+  /// The UTC calendar month this call is billed into, as `YYYY-MM`.
+  period String
+
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  /// The budget query: this tenant's total for this period.
+  @@index([institutionId, period])
+}
+
+/// WRK-030-002 — Bible §5.3's launch token, stored as a hash.
+///
+/// What this replaces: `MissingConnectionCard`'s `pendingIntent` prop, whose own
+/// comment said "Never persisted anywhere — this is component state passed
+/// straight back out". So "Kept for when this connects" survived exactly as long
+/// as the React tree. A refresh, a sign-in redirect, or finishing the connect on
+/// a phone and coming back to the laptop all lost the question the person had
+/// just asked — which is the round trip §5.3 step 2 exists to survive.
+///
+/// ## Deliberately the opposite of the calendar feed token
+///
+/// `src/lib/calendar-sync.ts` mints a stateless HMAC that is stable per user and
+/// meant to be replayed forever, because Outlook polls it. This one is stored,
+/// single-use and short-lived, because it is handed to a person once and
+/// redeemed once. They are both "tokens" and almost nothing else about them is
+/// the same; a launch token modelled on the feed token would be a bearer
+/// credential with a 180-day life sitting in a browser history.
+///
+/// ## The hash, not the token
+///
+/// `tokenHash` is `sha256(token)`. A database dump, a log of a slow query, or a
+/// support engineer reading rows never yields a usable token — the same reason
+/// `VerificationToken` in NextAuth's own schema is not the shape used here. The
+/// value exists only in the URL the person was handed.
+model ConnectionLaunchToken {
+  id String @id @default(cuid())
+
+  /// The tenant the opportunity was opened in. `src/lib/tenancy/registry.ts`
+  /// classifies this TENANT_SCOPED: a token readable across tenants would let
+  /// one institution enumerate what another's members are trying to connect,
+  /// and — worse — redeeming across tenants would restore one tenant's intent
+  /// inside another's scope.
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  /// Who it was minted for. §5.3 binds the token to the user, so a token that
+  /// leaks is not redeemable by whoever holds it.
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The capability the person was blocked on, e.g. `ai.model`. The audience
+  /// bind: a token minted for one capability cannot be redeemed against
+  /// another's connect flow.
+  capabilityKey String
+
+  /// `sha256(token)`, hex. Unique so a collision is a constraint violation
+  /// rather than two people sharing an opportunity.
+  tokenHash String @unique
+
+  /// A random value mixed into the token. Named separately from the hash
+  /// because it is what makes two opportunities with identical fields produce
+  /// different tokens — without it a token would be a function of its contents
+  /// and therefore guessable from them.
+  nonce String
+
+  /// The person's own words — the question they asked the assistant.
+  ///
+  /// Stored here rather than carried in the redirect URL because §5.2 forbids
+  /// raw prompt content in a redirect: a URL travels through browser history,
+  /// the Referer header, server access logs and any proxy in between, and a
+  /// student's question about a club's finances is not something to put in any
+  /// of them.
+  pendingIntent String? @db.Text
+
+  /// Where in Tenure the person was sent, so the redemption surface can prove
+  /// it is the one that was named rather than any page that got hold of a
+  /// token.
+  returnPath String
+
+  expiresAt  DateTime
+  /// Set exactly once, by the same statement that claims the row. Non-null is
+  /// what ALREADY_CONSUMED means.
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  /// The sweep query for expired, unredeemed opportunities.
+  @@index([institutionId, expiresAt])
+  @@index([userId, capabilityKey])
 }

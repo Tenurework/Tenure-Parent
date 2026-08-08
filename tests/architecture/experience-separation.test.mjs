@@ -173,6 +173,73 @@ test('an allowlist entry cannot cross from one experience to the other', () => {
   assert.equal(ids.size, pages.length + apiRoutes.length, 'two entry points share an id')
 })
 
+test('a deployer action guarded only through a helper still reports its session', () => {
+  // The half of the inventory this item ADDED is the half that was wrong.
+  //
+  // `exportedActionsOf` builds a map of module-local helpers so an action that
+  // calls `authorizedOperator(...)` inherits whatever that helper checks. The
+  // body of each helper was taken from the first `{` after its name — and the
+  // console's helper is declared:
+  //
+  //     async function authorizedOperator(
+  //       command: StudioCommand,
+  //       scope: Omit<CommandScope, "principalId"> = {},
+  //     ): Promise<string> {
+  //
+  // so the first `{` was the `{}` of the default value. The helper's recorded
+  // body was the empty object, it reached no guard, and the inheritance map was
+  // empty for it and for six more helpers across both apps.
+  //
+  // This asserts on what `collect()` EMITS rather than on the brace reader,
+  // because a test that called the reader directly would stay green the moment
+  // the inventory stopped using it — and the inventory, not the reader, is the
+  // artefact TTES-000-001 is accountable for.
+  const { actions } = collect()
+
+  const deployerActions = actions
+    .filter((a) => a.experience === 'deployer')
+    .flatMap((a) => a.exported.map((fn) => ({ ...fn, module: a.route })))
+
+  assert.ok(
+    deployerActions.length >= 5,
+    `${deployerActions.length} console actions inventoried — the reader is broken, and a broken ` +
+      `reader satisfies every "nothing is wrong" assertion below trivially`,
+  )
+
+  // `operator` without `session` is not a state that can exist. The console
+  // decides an operator command against `principalId: session.user.email`, so a
+  // caller who is not signed in has no principal to decide about. An action
+  // reported that way is the INVENTORY being wrong, and it was.
+  const impossible = deployerActions
+    .filter((fn) => fn.guards.includes('operator') && !fn.guards.includes('session'))
+    .map((fn) => `${fn.module} → ${fn.name}: ${JSON.stringify(fn.guards)}`)
+
+  assert.deepEqual(
+    impossible,
+    [],
+    'These console actions are reported as authorized-but-not-signed-in. The console decides every\n' +
+      'operator command against the principal on the session, so that combination cannot occur in\n' +
+      'the code — it occurs when the guard attribution in tools/entry-point-inventory.mjs fails to\n' +
+      'read a helper body and drops the inherited guard:\n  ' + impossible.join('\n  '),
+  )
+
+  // The concrete case, named, so a refactor that removes helper inheritance
+  // altogether cannot pass by leaving zero actions in the general check above.
+  const composition = actions.find(
+    (a) => a.experience === 'deployer' && a.route === 'tenants/actions.ts',
+  )
+  assert.ok(composition, 'the console composes tenants from tenants/actions.ts; none was inventoried')
+
+  const composeTenant = composition.exported.find((fn) => fn.name === 'composeTenant')
+  assert.ok(composeTenant, 'composeTenant is no longer exported from the console tenants module')
+  assert.ok(
+    composeTenant.guards.includes('session'),
+    `composeTenant reports ${JSON.stringify(composeTenant.guards)}. Its body names no guard at all; ` +
+      `everything protecting it arrives through authorizedOperator, which awaits auth(). If this ` +
+      `reads 'operator' alone the helper body was not parsed.`,
+  )
+})
+
 test('every source file belongs to a declared experience', () => {
   const { unplaced, files } = classify()
 

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
+import { operatorFor } from "./operator-identity"
 
 /**
  * Layout defects a screenshot shows and an assertion never does.
@@ -20,7 +21,7 @@ import { test, expect, type Page } from "@playwright/test"
  * same headed or not — what matters is that they are measurements at all.
  */
 
-const OPERATOR = process.env.PLATFORM_OPERATORS ?? ""
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 
 test.beforeAll(() => {
@@ -37,8 +38,32 @@ async function signIn(page: Page) {
 }
 
 /** Every page an operator can reach, at the widths they use. */
-const ROUTES = ["/", "/tenants", "/tenants/new", "/platform", "/platform/cost"]
-const WIDTHS = [1440, 1180, 900]
+const ROUTES = [
+  "/",
+  "/tenants",
+  "/tenants/new",
+  "/platform",
+  "/platform/cost",
+  "/platform/audit",
+  // STUDIO-080-001 / 080-008 / 110-006. Added here in the same change that added
+  // the pages: a route that is not in this array is a route whose contrast,
+  // overlap and horizontal-overflow are never measured, and three new tables of
+  // live AWS state are exactly the shape that overflows.
+  "/platform/estate",
+  "/platform/health",
+  "/platform/security",
+]
+/**
+ * STUDIO-030-007 (b) — 320 is not a phone, it is WCAG 2.2 AA 1.4.10.
+ *
+ * Reflow requires content to be usable at 320 CSS pixels with no
+ * two-dimensional scrolling. The narrowest width tested here was 900, so the
+ * clause was simply never exercised — and the machinery to exercise it already
+ * existed: `document.documentElement.scrollWidth > clientWidth` below is the
+ * assertion, and it only ever ran wide. Adding the width, not a new assertion,
+ * is what catches this.
+ */
+const WIDTHS = [1440, 1180, 900, 320]
 
 type Box = { x: number; y: number; w: number; h: number; text: string; tag: string }
 
@@ -242,5 +267,180 @@ test("text is never clipped by a fixed height", async ({ page }) => {
     })
 
     expect(clipped, `text clipped on ${route}`).toEqual([])
+  }
+})
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * STUDIO-030-004 — the irreversible move is not beside the ordinary one.
+ *
+ * Measured as a rectangle, deliberately. An assertion on `fieldset.destructive`
+ * would pass on a restyle that put the two groups back on one line with the
+ * class still attached, and the property that matters is the GAP: an operator
+ * reaching for an ordinary advance must not be able to hit PURGING by being a
+ * few pixels off.
+ *
+ * The tenant this runs against is seeded by `tools/dev/seed-studio-fleet.mjs`
+ * in ACTIVE, a state whose successors include both kinds.
+ */
+const MINIMUM_DESTRUCTIVE_GAP_PX = 16
+
+test("an irreversible move is separated from the ordinary ones", async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 1000 })
+  await signIn(page)
+  await page.goto("/tenants/seed-deployed")
+  await page.waitForLoadState("networkidle")
+
+  const advance = page.locator(".advance")
+  await expect(advance, "the tenant page rendered no lifecycle controls").toBeVisible()
+
+  const geometry = await page.evaluate(() => {
+    const box = (el: Element) => {
+      const r = el.getBoundingClientRect()
+      return { top: r.top + window.scrollY, bottom: r.bottom + window.scrollY, text: (el.textContent ?? "").trim() }
+    }
+    const destructive = document.querySelector("fieldset.destructive")
+    const ordinary = Array.from(document.querySelectorAll(".advance > .chips .chip")).map(box)
+    return {
+      hasDestructive: destructive !== null,
+      irreversible: destructive
+        ? Array.from(destructive.querySelectorAll(".chip")).map(box)
+        : [],
+      ordinary,
+    }
+  })
+
+  // If this state has no one-way successor there is nothing to separate, and a
+  // test that silently passed on that would be a test that never ran.
+  expect(
+    geometry.hasDestructive,
+    "ACTIVE has no irreversible successor to separate — the fixture, not the layout, is wrong",
+  ).toBe(true)
+  expect(geometry.irreversible.length).toBeGreaterThan(0)
+  expect(geometry.ordinary.length).toBeGreaterThan(0)
+
+  const topOfIrreversible = Math.min(...geometry.irreversible.map((b) => b.top))
+  const bottomOfOrdinary = Math.max(...geometry.ordinary.map((b) => b.bottom))
+
+  expect(
+    topOfIrreversible - bottomOfOrdinary,
+    `the irreversible group starts ${topOfIrreversible - bottomOfOrdinary}px below the ordinary ` +
+      `one; ${MINIMUM_DESTRUCTIVE_GAP_PX}px is the floor. A one-way move must not be a slip away ` +
+      `from an ordinary one.`,
+  ).toBeGreaterThanOrEqual(MINIMUM_DESTRUCTIVE_GAP_PX)
+
+  // And the group says what it is, in words. Colour alone is not a carrier.
+  await expect(page.locator("fieldset.destructive legend")).toContainText(/one-way/i)
+})
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * STUDIO-030-011 — a budget per route, not one number for the console.
+ *
+ * Two things are asserted and they fail for different reasons:
+ *
+ *   * DOM nodes. A table that stops paging grows without bound, and the node
+ *     count is what notices — `showing N of M` is the honest half, and this is
+ *     the half that fails when the pager is removed.
+ *   * Largest Contentful Paint, read from the browser's own PerformanceObserver
+ *     rather than from a wall-clock stopwatch, because the stopwatch measures
+ *     the test runner.
+ *
+ * The numbers are per route and named. One global number would be far too loose
+ * for `/` and far too tight for `/platform`, and a budget that fits everything
+ * constrains nothing.
+ */
+const NODE_BUDGET: Record<string, number> = {
+  "/": 400,
+  "/tenants": 1400,
+  "/platform": 6000,
+  "/platform/cost": 800,
+}
+
+const LCP_BUDGET_MS = 2500
+
+for (const [route, budget] of Object.entries(NODE_BUDGET)) {
+  test(`${route} stays inside its DOM and LCP budget`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await signIn(page)
+
+    await page.goto(route)
+    await page.waitForLoadState("networkidle")
+
+    const nodes = await page.evaluate(() => document.querySelectorAll("*").length)
+    expect(
+      nodes,
+      `${route} rendered ${nodes} elements against a budget of ${budget}. A table that stopped ` +
+        `paging is the usual cause; the fix is the pager, not the number.`,
+    ).toBeLessThanOrEqual(budget)
+
+    // Core Web Vitals, from the entry the browser itself reports. Collected
+    // after the fact via `buffered: true`, so the observer does not have to be
+    // installed before navigation — which it cannot be, on a server-rendered
+    // page reached by `goto`.
+    const lcp = await page.evaluate(
+      () =>
+        new Promise<number | null>((resolve) => {
+          let latest: number | null = null
+          try {
+            const observer = new PerformanceObserver((list) => {
+              for (const entry of list.getEntries()) latest = entry.startTime
+            })
+            observer.observe({ type: "largest-contentful-paint", buffered: true })
+          } catch {
+            resolve(null)
+            return
+          }
+          setTimeout(() => resolve(latest), 500)
+        }),
+    )
+
+    // `null` means the browser does not report LCP at all, which is a fact about
+    // the browser and must not be reported as a pass OR a failure of the page.
+    if (lcp !== null) {
+      expect(lcp, `${route} painted its largest element at ${Math.round(lcp)}ms`).toBeLessThanOrEqual(
+        LCP_BUDGET_MS,
+      )
+    }
+  })
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * STUDIO-030-007 (a) — the layout survives being mirrored.
+ *
+ * `globals.css` holds zero physical-direction declarations. This is what makes
+ * that a property rather than a claim: `dir` is flipped on the live document and
+ * the same overlap detector every route already runs is run again. Reverting one
+ * `margin-inline-start` to `margin-left` reds this while every LTR test stays
+ * green, which is the only shape of proof that distinguishes "mirrors" from
+ * "happens not to have moved".
+ */
+test("layout survives RTL", async ({ page }) => {
+  await page.setViewportSize({ width: 1180, height: 1000 })
+  await signIn(page)
+
+  for (const route of ROUTES) {
+    await page.goto(route)
+    await page.waitForLoadState("networkidle")
+    await page.evaluate(() => document.documentElement.setAttribute("dir", "rtl"))
+
+    const boxes = await textBoxes(page)
+    expect(boxes.length, `${route} rendered no text at all under RTL`).toBeGreaterThan(5)
+
+    const collisions: string[] = []
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const area = overlapArea(boxes[i], boxes[j])
+        if (area <= 0) continue
+        const smaller = Math.min(boxes[i].w * boxes[i].h, boxes[j].w * boxes[j].h)
+        if (area / smaller > 0.25) {
+          collisions.push(`"${boxes[i].text}" over "${boxes[j].text}"`)
+        }
+      }
+    }
+    expect(collisions, `text drawn on top of other text on ${route} under dir="rtl"`).toEqual([])
+
+    const overflows = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    )
+    expect(overflows, `${route} scrolls sideways under dir="rtl"`).toBe(false)
   }
 })

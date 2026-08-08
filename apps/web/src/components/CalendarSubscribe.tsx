@@ -1,17 +1,53 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Button } from "@/components/ui/Button"
 import { CalendarDays, ExternalLink } from "@/components/ui/icons"
 import { Overlay } from "@/components/ui/Overlay"
+import { calendarSyncSentence } from "@tenure/platform-config"
 
 /**
- * Subscribe-to-Outlook flow. The per-user ICS feed URL, which Outlook / Google /
- * Apple Calendar poll to keep a student's school calendar in step with Tenure —
- * the credential-free half of Outlook sync.
+ * The subscription dialog: the per-user ICS feed URL, and one honest sentence
+ * about what subscribing does.
+ *
+ * WRK-GATE-080. This component used to tell a student "Two-way sync (edits made
+ * in Outlook flowing back into Tenure) turns on once your institution connects
+ * Microsoft 365", and to call the feed "the credential-free half of Outlook
+ * sync". There is no other half. No Microsoft Graph connector exists, no app
+ * registration exists, and nobody has submitted anything to a Microsoft review
+ * programme.
+ *
+ * So the sentence is a LOOKUP, not a literal: `sync` is
+ * `calendarSyncSentence(now)` — `providerActivation(GRAPH_CALENDAR_SCOPES,
+ * GRAPH_CALENDAR_REVIEW, now)` — resolved by the calendar page and passed in.
+ * The copy cannot outlive the record, in either direction: it cannot promise a
+ * sync nobody has built, and it cannot keep denying one after somebody records
+ * a real approval.
+ *
+ * `sync` is a required prop rather than a default computed here. There is one
+ * construction site, `app/(app)/calendar/page.tsx`, and a default would let a
+ * future caller ship this dialog with copy nobody decided.
  */
-export function CalendarSubscribe({ feedPath }: { feedPath: string }) {
+export function CalendarSubscribe({
+  feedPath,
+  sync,
+}: {
+  feedPath: string
+  sync: ReturnType<typeof calendarSyncSentence>
+}) {
   const [copied, setCopied] = useState(false)
+  /**
+   * The field's id, so "Subscription URL" is its LABEL and not a paragraph that
+   * happens to sit above it.
+   *
+   * The `<label>` below carried no `htmlFor` and the input no `id`, so the
+   * element a screen reader reached was an unnamed text box and the only way a
+   * test could find it was `input[readonly]` — a selector that names the
+   * styling, not the field. `useId` rather than a constant because two dialogs
+   * can be mounted at once (the calendar page renders one; a future caller may
+   * render another) and a duplicated id would point both labels at the first.
+   */
+  const urlFieldId = useId()
 
   // Built on the client so it always reflects the real deployed origin.
   const httpsUrl = typeof window !== "undefined" ? `${window.location.origin}${feedPath}` : feedPath
@@ -34,7 +70,7 @@ export function CalendarSubscribe({ feedPath }: { feedPath: string }) {
   )
 
   return (
-    <Overlay trigger={trigger} title="Sync with Outlook" size="md">
+    <Overlay trigger={trigger} title="Subscribe to your Tenure calendar" size="md">
       <div className="space-y-5">
         <p className="text-sm text-text-2">
           Add this calendar to Outlook, Google or Apple Calendar and your Tenure events keep
@@ -42,11 +78,15 @@ export function CalendarSubscribe({ feedPath }: { feedPath: string }) {
         </p>
 
         <div>
-          <label className="mb-1.5 block text-[13px] font-semibold text-text-2">
+          <label
+            htmlFor={urlFieldId}
+            className="mb-1.5 block text-[13px] font-semibold text-text-2"
+          >
             Subscription URL
           </label>
           <div className="flex gap-2">
             <input
+              id={urlFieldId}
               readOnly
               value={httpsUrl}
               onFocus={(e) => e.currentTarget.select()}
@@ -59,6 +99,10 @@ export function CalendarSubscribe({ feedPath }: { feedPath: string }) {
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
+          <p className="mt-1.5 text-meta text-text-3">
+            This link is yours alone and stops working 180 days after it was issued. Open this
+            dialog again for a fresh one, and don&apos;t paste it anywhere public.
+          </p>
         </div>
 
         <a
@@ -79,9 +123,8 @@ export function CalendarSubscribe({ feedPath }: { feedPath: string }) {
           </p>
         </div>
 
-        <p className="text-meta text-text-3">
-          Two-way sync (edits made in Outlook flowing back into Tenure) turns on once your
-          institution connects Microsoft&nbsp;365.
+        <p className="text-meta text-text-3" data-testid="calendar-sync-claim">
+          {sync.sentence}
         </p>
       </div>
     </Overlay>

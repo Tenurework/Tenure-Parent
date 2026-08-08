@@ -13,9 +13,18 @@ import { REGISTRY } from "@tenure/platform-config"
 import { MODULES } from "@tenure/modules"
 
 import { auth } from "@/lib/auth"
-import { isOperator } from "@/lib/operators"
+import { authorizeCommand, decisionLine, type StudioCommand } from "@/lib/authorize"
 import { DynamoConfigStore } from "@/lib/config-store"
 import { editableDomains, parseField } from "@/lib/editable-config"
+// STUDIO-110-005. A configuration publication is a material change to a live
+// tenant, and until this import existed it left no audit row at all — the
+// `console.info` below went to a log stream nobody keeps and nothing signs.
+import {
+  AuditUnavailable,
+  appendIntent,
+  appendOutcome,
+  auditedAct,
+} from "@/lib/audit-ledger"
 
 /**
  * GE-032-001 — the tenant configuration editor's write path.
@@ -51,11 +60,67 @@ export interface ReviewResult {
   error?: string
 }
 
-async function requireOperator(): Promise<string> {
+/**
+ * STUDIO-020-006 — the permission this particular action needs, on this
+ * particular tenant.
+ *
+ * It used to be `isOperator(email)` for all three of `review`, `publish` and
+ * `rollback`: one membership test, no resource, no action, no tenant. Every
+ * address on the allowlist could therefore publish any tenant's configuration.
+ * Now `review` is a read (it plans and writes nothing) and `publish` and
+ * `rollback` are writes — a rollback republishes forward through the same
+ * commit path, so treating it as anything lighter would make it the one change
+ * nobody needed permission for.
+ */
+async function requireOperator(command: StudioCommand, tenantId: string): Promise<string> {
   const session = await auth()
   const email = session?.user?.email
-  if (!isOperator(email)) {
-    // The same refusal for "not signed in" and "signed in, not an operator".
+  const decision = authorizeCommand(command, { principalId: email, tenantId })
+
+  // STUDIO-020-012 — allow and deny both, with the effective role, the tenant,
+  // the account, the region and the policy revision the decision was made
+  // under.
+  console.info(`[authz] ${decisionLine(email, command, decision)}`)
+
+  if (!decision.allowed) {
+    // STUDIO-110-005. Written down before it is refused.
+    //
+    // A denial is the half of an audit trail that a lifecycle history can never
+    // carry — the history records what happened, and a refusal by definition did
+    // not. It is also the half an incident review is actually about: "who tried
+    // to publish into this tenant and was told no" has no other source.
+    //
+    // The record goes on the TENANT's chain, not the platform's, because that is
+    // where somebody investigating this tenant will look.
+    const at = new Date().toISOString()
+    try {
+      const intent = await appendIntent({
+        subject: tenantId,
+        action: command,
+        target: tenantId,
+        actor: email ?? "unauthenticated",
+        at,
+        detail: `${command} attempted without permission.`,
+      })
+      await appendOutcome({
+        subject: tenantId,
+        resolves: intent.seq,
+        action: command,
+        target: tenantId,
+        actor: email ?? "unauthenticated",
+        at: new Date().toISOString(),
+        outcome: "REFUSED_NOT_PERMITTED",
+        detail: `Refused: ${decision.reason}`,
+      })
+    } catch (err) {
+      // A refusal that could not be recorded is still a refusal — nothing
+      // happened, so there is nothing unrecorded that DID happen. Rethrown only
+      // when it is not the ledger's own unavailability, so a broken store
+      // cannot turn a 403 into a 500 that reveals the endpoint exists.
+      if (!(err instanceof AuditUnavailable)) throw err
+    }
+
+    // The same refusal for "not signed in" and "signed in, not permitted".
     // Telling them apart tells an unauthenticated caller that an address is an
     // operator's, which is the fact worth protecting.
     throw new Error("Not authorised.")
@@ -98,9 +163,9 @@ function layerFrom(slug: string, form: FormData, revision: number, changeReason:
 
 export async function review(_prev: ReviewResult | null, form: FormData): Promise<ReviewResult> {
   try {
-    const publishedBy = await requireOperator()
     const slug = String(form.get("slug") ?? "")
     if (!slug) return { error: "No tenant." }
+    const publishedBy = await requireOperator("configuration.review", slug)
 
     const changeReason = String(form.get("changeReason") ?? "").trim()
     const approvedBy = String(form.get("approvedBy") ?? "").trim()
@@ -154,8 +219,8 @@ export interface PublishResult {
 
 export async function publish(_prev: PublishResult | null, form: FormData): Promise<PublishResult> {
   try {
-    const publishedBy = await requireOperator()
     const slug = String(form.get("slug") ?? "")
+    const publishedBy = await requireOperator("configuration.publish", slug)
 
     // The layer is re-derived from the submitted form rather than trusted from
     // a hidden field. A hidden field carrying a serialised layer is a hidden
@@ -188,32 +253,85 @@ export async function publish(_prev: PublishResult | null, form: FormData): Prom
       entitlements: [],
     })
 
+    /**
+     * STUDIO-110-005 / STUDIO-060-010. What this publication IS, hashed.
+     *
+     * The digest covers the resolved checksum and the revision, so the intent
+     * row and the outcome row can be shown to be about the same publication
+     * even when the outcome is a refusal that names no revision.
+     */
+    const target = `revision ${(latest?.revision ?? 0) + 1}`
+    const auditDetail =
+      `${changeReason || "no reason given"} (approved by ${approvedBy || "nobody"})`
+
     if (plan.blocked) {
       // Violations included: "this is not yours to change" is the answer an
       // operator most needs, and omitting it would report a refusal with no
       // reason attached to it.
-      return {
-        error: [
-          ...plan.blockers,
-          ...plan.violations.map((v) => v.detail),
-          ...plan.rejections.map((r) => r.detail),
-        ].join(" "),
-      }
+      const error = [
+        ...plan.blockers,
+        ...plan.violations.map((v) => v.detail),
+        ...plan.rejections.map((r) => r.detail),
+      ].join(" ")
+
+      // A blocked publication is a DENY, and the reason is the blockers. This
+      // is the row that answers "who tried to publish this, and what stopped
+      // them" — a question the configuration history cannot answer at all,
+      // because a blocked publication never becomes a revision.
+      const at = new Date().toISOString()
+      const intent = await appendIntent({
+        subject: slug,
+        action: "configuration.publish",
+        target,
+        actor: publishedBy,
+        at,
+        detail: auditDetail,
+      })
+      await appendOutcome({
+        subject: slug,
+        resolves: intent.seq,
+        action: "configuration.publish",
+        target,
+        actor: publishedBy,
+        at: new Date().toISOString(),
+        outcome: "REFUSED_PLAN_BLOCKED",
+        detail: error,
+      })
+      return { error }
     }
 
     const resolved = resolveVersionedLayers(REGISTRY, [layer], new Date(), { collectProblems: true })
     if (!resolved.config) return { error: "The proposed configuration does not resolve." }
 
-    const record = await commit({
-      store,
-      tenantId: slug,
-      plan,
-      layers: [layer],
-      values: resolved.config.values,
-      checksum: resolved.config.checksum,
-      publishedBy,
-      publishedAt: new Date(),
-    })
+    // Intent BEFORE the commit, outcome after. A commit that succeeds and then
+    // fails to be recorded leaves an open intent, which reads as "we tried and
+    // cannot say what happened" — the one thing an audit trail must never
+    // render as silence.
+    const record = await auditedAct(
+      {
+        subject: slug,
+        action: "configuration.publish",
+        target,
+        actor: publishedBy,
+        at: new Date().toISOString(),
+        detail: auditDetail,
+      },
+      () =>
+        commit({
+          store,
+          tenantId: slug,
+          plan,
+          layers: [layer],
+          values: resolved.config!.values,
+          checksum: resolved.config!.checksum,
+          publishedBy,
+          publishedAt: new Date(),
+        }),
+      (committed) => ({
+        outcome: "APPLIED",
+        detail: `Published revision ${committed.revision}, checksum ${committed.checksum}.`,
+      }),
+    )
 
     revalidatePath(`/tenants/${slug}/configuration`)
     return { revision: record.revision }
@@ -242,8 +360,8 @@ export interface RollbackResult {
  */
 export async function rollback(_prev: RollbackResult | null, form: FormData): Promise<RollbackResult> {
   try {
-    const publishedBy = await requireOperator()
     const slug = String(form.get("slug") ?? "")
+    const publishedBy = await requireOperator("configuration.rollback", slug)
     const to = Number(form.get("toRevision"))
     const approvedBy = String(form.get("approvedBy") ?? "").trim()
     if (!approvedBy) return { error: "A rollback needs an approver, like any other publication." }
@@ -316,16 +434,37 @@ export async function rollback(_prev: RollbackResult | null, form: FormData): Pr
     const resolved = resolveVersionedLayers(REGISTRY, [layer], new Date(), { collectProblems: true })
     if (!resolved.config) return { error: "The rolled-back configuration does not resolve." }
 
-    const record = await commit({
-      store,
-      tenantId: slug,
-      plan,
-      layers: [layer],
-      values: resolved.config.values,
-      checksum: resolved.config.checksum,
-      publishedBy,
-      publishedAt: new Date(),
-    })
+    // A rollback is a publication and is audited as one. Treating it as
+    // something lighter is how the one change nobody recorded becomes the one
+    // that mattered — the same reasoning that already sends it through
+    // `planPublication` and `commit` rather than around them.
+    const record = await auditedAct(
+      {
+        subject: slug,
+        action: "configuration.rollback",
+        target: `revision ${latest.revision + 1} restoring ${to}`,
+        actor: publishedBy,
+        at: new Date().toISOString(),
+        detail: `Roll back to revision ${to} (approved by ${approvedBy}).`,
+      },
+      () =>
+        commit({
+          store,
+          tenantId: slug,
+          plan,
+          layers: [layer],
+          values: resolved.config!.values,
+          checksum: resolved.config!.checksum,
+          publishedBy,
+          publishedAt: new Date(),
+        }),
+      (committed) => ({
+        outcome: "APPLIED",
+        detail:
+          `Revision ${committed.revision} republishes the values of revision ${to}. History is ` +
+          "not rewound: every revision it passed over is still on the record.",
+      }),
+    )
 
     revalidatePath(`/tenants/${slug}/configuration`)
     return { revision: record.revision }

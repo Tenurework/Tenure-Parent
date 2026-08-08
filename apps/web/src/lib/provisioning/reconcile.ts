@@ -62,6 +62,20 @@ export interface DeploymentManifest {
   serving?: boolean;
   evidenceDigest: string;
   digest: string;
+  /**
+   * Who produced the artifact, provably. STUDIO-070-009.
+   *
+   * Optional for the same reason `configKeys` and `serving` are: manifests
+   * published before signing existed do not carry one, and refusing those would
+   * break every already-live tenant on the first re-delivery.
+   *
+   * It is NOT part of what `digest` covers — the engine computes both over the
+   * same body, with neither field in it — so `verifyDigest` strips it. Leaving
+   * it in the hash would make every signed artifact fail verification here,
+   * which is the one bug in this file that would be a total outage rather than a
+   * refusal.
+   */
+  signature?: { keyId: string; algorithm: string; value: string };
   createdAt: string;
   createdBy: string;
 }
@@ -119,7 +133,14 @@ export async function verifyDigest(
   manifest: DeploymentManifest,
 ): Promise<boolean> {
   const { createHash } = await import("node:crypto");
-  const { digest, ...body } = manifest;
+  // BOTH are stripped. `digest` obviously — it cannot cover itself. `signature`
+  // because the engine computes the MAC over the same bytes the digest covers,
+  // so it is not in the hashed body either; leaving it in here would make every
+  // signed artifact fail verification and take provisioning down entirely.
+  // `packages/provisioning/src/execute.ts` (`deploymentBytes`) is the other side
+  // of this agreement, and the itest below is what keeps the two honest.
+  const { digest, signature, ...body } = manifest;
+  void signature;
 
   // Key order must not change the answer. The artifact is stored in DynamoDB
   // between being signed and being delivered, and a DynamoDB map has no order —

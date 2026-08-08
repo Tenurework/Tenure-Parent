@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "d6f930f",
+  "commit": "1e09662",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 241,
@@ -1736,13 +1736,14 @@
       "docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md",
       "docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md",
       "docs/implementation/erp-pack-factory-execution-ledger.md",
+      "docs/implementation/identity-eligibility-entitlement-execution-ledger.md",
       "docs/implementation/payments-treasury-execution-ledger.md",
       "docs/implementation/system-studio-aws-control-plane-execution-ledger.md",
       "docs/implementation/universal-work-graph-execution-ledger.md"
     ],
-    "totalItems": 2046,
+    "totalItems": 2265,
     "totalGates": 181,
-    "decided": 210,
+    "decided": 218,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -3229,6 +3230,13 @@
         "done": 0
       },
       {
+        "phase": "IER · docs/implementation/identity-eligibility-entitlement-execution-ledger.md",
+        "source": "IER",
+        "items": 219,
+        "gates": 0,
+        "done": 0
+      },
+      {
         "phase": "INT · INT-000 — Truth, boundary and ledger",
         "source": "INT",
         "items": 5,
@@ -3352,7 +3360,7 @@
         "source": "PACK",
         "items": 53,
         "gates": 10,
-        "done": 17
+        "done": 15
       },
       {
         "phase": "PAY · docs/implementation/payments-treasury-execution-ledger.md",
@@ -3511,21 +3519,28 @@
       {
         "phase": "STUDIO · 4. Phase 0 — Establish repository, AWS, product, and deployed truth",
         "source": "STUDIO",
-        "items": 10,
+        "items": 8,
         "gates": 0,
         "done": 0
       },
       {
+        "phase": "STUDIO · What was actually wrong",
+        "source": "STUDIO",
+        "items": 12,
+        "gates": 0,
+        "done": 10
+      },
+      {
         "phase": "STUDIO · 5.5 Control-plane account topology",
         "source": "STUDIO",
-        "items": 10,
+        "items": 7,
         "gates": 0,
         "done": 0
       },
       {
         "phase": "STUDIO · 6.2 Login flow",
         "source": "STUDIO",
-        "items": 13,
+        "items": 11,
         "gates": 0,
         "done": 0
       },
@@ -3553,21 +3568,28 @@
       {
         "phase": "STUDIO · 10. Change classification, preview, approvals, and command contract",
         "source": "STUDIO",
-        "items": 10,
+        "items": 9,
         "gates": 0,
         "done": 0
       },
       {
+        "phase": "STUDIO · STUDIO-120: FinOps Center",
+        "source": "STUDIO",
+        "items": 20,
+        "gates": 15,
+        "done": 3
+      },
+      {
         "phase": "STUDIO · 11.2 Stack layers",
         "source": "STUDIO",
-        "items": 10,
+        "items": 9,
         "gates": 0,
         "done": 0
       },
       {
         "phase": "STUDIO · Security, operations, and cost",
         "source": "STUDIO",
-        "items": 8,
+        "items": 6,
         "gates": 0,
         "done": 0
       },
@@ -3588,7 +3610,7 @@
       {
         "phase": "STUDIO · 15. Security, privacy, governance, and supply chain",
         "source": "STUDIO",
-        "items": 10,
+        "items": 9,
         "gates": 0,
         "done": 0
       },
@@ -3600,23 +3622,16 @@
         "done": 0
       },
       {
-        "phase": "STUDIO · STUDIO-120: FinOps Center",
-        "source": "STUDIO",
-        "items": 18,
-        "gates": 15,
-        "done": 3
-      },
-      {
         "phase": "STUDIO · 17. API, event, and extension contracts",
         "source": "STUDIO",
-        "items": 7,
+        "items": 6,
         "gates": 0,
         "done": 0
       },
       {
         "phase": "STUDIO · 18. Testing and release proof",
         "source": "STUDIO",
-        "items": 9,
+        "items": 8,
         "gates": 0,
         "done": 0
       },
@@ -3772,22 +3787,22 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 30,
+      "files": 33,
       "what": "repository and deployment invariants"
     },
     {
       "name": "application unit",
-      "files": 77,
+      "files": 90,
       "what": "apps/web"
     },
     {
       "name": "tenant isolation",
-      "files": 18,
+      "files": 20,
       "what": "cross-tenant reads must fail"
     },
     {
       "name": "end to end",
-      "files": 54,
+      "files": 63,
       "what": "real browser"
     }
   ]

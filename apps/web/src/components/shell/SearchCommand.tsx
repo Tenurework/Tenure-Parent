@@ -13,6 +13,7 @@ import {
   ArrowRight,
   type IconType,
 } from "@/components/ui/icons"
+import { stateCaveat } from "@/lib/relay/citation-display"
 import type { NavSectionView } from "./SideNav"
 
 interface Result {
@@ -22,6 +23,16 @@ interface Result {
   href: string
   context: string
   snippet: string
+  /**
+   * WRK-070-003 / §3.5. The operational verdict `/api/search` returns with every
+   * result — LIVE or STALE here, since `rankDocs` scores nothing else.
+   *
+   * Required, and it is what makes the palette stop asserting a currency nobody
+   * checked: the route has emitted this since the lifecycle landed and this
+   * interface listed five display strings, so a club record nobody had touched
+   * in two years and one saved this morning rendered as the same two lines.
+   */
+  state: string
 }
 
 const KIND_ICON: Record<Result["kind"], IconType> = {
@@ -32,10 +43,30 @@ const KIND_ICON: Record<Result["kind"], IconType> = {
   organization: Building2,
 }
 
+/**
+ * What an object row renders, from either of its two sources.
+ *
+ * `state` is `string | null` and the null is load-bearing: a live result from
+ * `/api/search` carries a freshness verdict, and a row replayed out of
+ * sessionStorage carries a title and a link and nothing else. Stamping the
+ * recents with `"LIVE"` so the types lined up would be inventing a verdict
+ * nothing checked — the precise thing §3.5 forbids — so the absence is modelled
+ * instead, and `stateCaveat` is simply not called for it.
+ */
+interface PaletteObject {
+  id: string
+  kind: Result["kind"]
+  title: string
+  href: string
+  context: string
+  snippet: string
+  state: string | null
+}
+
 /** A row in the palette — an action from the nav, or an object from /api/search. */
 type Row =
   | { rowKind: "action"; key: string; label: string; href: string; group: string }
-  | { rowKind: "object"; key: string; result: Result }
+  | { rowKind: "object"; key: string; object: PaletteObject }
 
 /** Where recently-opened objects are remembered. Titles and hrefs only. */
 const RECENTS_KEY = "tenure.command.recents"
@@ -221,20 +252,23 @@ export function SearchCommand({
     const objectRows: Row[] = objects.map((r) => ({
       rowKind: "object",
       key: `object-${r.kind}-${r.id}`,
-      result: r,
+      object: { ...r, state: r.state },
     }))
     if (query.length >= 2) return [...actions, ...objectRows]
     // Nothing typed yet: the actions, then what this person opened recently.
     const recentRows: Row[] = recents.map((r, i) => ({
       rowKind: "object",
       key: `recent-${i}`,
-      result: {
+      object: {
         id: `recent-${i}`,
         kind: r.kind,
         title: r.title,
         href: r.href,
         context: r.context,
         snippet: "",
+        // sessionStorage holds a title and a link. It has never held a
+        // freshness verdict, and this is where saying so costs nothing.
+        state: null,
       },
     }))
     return [...actions, ...recentRows]
@@ -244,7 +278,7 @@ export function SearchCommand({
 
   const openRow = (row: Row) => {
     if (row.rowKind === "action") return go(row.href)
-    const r = row.result
+    const r = row.object
     rememberRecent({ title: r.title, href: r.href, kind: r.kind, context: r.context })
     go(r.href)
   }
@@ -369,8 +403,12 @@ export function SearchCommand({
                     </li>
                   )
                 }
-                const r = row.result
+                const r = row.object
                 const Icon = KIND_ICON[r.kind] ?? FileText
+                // §3.5. Null for a remembered row, and null for LIVE — a
+                // caveat on every line is a caveat nobody reads, and the
+                // absence of a warning is what "current" already says.
+                const caveat = r.state === null ? null : stateCaveat(r.state)
                 return (
                   <li key={row.key} id={optionId(i)} role="option" aria-selected={selected}>
                     <Link
@@ -390,6 +428,7 @@ export function SearchCommand({
                         <span className="block truncate text-[13px] text-text-3">
                           <span className="capitalize">{r.kind}</span>
                           {r.context ? ` · ${r.context}` : ""}
+                          {caveat ? ` · ${caveat}` : ""}
                         </span>
                       </span>
                     </Link>

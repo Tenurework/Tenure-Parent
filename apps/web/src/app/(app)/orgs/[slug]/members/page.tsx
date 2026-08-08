@@ -6,8 +6,7 @@ import { withTenantScope } from "@/lib/tenant-scope"
 import { storageConfigured } from "@/lib/s3"
 import { Card, CardHeader } from "@/components/ui/Card"
 import { AssignmentBadge, Badge } from "@/components/ui/Badge"
-import { Avatar } from "@/components/ui/Avatar"
-import { OrgTabs } from "@/components/OrgTabs"
+import { OrgRecordHeader } from "@/components/OrgRecordHeader"
 import { EmailLink } from "@/components/EmailLink"
 import { ClubImageEditor } from "@/components/ClubImageEditor"
 import { ConfirmSubmit } from "@/components/ui/ConfirmDialog"
@@ -78,26 +77,41 @@ export default async function MembersPage({
         .map((a) => ({ ...a, roleName: role.name }))
     )
 
+    // The record's STATE, for the header's status row. A seat counts as filled
+    // when the OSE roster names a current holder OR an in-app assignment does;
+    // that is the same test `isVacant` applies per row below, hoisted so the
+    // header and the rows cannot disagree about how many seats are empty.
+    const filledSeats = current.filter(
+      (role) => role.holdings.some((h) => h.isCurrent) || role.assignments.length > 0
+    ).length
+
     return (
       <div className="w-full">
-        <div className="mb-6 flex items-start gap-4">
-          <Avatar name={org.name} imageUrl={org.logoUrl} size="xl" className="hidden sm:grid" />
-          <div className="min-w-0 flex-1">
-            <h1 className="text-text-1">{org.name}</h1>
-            <p className="mt-1 text-lead text-text-2">
-              Member list &amp; roster — every board seat, who holds it now, and who held it before.
-            </p>
-          </div>
-          {canEditImage && (
-            <ClubImageEditor
-              orgId={org.id}
-              orgName={org.name}
-              logoUrl={org.logoUrl}
-              canUpload={storageConfigured()}
-            />
-          )}
-        </div>
-        <OrgTabs slug={slug} />
+        <OrgRecordHeader
+          slug={slug}
+          org={org}
+          section="Members and roster"
+          subtitle="Member list & roster — every board seat, who holds it now, and who held it before."
+          status={
+            <>
+              <Badge variant={filledSeats === current.length ? "success" : "warning"}>
+                {filledSeats}/{current.length} seats filled
+              </Badge>
+              <Badge variant="default">{alumni.length} alumni</Badge>
+              <Badge variant="default">{org.advisors.length} advisors</Badge>
+            </>
+          }
+          actions={
+            canEditImage ? (
+              <ClubImageEditor
+                orgId={org.id}
+                orgName={org.name}
+                logoUrl={org.logoUrl}
+                canUpload={storageConfigured()}
+              />
+            ) : undefined
+          }
+        />
 
         {org.advisors.length > 0 && (
           <Card className="mb-4">

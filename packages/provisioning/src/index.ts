@@ -23,6 +23,7 @@ export {
   SERVING,
   TERMINAL,
   advance,
+  attemptFor,
   canAdvance,
   needsApproval,
   nextStates,
@@ -46,8 +47,55 @@ export type {
   ResourceClass,
 } from "./residual-reconciliation"
 
-export { CELL_APPLY, deploymentManifest, executeStep } from "./execute"
-export type { DeploymentManifest, ExecutionContext, StepEvidence } from "./execute"
+export {
+  CELL_APPLY,
+  DeploymentSigningError,
+  deploymentManifest,
+  executeStep,
+  verifyDeployment,
+} from "./execute"
+export type {
+  DeploymentManifest,
+  DeploymentVerification,
+  ExecutionContext,
+  ManifestSignature,
+  SecretRefResolution,
+  SigningKey,
+  StepEvidence,
+  StepRun,
+} from "./execute"
+
+/**
+ * STUDIO-070-002. The tag contract, exported beside the lifecycle because a
+ * resource's tenant tag and a tenant's lifecycle state are the same fact seen
+ * from two sides — and a console rendering one without the other is a console
+ * that can show a bill it cannot attribute.
+ */
+export {
+  DATA_CLASSES,
+  MANAGED_BY,
+  REQUIRED_RESOURCE_TAGS,
+  SHARED,
+  tagProblems,
+  tenantAttribution,
+} from "./resource-tags"
+export type { RequiredResourceTag, TagProblem, TenantAttribution } from "./resource-tags"
+
+/**
+ * STUDIO-060-007. The C1–C7 change taxonomy the mutating path is gated on.
+ */
+export {
+  C7_COOLING_OFF_MS,
+  CHANGE_CLASSES,
+  classify,
+  confirmationTokenFor,
+  requirementsFor,
+} from "./change-class"
+export type {
+  ChangeClass,
+  ChangeOperation,
+  ChangeRequirements,
+} from "./change-class"
 
 export { MANIFEST_VERSION, digestOf, planFor, validateManifest } from "./manifest"
 export type {
@@ -173,9 +221,12 @@ export type {
 export { PLAN_CATALOG, getPlan, planIds } from "./plan-catalog"
 
 export {
+  ACCOUNT_VERIFICATIONS,
   CATALOG_ENTRIES,
   RECERTIFICATION_WARNING_DAYS,
   RELAY_ANTHROPIC_CONNECTOR,
+  acceleratorAvailabilityFor,
+  authorizationRefusal,
   availabilityDecisions,
   availableToTenants,
   canAdvanceCatalog,
@@ -200,6 +251,7 @@ export type {
   ExtensionEntry,
   ModelEntry,
   PackageVersion,
+  ProviderAuthorizationProfile,
   UsabilityReason,
   UsabilityVerdict,
 } from "./catalogs"
@@ -207,20 +259,58 @@ export type {
 /**
  * WRK-000-002. The seven-state classification, per
  * (provider, product, capability, direction).
+ *
+ * WRK-100-004. And the certification contract it is held to: eight named
+ * clauses, each proved per direction, so a pack that ran one smoke test cannot
+ * pass the gate a fully-exercised one passes.
  */
 export {
+  CERTIFICATION_CLAUSES,
+  NO_EVIDENCE,
   capabilityKey,
   capabilityProblems,
+  certifiedDirections,
   claimIsUnproven,
   classifyCapabilities,
+  evidenceRefsOf,
 } from "./connector-capability"
 export type {
   CapabilityDirection,
   CapabilityProblem,
+  CertificationClause,
+  CertifiedDirection,
   ClassifiedCapability,
+  ClauseEvidence,
   ConnectorCapability,
   ConnectorCapabilityStatus,
+  EvidenceRef,
 } from "./connector-capability"
+
+/**
+ * WRK-020-002. Versioned include/exclude resource selectors, and the impact
+ * diff a tenant is shown before a scope change is saved.
+ */
+export {
+  patternMatches,
+  selectorDiff,
+  selectorProblems,
+  selectorSelects,
+} from "./resource-selector"
+export type {
+  KnownResource,
+  ResourcePattern,
+  ResourceSelector,
+  SelectorDiff,
+  SelectorProblem,
+  SelectorReason,
+} from "./resource-selector"
+
+/**
+ * WRK-130-001. The ten accelerators the Bible names, and the computed verdict
+ * for each over the capabilities actually selected for release.
+ */
+export { WORK_ACCELERATORS, acceleratorAvailability } from "./work-accelerators"
+export type { AcceleratorVerdict, WorkAccelerator } from "./work-accelerators"
 
 /** WRK-100-003. The named packs, bound to the requirements that ask for them. */
 export { PROVIDER_PACKS } from "./provider-packs"

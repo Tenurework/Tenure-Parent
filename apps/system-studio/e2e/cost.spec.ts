@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
+import { operatorFor } from "./operator-identity"
 
 /**
  * STUDIO-120-008/009/010 — the FinOps Center in the browser.
@@ -12,7 +13,7 @@ import { test, expect, type Page } from "@playwright/test"
  * An empty page is obviously empty. `$4,182.55` is actionable and wrong.
  */
 
-const OPERATOR = process.env.PLATFORM_OPERATORS?.split(",")[0]?.trim() ?? ""
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 
 async function signIn(page: Page) {

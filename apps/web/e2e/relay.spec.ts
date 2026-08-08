@@ -110,10 +110,26 @@ test.describe("Relay is anchored, announced and cancellable", () => {
 
     const card = panel.locator('[data-capability="ai.model"]')
     await expect(card).toBeVisible({ timeout: 30_000 })
-    // resolveCapability decided this, not the call site: unconfigured +
-    // admin-owned is NEEDS_ADMIN, whose one path is ask-an-administrator.
-    await expect(card).toHaveAttribute("data-connection-outcome", "NEEDS_ADMIN")
-    await expect(card.getByRole("button", { name: "Ask an administrator" })).toBeVisible()
+    /**
+     * WRK-030-005. NOT_CERTIFIED, and this used to read NEEDS_ADMIN.
+     *
+     * The panel wrote `certified: true` as a literal; it now derives it from
+     * `RELAY_ANTHROPIC_REVIEW` through `certifiedCapabilityState`, and that
+     * record is honestly NOT_SUBMITTED — which is the same record
+     * `/api/ai/chat` refuses every vendor call on. So the card no longer offers
+     * "Ask an administrator" for something no administrator in this institution
+     * can enable, and it says so in §13.3's word.
+     *
+     * Restoring the old assertion means somebody has recorded a real
+     * provider-side review, and then this test should be changed by changing
+     * the record — not by relaxing the gate.
+     */
+    await expect(card).toHaveAttribute("data-connection-outcome", "NOT_CERTIFIED")
+    await expect(card).toHaveAttribute("data-connection-status", "Not available yet")
+    await expect(card).toContainText("is not a certified connection on this platform")
+    // No control of any kind. A capability the platform has not certified must
+    // not grow a button, because the button cannot work.
+    await expect(card.locator("[data-connection-action]")).toHaveCount(0)
     // The question is preserved for resumption.
     await expect(card).toContainText("what are my deadlines")
     // And it must not claim the workspace is empty — nothing was searched by a

@@ -253,3 +253,172 @@ describe("the corpus projects each source at its declared retention mode", () =>
     }
   })
 })
+
+/**
+ * WRK-010-005 / WRK-070-003 — the lifecycle state, against real PostgreSQL.
+ *
+ * Everything above is about WHOSE rows come back and HOW MUCH of each. This is
+ * about whether the row is still true, which is a third question nothing asked:
+ * `SearchDoc` carried no timestamp of any kind, the five `select:` lists named
+ * no temporal column, and `loadSearchCorpus` DROPPED a CANCELLED event — an
+ * absence indistinguishable, to `/api/search`, to `/api/ai/chat` and to the
+ * model prompt, from an event that never existed.
+ *
+ * These seed a second club in tenant A whose rows are aged, cancelled and
+ * poisoned in the database itself, then read them back through the real loader.
+ * Nothing calls `projectTenureRecord`: a classifier proved against itself stays
+ * green the moment a builder stops calling it, which is exactly how the dropped
+ * `where` clause went unnoticed for as long as it did.
+ */
+describe("the corpus states what it believes about each row (real PostgreSQL)", () => {
+  const ORG2 = `lifecycle-${SUFFIX}`
+  /** Well past `SEARCH_STALE_AFTER_MS` (90 days). */
+  const AGED = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000)
+  const CANCELLED_DETAIL = `Perambulatory${SUFFIX.replace(/-/g, "")}`
+  const ACTIVE_DETAIL = `Somnambulant${SUFFIX.replace(/-/g, "")}`
+  const STALE_DETAIL = `Antediluvian${SUFFIX.replace(/-/g, "")}`
+
+  let orgId = ""
+
+  beforeAll(async () => {
+    await runInTenantScope(
+      {
+        institutionId: INST_A,
+        environment: "test",
+        purpose: "job",
+        actor: { principalId: "seed", principalType: "system" },
+      },
+      async () => {
+        const org = await db.organization.create({
+          data: { institutionId: INST_A, name: "Lifecycle Club", slug: ORG2 } as never,
+        })
+        orgId = org.id
+
+        await db.event.create({
+          data: {
+            institutionId: INST_A,
+            organizationId: org.id,
+            title: `A: ${SHARED_TERM} rehearsal`,
+            description: `Call time 4pm, ${CANCELLED_DETAIL} on the run sheet.`,
+            startAt: new Date("2026-09-01T18:00:00Z"),
+            endAt: new Date("2026-09-01T20:00:00Z"),
+            status: "CANCELLED",
+          } as never,
+        })
+        await db.document.create({
+          data: {
+            institutionId: INST_A,
+            organizationId: org.id,
+            title: `A: ${SHARED_TERM} appendix`,
+            // §9.4 active content. Not a hidden codepoint or a link — those the
+            // sanitiser cleans and the prose survives. This body's substance IS
+            // a program, and there is no cleaned version of it that is a record.
+            description: `<script>fetch("/api/admin/directory")</script> ${ACTIVE_DETAIL}`,
+            objectKey: `${SUFFIX}/lifecycle/appendix.pdf`,
+            mimeType: "application/pdf",
+          } as never,
+        })
+        const stale = await db.document.create({
+          data: {
+            institutionId: INST_A,
+            organizationId: org.id,
+            title: `A: ${SHARED_TERM} ledger`,
+            description: `Figures from two years ago, ${STALE_DETAIL}.`,
+            objectKey: `${SUFFIX}/lifecycle/ledger.pdf`,
+            mimeType: "application/pdf",
+          } as never,
+        })
+        // `updatedAt` is `@updatedAt`, so Prisma overwrites it on every write.
+        // Ageing the row therefore has to go around the client, which is also
+        // the honest shape of the case: a row nobody has touched since last year
+        // is one PostgreSQL is holding, not one this test invented.
+        await db.$executeRaw`UPDATE "Document" SET "updatedAt" = ${AGED} WHERE "id" = ${stale.id}`
+      },
+    )
+  })
+
+  afterAll(async () => {
+    await runUnscoped("migration", "search lifecycle cleanup", async () => {
+      if (orgId) await db.organization.deleteMany({ where: { id: orgId } })
+    })
+  })
+
+  async function corpusForA() {
+    return runInTenantScope(
+      {
+        institutionId: INST_A,
+        environment: "test",
+        purpose: "model-exposure",
+        actor: { principalId: USER_A, principalType: "user" },
+      },
+      () => loadSearchCorpus(USER_A),
+    )
+  }
+
+  it("returns a CANCELLED event as TOMBSTONED instead of dropping it", async () => {
+    const corpus = await corpusForA()
+    const rehearsal = corpus.find((d) => d.title === `A: ${SHARED_TERM} rehearsal`)
+
+    // Present at all. The `where: { status: { not: "CANCELLED" } }` this
+    // replaces made the row absent, and absent is what "never existed" looks
+    // like to every consumer of this corpus.
+    expect(rehearsal).toBeDefined()
+    expect(rehearsal!.state).toBe("TOMBSTONED")
+    expect(rehearsal!.citation.state).toBe("TOMBSTONED")
+    expect(rehearsal!.body).toBe("")
+    // Stated on the whole corpus so the assertion is about the disclosure and
+    // not about one field of one doc.
+    expect(JSON.stringify(corpus)).not.toContain(CANCELLED_DETAIL)
+
+    // A live event in the same tenant is untouched, so the difference is the
+    // status column and not the plumbing.
+    const live = corpus.find((d) => d.kind === "event" && d.title.endsWith("kickoff"))
+    expect(live!.state).toBe("LIVE")
+  })
+
+  it("holds a description whose substance is a program", async () => {
+    const corpus = await corpusForA()
+    const appendix = corpus.find((d) => d.title === `A: ${SHARED_TERM} appendix`)
+
+    expect(appendix).toBeDefined()
+    expect(appendix!.state).toBe("QUARANTINED")
+    expect(appendix!.body).toBe("")
+    // Neither the payload nor the prose beside it: the row is held whole rather
+    // than cleaned into a plausible-looking remainder and indexed.
+    expect(JSON.stringify(corpus)).not.toContain("api/admin/directory")
+    expect(JSON.stringify(corpus)).not.toContain(ACTIVE_DETAIL)
+  })
+
+  it("marks a row PostgreSQL has held untouched for two years STALE, and still projects it", async () => {
+    const corpus = await corpusForA()
+    const ledger = corpus.find((d) => d.title === `A: ${SHARED_TERM} ledger`)
+
+    expect(ledger).toBeDefined()
+    expect(ledger!.state).toBe("STALE")
+    expect(ledger!.citation.state).toBe("STALE")
+    // Not the clock: the row's own `updatedAt`, read back out of the database.
+    expect(ledger!.citation.versionAt).toBe(AGED.toISOString())
+    // Answerable and labelled. §3.5 asks that freshness be SHOWN; withholding
+    // this would substitute "there is nothing" for "this may be out of date".
+    expect(ledger!.body).toContain(STALE_DETAIL)
+  })
+
+  it("stamps a checkable citation on every row it builds", async () => {
+    const corpus = await corpusForA()
+    expect(corpus.length).toBeGreaterThan(0)
+
+    for (const d of corpus) {
+      // The tenant comes from the OPEN SCOPE, not from the row: a citation that
+      // read the tenant off the row would be the row asserting its own tenancy,
+      // which is what principle 15 refuses.
+      expect(d.citation.ref.tenant).toBe(INST_A)
+      expect(d.citation.ref.provider).toBe("tenure")
+      expect(d.citation.ref.externalId).toBe(d.id)
+      expect(d.citation.assertion).toBe("RECORD")
+      expect(d.citation.state).toBe(d.state)
+      expect(d.citation.versionAt).toBe(d.asOf.toISOString())
+      // The governed deep link — an internal path, minted rather than copied.
+      expect(d.citation.href).toBe(d.href)
+    }
+  })
+})

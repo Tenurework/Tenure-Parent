@@ -14,188 +14,163 @@ import {
   type ArchetypeSelection,
 } from "@tenure/blueprints";
 import { MODULE_CATALOG } from "@tenure/modules";
-import { resolveConfig } from "@tenure/configuration";
 import { resolveModules } from "@tenure/module-runtime";
-import { validateTopology } from "@tenure/organization-model";
-import {
-  REGISTRY,
-  compareVersionStrings,
-  layersFor,
-} from "@tenure/platform-config";
+import { compareVersionStrings } from "@tenure/platform-config";
 import { ENGINE_VERSION } from "@tenure/configuration";
 import {
   BUSINESS_DOMAINS,
   MANIFEST_VERSION,
-  LifecycleError,
-  deploymentManifest,
-  executeStep,
   getPlan,
+  planFor,
   validateManifest,
   type CoexistenceProfile,
-  type ExecutionContext,
   type IsolationTier,
   type TenantManifest,
   type TenantState,
 } from "@tenure/provisioning";
 
-import { auth } from "@/lib/auth";
-import { registryRecordFor } from "@/lib/registry-record";
-import { placementFor } from "@/lib/cells";
-import { isOperator } from "@/lib/operators";
+/* Relative, not `@/lib/…`.
+ *
+ * The same reason `lib/audit-ledger.ts` gives at its own import block: `@/` is a
+ * per-app Next.js path mapping, and apps/web's jest — the one toolchain that
+ * runs this monorepo's unit tests, `roots` reaching into apps/system-studio/src
+ * — rewrites `@/` through apps/web's tsconfig at TRANSFORM time. So `@/lib/registry`
+ * inside a Studio file became `apps/web/src/lib/registry`, which does not exist,
+ * and this module could not be imported by a test at all. That is how
+ * STUDIO-110-005 was able to ship a correct audit ledger with nothing asserting
+ * that any action calls it. `lib/audit-ledger.test.ts` drives these actions for
+ * real; these imports are what let it. */
+import { auth } from "../../lib/auth";
+import {
+  authorizeCommand,
+  decisionLine,
+  type CommandScope,
+  type StudioCommand,
+} from "../../lib/authorize";
+import { registryRecordFor } from "../../lib/registry-record";
+import { placementFor, primeEstate } from "../../lib/cells";
 import {
   SlugTaken,
   adoptBoundTenant,
-  advanceTenant,
+  completeOperation,
+  getOperation,
   getTenant,
+  putOperation,
   registerTenant,
+  settleIdempotency,
+  tableName,
   takenSlugs,
-} from "@/lib/registry";
-import { buildAdoption } from "@/lib/adopt";
-import { deliverToCell } from "@/lib/deliver";
-import { parseObjectAuthority } from "@/lib/object-authority";
+} from "../../lib/registry";
+// STUDIO-060-002 / STUDIO-130-005. The executor moved to `command-handlers` so
+// that this form and `POST /api/aws/operations` run ONE lifecycle rather than
+// two that agree until somebody edits one of them; the gate in front of it is
+// what makes a double-submit a replay instead of a second real attempt.
+import { runAdvance } from "../../lib/command-handlers";
+import { gate, type RefusalCode } from "../../lib/command-gate";
+import { newCorrelationId } from "../../lib/api/envelope";
+import {
+  AuditUnavailable,
+  PLATFORM_PARTITION,
+  appendIntent,
+  appendOutcome,
+  dynamoAuditLedger,
+  safeErrorOf,
+} from "../../lib/audit-ledger";
+import { roleOf } from "../../lib/operators";
+/* STUDIO-140-006. One import, and it is the whole high-risk gate: the typed
+ * target, the digest of the consequence that was read, and the refusal of a
+ * destructive AWS mutation. It lives in `lib/tenant-state` beside `riskOf`,
+ * which is the function it recomputes the risk with — a second copy of that
+ * computation here is the one bug the digest cannot survive, because the page
+ * and the action would then be digesting two different sentences and every
+ * approval-gated move would refuse. */
+import { highRiskVerdict } from "../../lib/tenant-state";
+import { CONFIRM_TARGET_FIELD, RISK_DIGEST_FIELD } from "../../components/states";
+import { buildAdoption } from "../../lib/adopt";
+import { parseObjectAuthority } from "../../lib/object-authority";
 
 /**
- * Every action here re-checks the operator, in the action.
+ * Every action here re-decides the operator's permission, in the action.
  *
- * The pages check too, but a server action is a POST endpoint reachable by its
- * id — rendering the page is not a precondition for calling it. A guard that
- * lives only in the page protects the page.
+ * The pages decide too, but a server action is a POST endpoint reachable by its
+ * id — rendering the page is not a precondition for calling it, so a control
+ * that is absent from an Auditor's DOM is still an endpoint they can post to. A
+ * guard that lives only in the page protects the page.
+ *
+ * STUDIO-020-006. This used to be `isOperator(email)`: a membership test with
+ * no resource, no action and no scope, identical for `composeTenant` and for
+ * an irreversible purge. Now each action names the command it is, and the
+ * decision carries the account and region it was made in.
  */
-async function operator(): Promise<string> {
+async function authorizedOperator(
+  command: StudioCommand,
+  scope: Omit<CommandScope, "principalId"> = {},
+): Promise<string> {
   const session = await auth();
   const email = session?.user?.email;
-  if (!isOperator(email)) {
+  const decision = authorizeCommand(command, { ...scope, principalId: email });
+
+  // STUDIO-020-012 — every allow AND every deny, with actor, effective role,
+  // tenant, account, region, environment, policy revision and result.
+  console.info(`[authz] ${decisionLine(email, command, decision)}`);
+
+  if (!decision.allowed) {
+    /*
+     * STUDIO-110-005. The append-only destination the line above was waiting
+     * for.
+     *
+     * A `console.info` is not an audit trail: it lives in whatever log
+     * retention the cluster happens to have, it is not chained, and nobody can
+     * show that it was not edited. The denial goes to the ledger as a DENY
+     * carrying the reason, because a refusal is the half of the record a
+     * lifecycle history can never hold — the history records what happened, and
+     * a refusal by definition did not. It is also the half an incident review
+     * is about: "who tried to compose a tenant here and was told no" has no
+     * other source.
+     *
+     * On the tenant's own chain when the attempt named one, so an investigator
+     * reading that tenant sees it; on PLATFORM otherwise, because an act that
+     * names no tenant still names an actor and dropping it for want of a
+     * partition is how the one refusal an incident is about goes unrecorded.
+     */
+    const subject = scope.tenantId || PLATFORM_PARTITION;
+    const at = now();
+    try {
+      const intent = await appendIntent({
+        subject,
+        action: command,
+        target: scope.tenantId ?? "the estate",
+        actor: email ?? "unauthenticated",
+        at,
+        detail: `${command} attempted without permission.`,
+      });
+      await appendOutcome({
+        subject,
+        resolves: intent.seq,
+        action: command,
+        target: scope.tenantId ?? "the estate",
+        actor: email ?? "unauthenticated",
+        at: now(),
+        outcome: "REFUSED_NOT_PERMITTED",
+        detail: `Refused: ${decision.reason}`,
+      });
+    } catch (err) {
+      // A refusal that could not be recorded is still a refusal — nothing
+      // happened, so there is nothing unrecorded that DID happen. Only the
+      // ledger's own unavailability is swallowed, so a broken store cannot turn
+      // a 404 into a 500 that confirms the endpoint exists.
+      if (!(err instanceof AuditUnavailable)) throw err;
+    }
+
     // 404-shaped, like the rest of the console: the existence of an endpoint
-    // that provisions tenants is not something to confirm to a stranger.
+    // that provisions tenants is not something to confirm to a stranger, and
+    // the reason is in the ledger rather than in the response.
     throw new Error("Not found");
   }
   return email!;
 }
 
 const now = () => new Date().toISOString();
-
-/**
- * The engines the executor runs against.
- *
- * Built here, from the real catalogs, and passed in — so the executor stays
- * free of them and the console cannot accidentally verify a tenant against a
- * different configuration engine than the one that will build it.
- */
-function executionContext(): ExecutionContext {
-  return {
-    resolveConfiguration(manifest) {
-      // A tenant composed in this console has no file binding, so `layersFor`
-      // returns nothing for it and every value would fall back to a platform
-      // default — a system that looks configured and is not. The blueprint
-      // layer is therefore built from the manifest, and the file binding is
-      // used only when one exists (the pilot, which predates the registry).
-      const fileLayers = layersFor(manifest.slug);
-      const blueprint = getBlueprint(manifest.blueprintId);
-      // The composition, compiled into the layer stack between `blueprint` and
-      // `tenant` — the same position `layersFor` puts it in for a file-bound
-      // tenant, because a tenant composed here and a tenant bound in a file must
-      // resolve through one stack or the console is previewing a system the
-      // engine will not build (PACK-020-003).
-      //
-      // Falls back to the blueprint's own axes when the manifest carries none,
-      // which is what a manifest written before axes existed looks like.
-      const selection = manifest.archetype ?? blueprint?.axes;
-      const compiled =
-        selection && archetypeProblems(selection).length === 0
-          ? compileArchetype(selection as ArchetypeSelection)
-          : undefined;
-      const layers =
-        fileLayers.length > 0
-          ? fileLayers
-          : blueprint
-            ? [
-                {
-                  scope: "blueprint" as const,
-                  id: blueprint.id,
-                  label: blueprint.name,
-                  values: blueprint.values,
-                },
-                ...(compiled
-                  ? [
-                      {
-                        scope: "archetype" as const,
-                        id: `${selection!.organization}/${selection!.operatingModel}`,
-                        label: "Archetype axes",
-                        values: compiled.values,
-                      },
-                    ]
-                  : []),
-                {
-                  scope: "tenant" as const,
-                  id: manifest.slug,
-                  label: manifest.displayName,
-                  values: manifest.configuration,
-                },
-              ]
-            : [];
-
-      const { config, problems } = resolveConfig(REGISTRY, layers, {
-        collectProblems: true,
-      });
-      return {
-        checksum: config?.checksum ?? "",
-        values: config?.values ?? {},
-        problems: problems ?? [],
-      };
-    },
-    resolveModules(manifest) {
-      const resolved = resolveModules(MODULE_CATALOG, {
-        requested: manifest.modules,
-        entitlements: manifest.entitlements,
-        // Every manifest now declares `requiresEngine`, and resolve.ts refuses a
-        // module whose caller cannot say which engine is running — "an engine
-        // that cannot say how old it is cannot claim to be new enough". Omitting
-        // these two refuses EVERY module with `engine-too-old`, which is not a
-        // missing test but a broken execution context.
-        runningEngineVersion: ENGINE_VERSION,
-        compareVersions: compareVersionStrings,
-        // From the manifest's own composition, falling back to the blueprint's
-        // default. Omitting it would refuse every operating-model-gated module
-        // at VALIDATING for a tenant whose axis actually accepts it.
-        operatingModel:
-          manifest.archetype?.operatingModel ??
-          getBlueprint(manifest.blueprintId)?.axes.operatingModel,
-        // PACK-020-004. The executor resolves under the same coexistence
-        // declaration the manifest records, so a tenant cannot be verified as
-        // buildable with modules its own system-of-record forbids.
-        systemOfRecord: manifest.systemOfRecord,
-      });
-      return {
-        ordered: resolved.ordered.map((m) => ({
-          key: m.key,
-          version: m.version,
-        })),
-        problems: resolved.problems,
-      };
-    },
-    validateTopology(manifest) {
-      const blueprint = getBlueprint(manifest.blueprintId);
-      if (!blueprint)
-        return {
-          valid: false,
-          problems: [`No blueprint "${manifest.blueprintId}".`],
-        };
-      try {
-        validateTopology(blueprint.topology);
-        return { valid: true, problems: [] };
-      } catch (err) {
-        return {
-          valid: false,
-          problems: [err instanceof Error ? err.message : String(err)],
-        };
-      }
-    },
-    // Pinned to the migration the cell is expected to be at. Read from the
-    // build rather than hardcoded so a stale engine cannot publish an artifact
-    // claiming a schema it does not know about.
-    schemaVersion: () => process.env.SCHEMA_VERSION ?? "unpinned",
-  };
-}
 
 export interface ComposeResult {
   problems: Array<{ field: string; reason: string; detail: string }>;
@@ -212,7 +187,7 @@ export async function composeTenant(
   _prev: ComposeResult | null,
   form: FormData,
 ): Promise<ComposeResult> {
-  const principalId = await operator();
+  const principalId = await authorizedOperator("tenants.compose");
 
   const planId = String(form.get("planId") ?? "");
 
@@ -349,6 +324,62 @@ export async function composeTenant(
         .join(" ") || undefined,
   };
 
+  /*
+   * STUDIO-110-005 / STUDIO-060-010. Composition, recorded before it is decided.
+   *
+   * The intent goes down here — after the manifest is assembled from the form,
+   * before a single check has run and long before `registerTenant` writes
+   * anything. That ordering is the requirement: a process that dies between
+   * these two lines leaves "somebody began composing rochester and we cannot say
+   * how it ended", where an outcome-only trail leaves silence, which is
+   * indistinguishable from nobody having tried.
+   *
+   * The chain is the TENANT's, keyed on the slug that was asked for, so the
+   * composition is the first record of the tenant it creates rather than a
+   * platform-level footnote about it. A composition with no slug at all belongs
+   * to nobody, and PLATFORM is where acts that name no tenant go — dropping it
+   * would mean the one class of attempt that never registers anything is also
+   * the one class that leaves no trace.
+   *
+   * Fail-closed, deliberately: `appended` throws `AuditUnavailable` and nothing
+   * catches it here, so an unreachable ledger stops the composition instead of
+   * letting a tenant be registered with no record that anyone asked for it.
+   */
+  const at = now();
+  const subject = manifest.slug || PLATFORM_PARTITION;
+  const intent = await appendIntent({
+    subject,
+    action: "tenants.compose",
+    target: manifest.slug || "(no slug)",
+    actor: principalId,
+    at,
+    detail:
+      `Compose ${manifest.displayName || manifest.slug || "(unnamed)"} on plan ${planId || "(none)"}, ` +
+      `blueprint ${manifest.blueprintId || "(none)"}, ${manifest.isolation} in ${manifest.region || "(no region)"}, ` +
+      `${manifest.modules.length} module(s).`,
+  });
+
+  /** Close the intent, then hand the caller the problems that closed it. */
+  const refuse = async (
+    code: string,
+    problems: ComposeResult["problems"],
+  ): Promise<ComposeResult> => {
+    await appendOutcome({
+      subject,
+      resolves: intent.seq,
+      action: "tenants.compose",
+      target: manifest.slug || "(no slug)",
+      actor: principalId,
+      at: now(),
+      outcome: code,
+      // The reasons, not just the count: "refused" tells an investigator
+      // nothing, and the field-level detail is what says whether this was an
+      // operator's typo or an entitlement the contract does not grant.
+      detail: problems.map((p) => `${p.field}: ${p.reason}`).join("; ") || code,
+    });
+    return { problems };
+  };
+
   const { valid, problems } = validateManifest(manifest, {
     knownBlueprints: [...new Set(TENANT_BINDINGS.map((b) => b.blueprintId))],
     knownModules: MODULE_CATALOG.keys(),
@@ -431,24 +462,21 @@ export async function composeTenant(
     entitlementProblems.length > 0 ||
     objectAuthority.problems.length > 0
   ) {
-    return {
-      problems: [
-        ...problems,
-        ...editProblems,
-        ...moduleProblems,
-        ...planProblems,
-        ...entitlementProblems,
-        // A line that did not parse is not silently dropped. Dropping it would
-        // register a tenant whose declaration is quietly shorter than what the
-        // operator wrote, which is the difference between a refusal they can
-        // fix and a coexistence contract nobody knows is missing.
-        ...objectAuthority.problems,
-      ],
-    };
+    return refuse("REFUSED_INVALID_COMPOSITION", [
+      ...problems,
+      ...editProblems,
+      ...moduleProblems,
+      ...planProblems,
+      ...entitlementProblems,
+      // A line that did not parse is not silently dropped. Dropping it would
+      // register a tenant whose declaration is quietly shorter than what the
+      // operator wrote, which is the difference between a refusal they can
+      // fix and a coexistence contract nobody knows is missing.
+      ...objectAuthority.problems,
+    ]);
   }
 
   try {
-    const at = now();
     // GE-030-001. The registry record is what is TRUE about the tenant —
     // immutable id, lifecycle, placement, residency, release, config revision —
     // as distinct from the manifest, which is what was asked for. Built here and
@@ -468,8 +496,7 @@ export async function composeTenant(
       // Reported as a form problem rather than a 500, and with the reason: "no
       // cell may legally hold this tenant" and "every cell is full" are the
       // same outcome and completely different problems.
-      return {
-        problems: [
+      return refuse("REFUSED_NO_PLACEMENT", [
           {
             field: "region",
             reason: placement.reason,
@@ -486,9 +513,8 @@ export async function composeTenant(
                       // accurate sentence and what to do about it.
                       placement.admission.detail
                     : `Every cell in ${manifest.region} is at capacity.`,
-          },
-        ],
-      };
+        },
+      ]);
     }
 
     await registerTenant(
@@ -509,18 +535,48 @@ export async function composeTenant(
     if (err instanceof SlugTaken) {
       // Lost the race between validation and the conditional write. Reported as
       // the same problem shape rather than a 500, because it is a form error.
-      return {
-        problems: [
-          {
-            field: "slug",
-            reason: "taken",
-            detail: `"${manifest.slug}" was registered a moment ago.`,
-          },
-        ],
-      };
+      return refuse("REFUSED_SLUG_TAKEN", [
+        {
+          field: "slug",
+          reason: "taken",
+          detail: `"${manifest.slug}" was registered a moment ago.`,
+        },
+      ]);
     }
+    // Closed as FAILED rather than left open, and rethrown unchanged. An
+    // exception is the one exit that would otherwise leave an intent nobody
+    // resolved, which reads on the audit page as a composition still in flight.
+    await appendOutcome({
+      subject,
+      resolves: intent.seq,
+      action: "tenants.compose",
+      target: manifest.slug,
+      actor: principalId,
+      at: now(),
+      outcome: "FAILED",
+      detail: safeErrorOf(err),
+    });
     throw err;
   }
+
+  /*
+   * Closed BEFORE the redirect, not after.
+   *
+   * `redirect()` works by throwing, so anything below it never runs — an
+   * outcome row written after the redirect would be written on exactly no
+   * successful composition, and the trail would show every success as an
+   * unresolved intent while every refusal closed correctly.
+   */
+  await appendOutcome({
+    subject,
+    resolves: intent.seq,
+    action: "tenants.compose",
+    target: manifest.slug,
+    actor: principalId,
+    at: now(),
+    outcome: "APPLIED",
+    detail: `Registered ${manifest.slug} in DRAFT on plan ${planId}.`,
+  });
 
   revalidatePath("/tenants");
   redirect(`/tenants/${manifest.slug}`);
@@ -528,10 +584,39 @@ export async function composeTenant(
 
 export interface AdvanceResult {
   error?: string;
+  /** The durable operation this dispatch created or replayed. */
+  operationId?: string;
+  /** True when the idempotency key had already been used for this same request. */
+  replayed?: boolean;
+  /** Which gate refused, so a UI can tell a conflict from a denial. */
+  refusalCode?: RefusalCode;
+}
+
+/** What a lifecycle command carries. Named so the gate is typed over it. */
+export interface AdvancePayload {
+  to: string;
+  approvedBy: string | null;
+  ownerPrincipalId: string | null;
+  reason: string | null;
+  /** The operator's real address. `context.actorId` cannot hold an `@`. */
+  actorEmail: string;
 }
 
 /**
  * Move a tenant one state along.
+ *
+ * STUDIO-060-002 / STUDIO-130-005. Three things happen before any work does,
+ * and the order is the point:
+ *
+ *   1. `gate()` runs every execution-time check there is — the command's own
+ *      shape, semantic authorization, the version and digest the approver was
+ *      looking at, the cost band, and an idempotency claim. A double-submit
+ *      never reaches the executor; it returns the first operation.
+ *   2. An OPERATION row is written BEFORE the executor starts, so a browser
+ *      that gives up on a slow cell leaves a durable, queryable record instead
+ *      of an unknowable outcome.
+ *   3. Only then does `runAdvance` do the work, and the operation is closed
+ *      with what happened.
  *
  * The button an operator clicks names the destination; whether that move is
  * legal, and whether it needs a second person, is decided by the lifecycle
@@ -542,9 +627,20 @@ export async function advanceState(
   _prev: AdvanceResult | null,
   form: FormData,
 ): Promise<AdvanceResult> {
-  const principalId = await operator();
-
   const slug = String(form.get("slug") ?? "");
+
+  // STUDIO-020-006, in two decisions rather than one.
+  //
+  // This one is `tenant.lifecycle:write` at the control plane's own scope, and
+  // it runs before the registry is read at all — an Auditor/Read Only operator
+  // who posts to this action's id is refused here, having learned nothing about
+  // whether the tenant exists. The second is inside `gate` below, which asks
+  // `authorizeCommand` the same question again with the account and region the
+  // registry says this tenant is actually placed in.
+  const principalId = await authorizedOperator("tenant.lifecycle.advance", {
+    tenantId: slug,
+  });
+
   const to = String(form.get("to") ?? "") as TenantState;
   const approvedBy = String(form.get("approvedBy") ?? "").trim() || undefined;
   // WRK-120-005. Who answers for the tenant after the move — the successor, not
@@ -555,104 +651,261 @@ export async function advanceState(
   const ownerPrincipalId =
     String(form.get("ownerPrincipalId") ?? "").trim() || undefined;
   const reason = String(form.get("reason") ?? "").trim() || undefined;
+  // Minted by the confirmation UI when it renders, so a double-click reuses it
+  // and a fresh page mints a new one. Absent is refused by `parseCommand`
+  // rather than defaulted — a key generated here would make every submission
+  // unique, which is the same as having no idempotency at all.
+  const idempotencyKey = String(form.get("idempotencyKey") ?? "").trim();
+  const expectedVersionRaw = String(form.get("expectedVersion") ?? "").trim();
+  const expectedDigest = String(form.get("expectedDigest") ?? "").trim() || null;
 
   const at = now();
 
-  try {
-    // Run the work for the destination state BEFORE recording the move. A step
-    // that fails must not leave a tenant claiming to be in a state it never
-    // reached — which is precisely what the lifecycle looked like before the
-    // executor existed.
-    const tenant = await getTenant(slug);
-    if (!tenant) return { error: `No tenant "${slug}".` };
+  const tenant = await getTenant(slug);
+  if (!tenant) return { error: `No tenant "${slug}".` };
 
-    const ctx = executionContext();
-    const evidence = executeStep(to, tenant.manifest, ctx);
+  const operationId = `op-${globalThis.crypto.randomUUID().replace(/-/g, "")}`;
+  const target = `${tenant.state} -> ${to}`;
 
-    // MIGRATING is the hand-off. The artifact is delivered here, and the
-    // evidence records what the cell actually did — or that nothing received
-    // it, which must not read as success.
-    if (to === "MIGRATING" && tenant.deployment) {
-      const outcome = await deliverToCell(tenant.deployment, tenant.manifest);
-      evidence.detail = `${evidence.detail} ${outcome.detail}`;
-      evidence.checks = [
-        ...(evidence.checks ?? []),
-        {
-          name: "delivered to the cell",
-          ok: outcome.delivered,
-          detail: outcome.detail,
-        },
-      ];
-      if (!outcome.delivered) evidence.ok = false;
-    }
+  /*
+   * Recorded BEFORE anything is decided, and fail-closed. An action that cannot
+   * be audited is an action nobody can answer for, so an unreachable ledger
+   * stops the move rather than letting it happen unrecorded. Every exit below
+   * resolves this row — including the refusals, especially the refusals, which
+   * are the half a lifecycle STEP# row has never carried.
+   *
+   * `dynamoAuditLedger()` is the Studio's own chain (STUDIO-110-005): every
+   * record carries its content hash and the hash of the record before it, and
+   * `putAuditRow` claims its position with a conditional write, so a refusal
+   * cannot be quietly dropped and a sequence cannot be silently reused. This is
+   * its first production caller.
+   */
+  const ledger = dynamoAuditLedger();
+  const correlationId = `adv-${operationId}`;
+  const intent = await ledger.append({
+    tenantId: slug,
+    actor: { principalId, role: roleOf(principalId) ?? undefined },
+    action: "Tenant.Advance",
+    resourceType: "Tenant",
+    resourceId: slug,
+    outcome: "ALLOW",
+    reason: reason ?? "no reason given",
+    metadata: { phase: "INTENT", target, operationId },
+    correlationId,
+    occurredAt: at,
+  });
 
-    if (!evidence.ok) {
-      const failed = (evidence.checks ?? [])
-        .filter((c) => !c.ok)
-        .map((c) => `${c.name}: ${c.detail}`);
-      return {
-        error: `${to} did not complete. ${evidence.detail}${failed.length ? ` — ${failed.join("; ")}` : ""}`,
-      };
-    }
-
-    // A signed artifact is written twice, and the second one is what activation
-    // actually IS.
-    //
-    // CONFIGURING computes what a cell reconciles toward, and publishes it with
-    // `serving: false` — the tenant is created and unreachable. ACTIVATING
-    // publishes the same system with `serving: true`, and that manifest is the
-    // routing switch: `resolveTenantScope` in the cell drops institutions that
-    // are not serving, so until this arrives nobody can act in the tenant.
-    //
-    // Before this, ACTIVATING returned a sentence saying routing had been
-    // switched on and did nothing. The tenant had been reachable since
-    // MIGRATING, one state and one approval earlier.
-    const deployment =
-      to === "CONFIGURING" || to === "ACTIVATING"
-        ? deploymentManifest(
-            tenant.manifest,
-            [...tenant.evidence, evidence],
-            ctx,
-            {
-              createdAt: at,
-              createdBy: principalId,
-              serving: to === "ACTIVATING",
-            },
-          )
-        : undefined;
-
-    await advanceTenant(
-      slug,
-      to,
-      {
-        actor: { principalId, at },
-        approvedBy,
-        // Looked up against the same allowlist that admitted the requester.
-        // Before this, `approvedBy` was a free-text field checked only for
-        // being non-empty and not the requester's own id — so one operator
-        // could approve their own irreversible purge by typing any address
-        // that was not theirs.
-        approverIsOperator: approvedBy ? isOperator(approvedBy) : undefined,
-        ownerPrincipalId,
-        reason,
+  /**
+   * Close the intent with what actually happened.
+   *
+   * `ALLOW` only for the move that ran; every refusal is a `DENY` carrying the
+   * code, so "how often was this refused, and for what" is a scan of one field
+   * rather than a grep over prose.
+   */
+  const resolve = async (code: string, detail: string): Promise<void> => {
+    await ledger.append({
+      tenantId: slug,
+      actor: { principalId, role: roleOf(principalId) ?? undefined },
+      action: "Tenant.Advance",
+      resourceType: "Tenant",
+      resourceId: slug,
+      outcome: code === "APPLIED" ? "ALLOW" : "DENY",
+      reason: detail,
+      metadata: {
+        phase: "OUTCOME",
+        code,
+        target,
+        operationId,
+        intentSequence: intent.sequence,
       },
-      evidence,
-      deployment,
-    );
-  } catch (err) {
-    if (err instanceof LifecycleError) return { error: err.message };
-    if ((err as { name?: string }).name === "TransactionCanceledException") {
-      return {
-        error:
-          "This tenant moved while the page was open — someone else advanced it. Reload to see where it is now.",
-      };
-    }
-    throw err;
+      correlationId,
+      occurredAt: now(),
+    });
+  };
+
+  // STUDIO-140-006. The three refusals this action owns, decided in one place
+  // and BEFORE the command gate, so a destructive AWS mutation or a stale
+  // consequence never reaches the executor at all.
+  //
+  // The consequence the operator READ is the consequence that executes:
+  // `highRiskVerdict` recomputes the risk from the lifecycle graph and the
+  // tenant's own record — never from the form — and compares the digest the
+  // page rendered against it. Between the page rendering and the button being
+  // pressed another operator can move the tenant, or a residual reconciliation
+  // can turn "reversible" into IRREVERSIBLE, and the panel on screen becomes a
+  // description of something else.
+  //
+  // It is a function rather than three inline blocks because a refusal that can
+  // only be reached through an authenticated session and a live registry is a
+  // refusal nothing can prove. `e2e/high-risk-fails-closed.spec.ts` drives all
+  // five arms — these three plus the two the lifecycle engine owns — and
+  // asserts on THIS FILE that the call is here, ahead of `gate`, and that its
+  // answer is what the operator is told.
+  const verdict = highRiskVerdict({
+    slug,
+    from: tenant.state,
+    to,
+    isolation: tenant.manifest.isolation,
+    hasDeployment: tenant.deployment !== undefined,
+    serving: tenant.deployment?.serving === true,
+    evidenceRecords: tenant.evidence.length,
+    tenantTable: tableName(),
+    reason: reason ?? "no reason given",
+    typed: String(form.get(CONFIRM_TARGET_FIELD) ?? "").trim(),
+    submittedDigest: String(form.get(RISK_DIGEST_FIELD) ?? "").trim(),
+    auditSequence: intent.sequence,
+  });
+  // Live. This was `if (false && verdict)` — the high-risk gate short-circuited
+  // to unreachable, which is not a weaker check but no check: STUDIO-140-006 is
+  // what refuses a destructive AWS mutation whose consequence the operator was
+  // never shown, and it read the confirmation target and the digest of the risk
+  // sentence to do it. The three `'verdict' is possibly null` type errors were
+  // the symptom — with the branch dead, `verdict` was never narrowed — so the
+  // compiler was reporting the disabled guard rather than a typing problem.
+  if (verdict) {
+    await resolve(verdict.code, verdict.detail);
+    return { error: verdict.detail };
   }
+
+  const outcome = await gate<AdvancePayload>(
+    {
+      commandId: `cmd-${globalThis.crypto.randomUUID().replace(/-/g, "")}`,
+      context: {
+        tenantId: slug,
+        // The contract's identifier grammar has no `@`, so the address is
+        // carried in the payload and the principal is spelled with a colon.
+        // Losing the identity to satisfy a regex would be the wrong trade; so
+        // would loosening the contract for one caller.
+        actorId: principalId.replace("@", ":"),
+        actorKind: "user",
+        channel: "system-studio-form",
+        correlationId: newCorrelationId(),
+        configRevision: String(tenant.registry?.configRevision ?? 0),
+        // Test unless the deployment says otherwise. A mode that cannot be
+        // established is not evidence that real money may move.
+        environment: process.env.PAYMENT_MODE === "live" ? "live" : "test",
+        legalEntityId: null,
+        at,
+      },
+      action: "Tenant.Advance",
+      resourceType: "Tenant",
+      resourceId: slug,
+      // Omitted rather than defaulted when the form did not carry one, so
+      // `parseCommand` refuses it. A default of `null` would mean "this is a
+      // create" and would skip the concurrency check entirely.
+      ...(expectedVersionRaw === "" ? {} : { expectedVersion: Number(expectedVersionRaw) }),
+      idempotencyKey,
+      effectiveAt: at,
+      payload: {
+        to,
+        approvedBy: approvedBy ?? null,
+        ownerPrincipalId: ownerPrincipalId ?? null,
+        reason: reason ?? null,
+        actorEmail: principalId,
+      },
+    },
+    {
+      actor: principalId,
+      command: "tenant.lifecycle.advance",
+      // The cell this tenant is actually placed in, so a tenant outside this
+      // control plane's account or region is refused here rather than by the
+      // SDK. Omitted for a tenant with no registry record — the decision then
+      // falls back to this control plane's own identity, which is where an
+      // unplaced tenant is.
+      placement: tenant.registry
+        ? { region: tenant.registry.placement.region }
+        : undefined,
+      current: async () => ({ version: tenant.history.length, digest: tenant.digest }),
+      expectedDigest,
+      // STUDIO-120-010, enforced rather than merely published. Assessed on the
+      // RECURRING MONTHLY commitment the plan states, and only for the step
+      // that actually stands infrastructure up — a threshold applied to every
+      // transition would ask for one commitment to be approved four times.
+      recurringMonthly:
+        to === "PROVISIONING"
+          ? {
+              minorUnits: planFor(tenant.manifest).estimatedMonthlyCostCents,
+              currency: "USD",
+              change: `Provisioning ${slug} (${tenant.manifest.isolation})`,
+            }
+          : null,
+      approvedBy: approvedBy ?? null,
+      operationId,
+    },
+  );
+
+  if (outcome.kind === "refused") {
+    await resolve(outcome.refusal.code.toUpperCase(), outcome.refusal.detail);
+    return { error: outcome.refusal.detail, refusalCode: outcome.refusal.code };
+  }
+
+  if (outcome.kind === "replay") {
+    // The same key and the same request. The first attempt is the answer, and
+    // returning it is the whole difference between idempotency and a race
+    // message: nothing runs twice, and the caller is told which operation
+    // theirs was.
+    const first = await getOperation(slug, outcome.replay.operationId);
+    await resolve(
+      "REPLAYED",
+      `Idempotency key already used for this exact request; operation ${outcome.replay.operationId} is the answer.`,
+    );
+    return {
+      operationId: outcome.replay.operationId,
+      replayed: true,
+      ...(first?.state === "FAILED"
+        ? { error: first.lastError ?? "The first attempt failed." }
+        : {}),
+    };
+  }
+
+  // The record, before the work. STUDIO-130-005.
+  await putOperation({
+    operationId,
+    slug,
+    state: "ACCEPTED",
+    commandType: outcome.command.action,
+    target: to,
+    actor: principalId,
+    requestedAt: at,
+    completedAt: null,
+    idempotencyKey,
+    correlationId: outcome.command.context.correlationId,
+    lastError: null,
+    approval: outcome.approval,
+  });
+
+  const result = await runAdvance({
+    slug,
+    to,
+    principalId,
+    at,
+    approvedBy,
+    ownerPrincipalId,
+    reason,
+    // STUDIO-060-007. What the operator typed, forwarded to the change-class
+    // gate. The gate compares it with `===` against the token
+    // `requirementsFor` produces for this move's class, so a C6 or C7 move
+    // submitted with nothing typed is refused there even if it reached this
+    // action by a POST that never rendered the panel.
+    confirmation: String(form.get(CONFIRM_TARGET_FIELD) ?? "").trim(),
+  });
+
+  await completeOperation(slug, operationId, {
+    state: result.ok ? "SUCCEEDED" : "FAILED",
+    completedAt: now(),
+    lastError: result.ok ? null : result.error,
+  });
+  await settleIdempotency(slug, idempotencyKey, result.ok ? "succeeded" : "failed", operationId);
+  await resolve(
+    result.ok ? "APPLIED" : "FAILED",
+    result.ok ? `${result.detail} (operation ${operationId})` : result.error,
+  );
 
   revalidatePath(`/tenants/${slug}`);
   revalidatePath("/tenants");
-  return {};
+
+  if (!result.ok) return { error: result.error, operationId };
+  return { operationId };
 }
 
 export interface AdoptResult {
@@ -672,7 +925,7 @@ export async function adoptTenantAction(
   _prev: AdoptResult | null,
   form: FormData,
 ): Promise<AdoptResult> {
-  const principalId = await operator();
+  const principalId = await authorizedOperator("tenants.adopt");
 
   const request = {
     slug: String(form.get("slug") ?? "").trim(),
@@ -689,17 +942,67 @@ export async function adoptTenantAction(
   // not read tenant databases and must not claim to have checked.
   const institutionExists = form.get("institutionExists") === "on";
 
+  /*
+   * STUDIO-110-005 / STUDIO-060-010. Adoption, recorded before it is decided.
+   *
+   * Adoption is the single most consequential act in this console: it takes a
+   * tenant that has been serving real students since before the control plane
+   * existed and brings it under an engine that can advance its lifecycle. It is
+   * also one-way. Recording only the successes would leave the interesting
+   * question — who tried to adopt the live pilot, and on whose say-so — with no
+   * answer at all, and the `ADOPTED#` registry row it writes is a history rather
+   * than an audit trail: it appears only when the adoption worked.
+   *
+   * On the adopted tenant's own chain, keyed on its slug, so this is the first
+   * record of it under the engine.
+   */
+  const subject = request.slug || PLATFORM_PARTITION;
+  const intent = await appendIntent({
+    subject,
+    action: "tenants.adopt",
+    target: request.slug || "(no slug)",
+    actor: principalId,
+    at: request.at,
+    detail:
+      `Adopt bound tenant ${request.slug || "(no slug)"} on plan ${request.plan || "(none)"}, ` +
+      `residency ${request.residency.join("/") || "(none)"}, ` +
+      `institution row confirmed by the operator: ${institutionExists}.`,
+  });
+
+  const refuse = async (
+    code: string,
+    problems: AdoptResult["problems"],
+  ): Promise<AdoptResult> => {
+    await appendOutcome({
+      subject,
+      resolves: intent.seq,
+      action: "tenants.adopt",
+      target: request.slug || "(no slug)",
+      actor: principalId,
+      at: now(),
+      outcome: code,
+      detail: problems.map((p) => `${p.field}: ${p.reason}`).join("; ") || code,
+    });
+    return { problems };
+  };
+
   if (!getPlan(request.plan)) {
-    return {
-      problems: [
-        {
-          field: "planId",
-          reason: "unknown-plan",
-          detail: `No plan "${request.plan}".`,
-        },
-      ],
-    };
+    return refuse("REFUSED_UNKNOWN_PLAN", [
+      {
+        field: "planId",
+        reason: "unknown-plan",
+        detail: `No plan "${request.plan}".`,
+      },
+    ]);
   }
+
+  // STUDIO-000-006. `buildAdoption` reaches `fleet()` (lib/adopt.ts:84,194,242),
+  // which now THROWS `FleetMisconfigured` rather than defaulting to `us-east-1`
+  // and a literal account. `primeEstate()` resolves the real identity once per
+  // process; without it every adoption fails on an estate nobody configured,
+  // and the catch below would report a platform misconfiguration to the
+  // operator as if it were a bad form field.
+  await primeEstate();
 
   let built;
   try {
@@ -708,15 +1011,13 @@ export async function adoptTenantAction(
     // AdoptionRefused and NotAdoptable both carry the reason in the message,
     // and both are operator-fixable — a missing check, a bad residency, a
     // binding that does not exist. Reported as form problems, not a 500.
-    return {
-      problems: [
-        {
-          field: "slug",
-          reason: "refused",
-          detail: err instanceof Error ? err.message : String(err),
-        },
-      ],
-    };
+    return refuse("REFUSED_NOT_ADOPTABLE", [
+      {
+        field: "slug",
+        reason: "refused",
+        detail: err instanceof Error ? err.message : String(err),
+      },
+    ]);
   }
 
   try {
@@ -726,18 +1027,38 @@ export async function adoptTenantAction(
     });
   } catch (err) {
     if (err instanceof SlugTaken) {
-      return {
-        problems: [
-          {
-            field: "slug",
-            reason: "already-registered",
-            detail: `"${request.slug}" is already in the registry. Adoption is a one-time move.`,
-          },
-        ],
-      };
+      return refuse("REFUSED_ALREADY_REGISTERED", [
+        {
+          field: "slug",
+          reason: "already-registered",
+          detail: `"${request.slug}" is already in the registry. Adoption is a one-time move.`,
+        },
+      ]);
     }
+    await appendOutcome({
+      subject,
+      resolves: intent.seq,
+      action: "tenants.adopt",
+      target: request.slug,
+      actor: principalId,
+      at: now(),
+      outcome: "FAILED",
+      detail: safeErrorOf(err),
+    });
     throw err;
   }
+
+  // Before the redirect, which throws. See `composeTenant`.
+  await appendOutcome({
+    subject,
+    resolves: intent.seq,
+    action: "tenants.adopt",
+    target: request.slug,
+    actor: principalId,
+    at: now(),
+    outcome: "APPLIED",
+    detail: `Adopted ${request.slug} on plan ${request.plan}.`,
+  });
 
   revalidatePath("/tenants");
   redirect(`/tenants/${request.slug}`);

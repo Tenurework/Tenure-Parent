@@ -36,9 +36,22 @@ const EXEMPT = [
   'apps/web/src/lib/cell-context.ts',
   // The cell registry's shape — declaring what a region field IS.
   'packages/provisioning/src/cell-registry.ts',
-  // Reads its own values from the environment and validates them.
-  'apps/system-studio/src/lib/cells.ts',
 ]
+
+/*
+ * `apps/system-studio/src/lib/cells.ts` used to be here, exempted because it
+ * "reads its own values from the environment and validates them". It read them
+ * from the environment WITH DEFAULTS — `env("AWS_REGION", "us-east-1")`,
+ * `env("AWS_ACCOUNT_ID", "<a literal twelve-digit account>")` and
+ * `env("AWS_PARTITION", "aws")` — which is precisely the defect this suite
+ * exists to find, sitting inside the exemption that stopped it looking.
+ *
+ * STUDIO-000-006 removed the three defaults: the values come from the
+ * environment, then from `sts:GetCallerIdentity`, and then from nowhere —
+ * `fleet()` refuses with `FleetMisconfigured` rather than placing a tenant in an
+ * estate nobody chose. The exemption is deleted rather than reworded, and this
+ * note is here so it is not quietly restored.
+ */
 
 const REGION = /["'`](us|eu|ap|sa|ca|me|af|il)-(gov-)?[a-z]+-\d["'`]/
 const ACCOUNT = /["'`]\d{12}["'`]/

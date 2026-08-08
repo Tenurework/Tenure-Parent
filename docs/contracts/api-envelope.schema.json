@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tenure.dev/control-plane/api-envelope/1.0.schema.json",
+  "x-contract": "ApiEnvelope",
+  "x-contract-version": "1.0",
+  "x-generated-by": "tools/contract-schemas.mjs from packages/contracts/src/index.ts",
+  "title": "ApiEnvelope",
+  "description": "The 2xx body every control-plane read endpoint returns. Non-2xx is RFC 7807 problem+json, never this.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "items",
+    "nextCursor",
+    "asOf",
+    "correlationId"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "items": {
+      "type": "array"
+    },
+    "nextCursor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 8192
+    },
+    "asOf": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  }
+}

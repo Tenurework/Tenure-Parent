@@ -52,7 +52,27 @@ function aws(service, operation, args = [], { global = false } = {}) {
     if (/AccessDenied|UnauthorizedOperation|not authorized|AWSOrganizationsNotInUse/i.test(message)) {
       // The exact denied API and the minimum permission it needs — §3 of the
       // prompt requires reporting this rather than asking for admin.
-      denied.push({ call, reason: /AWSOrganizationsNotInUse/i.test(message) ? 'Organizations not in use' : 'AccessDenied' })
+      // STUDIO-000-007. `{call, reason}` was four fields short of what a reader
+      // needs to act: no principal, no error code, no account/region, no
+      // minimum permission. A denial recorded that thinly cannot be told from
+      // an absence downstream, which is exactly how /platform came to render
+      // "Organizations not in use" off a call nobody was allowed to make.
+      const notInUse = /AWSOrganizationsNotInUse/i.test(message)
+      denied.push({
+        call,
+        reason: notInUse ? 'Organizations not in use' : 'AccessDenied',
+        // The service's own error code, verbatim, not a category.
+        errorCode: (/([A-Za-z]*(?:AccessDenied|UnauthorizedOperation|NotAuthorized|NotInUse)[A-Za-z]*)/.exec(message) ?? [, 'AccessDenied'])[1],
+        principal: CALLER.arn,
+        accountId: CALLER.account,
+        region: global ? 'global' : REGION,
+        partition: CALLER.partition,
+        minimumStatement: JSON.stringify({
+          Effect: 'Allow',
+          Action: [`${service}:${operation.replace(/(^|-)([a-z])/g, (_, __, c) => c.toUpperCase())}`],
+          Resource: '*',
+        }),
+      })
     } else {
       errors.push({ call, message: message.split('\n')[0].slice(0, 200) })
     }
@@ -61,6 +81,45 @@ function aws(service, operation, args = [], { global = false } = {}) {
 }
 
 const list = (v) => (Array.isArray(v) ? v : [])
+
+/**
+ * Who this collector is running as.
+ *
+ * STUDIO-000-007 names five things a denial must carry, and four of them —
+ * principal, account, region, partition — are properties of the CALLER rather
+ * than of the call. Nothing here had ever asked. `sts:GetCallerIdentity` is
+ * called first, directly rather than through `aws()`, because `aws()` records a
+ * denial and a denial cannot name a principal that has not been resolved yet.
+ *
+ * When STS itself refuses, the fields say so instead of going blank: a
+ * collector that cannot see itself is a different problem from one that cannot
+ * see ECS, and the difference is what tells an operator where to look.
+ */
+const CALLER = (() => {
+  const unknown = {
+    arn: 'unknown principal — sts:GetCallerIdentity did not answer',
+    account: null,
+    partition: null,
+  }
+  try {
+    const out = execFileSync('aws', ['sts', 'get-caller-identity', '--output', 'json'], {
+      encoding: 'utf8',
+    })
+    const identity = JSON.parse(out)
+    const arn = identity.Arn ?? ''
+    const segments = arn.split(':')
+    return {
+      arn,
+      account: identity.Account ?? null,
+      // The ARN's own second segment. Never the literal 'aws': a GovCloud
+      // collector that reported partition 'aws' would send every reader of this
+      // snapshot to the wrong console.
+      partition: segments.length >= 6 && segments[0] === 'arn' ? segments[1] : null,
+    }
+  } catch {
+    return unknown
+  }
+})()
 
 // ── Identity and organization ───────────────────────────────────────────────
 
@@ -211,7 +270,25 @@ const inventory = {
 
   observability: {
     logGroups: list(logGroups?.logGroups).map((g) => ({ name: g.logGroupName, retentionDays: g.retentionInDays ?? 'never expires' })),
-    alarms: list(alarms?.MetricAlarms).map((a) => ({ name: a.AlarmName, state: a.StateValue })),
+    // STUDIO-080-008. `{name, state}` discarded the two fields that decide
+    // whether an alarm means anything: an alarm with ActionsEnabled:false
+    // notifies nobody however green it reads, and one whose state has not moved
+    // in a week is reporting the past. Both are carried now, so the snapshot
+    // cannot render an OK chip for either.
+    //
+    // `alarms` is null when the call was DENIED — `aws()` returns null and
+    // `list(null)` is `[]`, which rendered as "no alarms". `alarmsUnavailable`
+    // says which of the two happened, and the page renders it rather than an
+    // empty list.
+    alarmsUnavailable: alarms === null,
+    alarms: list(alarms?.MetricAlarms)
+      .concat(list(alarms?.CompositeAlarms))
+      .map((a) => ({
+        name: a.AlarmName,
+        state: a.StateValue,
+        actionsEnabled: a.ActionsEnabled !== false,
+        stateUpdatedTimestamp: a.StateUpdatedTimestamp ? String(a.StateUpdatedTimestamp) : null,
+      })),
     backupVaults: list(backupVaults?.BackupVaultList).map((v) => v.BackupVaultName),
   },
 

@@ -98,21 +98,20 @@ export default defineConfig({
    *
    * Playwright's default template inserts one, which is correct for a suite
    * whose baselines are regenerated per machine and wrong for one whose
-   * baselines are committed: CI (ubuntu) would find no `-linux` file next to a
+   * baselines are committed: CI would find no `-linux` file next to a
    * developer's `-win32` one and fail with "A snapshot doesn't exist" on every
-   * cell, for every change, forever. Pinning the path is one half of the answer
-   * and `visual-baselines.spec.ts` skipping off-platform is the other.
+   * cell, for every change, forever. Pinning the path is one half of the answer;
+   * the other half is that only ONE environment ever compares — the spec
+   * fingerprints `mcr.microsoft.com/playwright:v1.61.1-noble` and skips
+   * everywhere else, and `.github/workflows/ci.yml` runs the `visual` project by
+   * launching that same image against the server the `e2e` job already builds.
    *
-   * THE SPEC IS NOT IN THE TREE RIGHT NOW, and this configuration is kept for
-   * the one that restores it. It shipped in `db95980` with an empty
-   * `__screenshots__` directory and failed 37/37 on its first CI run, because a
-   * screenshot suite with no reference images cannot pass anywhere. It is
-   * withdrawn rather than deleted — the design is sound and the commit holds it
-   * — and TTES-020-004 is FAIL with the blocker measured: capturing the
-   * baselines needs Linux, and from a Windows host every route into a container
-   * either cannot reach the app's loopback or requires weakening the
-   * `NEXTAUTH_URL` https-or-loopback guard in `src/lib/env.ts:176` to do it.
-   * Restore both together: the PNGs and the spec, never one without the other.
+   * That pairing is the fix for how this died the first time. It shipped in
+   * `db95980` with an EMPTY `__screenshots__` directory and failed 37/37 on its
+   * first CI run, and was withdrawn in `a8ceb8b`. The PNGs and the spec belong
+   * to each other: never restore one without the other, and never regenerate the
+   * PNGs anywhere but that image (`visual-baselines.spec.ts`'s header carries the
+   * exact command).
    */
   snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}",
   projects: [
@@ -121,14 +120,30 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
       // The visual matrix drives its own viewports and colour schemes; running
       // it here as well would double every screenshot under a second project
-      // name and a second set of baselines. Harmless while the spec is absent,
-      // and correct again the moment it returns.
+      // name and a second set of baselines.
       testIgnore: /visual-baselines\.spec\.ts/,
     },
     {
       name: "visual",
       testMatch: /visual-baselines\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
+      /**
+       * Five minutes, against the suite's 45s.
+       *
+       * Not because anything here is slow to settle — it is arithmetic. A matrix
+       * cell photographs the whole catalogue, which is roughly 1025×3100 CSS
+       * pixels, and the entry pass takes ~90 element screenshots in a single
+       * test. `toHaveScreenshot` additionally has its own 5s default, which is a
+       * budget for producing the image rather than for the page to stabilise —
+       * two cells hit it on the first capture run with `generating new stable
+       * screenshot expectation` and nothing else in the call log. Both are
+       * raised here rather than per assertion so a new cell inherits them.
+       *
+       * Raising a TIME budget is not loosening the comparison: `threshold` and
+       * `maxDiffPixels` are untouched, so a wrong pixel still fails.
+       */
+      timeout: 300_000,
+      expect: { toHaveScreenshot: { timeout: 60_000 } },
     },
   ],
   ...(process.env.PLAYWRIGHT_BASE_URL

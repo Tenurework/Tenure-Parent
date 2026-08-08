@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { operatorFor } from "./operator-identity"
 
 /**
  * Signing in through the FORM, in a browser.
@@ -13,7 +14,7 @@ import { test, expect } from "@playwright/test"
  * works. These drive the page.
  */
 
-const OPERATOR = process.env.PLATFORM_OPERATORS ?? ""
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 
 test.beforeAll(() => {

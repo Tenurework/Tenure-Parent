@@ -6,7 +6,8 @@ import { withTenantScope } from "@/lib/tenant-scope"
 import { storageConfigured } from "@/lib/s3"
 import { aiConfigured } from "@/lib/ai"
 import { Card, CardHeader } from "@/components/ui/Card"
-import { OrgTabs } from "@/components/OrgTabs"
+import { Badge } from "@/components/ui/Badge"
+import { OrgRecordHeader } from "@/components/OrgRecordHeader"
 import { DocumentRow } from "@/components/documents/DocumentRow"
 import { ArchiveRestore } from "@/components/ui/icons"
 import {
@@ -73,13 +74,32 @@ export default async function DocumentsPage({
 
     return (
       <div className="w-full">
-        <div className="mb-4">
-          <h1 className="text-text-1">{org.name}</h1>
-          <p className="text-sm text-text-2 mt-1">
-            Club documents — contracts, templates, and records in one durable place.
-          </p>
-        </div>
-        <OrgTabs slug={slug} />
+        {/* TTES-030-001, Bible §5.3. This was the last of the record's six
+            surfaces still emitting a bare `<h1>{org.name}</h1>` with its own
+            `OrgTabs` under it — the import sat here unused while members,
+            finance, memory, handoff and impact had all moved. Six surfaces of
+            one record disagreeing about where identity ends and state begins is
+            exactly the instability §5.3's "stable anatomy" names, and the
+            status band is the part a hand-rolled `<h1>` has nowhere to put:
+            a reader could not tell from the header whether this club had any
+            documents at all, or whether uploading was even available to them. */}
+        <OrgRecordHeader
+          slug={slug}
+          org={org}
+          section="Documents"
+          subtitle="Documents — the club's files, who uploaded them, and what has been archived."
+          status={
+            <>
+              <Badge variant={docs.length > 0 ? "success" : "default"}>
+                {docs.length} {docs.length === 1 ? "document" : "documents"}
+              </Badge>
+              {restorableArchived.length > 0 && (
+                <Badge variant="warning">{restorableArchived.length} archived</Badge>
+              )}
+              {!canUpload && <Badge variant="default">Read-only</Badge>}
+            </>
+          }
+        />
 
         <div className="space-y-4">
           {canUpload && (

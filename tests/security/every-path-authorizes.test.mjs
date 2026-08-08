@@ -255,3 +255,201 @@ test("a mutating path with no guard at all is one somebody named", () => {
   )
   assert.deepEqual(exemptionProblems(naked, NO_GUARD_BY_DESIGN), [])
 })
+
+/* ─────────────────────────────────────────────────────────── STUDIO-020-006 ──
+ * The System Studio's own half of "every path authorizes".
+ *
+ * The inventory above proves a path has *a* guard, and it counts `operator` as
+ * a permission decision. That was true when `operator` meant one thing; it is
+ * not true now. `isOperator(email)` is a MEMBERSHIP test — it answers "do we
+ * know who this is" and nothing else — while `authorizeCommand(...)` decides a
+ * named command against a resource, a verb, a tenant, an account, a region and
+ * an environment. To the inventory's regex both read as `operator`, so a page
+ * reverted from the second to the first would lose every axis of its decision
+ * and the guard column would not move.
+ *
+ * These read the Studio's source directly, which the inventory deliberately
+ * does not, and hold the nine sites STUDIO-020-006 converted.
+ */
+
+const STUDIO_SRC = path.join(ROOT, "apps/system-studio/src")
+
+/**
+ * Source with comments removed.
+ *
+ * Necessary, not fastidious: `src/app/tenants/actions.ts` and
+ * `.../configuration/actions.ts` both explain in prose that they "used to be
+ * `isOperator(email)`", and a detector that read a comment as a call would
+ * report the two best-converted files in the console as the two worst.
+ */
+function studioCode(relative) {
+  const source = fs.readFileSync(path.join(STUDIO_SRC, relative), "utf8")
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .split(String.fromCharCode(10))
+    .map((line) => line.replace(/\/\/.*$/, ""))
+    .join(String.fromCharCode(10))
+}
+
+const callsFn = (source, fn) => new RegExp(`\\b${fn}\\s*\\(`).test(source)
+
+/**
+ * The nine call sites STUDIO-020-006 names.
+ *
+ * Listed by name rather than found by a glob. A glob silently stops covering a
+ * file somebody moved, and reports the same green it reports when every file is
+ * present and correct.
+ */
+const DECIDING_SITES = [
+  "app/page.tsx",
+  "app/platform/page.tsx",
+  "app/platform/cost/page.tsx",
+  "app/tenants/page.tsx",
+  "app/tenants/new/page.tsx",
+  "app/tenants/[slug]/page.tsx",
+  "app/tenants/[slug]/configuration/page.tsx",
+  "app/tenants/actions.ts",
+  "app/tenants/[slug]/configuration/actions.ts",
+]
+
+/**
+ * Modules that call `isOperator` for AUTHENTICATION, which is what it is for.
+ *
+ * `isOperator` is not forbidden — it is exactly `roleOf(...) !== null`, and "is
+ * this address Tenure staff" is a real question with real askers. Answering
+ * "may they do this" with it is what is forbidden.
+ */
+const AUTHENTICATION_ONLY = {
+  "lib/operators.ts": "Defines it, and defines the role table it is derived from.",
+  "app/signin/page.tsx":
+    "Redirects an operator who is ALREADY signed in away from the sign-in form. The question is " +
+    "literally 'do we know who this is', and there is no resource to decide about yet.",
+  "lib/command-handlers.ts":
+    "Records whether a named approver is Tenure staff on a four-eyes step. Not a gate on the " +
+    "caller — the caller was decided by the command gate — but a fact about a third party " +
+    "written into the evidence.",
+}
+
+/**
+ * Studio pages and server actions still gated on membership alone.
+ *
+ * MAY ONLY SHRINK, and each is named with what it exposes. All five are
+ * surfaces added AFTER STUDIO-020-006 converted the nine, so they were never
+ * part of that change. They are written down rather than left invisible,
+ * because a hole nobody recorded is a hole nobody closes.
+ */
+const MEMBERSHIP_ONLY_GATES = {
+  "app/platform/audit/actions.ts":
+    "STUDIO-110-005. `placeHold` and `releaseHold` write a legal hold, so an operator of ANY " +
+    "family — auditor-read-only included — can place and lift a preservation order.",
+  "app/platform/audit/page.tsx":
+    "STUDIO-110-005. Reads every audit chain, its verification and the retention plan it implies.",
+  "app/platform/estate/page.tsx":
+    "STUDIO-080-001. Its top-level gate is membership; the console deep links it renders are " +
+    "already decided with mayAct(role, 'aws.console:read').",
+  "app/platform/health/page.tsx":
+    "STUDIO-080-008. Reads CloudWatch alarm state across the estate, for every operator family.",
+  "app/platform/security/page.tsx":
+    "STUDIO-110-006. Reads Security Hub findings across the estate, for every operator family.",
+}
+
+const MEMBERSHIP_ONLY_GATE_COUNT = 5
+
+/** Every `.ts`/`.tsx` under the Studio's `src`, relative to it, POSIX-separated. */
+function studioModules(dir = STUDIO_SRC, prefix = "") {
+  const out = []
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name
+    if (entry.isDirectory()) out.push(...studioModules(path.join(dir, entry.name), rel))
+    else if (/\.tsx?$/.test(entry.name)) out.push(rel)
+  }
+  return out
+}
+
+test("the comment stripper does not read prose as a call", () => {
+  // Everything below depends on this, and the failure it prevents would make
+  // the two best-converted files in the console look like the two worst.
+  const stripped = studioCode("app/tenants/actions.ts")
+  assert.equal(
+    callsFn(stripped, "isOperator"),
+    false,
+    "`app/tenants/actions.ts` mentions isOperator only in prose; the stripper read it as a call.",
+  )
+  assert.equal(
+    callsFn(stripped, "authorizeCommand"),
+    true,
+    "The stripper removed the real authorizeCommand call, so it is deleting code and every " +
+      "assertion below would pass by seeing nothing at all.",
+  )
+})
+
+test("the nine sites STUDIO-020-006 converted decide a command, and none checks membership", () => {
+  const problems = []
+  for (const site of DECIDING_SITES) {
+    const source = studioCode(site)
+    if (!callsFn(source, "authorizeCommand")) problems.push(`${site} no longer calls authorizeCommand.`)
+    if (callsFn(source, "isOperator")) {
+      problems.push(
+        `${site} calls isOperator. That is the membership test STUDIO-020-006 replaced: it carries ` +
+          `no resource, no verb, no tenant, no account and no region, so every operator family ` +
+          `decides the same.`,
+      )
+    }
+  }
+  assert.deepEqual(problems, [])
+})
+
+test("isOperator stays the authentication half and cannot quietly regain authority", () => {
+  const source = fs.readFileSync(path.join(STUDIO_SRC, "lib/operators.ts"), "utf8")
+  // The body, not the doc comment. STUDIO-020-005 kept `isOperator` as exactly
+  // `roleOf(...) !== null` so no call site changed meaning; a body that grew a
+  // second clause would be a second authorization model nobody reviewed.
+  assert.match(
+    source,
+    /export function isOperator\([\s\S]{0,240}?\)\s*:\s*boolean\s*\{\s*return roleOf\(email, env\) !== null\s*\}/,
+    "isOperator is no longer exactly `return roleOf(email, env) !== null`.",
+  )
+  for (const name of ["roleOf", "mayAct", "mayView", "OPERATOR_ROLES", "OPERATOR_GRANTS"]) {
+    assert.match(
+      source,
+      new RegExp(`export (function|const) ${name}\\b`),
+      `operators.ts no longer exports ${name}.`,
+    )
+  }
+})
+
+test("every other caller of isOperator is named, and the ones gating on it only shrink", () => {
+  const callers = studioModules()
+    .filter((rel) => !/\.(test|itest|spec)\.tsx?$/.test(rel))
+    .filter((rel) => callsFn(studioCode(rel), "isOperator"))
+
+  assert.ok(
+    callers.length > 0,
+    "Nothing in the Studio calls isOperator at all, so this test is scanning the wrong tree.",
+  )
+
+  const named = new Set([...Object.keys(AUTHENTICATION_ONLY), ...Object.keys(MEMBERSHIP_ONLY_GATES)])
+  const unnamed = callers.filter((rel) => !named.has(rel))
+  assert.deepEqual(
+    unnamed,
+    [],
+    `Callers of isOperator with no stated reason:${String.fromCharCode(10)}` +
+      unnamed.join(String.fromCharCode(10)) +
+      `${String.fromCharCode(10)}Decide with authorizeCommand, or say here why membership is the ` +
+      `whole question.`,
+  )
+
+  const gating = callers.filter((rel) => rel in MEMBERSHIP_ONLY_GATES)
+  assert.ok(
+    gating.length <= MEMBERSHIP_ONLY_GATE_COUNT,
+    `${gating.length} Studio surfaces gate on membership alone, up from ` +
+      `${MEMBERSHIP_ONLY_GATE_COUNT}. Authorize the new one rather than raising the number.`,
+  )
+  // Deliberately NOT asserted in the other direction. Each entry is a hole
+  // somebody else is converting right now, and a suite that reds the moment one
+  // of them is fixed would be a suite arguing against its own subject. Lower
+  // MEMBERSHIP_ONLY_GATE_COUNT when they are.
+  for (const [name, reason] of Object.entries(MEMBERSHIP_ONLY_GATES)) {
+    assert.ok(reason.length > 60, `"${name}" is excused with ${reason.length} characters.`)
+  }
+})

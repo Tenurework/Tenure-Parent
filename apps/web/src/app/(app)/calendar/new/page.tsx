@@ -136,6 +136,23 @@ export default async function NewEventPage({
               </label>
             </div>
 
+            {/* WRK-060-005. `Event.recurrenceRule` existed as a column nothing
+                wrote. This is the writer. The values are RFC 5545 property
+                lists, normalised by `parseRecurrenceRule` in the action, read
+                back by the ICS feed as an `RRULE` line and by the week grid as
+                expanded occurrences — one rule, three readers, no second
+                vocabulary. */}
+            <label className={labelClass}>
+              Repeats
+              <select name="recurrenceRule" defaultValue="" className={fieldClass}>
+                <option value="">Does not repeat</option>
+                <option value="FREQ=WEEKLY">Weekly, on this weekday</option>
+                <option value="FREQ=WEEKLY;INTERVAL=2">Every other week</option>
+                <option value="FREQ=DAILY">Daily</option>
+                <option value="FREQ=MONTHLY">Monthly, on this date</option>
+              </select>
+            </label>
+
             <label className={labelClass}>
               Venue
               <input name="venue" placeholder="Schlegel Hall 203" className={fieldClass} />

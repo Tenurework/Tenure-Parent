@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test"
+import { operatorFor } from "./operator-identity"
 
-const OPERATOR = process.env.PLATFORM_OPERATORS?.split(",")[0]?.trim() ?? ""
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 
 /** Same sign-in the rest of the suite uses. Duplicated rather than extracted

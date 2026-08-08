@@ -13,19 +13,48 @@ import {
 } from "@tenure/identity"
 import { checkDevLoginGate } from "@/lib/dev-login"
 import { oktaIsUsable } from "@/lib/auth-connections"
+import { borrowProviderCredential } from "@/lib/connections/credential-broker"
 
 // Pilot-only sign-in: pick a seeded demo user by email, no password.
 // Enabled via AUTH_DEV_LOGIN=true — remove once Okta is configured.
 const devLoginEnabled = process.env.AUTH_DEV_LOGIN === "true"
 
-// Only register Okta when the identity registry considers the connection
-// usable (GE-030-003). This used to be an inline check that the issuer was set
-// and began with https, which is three of the registry's checks and none of
-// the others — a missing
-// client id, a credential pasted as a value rather than referenced, or an
-// expired secret all produced a provider NextAuth registers happily and that
-// fails at the callback: visibly to a user, invisibly to anyone watching.
-const oktaConfigured = oktaIsUsable()
+/**
+ * The Okta client secret, borrowed rather than read (WRK-040-004).
+ *
+ * This used to be `clientSecret: process.env.OKTA_CLIENT_SECRET!` inside the
+ * provider literal, with `oktaIsUsable()` standing beside it as a separate
+ * check — two answers to one question, and only one of them governed what went
+ * on the wire. Now the broker is the single door: it refuses a deployment with
+ * no secret, one that pasted the secret where the reference belongs, and one
+ * whose credential has passed its declared expiry, and it hands the value to a
+ * callback rather than returning it.
+ *
+ * The provider is constructed INSIDE `use` because NextAuth takes
+ * `clientSecret` as a string in a literal evaluated at module load — there is
+ * no point later at which an async borrow could supply it. That is why the
+ * broker's `use` is generic over its callback's return type rather than fixed
+ * to a promise: a signature that only accepted `async` work would have left
+ * this call site outside the door, which is the failure being fixed.
+ *
+ * `oktaIsUsable()` still gates registration, and still earns its place: it asks
+ * the identity REGISTRY whether the connection as a whole is valid — issuer,
+ * client id, credential shape — which is a different question from whether the
+ * secret may be borrowed. The two are ANDed here rather than duplicated.
+ */
+const oktaSecret = borrowProviderCredential("okta-client-secret")
+const oktaProviders =
+  oktaIsUsable() && oktaSecret.ok
+    ? [
+        oktaSecret.use((secret) =>
+          Okta({
+            clientId: process.env.OKTA_CLIENT_ID!,
+            clientSecret: secret,
+            issuer: process.env.OKTA_ISSUER!,
+          }),
+        ),
+      ]
+    : []
 
 /**
  * GE-042-004 — the two session clocks, wired to the session the app actually
@@ -162,15 +191,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: sessionOptions,
   pages: { signIn: "/signin" },
   providers: [
-    ...(oktaConfigured
-      ? [
-          Okta({
-            clientId: process.env.OKTA_CLIENT_ID!,
-            clientSecret: process.env.OKTA_CLIENT_SECRET!,
-            issuer: process.env.OKTA_ISSUER!,
-          }),
-        ]
-      : []),
+    ...oktaProviders,
     ...(devLoginEnabled
       ? [
           Credentials({

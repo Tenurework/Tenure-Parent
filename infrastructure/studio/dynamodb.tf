@@ -21,6 +21,12 @@
 # tenants" and a second table would only add a second thing to keep consistent.
 #
 #   PK = TENANT#<slug>    SK = MANIFEST | STATE | STEP#<iso8601>#<n>
+#   PK = AUDIT#<subject>  SK = SEQ#<12-digit> | HOLD#<id> | HOLDRELEASE#<id>
+#
+# The AUDIT partitions hold the chained audit trail (STUDIO-110-005). They are
+# in the same table because they are written by the same role in the same
+# request, and a second table would be a second thing to keep consistent — but
+# they are NOT protected the same way. See the policy below.
 #
 # Cost: on-demand, so nothing is paid when nobody is provisioning. At operator
 # volume this is cents per month.
@@ -65,6 +71,9 @@ resource "aws_dynamodb_table" "tenants" {
 # uses, on exactly this table — not `dynamodb:*`, and not `Resource = "*"`.
 # Scan is included because "show me every tenant" is a real access pattern at
 # operator scale; it is bounded by the table being tenant-registry-sized.
+#
+# Two Denies follow the Allow, and an explicit Deny cannot be overridden by any
+# Allow anywhere: deletion of anything, and UPDATE OR DELETE of an audit row.
 resource "aws_iam_role_policy" "studio_tenants" {
   name = "tenant-registry"
   role = aws_iam_role.task.id
@@ -91,6 +100,44 @@ resource "aws_iam_role_policy" "studio_tenants" {
         Effect   = "Deny"
         Action   = ["dynamodb:DeleteItem", "dynamodb:DeleteTable"]
         Resource = "*"
+      },
+      {
+        # ── The audit trail cannot be rewritten by the process that writes it ──
+        #
+        # STUDIO-110-005. Until this existed, the Allow above granted this same
+        # role both PutItem AND UpdateItem over every item in the table, and the
+        # Deny covered only deletion. So an audit row written by the Studio could
+        # be REWRITTEN IN PLACE by the Studio: the reason softened, the outcome
+        # flipped from DENY to ALLOW, the actor changed. "Centralized protected
+        # storage" was true of the table's encryption and of nothing else.
+        #
+        # The application-level defence is a hash chain — every row carries a
+        # hash over its own content and its predecessor's, so an edit is
+        # DETECTABLE (`verifyChain`, rendered at /platform/audit). This is the
+        # other half: making the edit impossible rather than merely visible.
+        #
+        # Scoped by LEADING KEY rather than by removing UpdateItem outright,
+        # because the registry genuinely updates two kinds of TENANT# row —
+        # `completeOperation` and `settleIdempotency` in lib/registry.ts move a
+        # long-running operation and a claim to their outcome. Blanket-denying
+        # Update would break both. `dynamodb:LeadingKeys` is DynamoDB's
+        # item-level condition key and carries the partition key of the item the
+        # request names, so this denies exactly the audit partitions.
+        #
+        # `ForAnyValue:` and not `ForAllValues:` on purpose. `ForAllValues` is
+        # vacuously TRUE when the condition key is absent from the request, which
+        # in a Deny would refuse every request that does not name a key at all —
+        # including Scan and DescribeTable. `ForAnyValue` is false when the key
+        # is absent, so this Deny applies only to a request that names an
+        # `AUDIT#…` item, which is precisely the intent.
+        Effect   = "Deny"
+        Action   = ["dynamodb:UpdateItem", "dynamodb:DeleteItem"]
+        Resource = aws_dynamodb_table.tenants.arn
+        Condition = {
+          "ForAnyValue:StringLike" = {
+            "dynamodb:LeadingKeys" = ["AUDIT#*"]
+          }
+        }
       },
     ]
   })

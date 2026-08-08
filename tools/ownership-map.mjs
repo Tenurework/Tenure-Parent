@@ -103,6 +103,10 @@ const DOMAINS = [
       'apps/web/src/components/ClubCard.tsx',
       'apps/web/src/components/ClubImageEditor.tsx',
       'apps/web/src/components/OrgTabs.tsx',
+      // TTES-030-001's club-record anatomy. It composes `OrgTabs` above and is
+      // rendered by the six `orgs/[slug]/*` surfaces, all of which this domain
+      // already owns — the org graph is what it renders the identity of.
+      'apps/web/src/components/OrgRecordHeader.tsx',
       'apps/web/src/components/ProfileImageEditor.tsx',
       'apps/web/src/components/EmailLink.tsx',
       'apps/web/src/app/api/profile-image/',
@@ -211,6 +215,15 @@ const DOMAINS = [
       'apps/web/src/app/(app)/messages/',
       'apps/web/src/app/(app)/calendar/',
       'apps/web/src/app/(app)/feed/',
+      // TTES-030-001's work inbox. It genuinely straddles: it merges approvals
+      // and exceptions (`workflow`) with mentions and due items (here). It falls
+      // to this domain because what it does is deliver awareness of what needs
+      // attention — it decides no gate and advances no state machine, it orders
+      // and buckets for presentation, which is `(app)/feed/` above with a
+      // deadline. The prefix, not the file: `work-inbox.ts` has a sibling test
+      // and the route it names as its production caller does not exist yet.
+      'apps/web/src/lib/inbox/',
+      'apps/web/src/app/(app)/inbox/',
     ],
   },
   {
@@ -265,6 +278,9 @@ const DOMAINS = [
       'apps/web/src/components/ai/',
       'apps/web/src/components/DraftAssist.tsx',
 'apps/web/src/lib/ai.ts', 'apps/web/src/lib/http/', 'apps/web/src/app/api/ai/',
+      // Matching is by prefix and `…/ai.ts` does not prefix `…/ai.test.ts`, so
+      // the vendor call's own test had to be named or it was an orphan.
+      'apps/web/src/lib/ai.test.ts',
       // The tools an assistant may invoke, and who may invoke them. Here rather
       // than under `authorization` because the domain question this answers is
       // "what may we hand to a model vendor", which is this domain's whole
@@ -279,7 +295,14 @@ const DOMAINS = [
       // This domain's subject exactly: a connection to something Tenure does
       // not run.
       'apps/web/src/lib/connections/',
-      'apps/web/src/components/connections/'],
+      'apps/web/src/components/connections/',
+      // WRK-030-002. Where a connection opportunity is opened — the POST target
+      // the card above submits to. It belongs beside the library and the card
+      // rather than under whichever domain happens to own `app/api/`, because
+      // all three answer one question: what happens when a capability this
+      // platform does not run is not connected.
+      'apps/web/src/app/api/connections/',
+    ],
   },
   {
     key: 'billing-metering',
@@ -289,8 +312,13 @@ const DOMAINS = [
     // not, and the note says so rather than the marker, because a domain that
     // owns working code and calls itself unbuilt is a claim nobody can check.
     note:
-      'Metering does not exist: nothing measures what a tenant consumes and nothing bills ' +
-      'for it (GE-160s). Cost allocation does, and is real — packages/finops ' +
+      'Metering has started and billing has not. WRK-120-004 landed the first real meter: ' +
+      'apps/web/src/lib/metering records one row per model call from the vendor\'s own reported ' +
+      'token counts and refuses a call whose tenant is over its published ceiling. That is ONE ' +
+      'kind of consumption — model tokens — measured in tokens rather than dollars, and nothing ' +
+      'bills for it (GE-160s). This note used to read "metering does not exist", which stopped ' +
+      'being true the moment that directory was added and would have gone on reading that way ' +
+      'because nothing checks a prose note. Cost allocation is real — packages/finops ' +
       'attributes CUR lines to tenants by resource tag, splits shared spend by a documented ' +
       'driver and reports the rest unallocated — but there is no CUR to read, so no figure ' +
       'has ever been produced from a bill. Per-tenant attribution by tag is a convention ' +
@@ -299,6 +327,13 @@ const DOMAINS = [
       'control-plane, which owns that whole tree — the engine is here, the console is there.',
     owns: [
       'packages/finops/',
+      // WRK-120-004. What a tenant consumes, measured: one row per model call
+      // carrying the vendor's own token counts, and the ceiling that refuses
+      // the next one. This domain's subject exactly, and it is here rather than
+      // under `integrations` — which owns the vendor CALL in lib/ai.ts —
+      // because the question it answers is "how much did this tenant use",
+      // not "what may we hand to a vendor".
+      'apps/web/src/lib/metering/',
       // The provider-neutral payments kernel: charge model, eligibility,
       // capability registry, pinned API version, balance transactions. Quoting
       // and control-plane only — NEXT-SESSION §0.3 forbids money movement, and

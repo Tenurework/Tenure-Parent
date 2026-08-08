@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { operatorFor } from "./operator-identity"
 
 /**
  * Diagnostic: capture what the BROWSER says, not only what the page shows.
@@ -9,7 +10,7 @@ import { test, expect } from "@playwright/test"
  * exception has occurred" reached a user through four green tests.
  */
 
-const OPERATOR = process.env.PLATFORM_OPERATORS ?? ""
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 
 test("capture console and page errors through the whole sign-in flow", async ({ page }) => {

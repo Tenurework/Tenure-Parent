@@ -5,21 +5,76 @@ import Link from "next/link"
 import { X, ArrowRight, Sparkles, Loader2 } from "@/components/ui/icons"
 import { TenureAIMark } from "@/components/brand/TenureLogo"
 import { MissingConnectionCard } from "@/components/connections/MissingConnectionCard"
+import {
+  capabilityAdministrators,
+  certifiedCapabilityState,
+} from "@/lib/connections/capability-resolution"
+import {
+  citationLine,
+  stateCaveat,
+  INFERENCE_NOTE,
+  WITHHELD_NOTE,
+} from "@/lib/relay/citation-display"
 import { relayReply, type RelayOutcome } from "./relay-reply"
 import { useAI } from "./AIProvider"
 
+/**
+ * A numbered source, in the shape `/api/ai/chat` actually returns it.
+ *
+ * WRK-070-003. `state` and `citation` are REQUIRED here, and until now neither
+ * was declared at all: the route has emitted §9.3's full citation — which system
+ * holds the source, whether this is the record or a copy of somebody else's,
+ * when the source last changed, what state it is in, and a governed deep link —
+ * and this interface listed four display strings, so every one of those facts
+ * was parsed off the wire and dropped before a reader could see it. A record
+ * nobody had touched in two years rendered as the same two lines as one saved
+ * this morning, which is §3.5's failure stated exactly.
+ */
 interface Source {
   title: string
   href: string
   kind: string
   context: string
+  /** The operational verdict: LIVE, STALE, TOMBSTONED, … */
+  state: string
+  citation: {
+    ref: { provider: string }
+    assertion: string
+    /** When the source itself last changed. */
+    versionAt: string
+    /**
+     * The GOVERNED deep link, or null. Rendered instead of `href`, never
+     * beside it: `governedDeepLink` minted this one and nothing else may be
+     * presented as a link Tenure vouches for.
+     */
+    href: string | null
+  }
 }
+
+/**
+ * WRK-010-005. A row that matched and may not be answered from.
+ *
+ * No `body` and no `snippet` — `WithheldMatch` has no field that could carry
+ * one — so rendering it cannot leak the text the state withheld.
+ */
+interface Withheld {
+  id: string
+  title: string
+  kind: string
+  context: string
+  href: string
+  state: string
+  observedAt: string
+}
+
 interface Message {
   role: "user" | "assistant"
   content: string
   sources?: Source[]
+  /** Matching rows an answer may not rest on, with the state that disqualified each. */
+  withheld?: Withheld[]
   aiEnabled?: boolean
-  /** Which of the four refusal/answer outcomes produced this turn. */
+  /** Which of the five refusal/answer outcomes produced this turn. */
   outcome?: RelayOutcome
   /** The question this turn was answering, kept so a refusal can resume it. */
   askedAbout?: string
@@ -35,7 +90,21 @@ interface ChatResponse {
   aiEnabled: boolean
   aiDisabledReason: string | null
   toolRefusal: string | null
+  /**
+   * WRK-GATE-070. Why a vendor answer was discarded, when one was — the route
+   * verifies every bracketed number against the sources it actually offered and
+   * suppresses an answer that names one it did not.
+   *
+   * Declared here because it decides which sentence the transcript shows: a
+   * response missing this field falls to `relayReply`'s bottom branch, which
+   * calls a suppressed answer a transient failure.
+   */
+  citationRefusal: string | null
+  /** Which offered sources the returned answer rests on, parsed from the prose. */
+  citedSources?: number[]
   sources: Source[]
+  /** WRK-010-005. Matching rows that were not offered as sources. */
+  withheld?: Withheld[]
   /** The scope the route actually applied, echoed back. */
   scopeApplied?: { kind: string; id: string | null } | null
 }
@@ -143,6 +212,7 @@ export function TenureAIPanel({
         aiEnabled: data.aiEnabled,
         aiDisabledReason: data.aiDisabledReason ?? null,
         toolRefusal: data.toolRefusal ?? null,
+        citationRefusal: data.citationRefusal ?? null,
         sourceCount: data.sources?.length ?? 0,
       })
       setMessages((m) => [
@@ -151,6 +221,12 @@ export function TenureAIPanel({
           role: "assistant",
           content: reply.message,
           sources: reply.showSources ? data.sources : [],
+          // WRK-010-005. Shown on the same terms as the sources: a cancelled
+          // event that is simply absent reads as "there is no such event",
+          // which is a different and untrue statement. Not gated on
+          // `showSources` — a refusal that retrieved nothing has nothing
+          // withheld either, and the route returns an empty list for it.
+          withheld: data.withheld ?? [],
           aiEnabled: data.aiEnabled,
           outcome: reply.outcome,
           askedAbout: q,
@@ -304,13 +380,28 @@ export function TenureAIPanel({
                   <div className="mt-3">
                     <MissingConnectionCard
                       capability={{
-                        key: "ai.model",
+                        // WRK-030-005. Derived from the provider review the chat
+                        // route reads, never asserted here. This was the fourth
+                        // hardcoded `certified: true`, and it was false: no
+                        // provider-side review of the model connector has been
+                        // submitted, so the route refuses the vendor call and
+                        // this card would have offered "ask an administrator"
+                        // for something no administrator can enable.
+                        ...certifiedCapabilityState("ai.model"),
+                        ...capabilityAdministrators("ai.model"),
                         label: "Tenure AI model",
-                        certified: true,
                         configured: m.aiEnabled ?? false,
                         reachable: true,
                         connectableBy: "admin",
+                        requiredScopes: [],
+                        grantedScopes: [],
+                        credential: null,
+                        alternative: null,
                       }}
+                      // Where a person goes in TENURE. The panel's own
+                      // alternative below is the richer path; this is the
+                      // control the resolution allows.
+                      manageHref="/messages/compose"
                       pendingIntent={m.askedAbout}
                       alternative={
                         <>
@@ -328,18 +419,65 @@ export function TenureAIPanel({
                 {m.sources && m.sources.length > 0 && (
                   <div className="mt-3 space-y-1.5 border-t border-border pt-3">
                     <p className="text-meta font-semibold uppercase tracking-wide text-text-3">Sources</p>
-                    {m.sources.map((s, si) => (
-                      <Link
-                        key={si}
-                        href={s.href}
-                        onClick={closePanel}
-                        className="flex items-start gap-1.5 text-[13px] text-text-link no-underline hover:underline"
-                      >
-                        <span className="shrink-0 font-semibold">[{si + 1}]</span>
+                    {/* WRK-070-003 / §9.3. The distinction between the prose and
+                        the records it was built from, said by the platform
+                        rather than left to the model's own "(inference)". */}
+                    <p className="text-[12px] text-text-3">{INFERENCE_NOTE}</p>
+                    {m.sources.map((s, si) => {
+                      // The GOVERNED link, never the stored one. Null means no
+                      // link may be vouched for, and the row renders as text —
+                      // which is a different statement from "no such record".
+                      const link = s.citation?.href ?? null
+                      // `state` is a sibling of `citation` on `Source`, not a
+                      // member of it — the route emits the operational verdict
+                      // once for the source rather than repeating it inside the
+                      // citation. `citationLine` needs it to render the STALE /
+                      // TOMBSTONED caveat, which is the whole point of showing a
+                      // citation rather than a bare link, so it is passed
+                      // through here rather than duplicated on the wire.
+                      const line = s.citation
+                        ? citationLine({ ...s.citation, state: s.state }, new Date())
+                        : "citation unavailable — open the source directly"
+                      const body = (
                         <span className="min-w-0">
                           {s.title} <span className="text-text-3">· {s.context}</span>
+                          <span className="block text-[12px] text-text-3">{line}</span>
                         </span>
-                      </Link>
+                      )
+                      return (
+                        <div key={si} className="flex items-start gap-1.5 text-[13px]">
+                          <span className="shrink-0 font-semibold text-text-3">[{si + 1}]</span>
+                          {link ? (
+                            <Link
+                              href={link}
+                              onClick={closePanel}
+                              className="min-w-0 text-text-link no-underline hover:underline"
+                            >
+                              {body}
+                            </Link>
+                          ) : (
+                            <span className="min-w-0 text-text-1">{body}</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* WRK-010-005. What matched and could not be answered from. */}
+                {m.withheld && m.withheld.length > 0 && (
+                  <div className="mt-3 space-y-1.5 border-t border-border pt-3">
+                    <p className="text-meta font-semibold uppercase tracking-wide text-text-3">
+                      Not answerable
+                    </p>
+                    <p className="text-[12px] text-text-3">{WITHHELD_NOTE}</p>
+                    {m.withheld.map((w) => (
+                      <p key={w.id} className="text-[13px] text-text-1">
+                        {w.title}{" "}
+                        <span className="text-text-3">
+                          · {w.context} · {stateCaveat(w.state) ?? w.state}
+                        </span>
+                      </p>
                     ))}
                   </div>
                 )}

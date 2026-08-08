@@ -317,10 +317,7 @@ export function advance(
     )
   }
 
-  // Attempt counts per destination, so a retry of PROVISIONING is visibly a
-  // retry rather than a fresh start — which is what makes GE-102-011's
-  // idempotency claim checkable after the fact.
-  const attempt = history.filter((s) => s.to === to).length + 1
+  const attempt = attemptFor(history, to)
 
   return {
     state: to,
@@ -337,6 +334,23 @@ export function advance(
       attempt,
     },
   }
+}
+
+/**
+ * Which try at a destination the next move would be.
+ *
+ * Counts per destination, so a retry of PROVISIONING is visibly a retry rather
+ * than a fresh start — which is what makes GE-102-011's idempotency claim
+ * checkable after the fact.
+ *
+ * Exported because `advance` is not the only thing that needs the number.
+ * STUDIO-060-010 stamps the attempt onto the step's EVIDENCE too, and that is
+ * produced by `executeStep` before `advance` runs — so a caller has to compute
+ * it. Two implementations of "which attempt is this" would be a step numbered
+ * one thing in the history and another in the evidence that proves it.
+ */
+export function attemptFor(history: readonly LifecycleStep[], to: TenantState): number {
+  return history.filter((s) => s.to === to).length + 1
 }
 
 /** Every state, for exhaustive rendering and testing. */

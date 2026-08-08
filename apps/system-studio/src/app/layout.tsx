@@ -15,7 +15,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    /*
+      STUDIO-030-007. `dir` is written explicitly rather than left to the
+      browser's default, because it is the attribute every logical property in
+      globals.css resolves against and an attribute that is absent is an
+      attribute the pre-paint script has nothing to flip. The script below
+      replaces it with `rtl` when the stored preference says so, before the
+      first paint — a direction changed after hydration reflows the whole page
+      under the reader.
+    */
+    <html lang="en" dir="ltr" suppressHydrationWarning>
       <body>
         {/*
           First child of <body>, not inside <head>: the App Router does not

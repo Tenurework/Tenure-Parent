@@ -1,12 +1,20 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
 import { Plus, ChevronLeft, ChevronRight } from "@/components/ui/icons"
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { getUserContext, isOse } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
-import { loadScopedEvents } from "@/lib/calendar-data"
+import {
+  calendarSelectorFor,
+  calendarTokenEpochFor,
+  loadScopedEvents,
+} from "@/lib/calendar-data"
 import { calendarToken } from "@/lib/calendar-sync"
+import { selectorDigest } from "@/lib/connections/selector-consent"
+import { recordAuditEvent, seatFor } from "@/lib/audit-record"
+import { calendarSyncSentence } from "@tenure/platform-config"
 import { canEditEvent } from "@/lib/calendar-write"
 import { viewerTimeZone } from "@/lib/institution-time"
 import {
@@ -30,6 +38,64 @@ import { clubSwatch } from "@/lib/calendar-color"
 import { PageHeader } from "@/components/ui/PageHeader"
 
 export const dynamic = "force-dynamic"
+
+/**
+ * WRK-020-005 — the re-consent receipt.
+ *
+ * A calendar feed URL is a standing grant: a third party polls it forever and
+ * receives whatever the holder can see at the moment of the poll. The token now
+ * pins the selector, so a widened scope serves the intersection rather than the
+ * new set — and this is the other half, the act by which a person adopts the
+ * wider scope and the record that they did.
+ *
+ * The digest arrives in the form rather than being recomputed and trusted, for
+ * the reason `app/(app)/admin/payments/actions.ts` pins an approval to a
+ * `decisionDigest`: consent is to what was on screen. If the scope moved
+ * between the render and the click, this records a DENY naming both digests
+ * instead of a consent to something nobody was shown.
+ *
+ * Written through `recordAuditEvent`, never `db.auditEvent.create` — so the row
+ * is validated, seated and hash-chained like every other privileged decision
+ * (`tests/security/audit-writes.test.mjs` ratchets the raw writers downward).
+ */
+async function confirmCalendarConsent(formData: FormData) {
+  "use server"
+
+  const session = await auth()
+  if (!session?.user?.id) redirect("/signin")
+  const userId = session.user.id
+  const rendered = String(formData.get("digest") ?? "")
+
+  await withTenantScope(userId, async (scope) => {
+    const selector = await calendarSelectorFor(userId, scope.institutionId)
+    const current = selectorDigest(selector)
+    const ctx = await getUserContext(userId)
+    const agrees = current === rendered
+
+    await recordAuditEvent({
+      institutionId: scope.institutionId,
+      actor: { principalId: userId },
+      seat: seatFor(ctx, { institutionId: scope.institutionId }),
+      action: "CalendarFeed.SelectorConsented",
+      resourceType: "CalendarFeed",
+      resourceId: userId,
+      outcome: agrees ? "ALLOW" : "DENY",
+      reason: agrees
+        ? undefined
+        : "the scope changed between rendering the page and confirming it, so this confirms nothing",
+      metadata: {
+        selectorDigest: current,
+        confirmedDigest: rendered,
+        organizationIds: selector.organizationIds,
+        institutionWide: selector.institutionWide,
+      },
+    })
+  })
+
+  // The page mints a fresh token on every render, so re-rendering is what puts
+  // the newly-consented URL in front of the person who just confirmed it.
+  revalidatePath("/calendar")
+}
 
 /**
  * The Tenure calendar — one view: the week.
@@ -61,7 +127,6 @@ export default async function CalendarPage({
     // one. See the invariant beside `runInTenantScope`.
     const timeZone = await viewerTimeZone(userId, scope.institutionId)
     const canCreate = ctx.orgRoles.some((r) => r.status === "ACTIVE")
-    const feedPath = `/api/calendar/ics/${calendarToken(userId)}`
 
     // Per-viewer filters: narrow to one club and/or only events the user proposed.
     const mineOnly = mine === "1"
@@ -70,6 +135,32 @@ export default async function CalendarPage({
         ctx.orgRoles.filter((r) => r.status === "ACTIVE" || r.status === "SHADOW").map((r) => r.organizationId)
       ),
     ]
+
+    // WRK-030-006. The token names the tenant it was minted in and carries the
+    // holder's revocation counter, so the feed cannot follow a later switch into
+    // another institution and a bumped counter kills every URL already issued.
+    // WRK-020-005. It also pins the selector the holder is consenting to at the
+    // moment they copy the URL, which is why this is minted AFTER `memberOrgIds`
+    // is resolved rather than from the user id alone.
+    //
+    // The selector is read by `calendarSelectorFor`, which derives it from the
+    // SAME `getUserContext` rows `loadScopedEvents` builds its visibility clause
+    // from. Building it inline here from `memberOrgIds` would be a second answer
+    // to "what does this feed carry", and the two would disagree the first time
+    // either changed — the consent record would then pin a scope the feed does
+    // not actually serve.
+    const consentedSelector = await calendarSelectorFor(userId, scope.institutionId)
+    const feedPath = `/api/calendar/ics/${calendarToken(
+      userId,
+      scope.institutionId,
+      (await calendarTokenEpochFor(userId)) ?? 0,
+      consentedSelector
+    )}`
+    // WRK-GATE-080. What the page may say about calendar sync is DERIVED from
+    // the provider-side review record, never written here. Today that record is
+    // NOT_SUBMITTED, so this resolves to the publish-only sentence; the day
+    // somebody records a real Microsoft review it changes by itself.
+    const sync = calendarSyncSentence(new Date().toISOString())
     const clubOptions = (
       await db.organization.findMany({
         where: ctx.institutionRoles.length
@@ -137,22 +228,36 @@ export default async function CalendarPage({
       ).map((o) => [o.id, o.institutionId])
     )
 
-    const gridEvents: TimeGridEvent[] = events.map((e) => ({
-      id: e.id,
-      title: e.title,
-      startISO: e.startAt.toISOString(),
-      endISO: e.endAt.toISOString(),
-      org: e.organizationName,
-      organizationId: e.organizationId,
-      venue: e.venue,
-      status: e.status,
-      editable: canEditEvent(ctx, {
+    // WRK-060-005. The grid draws days, so it draws OCCURRENCES: a one-off event
+    // and each expansion of a recurring one. The series master is filtered out
+    // here — it is the row that carries the rule, and `loadScopedEvents` returns
+    // it whether or not its own start falls in this week so the ICS feed can
+    // describe the series. Rendering it too would put a chip on the week the
+    // series began, every week.
+    const gridEvents: TimeGridEvent[] = events
+      .filter((e) => e.recurrenceRule === null)
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        startISO: e.startAt.toISOString(),
+        endISO: e.endAt.toISOString(),
+        org: e.organizationName,
         organizationId: e.organizationId,
-        institutionId: orgInstitutions.get(e.organizationId) ?? "",
+        venue: e.venue,
         status: e.status,
-        ownerRoleId: e.ownerRoleId,
-      }),
-    }))
+        // A generated occurrence is not a row, so there is nothing to move: the
+        // reschedule API would 404 on its synthetic id, and a chip a user can
+        // drag into a change that silently does not happen is worse than one
+        // they cannot. Editing the series is editing the master record.
+        editable:
+          e.occurrenceOf === null &&
+          canEditEvent(ctx, {
+            organizationId: e.organizationId,
+            institutionId: orgInstitutions.get(e.organizationId) ?? "",
+            status: e.status,
+            ownerRoleId: e.ownerRoleId,
+          }),
+      }))
 
     // Institution deliverables (audits, reports, board deadlines) are all-day
     // markers, not timed blocks. The month grid used to be the only place they
@@ -217,14 +322,38 @@ export default async function CalendarPage({
           title="Calendar"
           // Zone abbreviation for the week on screen, not for today — browsing to
           // a winter week in summer must not claim EDT over EST times.
+          // The sync clause is the gate's answer, not a sentence written here:
+          // `calendarSyncSentence` runs `providerActivation` over the recorded
+          // Microsoft review, which is NOT_SUBMITTED, so this reads "publish"
+          // and promises nothing. See packages/platform-config/src/provider-review.ts.
           subtitle={`One shared week across your clubs, in ${zoneAbbreviation(
             timeZone,
             startOfDayInZone(addDaysToKey(weekStartKey, 3), timeZone) ?? undefined
-          )} — subscribe to keep Outlook in sync.`}
+          )} — subscribe to ${sync.activated ? "sync it with" : "publish it to"} your calendar app.`}
           actions={
             <>
               {clubOptions.length > 0 && <CalendarFilters clubs={clubOptions} />}
-              <CalendarSubscribe feedPath={feedPath} />
+              {/* WRK-020-005. The deliberate act that leaves a receipt. Copying
+                  the URL mints a token pinned to the scope on screen; this is
+                  where the person SAYS so, and `recordAuditEvent` writes a
+                  hash-chained row naming the digest. The digest travels in the
+                  form so the receipt records what was rendered — if the scope
+                  changed between the render and the click, the row is a DENY
+                  rather than a consent to something nobody saw. */}
+              <form action={confirmCalendarConsent}>
+                <input
+                  type="hidden"
+                  name="digest"
+                  value={selectorDigest(consentedSelector)}
+                />
+                <button
+                  type="submit"
+                  className="inline-flex h-10 items-center rounded-md border border-border px-3 text-sm font-medium text-text-2 transition-colors hover:bg-surface"
+                >
+                  Confirm sharing
+                </button>
+              </form>
+              <CalendarSubscribe feedPath={feedPath} sync={sync} />
               {canCreate && (
                 <Link
                   href="/calendar/new"

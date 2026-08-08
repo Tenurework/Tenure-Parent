@@ -1,0 +1,160 @@
+[
+  {
+    "id": "STUDIO-GATE-000",
+    "title": "Live AWS truth inside the Studio: runtime identity (STS GetCallerIdentity) and live inventory, not a build-time snapshot",
+    "why_open": "The gate's own ledger row is FAIL (docs/implementation/system-studio-aws-control-plane-execution-ledger.md:216-218) and the code agrees. Every AWS fact the Studio renders comes from a JSON file compiled at build time: apps/system-studio/src/app/platform/page.tsx:7 `import truth from \"@/generated/platform-truth.json\"`, destructured at :43, and rendered at :342 as `account {estate.account} · {estate.region}` — a masked string `1549…97` baked by tools/aws-inventory.mjs:128 into docs/architecture/aws-inventory.json, not read at runtime. tools/platform-truth.mjs:5-12 states the design out loud (\"generate rather than read at runtime\"). The only AWS client the Studio holds is DynamoDB (apps/system-studio/src/lib/registry.ts:3 and :69); apps/system-studio/package.json:15-16 lists `@aws-sdk/client-dynamodb` and `@aws-sdk/lib-dynamodb` and nothing else. There is NO STS call anywhere in the repository — `grep -rn GetCallerIdentity` over apps/packages/tools returns nothing — and `package-lock.json` has no `node_modules/@aws-sdk/client-sts` entry (only `client-s3`, at package-lock.json:183). Region/partition/account are resolved from environment variables in apps/web/src/lib/cell-context.ts:104-125, which is a different app and a different mechanism; the Studio never resolves them at all. So a developer cannot see which account the console is looking at, and swapping IAM keys would change nothing on screen.",
+    "files": [
+      "apps/system-studio/src/lib/registry.ts",
+      "apps/system-studio/src/lib/aws-identity.ts",
+      "apps/system-studio/src/app/platform/page.tsx",
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/package.json",
+      "package-lock.json",
+      "apps/system-studio/e2e/layout.spec.ts"
+    ],
+    "smallest_real_change": "Add `@aws-sdk/client-sts` to apps/system-studio/package.json and run `npm install --package-lock-only` (tests/architecture/lockfile-knows-every-workspace.test.mjs reds otherwise). Create apps/system-studio/src/lib/aws-identity.ts: one `server-only` module owning the STS client built with NO explicit credentials and NO explicit region literal (default provider chain; region from the SDK's own config resolution), exporting `callerIdentity(): Promise<{state:'RESOLVED', accountId, arn, userId, region, partition, asOf} | {state:'DENIED', action:'sts:GetCallerIdentity', principal, minimumStatement} | {state:'UNCONFIGURED', why}>`. Derive partition from the ARN's second segment, never from a constant. Cache for a named `IDENTITY_REFRESH_MS` constant. Render it as a banner at the top of apps/system-studio/src/app/platform/page.tsx with the as-of timestamp, replacing the masked `estate.account` chip on :341-343 (keep the generated snapshot below it, relabelled 'repository snapshot' so the two are not confused). Test with a stand-in STS client that returns, in four separate cases, a populated identity, AccessDenied, a Throttling error, and a credentials-not-found error, and assert four DIFFERENT rendered strings; mutate `callerIdentity` (not the formatter) to prove the page changes.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-080-005",
+    "title": "No AWS resource surface exists at all, so unsupported/unmanaged state cannot be shown honestly (the 'denied is UNKNOWN, not absent' rule has no code)",
+    "why_open": "The Studio has four route groups — apps/system-studio/src/app/{page.tsx, platform/page.tsx, platform/cost/page.tsx, tenants/**} — and none of them lists an AWS resource. There is no ECS, RDS, CloudFront, S3, SQS, SES, Lambda or ACM read anywhere: the only AWS clients in the whole repo outside CI tools are DynamoDB (apps/system-studio/src/lib/registry.ts:3) and S3 in apps/web. The nearest thing is apps/system-studio/src/app/platform/page.tsx:392-404, and it is hand-written prose in JSX — 'queues and an SES identity are provisioned for a delivery path no package implements' is a sentence a person typed, asserted against `estate.sqsQueues.length` from the generated snapshot, not a computed unmanaged/orphan verdict. The second clause of the requirement (no generic JSON escape hatch) IS already honoured for tenant configuration — apps/system-studio/src/lib/editable-config.ts:55-63 returns `\"unsupported\"` for arrays/objects and :143-158 `parseField` refuses to parse them — so the open work is entirely the first clause, and the same 'show it read-only and say why' pattern is the model to copy.",
+    "files": [
+      "apps/system-studio/src/lib/aws-inventory.ts",
+      "apps/system-studio/src/lib/aws-identity.ts",
+      "apps/system-studio/src/app/platform/estate/page.tsx",
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/src/lib/editable-config.ts",
+      "apps/system-studio/e2e/layout.spec.ts",
+      "apps/system-studio/package.json",
+      "package-lock.json"
+    ],
+    "smallest_real_change": "Create apps/system-studio/src/lib/aws-inventory.ts as the single owner of the read-only service clients (start with ECS DescribeServices/ListServices and ACM ListCertificates — cheap, fast-moving, and expiry is real value), each call returning a three-armed `Reading<T> = {state:'OK', items, asOf} | {state:'UNKNOWN', action, principalArn, minimumStatement, asOf} | {state:'THROTTLED', retryAfterMs, asOf}` so an AccessDenied can never collapse to `[]`. Add `/platform/estate` rendering each panel with its own named refresh constant and an explicit as-of; render UNKNOWN as \"unknown — the engine's role lacks ecs:ListServices\" with the principal ARN from callerIdentity() and the minimum IAM statement. Add the route to the ROUTES array at apps/system-studio/e2e/layout.spec.ts:40. Prove it with a stand-in client whose four programmed responses (populated / empty-but-successful / AccessDeniedException / ThrottlingException) produce four distinct page texts, and mutate the production reader so that AccessDenied falls through to an empty array — the test must red.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-000-009",
+    "title": "No hygiene audit of the estate: no CloudTrail-enabled check, no wildcard-policy scan, no public-resource / unencrypted-data / orphan-queue classification, and 'Unreconciled' is a placeholder telling a human to compare by hand",
+    "why_open": "tools/aws-inventory.mjs makes exactly the calls listed at :66-123 and none of them answer this item: there is no `cloudtrail describe-trails` anywhere in the repository (the only hit for 'CloudTrail' is a prose comment at tools/key-last-use.mjs:12), no `iam list-attached-role-policies` / `get-policy-version` so wildcard `Action: \"*\"` policies are invisible, no `s3api get-public-access-block` / `get-bucket-policy-status`, no security-group 0.0.0.0/0 evaluation (:147-149 counts security groups and stops), and no orphan classification for the queues/topics/buses collected at :199-203. docs/architecture/resource-reconciliation.md:24-30 says so explicitly: 'Compare the CloudFront, ECS, RDS, S3 and secret lists ... anything unaccounted for is listed here once a reviewer has classified it' — a section whose content is an instruction to a human. Partially done and worth keeping: long-lived access keys ARE covered by tools/key-last-use.mjs (iam:GetAccessKeyLastUsed, run from .github/workflows/aws-inventory.yml:129), unencrypted RDS and backup retention are collected at tools/aws-inventory.mjs:181-192, and missing backup vaults at :213. None of it reaches the Studio as a finding with an owner — apps/system-studio/src/app/platform/page.tsx:307-335 renders `findings` from the generated JSON, which is compiled from the ledger, not from the estate.",
+    "files": [
+      "tools/aws-inventory.mjs",
+      "docs/architecture/resource-reconciliation.md",
+      "apps/system-studio/src/lib/estate-findings.ts",
+      "apps/system-studio/src/app/platform/page.tsx",
+      "tools/platform-truth.mjs",
+      "tests/security/no-hardcoded-estate.test.mjs"
+    ],
+    "smallest_real_change": "Add the four missing read calls to tools/aws-inventory.mjs beside the existing ones — `cloudtrail describe-trails` + `get-trail-status`, `iam list-attached-role-policies`/`get-policy-version` (record only whether a statement is `Action:\"*\"` on `Resource:\"*\"`, never the document), `s3api get-public-access-block` per bucket, and `ec2 describe-security-groups` ingress with `0.0.0.0/0` — each going through the existing `aws()` helper at :42-62 so a denial is recorded as a denial rather than an absence. Then extract the classification into a pure module apps/system-studio/src/lib/estate-findings.ts that turns the inventory shape into typed findings `{code, severity, subject, evidence, minimumFixCommand}` — pure so it is testable without AWS — and render it in the 'Open findings' section of apps/system-studio/src/app/platform/page.tsx:307-335 alongside the ledger findings, each row saying whether the fact was OBSERVED or UNKNOWN-because-denied. Mutation to prove: make the classifier treat a denied CloudTrail read as 'no trails disabled' and the test must red.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-060-001",
+    "title": "Studio server actions write DynamoDB and call the cell directly; the typed Command contract in packages/contracts has no caller in the Studio",
+    "why_open": "apps/system-studio/src/app/tenants/actions.ts is a Next.js server action file that reaches infrastructure itself: :624 `await advanceTenant(...)` goes straight into apps/system-studio/src/lib/registry.ts, whose `advanceTenant` at :476 sends a `TransactWriteCommand`, and the same action at :574 calls `deliverToCell` (apps/system-studio/src/lib/deliver.ts:32), an outbound HTTP write to a cell. There is no command handler between the UI and either. packages/contracts/src/index.ts:215 declares `interface Command<P>` and :228 `parseCommand` — the typed envelope with actor, tenant, idempotency key — and `grep -rn \"@tenure/contracts\" apps/system-studio/src` returns nothing, so the contract is declared and unreached from this app. `apps/system-studio/package.json:22` depends only on `@tenure/provisioning`. Nothing in the Studio calls `buildAuditRecord` either: `grep -rn audit apps/system-studio/src` returns two prose comments (config-store.ts:25, registry.ts:133) and no code, so no Studio write is audited at all.",
+    "files": [
+      "apps/system-studio/src/lib/command-handlers.ts",
+      "apps/system-studio/src/app/tenants/actions.ts",
+      "apps/system-studio/src/lib/registry.ts",
+      "apps/system-studio/src/lib/deliver.ts",
+      "packages/contracts/src/index.ts",
+      "packages/audit/src/index.ts",
+      "apps/system-studio/package.json",
+      "package-lock.json"
+    ],
+    "smallest_real_change": "Add `@tenure/contracts` and `@tenure/audit` to apps/system-studio/package.json (+ `npm install --package-lock-only`). Create apps/system-studio/src/lib/command-handlers.ts: a `dispatch(command: Command<P>)` that validates with `parseCommand`, builds an audit record with `buildAuditRecord` from @tenure/audit and PERSISTS it into the registry partition BEFORE acting (a new `sk = AUDIT#<iso>#<seq>` item via a `putTenantItemIfAbsent`-shaped write in registry.ts), then invokes the one handler registered for `command.type`, then appends the outcome. Rewrite apps/system-studio/src/app/tenants/actions.ts:560-650 to construct a typed command and dispatch it rather than calling `advanceTenant`/`deliverToCell` itself. Add a repo test in the shape of tests/architecture/forbidden-clients.test.mjs asserting no file under `apps/system-studio/src/app/**` imports `@/lib/registry` or `@/lib/deliver` — the mutation is to restore the direct import in actions.ts and see it red.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-060-007",
+    "title": "No C1–C7 change classification exists, so 'typed confirmation for C6' and 'two-person approval + cooling-off + non-automatable for C7' are unenforceable",
+    "why_open": "There is no C1..C7 taxonomy in the repository: `grep -rn 'C6|C7|riskClass'` over packages and apps/system-studio finds only packages/module-runtime/src/manifest.ts:261 `riskClass?: \"read\" | \"write\" | \"irreversible\"` — a three-value module-menu hint, and packages/platform-config/src/modules.ts:362-364 which merely projects it. What exists on the mutating path is weaker than the requirement in three specific ways: (1) apps/system-studio/src/components/states.tsx:265 `HighRiskConfirmation` is rendered by apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx:64 but it only DISPLAYS five fields — there is no typed confirmation the caller must supply, no 'type the tenant slug to proceed'; (2) two-person approval is a single boolean pair `approvedBy` / `approverIsOperator` passed at apps/system-studio/src/app/tenants/actions.ts:626-634, with no cooling-off period and no clock; (3) nothing marks any operation non-automatable. The prompt's mutation cluster (update desired count, invalidate a CloudFront path) has no gate to attach to, and NEXT-SESSION §0.3's refusal list has no code representation.",
+    "files": [
+      "packages/provisioning/src/lifecycle.ts",
+      "packages/provisioning/src/change-class.ts",
+      "apps/system-studio/src/lib/command-handlers.ts",
+      "apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx",
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/src/app/tenants/actions.ts"
+    ],
+    "smallest_real_change": "Add packages/provisioning/src/change-class.ts declaring `ChangeClass = 'C1'..'C7'`, `classify(operation)` and `requirementsFor(class)` returning `{typedConfirmation: string | null, approvers: 1|2, coolingOffMs: number, automatable: boolean, refusedWithCliCommand?: string}`. Make the dispatcher in apps/system-studio/src/lib/command-handlers.ts refuse a command whose `confirmation` string does not exactly equal the required token, refuse a C7 whose second approver is missing or whose cooling-off has not elapsed against a persisted `requestedAt` (not a value the caller supplies), and refuse any operation classified irreversible with a message naming the AWS CLI command a human runs instead. Wire `AdvanceControls.tsx` to collect the typed token. Mutation proof must be on the dispatcher, not on `requirementsFor`: freeze `classify` to return C1 for everything and the tenant-purge test must red.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-070-009",
+    "title": "The deployment manifest is NOT signed — and three call sites carry comments claiming it is; IaC/model/policy digests are absent and rollbackDigest is always null",
+    "why_open": "packages/provisioning/src/execute.ts:386 is unambiguous: 'Not signed. `digest` is an unkeyed SHA-256 over every other field', and :31-45 repeats it. Yet apps/system-studio/src/app/tenants/actions.ts:598 says 'A signed artifact is written twice' and apps/system-studio/src/lib/deliver.ts:6 says 'Delivering a signed artifact to the cell that will apply it' — two comments claiming a property the code explicitly disclaims. The requirement names thirteen digests; DeploymentManifest (execute.ts:388-470) carries tenant(slug), release(releaseDigest), config(configurationChecksum + configKeys), schema(schemaVersion), migration(migrationDigest), module(modules), resource(resourceDigest), test(testDigest), evidence(evidenceDigest) and rollback(rollbackDigest) — and is missing IaC, model and policy entirely. Worse, `rollbackDigest` is documented at :450-458 as null 'whenever the caller does not supply meta.previousDigest — which the Studio does not yet do', and apps/system-studio/src/app/tenants/actions.ts:612-621 passes only `{createdAt, createdBy, serving}`, so the field is dead on every real deployment. The signing machinery already exists and is proven: packages/releases/src/release.ts:246-262 `signRelease` (HMAC-SHA256 over canonical bytes, keyId, refuses an empty key) and :280-300 `verifyRelease`.",
+    "files": [
+      "packages/provisioning/src/execute.ts",
+      "packages/releases/src/release.ts",
+      "apps/system-studio/src/app/tenants/actions.ts",
+      "apps/system-studio/src/lib/deliver.ts",
+      "apps/system-studio/src/lib/registry.ts",
+      "packages/provisioning/src/provisioning.test.ts"
+    ],
+    "smallest_real_change": "Give DeploymentManifest a `signature?: {keyId, algorithm:'hmac-sha256', value}` computed over the same canonical bytes the digest covers, reusing the `contentBytes`/`signRelease` pattern from packages/releases/src/release.ts:223-262 rather than inventing a second scheme, and add `iacDigest`, `modelDigest`, `policyDigest` (null when the engine did not state them, matching the existing null-means-unstated convention at :424-427). Make `deliverToCell` in apps/system-studio/src/lib/deliver.ts refuse to send an unsigned manifest, mirroring `transition(_, 'approved')` refusing an unsigned release. Fix apps/system-studio/src/app/tenants/actions.ts:612-621 to pass `previousDigest: tenant.deployment?.digest` so `rollbackDigest` stops being permanently null, and correct the two false comments at actions.ts:598 and deliver.ts:6. Grep every construction site of DeploymentManifest before widening it — `deploymentManifest()` in execute.ts, actions.ts:612, and the reader in registry.ts:252 — an optional field a caller never sets is invisible to tsc.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-040-005",
+    "title": "Secret references are validated for SHAPE only — nothing checks the referenced Secrets Manager / Parameter Store entry exists or is readable",
+    "why_open": "The first half of the requirement is done: packages/provisioning/src/manifest.ts:159 `SECRET_REF_SHAPE = /^(secretsmanager|ssm):[\\w/@.-]+$/`, :354-376 refuses a value in a manifest and tells the author to move a credential-shaped key into `secretRefs`, and packages/provisioning/src/identity-registry.ts:416 does the same for connection credentials. The second half — 'validate existence/access without exposing value' — does not exist. packages/provisioning/src/execute.ts:315-321 is the VERIFYING check named 'no secret value in the manifest', and its predicate is `Object.values(manifest.secretRefs).every((r) => /^(secretsmanager|ssm):/.test(r))` — a regex over a string. A manifest referencing `secretsmanager:tenure/foo/does-not-exist` passes VERIFYING and fails at ACTIVATING inside the cell. No Secrets Manager or SSM client exists anywhere (`grep -rn '@aws-sdk/client-secrets-manager|client-ssm'` returns nothing; package-lock.json has neither). In practice every manifest the Studio builds has `secretRefs: {}` anyway — apps/system-studio/src/app/tenants/actions.ts:340 and apps/system-studio/src/lib/adopt.ts:173 both hardcode it empty — so the check has never had anything to check.",
+    "files": [
+      "packages/provisioning/src/execute.ts",
+      "packages/provisioning/src/manifest.ts",
+      "apps/system-studio/src/lib/secret-refs.ts",
+      "apps/system-studio/src/app/tenants/actions.ts",
+      "apps/system-studio/src/lib/adopt.ts",
+      "apps/system-studio/package.json",
+      "package-lock.json"
+    ],
+    "smallest_real_change": "Add `@aws-sdk/client-secrets-manager` and `@aws-sdk/client-ssm` to apps/system-studio/package.json (+ `npm install --package-lock-only`) and create apps/system-studio/src/lib/secret-refs.ts exporting `resolveSecretRefs(refs)` that calls ONLY `DescribeSecret` and `DescribeParameters` — never `GetSecretValue` / `GetParameter WithDecryption` — returning per ref `{state:'PRESENT', lastChanged, rotationEnabled} | {state:'MISSING'} | {state:'UNKNOWN', action:'secretsmanager:DescribeSecret', minimumStatement}`. Make the VERIFYING check at packages/provisioning/src/execute.ts:315-321 take the resolution as an injected `ctx` function (keeping the package AWS-free and testable) and fail the step on MISSING while reporting UNKNOWN as unknown rather than as pass. Test with a stand-in that returns ResourceNotFoundException, AccessDeniedException and a populated DescribeSecret response, asserting three different verification outcomes, and add a guard test asserting the string `GetSecretValue` appears nowhere under apps/system-studio/src.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-130-005",
+    "title": "Tenant provisioning runs synchronously inside the browser's server-action request; there is no long-running-operation resource and no query/command separation",
+    "why_open": "apps/system-studio/src/app/tenants/actions.ts:560-650 is one server action that, in the browser's request, calls `getTenant` (a DynamoDB Query), `executeStep`, `deliverToCell` — an outbound HTTP POST to a cell (apps/system-studio/src/lib/deliver.ts:32-60) — then `advanceTenant`, a DynamoDB `TransactWriteCommand` (apps/system-studio/src/lib/registry.ts:476), and finally `revalidatePath` at :651-652. If the cell is slow the browser holds the connection for the whole provisioning step; if it times out the operation's outcome is unknowable, since nothing persists an operation record separate from the tenant STATE row. `grep -rn 'operationId|long-running|/operations'` over apps/system-studio/src and packages/contracts/src/index.ts returns nothing — the contracts package has `Command` (:215) and `Query` (:271) as separate types but no operation resource, and neither type is imported by the Studio.",
+    "files": [
+      "apps/system-studio/src/app/tenants/actions.ts",
+      "apps/system-studio/src/lib/command-handlers.ts",
+      "apps/system-studio/src/lib/registry.ts",
+      "apps/system-studio/src/lib/deliver.ts",
+      "apps/system-studio/src/app/tenants/[slug]/page.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx",
+      "packages/contracts/src/index.ts"
+    ],
+    "smallest_real_change": "Persist an operation row before the work starts: `sk = OPERATION#<id>` carrying `{state:'ACCEPTED'|'RUNNING'|'SUCCEEDED'|'FAILED', commandType, actor, requestedAt, idempotencyKey, lastError}` written through registry.ts alongside the audit row from STUDIO-060-001. The server action returns the operation id immediately; the tenant page reads the operation and renders its state, so a timed-out browser leaves a durable, queryable record instead of an unknown. Keep the executor synchronous inside the handler for now (no queue yet) but make the RESOURCE the contract, and make the second click on the same idempotency key return the existing operation rather than starting a second one — `packages/contracts/src/index.ts:611 replayable()` already implements exactly that predicate and has no caller here. Prove it by asserting two dispatches with one idempotency key produce one OPERATION row and one STEP row.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-030-006",
+    "title": "Two of the ten required async states — `retrying` and `degraded` — do not exist in the Studio's state vocabulary, and they are the two a live AWS console needs most",
+    "why_open": "apps/system-studio/src/components/states.tsx:43-55 declares exactly eleven kinds: loading, empty, error, permissionDenied, stale, offline, conflict, archived, partialData, pendingDeletion, highRisk. The requirement names skeleton(=loading), empty, no-permission(=permissionDenied), stale, partial(=partialData), error, **retrying**, offline, **degraded** and conflict. The two missing ones are precisely the states an exponential-backoff AWS reader produces: a panel waiting out a `ThrottlingException` is retrying, not loading and not errored; an estate view where three of eight service reads succeeded is degraded, not partial data of one list. apps/system-studio/e2e/states-logic.spec.ts:63-76 pins the exact eleven-item list, so adding a kind is a deliberate, tested change rather than a drift — and the file comment at states.tsx:12-14 says as much ('eleven named states and no twelfth. Adding one is a change to this file').",
+    "files": [
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/e2e/states-logic.spec.ts",
+      "apps/system-studio/src/app/globals.css",
+      "apps/system-studio/src/app/platform/page.tsx",
+      "apps/system-studio/src/app/platform/cost/page.tsx",
+      "apps/system-studio/e2e/layout.spec.ts"
+    ],
+    "smallest_real_change": "Add `retrying` and `degraded` to STATE_KINDS and STATE_META with distinct labels ('Retrying', 'Degraded'), and two components whose props are the contract the way StaleState's `asOf` already is: `RetryingState({ attempt, of, nextAttemptAt, why })` — a retry banner with no next-attempt time is the same noise the file already argues against — and `DegradedState({ working, failing })` requiring BOTH lists, because 'degraded' without naming which half is down is untestable. Update the eleven-item assertion at states-logic.spec.ts:63-76 to thirteen, add the two tones to globals.css using the existing muted `state-warn`/`state-bad` tokens (no new colour — e2e/layout.spec.ts asserts off-white #f2f0ed on #33302c), and use RetryingState on the first throttled AWS panel so the component has a production caller rather than only a test.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-120-011",
+    "title": "No AWS Service Quotas admission or forecast before a tenant launches — the only 'capacity' check is a self-declared tenant counter in the cell registry",
+    "why_open": "`grep -rn 'servicequotas|service-quotas'` over apps, packages, tools and infrastructure returns nothing, and there is no `@aws-sdk/client-service-quotas` in package-lock.json. What exists is packages/provisioning/src/cell-registry.ts:66-128 — `maxTenants`, `cellReserve`, `admissionLimit` — a number a human wrote into a cell record, checked by `choosePlacement` and returning `reason: 'no-capacity'`. It knows nothing about the account's real limits: ECS tasks per service, RDS instances per region, Elastic IPs, ALB listener rules, CloudFront distributions, SES sending quota — every one of which can refuse a tenant launch that this admission approves. There is no forecast either: nothing projects current usage forward against a limit, so the requirement's whole point ('never wait for a production quota failure to discover capacity') is unmet. The provisioning executor's PROVISIONING step (packages/provisioning/src/execute.ts) performs no quota check before reserving.",
+    "files": [
+      "apps/system-studio/src/lib/aws-quotas.ts",
+      "apps/system-studio/src/lib/aws-inventory.ts",
+      "apps/system-studio/src/app/platform/estate/page.tsx",
+      "packages/provisioning/src/cell-registry.ts",
+      "packages/provisioning/src/execute.ts",
+      "apps/system-studio/package.json",
+      "package-lock.json"
+    ],
+    "smallest_real_change": "Add `@aws-sdk/client-service-quotas` (+ `npm install --package-lock-only`) and create apps/system-studio/src/lib/aws-quotas.ts reading `GetServiceQuota` for a named, small list of quota codes the platform actually consumes (start with ECS services-per-cluster and RDS instances-per-region), pairing each with the observed count from the inventory reader, and returning the same three-armed `Reading` type so a denied `servicequotas:GetServiceQuota` renders 'unknown — headroom cannot be established' and NEVER 'headroom OK'. Feed the resolved headroom into the placement decision as an injected function on the provisioning context so packages/provisioning stays AWS-free: `choosePlacement` gains a reason `'quota-would-be-exceeded'` beside the existing `'no-capacity'`, and a launch is refused when either the cell counter OR the account quota would be crossed. Test: a stand-in returning quota 10 / observed 10, quota 10 / observed 3, and AccessDenied must produce three different placement reasons — mutate `choosePlacement` (the producer) to ignore the quota arm and the refusal test must red.",
+    "already_done": false
+  }
+]

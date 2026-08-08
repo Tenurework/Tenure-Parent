@@ -70,9 +70,30 @@ test("the database schema has no settings table", () => {
 })
 
 test("commit is the only thing that appends a configuration revision", () => {
-  // `append` is the store's write. Anything calling it outside the engine is a
-  // second writer, whatever it is named.
-  const callers = grep("\\.append\\(", "packages/*", "apps/*/src/*")
+  /*
+   * `append` is the store's write. Anything calling it outside the engine is a
+   * second writer, whatever it is named — but `append` is a verb, and this
+   * repository now has two append-only stores that have nothing to do with each
+   * other. `apps/system-studio/src/lib/audit-ledger.ts` (STUDIO-110-005) is a
+   * hash-chained audit ledger whose write is also called `append`, and
+   * `apps/system-studio/src/app/tenants/actions.ts` calls it once per lifecycle
+   * attempt. Reading `\.append\(` alone reported both as parallel configuration
+   * stores, which is a guard failing on the wrong subject: neither holds a
+   * `ConfigStore`, neither constructs a `ConfigRecord`, and neither writes a
+   * configuration revision.
+   *
+   * So the scan is intersected with the files that touch the configuration
+   * store at all. That is not a narrowing of what counts as a second writer: to
+   * append a revision a module must hold the store and pass a record, and both
+   * arrive spelled `ConfigStore` / `ConfigRecord` — as the interface, as the
+   * record type, as an implementation (`InMemoryConfigStore`,
+   * `DynamoConfigStore`), or as the module they are imported from
+   * (`@/lib/config-store`, `./config-store`). The intersection today is exactly
+   * `packages/configuration/src/store.ts`, and the vacuity assertion below is
+   * what stops that being a way to check nothing.
+   */
+  const touchesStore = new Set(grep("[Cc]onfig[-_]?([Ss]tore|[Rr]ecord)", "packages/*", "apps/*/src/*"))
+  const callers = grep("\\.append\\(", "packages/*", "apps/*/src/*").filter((f) => touchesStore.has(f))
   const allowed = ["packages/configuration/src/store.ts"]
   const strangers = callers.filter((f) => !allowed.includes(f))
 

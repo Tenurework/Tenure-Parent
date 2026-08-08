@@ -60,6 +60,8 @@ export {
   containsSecretValue,
   findSecretValues,
   redactSecretValues,
+  REDACTED_LOG_VALUE,
+  safeLogText,
   secretKindOf,
 } from "./secret-values"
 export type { SecretMatch } from "./secret-values"

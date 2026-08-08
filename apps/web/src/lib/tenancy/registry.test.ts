@@ -130,7 +130,26 @@ describe("the registry matches prisma/schema.prisma", () => {
     // eventId) uniqueness enforces "the platform saw this once". Scoping it
     // would make one redelivery processable once per tenant, which is the bug
     // the table exists to prevent.
-    expect(TENANT_SCOPED).toHaveLength(25)
+    // 25 → 27 on 2026-08-07: two more, one per requirement, and both carry
+    // institutionId so the chokepoint can filter them.
+    //
+    // `ModelUsageMeter` (WRK-120-004) is one row per model call with the tokens
+    // the vendor reported. Scoped for two reasons that are separate failures:
+    // read across tenants it is a usage profile of another institution's
+    // assistant, and SUMMED across tenants it is the wrong number —
+    // `budgetVerdict` would compare one tenant's allowance against the whole
+    // platform's spend and refuse everybody.
+    //
+    // `ConnectionLaunchToken` (WRK-030-002) is a single-use token carrying the
+    // question somebody asked before a capability blocked them. Readable across
+    // tenants it enumerates another institution's members and their intent;
+    // REDEEMABLE across tenants it would restore one tenant's intent inside
+    // another's scope, which is why `redeemConnectionLaunchToken` also refuses
+    // that explicitly (WRONG_TENANT) rather than leaning on the predicate alone.
+    //
+    // Neither moved between buckets — both are new models, so PLATFORM_GLOBAL
+    // and UNENFORCEABLE are unchanged at 6 and 19.
+    expect(TENANT_SCOPED).toHaveLength(27)
     expect(PLATFORM_GLOBAL).toHaveLength(6)
     //
     // 19 → 20 on 2026-08-03: Seat (GE-050-002). The durable position left Role
@@ -149,7 +168,11 @@ describe("the registry matches prisma/schema.prisma", () => {
     // ProviderEventReceipt and PaymentsFundsFlowConfig from the sibling
     // requirements. The number is a tripwire on the schema, so it moves only
     // when somebody has looked at what moved it.
-    expect(schemaModels).toHaveLength(50)
+    //
+    // 50 -> 52 on 2026-08-07: `ModelUsageMeter` (WRK-120-004) and
+    // `ConnectionLaunchToken` (WRK-030-002), both TENANT_SCOPED above. Nothing
+    // was removed, so 27 + 6 + 19 accounts for all 52.
+    expect(schemaModels).toHaveLength(52)
   })
 })
 

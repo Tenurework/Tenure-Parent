@@ -6,7 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 /**
  * The owned button — the only button a product module may build on.
  *
- * `eslint.config.mjs` (`RESTRICTED_VENDOR_IMPORTS`) refuses
+ * `eslint.config.mjs` (`VENDOR_COMPONENT_PATHS`, composed by `restrictedImports`) refuses
  * `react-aria-components` and `class-variance-authority` anywhere outside
  * `src/components/ui/**`, so the vendor is named here and in the other
  * wrappers, and nowhere in a domain module. That rule is only honest while

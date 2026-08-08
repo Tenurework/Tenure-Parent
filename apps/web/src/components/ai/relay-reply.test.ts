@@ -11,6 +11,12 @@ describe("relayReply", () => {
     aiEnabled: false,
     aiDisabledReason: null,
     toolRefusal: null,
+    // WRK-GATE-070 made this REQUIRED rather than optional, deliberately: an
+    // optional field would have compiled at every call site and left the ladder
+    // falling through to "couldn't generate an answer just now", which is false
+    // twice over. Required means `tsc` names every construction site — this
+    // fixture was one of them.
+    citationRefusal: null,
     sourceCount: 0,
   }
 
@@ -78,5 +84,51 @@ describe("relayReply", () => {
     const reply = relayReply({ ...base, answer: "   ", aiEnabled: true, sourceCount: 0 })
     expect(reply.message).not.toBe("   ")
     expect(reply.message).toMatch(/couldn't generate an answer just now/i)
+  })
+
+  it("says the citation was fabricated rather than blaming a transient failure", () => {
+    // WRK-GATE-070. The field was made required so the ladder could not fall
+    // through to the bottom rung here, and without this test that requirement is
+    // a field nothing reads — which is the exact shape of dead code the type was
+    // widened to prevent.
+    const reply = relayReply({
+      ...base,
+      aiEnabled: true,
+      citationRefusal: "It cited [4]; three sources were retrieved.",
+      sourceCount: 3,
+    })
+
+    expect(reply.outcome).toBe("citation-refused")
+    // The two facts a reader needs: an answer WAS written, and it was withheld
+    // because it cited something unretrieved.
+    expect(reply.message).toMatch(/wrote an answer and did not show it/i)
+    expect(reply.message).toContain("It cited [4]; three sources were retrieved.")
+    // And explicitly NOT the bottom rung, which would send them to retry the one
+    // thing that cannot help and would hide that a model fabricated a citation.
+    expect(reply.message).not.toMatch(/couldn't generate an answer just now/i)
+    // The retrieved sources are real and are still shown — a degradation, not a
+    // dead end.
+    expect(reply.showSources).toBe(true)
+  })
+
+  it("shows no sources on a citation refusal when none were retrieved", () => {
+    const reply = relayReply({ ...base, aiEnabled: true, citationRefusal: "It cited [1].", sourceCount: 0 })
+    expect(reply.outcome).toBe("citation-refused")
+    expect(reply.showSources).toBe(false)
+  })
+
+  it("a real retrieval refusal still outranks a citation refusal", () => {
+    // Ordering matters: `toolRefusal` describes a search that never happened,
+    // `citationRefusal` describes an answer that did. Telling somebody their
+    // answer was withheld for a bad citation, when in fact nothing was ever
+    // searched, is a worse lie than either message alone.
+    const reply = relayReply({
+      ...base,
+      aiEnabled: true,
+      toolRefusal: "You do not have access to search here.",
+      citationRefusal: "It cited [2].",
+      sourceCount: 0,
+    })
+    expect(reply.outcome).toBe("retrieval-refused")
   })
 })

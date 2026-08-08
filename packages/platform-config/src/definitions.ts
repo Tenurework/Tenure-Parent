@@ -263,6 +263,80 @@ export const approvalThresholds = defineConfig<Record<string, number>>({
 })
 
 /**
+ * WRK-120-004 — the ceiling on what one tenant may spend on model calls.
+ *
+ * Counted in TOKENS rather than in money, and the distinction is deliberate: a
+ * token count is a fact the vendor returns on every response
+ * (`usage.input_tokens` / `usage.output_tokens`), so a meter denominated in
+ * tokens is measured rather than modelled. Dollars need a price list, a
+ * currency and a rounding rule, all of which live in `@tenure/finops` and none
+ * of which the vendor tells us; converting here would make the ceiling depend
+ * on a table that can silently go stale while the call still costs what it
+ * costs.
+ *
+ * ## Why this is configuration and not a constant
+ *
+ * `apps/web/src/lib/metering/model-usage.ts` reads this key through
+ * `modelTokenBudgetForInstitution`, which resolves it from the tenant's own
+ * published layers. A constant in the application would be one allowance for
+ * every institution on the deployment — the same mistake `NODE_ENV` is for
+ * money-mode — and a pilot tenant and a system-wide rollout do not have the
+ * same appetite for a runaway assistant loop.
+ *
+ * ## Why a tenant cannot raise its own
+ *
+ * `requiresCapability`, checked in `planPublication`. The `relay` domain lets
+ * TENANT-SCOPE layers carry the key (that is what makes the budget per tenant
+ * at all) while `tenantAdminMayWrite: false` is not available to it — the
+ * domain is admin-writable because tool exposure is. A budget any administrator
+ * could raise from a settings page is a budget that raises itself the first
+ * time somebody hits it, so the authority is per-key here rather than
+ * per-domain, exactly as `platform.payments.approvalThresholds` does it.
+ *
+ * ## Why the default is zero
+ *
+ * It was 20,000,000 — "generous for a pilot", and reasoned about as though the
+ * default were the pilot's allowance. It is not. It is what an institution
+ * NOBODY HAS CONFIGURED resolves to, because `resolveSystemConfig` falls back
+ * to platform defaults for an unbound tenant, and this key is authority-gating:
+ * `requiresCapability` says raising the allowance takes a capability, and a
+ * default that hands out 5,500 assistant answers a month to a tenant nobody
+ * approved hands out exactly what that capability exists to withhold. That is
+ * the property `resolve.test.ts` pins — every authority-gating key's default
+ * must grant nothing — and it is the same reason `platform.payments.mode`
+ * defaults to `test` rather than to whatever the pilot happens to run.
+ *
+ * Zero is a floor, not a failure: `/api/ai/chat` already degrades to cited
+ * sources without a written answer when the budget is spent, so an unconfigured
+ * tenant lands on a path that exists rather than on an error surface. The
+ * pilot's real allowance is published as configuration, which is the whole point
+ * of the key — a number a tenant inherits without anyone writing it down is the
+ * constant this definition was created to stop being.
+ */
+export const MODEL_TOKEN_BUDGET_KEY = "platform.relay.modelTokenBudgetPerMonth"
+
+export const modelTokenBudgetPerMonth = defineConfig<number>({
+  key: MODEL_TOKEN_BUDGET_KEY,
+  owner: "platform",
+  type: z
+    .number()
+    .int("must be a whole number of tokens")
+    .nonnegative("a negative allowance is not a smaller allowance, it is an unreadable one"),
+  default: 0,
+  allowedScopes: ["blueprint", "tenant"],
+  mergeStrategy: "replace",
+  sensitivity: "internal",
+  overridable: true,
+  price: includedInPlan(
+    "A spending ceiling is a control, not a feature. Charging for the ability to cap model use " +
+      "would price the thing that stops an unbounded bill, which is backwards.",
+  ),
+  requiresCapability: "relay.modelBudget.publish",
+  description:
+    "The most model tokens — input plus output — this tenant may spend in one UTC calendar month. Above it the assistant degrades to cited sources without a written answer.",
+})
+
+/**
  * Every platform-owned definition a running system knows about.
  *
  * Modules extend this at enable time via `ConfigRegistry.with`, which produces a
@@ -278,6 +352,7 @@ export const PLATFORM_DEFINITIONS: readonly ConfigDefinition[] = [
   paymentMode,
   paymentsLegalEntityId,
   approvalThresholds,
+  modelTokenBudgetPerMonth,
   ...LOCALIZATION_DEFINITIONS,
   ...BRANDING_DEFINITIONS,
   // Flags sit in the same registry as everything else deliberately: one

@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "../../packages/*/src/**/*.ts", "../../modules/**/*.ts", "../../blueprints/**/*.ts"],
+  "exclude": ["node_modules", "src/app/signin/**"]
+}

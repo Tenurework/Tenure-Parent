@@ -1,3 +1,4 @@
+import { findSecretValues } from "@tenure/audit"
 import { isPaymentMode, PAYMENT_MODE_CONFIG_KEY, type PaymentMode } from "@tenure/contracts"
 
 import type { ConfigRegistry } from "./definition"
@@ -348,6 +349,35 @@ export function planPublication(input: PublicationInput): PublicationPlan {
   // its own diff, then publish what the flip made meaningful.
   const held = new Set(publisherCapabilities)
   const modeNow = currentPaymentMode(current)
+
+  // ── WRK-040-005: the configuration sink ─────────────────────────────────────
+  //
+  // `sensitivity: "secret"` is a LABEL on a definition. It changes how a value
+  // is displayed and who is shown it; it has never refused a value on the
+  // grounds of what the value IS. So `sk_live_…` typed into any ordinary
+  // `platform.*` string — a support note, a webhook URL, a display name —
+  // resolved into the snapshot every request reads, was checksummed into a
+  // revision, and became part of an immutable version history that cannot be
+  // un-published. That is the worst of the six sinks this item names: the other
+  // five leak a credential to somewhere it can be deleted from.
+  //
+  // Refuse rather than redact, exactly as the outbox does. A published
+  // configuration with a hole in it is a tenant running on values nobody
+  // authored, and the operator who submitted the change would be told it
+  // succeeded.
+  //
+  // Scanned per layer so the blocker names the layer AND the key, which is the
+  // difference between "somewhere in this publication" and a line to edit.
+  for (const layer of proposed) {
+    for (const found of findSecretValues(layer.values)) {
+      blockers.push(
+        `"${layer.id}" sets "${found.path}" to a value that looks like a ${found.kind}. ` +
+          `A published configuration value is resolved into every snapshot this tenant reads and ` +
+          `is checksummed into an immutable revision, so it cannot be un-published. Rotate the ` +
+          `credential, then put a reference to the vault here instead of the secret itself.`,
+      )
+    }
+  }
 
   for (const layer of proposed) {
     for (const key of Object.keys(layer.values)) {

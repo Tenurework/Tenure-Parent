@@ -17,14 +17,36 @@ import { rollback, type RollbackResult } from "./actions"
  * that skipped the four-eyes check would be the one change nobody reviewed,
  * which is a poor property for the change made under pressure.
  */
+/** What returning to one revision would change, computed on the server. */
+export interface RollbackPreview {
+  revision: number
+  /** One line: how many keys move. */
+  summary: string
+  /** How many entries the `ChangeDiff` carries. Zero is a real answer. */
+  changed: number
+  /** The rendered `ChangeDiff`, rollback domain. */
+  rendered: string
+}
+
 export function RollbackControls({
   slug,
   revisions,
   live,
+  previews,
 }: {
   slug: string
   revisions: readonly number[]
   live: number
+  /**
+   * STUDIO-060-003. One per offerable target.
+   *
+   * Passed in rather than fetched, because the diff is over resolved
+   * configuration values that only the server holds — and computed for every
+   * target up front rather than on selection, because a control that has to go
+   * and ask before it can say what it does is a control an operator presses
+   * while the answer is still loading.
+   */
+  previews: readonly RollbackPreview[]
 }) {
   const [result, act, pending] = useActionState<RollbackResult | null, FormData>(rollback, null)
   const [selected, setSelected] = useState<number | "">("")
@@ -36,6 +58,7 @@ export function RollbackControls({
   const [approvedBy, setApprovedBy] = useState("")
 
   const targets = revisions.filter((r) => r !== live)
+  const preview = selected === "" ? undefined : previews.find((p) => p.revision === selected)
   if (targets.length === 0) {
     return <p className="slug">Only one revision exists, so there is nothing behind it to return to.</p>
   }
@@ -65,6 +88,22 @@ export function RollbackControls({
           values. The history is not rewound — what was live stays on the record.
         </p>
       </div>
+
+      {/* What it would DO. A dropdown of revision numbers asks an operator to
+          choose between things they cannot see the difference between; under
+          incident pressure that is a guess. The preview is the same `ChangeDiff`
+          document the rest of the console renders, in the `rollback` domain, so
+          the sentence here and the machine-readable form cannot disagree. */}
+      {selected !== "" && (
+        <div className="field" data-testid="rollback-preview">
+          <p className="hint">{preview?.summary ?? `No comparison is available for revision ${selected}.`}</p>
+          {preview && preview.changed > 0 && (
+            <pre className="state-detail" data-testid="rollback-preview-diff">
+              {preview.rendered}
+            </pre>
+          )}
+        </div>
+      )}
 
       <div className="field">
         <label htmlFor="rollbackApprovedBy">Approved by</label>

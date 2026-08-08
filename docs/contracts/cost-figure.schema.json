@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tenure.dev/control-plane/cost-figure/1.0.schema.json",
+  "x-contract": "CostFigure",
+  "x-contract-version": "1.0",
+  "x-generated-by": "tools/contract-schemas.mjs from packages/contracts/src/index.ts",
+  "title": "CostFigure",
+  "description": "One money figure the control plane publishes, with the period and the system it came from.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "dimension",
+    "key",
+    "kind",
+    "amountMinor",
+    "currency",
+    "periodStart",
+    "periodEnd",
+    "sourceSystem",
+    "sourceReference",
+    "retrievedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "dimension": {
+      "type": "string",
+      "enum": [
+        "tenant",
+        "service",
+        "account",
+        "plan"
+      ]
+    },
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "ACTUAL",
+        "AMORTIZED",
+        "FORECAST",
+        "BUDGET"
+      ]
+    },
+    "amountMinor": {
+      "type": "integer"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "periodStart": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "periodEnd": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    },
+    "sourceSystem": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "sourceReference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "retrievedAt": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 40
+    }
+  }
+}

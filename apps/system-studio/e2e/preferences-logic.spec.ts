@@ -89,6 +89,8 @@ test.describe("document attributes", () => {
       "data-density": null,
       "data-motion": null,
       "data-contrast": null,
+      // `ltr` is the served default, so the script writes nothing for it.
+      dir: null,
     })
   })
 
@@ -98,13 +100,25 @@ test.describe("document attributes", () => {
       density: "compact",
       reducedMotion: "on",
       increasedContrast: "on",
+      direction: "ltr",
     }
     expect(documentAttributes(chosen, device())).toEqual({
       "data-theme": "dark",
       "data-density": "compact",
       "data-motion": "reduced",
       "data-contrast": "more",
+      dir: null,
     })
+  })
+
+  test("direction is the only attribute that is not a data- hook", () => {
+    // STUDIO-030-007. `dir` is a real HTML attribute because the layout engine
+    // keys on it: every `margin-inline-start` in globals.css resolves against
+    // it, and a `data-direction` would set nothing at all.
+    expect(
+      documentAttributes({ ...DEFAULT_PREFERENCES, direction: "rtl" }, device()).dir,
+    ).toBe("rtl")
+    expect(documentAttributes(DEFAULT_PREFERENCES, device()).dir).toBeNull()
   })
 
   test("a device asking for accessibility sets those two from defaults alone", () => {

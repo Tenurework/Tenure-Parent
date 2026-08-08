@@ -1,3 +1,4 @@
+import { validateReturnPath } from "@tenure/identity"
 import {
   MODEL_CATALOG,
   RELAY_ANTHROPIC_REVIEW,
@@ -10,12 +11,19 @@ import {
 } from "@tenure/platform-config"
 
 import {
+  NO_EVIDENCE,
   claimIsUnproven,
   classifyCapabilities,
   type ClassifiedCapability,
   type ConnectorCapability,
 } from "./connector-capability"
 import { PROVIDER_PACKS } from "./provider-packs"
+import { selectorProblems, type ResourceSelector } from "./resource-selector"
+import {
+  WORK_ACCELERATORS,
+  acceleratorAvailability,
+  type AcceleratorVerdict,
+} from "./work-accelerators"
 
 /**
  * GE-030-005 — extension, package, connector and model catalogs.
@@ -222,6 +230,128 @@ export interface ExtensionEntry extends CatalogEntry {
   versions: readonly PackageVersion[]
 }
 
+/**
+ * How a tenant would actually authorize this connector — WRK-040-001.
+ *
+ * The generic primitives were already right and already tested:
+ * `@tenure/identity` owns PKCE (`CHALLENGE_METHOD = "S256"`, no parameter to
+ * weaken it), state/nonce binding, single-use transactions and the
+ * open-redirect defence. All of it written for the OIDC SIGN-IN flow, and
+ * nothing bound any of it to a connector: before this, `grep -rl code_verifier`
+ * across `packages`, `apps/web/src` and `modules` returned only files under
+ * `packages/identity/src`, and not one pack said which endpoints it would talk
+ * to, where the provider redirects back, or how the returning account is proved
+ * to be the one the tenant asked for.
+ *
+ * Those last two are the clauses that CANNOT be inherited from the generic
+ * flow, because they are per-provider facts: Microsoft's exact redirect is not
+ * Google's, and "the id_token carries the account" is not the same rule as
+ * "call userinfo" or "an administrator granted the app tenant-wide". So they
+ * are data on the pack, and `authorizationRefusal` below is a gate that reads
+ * them rather than a comment that describes them.
+ */
+export interface ProviderAuthorizationProfile {
+  /** Where the person is sent. Its host must be one the pack declares. */
+  authorizeEndpoint: string
+  /** Where the backend redeems the code. Same rule. */
+  tokenEndpoint: string
+  /**
+   * The exact path the provider redirects back to, on this site.
+   *
+   * Validated with `validateReturnPath` from `@tenure/identity` rather than a
+   * second redirect rule written here. Two disagreeing redirect validators is
+   * how an open redirect ships: the one nobody is looking at is the one that
+   * accepts `//evil.example`.
+   */
+  redirectPath: string
+  /**
+   * Authorization Code, and only that. A literal type rather than a runtime
+   * check, so an implicit-flow pack does not compile.
+   */
+  responseType: "code"
+  /** Refused when false. See `authorizationRefusal`. */
+  requiresPkce: boolean
+  /** Whether a nonce is minted and checked inside the returned ID token. */
+  requiresNonce: boolean
+  /**
+   * How the returning account is proved to be the account the tenant asked for.
+   *
+   * Three genuinely different mechanisms with three different failure modes,
+   * which is why this is not a boolean: a claim inside a signed token, a call
+   * back to the provider, or an administrator's tenant-wide grant.
+   */
+  accountVerification: "id-token-claim" | "userinfo-call" | "admin-consent-grant"
+  /**
+   * The claim that carries the verified account — `oid`, `sub`, `email`.
+   *
+   * Required to be non-empty when `accountVerification` is `id-token-claim`;
+   * naming no claim is naming no verification.
+   */
+  verifiedAccountClaim: string
+}
+
+/** Every account-verification mechanism, for a console that lists them. */
+export const ACCOUNT_VERIFICATIONS = [
+  "id-token-claim",
+  "userinfo-call",
+  "admin-consent-grant",
+] as const
+
+/**
+ * Whether an authorization profile could be driven at all, and if not, why.
+ *
+ * Returns the first refusal rather than a list, because each one is a different
+ * remedy and an operator acts on one at a time: the redirect is wrong, or the
+ * endpoint is not egressed, or PKCE is off. `null` means the contract holds.
+ *
+ * Exported so a pack author can run it before advancing a row rather than
+ * discovering the refusal through `isUsable`.
+ */
+export function authorizationRefusal(
+  profile: ProviderAuthorizationProfile,
+  egressHosts: readonly string[],
+): UsabilityReason | null {
+  // PKCE first: it is the only clause with no legitimate exception. RFC 7636
+  // `plain` and no-PKCE-at-all both mean the party redeeming the code is not
+  // proved to be the party that started it, and a connector authorization is
+  // exactly where a stolen code is worth stealing.
+  if (!profile.requiresPkce) return "authorization-pkce-required"
+
+  for (const endpoint of [profile.authorizeEndpoint, profile.tokenEndpoint]) {
+    let host
+    try {
+      const url = new URL(endpoint)
+      // An `http:` authorize endpoint hands the code to anyone on the path, and
+      // an endpoint nobody can parse cannot be checked against anything. Both
+      // fail closed, under one reason, because both have one remedy: write a
+      // real https URL.
+      if (url.protocol !== "https:") return "authorization-endpoint-insecure"
+      host = url.hostname
+    } catch {
+      return "authorization-endpoint-insecure"
+    }
+    // The pack's OWN egress list. An authorization endpoint on a host the pack
+    // never declared is an egress nobody reviewed — the connector would be
+    // approved to talk to `graph.microsoft.com` and would in fact first talk to
+    // somewhere else entirely.
+    if (!egressHosts.includes(host)) return "authorization-endpoint-not-egressed"
+  }
+
+  // The identity package's validator, not a second one. `//evil.example` looks
+  // like a path, starts with a slash, and browsers navigate to another origin.
+  if (!validateReturnPath(profile.redirectPath).ok) return "authorization-redirect-refused"
+
+  if (profile.accountVerification === "id-token-claim") {
+    // A claim nobody named is no verification, and a claim inside a token that
+    // was never bound to this request proves nothing about who started it —
+    // that binding is exactly what the nonce is for.
+    if (profile.verifiedAccountClaim.trim() === "") return "authorization-account-unverified"
+    if (!profile.requiresNonce) return "authorization-account-unverified"
+  }
+
+  return null
+}
+
 export interface ConnectorEntry extends CatalogEntry {
   kind: "connector"
   /** Where it talks to. Recorded because an outbound integration is an egress. */
@@ -259,6 +389,27 @@ export interface ConnectorEntry extends CatalogEntry {
    * review before building it.
    */
   providerReview?: ProviderReview
+  /**
+   * WRK-040-001 — how a tenant would authorize this connector.
+   *
+   * Required, and `null` is a legitimate answer that has to be written down:
+   * the Relay egress authenticates with a platform credential and has no
+   * user-delegated flow at all, which is a different fact from nobody having
+   * considered the question. The same reason `maxEngine` and `signatureRef` are
+   * `T | null` rather than optional — an absence that means something is a
+   * claim, and a claim is stated.
+   */
+  authorization: ProviderAuthorizationProfile | null
+  /**
+   * WRK-020-002 — which resources inside the connected workspace are in scope.
+   *
+   * Optional, and deliberately: the twenty-four `PLANNED` packs select nothing
+   * yet because nobody has connected them to a workspace, and a required field
+   * would force twenty-four rows to invent a selection. The gate below is on
+   * the VALUE — a selector that is present and does not parse is refused — so
+   * absence never passes by omission for a connector that has one.
+   */
+  selector?: ResourceSelector
 }
 
 /**
@@ -410,6 +561,30 @@ export type UsabilityReason =
    * folder and reading everything.
    */
   | "scopes-exceed-provider-approval"
+  /**
+   * WRK-040-001. The pack's authorization profile does not hold up, and each of
+   * these is a different remedy — which is why they are four reasons and not
+   * one `authorization-invalid`.
+   *
+   * PKCE is off, so the party redeeming the code is not proved to be the party
+   * that started it.
+   */
+  | "authorization-pkce-required"
+  /** An authorize or token endpoint that is not https, or is not a URL at all. */
+  | "authorization-endpoint-insecure"
+  /** An authorization endpoint on a host the pack's own egress list omits. */
+  | "authorization-endpoint-not-egressed"
+  /** A redirect path `@tenure/identity`'s open-redirect defence refuses. */
+  | "authorization-redirect-refused"
+  /** ID-token account verification naming no claim, or with no nonce to bind it. */
+  | "authorization-account-unverified"
+  /**
+   * WRK-020-002. The connector declares a resource selection that does not
+   * parse — an empty include set, a dead exclude rule, or a version that did
+   * not increase. A connection whose scope nobody can read is one nobody can
+   * show an impact diff for.
+   */
+  | "selector-invalid"
 
 /**
  * How long before expiry a certification is reported as needing renewal.
@@ -592,6 +767,33 @@ export function isUsable(
   }
 
   if (entry.kind === "connector") {
+    // WRK-040-001. The pack's own authorization contract, first among the
+    // connector checks. Ordered ahead of the provider's review deliberately: a
+    // pack whose redirect is an open redirect, or whose PKCE is off, is broken
+    // whatever the provider decided, and reporting `provider-review-missing`
+    // for it would send somebody to file a partner application over a defect
+    // that lives in this repository.
+    //
+    // `null` is not a hole. It is the connector saying it has no user-delegated
+    // authorization flow, which is true of a platform-credential egress and is
+    // refused for a provider pack by the type — `ProviderPackEntry` narrows
+    // this field to a required profile, so `tsc` names any pack that omits it.
+    if (entry.authorization) {
+      const refusal = authorizationRefusal(entry.authorization, entry.egressHosts)
+      if (refusal) {
+        return { usable: false, reason: refusal, disclaimer, certification }
+      }
+    }
+
+    // WRK-020-002. What this connection would actually reach. A selection with
+    // an empty include set means "everything" to one reader and "nothing" to
+    // another, and neither of them can be shown an impact diff — so a selector
+    // that does not parse stops the connector reaching an availability decision
+    // rather than being rendered beside a green row.
+    if (entry.selector && selectorProblems(entry.selector).length > 0) {
+      return { usable: false, reason: "selector-invalid", disclaimer, certification }
+    }
+
     // WRK-040-003. The provider's own answer, before the engine range —
     // an integration the provider never approved is not one a newer engine
     // fixes, and reporting `engine-incompatible` would send somebody to
@@ -794,6 +996,29 @@ export function availableToTenants(
 }
 
 /**
+ * WRK-130-001 — which of the ten work accelerators the capabilities SELECTED
+ * FOR RELEASE actually support, at this scope and this instant.
+ *
+ * The requirement's checkable clause is "for the exact connector capabilities
+ * selected for release", and this is the only place that set is computed: the
+ * classified capabilities of every entry, decided through the same gate that
+ * decides everything else, rather than a list somebody maintains beside it.
+ *
+ * Every capability is passed, not only those on offered entries. A capability
+ * marked `AVAILABLE` on a connector the gate refuses already carries a
+ * `disagrees-with-artifact` problem, and `acceleratorAvailability` counts only
+ * capabilities whose classification holds up — so filtering here would be a
+ * second, weaker copy of a rule that already exists one function away.
+ */
+export function acceleratorAvailabilityFor(
+  entries: readonly AnyCatalogEntry[],
+  context: AvailabilityContext,
+): readonly AcceleratorVerdict[] {
+  const classified = availabilityDecisions(entries, context).flatMap((d) => d.capabilities ?? [])
+  return acceleratorAvailability(WORK_ACCELERATORS, classified)
+}
+
+/**
  * The catalog the gate actually runs over.
  *
  * Everything above decided nothing until this existed: `availableToTenants` was
@@ -838,8 +1063,14 @@ export const RELAY_ANTHROPIC_CONNECTOR: ConnectorEntry = {
    * vocabulary could only say PUBLISHED, which is what the entry's lifecycle
    * says, and that is the overstatement WRK-GATE-000 is about.
    *
-   * The evidence is the two files a reader can open to check the claim: the
-   * call site, and the partition matrix that decides where it may run.
+   * `NO_EVIDENCE`, and that is not information lost. The call site
+   * (`apps/web/src/lib/ai.ts`) and the partition matrix
+   * (`apps/web/src/lib/partition-services.ts`) are what a reader opens to check
+   * that the code exists and where it may run — they are not a golden, negative,
+   * volume or failure suite, and filing two source paths under a certification
+   * clause is how a pack that ran nothing comes to look certified. The status
+   * says `CERTIFICATION_PENDING` for exactly this reason; the clause map says
+   * the same thing in the shape the gate reads.
    */
   capabilities: [
     {
@@ -850,13 +1081,24 @@ export const RELAY_ANTHROPIC_CONNECTOR: ConnectorEntry = {
       // Anthropic is read or written as a system of record.
       direction: "write",
       status: "CERTIFICATION_PENDING",
-      evidenceRefs: ["apps/web/src/lib/ai.ts", "apps/web/src/lib/partition-services.ts"],
+      clauseEvidence: NO_EVIDENCE,
     },
   ],
   // Declared in `@tenure/platform-config` so the cell's request path checks the
   // same list this gate does.
   requestedScopes: RELAY_ANTHROPIC_SCOPES,
   providerReview: RELAY_ANTHROPIC_REVIEW,
+  /**
+   * WRK-040-001. `null`, stated rather than omitted.
+   *
+   * No tenant authorizes this connector: `lib/ai.ts` presents a platform
+   * credential, and there is no person, no consent screen and no callback. An
+   * authorization profile here would describe a flow nobody drives, which is
+   * the dead declaration this requirement's whole point is to avoid — and
+   * leaving the field off would make "there is no flow" indistinguishable from
+   * "nobody wrote one down".
+   */
+  authorization: null,
   restrictions: {
     // The partition, not a list of regions. `apps/web/src/lib/partition-services.ts`
     // records that `api.anthropic.com` exists in the commercial partition and

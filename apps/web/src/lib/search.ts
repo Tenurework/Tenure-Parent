@@ -5,6 +5,7 @@
  */
 
 import type { ProjectedKind, ProjectionMode } from "@/lib/relay/projection-policy"
+import { isAnswerable, type ProjectedState, type SourceCitation } from "@/lib/relay/citation"
 
 export interface SearchDoc {
   id: string
@@ -28,11 +29,69 @@ export interface SearchDoc {
    * snippets, and from the model prompt.
    */
   mode: ProjectionMode
+  /**
+   * WRK-GATE-070. When the underlying row last changed.
+   *
+   * Required, for the reason `mode` states above and which held again here: the
+   * five builders in `search-data.ts` selected no temporal column at all, so no
+   * consumer *could* have shown freshness. Making this required is what made
+   * `tsc` enumerate the five builders and the fixture helper rather than leaving
+   * five silent `undefined`s that compile and fail in production.
+   *
+   * A `Date` and not a string because this is the value that gets compared —
+   * `freshnessOf` reads its ISO form, `citation.observedAt`, and the two are
+   * built together by `projectTenureRecord` so they cannot disagree.
+   */
+  asOf: Date
+  /**
+   * WRK-010-005. What the platform believes about this object right now.
+   *
+   * Not decoration: `rankDocs` below scores only an answerable state, and
+   * `modelSourceFor` withholds the body of anything else at the vendor boundary.
+   * A projected row used to be simply present or absent, so it could never be
+   * stale, tombstoned or quarantined — and `loadSearchCorpus` DROPPED a
+   * CANCELLED event, which to every consumer is indistinguishable from the event
+   * never having existed.
+   */
+  state: ProjectedState
+  /**
+   * WRK-070-003. The §9.3 citation — origin, assertion kind, version time,
+   * state, governed deep link.
+   *
+   * `citation.state` is the same value as `state` above by construction, not by
+   * convention: `projectTenureRecord` returns both and the builders destructure
+   * one call.
+   */
+  citation: SourceCitation
 }
 
 export interface ScoredDoc extends SearchDoc {
   score: number
   snippet: string
+}
+
+/**
+ * A row that matched the query and was withheld, reduced to what may be said
+ * about it.
+ *
+ * §3.5's "show freshness and uncertainty" cuts both ways: an answer must not
+ * present a deleted source as current, and it must not present a deleted source
+ * as *nothing*. A member searching for the event their club cancelled is better
+ * served by "this was cancelled" than by silence, which reads as "there is no
+ * such event" — a different and untrue statement.
+ *
+ * No `body` and no `snippet`, and the absence is structural rather than a field
+ * somebody remembered to leave out: there is no property on this type that could
+ * carry the withheld text.
+ */
+export interface WithheldMatch {
+  id: string
+  kind: ProjectedKind
+  title: string
+  href: string
+  context: string
+  state: ProjectedState
+  observedAt: string
 }
 
 // ─── Read-time authorization (GE-062-004) ────────────────────────────────────
@@ -163,11 +222,106 @@ export function makeSnippet(body: string, terms: string[], width = 160): string 
   )
 }
 
+/**
+ * The ranked, answerable results.
+ *
+ * WRK-010-005 gave the lifecycle state its teeth here. A doc whose state is not
+ * answerable scores zero whatever its text says, so a tombstoned, quarantined,
+ * access-lost or conflicted row cannot reach a result set, a snippet, `sources`
+ * on either route, or the model prompt — not because every consumer remembered
+ * to check, but because there is nothing for them to consume. `withheldMatches`
+ * below is how such a row is still reported, without its text.
+ *
+ * The check is on the state and not on the emptied body deliberately: a
+ * withheld row keeps its title, and a title alone scores 6 in `scoreDoc`, so
+ * "the body is empty" would have let a quarantined record rank on its title.
+ */
 export function rankDocs(docs: SearchDoc[], query: string, limit = 12): ScoredDoc[] {
   const terms = tokenize(query)
   return docs
-    .map((d) => ({ ...d, score: scoreDoc(d, terms), snippet: makeSnippet(d.body, terms) }))
+    .map((d) => ({
+      ...d,
+      score: isAnswerable(d.state) ? scoreDoc(d, terms) : 0,
+      snippet: makeSnippet(d.body, terms),
+    }))
     .filter((d) => d.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
+}
+
+/**
+ * The rows that matched but may not be answered from, and why.
+ *
+ * Scored on the same terms as `rankDocs` — a withheld row's body is already
+ * empty, so in practice this matches on the title — and returned without any
+ * field that could carry text. `/api/search` and `/api/ai/chat` both emit it
+ * beside their results, which is what turns "silently absent" into "cancelled on
+ * this date".
+ */
+export function withheldMatches(
+  docs: SearchDoc[],
+  query: string,
+  limit = 6,
+): WithheldMatch[] {
+  const terms = tokenize(query)
+  return docs
+    .filter((d) => !isAnswerable(d.state))
+    .map((d) => ({ doc: d, score: scoreDoc(d, terms) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ doc: d }) => ({
+      id: d.id,
+      kind: d.kind,
+      title: d.title,
+      href: d.href,
+      context: d.context,
+      state: d.state,
+      observedAt: d.citation.observedAt,
+    }))
+}
+
+// ─── Citation verification (WRK-GATE-070) ────────────────────────────────────
+
+/**
+ * Bracketed source numbers in a generated answer, split into the ones that were
+ * offered and the ones that were not.
+ *
+ * Both prompts tell the model to "cite every claim with its source number in
+ * brackets, e.g. [1]", and until this existed both routes returned whatever came
+ * back verbatim. An answer citing [7] against six sources shipped as a grounded
+ * answer — and a fabricated citation is worse than an uncited claim, because the
+ * bracket is precisely what tells the reader the sentence was checked.
+ *
+ * `[1, 2]` and `[1][2]` are both real model output, so a group is split on
+ * commas rather than only whole-bracket matches being read. Zero and negative
+ * numbers are invalid rather than ignored: `[0]` names no source in a
+ * one-indexed list.
+ *
+ * Returns the cited set too, sorted and de-duplicated, because a caller that
+ * wants to render "this answer rests on sources 1 and 4" must not re-parse the
+ * prose to find out.
+ */
+export function verifyCitations(
+  answer: string,
+  sourceCount: number,
+): { cited: number[]; invalid: number[] } {
+  const cited = new Set<number>()
+  const invalid = new Set<number>()
+  if (typeof answer !== "string" || answer.length === 0) {
+    return { cited: [], invalid: [] }
+  }
+
+  const groups = answer.matchAll(/\[\s*(\d+(?:\s*,\s*\d+)*)\s*\]/g)
+  for (const group of groups) {
+    for (const raw of group[1].split(",")) {
+      const n = Number.parseInt(raw.trim(), 10)
+      if (Number.isNaN(n)) continue
+      if (n >= 1 && n <= sourceCount) cited.add(n)
+      else invalid.add(n)
+    }
+  }
+
+  const ascending = (a: number, b: number) => a - b
+  return { cited: [...cited].sort(ascending), invalid: [...invalid].sort(ascending) }
 }

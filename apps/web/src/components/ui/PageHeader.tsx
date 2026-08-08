@@ -59,7 +59,14 @@ export function PageHeader({
             </p>
           )}
           <h1 className="text-text-1">{title}</h1>
-          {status && <div className="mt-2 flex flex-wrap items-center gap-2">{status}</div>}
+          {/* `data-slot` so a test can assert the STATE BAND EXISTS and sits
+              between the identity and the tabs, rather than matching on badge
+              text that every record words differently. */}
+          {status && (
+            <div data-slot="record-status" className="mt-2 flex flex-wrap items-center gap-2">
+              {status}
+            </div>
+          )}
           {subtitle && (
             <p className="mt-1.5 max-w-2xl text-lead text-text-2">{subtitle}</p>
           )}

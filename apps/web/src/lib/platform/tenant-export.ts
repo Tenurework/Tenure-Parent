@@ -108,6 +108,12 @@ const SCOPED_READERS: Record<(typeof TENANT_SCOPED)[number], () => Promise<unkno
   ExternalReference: () => db.externalReference.findMany(),
   Settlement: () => db.settlement.findMany(),
   ProviderBalanceTransaction: () => db.providerBalanceTransaction.findMany(),
+  // WRK-120-004. What this tenant's assistant use cost, call by call. It
+  // belongs in an export for the reason the ledger does: it is the record
+  // behind an invoice, and a customer disputing a bill after they have left
+  // needs the same rows the bill was computed from. It holds no content — a
+  // model id and two token counts, never a prompt and never an answer.
+  ModelUsageMeter: () => db.modelUsageMeter.findMany(),
   // PAY-270-002. Which charge model each club runs under and who is liable for
   // the money. Commercial terms the tenant agreed to, so they belong in the
   // tenant's own export; it holds no credential — the provider account it names
@@ -119,6 +125,12 @@ const SCOPED_READERS: Record<(typeof TENANT_SCOPED)[number], () => Promise<unkno
   // to filter on. Exporting it under one tenant would hand that tenant rows
   // about every other.
   PaymentsFundsFlowConfig: () => db.paymentsFundsFlowConfig.findMany(),
+  // WRK-030-002. Short-lived, user-bound tokens that launch a connection flow.
+  // Tenant-scoped, so it belongs in the tenant's own export — a token readable
+  // across tenants would let one institution resume another's connection, which
+  // is why the registry classifies it that way and why it is here rather than
+  // in PLATFORM_GLOBAL.
+  ConnectionLaunchToken: () => db.connectionLaunchToken.findMany(),
 }
 
 /** Stable JSON so two exports of unchanged data produce the same digest. */

@@ -95,6 +95,8 @@ jest.mock("@/lib/config/server", () => ({
     checksum: "sha256:test",
     values: {},
   }),
+  /** The token ceiling `budgetVerdict` reads before the vendor call. */
+  modelTokenBudgetForInstitution: async () => 5_000_000,
 }))
 
 const ORG = {
@@ -113,15 +115,45 @@ const DOCUMENT = {
   sensitivity: "standard",
 }
 
-jest.mock("@/lib/db", () => ({
-  db: {
-    organization: { findMany: async () => [ORG] },
-    memoryRecord: { findMany: async () => [] },
-    document: { findMany: async () => [DOCUMENT] },
-    approvalRequest: { findMany: async () => [] },
-    event: { findMany: async () => [] },
-  },
-}))
+/**
+ * WRK-GATE-040. The route now appends its authorization decision to the audit
+ * chain, which reads the latest chained row and writes the successor inside one
+ * interactive transaction — hence `auditEvent` and the CALLBACK form of
+ * `$transaction`, which most stand-ins in this repository do not have. Without
+ * them the route throws before it reaches `loadSearchCorpus` and every
+ * assertion in this file fails for a reason none of them is about.
+ */
+const mockAuditRows: Record<string, unknown>[] = []
+
+jest.mock("@/lib/db", () => {
+  const auditEvent = {
+    findFirst: async () => mockAuditRows[mockAuditRows.length - 1] ?? null,
+    create: async ({ data }: { data: Record<string, unknown> }) => {
+      mockAuditRows.push(data)
+      return data
+    },
+  }
+  return {
+    db: {
+      organization: { findMany: async () => [ORG] },
+      memoryRecord: { findMany: async () => [] },
+      document: { findMany: async () => [DOCUMENT] },
+      approvalRequest: { findMany: async () => [] },
+      event: { findMany: async () => [] },
+      // The model-usage meter `budgetVerdict` sums and `recordModelUsage`
+      // appends to. Empty, so the budget gate is not what decides these tests.
+      modelUsageMeter: {
+        aggregate: async () => ({ _sum: { inputTokens: 0, outputTokens: 0 } }),
+        create: async ({ data }: { data: Record<string, unknown> }) => data,
+      },
+      auditEvent,
+      $transaction: (arg: unknown) =>
+        typeof arg === "function"
+          ? (arg as (client: unknown) => Promise<unknown>)({ auditEvent })
+          : Promise.all(arg as Promise<unknown>[]),
+    },
+  }
+})
 
 const mockAiComplete = jest.fn(async () => "an answer [1]")
 jest.mock("@/lib/ai", () => ({
@@ -146,6 +178,7 @@ const request = () =>
 beforeEach(() => {
   lastPurpose = undefined
   mockAiComplete.mockClear()
+  mockAuditRows.length = 0
 })
 
 describe("/api/ai/chat opens its scope for model exposure", () => {

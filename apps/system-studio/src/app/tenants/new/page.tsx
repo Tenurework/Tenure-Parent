@@ -39,7 +39,8 @@ const COEXISTENCE_MEANING: Record<CoexistenceProfile, string> = {
 import { placeableRegions } from "@/lib/cells"
 
 import { auth } from "@/lib/auth"
-import { isOperator } from "@/lib/operators"
+import { authorizeCommand } from "@/lib/authorize"
+import { PermissionDeniedState } from "@/components/states"
 import { ComposeForm } from "./ComposeForm"
 
 export const dynamic = "force-dynamic"
@@ -54,8 +55,14 @@ export const dynamic = "force-dynamic"
  * actually be built.
  */
 export default async function NewTenantPage() {
+  // STUDIO-020-006. The same command `composeTenant` authorizes, so the form
+  // cannot be reachable by somebody the action would refuse — and the action
+  // still re-decides, because rendering the page is not a precondition for
+  // posting to it.
   const session = await auth()
-  if (!isOperator(session?.user?.email)) redirect("/signin")
+  const decision = authorizeCommand("tenants.compose", { principalId: session?.user?.email })
+  if (decision.reason === "NO_PRINCIPAL") redirect("/signin")
+  if (!decision.allowed) return <PermissionDeniedState />
 
   const blueprints = [...new Set(TENANT_BINDINGS.map((b) => b.blueprintId))].map((id) => ({
     id,

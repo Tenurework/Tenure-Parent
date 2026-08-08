@@ -153,3 +153,46 @@ variable "attach_custom_domain" {
   # the first moved without the second, so they must not be split.
   default = true
 }
+
+# ── STUDIO-070-002 — the ownership facts default_tags needs ─────────────────
+#
+# Variables rather than literals in the provider block, for the same reason the
+# studio stack does it: a cost centre is renamed by finance and an owning seat
+# moves between teams, and neither event is a code change anybody would think to
+# make. Baked literals mean the estate's ownership is correct only until the
+# next reorganisation, and nothing tells you it went stale.
+
+variable "cell_id" {
+  description = <<-EOT
+    Which cell this stack IS.
+
+    Matches CELL_ID in the Studio's fleet view (apps/system-studio/src/lib/cells.ts
+    defaults it to `cell-<region>-a`), so a resource's tag and the cell record an
+    operator reads name the same thing. They are the same fact; two spellings of
+    it is a fleet view that cannot be joined to a bill.
+  EOT
+  type        = string
+  default     = "cell-us-east-1-a"
+}
+
+variable "owner_seat" {
+  description = "The named seat that answers for this cell — a role, never a person who can leave."
+  type        = string
+  default     = "platform-engineering"
+
+  validation {
+    condition     = trimspace(var.owner_seat) != ""
+    error_message = "owner_seat must name a seat. An empty owner tag reads as \"nobody decided\", which is the state this tag exists to remove."
+  }
+}
+
+variable "cost_center" {
+  description = "Where this cell's spend lands. Tagged onto every resource so the CUR can group by it without a lookup table."
+  type        = string
+  default     = "tenant-cells"
+
+  validation {
+    condition     = trimspace(var.cost_center) != ""
+    error_message = "cost_center must be set. Untagged spend is reported unallocated, never spread."
+  }
+}

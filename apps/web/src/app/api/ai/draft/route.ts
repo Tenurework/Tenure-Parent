@@ -42,7 +42,15 @@ export async function POST(req: Request) {
     if (!instruction?.trim() || !["message", "memory", "event"].includes(kind ?? ""))
       return Response.json({ error: "bad_request" }, { status: 400 })
 
-    const text = await draftText(kind as "message" | "memory" | "event", instruction.trim())
+    // WRK-120-004. The tenant this draft is charged to comes from the open
+    // scope, which is the same value the flag above was decided for — a route
+    // that resolved one tenant for the switch and another for the bill would be
+    // metering somebody else's spend.
+    const text = await draftText(
+      kind as "message" | "memory" | "event",
+      instruction.trim(),
+      scope.institutionId,
+    )
     if (!text) return Response.json({ error: "generation_failed" }, { status: 502 })
     return Response.json({ text })
   })

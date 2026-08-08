@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test"
+import { operatorFor } from "./operator-identity"
 
 import truth from "../src/generated/platform-truth.json"
 
@@ -20,7 +21,7 @@ import truth from "../src/generated/platform-truth.json"
  * link.
  */
 
-const OPERATOR = process.env.PLATFORM_OPERATORS ?? ""
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 
 test.beforeAll(() => {

@@ -37,6 +37,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, "../..")
 
 const PACKS_FILE = "packages/provisioning/src/provider-packs.ts"
+const CAPABILITY_FILE = "packages/provisioning/src/connector-capability.ts"
+const ACCELERATORS_FILE = "packages/provisioning/src/work-accelerators.ts"
 const REGISTRY_FILE = "docs/architecture/capability-completeness-registry.yaml"
 const LEDGER_FILE = "docs/implementation/universal-work-graph-execution-ledger.md"
 
@@ -71,6 +73,24 @@ function ledgerStatuses() {
 }
 
 /**
+ * Everything up to the `}` that closes the object `pack({` opened.
+ *
+ * Counts braces rather than looking for a terminator, because the row now
+ * contains nested object literals and a terminator search finds the inner one.
+ */
+function balancedBody(block) {
+  let depth = 1
+  for (let i = 0; i < block.length; i += 1) {
+    if (block[i] === "{") depth += 1
+    else if (block[i] === "}") {
+      depth -= 1
+      if (depth === 0) return block.slice(0, i)
+    }
+  }
+  return block
+}
+
+/**
  * The packs, as `{ key, lifecycle, requirementIds }`.
  *
  * `lifecycle` falls back to the helper's own literal, which is where the
@@ -85,15 +105,76 @@ function packs() {
 
   const out = []
   for (const block of text.split("pack({").slice(1)) {
-    const body = block.slice(0, block.indexOf("})"))
+    // Balanced, not `indexOf("})")`. A pack's `authorization` is built by a
+    // nested call whose own argument object closes with exactly that sequence,
+    // so the naive scan stopped in the middle of every row — which passed,
+    // because everything it needed happened to be written above the nested
+    // call. A guard whose reach depends on field order is a guard that stops
+    // reading the day somebody reorders a row.
+    const body = balancedBody(block)
     const key = /key:\s*"([^"]+)"/.exec(body)
     const ids = /requirementIds:\s*\[([^\]]*)\]/.exec(body)
     if (!key || !ids) continue
     const lifecycle = /lifecycle:\s*"([A-Z_]+)"/.exec(body)
+    const capabilityStatus = /capabilityStatus:\s*"([A-Z_]+)"/.exec(body)
     out.push({
       key: key[1],
       lifecycle: lifecycle ? lifecycle[1] : fallback[1],
+      // WRK-100-004. The capability's own status, which is a different fact
+      // from the entry's lifecycle: a PUBLISHED pack whose one capability is
+      // still PLANNED is honest, and an AVAILABLE capability on any lifecycle
+      // is a claim the certification contract has to answer for.
+      capabilityStatus: capabilityStatus ? capabilityStatus[1] : "PLANNED",
+      body,
       requirementIds: [...ids[1].matchAll(/"([\w-]+)"/g)].map((m) => m[1]),
+      provider: /provider:\s*"([^"]+)"/.exec(body)?.[1] ?? "",
+      product: /product:\s*"([^"]+)"/.exec(body)?.[1] ?? "",
+      capability: /capability:\s*"([^"]+)"/.exec(body)?.[1] ?? "",
+      direction: /direction:\s*"([^"]+)"/.exec(body)?.[1] ?? "",
+    })
+  }
+  return out
+}
+
+/**
+ * The eight certification clauses, read out of the code that declares them.
+ *
+ * Read rather than repeated here: a list written twice is a list that disagrees
+ * with itself the first time somebody adds a ninth clause, and the copy that
+ * drifts is whichever nobody is looking at.
+ */
+function certificationClauses() {
+  const text = read(CAPABILITY_FILE)
+  const block = /export const CERTIFICATION_CLAUSES = \[([\s\S]*?)\] as const/.exec(text)
+  assert.ok(block, `${CAPABILITY_FILE} no longer declares CERTIFICATION_CLAUSES as a const array`)
+  return [...block[1].matchAll(/^\s*"([a-z-]+)",$/gm)].map((m) => m[1])
+}
+
+/** The ten accelerators, as `{ key, requiresCapabilities }`. */
+function accelerators() {
+  const text = read(ACCELERATORS_FILE)
+  const list = /export const WORK_ACCELERATORS[^=]*=\s*\[([\s\S]*)\n\]/.exec(text)
+  assert.ok(list, `${ACCELERATORS_FILE} no longer declares WORK_ACCELERATORS as an array`)
+
+  // The capability keys are written as `const` aliases at the top of the file so
+  // the ten agree with each other; resolve them here rather than asserting on
+  // the alias names, which would prove nothing about what a pack is called.
+  const aliases = new Map(
+    [...text.matchAll(/^const (\w+) = "([^"]+)"$/gm)].map((m) => [m[1], m[2]]),
+  )
+
+  const out = []
+  for (const block of list[1].split(/\n  \{\n/).slice(1)) {
+    const key = /key:\s*"([\w-]+)"/.exec(block)
+    const requires = /requiresCapabilities:\s*\[([^\]]*)\]/.exec(block)
+    if (!key || !requires) continue
+    out.push({
+      key: key[1],
+      requiresCapabilities: requires[1]
+        .split(",")
+        .map((token) => token.trim())
+        .filter(Boolean)
+        .map((token) => aliases.get(token) ?? token.replace(/^"|"$/g, "")),
     })
   }
   return out
@@ -214,5 +295,144 @@ test("no requirement id anywhere in the file is invented", () => {
     [],
     `these requirement ids appear in ${PACKS_FILE} and not in the capability registry: ` +
       `${unknown.join(", ")}`,
+  )
+})
+
+/* ------------------------------------------------------------- WRK-100-004 --
+ * A pack may not claim a running capability without the full certification
+ * contract behind it.
+ *
+ * The gate that decides this at runtime is `capabilityProblems` in
+ * `connector-capability.ts`, and `catalogs.test.ts` proves it emits one
+ * `clause-unproven` per uncited clause per direction. What this adds is the
+ * check on the DECLARED rows: a pack advanced in this file to `AVAILABLE` while
+ * still carrying `NO_EVIDENCE` is a claim somebody wrote down, and it should
+ * fail before anything runs it.
+ */
+
+test("the certification contract is eight named clauses", () => {
+  const clauses = certificationClauses()
+  assert.deepEqual(
+    clauses,
+    [
+      "golden",
+      "negative",
+      "volume",
+      "failure-outage",
+      "throttling-and-deprecation",
+      "deletion-propagation",
+      "acl-change-propagation",
+      "scope-exactness",
+    ],
+    `${CAPABILITY_FILE} declares ${clauses.length} certification clauses. WRK-100-004 is about ` +
+      `the FULL contract, and a clause quietly removed from the list is a suite nothing asks ` +
+      `for again.`,
+  )
+})
+
+test("a pack claiming a running capability cites every clause", () => {
+  const clauses = certificationClauses()
+  const offenders = []
+
+  for (const pack of packs()) {
+    if (pack.capabilityStatus !== "AVAILABLE" && pack.capabilityStatus !== "DEGRADED") continue
+
+    // `NO_EVIDENCE` is the eight-empty-arrays constant. A running capability
+    // carrying it cites nothing at all.
+    if (/clauseEvidence:\s*NO_EVIDENCE/.test(pack.body) || !/clauseEvidence:/.test(pack.body)) {
+      offenders.push(`${pack.key} is ${pack.capabilityStatus} and cites nothing: ${clauses.join(", ")}`)
+      continue
+    }
+    // A clause is cited when the row names it as a key, quoted or not —
+    // `golden: [...]` and `"failure-outage": [...]` are both how TypeScript
+    // spells one, and a guard that only accepted the quoted form would report a
+    // fully-cited pack as citing nothing.
+    const missing = clauses.filter(
+      (clause) => !new RegExp(`"?${clause}"?\\s*:`).test(pack.body),
+    )
+    if (missing.length > 0) {
+      offenders.push(`${pack.key} is ${pack.capabilityStatus} and cites nothing for ${missing.join(", ")}`)
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `these packs claim a capability runs against the provider today without the full ` +
+      `certification contract behind it:\n  ${offenders.join("\n  ")}\n` +
+      `WRK-100-004: prove every available pack against the FULL contract, not a generic happy ` +
+      `path. One citation of any kind is the gate this replaced.`,
+  )
+})
+
+/* ------------------------------------------------------------- WRK-130-001 --
+ * The ten accelerators, and the set of capabilities selected for release.
+ */
+
+test("all ten work accelerators are declared", () => {
+  const declared = accelerators()
+  assert.equal(
+    declared.length,
+    10,
+    `${ACCELERATORS_FILE} declares ${declared.length} accelerators. The Bible names ten at ` +
+      `section 11, and one quietly dropped is a workflow that goes back to having no row ` +
+      `anywhere — invisible, which reads exactly like done.`,
+  )
+  for (const accelerator of declared) {
+    assert.ok(
+      accelerator.requiresCapabilities.length > 0,
+      `${accelerator.key} rests on no capability. A verdict that is always available is not a ` +
+        `verdict.`,
+    )
+  }
+})
+
+test("every capability an accelerator rests on is one a declared pack provides", () => {
+  // A key that no pack provides would make an accelerator permanently
+  // unavailable for a reason nobody could see, which reads exactly like an
+  // honest verdict.
+  const provided = new Set(
+    packs().map((p) => `${p.provider}/${p.product}/${p.capability}/${p.direction}`),
+  )
+  const offenders = []
+  for (const accelerator of accelerators()) {
+    for (const key of accelerator.requiresCapabilities) {
+      if (!provided.has(key)) offenders.push(`${accelerator.key} → ${key}`)
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    `these accelerators name capability keys no provider pack declares:\n  ` +
+      `${offenders.join("\n  ")}`,
+  )
+})
+
+test("no accelerator is available, because no capability is selected for release", () => {
+  // The honest state of the platform, written where it can go red the moment
+  // somebody overstates it. Every pack is PLANNED with a PLANNED capability, so
+  // the set of connector capabilities selected for release is EMPTY.
+  //
+  // This composes with the two checks above it rather than repeating them: a
+  // capability only counts as released once its pack has left PLANNED AND its
+  // capability claims to run AND the clause contract above is satisfied.
+  const running = new Set(
+    packs()
+      .filter((p) => p.capabilityStatus === "AVAILABLE")
+      .map((p) => `${p.provider}/${p.product}/${p.capability}/${p.direction}`),
+  )
+
+  const available = accelerators().filter((a) =>
+    a.requiresCapabilities.every((key) => running.has(key)),
+  )
+
+  assert.deepEqual(
+    available.map((a) => a.key),
+    [],
+    `these accelerators are being claimed as available:\n  ` +
+      `${available.map((a) => `${a.key} on ${a.requiresCapabilities.join(", ")}`).join("\n  ")}\n` +
+      `WRK-130-001 is "implement all ten accelerators FOR THE EXACT CONNECTOR CAPABILITIES ` +
+      `SELECTED FOR RELEASE". If a pack really has shipped, this test is the place that has to ` +
+      `be updated deliberately — and WRK-130-005 asks for the capability matrix to say so too.`,
   )
 })

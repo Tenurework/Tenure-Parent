@@ -3,17 +3,41 @@ import { notFound, redirect } from "next/navigation"
 
 import { getTenantBinding } from "@tenure/blueprints"
 import { buildSystem, compatibilityFor, planPromotion } from "@tenure/platform-config"
-import { REQUIRES_OWNER, needsApproval, nextStates, planFor } from "@tenure/provisioning"
+import {
+  REQUIRES_OWNER,
+  classify,
+  needsApproval,
+  nextStates,
+  planFor,
+  requirementsFor,
+} from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
-import { isOperator } from "@/lib/operators"
-import { ArchivedState, PendingDeletionState } from "@/components/states"
+import { authorizeCommand, controlPlaneIdentity } from "@/lib/authorize"
+import { ArchivedState, PendingDeletionState, PermissionDeniedState } from "@/components/states"
 import { ARCHIVED_STATES, PURGE_STATES, observedFor, residualFindings, riskOf } from "@/lib/tenant-state"
-import { fleet } from "@/lib/cells"
+import { fleet, primeEstate } from "@/lib/cells"
+import { observeFleet } from "@/lib/aws/health"
+import { compareDesiredToActual, desiredFromDeployment } from "@/lib/aws/drift"
+import { estateInventory } from "@/lib/aws/inventory"
 import { getTenant, registryConfigured } from "@/lib/registry"
+import { dynamoAuditLedger } from "@/lib/audit-ledger"
+import { DeploymentPanel } from "@/components/DeploymentPanel"
+import { EvidencePanel } from "@/components/EvidencePanel"
+import { REFUSED_OPERATIONS } from "@/lib/command-handlers"
 import { AdvanceControls } from "./AdvanceControls"
 
 export const dynamic = "force-dynamic"
+
+/** The host part of a cell's base URL, or null when there is not one to read. */
+function hostOf(baseUrl: string | undefined): string | null {
+  if (!baseUrl) return null
+  try {
+    return new URL(baseUrl).host
+  } catch {
+    return null
+  }
+}
 
 const money = (cents: number) =>
   cents === 0 ? "$0 marginal" : `$${(cents / 100).toFixed(2)}/month`
@@ -109,12 +133,30 @@ function releaseReadiness(slug: string, cellId: string | undefined) {
  * always fail.
  */
 export default async function TenantPage({ params }: { params: Promise<{ slug: string }> }) {
+  // STUDIO-000-006. `fleet()` used to default the account, region and partition
+  // to `us-east-1` and a literal account id; it now THROWS `FleetMisconfigured`
+  // rather than inventing an estate. That is the right behaviour and it made
+  // every unprimed caller a runtime failure — this page reaches `fleet()` twice,
+  // at :66 through `releaseReadiness` and at :220, and was never primed. Awaited
+  // here, once, before anything reads it, exactly as app/page.tsx:93 and
+  // platform/page.tsx:84 do.
+  await primeEstate()
+
   const session = await auth()
-  if (!isOperator(session?.user?.email)) redirect("/signin")
+  const principalId = session?.user?.email
+  const { slug } = await params
+
+  // STUDIO-020-006. Named resource, named action, named tenant. The read is
+  // decided before anything is fetched, and the WRITE is decided separately
+  // below — against the account and region the registry says this tenant is
+  // actually placed in, which is the whole point of the axes existing.
+  const read = authorizeCommand("tenant.lifecycle.read", { principalId, tenantId: slug })
+  if (read.reason === "NO_PRINCIPAL") redirect("/signin")
+  if (!read.allowed) return <PermissionDeniedState />
   if (!registryConfigured()) notFound()
 
-  const { slug } = await params
   const tenant = await getTenant(slug)
+
   if (!tenant) notFound()
 
   const plan = planFor(tenant.manifest)
@@ -135,7 +177,116 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
     evidenceRecords: tenant.evidence.length,
   })
   const residual = residualFindings(tenant.state, observed)
+
+  /**
+   * STUDIO-080-006 — desired versus actual, computed here because this is where
+   * the desired side already lives.
+   *
+   * `estateInventory()` is the same function `/platform/estate` calls, so the
+   * two surfaces cannot disagree about what AWS said. The four readings are
+   * passed as the `AwsRead` union rather than flattened to arrays: flattening
+   * would turn a denied surface into "no resources", and `compareDesiredToActual`
+   * would then report every desired resource as missing and offer a plan to
+   * recreate it — the failure the whole module exists to refuse.
+   */
+  const estate = await estateInventory()
+  const driftReport = compareDesiredToActual(
+    tenant.deployment
+      ? desiredFromDeployment({
+          slug: tenant.slug,
+          serving: tenant.deployment.serving === true,
+          isolation: tenant.manifest.isolation,
+          // The seat, from the manifest's own ownership rather than a person's
+          // name — a role can answer for a resource after somebody leaves.
+          ownerSeat: tenant.manifest.isolation === "pooled" ? "platform" : `tenant-lead:${tenant.slug}`,
+        })
+      : [],
+    [estate.ecsServices, estate.databases, estate.distributions, estate.certificates],
+    { now: new Date(), slug: tenant.slug },
+  )
+  /*
+   * STUDIO-140-006. Every attempt, not only every move that succeeded.
+   *
+   * Read here rather than lazily inside the section, because a ledger that
+   * renders only when somebody scrolls is a ledger the layout suite never
+   * measures and nobody notices going empty.
+   */
+  const ledger = (await dynamoAuditLedger().read(tenant.slug)).slice(-20).reverse()
   const readiness = releaseReadiness(tenant.slug, tenant.registry?.placement.cellId)
+
+  /*
+   * STUDIO-020-005/006 — the two decisions that make this page differ by role.
+   *
+   * Both are scoped to where this tenant actually lives: the region the
+   * registry recorded at placement, and the AWS account of the cell holding it.
+   * A tenant placed outside the account this control plane resolved for itself
+   * is refused on the residency axis before the role is even consulted, which
+   * is the cheap local half of GE-010-007 — the console holds credentials for
+   * one account, so a mutation aimed at another is a bug or an attempt.
+   */
+  const identity = controlPlaneIdentity()
+  const placement = tenant.registry?.placement
+  const placedCell = fleet().find((c) => c.cellId === placement?.cellId)
+
+  /**
+   * STUDIO-120-003 — what was observed of the system serving this tenant, as
+   * distinct from what the registry believes about it.
+   *
+   * This page can resolve the cell properly, which the fleet listing cannot: the
+   * registry record carries `placement.cellId`, so the certificate and backup
+   * observations are taken against the cell this tenant is actually on rather
+   * than against whichever one the fleet happens to hold. `placedCell` is the
+   * same one the authorization decisions above are scoped to, deliberately —
+   * observing a tenant against a cell the console would refuse to act on would
+   * be a health badge for a system nobody here can touch.
+   *
+   * Rendered whole, including the sources that came back `unknown`, because the
+   * estate has three FAILED certificates and no verified backup and a page that
+   * showed only the answers it had would present exactly the silence this item
+   * exists to remove.
+   */
+  const observedAt = new Date()
+  const estateObservations =
+    (
+      await observeFleet(
+        [
+          {
+            slug: tenant.slug,
+            host: hostOf(placedCell?.routing.baseUrl),
+            cellId: placedCell?.cellId ?? null,
+            backup: placedCell
+              ? {
+                  lastVerifiedAt: placedCell.backup.lastVerifiedAt,
+                  retentionDays: placedCell.backup.retentionDays,
+                }
+              : null,
+          },
+        ],
+        { now: observedAt },
+      )
+    ).get(tenant.slug) ?? []
+
+  const advance = authorizeCommand("tenant.lifecycle.advance", {
+    principalId,
+    tenantId: tenant.slug,
+    region: placement?.region,
+    accountId: placedCell?.awsAccountId,
+  })
+  // STUDIO-080-003. Deep links to the AWS console, for the Cloud Platform
+  // Engineer and the Emergency Responder only. Nothing on this page depends on
+  // them: they are a shortcut for somebody already entitled to be in the
+  // account, not a control surface.
+  const awsConsole = authorizeCommand("aws.console.open", {
+    principalId,
+    region: placement?.region,
+    accountId: placedCell?.awsAccountId,
+  })
+  // Null when neither the registry record nor this process can say where it is.
+  // The section below is then not rendered at all, rather than linking at
+  // `https://null.console.aws.amazon.com` — a deep link to nowhere is worse
+  // than no deep link, because it looks like the console is telling you
+  // something.
+  const consoleRegion = placement?.region ?? identity.region
 
   return (
     <>
@@ -263,22 +414,137 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           <Link href={`/tenants/${tenant.slug}/configuration`}>Configuration →</Link>
         </p>
 
-        <AdvanceControls
-          slug={tenant.slug}
-          moves={moves.map((to) => ({
-            to,
-            needsApproval: needsApproval(tenant.state, to),
-            // WRK-120-005. The destinations that cannot be entered with nobody
-            // named as responsible afterwards. Read from the engine, like
-            // `needsApproval`, so the field an operator is shown is exactly the
-            // field the engine will refuse without.
-            needsOwner: REQUIRES_OWNER.has(to),
-            // Computed here, on the server, from the transition graph itself.
-            // Reversibility especially: a hand-written label saying "this can be
-            // undone" is a claim, and the graph is the fact.
-            risk: riskOf(tenant.slug, tenant.state, to, observed),
-          }))}
-        />
+        {/*
+          Absent, not disabled. An Auditor/Read Only operator holds
+          `tenant.lifecycle:read` and nothing else, so the controls that move a
+          tenant's lifecycle are not rendered into their page at all — and the
+          server action re-decides the same command, so a hand-crafted POST is
+          refused too. The sentence below says the refusal happened rather than
+          leaving a reader wondering where the buttons went; it names no
+          destination, because listing what somebody may not do is a map of the
+          surface for whoever is looking for one.
+        */}
+        {advance.allowed ? (
+          <AdvanceControls
+            slug={tenant.slug}
+            // STUDIO-060-002. What this page was looking at when it rendered.
+            // `gate` compares both against the registry at submission time, so
+            // a move decided against a page somebody left open is refused
+            // rather than applied to a tenant that has since moved. The two are
+            // exactly what the action's `current()` reads back.
+            expectedVersion={tenant.history.length}
+            expectedDigest={tenant.digest}
+            moves={moves.map((to) => ({
+              to,
+              needsApproval: needsApproval(tenant.state, to),
+              // WRK-120-005. The destinations that cannot be entered with
+              // nobody named as responsible afterwards. Read from the engine,
+              // like `needsApproval`, so the field an operator is shown is
+              // exactly the field the engine will refuse without.
+              needsOwner: REQUIRES_OWNER.has(to),
+              // Computed here, on the server, from the transition graph itself.
+              // Reversibility especially: a hand-written label saying "this can
+              // be undone" is a claim, and the graph is the fact.
+              risk: riskOf(tenant.slug, tenant.state, to, observed),
+              // STUDIO-060-007. The token the gate in `runAdvance` will compare,
+              // produced by the same function that compares it. Null for a class
+              // that needs none, which is what hides the field.
+              typedConfirmation: requirementsFor(
+                classify({ surface: "tenant-lifecycle", action: to, target: tenant.slug }),
+                tenant.slug,
+              ).typedConfirmation,
+            }))}
+          />
+        ) : (
+          <p className="refused" data-testid="lifecycle-read-only">
+            Read only. Moving this tenant&rsquo;s lifecycle is not yours to do.
+          </p>
+        )}
+      </section>
+
+      {/* STUDIO-080-003 — console deep links, gated. */}
+      {awsConsole.allowed && consoleRegion !== null && (
+        <section className="system">
+          <header>
+            <h2>AWS console</h2>
+            <span className="badge quiet">{awsConsole.role}</span>
+          </header>
+          <p>
+            Shortcuts into the account this tenant is placed in, for an operator who is already
+            entitled to be there. Nothing in the console depends on them: every change this platform
+            makes goes through a typed command with a plan, an approval and evidence, and a link to
+            a service page is a place to look rather than a place to act.
+          </p>
+          <dl className="kv">
+            <dt>Account</dt>
+            <dd className="id">{placedCell?.awsAccountId ?? identity.accountId}</dd>
+            <dt>Region</dt>
+            <dd className="id">{consoleRegion}</dd>
+            <dt>Services</dt>
+            <dd>
+              <a
+                href={`https://${consoleRegion}.console.aws.amazon.com/ecs/v2/clusters?region=${consoleRegion}`}
+                rel="noreferrer noopener"
+                target="_blank"
+              >
+                ECS clusters
+              </a>{" "}
+              ·{" "}
+              <a
+                href={`https://${consoleRegion}.console.aws.amazon.com/cloudwatch/home?region=${consoleRegion}#logsV2:log-groups`}
+                rel="noreferrer noopener"
+                target="_blank"
+              >
+                CloudWatch log groups
+              </a>
+            </dd>
+          </dl>
+        </section>
+      )}
+
+      {/* STUDIO-120-003. Every source, including the ones nobody can read. */}
+      <section className="system">
+        <header>
+          <h2>Observed</h2>
+          <span
+            className={`badge ${
+              estateObservations.some((o) => o.status === "failing")
+                ? "warn"
+                : estateObservations.every((o) => o.status === "unknown")
+                  ? "warn"
+                  : "ok"
+            }`}
+          >
+            {estateObservations.filter((o) => o.status === "unknown").length} of{" "}
+            {estateObservations.length} unobserved
+          </span>
+        </header>
+        <p>
+          What was seen of the system serving this tenant, as of {observedAt.toISOString()}. None of
+          it is read from the tenant&apos;s database — a certificate&apos;s expiry, an alarm&apos;s
+          state and a verified backup are all facts the control plane can establish from outside.
+          Sources that could not be read say so; an unread source is never counted healthy.
+        </p>
+        <table className="grid">
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th>Status</th>
+              <th>What was seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {estateObservations.map((o) => (
+              <tr key={o.source}>
+                <td className="id">{o.source}</td>
+                <td>
+                  <span className={`badge ${o.status === "ok" ? "ok" : "warn"}`}>{o.status}</span>
+                </td>
+                <td className="slug">{o.detail}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
 
       <section className="system">
@@ -456,68 +722,136 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
         </section>
       )}
 
+      {/*
+        STUDIO-080-006 — what the artifact says should exist, against what AWS
+        actually reports.
+
+        The comparison takes the `AwsRead` union directly rather than a plain
+        array, which is what makes the one rule below expressible: a surface the
+        engine's role could not read produces severity `unknown` and NO
+        remediation. "We were not allowed to look" must never turn into a plan to
+        recreate a resource that already exists — that plan is how a denied
+        DescribeServices becomes a second load balancer, or a CreateDBInstance
+        beside a live database.
+      */}
       {tenant.deployment && (
-        <section className="system">
+        <section className="system" data-surface="drift">
           <header>
-            <h2>Deployment manifest</h2>
-            <span className="badge ok">{tenant.deployment.digest}</span>
+            <h2>Drift</h2>
+            <span className="badge warn">{driftReport.items.length}</span>
           </header>
           <p>
-            The signed artifact a cell reconciles toward. Its digest covers every field below, so a
-            cell can verify it received what the engine published rather than trusting the
-            transport.
+            Desired comes from the published artifact below; actual comes from a live read made
+            when this page rendered.
+            {driftReport.partial
+              ? " At least one surface could not be read, so this report is partial and says which."
+              : " Every surface answered."}
           </p>
-          <dl className="kv">
-            <dt>configuration</dt>
-            <dd>{tenant.deployment.configurationChecksum}</dd>
-            <dt>modules</dt>
-            <dd>{tenant.deployment.modules.join(", ")}</dd>
-            <dt>schema</dt>
-            <dd>{tenant.deployment.schemaVersion}</dd>
-            <dt>evidence</dt>
-            <dd>{tenant.deployment.evidenceDigest}</dd>
-            <dt>published</dt>
-            <dd>
-              {tenant.deployment.createdAt} by {tenant.deployment.createdBy}
-            </dd>
-          </dl>
+          {driftReport.items.length === 0 ? (
+            <p>Nothing desired by the artifact is missing from what AWS reports.</p>
+          ) : (
+            <div className="scroll-x">
+              <table className="grid">
+                <thead>
+                  <tr>
+                    <th>Resource</th>
+                    <th>Severity</th>
+                    <th>Owner</th>
+                    <th>Seen</th>
+                    <th>Remediation</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {driftReport.items.map((item) => (
+                    <tr key={item.resourceKey} data-severity={item.severity}>
+                      <td className="id">{item.resourceKey}</td>
+                      <td>{item.severity}</td>
+                      <td>{item.owner}</td>
+                      <td className="num">
+                        {item.occurrences}× since {item.firstSeenAt.slice(0, 10)}
+                      </td>
+                      <td>
+                        {!item.remediation ? (
+                          <>
+                            No plan is offered.{" "}
+                            {"unknown" in item.actual && item.actual.unknown
+                              ? item.actual.because
+                              : "the actual state could not be read"}
+                            . Recreating a resource nobody was allowed to look at is how a denial
+                            becomes a duplicate.
+                          </>
+                        ) : item.remediation.safe ? (
+                          item.remediation.describe
+                        ) : (
+                          <>
+                            {item.remediation.refusedBecause} A human runs this themselves:{" "}
+                            <code>{item.remediation.awsCliCommand}</code>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       )}
 
-      {tenant.evidence.length > 0 && (
-        <section className="system">
-          <header>
-            <h2>Evidence</h2>
-            <span className="badge">{tenant.evidence.length} steps</span>
-          </header>
-          <p>
-            What each step actually produced. A step that records having run without producing
-            anything citable is a step that did not run.
-          </p>
-          {tenant.evidence.map((e) => (
-            <div key={`${e.state}-${e.step}`}>
-              <h3>
-                {e.state} · {e.step} <span className="badge">{e.ok ? "ok" : "failed"}</span>
-              </h3>
-              <p className="slug">{e.detail}</p>
-              {e.digest && <p className="slug">digest {e.digest}</p>}
-              {e.checks && (
-                <table className="grid">
-                  <tbody>
-                    {e.checks.map((c) => (
-                      <tr key={c.name}>
-                        <td className="state">{c.ok ? "✓" : "✗"}</td>
-                        <td>{c.name}</td>
-                        <td className="slug">{c.detail}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          ))}
-        </section>
-      )}
+      {/* STUDIO-070-009. Moved into a component for the reason the evidence
+          panel was: the projection an operator reads is then the one a test can
+          render, so a producer that stops forwarding the previous artifact's
+          digest reds a rendered surface rather than passing unnoticed. The
+          signature and the rollback target were both absent from the block this
+          replaces — the first while the heading called the artifact signed. */}
+      {tenant.deployment && <DeploymentPanel deployment={tenant.deployment} />}
+
+      {/* STUDIO-070-005. Moved into a component so the projection an operator
+          reads is the one a test can render — and so a producer that stops
+          threading AWS request ids reds the panel rather than silently showing
+          an empty list. */}
+      {tenant.evidence.length > 0 && <EvidencePanel evidence={tenant.evidence} />}
+
+      {/* STUDIO-060-007. NEXT-SESSION §0.3's refusal list, rendered rather than
+          discovered by being refused. Each entry is an operation `classify`
+          puts in a class `requirementsFor` marks non-automatable, so this list
+          and the gate that enforces it are the same fact. */}
+      <section className="system">
+        <header>
+          <h2>What this console will not do</h2>
+          <span className="badge">{REFUSED_OPERATIONS.length}</span>
+        </header>
+        <p>
+          These are refused whatever the form says, and the refusal names the command a human runs
+          under their own credentials. Not "hard" — refused: this engine holds credentials that can
+          destroy a term of student records, and a console that will do that because a form was
+          filled in correctly is the wrong shape of tool.
+        </p>
+        <table className="grid">
+          <thead>
+            <tr>
+              <th>Operation</th>
+              <th>Class</th>
+              <th>Instead</th>
+            </tr>
+          </thead>
+          <tbody>
+            {REFUSED_OPERATIONS.map((operation) => {
+              const cls = classify({ ...operation, target: tenant.slug })
+              const required = requirementsFor(cls, tenant.slug)
+              return (
+                <tr key={`${operation.surface}:${operation.action}`}>
+                  <td className="id">
+                    {operation.surface}:{operation.action}
+                  </td>
+                  <td>{cls}</td>
+                  <td className="slug">{required.refusedWithCliCommand ?? "—"}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </section>
 
       <section className="system">
         <header>
@@ -554,6 +888,81 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
                   <td className="slug">{s.approvedBy ?? "—"}</td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* ── Audit ledger (STUDIO-140-006) ─────────────────────────────────
+          History records the moves that HAPPENED. This records every move that
+          was ATTEMPTED, including the ones that were refused — which is the
+          half nobody could see before, and the half an incident review is
+          actually about.
+
+          Rendered rather than merely written, because a ledger with no reader
+          is a table: the chain links are on the page, so `previousDigest`
+          matching the row below it is something an operator (and
+          `high-risk-fails-closed.spec.ts`) can check rather than take on
+          trust. */}
+      <section className="system">
+        <header>
+          <h2>Audit ledger</h2>
+          <span className="badge">{ledger.length}</span>
+        </header>
+        {ledger.length === 0 ? (
+          <p>Nothing has been attempted against this tenant through the Studio.</p>
+        ) : (
+          <table className="grid" data-testid="audit-ledger">
+            <thead>
+              <tr>
+                <th className="num">#</th>
+                <th>When</th>
+                <th>What</th>
+                <th>Outcome</th>
+                <th>Chain</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ledger.map((row) => {
+                const phase = String(row.metadata.phase ?? "")
+                const code = String(row.metadata.code ?? "")
+                return (
+                  <tr key={`${row.sequence}`} data-audit-seq={row.sequence ?? ""}>
+                    <td className="num">{row.sequence ?? "—"}</td>
+                    <td className="id">{row.occurredAt}</td>
+                    <td>
+                      {row.action}
+                      {row.metadata.target ? ` · ${String(row.metadata.target)}` : ""}
+                      <br />
+                      <span className="slug">
+                        {row.actorId} — {row.reason ?? "no reason given"}
+                      </span>
+                    </td>
+                    <td>
+                      {/* An intent with no outcome beside it is the state that
+                          matters: somebody started this and nothing recorded how
+                          it ended. `phase` is what says which row is which. */}
+                      <span
+                        className={`badge ${row.outcome === "ALLOW" ? "ok" : "bad"}`}
+                        data-audit-outcome={code || phase || row.outcome}
+                      >
+                        {code || phase || row.outcome}
+                      </span>
+                    </td>
+                    <td
+                      className="id"
+                      data-audit-hash={row.recordHash}
+                      data-audit-previous={row.previousHash ?? ""}
+                    >
+                      {row.recordHash.slice(0, 16)}
+                      <br />
+                      <span className="slug">
+                        after {row.previousHash ? row.previousHash.slice(0, 16) : "— chain head"}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}

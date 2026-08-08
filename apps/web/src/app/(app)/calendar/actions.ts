@@ -8,6 +8,7 @@ import { withTenantScope } from "@/lib/tenant-scope"
 import { configSnapshotForInstitution, institutionSlugFor } from "@/lib/config/server"
 import { localizationFor } from "@tenure/platform-config"
 import { detectConflicts } from "@/lib/calendar"
+import { formatRecurrenceRule, parseRecurrenceRule } from "@/lib/calendar-recurrence"
 import { institutionTimeZone } from "@/lib/institution-time"
 import { formatInZone, parseDateTimeLocal } from "@/lib/time"
 import { approvalDigest, nextStatus } from "@/lib/approvals"
@@ -36,6 +37,18 @@ export async function createEvent(formData: FormData) {
     const venue = String(formData.get("venue") ?? "").trim()
     const startRaw = String(formData.get("startAt") ?? "")
     const endRaw = String(formData.get("endAt") ?? "")
+    // WRK-060-005. The repeat rule, normalised through the same parser the feed
+    // and the week grid read it back with. A rule this application cannot expand
+    // is never stored: it would emit an `RRULE` a subscriber acts on and Tenure
+    // itself would not show, and the two would silently describe different
+    // meetings. `null` is stored instead, so the event is a single occurrence
+    // and says so.
+    const repeatRaw = String(formData.get("recurrenceRule") ?? "").trim()
+    const repeatRule = repeatRaw ? parseRecurrenceRule(repeatRaw) : null
+    if (repeatRaw && !repeatRule) {
+      throw new Error("That repeat rule is not one Tenure can schedule")
+    }
+    const recurrenceRule = repeatRule ? formatRecurrenceRule(repeatRule) : null
 
     if (!title) throw new Error("Title is required")
 
@@ -159,6 +172,7 @@ export async function createEvent(formData: FormData) {
           startAt,
           endAt,
           venue: venue || null,
+          recurrenceRule,
           status: "PENDING_APPROVAL",
           conflictSummary: {
             hard: conflicts.filter((c) => c.severity === "HARD").length,

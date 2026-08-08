@@ -20,6 +20,8 @@
 import { act } from "react"
 import { createRoot, type Root } from "react-dom/client"
 
+import { calendarSyncSentence } from "@tenure/platform-config"
+
 import { CalendarSubscribe } from "@/components/CalendarSubscribe"
 import { AIProvider } from "@/components/ai/AIProvider"
 import { NotificationBell } from "@/components/shell/NotificationBell"
@@ -86,7 +88,18 @@ function press(el: Element) {
 
 describe("domain modules render the owned wrappers", () => {
   it("gives CalendarSubscribe's trigger the owned secondary button, pressed state and all", () => {
-    render(<CalendarSubscribe feedPath="/api/calendar/feed/abc.ics" />)
+    // `sync` is REQUIRED, and deliberately so — WRK-GATE-080 made the two-way
+    // sync claim a lookup rather than a sentence typed into the component, so
+    // that it cannot keep promising a sync nobody built. Resolved here the same
+    // way `(app)/calendar/page.tsx:163` resolves it, rather than hand-built:
+    // a literal would let this test keep passing after the real sentence
+    // changed, which is the whole property that prop exists to protect.
+    render(
+      <CalendarSubscribe
+        feedPath="/api/calendar/feed/abc.ics"
+        sync={calendarSyncSentence(new Date().toISOString())}
+      />,
+    )
 
     const trigger = container.querySelector("button")
     expect(trigger).not.toBeNull()
@@ -103,6 +116,37 @@ describe("domain modules render the owned wrappers", () => {
     // ...and the shared size scale, which the two copies had already drifted
     // apart on (h-10 here vs h-9 in ClubImageEditor).
     expect(cls).toContain("h-control")
+  })
+
+  it("puts the gate's own sentence in front of the student, not a written one", () => {
+    // WRK-GATE-080, asserted on the DOM the production component produces.
+    //
+    // `provider-review.test.ts` proves what `calendarSyncSentence` returns.
+    // That is not the same claim as this one: a component that took the prop
+    // and rendered "Two-way sync turns on once your institution connects
+    // Microsoft 365" beside it would leave that file entirely green. What has
+    // to be true is that the text a student can actually read IS the gate's
+    // answer, so the dialog is opened and the rendered string compared to it.
+    const sync = calendarSyncSentence(new Date().toISOString())
+    render(<CalendarSubscribe feedPath="/api/calendar/feed/abc.ics" sync={sync} />)
+
+    press(container.querySelector("button")!)
+
+    // react-aria portals the modal to document.body, not into `container`.
+    const claim = document.querySelector('[data-testid="calendar-sync-claim"]')
+    expect(claim).not.toBeNull()
+    expect(claim!.textContent).toBe(sync.sentence)
+
+    // And the whole dialog — not only that one paragraph — is free of the
+    // promise this item removed. The sentence was one of two overstatements in
+    // this component; the other called the feed "the credential-free half of
+    // Outlook sync", which is a claim about a second half that does not exist.
+    const dialog = document.querySelector('[role="dialog"]')
+    expect(dialog).not.toBeNull()
+    expect(dialog!.textContent).not.toMatch(/two-way|half of Outlook|flowing back|written back/i)
+    // The honest replacement is present, so this is not passing by the dialog
+    // having failed to render its copy at all.
+    expect(dialog!.textContent).toContain("publishes one way")
   })
 
   it("gives the tenant switcher the shell variant rather than a local class string", () => {

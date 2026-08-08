@@ -9,7 +9,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./money": "./src/money.ts",
-    "./compatibility": "./src/compatibility.ts"
+    "./compatibility": "./src/compatibility.ts",
+    "./provider-review": "./src/provider-review.ts"
   },
-  "//exports": "Three entry points on purpose. The main one reaches @tenure/configuration, whose resolver imports node:crypto for checksums — importing it from a module that client components also import fails the build with UnhandledSchemeError. `./money` is the client-safe subset: a pure Intl formatter with no imports at all. `./compatibility` is the version comparator, exposed on its own because @tenure/payments needs it and the main entry point imports @tenure/payments (see modules.ts) — reaching for the root from there would be a cycle. The file has no imports, so the subpath has none either."
+  "//exports": "Four entry points on purpose. The main one reaches @tenure/configuration, whose resolver imports node:crypto for checksums — importing it from a module that client components also import fails the build with UnhandledSchemeError. `./money` is the client-safe subset: a pure Intl formatter with no imports at all. `./compatibility` is the version comparator, exposed on its own because @tenure/payments needs it and the main entry point imports @tenure/payments (see modules.ts) — reaching for the root from there would be a cycle. The file has no imports, so the subpath has none either. `./provider-review` is the activation gate: WRK-030-005 makes apps/web/src/lib/connections/capability-resolution.ts derive `certified` from it, and that module is imported by MissingConnectionCard.tsx, which is client code — so it needs the same client-safe treatment `./money` got, for the same UnhandledSchemeError reason. provider-review.ts has no imports either."
 }

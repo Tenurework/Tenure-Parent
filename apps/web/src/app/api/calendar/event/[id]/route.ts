@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { auth } from "@/lib/auth"
+import { eventIdOfOccurrence } from "@/lib/calendar-data"
 import { loadEditableEvent, updateEventDetails } from "@/lib/calendar-write"
 import { withTenantScope } from "@/lib/tenant-scope"
 import { toDateTimeLocalValue } from "@/lib/time"
@@ -30,7 +31,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   return withTenantScope(userId, async () => {
     const { id } = await params
-    const event = await loadEditableEvent(userId, id)
+    // WRK-060-005. A chip on the grid may be a generated occurrence of a
+    // recurring event, whose id is `<eventId>~<startMs>` so React keys and the
+    // optimistic-move map stay distinct. Opening it must show the series' own
+    // record rather than 404 on an id that names no row. A plain event id comes
+    // back unchanged.
+    const event = await loadEditableEvent(userId, eventIdOfOccurrence(id))
     if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
     return NextResponse.json({

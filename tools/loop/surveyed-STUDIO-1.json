@@ -1,0 +1,142 @@
+[
+  {
+    "id": "STUDIO-000-007",
+    "title": "A denied AWS call is rendered as UNKNOWN — with principal, action, error code, account/region and the minimum IAM statement — never as an empty list",
+    "why_open": "There is no runtime AWS read path in the Studio at all, so there is nothing that can be denied and nothing that renders the denial. apps/system-studio/package.json:14-15 lists exactly two AWS packages (@aws-sdk/client-dynamodb, @aws-sdk/lib-dynamodb); apps/system-studio/src/lib/registry.ts:3,69 is the only construction site (`new DynamoDBClient`). The one place denials are recorded today is a CI-time script that shells out to the aws CLI: tools/aws-inventory.mjs:55 pushes `denied.push({ call, reason })` — call and reason ONLY. No principal (no sts:GetCallerIdentity is ever called in that file), no error code, no account/region on the record, and no minimum read permission, which are four of the five fields the requirement names. That record is frozen into docs/architecture/aws-inventory.json (`access.denied` = three `{call, reason}` objects) and copied by tools/platform-truth.mjs:127 into apps/system-studio/src/generated/platform-truth.json, which apps/system-studio/src/app/platform/page.tsx:7,73,381-390 renders as a two-column table of `d.call` / `d.reason`. The Studio's state vocabulary has no way to say 'unknown': apps/system-studio/src/components/states.tsx:43-56 STATE_KINDS is [loading, empty, error, permissionDenied, stale, offline, conflict, archived, partialData, pendingDeletion, highRisk] — `permissionDenied` is about the human operator (states.tsx:157 `PermissionDeniedState` deliberately takes no identifier) and is not the engine-role-was-refused state. Finally the role that would make the calls holds nothing: infrastructure/studio/iam.tf:36-43 creates the task role with the comment 'Deliberately empty', and the only policy attached to it is the six DynamoDB actions in infrastructure/studio/dynamodb.tf:68-96 — so every ECS/RDS/CloudFront/ACM/S3/SQS/SES/Lambda read WILL return AccessDenied on the first deploy. This item is the one that decides whether that reads as 'no RDS instances'.",
+    "files": [
+      "apps/system-studio/src/lib/aws/identity.ts",
+      "apps/system-studio/src/lib/aws/call.ts",
+      "apps/system-studio/src/lib/registry.ts",
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/src/app/platform/page.tsx",
+      "apps/system-studio/e2e/states-logic.spec.ts",
+      "tests/architecture/forbidden-clients.test.mjs",
+      "infrastructure/studio/iam.tf",
+      "apps/system-studio/package.json",
+      "package-lock.json"
+    ],
+    "smallest_real_change": "Add one owning adapter, apps/system-studio/src/lib/aws/call.ts, that wraps every AWS SDK send in a `Probe<T>` discriminated union: `{state:'ok', value, asOf}` | `{state:'unknown', principalArn, accountId, region, partition, action, errorCode, minimumStatement}` | `{state:'throttled', retryAfter}` | `{state:'unconfigured', why}` — with NO arm that can produce an empty array from a failure. It resolves identity once per process through `new STSClient({})` + GetCallerIdentity (default provider chain only; region and partition parsed off the returned Arn, never a literal 'us-east-1'/'aws'), and on a failed send classifies err.name (AccessDenied/AccessDeniedException/UnauthorizedOperation/*NotAuthorized*) into `unknown`, carrying the principal Arn from the cached identity, the operation name, and a `minimumStatement` string built from the service/action pair. Add a matching `UnknownState` to states.tsx (kind 'unknown', label 'Unknown', tone 'warn') that REQUIRES principal, action and minimumStatement as props so an unknown cannot be rendered without them, and update the exact-list assertion at apps/system-studio/e2e/states-logic.spec.ts:64. Register apps/system-studio/src/lib/aws/call.ts in OWNERS.aws at tests/architecture/forbidden-clients.test.mjs:198 and add it to the `proof` list at :397 with `/new\\s+STSClient\\s*\\(/`, otherwise 'no module outside its adapter imports an AWS client' reds. Add @aws-sdk/client-sts to apps/system-studio/package.json and run `npm install --package-lock-only` (tests/architecture/lockfile-knows-every-workspace.test.mjs). Prove it with a unit test that injects a fake `send` behaving like the real client on FOUR inputs — AccessDeniedException, ThrottlingException, `{Items:[]}` success, and a populated success — and asserts four DIFFERENT rendered strings; mutate `call.ts` to return `[]` on the AccessDenied branch and confirm the empty-vs-unknown case reds. Add the read statements to infrastructure/studio/iam.tf as a separate `aws_iam_role_policy` named `estate-read` so a partial grant is a visible diff.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-100-001",
+    "title": "The fleet table shows 5 columns of 16, and the health input it feeds is a hardcoded `hasDeployment: true`",
+    "why_open": "apps/system-studio/src/app/tenants/page.tsx:179-205 renders exactly Slug, Name, State, Isolation, Cost note. The requirement names sixteen: tenant, implementation owner, lifecycle, plan, cell/account/region, isolation, release/config/schema, health/SLO, last activity, data volume, resource count, actual/forecast cost, drift, blockers, next action. Eleven are absent from the query as well as the table — apps/system-studio/src/lib/registry.ts:195 projects only `#slug, #state, #displayName, #updatedAt, #isolation`, so the page could not render owner, plan, cell, release or config revision even if the columns existed, though the REGISTRY row already holds them (registry.ts:253 reads `TenantRegistryRecord` on the detail path only). Worse, the one derived signal it does show is fed a constant: apps/system-studio/src/app/tenants/page.tsx:76 passes `hasDeployment: true` for every tenant, so the `never-deployed` branch at apps/system-studio/src/lib/fleet-health.ts:124-126 is unreachable from the production caller — the helper's own test passes because it builds its own input. That is the 'mutate the producer, not the helper' failure in the live tree.",
+    "files": [
+      "apps/system-studio/src/app/tenants/page.tsx",
+      "apps/system-studio/src/lib/registry.ts",
+      "apps/system-studio/src/lib/fleet-health.ts",
+      "apps/system-studio/src/lib/cells.ts",
+      "apps/system-studio/e2e/fleet-health-logic.spec.ts",
+      "apps/system-studio/e2e/layout.spec.ts"
+    ],
+    "smallest_real_change": "Widen `listTenants()` (registry.ts:181-216) into `listFleet()` that Scans BOTH the STATE and REGISTRY rows in one pass (drop the `#sk = :sk` filter, group by pk) and returns owner, planId, cellId, awsAccountId, region, release, schemaVersion, configRevision and `hasDeployment` — the last read from the DEPLOYMENT sort key rather than assumed — then delete the literal `true` at tenants/page.tsx:76 and pass the real value. Render the columns in one `<div className=\"table-scroll\">`-wrapped table so e2e/layout.spec.ts's no-horizontal-page-scroll assertion (ROUTES already includes /tenants at 1440/1180/900) still holds; cost, drift and resource-count columns render the `Probe` states from STUDIO-000-007 rather than blanks. Prove it by seeding DynamoDB Local with one tenant that has NO DEPLOYMENT row and asserting the fleet page shows `never deployed` for it — mutate line 76 back to `hasDeployment: true` and confirm that assertion reds, which the existing fleet-health-logic.spec.ts cannot do because it calls healthOf() directly.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-120-003",
+    "title": "Tenant health is derived only from lifecycle state and a timestamp — no synthetic, API check, TLS expiry, backup, drift or cost-anomaly signal exists",
+    "why_open": "apps/system-studio/src/lib/fleet-health.ts:51-58 defines the whole vocabulary: serving | resting | stalled | failed | terminal | never-deployed | config-behind. Every one is computed from `input.state` and `Date.parse(input.updatedAt)` (fleet-health.ts:94-137); `FleetInput` (fleet-health.ts:72-82) has six fields and none of them is an observation of a running system. The requirement names thirteen sources — synthetics, API checks, dependencies, queue age, error rates, database, identity, domain/TLS, integrations, Relay, backups, drift, cost anomalies — and the Studio makes zero calls that could produce any of them: no CloudWatch, no ACM, no ELB target health, no SQS ApproximateAgeOfOldestMessage anywhere in apps/system-studio/src (the only AWS import in the app is DynamoDB, registry.ts:3). The estate that would answer them is a compile-time snapshot: apps/system-studio/src/app/platform/page.tsx:406-413 renders `estate.alarms` out of generated/platform-truth.json, and docs/architecture/aws-current-state.md records four certificates of which three are FAILED — a fact nothing in the product surfaces per tenant. Note the honest constraint that makes this shaped differently from the Bible's wording: tests/security/operator-plane-content.test.mjs forbids the Studio reaching a tenant database, so 'database' and 'error rates' must come from CloudWatch metrics, never from a query.",
+    "files": [
+      "apps/system-studio/src/lib/fleet-health.ts",
+      "apps/system-studio/src/lib/aws/health.ts",
+      "apps/system-studio/src/lib/aws/call.ts",
+      "apps/system-studio/src/app/tenants/page.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/page.tsx",
+      "apps/system-studio/e2e/fleet-health-logic.spec.ts"
+    ],
+    "smallest_real_change": "Extend `FleetInput` with an `observations: readonly HealthObservation[]` field where `HealthObservation = { source: 'tls' | 'alarm' | 'queue-age' | 'backup' | 'cost-anomaly' | 'drift', status: 'ok' | 'degraded' | 'failing' | 'unknown', asOf: string, detail: string }` — `unknown` mandatory so a denied call is a distinct third state, not silence — and add two signals to the union, `dependency-failing` and `unobserved`, ordered into ATTENTION_ORDER (fleet-health.ts:92) above `config-behind`. Start with the three cheapest real reads in a new apps/system-studio/src/lib/aws/health.ts built on the STUDIO-000-007 `Probe`: ACM DescribeCertificate expiry for the tenant's domain (the estate already has three FAILED certs to prove the failing arm), CloudWatch DescribeAlarms filtered by the tenant tag with INSUFFICIENT_DATA mapped to `unknown` rather than ok, and SQS GetQueueAttributes ApproximateAgeOfOldestMessage. Wire it at tenants/page.tsx where `healthOf` is already called, behind a named `HEALTH_REFRESH_MS` constant. Prove it by mutating the ACM reader to map INSUFFICIENT_DATA to `ok` and confirming a spec that asserts the tenant row says 'unobserved' reds; the existing e2e/fleet-health-logic.spec.ts must gain a case asserting the PAGE output, not healthOf() directly.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-120-009",
+    "title": "Marked PASS while its own ledger entry admits module/cell/environment dimensions and plan-estimate variance are unimplemented, and the CONNECTED arm throws",
+    "why_open": "docs/architecture/capability-completeness-registry.yaml records STUDIO-120-009 as PASS and docs/implementation/system-studio-aws-control-plane-execution-ledger.md:137 checks it `[x]`, but the same entry states at :138 'PASS for tenant/service dimensions; module/cell/environment BLOCKED_EXTERNAL', at :183-187 'cost by module, cell and environment is not implemented', and at :188-190 'plan-estimate variance is not implemented'. The ledger's own rule 4 at :42-43 says there is no final PARTIAL, so this is a false PASS by the file's own standard. On the production path nothing renders at all: apps/system-studio/src/lib/cost-source.ts:47-65 returns NOT_CONFIGURED whenever FINOPS_CUR_BUCKET/FINOPS_CUR_PREFIX are unset (they are — they appear in no .tf and no workflow), and the CONNECTED arm at cost-source.ts:72-74 calls three functions that unconditionally `throw` (readCurLines :83-89, readDrivers :91-93, tenantIdsInScope :95-97). apps/system-studio/src/app/platform/cost/page.tsx:56-63 therefore always renders 'No billing data is connected', which apps/system-studio/e2e/cost.spec.ts:35 asserts. Cost Explorer is not a dependency anywhere: package-lock.json contains only @aws-sdk/client-dynamodb and @aws-sdk/client-s3 under node_modules/@aws-sdk/client-*.",
+    "files": [
+      "apps/system-studio/src/lib/cost-source.ts",
+      "apps/system-studio/src/lib/cost-report.ts",
+      "apps/system-studio/src/app/platform/cost/page.tsx",
+      "apps/system-studio/src/app/platform/cost/CostReportView.tsx",
+      "packages/finops/src/reporting.ts",
+      "packages/finops/src/allocation.ts",
+      "apps/system-studio/e2e/cost.spec.ts",
+      "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    ],
+    "smallest_real_change": "Turn `CostSource` into a three-armed union — CONNECTED | NOT_CONFIGURED | UNKNOWN (the STUDIO-000-007 probe) — and add a Cost Explorer reader beside the CUR reader rather than instead of it: GetCostAndUsage with `GroupBy: [{Type:'DIMENSION',Key:'SERVICE'}, {Type:'TAG',Key:'tenure:tenant'}]` plus a second call keyed on `tenure:module`, `tenure:cell` and `tenure:environment`, each amount converted to integer minor units through packages/finops/src/money.ts (never a float, never a currency coerced) and each carrying the Cost Explorer `TimePeriod` end as its as-of. Keep readCurLines' throw for the CUR path so a configured-but-unimplemented CUR can still never render as $0.00. Give the page a named `COST_REFRESH_MS` constant distinct from the fleet's, because Cost Explorer is billed per request. Then either implement the three missing dimensions and plan-estimate variance, or downgrade the ledger box at :137 to `[ ]` FAIL with the honest limits promoted into the reason — the box and the prose currently contradict each other, and tests/architecture/pass-requires-evidence.test.mjs is the guard to extend so the contradiction cannot recur. Prove the reader with a stand-in send() returning AccessDenied, a Throttling error, an empty-but-successful ResultsByTime, and a populated one, asserting four different page outputs.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-010-009",
+    "title": "The cell abstraction hardcodes a real AWS account id and defaults region/partition, and carries none of the policy inputs the requirement names",
+    "why_open": "apps/system-studio/src/lib/cells.ts:62 reads `awsAccountId: env(\"AWS_ACCOUNT_ID\", \"047385673922\")` — a literal production account number in source, so 'moving to a different account requires no code change' is false today: an unset env var silently claims a specific account. :55 defaults region to 'us-east-1' and :65 defaults partition to 'aws', the exact assumption GE-010-007 was filed for; nothing derives either from a resolved identity. The record itself is missing five of the seven policy inputs: packages/provisioning/src/cell-registry.ts:151-196 `CellRecord` has cellId, awsAccountId, region, environment, partition, health, capacity, release, schemaVersion, residencyZones, routing, backup{lastVerifiedAt,retentionDays}, migration — there is no allowed-service list, no service-limit/quota block, no KMS key policy or key arn, no Relay model availability, and no recovery objective (RTO/RPO). `backup` exists but carries no verification source, and cells.ts:79-81 fills it from CELL_LAST_BACKUP_AT / CELL_BACKUP_RETENTION_DAYS rather than from RDS DescribeDBInstances, so the number an operator reads under pressure is whatever was typed into a task definition. The fleet is also a single hand-built literal (cells.ts:59-85) with no reader, which is why service choice can only ever be a conditional elsewhere.",
+    "files": [
+      "apps/system-studio/src/lib/cells.ts",
+      "packages/provisioning/src/cell-registry.ts",
+      "apps/system-studio/src/lib/aws/identity.ts",
+      "apps/system-studio/src/app/platform/page.tsx",
+      "infrastructure/studio/ecs.tf"
+    ],
+    "smallest_real_change": "Delete the \"047385673922\" fallback at cells.ts:62 and the 'us-east-1'/'aws' fallbacks at :55,:65, and resolve all three from the STS GetCallerIdentity result (account id from `Account`, partition and region parsed off `Arn`), failing closed through the existing FleetMisconfigured path (cells.ts:41-50, thrown at :90) when identity cannot be resolved — 'we do not know which account this is' must be a refusal, not a default. Then add the four missing policy blocks to `CellRecord` at cell-registry.ts:151-196 — `services: { allowed: readonly string[]; denied: readonly string[] }`, `limits: Readonly<Record<string, number>>`, `kms: { keyArn: string | null; customerManaged: boolean }`, `relay: { availableModelIds: readonly string[] }`, `recovery: { rpoMinutes: number; rtoMinutes: number }` — and extend `validateCellRecord` (:204) to refuse a cell that declares residency outside its partition or a KMS arn from another account. CRITICAL: `CellRecord` is constructed in more than one place — grep every construction site (apps/system-studio/src/lib/cells.ts:59, packages/provisioning tests, and any fixture under apps/system-studio/e2e) and set the new fields at each, because required fields added to an interface whose fixtures build their own objects compile and fail only at runtime. Prove the account change with a test that sets no AWS_ACCOUNT_ID and asserts `fleet()` throws rather than returning 047385673922; mutate the fallback back in and confirm it reds.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-020-005",
+    "title": "Operator authorization is a single boolean — none of the nine role families exists, so nothing can be gated to a break-glass or FinOps role",
+    "why_open": "apps/system-studio/src/lib/operators.ts:110-115 `isOperator(email)` returns a boolean from a comma-separated PLATFORM_OPERATORS allowlist, and apps/system-studio/src/lib/operators.ts:137-147 `authenticateOperator` is email-in-list AND shared-secret-matches. There is no role, capability or permission type anywhere in apps/system-studio/src — every page repeats the same binary check (app/platform/page.tsx:38, app/platform/cost/page.tsx:40, app/tenants/page.tsx:34), so a Support Engineer and a Platform Super Admin see byte-identical surfaces including every tenant's published configuration. The requirement names nine families: Platform Super Admin, Tenant Implementation Lead, Cloud Platform Engineer, Security Administrator, Release Manager, Support Engineer, FinOps Analyst, Auditor/Read Only, Emergency Responder. This blocks two neighbours directly — STUDIO-080-003's console deep links are defined as visible 'only to authorized break-glass/platform engineers', and the mutation surface the domain brief describes has no principal type to check a typed confirmation against.",
+    "files": [
+      "apps/system-studio/src/lib/operators.ts",
+      "apps/system-studio/src/lib/auth.ts",
+      "apps/system-studio/src/app/platform/page.tsx",
+      "apps/system-studio/src/app/platform/cost/page.tsx",
+      "apps/system-studio/src/app/tenants/page.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/page.tsx",
+      "apps/system-studio/e2e/signin.spec.ts"
+    ],
+    "smallest_real_change": "Change the PLATFORM_OPERATORS grammar from `email,email` to `email:role,email:role` — parsed in operators.ts:100-107 — with an exported `OPERATOR_ROLES` tuple of the nine families and a `roleOf(email): OperatorRole | null`. Keep `isOperator` as `roleOf(email) !== null` so no existing call site changes meaning, then add `mayView(role, surface)` / `mayAct(role, action)` and replace the bare check on the pages that must differ (cost → FinOps Analyst, Auditor, Super Admin; console deep links → Cloud Platform Engineer, Emergency Responder). An entry with no `:role` must be REFUSED at operatorConfigProblems (operators.ts:60-98), not defaulted to Super Admin — a silent default is how everybody ends up an admin. Prove it with a spec that signs in as an Auditor and asserts the mutating controls are absent from the DOM (not merely disabled) while the same page signed in as Cloud Platform Engineer contains them; mutate `mayAct` to `return true` and confirm the Auditor case reds.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-080-003",
+    "title": "No AWS Console deep link exists anywhere in the Studio, and there is no role that could authorize one",
+    "why_open": "A repo-wide grep for `console.aws.amazon.com` across apps/system-studio/src, packages/ and infrastructure/ returns zero hits — the string appears in no source file. So the requirement is unstarted rather than partially met: an operator looking at the estate panel (apps/system-studio/src/app/platform/page.tsx:337-414) cannot get from a resource to the console at all, and when the live inventory lands they will paste ARNs into a search box, which is exactly the unsafe path the item exists to replace. Both halves are missing, not one: 'safe' requires the link to be built from a resolved account/region/partition rather than a literal us-east-1 console host (the identity from STUDIO-000-007), and 'only for authorized break-glass/platform engineers' requires a role, which apps/system-studio/src/lib/operators.ts:110 does not have — isOperator is a single boolean for all nine role families. The clause 'never depend on them for normal operation' also has no expression today because there is no read surface for them to be an escape hatch from.",
+    "files": [
+      "apps/system-studio/src/lib/aws/console-link.ts",
+      "apps/system-studio/src/lib/aws/identity.ts",
+      "apps/system-studio/src/lib/operators.ts",
+      "apps/system-studio/src/app/platform/page.tsx",
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/e2e/platform.spec.ts"
+    ],
+    "smallest_real_change": "Add apps/system-studio/src/lib/aws/console-link.ts exporting `consoleLink(identity, resource): string | null` that builds the host from the resolved partition — `console.aws.amazon.com` for `aws`, `console.amazonaws-us-gov.com` for `aws-us-gov`, `console.amazonaws.cn` for `aws-cn` — and the region from the resolved identity, returning null (not a guessed URL) for any partition it does not know. Render it only where `roleOf(email)` is Cloud Platform Engineer or Emergency Responder (STUDIO-020-005), inside a small `<ConsoleEscape>` component that states the account id and the words 'read-only view; actions taken here are outside Tenure's audit' — the honest form of 'never depend on them for normal operation'. Prove it with a pure unit test asserting three different hosts for three partitions and `null` for a fourth, and an e2e asserting the link is absent from the DOM for an Auditor session; mutate `consoleLink` to hardcode `console.aws.amazon.com` and confirm the aws-us-gov case reds — that is the GE-010-007 residency defect in miniature.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-030-004",
+    "title": "Every lifecycle move renders as an identical chip in one row — the irreversible PURGE button sits pixel-adjacent to an ordinary transition",
+    "why_open": "apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx:42-54 renders `moves.map(...)` into a single `<div className=\"chips\">` where every button gets `className={`chip ${selected === m.to ? \"chosen\" : \"\"}`}` — the class does not vary with `m.risk`, so PURGING and an ordinary advance are the same size, the same colour, and immediately beside each other. The risk information exists and is simply not used for placement or styling: `moves` already carries `risk: HighRisk` (AdvanceControls.tsx:24) and apps/system-studio/src/lib/tenant-state.ts:150 computes the literal string 'IRREVERSIBLE. No path back to a serving state exists from …' — but it is only rendered after selection, inside HighRiskConfirmation (AdvanceControls.tsx:63-65), i.e. after the click that the separation is meant to prevent. A case-insensitive grep for destructive|danger across apps/system-studio/src returns only `dangerouslySetInnerHTML` (app/layout.tsx:27) and two prose comments — there is no destructive style token in apps/system-studio/src/app/globals.css at all.",
+    "files": [
+      "apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx",
+      "apps/system-studio/src/lib/tenant-state.ts",
+      "apps/system-studio/src/app/globals.css",
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/e2e/layout.spec.ts"
+    ],
+    "smallest_real_change": "Split the single `chips` row in AdvanceControls.tsx:42-54 into two groups by a `reversible` predicate read off `m.risk.reversibility` (already produced at tenant-state.ts:150), with the irreversible group in its own `<fieldset className=\"destructive\">` placed AFTER the ordinary group and separated by a rule, carrying a heading naming what cannot be undone. Add a `.destructive` token to globals.css that is spatially distinct without leaving the off-white-on-muted-grey palette e2e/layout.spec.ts enforces (border and inset, not a saturated fill — a red button would red the colour assertions). Prove it geometrically rather than by class name, which is the only proof that survives a restyle: add a case to e2e/layout.spec.ts that measures getBoundingClientRect of the irreversible button and the nearest ordinary one and asserts a minimum vertical gap; mutate AdvanceControls back to a single row and confirm it reds.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-030-010",
+    "title": "Nothing validates the console against high-density state — no spec seeds more than a handful of tenants, long names, non-Latin scripts or missing values",
+    "why_open": "apps/system-studio/playwright.config.ts has no `webServer` and no `globalSetup` (the file is 24 lines; the comment at :5-10 says it deliberately points at an already-running instance), and apps/system-studio/ has no scripts/ directory — so every one of the 18 specs under apps/system-studio/e2e/ runs against whatever the registry happens to hold. e2e/layout.spec.ts:40 sweeps five routes at three widths measuring overlap and horizontal scroll, which is the right harness, but with a nearly-empty fleet those measurements prove nothing about the state the requirement names: high-density tenants, long names, multiple scripts, large counts, missing values, high-severity findings, hundreds of changes, thousands of resources. Concretely: apps/system-studio/src/app/tenants/page.tsx:179-205 and app/platform/page.tsx:145-169,216-255,319-334 all render unwrapped `<table className=\"grid\">` with no overflow container, and app/tenants/[slug]/configuration/page.tsx renders a revision history that has never been exercised past a couple of rows. DynamoDB Local is running, so this is buildable now rather than blocked.",
+    "files": [
+      "apps/system-studio/scripts/seed-density.mjs",
+      "apps/system-studio/playwright.config.ts",
+      "apps/system-studio/e2e/layout.spec.ts",
+      "apps/system-studio/src/app/tenants/page.tsx",
+      "apps/system-studio/src/app/globals.css",
+      "apps/system-studio/src/lib/registry.ts"
+    ],
+    "smallest_real_change": "Add apps/system-studio/scripts/seed-density.mjs that writes a DETERMINISTIC fixture into DynamoDB Local through the exported `__internals` of registry.ts (registry.ts:545) — index-driven, never Math.random: 200 tenants, one display name at the 200-character limit, one in Devanagari and one in Arabic to force RTL, several with `updatedAt` absent so `hoursSinceChange` is the 'unknown' branch (fleet-health.ts:98-100), and one tenant with 300 configuration revisions. Point it from a `globalSetup` in playwright.config.ts guarded on AWS_ENDPOINT_URL_DYNAMODB being a localhost endpoint, so it can never run against a real table. Then wrap every `<table className=\"grid\">` in a `<div className=\"table-scroll\">` with `overflow-x:auto` and extend the existing sweep at e2e/layout.spec.ts:86,192,228 to assert (a) document.scrollingElement.scrollWidth <= innerWidth on the dense fleet, (b) the widest table's own container scrolls rather than the body, and (c) the RTL row is not clipped. Prove it by removing the overflow container from one table and confirming the horizontal-scroll assertion reds at 900px with the dense fixture loaded and stays green without it — that difference is the whole point of the item.",
+    "already_done": false
+  }
+]

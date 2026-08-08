@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tenure.dev/control-plane/change-diff/1.0.schema.json",
+  "x-contract": "ChangeDiff",
+  "x-contract-version": "1.0",
+  "x-generated-by": "tools/contract-schemas.mjs from packages/contracts/src/index.ts",
+  "title": "ChangeDiff",
+  "description": "What a change does, in every domain the control plane can actually compute one for.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "entries"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "domain",
+          "path",
+          "before",
+          "after",
+          "effect",
+          "reversible",
+          "monthlyCostDeltaMinor"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "enum": [
+              "app-config",
+              "relay",
+              "aws-resource",
+              "cost",
+              "rollback"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "before": {},
+          "after": {},
+          "effect": {
+            "type": "string",
+            "enum": [
+              "create",
+              "update",
+              "delete",
+              "replace"
+            ]
+          },
+          "reversible": {
+            "type": "boolean"
+          },
+          "monthlyCostDeltaMinor": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

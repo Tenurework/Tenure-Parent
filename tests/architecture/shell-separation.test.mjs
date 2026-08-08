@@ -33,18 +33,61 @@ import { test } from "node:test"
  * surface served by the tenant app. A menu entry pointing at one is a thing
  * somebody could add without noticing they had.
  *
- * ## The three properties
+ * ## The four properties
  *
  *   1. No file under one application's `src` imports anything under another's,
  *      by relative path or by workspace package name.
  *   2. No component reachable from an application's own layouts imports a
- *      first-party module outside that application. This is the one that stops
- *      the two navigations converging on a single file: a shared `packages/ui`
- *      shell would satisfy (1) and defeat the separation entirely.
+ *      first-party module outside that application.
  *   3. Every destination in the tenant menu is a route `apps/web` serves and is
  *      not a control-plane destination; and symmetrically, every destination in
  *      the operator console's navigation is a route the console serves and is
- *      not a tenant-only route.
+ *      not a tenant-only route. "The menu" is the module catalog *plus* every
+ *      literal destination the shell writes itself, in either syntax and in the
+ *      layout as well as the components — see `HREF_LITERAL`, and the leak that
+ *      was green before it read both.
+ *   4. No first-party workspace outside `apps/` defines a component, and no
+ *      shell file — layout included — reaches one. This is the one that stops
+ *      the two navigations converging on a single file.
+ *
+ * ## Why (4) exists, when (2) was written to do that job
+ *
+ * (2) was originally documented as the check that stopped convergence: "a shared
+ * `packages/ui` shell would satisfy (1) and defeat the separation entirely". It
+ * did not do that job, and the gap was demonstrated rather than argued. Adding
+ *
+ *     packages/platform-config/src/ShellChrome.tsx
+ *
+ * and importing it from BOTH `apps/web/src/app/(app)/layout.tsx` and
+ * `apps/system-studio/src/app/layout.tsx` left all six guards green. The two
+ * shells rendered through one file and nothing said a word.
+ *
+ * The reason is structural: `shellGraph` walks *out of* the layouts but only
+ * follows modules under the app's own `components/`, and the layouts themselves
+ * are not in the resulting set — so (2) sees what `SideNav` imports and never
+ * sees what the layout rendering `SideNav` imports. That is not an edge: the
+ * layout is where both navigations are mounted today (`<SideNav/>` at
+ * `apps/web/src/app/(app)/layout.tsx`, `<Nav/>` at
+ * `apps/system-studio/src/app/layout.tsx`), so the layout is the single most
+ * likely place for a shared chrome import to land.
+ *
+ * (2) cannot simply be widened to include layouts: a layout legitimately imports
+ * `@tenure/platform-config`, which is pure data and is the whole point of having
+ * shared packages. The distinction that matters is not *outside the app*, it is
+ * *outside the app and renders*. So (4) is two clauses:
+ *
+ *   a. no file in any first-party workspace outside `apps/` is a component —
+ *      no `.tsx`, no `"use client"`, no react/next import, no `createElement`.
+ *      A shared shell cannot be *defined*, so it cannot be imported from a
+ *      layout, a page, a server action or anywhere else, by any of the twelve
+ *      apps that do not exist yet either.
+ *   b. every first-party module a shell file imports resolves either inside its
+ *      own application or inside one of those surveyed workspaces — which is
+ *      what stops the same component being parked in a directory (a) does not
+ *      cover, e.g. a relative import out of `src/` into a top-level `shared/`.
+ *
+ * The ledger entry for this item already claimed "no package ships a .tsx today;
+ * this is what keeps that true". Nothing was keeping it true. (4a) is.
  *
  * ## Floors
  *
@@ -52,8 +95,10 @@ import { test } from "node:test"
  * survey finds nothing. `the survey reaches both applications` fails when fewer
  * than two application source roots are found, when either app's shell graph
  * collapses, when fewer than eight nav entries parse out of the module catalog,
- * or when the route inventories come back empty — so a broken reader reds
- * instead of reporting a clean repository.
+ * when the route inventories come back empty, when the component detector fails
+ * to recognise the two navigations it exists to keep apart, when the shell scan
+ * stops covering the layouts, or when either href syntax stops being read — so
+ * a broken reader reds instead of reporting a clean repository.
  *
  * ## Why the ownership map is read as text
  *
@@ -240,6 +285,61 @@ function shellGraph(app) {
 
 const SHELLS = new Map(APPS.map((app) => [app.name, shellGraph(app)]))
 
+/**
+ * Every file that participates in an application's shell, layouts included.
+ *
+ * `shellGraph` deliberately excludes the layouts from `modules` — the walk is
+ * about which components the shell is made of. This is the other question: which
+ * files decide what the shell renders. The layout is one of them, and it is the
+ * file both navigations are mounted in, so it is the file a shared chrome import
+ * would land in.
+ */
+const shellFiles = (app) => [...SHELLS.get(app.name).layouts, ...SHELLS.get(app.name).modules]
+
+// ── where components are allowed to be defined ──────────────────────────────
+
+/**
+ * First-party workspace roots that are not applications.
+ *
+ * Derived from the workspace map, not listed: `packages/*` plus `modules` and
+ * `blueprints`, and whatever else `package.json`'s `workspaces` grows. A
+ * fifteenth package is governed by (4a) the day it is created.
+ */
+const SHARED_ROOTS = [...new Set(WORKSPACE.map(([, dir]) => dir))]
+  .filter((dir) => !dir.startsWith("apps/"))
+  .sort()
+
+const inside = (repoPath, root) => repoPath === root || repoPath.startsWith(`${root}/`)
+
+/**
+ * Why a module is a component, or `null` when it is not one.
+ *
+ * Four markers, any one of which is enough, all read off comment-stripped
+ * source so that a file *explaining* the rule is not caught by it:
+ *
+ *   · a `.tsx`/`.jsx` extension — the ordinary case;
+ *   · a `"use client"` or `"use server"` directive, which only means anything
+ *     to a React framework;
+ *   · an import of `react`, `react-dom` or `next` — a module that renders needs
+ *     at least one of them, if only for its prop types;
+ *   · a `createElement(` call, which is what a `.ts` file writing JSX by hand
+ *     would use to stay a `.ts` file.
+ *
+ * A reason rather than a boolean because the failure message has to be actionable:
+ * "packages/x/src/y.ts imports react" tells someone what to delete.
+ */
+function uiEvidence(repoPath) {
+  if (/\.(tsx|jsx)$/.test(repoPath)) return "is a .tsx/.jsx"
+  const text = code(repoPath)
+  if (/^\s*["']use (client|server)["']/m.test(text)) return 'carries a "use client"/"use server" directive'
+  const framework = /\b(?:from\s*|import\s*\(\s*|require\s*\(\s*|import\s+)["'](react|react-dom|next)(?:["']|\/)/.exec(
+    text,
+  )
+  if (framework) return `imports ${framework[1]}`
+  if (/\bcreateElement\s*\(/.test(text)) return "calls createElement"
+  return null
+}
+
 // ── the routes each application serves ──────────────────────────────────────
 
 /**
@@ -330,18 +430,48 @@ function tenantMenu() {
 }
 
 /**
- * Destinations a shell component hard-codes.
+ * A literal destination, in either syntax a shell writes one in.
  *
- * The catalog is not the only thing that puts a link in the tenant menu:
- * `SideNav` pins Settings at the bottom itself. A destination written into the
- * shell is subject to the same rule as one a manifest contributes.
+ * `href: "/settings"` is an object property — how `SideNav` pins Settings and
+ * how the console's `ENTRIES` table is written. `href="/dashboard"` is a JSX
+ * attribute — how `ShellHeader` links the wordmark and the work inbox, and how
+ * anybody adding a single link to the chrome would write it.
+ *
+ * Only the first was matched, and the gap was demonstrated rather than argued:
+ * adding `<Link href="/platform/cost">Fleet cost</Link>` to `ShellHeader.tsx`
+ * left all eight guards green. The tenant product offered a link into the
+ * operator console from its own masthead and nothing said a word — which is
+ * precisely "the first operator nav entry would be caught by review, or not at
+ * all", the thing this file exists to stop.
+ *
+ * `href={expr}` is deliberately not matched: `NotificationBell` and
+ * `SearchCommand` route to whatever a notification or a search hit names, and
+ * that destination is data, not a decision the shell made.
+ */
+const HREF_LITERAL = /\bhref\s*(:|=)\s*"(\/[^"]*)"/g
+
+/**
+ * Destinations a shell hard-codes, and the files that were read for them.
+ *
+ * The catalog is not the only thing that puts a link in the tenant menu, and a
+ * destination written into the chrome is subject to the same rule as one a
+ * manifest contributes.
+ *
+ * Read over `shellFiles`, not `SHELLS.modules`: the layout is a shell file too.
+ * `apps/web/src/app/(app)/layout.tsx` renders `<SideNav/>` and the console's
+ * root layout renders `<Nav/>`, so the layout is where a link added "to the
+ * shell" most plausibly lands, and scanning only the components it mounts would
+ * not look there. `scanned` is returned so the floor can assert that.
  */
 function hardcodedDestinations(app) {
-  const found = []
-  for (const file of SHELLS.get(app.name).modules) {
-    for (const match of code(file).matchAll(/\bhref:\s*"(\/[^"]*)"/g)) found.push({ file, href: match[1] })
+  const scanned = shellFiles(app)
+  const destinations = []
+  for (const file of scanned) {
+    for (const match of code(file).matchAll(HREF_LITERAL)) {
+      destinations.push({ file, href: match[2], syntax: match[1] === ":" ? "property" : "attribute" })
+    }
   }
-  return found
+  return { scanned, destinations }
 }
 
 // ── floors ──────────────────────────────────────────────────────────────────
@@ -384,6 +514,30 @@ test("the survey reaches both applications, their shells, their routes and the m
     "the operator navigation is not reachable from apps/system-studio's layout",
   )
 
+  // (4) surveys directories and classifies files, and both halves fail open:
+  // no surveyed root means nothing is scanned, and a detector that recognises
+  // nothing reports every file as pure data. So the roots are counted, and the
+  // detector is made to classify the two navigations this whole file is about
+  // — plus one file it must NOT flag, because a detector that answers "yes" to
+  // everything would satisfy the first two assertions and refuse the repository.
+  assert.ok(
+    SHARED_ROOTS.length >= 8,
+    `${SHARED_ROOTS.length} first-party workspace(s) outside apps/ found, expected at least 8 — ` +
+      `the workspace map is not being read, and an empty survey clears (4a) by default`,
+  )
+  for (const root of SHARED_ROOTS) {
+    assert.ok(!root.startsWith("apps/"), `${root} is an application and must not be surveyed as a shared workspace`)
+  }
+  for (const component of ["apps/web/src/components/shell/SideNav.tsx", "apps/system-studio/src/components/Nav.tsx"]) {
+    assert.ok(uiEvidence(component), `the component detector does not recognise ${component} as a component`)
+  }
+  assert.equal(
+    uiEvidence(MANIFESTS),
+    null,
+    `the component detector flags ${MANIFESTS}, which is pure data — a detector that says yes to ` +
+      `everything refuses the repository instead of guarding it`,
+  )
+
   assert.ok(ROUTES.get(TENANT).size >= 20, `${ROUTES.get(TENANT).size} tenant routes found, expected at least 20`)
   assert.ok(ROUTES.get(OPERATOR).size >= 4, `${ROUTES.get(OPERATOR).size} console routes found, expected at least 4`)
 
@@ -397,6 +551,31 @@ test("the survey reaches both applications, their shells, their routes and the m
     menu.every((entry) => entry.id && entry.href),
     "a parsed nav entry is missing its id or its href",
   )
+
+  // The catalog is only half of (3). The other half reads destinations out of
+  // the shells themselves, and it fails open twice over: a regex that stops
+  // matching one of the two syntaxes silently drops every link written that
+  // way, and a file set that omits the layouts never looks where a link added
+  // "to the shell" most plausibly lands. Both are asserted against files that
+  // exist, so the reader cannot go quiet without reddening.
+  const tenantShell = hardcodedDestinations(APPS.find((a) => a.name === TENANT))
+  for (const layout of SHELLS.get(TENANT).layouts) {
+    assert.ok(
+      tenantShell.scanned.includes(layout),
+      `${layout} is not among the files scanned for hard-coded destinations. The layout is where ` +
+        `<SideNav/> is mounted, so it is where a link added to the chrome lands.`,
+    )
+  }
+  for (const syntax of ["property", "attribute"]) {
+    const example = tenantShell.destinations.find((d) => d.syntax === syntax)
+    assert.ok(
+      example,
+      `no ${syntax}-syntax destination was read out of the tenant shell. SideNav pins ` +
+        `\`href: "/settings"\` and ShellHeader links \`href="/dashboard"\` and \`href="/inbox"\` — ` +
+        `one of the two forms has stopped being matched, and links written that way are now ` +
+        `invisible to both checks below.`,
+    )
+  }
 
   // The ownership map is read as text (see the header). A reader that stopped
   // reading would return no control-plane paths and clear property 3 by default.
@@ -472,11 +651,78 @@ test("no shell component imports a first-party module outside its own applicatio
   )
 })
 
+// ── (4) a component cannot be defined where both shells could reach it ──────
+
+test("no first-party workspace outside the applications defines a component", () => {
+  const offenders = []
+  let scanned = 0
+
+  for (const root of SHARED_ROOTS) {
+    for (const file of gitFiles(root).filter((f) => SOURCE.test(f))) {
+      scanned += 1
+      const why = uiEvidence(file)
+      if (why) offenders.push(`${file} ${why}`)
+    }
+  }
+
+  assert.ok(
+    scanned >= 100,
+    `scanned ${scanned} file(s) across ${SHARED_ROOTS.length} shared workspace(s), expected at ` +
+      `least 100 — git is not listing them, and nothing scanned is nothing refused`,
+  )
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `a workspace outside the applications defines a component:\n  ${offenders.join("\n  ")}\n\n` +
+      `Surveyed: ${SHARED_ROOTS.join(", ")}. Shared packages carry data, types and rules; the ` +
+      `moment one carries chrome, the tenant product and the deployer console can render through ` +
+      `the same file and a single edit changes both — the pattern leakage TTES-000-002 forbids. ` +
+      `This is what the app-to-app check cannot see: a shared shell is nobody's app.`,
+  )
+})
+
+test("no application shell reaches a component defined outside its application", () => {
+  const violations = []
+
+  for (const app of APPS) {
+    for (const file of shellFiles(app)) {
+      for (const spec of specifiers(file)) {
+        const resolved = resolveSpecifier(file, spec, app.root)
+        if (resolved === null) continue // third-party: react, next, react-aria-components
+        if (inside(resolved, app.root)) continue // its own application
+
+        // Outside the app and outside every workspace (4a) surveys: a component
+        // parked here would be invisible to the check above. `tools/`, a
+        // top-level `shared/`, a relative path out of `src/` — all land here.
+        if (!SHARED_ROOTS.some((root) => inside(resolved, root)) && !resolved.startsWith("apps/")) {
+          violations.push(`${file} imports ${spec} → ${resolved}, which no survey covers`)
+          continue
+        }
+
+        const target = moduleFile(resolved)
+        const why = target && uiEvidence(target)
+        if (why) violations.push(`${file} imports ${spec} → ${target}, which ${why}`)
+      }
+    }
+  }
+
+  assert.deepEqual(
+    violations,
+    [],
+    `a shell file renders through a module defined outside its own application:\n  ` +
+      `${violations.join("\n  ")}\n\n` +
+      `Shell files are each app's layouts plus every component reachable from them. The layout is ` +
+      `where both navigations are mounted — <SideNav/> in apps/web, <Nav/> in the console — so it ` +
+      `is where a shared chrome import lands, and the component walk above it does not look there.`,
+  )
+})
+
 // ── (3) neither menu names the other plane's destinations ───────────────────
 
 test("every tenant menu destination is a route the tenant application serves", () => {
   const served = ROUTES.get(TENANT)
-  const hardcoded = hardcodedDestinations(APPS.find((a) => a.name === TENANT))
+  const { destinations: hardcoded } = hardcodedDestinations(APPS.find((a) => a.name === TENANT))
   assert.ok(
     hardcoded.length >= 1,
     "the tenant shell hard-codes no destination at all, so half of this check reads nothing — " +
@@ -506,7 +752,7 @@ test("no tenant menu destination is a control-plane destination", () => {
       if (under(entry.href, prefix)) offenders.push(`${entry.id} -> ${entry.href} (under ${prefix})`)
     }
   }
-  for (const { file, href } of hardcodedDestinations(APPS.find((a) => a.name === TENANT))) {
+  for (const { file, href } of hardcodedDestinations(APPS.find((a) => a.name === TENANT)).destinations) {
     for (const prefix of CONTROL_PLANE.destinations) {
       if (under(href, prefix)) offenders.push(`${file} hard-codes ${href} (under ${prefix})`)
     }
@@ -534,7 +780,7 @@ test("every operator console destination belongs to the console", () => {
       `has nothing to refuse`,
   )
 
-  const entries = hardcodedDestinations(APPS.find((a) => a.name === OPERATOR))
+  const { destinations: entries } = hardcodedDestinations(APPS.find((a) => a.name === OPERATOR))
   assert.ok(
     entries.length >= 3,
     `parsed ${entries.length} destination(s) out of the console's shell, expected at least 3`,

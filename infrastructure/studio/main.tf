@@ -58,12 +58,44 @@ provider "aws" {
 locals {
   name_prefix = "${var.project}-studio"
 
+  # ── STUDIO-070-002 — the twelve required tags ─────────────────────────────
+  #
+  # `local.tags` is merged into every resource in this stack, so extending it
+  # here is what puts the contract on the estate rather than in a document. The
+  # keys and the accepted values are declared in code at
+  # packages/provisioning/src/resource-tags.ts; tests/architecture/resource-tags
+  # .test.mjs reads THIS block and fails if a key goes missing or a `tags = {`
+  # elsewhere in the stack stops merging it.
+  #
+  # `tenure:tenant = tenure:shared` is the load-bearing line. Every resource in
+  # this stack genuinely belongs to no tenant — it is the control plane — and
+  # saying so explicitly is different from leaving the key off. Absence reads as
+  # "nobody looked at this" and the inventory reports it as unattributable;
+  # spreading an untagged resource across every customer's bill by default is
+  # exactly the failure the sentinel exists to prevent.
+  #
+  # The five original PascalCase keys are kept. They are what the pilot stack's
+  # data sources and several AWS consoles filter on, and dropping them to tidy
+  # the block would orphan `data.aws_vpc.shared`'s lookup.
   tags = {
     Project     = var.project
     Component   = "system-studio"
     ManagedBy   = "terraform"
     StateKey    = "studio/terraform.tfstate"
     Environment = var.environment
+
+    "tenure:tenant"          = "tenure:shared"
+    "tenure:environment"     = var.environment
+    "tenure:cell"            = "tenure:shared"
+    "tenure:account-purpose" = "control-plane"
+    "tenure:module"          = "system-studio"
+    "tenure:release"         = var.release
+    "tenure:stack"           = "studio/terraform.tfstate"
+    "tenure:data-class"      = "control-plane"
+    "tenure:owner-seat"      = var.owner_seat
+    "tenure:cost-center"     = var.cost_center
+    "tenure:retention"       = "indefinite"
+    "tenure:managed-by"      = "terraform"
   }
 }
 

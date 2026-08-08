@@ -8,7 +8,7 @@
 generated_from: tools/document-graph.mjs
 document_count: 36
 alias_count: 6
-requirement_statements: 4452
+requirement_statements: 4466
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
 authorities: 26
@@ -82,13 +82,14 @@ documents:
     family: "ux-task-scorecard"
     superseded_by: null
     supersedes: []
-    sha256: d60d1c44c25edaab744fb57e5c42f53f97d7e5346aaddf487636cd3e3c1fa3f1
-    bytes: 9574
+    sha256: "1713295acb7a39a0a41ca2c4779c5b11658ea98956893e351437d9d9b77680c2"
+    bytes: 12761
     aliases: []
     requirement_prefixes:
       - TTES
+      - WRK
     states_requirements: 0
-    mentions_requirement_ids: 2
+    mentions_requirement_ids: 4
   - id: "adr-0007-tenure-owned-aws-organization"
     title: "ADR-0007 — Tenure owns the AWS Organization; no customer or personal account is ever required"
     version: unversioned
@@ -203,14 +204,15 @@ documents:
     family: "system-studio-aws-control-plane-execution-ledger"
     superseded_by: null
     supersedes: []
-    sha256: df83f97760da69149fc741328f99a47e6aa875f0554e569323368a5d328338d0
-    bytes: 17757
+    sha256: "8f08ca381ab39a90bc6d9495fb67323f7b1214a6049787f3a019d35f4b4f6120"
+    bytes: 75298
     aliases: []
     requirement_prefixes:
       - GE
       - STUDIO
-    states_requirements: 18
-    mentions_requirement_ids: 6
+      - WRK
+    states_requirements: 32
+    mentions_requirement_ids: 35
   - id: "tenure-claude-code-global-engine-execution-prompt-v1-0"
     title: "Tenure Global Distribution Engine: Master Claude Code Execution Prompt"
     version: "1.0"
@@ -281,10 +283,11 @@ documents:
     family: "universal-work-graph-execution-ledger"
     superseded_by: null
     supersedes: []
-    sha256: "2a2aa2aaa8cacfe3256c157e1837328e18ba104e3fc0fee34243750ac5386f11"
-    bytes: 83913
+    sha256: "1792e33dae624881af54f6a2e97d8455467ef863c2d64a81f2889077c33e9552"
+    bytes: 98698
     aliases: []
     requirement_prefixes:
+      - TTES
       - WRK
     states_requirements: 88
     mentions_requirement_ids: 75

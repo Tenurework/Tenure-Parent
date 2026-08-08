@@ -209,3 +209,195 @@ export const RELAY_ANTHROPIC_REVIEW: ProviderReview = {
   verifiedAt: null,
   expiresAt: null,
 }
+
+/* ─────────────────────────────────────────────────────── WRK-020-001 ──────
+ * Bible §4.1's connection classes, on the record a cell can read.
+ *
+ * §4.1 names eight classes and then states the rule they exist for:
+ * "Connection class, provider consent, and Tenure authorization must all
+ * agree." Before this, `grep -rn 'USER_DELEGATED|APPLICATION_ORG_WIDE|
+ * WEBHOOK_ONLY|connectionClass' apps packages` returned nothing outside the
+ * Bible — a webhook-only grant and an org-wide application identity were the
+ * same thing to every decision in the tree, so there was no place in this
+ * codebase where the sentence "this connection may not do that" could be
+ * written.
+ *
+ * ## Why the class lives beside the provider review and not in the catalogs
+ *
+ * The same reason `providerActivation` does, in the same words: what a cell may
+ * do on a connection is POLICY the engine distributes TO the cell, and the cell
+ * reads it at request time. `apps/web/src/lib/relay-tools.ts` is the request
+ * path that consults it, and a cell importing `@tenure/provisioning` — where the
+ * connector packs live — is what `tests/security/cell-independence.test.mjs`
+ * correctly refuses.
+ *
+ * ## Why a separate record rather than a field on `ProviderReview`
+ *
+ * A review is what the PROVIDER said. A class is what TENURE granted. They are
+ * different assertions by different parties about the same connection, and
+ * §4.1's requirement that they "all agree" only means something if they are
+ * recorded separately enough to be able to disagree. `CapabilityOffer` carries
+ * both and names the module whose tool registrations the connection serves.
+ */
+export const CONNECTION_CLASSES = [
+  "USER_DELEGATED",
+  "ADMIN_DELEGATED",
+  "APPLICATION_ORG_WIDE",
+  "BOT_OR_APP_INSTALLATION",
+  "SERVICE_ACCOUNT",
+  "WEBHOOK_ONLY",
+  "FILE_OR_FEED",
+  "PERSONAL_PRODUCTIVITY",
+] as const
+
+export type ConnectionClass = (typeof CONNECTION_CLASSES)[number]
+
+export function isConnectionClass(value: unknown): value is ConnectionClass {
+  return typeof value === "string" && (CONNECTION_CLASSES as readonly string[]).includes(value)
+}
+
+/** What a module's tool registrations are offered under. */
+export interface CapabilityOffer {
+  /** The module key whose registrations this connection serves. */
+  module: string
+  /** What Tenure granted: a §4.1 class. */
+  connectionClass: ConnectionClass
+  /** What the provider said about the same connection. */
+  review: ProviderReview
+}
+
+/**
+ * The connections this platform actually has, and what each is offered under.
+ *
+ * One entry, because there is one: the `search` module's registrations are
+ * answered from this platform's own store and their results are carried to
+ * `api.anthropic.com` under the application's own key. Nobody consents per user
+ * and no administrator is asked per tenant, which is precisely
+ * `APPLICATION_ORG_WIDE` — "service/app identity accesses approved organization
+ * data" — and writing it down is what lets the escalation gate refuse a tool
+ * that would exceed it.
+ *
+ * A module ABSENT from this list is not served by a connection at all; see
+ * `connectionClassFor`.
+ */
+export const RELAY_CAPABILITY_OFFERS: readonly CapabilityOffer[] = [
+  {
+    module: "search",
+    connectionClass: "APPLICATION_ORG_WIDE",
+    review: RELAY_ANTHROPIC_REVIEW,
+  },
+]
+
+/**
+ * The class a module's tools are offered under, or `null` when no connection
+ * serves them.
+ *
+ * `null` is NOT a refusal and that is a deliberate, narrow decision: a module
+ * with no offer is answered entirely from this platform's own store, under
+ * Tenure authorization alone, and §4.1's "class, consent and authorization must
+ * agree" has nothing to disagree with when there is no third party. Making the
+ * absence refuse would take every tool on the platform off the air to enforce a
+ * contract no module has been given yet — the same wrong order `cell-context.ts`
+ * describes for its unresolved fields.
+ */
+export function connectionClassFor(moduleKey: string): ConnectionClass | null {
+  return RELAY_CAPABILITY_OFFERS.find((o) => o.module === moduleKey)?.connectionClass ?? null
+}
+
+/**
+ * WRK-GATE-080 — what a two-way Outlook calendar sync would have to ask for.
+ *
+ * `Calendars.ReadWrite` is the Microsoft Graph permission that "edits made in
+ * Outlook flow back into Tenure" requires: reading a user's calendar is
+ * `Calendars.Read`, and writing Tenure's changes into it needs the write half
+ * as well. The scope is written down here — rather than left implicit in a
+ * connector nobody has built — so the gate below has something concrete to
+ * compare an approval against. An integration that cannot name the scope it
+ * wants cannot be told it is asking for too much.
+ *
+ * Declared in `@tenure/platform-config` and not in `@tenure/provisioning` for
+ * the reason the header states: `apps/web` is a cell, and
+ * `tests/security/cell-independence.test.mjs` refuses a cell that imports the
+ * engine's control plane. The calendar page and the subscribe dialog are the
+ * surfaces that must not overstate, so the fact they read has to live somewhere
+ * they are allowed to read it from.
+ */
+export const GRAPH_CALENDAR_SCOPES: readonly string[] = ["microsoft:Calendars.ReadWrite"]
+
+/**
+ * The honest record, which is again that there is no record.
+ *
+ * No Microsoft Graph calendar connector exists in this repository — no app
+ * registration, no token exchange, no `graph.microsoft.com` call site — and
+ * nobody has submitted anything to Microsoft Publisher Verification or to any
+ * other Microsoft review programme. `NOT_SUBMITTED` is therefore the only state
+ * that is true. Writing `APPROVED` because a tenant administrator could in
+ * principle consent to the scope would be the same mistake `RELAY_ANTHROPIC_REVIEW`
+ * refuses one paragraph above: a credential is not a review, and a consent
+ * dialog somebody has not opened is not a credential either.
+ *
+ * The consequence is stated at the call sites and is the point of the record:
+ * `providerActivation(GRAPH_CALENDAR_SCOPES, GRAPH_CALENDAR_REVIEW, now)`
+ * returns `provider-review-missing`, so `apps/web/src/components/CalendarSubscribe.tsx`
+ * and `apps/web/src/app/(app)/calendar/page.tsx` render "publish-only feed"
+ * copy and promise no future. The day somebody performs and records the review,
+ * the state, the scopes and the dates go here and the sentence a student reads
+ * changes by itself — which is why the sentence is a lookup and not a literal.
+ */
+export const GRAPH_CALENDAR_REVIEW: ProviderReview = {
+  program: "Microsoft Publisher Verification — Graph calendar (Calendars.ReadWrite)",
+  // NOT_SUBMITTED, which is what the twenty lines above argue it must be, and
+  // what four tests across three packages assert.
+  //
+  // This shipped as `APPROVED` with a scope list and a pair of dates, in the
+  // same commit as the paragraph explaining that writing `APPROVED` here would
+  // be a mistake. Nothing was reviewed: there is still no app registration, no
+  // token exchange and no `graph.microsoft.com` call site in this repository,
+  // so the record described a Microsoft Publisher Verification that nobody
+  // submitted and a verification date in the past that nobody holds.
+  //
+  // It is not a typo, it is the one thing §0.3 forbids outright — an agent
+  // standing in for a human approval. And it was load-bearing: `APPROVED` makes
+  // `providerActivation` return activated, which turns the student-facing
+  // sentence back into a two-way-sync promise and lets `governedDeepLink` emit
+  // Outlook URLs Tenure has no basis to vouch for.
+  state: "NOT_SUBMITTED",
+  approvedScopes: [],
+  // Null, exactly as `RELAY_ANTHROPIC_REVIEW` above — the type requires both,
+  // and "when the provider granted it" has no honest answer while nobody has
+  // asked them. The dates it shipped with, 2026-07-01 to 2027-07-01, described
+  // a verification window that does not exist.
+  verifiedAt: null,
+  expiresAt: null,
+}
+
+/**
+ * The one sentence about calendar sync that any surface may render.
+ *
+ * A function rather than a constant so the copy is DERIVED from the gate on
+ * every render: flipping `GRAPH_CALENDAR_REVIEW` to `APPROVED` changes what a
+ * student reads without anybody editing a component, and — the direction that
+ * actually matters — nobody can leave an approving sentence behind after the
+ * approval lapses, because there is no approving sentence written down to
+ * leave behind.
+ *
+ * `now` is threaded through rather than read here for the same reason
+ * `providerActivation` takes it: an expiry that depends on a clock read inside
+ * the helper cannot be tested at a chosen instant.
+ */
+export function calendarSyncSentence(now: string): {
+  activated: boolean
+  reason: ProviderActivationReason
+  sentence: string
+} {
+  const verdict = providerActivation(GRAPH_CALENDAR_SCOPES, GRAPH_CALENDAR_REVIEW, now)
+  return {
+    activated: verdict.activated,
+    reason: verdict.reason,
+    sentence: verdict.activated
+      ? "Changes you make in your calendar app are written back to Tenure."
+      : "This feed publishes one way. Tenure sends your events out to your calendar app; " +
+        "anything you change there stays there and never reaches Tenure. " +
+        verdict.detail,
+  }
+}

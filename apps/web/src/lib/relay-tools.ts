@@ -1,10 +1,5 @@
-import {
-  PERMISSIONS,
-  ROLE_TEMPLATES,
-  decideCheck,
-  type AuthorizationWorld,
-} from "@tenure/authorization"
-import { modulesFor, tiersFor } from "@tenure/platform-config"
+import { PERMISSIONS, decideCheck, type AuthorizationWorld } from "@tenure/authorization"
+import { connectionClassFor, modulesFor, tiersFor } from "@tenure/platform-config"
 import {
   parseToolRegistration,
   type PermissionDecision,
@@ -12,8 +7,22 @@ import {
   type ToolRegistration,
 } from "@tenure/contracts"
 
+import { rolesGranting } from "@/lib/authz/roles-granting"
 import { institutionWorld } from "@/lib/authz/seat-world"
 import type { UserContext } from "@/lib/rbac"
+import {
+  RISK_ORDER,
+  refuseEscalation,
+  type ConnectionClass,
+} from "@/lib/relay/connection-class"
+import {
+  confirmationMatches,
+  confirmationSecret,
+  issueConfirmation,
+  planDigest,
+  type ActionPlan,
+  type ConfirmationVerdict,
+} from "@/lib/relay/action-plan"
 
 /**
  * PACK-070-004 — the tools Relay may use on this system, for this person.
@@ -67,6 +76,27 @@ import type { UserContext } from "@/lib/rbac"
  * silently overwritten, a writing tool needs a confirmation a person produced,
  * and a recipient the caller did not already allow is refused.
  *
+ * ## WRK-050-001 — and the arguments are an allow-list, not a deny-list
+ *
+ * The door used to name six arguments a model may not send and pass every other
+ * key through untouched, so any type, any extra field and any value for any
+ * name nobody had thought of reached the tool. `TOOL_ARGUMENT_SCHEMAS` inverts
+ * that: a tool with no declared schema cannot be invoked at all, and an argument
+ * the schema does not declare — or declares at another type — is refused. A
+ * registration added tomorrow is unusable until somebody says what it takes,
+ * which is the opposite of the previous default.
+ *
+ * ## WRK-050-002 / WRK-GATE-050 — and the confirmation is real
+ *
+ * `readOnly === false` used to be gated on a non-empty string, so the literal
+ * `"y"` authorized a write and the model supplied it in the same body as its own
+ * proposal — the model confirming itself. It is now
+ * `apps/web/src/lib/relay/action-plan.ts`: the plan is derived from the
+ * invocation's own resolved arguments, and the confirmation is an HMAC bound to
+ * a digest of that plan, to the tenant, to the actor and to an expiry. A
+ * confirmation given for a different plan, a different person or five minutes
+ * ago refuses, and the refusal says which.
+ *
  * ## WRK-030-001 / WRK-GATE-030 — what a refusal may say
  *
  * A refusal carries two halves that must not be confused. `requiredPermission`
@@ -97,15 +127,12 @@ export type ActionRiskClass =
   | "DELETE"
   | "PRIVILEGED"
 
-const RISK_ORDER: readonly ActionRiskClass[] = [
-  "READ",
-  "DRAFT",
-  "WRITE",
-  "BULK",
-  "EXTERNAL_SHARE",
-  "DELETE",
-  "PRIVILEGED",
-]
+// WRK-020-001. The ordering is imported from `relay/connection-class.ts` rather
+// than restated here: that module compares a connection class's ceiling against
+// a risk, and two orderings would be two answers to "is this worse than that".
+// The import runs one way — this module imports that one — because
+// `connection-class.ts` takes only `import type { ActionRiskClass }` back, which
+// is erased.
 
 /**
  * The domains whose actions answer to a policy of their own.
@@ -202,13 +229,13 @@ export function owningPolicyPermission(domain: string): string | null {
  * The shipped role templates that carry a permission — WRK-GATE-030's "ask
  * somebody who can grant this".
  *
- * Derived from `ROLE_TEMPLATES`, which is the same catalog `seat-world.ts:94`
- * hands the authorization engine, so the answer cannot name a role that does
- * not exist or miss one that was added.
+ * Re-exported rather than defined here since WRK-110-005: the Connection Centre
+ * needs the identical answer to say who can clear a `NEEDS_ADMIN`, and it is
+ * reachable from a client bundle that cannot import this module (see the header
+ * of `@/lib/authz/roles-granting`). One implementation, two importers — a
+ * second copy is how a refusal comes to name a role nobody holds.
  */
-export function rolesGranting(permission: string): readonly string[] {
-  return ROLE_TEMPLATES.filter((t) => t.permissions.includes(permission)).map((t) => t.key)
-}
+export { rolesGranting }
 
 // ── the shape of an answer ──────────────────────────────────────────────────
 
@@ -243,6 +270,33 @@ export type RelayRemedy =
   | { kind: "SURFACE_IS_READ_ONLY"; toolKey: string }
   /** The proposal itself was rejected. `rejected` names the field. */
   | { kind: "PROPOSAL_NOT_ACCEPTED"; rejected: string }
+  /**
+   * WRK-020-001. The tool exceeds the §4.1 class its capability is offered
+   * under. Names BOTH classes, because the way out is an administrator changing
+   * the grant and "you may not" does not tell them to what.
+   */
+  | {
+      kind: "CONNECTION_CLASS_EXCEEDED"
+      grantedClass: ConnectionClass
+      requestedRisk: ActionRiskClass
+      requiredClass: ConnectionClass | null
+    }
+  /**
+   * WRK-GATE-020. The grant reads and the tool writes. Direction authority was
+   * not represented at all before this: a read grant and a write grant were
+   * indistinguishable at the one door a proposal goes through.
+   */
+  | { kind: "GRANT_IS_READ_ONLY"; grantedDirection: GrantedDirection; toolKey: string }
+  /**
+   * WRK-GATE-020. The proposal named a container the grant does not select.
+   * §4.2's resource selectors, as a refusal rather than as prose.
+   */
+  | {
+      kind: "RESOURCE_NOT_SELECTED"
+      argument: string
+      requested: string
+      selected: readonly string[]
+    }
 
 export interface OfferedTool {
   tool: ToolRegistration
@@ -315,12 +369,60 @@ export function authorizeRegistrations(
   context: TenantContext,
   registrations: readonly ToolRegistration[],
   allow: ToolPolicy,
+  /**
+   * How to look up the §4.1 class a module's capability is offered under.
+   *
+   * The same seam, and for the same reason, as the registration list above and
+   * as `invokeRelayTool`'s `schemas`: the shipped record names one module, so a
+   * gate exercised only against it is a gate exercised only against the case it
+   * does not fire on. The default IS the production lookup, so a caller that
+   * says nothing gets the real answer — `authorizeRelayTools` passes nothing.
+   */
+  classOf: (moduleKey: string) => ConnectionClass | null = connectionClassFor,
 ): RelayToolset {
   const offered: OfferedTool[] = []
   const refused: RefusedTool[] = []
 
   for (const tool of registrations) {
     const riskClass = riskOf(tool)
+
+    // 0. The class of the connection this capability is offered under
+    //    (WRK-020-001, Bible §4.1).
+    //
+    // FIRST, ahead of the surface's own ceiling, because the two say different
+    // things and the stronger one should be said first: "this connection may
+    // never do that, anywhere" outranks "not from this route". A webhook-only
+    // grant and an organization-wide application identity used to be the same
+    // thing to every decision below, so there was no point in this file where
+    // the first sentence could be written at all.
+    //
+    // `connectionClassFor` returns null for a module no connection serves —
+    // answered from this platform's own store, under Tenure authorization alone
+    // — and null is deliberately not a refusal. See the note on the function.
+    const grantedClass = classOf(tool.module)
+    if (grantedClass) {
+      const escalation = refuseEscalation(grantedClass, riskClass)
+      if (!escalation.ok) {
+        refused.push({
+          toolKey: tool.toolKey,
+          riskClass,
+          requiredPermission: tool.requiredPermission,
+          reason: escalation.reason,
+          disclosure: "not-permitted",
+          safeReason:
+            `${tool.module} is connected here in a way that cannot ${riskClass.toLowerCase()} — ` +
+            `the connection was set up for ${escalation.ceiling.toLowerCase()} access only. ` +
+            `An administrator would have to reconnect it with wider authority.`,
+          remedy: {
+            kind: "CONNECTION_CLASS_EXCEEDED",
+            grantedClass: escalation.grantedClass,
+            requestedRisk: riskClass,
+            requiredClass: escalation.requiredClass,
+          },
+        })
+        continue
+      }
+    }
 
     // 1. The surface's ceiling, decided before any permission is consulted.
     //
@@ -466,6 +568,18 @@ export function toolOffered(set: RelayToolset, toolKey: string): boolean {
 
 // ── the one door a proposal goes through ────────────────────────────────────
 
+/**
+ * WRK-GATE-020. Which way a granted connection carries data.
+ *
+ * The same three words `CapabilityDirection` uses in `@tenure/provisioning`,
+ * deliberately: one vocabulary for one concept, so a pack declared engine-side
+ * and a limit stated cell-side cannot disagree about what a grant permits. It is
+ * re-declared rather than imported because a cell may not import the engine's
+ * control plane, which is what `tests/security/cell-independence.test.mjs`
+ * refuses and lists exactly one exemption for.
+ */
+export type GrantedDirection = "read" | "write" | "bidirectional"
+
 /** What a model asks for: a tool by name, and arguments it chose. */
 export interface ToolProposal {
   toolKey: string
@@ -487,6 +601,30 @@ export interface RelayInvocationLimits {
    * a new address. Absent means none, which refuses every recipient argument.
    */
   allowedRecipients?: readonly string[]
+  /**
+   * WRK-GATE-020. Which direction the granted connection actually carries.
+   *
+   * REQUIRED, not optional. `CapabilityDirection` has existed in
+   * `packages/provisioning/src/connector-capability.ts:83` since the connector
+   * packs landed and every pack carries one — but that package is engine-only
+   * (`tests/security/cell-independence.test.mjs`) and nothing on the request
+   * path ever read a direction, so a read grant and a write grant were
+   * indistinguishable at this door. An optional field here would be the field
+   * the one caller forgets: it compiles, every unit test that builds its own
+   * fixture passes, and the grant stops meaning anything in production.
+   */
+  grantedDirection: GrantedDirection
+  /**
+   * WRK-GATE-020. The containers the grant selects — Bible §4.2's resource
+   * selectors.
+   *
+   * REQUIRED, and empty means NONE, which refuses every argument naming a
+   * folder, mailbox, channel, drive, site, board or repository. That is the
+   * same honest shape `allowedRecipients: []` already uses, and it is what makes
+   * §4.1's "never turn a user token into organization-wide data access by
+   * iterating over discoverable resources" checkable rather than aspirational.
+   */
+  selectedResources: readonly string[]
 }
 
 /**
@@ -523,6 +661,95 @@ const CALLER_DECIDED_ARGUMENTS: readonly string[] = [
 /** Arguments that address somebody outside the request. */
 const RECIPIENT_ARGUMENTS: readonly string[] = ["to", "cc", "bcc", "recipients"]
 
+/**
+ * Arguments that name a CONTAINER — Bible §4.2's resource selectors, as the
+ * argument names a proposal would actually use.
+ *
+ * Lowercased for comparison, so `folderId` and `FolderID` are the same refusal
+ * as `folderid`, for the reason `CALLER_DECIDED_ARGUMENTS` gives: a check that
+ * missed a capital letter would be a check on spelling.
+ *
+ * Drawn from §4.2's own list and no wider: mailboxes, folders and labels;
+ * calendars; drives, sites and libraries; workspaces and channels; Notion
+ * teamspaces and databases; projects, boards, queues and repositories. A name
+ * earns a row here when it is a container somebody could be granted a subset of
+ * — not every argument that happens to be a string.
+ */
+const RESOURCE_ARGUMENTS: readonly string[] = [
+  "mailbox",
+  "folder",
+  "folderid",
+  "folderpath",
+  "label",
+  "calendar",
+  "calendarid",
+  "drive",
+  "driveid",
+  "site",
+  "siteid",
+  "library",
+  "workspace",
+  "workspaceid",
+  "channel",
+  "channelid",
+  "teamspace",
+  "database",
+  "databaseid",
+  "project",
+  "board",
+  "queue",
+  "repository",
+  "repo",
+  "container",
+]
+
+// ── WRK-050-001: what arguments a tool actually takes ───────────────────────
+
+/** The scalar types a declared argument may be. */
+export type ToolArgumentType = "string" | "number" | "boolean"
+
+/** One tool's arguments, by name. */
+export type ToolArgumentSchema = Record<string, ToolArgumentType>
+
+/** Every tool's arguments, by `toolKey`. */
+export type ToolArgumentSchemas = Record<string, ToolArgumentSchema>
+
+/**
+ * Arguments the platform declares for every tool, governed by their own gates
+ * below rather than by a per-tool schema.
+ *
+ * `confirmationToken` is the human authorization and is checked by (e);
+ * `to`/`cc`/`bcc`/`recipients` are addresses and are checked by (d), which also
+ * type-checks them — they are string OR array-of-string, which is why they are
+ * not expressible in the scalar schema above. Listing them here is what stops
+ * the allow-list from refusing the platform's own vocabulary.
+ */
+const PLATFORM_ARGUMENTS: readonly string[] = ["confirmationToken", ...RECIPIENT_ARGUMENTS]
+
+/**
+ * What each registered tool takes.
+ *
+ * **This belongs on `ToolRegistration`.** `packages/contracts/src/index.ts`
+ * declares `toolKey`, `module`, `description`, `requiredPermission`, `readOnly`
+ * and `reauthorizesPerCall` and carries no schema field, so a registration
+ * cannot state its own arguments and this table is the nearest honest thing: a
+ * platform-side declaration, keyed by the same `toolKey` the registration uses,
+ * checked at the one door. Moving it onto the contract is WRK-050-001's
+ * remaining half and is a change to a package another run owns.
+ *
+ * One entry, because the catalog contributes one tool. `search.corpus` takes the
+ * question to rank against and nothing else — `apps/web/src/app/api/ai/chat/
+ * route.ts` derives the corpus from the actor and the tenant, both of which are
+ * stamped from the context and refused if a proposal names them.
+ *
+ * A tool absent from this table cannot be invoked (gate (a″)). That direction is
+ * the whole point: an undeclared registration is unusable rather than fully
+ * permissive.
+ */
+export const TOOL_ARGUMENT_SCHEMAS: ToolArgumentSchemas = {
+  "search.corpus": { query: "string" },
+}
+
 function proposalRefusal(
   toolKey: string,
   riskClass: ActionRiskClass | null,
@@ -545,6 +772,136 @@ function proposalRefusal(
   }
 }
 
+// ── WRK-050-002: the plan a confirmation is bound to ────────────────────────
+
+/**
+ * Which argument names §7.3's named plan fields are projected from.
+ *
+ * Every resolved argument lands in exactly one field of the plan — a named one
+ * if it is on a list here, `args` otherwise — so the digest covers all of them
+ * and none of them twice. That is what makes "a changed recipient, body,
+ * permission, target … invalidates prior approval" true of arguments nobody
+ * anticipated as well as of the ones the Bible names.
+ */
+const TARGET_ARGUMENTS: readonly string[] = ["target", "targetId", "resourceId", "id"]
+const BODY_ARGUMENTS: readonly string[] = ["body", "message", "text", "content"]
+const NOTIFY_ARGUMENTS: readonly string[] = ["notify", "notifies", "sendNotification"]
+const PERMISSION_IMPACT_ARGUMENTS: readonly string[] = ["permissions", "grants", "revokes"]
+
+const asStrings = (value: unknown): string[] =>
+  (Array.isArray(value) ? value : [value])
+    .filter((v) => v !== undefined && v !== null)
+    .map((v) => String(v))
+
+/**
+ * The plan an invocation would carry out, derived from what will actually run.
+ *
+ * Derived, never accepted. A caller that could hand in a plan could confirm one
+ * thing and execute another, which is the exact substitution §7.3 exists to
+ * stop — so the tenant and the actor come from the validated context and every
+ * other field comes from the resolved arguments themselves.
+ *
+ * `confirmationToken` is excluded because a confirmation cannot cover itself.
+ */
+export function planForInvocation(
+  toolKey: string,
+  context: TenantContext,
+  args: Record<string, unknown>,
+): ActionPlan {
+  const recipients: string[] = []
+  const permissionImpact: string[] = []
+  let target: string | null = null
+  let body: string | null = null
+  let notifies = false
+  const rest: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(args)) {
+    if (key === "confirmationToken") continue
+    if (RECIPIENT_ARGUMENTS.includes(key)) {
+      recipients.push(...asStrings(value))
+    } else if (TARGET_ARGUMENTS.includes(key)) {
+      target = value === undefined || value === null ? target : String(value)
+    } else if (BODY_ARGUMENTS.includes(key)) {
+      body = value === undefined || value === null ? body : String(value)
+    } else if (NOTIFY_ARGUMENTS.includes(key)) {
+      notifies = notifies || value === true
+    } else if (PERMISSION_IMPACT_ARGUMENTS.includes(key)) {
+      permissionImpact.push(...asStrings(value))
+    } else {
+      rest[key] = value
+    }
+  }
+
+  return {
+    tenantId: context.tenantId,
+    actorId: context.actorId,
+    toolKey,
+    target,
+    recipients,
+    body,
+    notifies,
+    permissionImpact,
+    args: rest,
+  }
+}
+
+/**
+ * The digest of what this proposal would do, under this request's identity.
+ *
+ * Exported so a surface can show a person the plan and quote its digest beside
+ * it, which is the first half of §7.3's preview.
+ */
+export function proposalDigest(proposal: ToolProposal, context: TenantContext): string {
+  return planDigest(planForInvocation(proposal.toolKey, context, proposal.args))
+}
+
+/**
+ * Mint a confirmation for exactly this proposal, under this identity.
+ *
+ * The counterpart `verifyConfirmation` is defined against, and — stated plainly
+ * — with no production caller today, because minting is what a *person* does
+ * and this platform has no writing Relay surface: `/api/ai/chat` declares
+ * `read-only`. That is fail-closed and deliberate. A writing surface added
+ * tomorrow gets no writes at all until it wires a human confirmation step
+ * through here, which is the right way round.
+ */
+export function mintConfirmation(
+  proposal: ToolProposal,
+  context: TenantContext,
+  options: { now?: number; ttlMs?: number; secret?: string } = {},
+): string {
+  const plan = planForInvocation(proposal.toolKey, context, proposal.args)
+  const now = options.now ?? Date.parse(context.at)
+  return issueConfirmation(plan, options.secret ?? confirmationSecret(), now, options.ttlMs)
+}
+
+/**
+ * Whether a confirmation authorizes this exact proposal.
+ *
+ * `now` defaults to the request's own instant off the validated context rather
+ * than to `Date.now()`, so expiry is decided against the same value every other
+ * decision on this request was decided against.
+ */
+export function verifyConfirmation(
+  token: unknown,
+  proposal: ToolProposal,
+  context: TenantContext,
+  now: number = Date.parse(context.at),
+  secret: string = confirmationSecret(),
+): ConfirmationVerdict {
+  const plan = planForInvocation(proposal.toolKey, context, proposal.args)
+  return confirmationMatches(token, plan, context, now, secret)
+}
+
+/** What to tell the person, per reason. Never the engine's own words. */
+const CONFIRMATION_SAFE_REASON: Record<string, string> = {
+  MALFORMED: "Someone needs to confirm this before the assistant can do it.",
+  WRONG_TENANT: "That confirmation was for another institution. Confirm this one again.",
+  WRONG_ACTOR: "That confirmation was somebody else's. It has to be confirmed by you.",
+  EXPIRED: "That confirmation has expired. Check the details and confirm again.",
+  PLAN_CHANGED: "This is not what was confirmed. Check the details and confirm again.",
+}
+
 /**
  * The single door between a model's proposal and anything that runs.
  *
@@ -564,6 +921,16 @@ export function invokeRelayTool(
   context: TenantContext,
   proposal: ToolProposal,
   limits: RelayInvocationLimits,
+  /**
+   * The argument declarations to check against. Defaults to the platform's own.
+   *
+   * The same seam, and for the same reason, as `authorizeRegistrations`: the
+   * catalog contributes one tool, so a gate exercised only against `search.corpus`
+   * is a gate exercised only against the case it does not fire on. The default
+   * is the fail-closed production value, so a caller that says nothing gets the
+   * strict answer — `apps/web/src/app/api/ai/chat/route.ts` passes nothing.
+   */
+  schemas: ToolArgumentSchemas = TOOL_ARGUMENT_SCHEMAS,
 ): RelayInvocation {
   const offered = set.offered.find((o) => o.tool.toolKey === proposal.toolKey)
 
@@ -595,6 +962,28 @@ export function invokeRelayTool(
 
   const { tool, riskClass } = offered
 
+  // (a″) Offered, and nobody has said what arguments it takes.
+  //
+  // Fail closed, and decided before the surface's own list for a reason: a tool
+  // whose arguments are undeclared is not runnable ANYWHERE, and answering "not
+  // here" would imply it runs somewhere else. Until this branch existed the
+  // opposite was true — an undeclared tool was the fully permissive one, because
+  // the door checked only the six names on `CALLER_DECIDED_ARGUMENTS` and passed
+  // everything else through.
+  const schema = Object.prototype.hasOwnProperty.call(schemas, proposal.toolKey)
+    ? schemas[proposal.toolKey]
+    : undefined
+  if (!schema) {
+    return proposalRefusal(
+      tool.toolKey,
+      riskClass,
+      tool.requiredPermission,
+      "toolKey",
+      `"${proposal.toolKey}" declares no argument schema, so nothing can validate what it would be called with`,
+      "That capability has not been set up for the assistant to use yet.",
+    )
+  }
+
   // (a′) Offered, but not something this surface runs.
   if (!limits.executableToolKeys.includes(proposal.toolKey)) {
     return proposalRefusal(
@@ -605,6 +994,38 @@ export function invokeRelayTool(
       `"${proposal.toolKey}" is offered but this surface executes only [${limits.executableToolKeys.join(", ")}]`,
       "The assistant cannot do that here.",
     )
+  }
+
+  // (a‴) The direction the grant carries (WRK-GATE-020).
+  //
+  // A property of the GRANT, not of the arguments, so it is decided before any
+  // of them are read. `readOnly === false` is the registration's own statement
+  // that it changes something; a connection granted `read` carries no authority
+  // to do that, whatever permission the requester holds and whatever the surface
+  // would otherwise allow. Before this, a read grant and a write grant were the
+  // same value here — `CapabilityDirection` existed only in the engine's
+  // connector packs, which a cell may not import.
+  if (tool.readOnly === false && limits.grantedDirection === "read") {
+    return {
+      ok: false,
+      refusal: {
+        toolKey: tool.toolKey,
+        riskClass,
+        requiredPermission: tool.requiredPermission,
+        reason:
+          `${tool.toolKey} writes, and this request runs under a "${limits.grantedDirection}" ` +
+          `grant, which carries no write authority`,
+        disclosure: "not-permitted",
+        safeReason:
+          "This connection was set up to read only, so the assistant cannot change anything " +
+          "through it.",
+        remedy: {
+          kind: "GRANT_IS_READ_ONLY",
+          grantedDirection: limits.grantedDirection,
+          toolKey: tool.toolKey,
+        },
+      },
+    }
   }
 
   // (b) The tenant, the provider account and the credential are the caller's.
@@ -621,23 +1042,98 @@ export function invokeRelayTool(
     }
   }
 
-  // (c) A writing tool needs a person to have said yes to this specific thing.
-  if (tool.readOnly === false) {
-    const token = proposal.args.confirmationToken
-    if (typeof token !== "string" || token.trim().length === 0) {
+  // (b′) Every container the proposal names is one the grant selects
+  //      (WRK-GATE-020, Bible §4.2).
+  //
+  //      Above (c) for the same reason (d) sits above (e): "that folder is not
+  //      one this connection selected" is a more specific and more portable
+  //      answer than "this tool takes no argument called folder". The first is
+  //      true of every tool on the grant, including the connector tools that
+  //      WILL declare a `folder`; the second is an accident of today's one-tool
+  //      catalog, and letting it answer first is how the specific refusal stops
+  //      being said the moment a real connector lands.
+  //
+  //      §4.1: "Never turn a user token into organization-wide data access by
+  //      iterating over discoverable resources." This is the line that refuses
+  //      the iteration.
+  const selected = new Set(limits.selectedResources)
+  for (const key of Object.keys(proposal.args)) {
+    // Live. This read `|| true`, which made the loop `continue` on every key and
+    // switched the check off entirely: a proposal naming a resource the caller
+    // never selected was accepted in full. `unknown` on `proposed` below was the
+    // symptom — nothing downstream was reachable, so nothing was narrowed.
+    if (!RESOURCE_ARGUMENTS.includes(key.toLowerCase())) continue
+    const raw: unknown = proposal.args[key]
+    const proposed: unknown[] = Array.isArray(raw) ? raw : [raw]
+    const stray = proposed.find((v: unknown) => typeof v !== "string" || !selected.has(v))
+    if (stray === undefined) continue
+    return {
+      ok: false,
+      refusal: {
+        toolKey: tool.toolKey,
+        riskClass,
+        requiredPermission: tool.requiredPermission,
+        reason:
+          `"${key}" named ${JSON.stringify(stray)}, which is outside the ` +
+          `${limits.selectedResources.length} resource(s) this grant selects ` +
+          `[${limits.selectedResources.join(", ")}]`,
+        disclosure: "not-permitted",
+        safeReason:
+          limits.selectedResources.length === 0
+            ? "This connection has no folders or channels selected, so the assistant cannot " +
+              "reach into one."
+            : "The assistant tried to use a folder or channel that was not part of this " +
+              "connection.",
+        remedy: {
+          kind: "RESOURCE_NOT_SELECTED",
+          argument: key,
+          requested: typeof stray === "string" ? stray : JSON.stringify(stray),
+          selected: limits.selectedResources,
+        },
+      },
+    }
+  }
+
+  // (c) Every remaining argument is one the tool declared, at the type it
+  //     declared. Deliberately BELOW (b): a proposal naming `tenantId` gets the
+  //     refusal that says whose data a model does not choose, not a generic
+  //     "unknown argument". Those are two different things to tell somebody and
+  //     collapsing them is how the specific one stops being said.
+  for (const [key, value] of Object.entries(proposal.args)) {
+    // No `CALLER_DECIDED_ARGUMENTS` skip: (b) above returns on the first one, so
+    // by here there are none left to skip and a guard for them would be a line
+    // claiming a case that cannot occur.
+    if (PLATFORM_ARGUMENTS.includes(key)) continue
+
+    const declared = Object.prototype.hasOwnProperty.call(schema, key) ? schema[key] : undefined
+    if (!declared) {
       return proposalRefusal(
         tool.toolKey,
         riskClass,
         tool.requiredPermission,
-        "confirmationToken",
-        `${tool.toolKey} changes things and the proposal carried no human confirmation`,
-        "Someone needs to confirm this before the assistant can do it.",
+        key,
+        `"${proposal.toolKey}" declares no argument named "${key}"`,
+        "The assistant asked for something that tool does not take.",
+      )
+    }
+    if (typeof value !== declared) {
+      return proposalRefusal(
+        tool.toolKey,
+        riskClass,
+        tool.requiredPermission,
+        key,
+        `"${key}" is declared ${declared} and the proposal sent ${Array.isArray(value) ? "array" : typeof value}`,
+        "The assistant sent the wrong kind of value for that tool.",
       )
     }
   }
 
   // (d) A recipient the caller did not already allow is a new destination, and
   //     a model choosing a destination is how a summary becomes a disclosure.
+  //
+  //     Above (e) on purpose: "you sent this to somebody who was not on the
+  //     list" is a more specific answer than "that is not what was confirmed",
+  //     and the second is what a plan digest would say about the first.
   const allowedRecipients = new Set(limits.allowedRecipients ?? [])
   for (const key of RECIPIENT_ARGUMENTS) {
     if (!(key in proposal.args)) continue
@@ -652,6 +1148,27 @@ export function invokeRelayTool(
         key,
         `"${key}" named a recipient outside the set this request allows`,
         "The assistant tried to send this to somebody who was not on the list.",
+      )
+    }
+  }
+
+  // (e) A writing tool needs a person to have said yes to THIS thing.
+  //
+  //     Not a non-empty string. `verifyConfirmation` recomputes the plan from
+  //     the arguments about to run and checks an HMAC bound to that plan's
+  //     digest, to this tenant, to this actor and to an expiry — so a
+  //     confirmation given for another plan, by another person, or five minutes
+  //     ago refuses, and `reason` says which of those it was.
+  if (tool.readOnly === false) {
+    const verdict = verifyConfirmation(proposal.args.confirmationToken, proposal, context)
+    if (!verdict.ok) {
+      return proposalRefusal(
+        tool.toolKey,
+        riskClass,
+        tool.requiredPermission,
+        "confirmationToken",
+        `${tool.toolKey} changes things and its confirmation was refused as ${verdict.reason}: ${verdict.detail}`,
+        CONFIRMATION_SAFE_REASON[verdict.reason] ?? CONFIRMATION_SAFE_REASON.MALFORMED,
       )
     }
   }

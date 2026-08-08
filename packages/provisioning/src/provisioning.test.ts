@@ -15,6 +15,7 @@ import {
   RESIDUAL_COST,
   TERMINAL,
   advance,
+  attemptFor,
   canAdvance,
   needsApproval,
   nextStates,
@@ -23,7 +24,13 @@ import {
 } from "./lifecycle"
 import { RESIDUAL_CLAIMS, observeResidual, reconcileResidual } from "./residual-reconciliation"
 import { MANIFEST_VERSION, digestOf, planFor, validateManifest, type TenantManifest } from "./manifest"
-import { CELL_APPLY, deploymentManifest, executeStep, type ExecutionContext } from "./execute"
+import {
+  CELL_APPLY,
+  deploymentManifest,
+  executeStep,
+  type ExecutionContext,
+  type StepRun,
+} from "./execute"
 
 const OPERATOR = { principalId: "dana@tenure.example", at: "2026-08-01T00:00:00.000Z" }
 const SECOND = "ravi@tenure.example"
@@ -681,6 +688,16 @@ describe("execute", () => {
     resolveModules: () => ({ ordered: [{ key: "governance", version: "1.2.0" }], problems: [] }),
     validateTopology: () => ({ valid: true, problems: [] }),
     schemaVersion: () => "2026.07.31",
+    // Every reference resolves as present. The VERIFYING arm reads this, so a
+    // fixture without it makes ten cases fail on `is not a function` rather
+    // than on anything they assert.
+    resolveSecretRefs: (refs) =>
+      Object.fromEntries(
+        Object.keys(refs).map((name) => [
+          name,
+          { state: "PRESENT" as const, lastChanged: null, rotationEnabled: false },
+        ]),
+      ),
   }
 
   const broken: ExecutionContext = {
@@ -690,6 +707,19 @@ describe("execute", () => {
       values: {},
       problems: [{ key: "term.label", reason: "missing", detail: "no value and no default" }],
     }),
+  }
+
+  /** STUDIO-060-010. What the run was: the act it belongs to, and which try. */
+  const RUN: StepRun = {
+    correlationId: "corr-01HZ",
+    attempt: 1,
+    // STUDIO-070-005. Required, not defaulted — a fixture that could omit them
+    // would be the same hole the production caller had.
+    awsRequestIds: [],
+    assumedRoleArn: null,
+    resourceHandles: [],
+    nextRetryAt: null,
+    compensation: null,
   }
 
   it("produces evidence for every state in the build path", () => {
@@ -702,22 +732,123 @@ describe("execute", () => {
       "VERIFYING",
       "ACTIVATING",
     ] as const) {
-      const e = executeStep(state, manifest(), ctx)
+      const e = executeStep(state, manifest(), ctx, RUN)
       expect(e.state).toBe(state)
       expect(e.detail.length).toBeGreaterThan(20)
     }
   })
 
+  /* ------------------------------------------------------ STUDIO-060-010 -- */
+
+  it("attributes every step to the act, the attempt and the input it ran against", () => {
+    // The gap this closed: evidence carried an OUTPUT digest and nothing else,
+    // so a failed step could not be tied to the request that caused it, to
+    // which try it was, or to what it ran against. Asserted over EVERY state
+    // including the default arm, because a case added without the attribution
+    // block would otherwise be invisible until an operator went looking.
+    for (const state of ALL_STATES) {
+      const e = executeStep(state, manifest(), ctx, { ...RUN, correlationId: "corr-9", attempt: 3 })
+      expect(e.correlationId).toBe("corr-9")
+      expect(e.attempt).toBe(3)
+      expect(e.inputDigest).toHaveLength(32)
+      expect(e.approvalRef).toBeUndefined()
+    }
+  })
+
+  it("digests the INPUT separately from the output", () => {
+    // Two different facts. A step that produced the same artifact from a
+    // different manifest, or against a different schema version, is not the
+    // same run — and before this the evidence could not tell them apart.
+    const a = executeStep("CONFIGURING", manifest(), ctx, RUN)
+    const b = executeStep("CONFIGURING", manifest({ slug: "elsewhere" }), ctx, RUN)
+    expect(a.inputDigest).not.toBe(b.inputDigest)
+
+    const otherSchema: ExecutionContext = { ...ctx, schemaVersion: () => "2026.09.01" }
+    expect(executeStep("CONFIGURING", manifest(), otherSchema, RUN).inputDigest).not.toBe(
+      a.inputDigest,
+    )
+
+    // And it is not simply the output digest under a second name.
+    expect(a.inputDigest).not.toBe(a.digest)
+  })
+
+  it("carries the approval the run was authorised by, and omits it when there was none", () => {
+    const approved = executeStep("ACTIVATING", manifest(), ctx, {
+      correlationId: "corr-9",
+      attempt: 1,
+      approvalRef: "ravi@tenure.example",
+      // STUDIO-070-005. The execution provenance a real caller threads through.
+      // Spelled out rather than defaulted: the point of the fields being
+      // required is that a fixture cannot omit them either.
+      awsRequestIds: [],
+      assumedRoleArn: null,
+      resourceHandles: [],
+      nextRetryAt: null,
+      compensation: null,
+    })
+    expect(approved.approvalRef).toBe("ravi@tenure.example")
+    expect(executeStep("ACTIVATING", manifest(), ctx, RUN).approvalRef).toBeUndefined()
+  })
+
+  it("classifies a failure rather than leaving the reason in prose alone", () => {
+    // `safeError` is a stable classification, never a raw exception message —
+    // an exception message is where a credential or a row of tenant content
+    // ends up in a store that must not be rewritten.
+    expect(executeStep("VALIDATING", manifest(), broken, RUN).safeError).toBe(
+      "manifest-not-buildable",
+    )
+    expect(executeStep("CONFIGURING", manifest(), broken, RUN).safeError).toBe(
+      "configuration-unresolved",
+    )
+    expect(
+      executeStep("VERIFYING", manifest({ secretRefs: { k: "sk_live_abc" } }), ctx, RUN).safeError,
+    ).toBe("pre-activation-checks-failed")
+
+    // A step that succeeded says nothing, rather than saying "none".
+    expect(executeStep("CONFIGURING", manifest(), ctx, RUN).safeError).toBeUndefined()
+  })
+
+  it("numbers the attempt the same way the lifecycle step does", () => {
+    // Two implementations of "which try is this" would number a retry one thing
+    // in the history and another in the evidence that proves it. Both read
+    // `attemptFor`, and this is what holds them together.
+    const history: LifecycleStep[] = [
+      {
+        from: "AWAITING_APPROVAL",
+        to: "PROVISIONING",
+        at: "2026-08-01T00:00:00.000Z",
+        actor: OPERATOR.principalId,
+        attempt: 1,
+      },
+    ]
+    expect(attemptFor(history, "PROVISIONING")).toBe(2)
+    expect(attemptFor(history, "CONFIGURING")).toBe(1)
+
+    // The retry, through the real transition — the same one `advance` numbers.
+    const { step } = advance(
+      "AWAITING_APPROVAL",
+      "PROVISIONING",
+      { actor: OPERATOR, approvedBy: SECOND, approverIsOperator: true },
+      history,
+    )
+    const e = executeStep("PROVISIONING", manifest(), ctx, {
+      ...RUN,
+      correlationId: "corr-9",
+      attempt: attemptFor(history, "PROVISIONING"),
+    })
+    expect(e.attempt).toBe(step.attempt)
+  })
+
   it("fails validation when configuration no longer resolves", () => {
     // The manifest was fine when composed; a value can go missing between then
     // and provisioning, and the run must stop rather than build half a system.
-    const e = executeStep("VALIDATING", manifest(), broken)
+    const e = executeStep("VALIDATING", manifest(), broken, RUN)
     expect(e.ok).toBe(false)
     expect(e.checks!.find((c) => c.name === "configuration resolves")!.ok).toBe(false)
   })
 
   it("produces no artifact when configuring fails", () => {
-    const e = executeStep("CONFIGURING", manifest(), broken)
+    const e = executeStep("CONFIGURING", manifest(), broken, RUN)
     expect(e.ok).toBe(false)
     expect(e.detail).toMatch(/no artifact/i)
   })
@@ -726,7 +857,7 @@ describe("execute", () => {
     // The honesty this whole module turns on: the engine does not write to a
     // tenant's database, and a step that pretended to would be the single most
     // misleading thing in the console.
-    const e = executeStep("MIGRATING", manifest(), ctx)
+    const e = executeStep("MIGRATING", manifest(), ctx, RUN)
     expect(e.detail).toMatch(/does not write to a tenant's database/)
     // The boundary moved once the reconciler landed, and the claim moved with
     // it: the reconciler is real, the transport is not. Pinned so the next
@@ -736,7 +867,7 @@ describe("execute", () => {
   })
 
   it("refuses to pass verification with a secret value in the manifest", () => {
-    const e = executeStep("VERIFYING", manifest({ secretRefs: { k: "sk_live_abc" } }), ctx)
+    const e = executeStep("VERIFYING", manifest({ secretRefs: { k: "sk_live_abc" } }), ctx, RUN)
     expect(e.ok).toBe(false)
     expect(e.checks!.find((c) => c.name === "no secret value in the manifest")!.ok).toBe(false)
   })
@@ -744,15 +875,15 @@ describe("execute", () => {
   it("is deterministic — two runs produce identical digests", () => {
     // Nothing reads a clock or a random source, so "what did we agree to build"
     // and "what did we build" are comparable rather than merely asserted.
-    const a = executeStep("CONFIGURING", manifest(), ctx)
-    const b = executeStep("CONFIGURING", manifest(), ctx)
+    const a = executeStep("CONFIGURING", manifest(), ctx, RUN)
+    const b = executeStep("CONFIGURING", manifest(), ctx, RUN)
     expect(a.digest).toBe(b.digest)
     expect(a.digest).toBeDefined()
   })
 
   it("digests the deployment manifest over every field it carries", () => {
     const evidence = (["VALIDATING", "CONFIGURING"] as const).map((s) =>
-      executeStep(s, manifest(), ctx),
+      executeStep(s, manifest(), ctx, RUN),
     )
     const meta = { createdAt: "2026-08-01T00:00:00.000Z", createdBy: "dana@tenure.example" , serving: true}
 
@@ -777,7 +908,7 @@ describe("execute", () => {
   const BUILD = ["VALIDATING", "PROVISIONING", "CONFIGURING", "MIGRATING", "VERIFYING"] as const
   const META = { createdAt: "2026-08-01T00:00:00.000Z", createdBy: "dana@tenure.example", serving: true }
   const run = (m: TenantManifest, c: ExecutionContext = ctx) =>
-    BUILD.map((s) => executeStep(s, m, c))
+    BUILD.map((s) => executeStep(s, m, c, RUN))
 
   it("names each step's digest on the artifact, because the evidence never reaches the cell", () => {
     // The reconcile endpoint is handed the manifest, a display name and an
@@ -807,7 +938,7 @@ describe("execute", () => {
     // CONFIGURING publishes before MIGRATING and VERIFYING happen. "The engine
     // did not state it" and "it verified as empty" are different claims.
     const m = manifest()
-    const early = deploymentManifest(m, [executeStep("CONFIGURING", m, ctx)], ctx, {
+    const early = deploymentManifest(m, [executeStep("CONFIGURING", m, ctx, RUN)], ctx, {
       ...META,
       serving: false,
     })
@@ -821,8 +952,8 @@ describe("execute", () => {
     // A retried step is why `advance` counts attempts. An artifact citing the
     // attempt that failed would point an incident at the wrong evidence.
     const m = manifest()
-    const failed = executeStep("VERIFYING", manifest({ secretRefs: { k: "sk_live_abc" } }), ctx)
-    const passed = executeStep("VERIFYING", m, ctx)
+    const failed = executeStep("VERIFYING", manifest({ secretRefs: { k: "sk_live_abc" } }), ctx, RUN)
+    const passed = executeStep("VERIFYING", m, ctx, RUN)
     expect(failed.digest).not.toBe(passed.digest)
 
     const dm = deploymentManifest(m, [failed, passed], ctx, META)
@@ -879,7 +1010,7 @@ describe("execute", () => {
     // that the artifact arrived unaltered and nothing at all about its origin.
     // An engine that says "signed" here teaches operators to trust a property
     // it does not have.
-    const e = executeStep("MIGRATING", manifest(), ctx)
+    const e = executeStep("MIGRATING", manifest(), ctx, RUN)
     expect(e.detail).not.toMatch(/\bsigns?\b|\bsigned\b|\bsigning\b/i)
     expect(e.detail).toMatch(/unkeyed digest, not a signature/)
   })

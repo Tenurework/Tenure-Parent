@@ -8,7 +8,7 @@ Generated from the filesystem. `npm run test:platform` regenerates this and
 fails if the committed copy is stale, so it cannot quietly go out of date, and
 fails if a handler appears with no guard and no entry on the public allowlist.
 
-**26 API routes · 47 pages · 19 server-action modules exporting 71 actions.**
+**28 API routes · 52 pages · 21 server-action modules exporting 73 actions.**
 
 ## The two experiences
 
@@ -20,8 +20,8 @@ and only one of them may be reached by a customer.
 
 | Experience | App | Surface | What it is |
 |---|---|---:|---|
-| `tenant` | `apps/web` | 25 routes · 39 pages · 16 action modules | What a customer signs into. Everything it serves is scoped to one institution. |
-| `deployer` | `apps/system-studio` | 1 routes · 8 pages · 3 action modules | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
+| `tenant` | `apps/web` | 26 routes · 40 pages · 17 action modules | What a customer signs into. Everything it serves is scoped to one institution. |
+| `deployer` | `apps/system-studio` | 2 routes · 12 pages · 4 action modules | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
 
 ## What a guard means here
 
@@ -51,6 +51,7 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/api/calendar/event/[id]` | tenant | GET, PATCH | `session` + `tenant` |
 | `/api/calendar/ics/[token]` | tenant | GET | `tenant` + `url-token` |
 | `/api/calendar/reschedule` | tenant | POST | `session` + `tenant` |
+| `/api/connections/opportunity` | tenant | POST | `session` + `tenant` |
 | `/api/documents/[id]/content` | tenant | GET | `session` + `capability` + `tenant` |
 | `/api/documents/[id]/save` | tenant | POST | `session` + `capability` + `tenant` |
 | `/api/health` | tenant | GET | **none** |
@@ -68,6 +69,7 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/api/search` | tenant | GET | `session` + `tenant` |
 | `/api/templates/budget` | tenant | GET | `session` |
 | `/api/auth/[...nextauth]` | deployer |  | **none** |
+| `/api/aws/[surface]` | deployer | GET, POST | `session` + `operator` |
 
 ## Pages
 
@@ -90,6 +92,7 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/(app)/dashboard` | tenant | GET | `session` + `tenant` |
 | `/(app)/feed` | tenant | GET | `session` + `tenant` |
 | `/(app)/gallery` | tenant | GET | `session` |
+| `/(app)/inbox` | tenant | GET | `session` + `tenant` |
 | `/(app)/messages/[id]` | tenant | GET | `session` + `capability` + `tenant` |
 | `/(app)/messages/compose` | tenant | GET | `session` + `tenant` |
 | `/(app)/messages` | tenant | GET | `session` + `tenant` |
@@ -113,8 +116,12 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/` | tenant | GET | **none** |
 | `/signin` | tenant | GET | `session` |
 | `/` | deployer | GET | `session` + `operator` |
+| `/platform/audit` | deployer | GET | `session` + `operator` |
 | `/platform/cost` | deployer | GET | `session` + `operator` |
+| `/platform/estate` | deployer | GET | `session` + `operator` |
+| `/platform/health` | deployer | GET | `session` + `operator` |
 | `/platform` | deployer | GET | `session` + `operator` |
+| `/platform/security` | deployer | GET | `session` + `operator` |
 | `/signin` | deployer | GET | `session` + `operator` |
 | `/tenants/[slug]/configuration` | deployer | GET | `session` + `operator` |
 | `/tenants/[slug]` | deployer | GET | `session` + `operator` |
@@ -273,6 +280,13 @@ otherwise report `capability` for all twenty-one.
 | `setDelegation` | `tenant` + `session` |
 | `revokeDelegation` | `tenant` + `session` |
 
+### `platform/audit/actions.ts` — deployer
+
+| Action | Guards |
+|---|---|
+| `placeHold` | `operator` + `session` |
+| `releaseHold` | `operator` + `session` |
+
 ### `tenants/[slug]/configuration/actions.ts` — deployer
 
 | Action | Guards |
@@ -285,9 +299,9 @@ otherwise report `capability` for all twenty-one.
 
 | Action | Guards |
 |---|---|
-| `composeTenant` | `session` + `operator` |
+| `composeTenant` | `operator` + `session` |
 | `advanceState` | `operator` + `session` |
-| `adoptTenantAction` | `session` + `operator` |
+| `adoptTenantAction` | `operator` + `session` |
 
 ### Actions with no guard of their own
 

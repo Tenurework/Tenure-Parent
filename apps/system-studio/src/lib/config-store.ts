@@ -3,7 +3,7 @@ import "server-only"
 import type { ConfigRecord, ConfigStore } from "@tenure/configuration"
 import { ConfigStoreError } from "@tenure/configuration"
 
-import { putTenantItemIfAbsent, queryTenantItems, tableName } from "./registry"
+import { putTenantItemIfAbsent, queryTenantItems, tableName, type TenantItemPage } from "./registry"
 import { CONFIG_SORT_PREFIX, configSortKey } from "./config-sort-key"
 
 /**
@@ -40,16 +40,33 @@ import { CONFIG_SORT_PREFIX, configSortKey } from "./config-sort-key"
 export class DynamoConfigStore implements ConfigStore {
   async history(tenantId: string): Promise<readonly ConfigRecord[]> {
     if (!tableName()) return []
-    const items = await queryTenantItems(tenantId, CONFIG_SORT_PREFIX)
+    // `queryTenantItems` now returns a page — items plus where DynamoDB stopped
+    // (STUDIO-130-002). The history is unbounded in principle, so this follows
+    // the cursor rather than silently returning the first 1 MB of revisions:
+    // truncating here would make `history()` disagree with `latest()` for a
+    // tenant that has published enough, and the disagreement would look like a
+    // missing revision rather than a paging bug.
+    const records: ConfigRecord[] = []
+    let cursor: Record<string, unknown> | null = null
+    do {
+      const page: TenantItemPage = await queryTenantItems(tenantId, CONFIG_SORT_PREFIX, {
+        exclusiveStartKey: cursor,
+      })
+      for (const item of page.items) records.push(item.record as ConfigRecord)
+      cursor = page.lastEvaluatedKey
+    } while (cursor)
     // Ascending, which with the zero-padded sort key is oldest first.
-    return items.map((item) => item.record as ConfigRecord)
+    return records
   }
 
   async latest(tenantId: string): Promise<ConfigRecord | null> {
     if (!tableName()) return null
     // One item, newest first. Reading the whole history to take the last of it
     // costs more every time a tenant publishes.
-    const items = await queryTenantItems(tenantId, CONFIG_SORT_PREFIX, { newestFirst: true, limit: 1 })
+    const { items } = await queryTenantItems(tenantId, CONFIG_SORT_PREFIX, {
+      newestFirst: true,
+      limit: 1,
+    })
     return items.length === 0 ? null : (items[0].record as ConfigRecord)
   }
 

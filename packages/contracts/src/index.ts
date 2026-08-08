@@ -993,6 +993,689 @@ export function parseProcessChain(input: unknown): ProcessChain {
   }
 }
 
+// ── 16. The control-plane read plane ────────────────────────────────────────
+
+/**
+ * STUDIO-130-001 — versioned contracts for what the live read plane emits.
+ *
+ * The fifteen above describe the application's own traffic. These four describe
+ * the *control plane*: a resource observed in AWS, a cost figure, a drift
+ * finding, and the change diff that a plan or a revision comparison produces.
+ * They exist here rather than as TypeScript interfaces inside the Studio for
+ * the reason this package's header already gives — an interface is erased at
+ * build time, and every one of these crosses a process boundary the moment a
+ * service adapter maps an SDK response into it or an operator reads one over
+ * HTTP.
+ *
+ * ── Why these four and not the other seven ──────────────────────────────────
+ *
+ * The requirement names eleven shapes (tenants, manifests, plans, approvals,
+ * executions, resources, releases, lifecycle, evidence, cost, drift). Four are
+ * published here because four have a producer today. A contract nothing emits
+ * is documentation with a parser attached: it cannot refuse anything, because
+ * nothing offers it anything, and it drifts from the shape that eventually
+ * arrives with no test able to notice. The seven are deliberately absent rather
+ * than declared empty — see the `ChangeDomain` note below, which is the same
+ * argument for the same reason.
+ *
+ * ── Versioning, and what a MAJOR actually means ─────────────────────────────
+ *
+ * Every shape carries `schemaVersion` as `MAJOR.MINOR`, and every parser
+ * refuses an unrecognised MAJOR while accepting an unrecognised MINOR.
+ *
+ * That asymmetry is the whole point. A minor is additive: a producer one minor
+ * ahead sends a field this build does not read, and dropping it loses nothing a
+ * consumer was relying on. A major removes a field or changes what one MEANS,
+ * and a consumer that keeps reading is not degraded, it is wrong — it will read
+ * `amountMinor` as cents when the producer switched to micro-units and report a
+ * bill ten thousand times too small, with no error anywhere. Refusing is the
+ * only safe answer, and it has to happen at the boundary, because by the time
+ * the value reaches a page nothing remembers where it came from.
+ */
+
+const SCHEMA_VERSION = /^(\d+)\.(\d+)$/
+
+/**
+ * The version this build implements for each control-plane shape.
+ *
+ * One table rather than a literal in each parser: the generator that writes
+ * `docs/contracts/*.schema.json` stamps these into `$id`, so a version bumped
+ * in one place and not the other changes the generated file and reds
+ * `tests/architecture/contracts-schemas-match-parsers.test.mjs`.
+ */
+export const CONTROL_PLANE_SCHEMA_VERSIONS = {
+  EstateResource: "1.0",
+  CostFigure: "1.0",
+  DriftFinding: "1.0",
+  ChangeDiff: "1.0",
+  ApiEnvelope: "1.0",
+} as const
+
+export type ControlPlaneContract = keyof typeof CONTROL_PLANE_SCHEMA_VERSIONS
+
+/**
+ * Accept a compatible version, refuse an incompatible one.
+ *
+ * Never names the version it received. The rule that a violation does not echo
+ * its input holds uniformly, and a version string is the first place an
+ * exception would look harmless.
+ */
+function contractVersion(contract: ControlPlaneContract, value: unknown): string {
+  const supported = CONTROL_PLANE_SCHEMA_VERSIONS[contract]
+  const v = str(contract, "schemaVersion", value, 16)
+  const got = SCHEMA_VERSION.exec(v)
+  if (!got) fail(contract, "schemaVersion", "must be MAJOR.MINOR, such as 1.0")
+  if (got![1] !== SCHEMA_VERSION.exec(supported)![1]) {
+    fail(
+      contract,
+      "schemaVersion",
+      `declares a major version this build does not implement (it implements ${supported}). ` +
+        `A minor ahead is forward-compatible and accepted; a major removes or reinterprets a field, ` +
+        `so continuing would not degrade the reading, it would make it wrong`,
+    )
+  }
+  return v
+}
+
+/**
+ * The subset of JSON Schema these contracts are expressed in.
+ *
+ * Deliberately small. A validator that implements all of JSON Schema is a
+ * dependency; one that implements the eleven keywords actually used is eighty
+ * lines and can be read in full by whoever is deciding whether to trust it.
+ */
+export interface JsonSchema {
+  type?: string | readonly string[]
+  properties?: Readonly<Record<string, JsonSchema>>
+  required?: readonly string[]
+  additionalProperties?: boolean | JsonSchema
+  propertyNames?: { pattern?: string; maxLength?: number }
+  items?: JsonSchema
+  enum?: readonly (string | number | boolean | null)[]
+  pattern?: string
+  format?: string
+  minLength?: number
+  maxLength?: number
+  minimum?: number
+  title?: string
+  description?: string
+}
+
+function typeOf(value: unknown): string {
+  if (value === null) return "null"
+  if (Array.isArray(value)) return "array"
+  if (Number.isInteger(value)) return "integer"
+  return typeof value
+}
+
+function matchesType(value: unknown, type: string): boolean {
+  if (type === "number") return typeof value === "number" && Number.isFinite(value)
+  if (type === "integer") return typeof value === "number" && Number.isInteger(value)
+  return typeOf(value) === type
+}
+
+/**
+ * Check a value against one of the schemas above, failing with a
+ * `ContractViolation` that names the path and never the value.
+ *
+ * This is what makes "the committed schema admits exactly what the parser
+ * admits" a structural fact rather than a hope: the parsers below do not
+ * restate the shape, they run it. A schema hand-written beside a parser is the
+ * artefact that drifts, so there is only one.
+ */
+export function validateAgainstSchema(
+  contract: string,
+  schema: JsonSchema,
+  value: unknown,
+  path = "(root)",
+): void {
+  if (schema.type !== undefined) {
+    const types = typeof schema.type === "string" ? [schema.type] : schema.type
+    if (!types.some((t) => matchesType(value, t))) {
+      fail(contract, path, `expected ${types.join(" or ")}, got ${typeOf(value)}`)
+    }
+  }
+
+  if (schema.enum !== undefined && !schema.enum.includes(value as never)) {
+    fail(contract, path, `must be one of ${schema.enum.map((e) => String(e)).join(", ")}`)
+  }
+
+  if (typeof value === "string") {
+    if (schema.minLength !== undefined && value.length < schema.minLength) {
+      fail(contract, path, `must be at least ${schema.minLength} characters`)
+    }
+    if (schema.maxLength !== undefined && value.length > schema.maxLength) {
+      fail(contract, path, `longer than ${schema.maxLength} characters`)
+    }
+    if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) {
+      fail(contract, path, `does not match ${schema.pattern}`)
+    }
+    if (schema.format === "date-time" && Number.isNaN(Date.parse(value))) {
+      fail(contract, path, "is not an ISO-8601 instant")
+    }
+  }
+
+  if (typeof value === "number" && schema.minimum !== undefined && value < schema.minimum) {
+    fail(contract, path, `must be at least ${schema.minimum}`)
+  }
+
+  if (Array.isArray(value) && schema.items) {
+    value.forEach((item, i) => validateAgainstSchema(contract, schema.items!, item, `${path}[${i}]`))
+  }
+
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    const o = value as Record<string, unknown>
+    for (const key of schema.required ?? []) {
+      if (!(key in o)) fail(contract, path === "(root)" ? key : `${path}.${key}`, "is required")
+    }
+    for (const [key, raw] of Object.entries(o)) {
+      const at = path === "(root)" ? key : `${path}.${key}`
+      if (schema.propertyNames?.pattern && !new RegExp(schema.propertyNames.pattern).test(key)) {
+        fail(contract, path, "carries a key that is not a permitted name")
+      }
+      if (schema.propertyNames?.maxLength && key.length > schema.propertyNames.maxLength) {
+        fail(contract, path, "carries a key longer than the permitted length")
+      }
+      const child = schema.properties?.[key]
+      if (child) {
+        validateAgainstSchema(contract, child, raw, at)
+        continue
+      }
+      if (schema.additionalProperties === false) {
+        // Refused rather than dropped. A field nothing here knows about is a
+        // producer this build has not been reconciled with, and silently
+        // ignoring it is how a renamed field reads as an absent one.
+        //
+        // Names the PERMITTED fields rather than the offending key. The key
+        // came from the input, and this package's rule is that a violation —
+        // which lands in a log that outlives the request — never carries input.
+        fail(
+          contract,
+          path,
+          `carries a field this contract does not define; it has exactly ${Object.keys(schema.properties ?? {}).join(", ")}`,
+        )
+      }
+      if (typeof schema.additionalProperties === "object") {
+        validateAgainstSchema(contract, schema.additionalProperties, raw, at)
+      }
+    }
+  }
+}
+
+/* control-plane-schemas:begin — extracted verbatim by tools/contract-schemas.mjs.
+   Must stay valid JSON between the braces: double-quoted keys, no trailing
+   commas, no comments. The generator JSON.parses this text, and the committed
+   docs/contracts/*.schema.json are its output. */
+export const CONTROL_PLANE_SCHEMAS: Readonly<Record<ControlPlaneContract, JsonSchema>> = {
+  "EstateResource": {
+    "title": "EstateResource",
+    "description": "One resource observed in AWS by the Studio's read plane, sanitized for an operator surface.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schemaVersion", "arn", "service", "resourceType", "name", "accountId", "region", "partition", "tenantId", "cell", "environment", "stateful", "tags", "observedAt"],
+    "properties": {
+      "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+      "arn": { "type": "string", "minLength": 8, "maxLength": 2048, "pattern": "^arn:[a-z0-9-]+:[a-z0-9-]+:[a-z0-9-]*:[0-9]*:.+$" },
+      "service": { "type": "string", "pattern": "^[a-z0-9-]{2,32}$" },
+      "resourceType": { "type": "string", "pattern": "^[a-z0-9-]{2,64}$" },
+      "name": { "type": "string", "minLength": 1, "maxLength": 512 },
+      "accountId": { "type": "string", "pattern": "^[0-9]{12}$" },
+      "region": { "type": "string", "pattern": "^(global|[a-z]{2}(-[a-z]+)+-[0-9])$" },
+      "partition": { "type": "string", "enum": ["aws", "aws-cn", "aws-us-gov"] },
+      "tenantId": { "type": ["string", "null"], "maxLength": 128 },
+      "cell": { "type": ["string", "null"], "maxLength": 128 },
+      "environment": { "type": ["string", "null"], "maxLength": 32 },
+      "stateful": { "type": "boolean" },
+      "tags": { "type": "object", "propertyNames": { "pattern": "^[^\\u0000-\\u001f]{1,128}$", "maxLength": 128 }, "additionalProperties": { "type": "string", "maxLength": 256 } },
+      "observedAt": { "type": "string", "format": "date-time", "maxLength": 40 }
+    }
+  },
+  "CostFigure": {
+    "title": "CostFigure",
+    "description": "One money figure the control plane publishes, with the period and the system it came from.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schemaVersion", "dimension", "key", "kind", "amountMinor", "currency", "periodStart", "periodEnd", "sourceSystem", "sourceReference", "retrievedAt"],
+    "properties": {
+      "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+      "dimension": { "type": "string", "enum": ["tenant", "service", "account", "plan"] },
+      "key": { "type": "string", "minLength": 1, "maxLength": 256 },
+      "kind": { "type": "string", "enum": ["ACTUAL", "AMORTIZED", "FORECAST", "BUDGET"] },
+      "amountMinor": { "type": "integer" },
+      "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+      "periodStart": { "type": "string", "format": "date-time", "maxLength": 40 },
+      "periodEnd": { "type": "string", "format": "date-time", "maxLength": 40 },
+      "sourceSystem": { "type": "string", "minLength": 1, "maxLength": 64 },
+      "sourceReference": { "type": "string", "minLength": 1, "maxLength": 512 },
+      "retrievedAt": { "type": "string", "format": "date-time", "maxLength": 40 }
+    }
+  },
+  "DriftFinding": {
+    "title": "DriftFinding",
+    "description": "One difference between the estate as observed and the estate as declared.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schemaVersion", "arn", "kind", "field", "severity", "reversible", "detail", "detectedAt"],
+    "properties": {
+      "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+      "arn": { "type": "string", "minLength": 8, "maxLength": 2048, "pattern": "^arn:[a-z0-9-]+:[a-z0-9-]+:[a-z0-9-]*:[0-9]*:.+$" },
+      "kind": { "type": "string", "enum": ["unmanaged", "missing", "modified"] },
+      "field": { "type": ["string", "null"], "maxLength": 128 },
+      "severity": { "type": "string", "enum": ["info", "warning", "critical"] },
+      "reversible": { "type": "boolean" },
+      "detail": { "type": "string", "minLength": 1, "maxLength": 512 },
+      "detectedAt": { "type": "string", "format": "date-time", "maxLength": 40 }
+    }
+  },
+  "ChangeDiff": {
+    "title": "ChangeDiff",
+    "description": "What a change does, in every domain the control plane can actually compute one for.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schemaVersion", "entries"],
+    "properties": {
+      "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+      "entries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["domain", "path", "before", "after", "effect", "reversible", "monthlyCostDeltaMinor"],
+          "properties": {
+            "domain": { "type": "string", "enum": ["app-config", "relay", "aws-resource", "cost", "rollback"] },
+            "path": { "type": "string", "minLength": 1, "maxLength": 512 },
+            "before": {},
+            "after": {},
+            "effect": { "type": "string", "enum": ["create", "update", "delete", "replace"] },
+            "reversible": { "type": "boolean" },
+            "monthlyCostDeltaMinor": { "type": ["integer", "null"] }
+          }
+        }
+      }
+    }
+  },
+  "ApiEnvelope": {
+    "title": "ApiEnvelope",
+    "description": "The 2xx body every control-plane read endpoint returns. Non-2xx is RFC 7807 problem+json, never this.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schemaVersion", "items", "nextCursor", "asOf", "correlationId"],
+    "properties": {
+      "schemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+$" },
+      "items": { "type": "array" },
+      "nextCursor": { "type": ["string", "null"], "minLength": 1, "maxLength": 8192 },
+      "asOf": { "type": "string", "format": "date-time", "maxLength": 40 },
+      "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 }
+    }
+  }
+}
+/* control-plane-schemas:end */
+
+/**
+ * A resource the Studio has actually observed in AWS.
+ *
+ * `stateful` is not decoration and is not derivable by a reader: it is what
+ * makes a deletion reversible or not. Removing an ECS service and putting it
+ * back is a deployment; removing an RDS instance and putting it back is a new
+ * empty database with the same name. The read plane decides this from the
+ * resource type it just mapped, which is the only place that knows.
+ *
+ * `tenantId`, `cell` and `environment` are explicitly nullable rather than
+ * absent, because "this resource carries no tenant tag" is the finding that
+ * matters — untagged spend is reported unallocated, and a missing field would
+ * be indistinguishable from an adapter that forgot to map one.
+ */
+export interface EstateResource {
+  schemaVersion: string
+  arn: string
+  service: string
+  resourceType: string
+  name: string
+  accountId: string
+  region: string
+  partition: string
+  tenantId: string | null
+  cell: string | null
+  environment: string | null
+  stateful: boolean
+  tags: Readonly<Record<string, string>>
+  observedAt: string
+}
+
+export function parseEstateResource(input: unknown): EstateResource {
+  const C = "EstateResource"
+  if (!input || typeof input !== "object" || Array.isArray(input)) fail(C, "(root)", "expected an object")
+  const o = input as Record<string, unknown>
+
+  contractVersion(C, o.schemaVersion)
+  validateAgainstSchema(C, CONTROL_PLANE_SCHEMAS.EstateResource, o)
+
+  // Cross-field, which no schema keyword can express: an ARN is the handle
+  // every later action uses, so one that disagrees with the partition, service,
+  // region or account it was reported under is a resource an operator would act
+  // on in the wrong place. `arn:partition:service:region:account:resource`, with
+  // region and account legitimately empty on global and bucket ARNs.
+  const parts = (o.arn as string).split(":")
+  const disagreement =
+    parts[1] !== o.partition
+      ? "partition"
+      : parts[2] !== o.service
+        ? "service"
+        : parts[3] !== "" && parts[3] !== o.region && !(o.region === "global" && parts[3] === "")
+          ? "region"
+          : parts[4] !== "" && parts[4] !== o.accountId
+            ? "account"
+            : null
+  if (disagreement) {
+    fail(C, "arn", `names a different ${disagreement} than the resource was reported under`)
+  }
+
+  return {
+    schemaVersion: o.schemaVersion as string,
+    arn: o.arn as string,
+    service: o.service as string,
+    resourceType: o.resourceType as string,
+    name: o.name as string,
+    accountId: o.accountId as string,
+    region: o.region as string,
+    partition: o.partition as string,
+    tenantId: (o.tenantId as string | null) ?? null,
+    cell: (o.cell as string | null) ?? null,
+    environment: (o.environment as string | null) ?? null,
+    stateful: o.stateful as boolean,
+    tags: o.tags as Record<string, string>,
+    observedAt: o.observedAt as string,
+  }
+}
+
+/**
+ * One money figure, with the period it covers and the system it came from.
+ *
+ * `amountMinor` is whole minor units — cents, not the six-extra-digit scale
+ * `@tenure/finops` allocates in. A figure crossing a boundary is a figure
+ * somebody is going to render or compare, and the scale that exists so a
+ * millionth of a cent survives a million-line ingest is exactly the scale a
+ * consumer will misread by six orders of magnitude.
+ */
+export interface CostFigure {
+  schemaVersion: string
+  dimension: "tenant" | "service" | "account" | "plan"
+  key: string
+  kind: "ACTUAL" | "AMORTIZED" | "FORECAST" | "BUDGET"
+  amountMinor: number
+  currency: string
+  periodStart: string
+  periodEnd: string
+  sourceSystem: string
+  sourceReference: string
+  retrievedAt: string
+}
+
+export function parseCostFigure(input: unknown): CostFigure {
+  const C = "CostFigure"
+  if (!input || typeof input !== "object" || Array.isArray(input)) fail(C, "(root)", "expected an object")
+  const o = input as Record<string, unknown>
+
+  contractVersion(C, o.schemaVersion)
+  validateAgainstSchema(C, CONTROL_PLANE_SCHEMAS.CostFigure, o)
+
+  // A period that ends before it starts is how a month's spend gets reported
+  // against a window nothing was billed in, and every keyword above passes it.
+  if (Date.parse(o.periodEnd as string) <= Date.parse(o.periodStart as string)) {
+    fail(C, "periodEnd", "must be after periodStart; a figure covering no time covers nothing")
+  }
+
+  return {
+    schemaVersion: o.schemaVersion as string,
+    dimension: o.dimension as CostFigure["dimension"],
+    key: o.key as string,
+    kind: o.kind as CostFigure["kind"],
+    amountMinor: o.amountMinor as number,
+    currency: o.currency as string,
+    periodStart: o.periodStart as string,
+    periodEnd: o.periodEnd as string,
+    sourceSystem: o.sourceSystem as string,
+    sourceReference: o.sourceReference as string,
+    retrievedAt: o.retrievedAt as string,
+  }
+}
+
+/**
+ * One difference between the estate as observed and the estate as declared.
+ *
+ * `reversible` travels with the finding rather than being decided by whoever
+ * renders it, for the same reason `stateful` does: the surface that offers to
+ * reconcile drift is the surface that must refuse to do it silently, and it
+ * cannot know that deleting this particular ARN destroys data.
+ */
+export interface DriftFinding {
+  schemaVersion: string
+  arn: string
+  kind: "unmanaged" | "missing" | "modified"
+  field: string | null
+  severity: "info" | "warning" | "critical"
+  reversible: boolean
+  detail: string
+  detectedAt: string
+}
+
+export function parseDriftFinding(input: unknown): DriftFinding {
+  const C = "DriftFinding"
+  if (!input || typeof input !== "object" || Array.isArray(input)) fail(C, "(root)", "expected an object")
+  const o = input as Record<string, unknown>
+
+  contractVersion(C, o.schemaVersion)
+  validateAgainstSchema(C, CONTROL_PLANE_SCHEMAS.DriftFinding, o)
+
+  // A `modified` finding is about one attribute and is meaningless without
+  // naming it; the other two are about the whole resource and naming a field
+  // would say the resource exists and does not at the same time.
+  if (o.kind === "modified" && o.field === null) {
+    fail(C, "field", "a modified finding must name the attribute that differs")
+  }
+  if (o.kind !== "modified" && o.field !== null) {
+    fail(C, "field", "only a modified finding names an attribute; a whole-resource finding that names one cannot be acted on")
+  }
+
+  return {
+    schemaVersion: o.schemaVersion as string,
+    arn: o.arn as string,
+    kind: o.kind as DriftFinding["kind"],
+    field: (o.field as string | null) ?? null,
+    severity: o.severity as DriftFinding["severity"],
+    reversible: o.reversible as boolean,
+    detail: o.detail as string,
+    detectedAt: o.detectedAt as string,
+  }
+}
+
+// ── 17. Change diffs ────────────────────────────────────────────────────────
+
+/**
+ * The domains a change diff can actually be computed for — STUDIO-060-003.
+ *
+ * Five, not ten. The requirement names app config, data/schema, IAM/security,
+ * AWS resources, domains, integrations, Relay, cost, operations and rollback;
+ * five of those have something in this repository that can produce a diff, and
+ * the other five are LEFT OUT OF THE ENUM rather than emitted as empty sections.
+ *
+ * That is the entire decision. An `integrations: []` section reads as "nothing
+ * changed in integrations", which is a statement about the change. "We do not
+ * compute this" is a statement about the product, and the two are opposite
+ * answers to the question an operator is actually asking before they approve.
+ * A domain becomes legal here on the day something emits it.
+ *
+ * ── What earns a place, and what each of the five is emitted from ────────────
+ *
+ *   * `app-config` — a configuration revision comparison, over resolved values.
+ *   * `relay`      — the same comparison, for keys the configuration engine's
+ *                    own domain table assigns to `platform.relay.*`. Not a
+ *                    cosmetic re-label: `platform.relay.modelTokenBudgetPerMonth`
+ *                    is the tenant's model-spend ceiling and is enforced in
+ *                    `apps/web/src/app/api/ai/chat/route.ts`, so an operator
+ *                    approving a diff needs to see that a Relay allowance moved
+ *                    rather than that "some setting" did.
+ *   * `aws-resource` — the live estate against the desired set.
+ *   * `cost`       — what the plan commits to per month, priced.
+ *   * `rollback`   — what returning to an earlier revision would change. A
+ *                    distinct question from `app-config`: that one is "what did
+ *                    the last publication do", this one is "what would undoing
+ *                    it do", and the second is the one asked under pressure.
+ *
+ * The five absent — data/schema, IAM/security, domains, integrations and
+ * operations — map to configuration domains that are declared and RESERVED
+ * (`platform.entities.*`, `platform.permissions.*` / `platform.identity.*`,
+ * `platform.deployment.*`, `platform.connectors.*`, `platform.observability.*`),
+ * meaning no definition exists to produce a value for one yet. They arrive here
+ * on the day a key does, and not before.
+ */
+export type ChangeDomain = "app-config" | "relay" | "aws-resource" | "cost" | "rollback"
+
+export const CHANGE_DOMAINS: readonly ChangeDomain[] = [
+  "app-config",
+  "relay",
+  "aws-resource",
+  "cost",
+  "rollback",
+]
+
+export interface ChangeDiffEntry {
+  domain: ChangeDomain
+  /** What changed: a configuration key, an ARN, or the plan a cost belongs to. */
+  path: string
+  before: unknown
+  after: unknown
+  effect: "create" | "update" | "delete" | "replace"
+  /**
+   * Whether undoing this returns the system to where it was.
+   *
+   * Set from what the thing IS, by whoever produced the entry. Republishing a
+   * configuration value is reversible; deleting an RDS instance is not, and a
+   * confirmation surface that cannot tell them apart either blocks everything
+   * or blocks nothing.
+   */
+  reversible: boolean
+  /**
+   * The recurring monthly cost this entry adds or removes, in whole minor
+   * units — or `null` for "not computed".
+   *
+   * `null` and `0` are different answers and both are needed. `0` says the
+   * change costs nothing; `null` says nothing priced it, which is what an
+   * approval threshold must not silently read as free.
+   */
+  monthlyCostDeltaMinor: number | null
+}
+
+export interface ChangeDiff {
+  schemaVersion: string
+  entries: readonly ChangeDiffEntry[]
+}
+
+export function parseChangeDiff(input: unknown): ChangeDiff {
+  const C = "ChangeDiff"
+  if (!input || typeof input !== "object" || Array.isArray(input)) fail(C, "(root)", "expected an object")
+  const o = input as Record<string, unknown>
+
+  contractVersion(C, o.schemaVersion)
+  validateAgainstSchema(C, CONTROL_PLANE_SCHEMAS.ChangeDiff, o)
+
+  const entries = o.entries as ChangeDiffEntry[]
+  const seen = new Set<string>()
+  entries.forEach((entry, i) => {
+    if (entry.effect === "create" && entry.before !== null) {
+      fail(C, `entries[${i}].before`, "a create has no previous value; use update or replace")
+    }
+    if (entry.effect === "delete" && entry.after !== null) {
+      fail(C, `entries[${i}].after`, "a delete has no resulting value; use update or replace")
+    }
+    // A cost entry that did not price anything is the empty-section problem
+    // wearing a different hat: a `cost` heading appears, an operator reads it as
+    // "the cost of this change is known", and the number behind it is "nobody
+    // computed one". The domain exists to carry a figure; an entry with no
+    // figure belongs to whichever domain actually changed.
+    if (entry.domain === "cost" && entry.monthlyCostDeltaMinor === null) {
+      fail(C, `entries[${i}].monthlyCostDeltaMinor`, "a cost entry must carry a figure; an unpriced change belongs to the domain that changed, not to cost")
+    }
+    // A rollback in this product REPUBLISHES an earlier revision forward as a
+    // new one — it never rewinds the history — so there is nothing about it
+    // that cannot itself be undone. A producer marking one irreversible has
+    // confused a rollback with a deletion, and a confirmation surface would
+    // then refuse the one action an operator reaches for during an incident.
+    if (entry.domain === "rollback" && !entry.reversible) {
+      fail(C, `entries[${i}].reversible`, "a rollback republishes forward and is always itself reversible; an irreversible entry here is a deletion mislabelled")
+    }
+    const key = `${entry.domain}\u0000${entry.path}`
+    if (seen.has(key)) {
+      // Named by position, never by value. Two entries for one path also
+      // double-count `monthlyCostDeltaMinor`, which is the number an approval
+      // threshold is assessed on.
+      fail(C, `entries[${i}].path`, "appears twice in the same domain; a diff that says a path becomes two things says nothing")
+    }
+    seen.add(key)
+  })
+
+  return { schemaVersion: o.schemaVersion as string, entries }
+}
+
+// ── 18. The API envelope ────────────────────────────────────────────────────
+
+/**
+ * STUDIO-130-001 / STUDIO-130-002 — the 2xx body every control-plane read
+ * endpoint returns.
+ *
+ * It lives here rather than only in `apps/system-studio/src/lib/api/envelope.ts`
+ * for the reason the four above do: it is the shape that actually crosses the
+ * process boundary. Every one of the other contracts reaches a caller INSIDE
+ * this envelope, so an envelope with no version is a version stamp on the cargo
+ * and none on the crate — a poller can tell that a resource it received is one
+ * it understands, and cannot tell whether the paging, the freshness marker or
+ * the correlation field still mean what its client library thinks.
+ *
+ * `nextCursor` is nullable rather than absent when there is no next page. A
+ * missing field and a null one are the same JSON to a careless reader and
+ * opposite facts to a careful one: "there is no more" versus "this producer
+ * does not paginate", and a client that treats the second as the first stops
+ * reading a fleet halfway through.
+ *
+ * Which is why it is in the schema's `required` list. It was not, and the
+ * paragraph above was therefore an argument the contract did not make: a
+ * producer that omitted the field entirely was accepted, and the parser's
+ * `?? null` then turned the omission into the very "there is no more" the
+ * paragraph says it must never be mistaken for. `docs/contracts/conformance-fixtures.json`
+ * has always listed the omission as a rejection — the schema was the half that
+ * did not agree.
+ *
+ * `items` is deliberately unconstrained beyond being an array. What is IN it is
+ * the endpoint's own contract — `EstateResource`, a tenant row, an operation —
+ * and restating that here would create a second place for it to be wrong.
+ */
+export interface ApiEnvelope<T = unknown> {
+  schemaVersion: string
+  items: readonly T[]
+  /** Opaque and encrypted. Null when there is nothing after this page. */
+  nextCursor: string | null
+  /** When the underlying data was current. A list with no as-of is a list with no age. */
+  asOf: string
+  correlationId: string
+}
+
+export function parseApiEnvelope<T = unknown>(input: unknown): ApiEnvelope<T> {
+  const C = "ApiEnvelope"
+  if (!input || typeof input !== "object" || Array.isArray(input)) fail(C, "(root)", "expected an object")
+  const o = input as Record<string, unknown>
+
+  contractVersion(C, o.schemaVersion)
+  validateAgainstSchema(C, CONTROL_PLANE_SCHEMAS.ApiEnvelope, o)
+
+  return {
+    schemaVersion: o.schemaVersion as string,
+    items: o.items as readonly T[],
+    nextCursor: (o.nextCursor as string | null) ?? null,
+    asOf: o.asOf as string,
+    correlationId: o.correlationId as string,
+  }
+}
+
 /** Every contract, for exhaustive testing and for the ownership map. */
 export const CONTRACTS = [
   "TenantContext",
@@ -1010,4 +1693,9 @@ export const CONTRACTS = [
   "AuditEntry",
   "ToolRegistration",
   "ProcessChain",
+  "EstateResource",
+  "CostFigure",
+  "DriftFinding",
+  "ChangeDiff",
+  "ApiEnvelope",
 ] as const

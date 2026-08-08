@@ -1,19 +1,48 @@
 import "server-only"
 
-import type { DeploymentManifest, TenantManifest } from "@tenure/provisioning"
+import type { DeploymentManifest, SigningKey, TenantManifest } from "@tenure/provisioning"
 
 /**
- * Delivering a signed artifact to the cell that will apply it.
+ * Delivering a deployment artifact to the cell that will apply it.
  *
  * A push, not a pull. A pull would mean each cell holding read access to the
  * engine's registry — a registry of every tenant — and handing a single-tenant
  * cell the list of all of them inverts the isolation the design rests on.
  *
- * The shared secret authenticates the caller; the artifact's digest
- * authenticates the content. Neither substitutes for the other: a stolen secret
- * still cannot make a cell apply an altered manifest, because the cell
- * recomputes the digest with its own implementation before touching a row.
+ * ── Three things authenticate, and they are not the same thing ─────────────
+ *
+ *   the shared secret   authenticates the CALLER
+ *   the digest          proves the CONTENT arrived unaltered
+ *   the signature       proves WHO PRODUCED it
+ *
+ * This file used to open with "Delivering a signed artifact", which was false:
+ * `packages/provisioning/src/execute.ts` said in as many words that nothing
+ * signed, and the only thing establishing origin was the bearer token on the
+ * endpoint — the transport, which is exactly what a self-verifying artifact is
+ * supposed to remove the need for. STUDIO-070-009 made the sentence true rather
+ * than deleting it, and `deliverToCell` now REFUSES to send an unsigned
+ * manifest, mirroring `transition(_, "approved")` in `@tenure/releases`
+ * refusing to approve an unsigned release.
  */
+
+/**
+ * The key deployment artifacts are signed with.
+ *
+ * Read from the environment, and null when it is not configured — the same
+ * shape and the same two-variable convention `packages/platform-config/src/
+ * build-system.ts:184` already uses for release signing, so an operator
+ * configuring one already knows how to configure the other.
+ *
+ * Null is not a fallback to "unsigned is fine". It produces an unsigned
+ * artifact, which `deliverToCell` then refuses, so an unconfigured engine fails
+ * loudly at the hand-off instead of publishing something nothing can attribute.
+ */
+export function deploymentSigningKey(): SigningKey | null {
+  const keyId = process.env.DEPLOYMENT_SIGNING_KEY_ID?.trim()
+  const secret = process.env.DEPLOYMENT_SIGNING_SECRET?.trim()
+  if (!keyId || !secret) return null
+  return { keyId, secret }
+}
 
 export type DeliveryOutcome =
   | { delivered: true; changes: string[]; detail: string }
@@ -33,6 +62,27 @@ export async function deliverToCell(
   deployment: DeploymentManifest,
   tenant: TenantManifest,
 ): Promise<DeliveryOutcome> {
+  // STUDIO-070-009. Before the transport is even considered.
+  //
+  // An unsigned artifact is one whose origin nothing establishes: any party able
+  // to POST to the cell can compute a matching digest over a body of their
+  // choosing, so the digest proves the bytes and says nothing about who wrote
+  // them. Sending it anyway would mean the cell's only defence is the bearer
+  // token, which is the property the signature exists to stop relying on.
+  //
+  // Refused here rather than warned about, because a warning on a hand-off is a
+  // warning nobody is reading at the time.
+  if (!deployment.signature) {
+    return {
+      delivered: false,
+      detail:
+        `The artifact for "${tenant.slug}" is unsigned, so it was not delivered. Its digest ` +
+        `establishes that it has not been altered and nothing about who produced it, and a cell ` +
+        `applying that is trusting the transport. Set DEPLOYMENT_SIGNING_KEY_ID and ` +
+        `DEPLOYMENT_SIGNING_SECRET on the Studio service and re-publish the artifact.`,
+    }
+  }
+
   const url = endpointFor(tenant.region)
   const secret = process.env.PLATFORM_RECONCILE_SECRET
 

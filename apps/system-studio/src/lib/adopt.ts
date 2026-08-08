@@ -16,8 +16,8 @@ import {
   type TenantRegistryRecord,
 } from "@tenure/provisioning"
 
-import { fleet } from "@/lib/cells"
-import { newTenantId } from "@/lib/registry-record"
+import { fleet } from "./cells"
+import { newTenantId } from "./registry-record"
 
 /**
  * Bringing a file-bound tenant under the engine.

@@ -290,5 +290,68 @@ test.describe("calendar + conflicts + publishing", () => {
     expect(res.status()).toBe(200)
     expect(res.headers()["content-type"]).toContain("text/calendar")
     expect(await res.text()).toContain("BEGIN:VCALENDAR")
+
+    // WRK-030-006. A per-user feed must never carry a shared-cache header: in
+    // front of a CDN, `public, max-age=1800` hands one student's calendar to
+    // the next request for the same path prefix. It did, until this item.
+    expect(res.headers()["cache-control"]).toBe("private, no-store")
+  })
+
+  /**
+   * WRK-060-005 — a repeating club meeting, filed and subscribed to as a user.
+   *
+   * `Event.recurrenceRule` was a column nothing wrote, nothing read and no feed
+   * emitted, so a weekly meeting appeared exactly once in a student's Outlook.
+   * Three production paths have to agree for this to pass, and they are three
+   * different modules: the proposal form writes the rule, `eventsToICS` turns it
+   * into one `RRULE:` line on one `VEVENT`, and `loadScopedEvents` expands the
+   * same rule into the week grid. Asserting only the feed would let the grid
+   * disagree with it silently, which is the failure a subscriber cannot see.
+   *
+   * The date is deliberately NOT `dayAt(n)`. Those park each run 60–299 days
+   * out to dodge conflict detection, and the ICS window is `now + 180 days` —
+   * so half of all runs would file the series past the end of the feed and this
+   * test would fail for a reason that has nothing to do with recurrence. Three
+   * weeks out is inside the window on every run, and a run-stamped venue keeps
+   * it clear of another run's rows.
+   */
+  test("a repeating event reaches the feed as one VEVENT and an RRULE line", async ({ page }) => {
+    const dayIn = (n: number) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10)
+    const seriesStart = dayIn(21)
+    const oneWeekOn = dayIn(28)
+    const title = `E2E Weekly ${stamp}`
+
+    await signIn(page, "Victor Chen")
+    await page.goto("/calendar/new")
+    await page.getByLabel("Title").fill(title)
+    await page.getByLabel("Starts").fill(`${seriesStart}T18:00`)
+    await page.getByLabel("Ends").fill(`${seriesStart}T20:00`)
+    await page.getByLabel("Repeats").selectOption("FREQ=WEEKLY")
+    await page.getByLabel("Venue").fill(`Recurring ${stamp}`)
+    await page.getByRole("button", { name: /Check conflicts/ }).click()
+    await waitForEventPage(page)
+
+    await page.goto("/calendar")
+    await page.getByRole("button", { name: "Subscribe" }).click()
+    const url = await page.locator("input[readonly]").inputValue()
+    const res = await page.request.get(url)
+    expect(res.status()).toBe(200)
+    const ics = await res.text()
+
+    expect(ics).toContain(`SUMMARY:${title}`)
+    // The line this whole item is about. Without it Outlook shows the meeting
+    // once and the club looks like it met a single time in September.
+    expect(ics).toContain("RRULE:FREQ=WEEKLY")
+
+    // One VEVENT for the series, not one per occurrence — a feed that sent both
+    // the master and the expansion would double every meeting in the student's
+    // calendar, which is worse than the bug it was fixing.
+    const summaries = ics.split("\r\n").filter((line) => line === `SUMMARY:${title}`)
+    expect(summaries).toHaveLength(1)
+
+    // And the same rule, read by the other consumer: the week grid a week later
+    // draws an occurrence the database has no row for.
+    await page.goto(`/calendar?d=${oneWeekOn}`)
+    await expect(page.getByRole("button", { name: new RegExp(title) })).toBeVisible()
   })
 })

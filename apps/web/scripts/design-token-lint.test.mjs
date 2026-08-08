@@ -103,7 +103,7 @@ function inConfigModule(body) {
     `const requireFromApp = createRequire(${JSON.stringify(path.join(APP_ROOT, "package.json"))})`,
     'const { ESLint } = requireFromApp("eslint")',
     `await new ESLint({ cwd: ${JSON.stringify(APP_ROOT)} }).lintText("const primed = 1\\n", { filePath: "src/components/prime.tsx" })`,
-    `const { lintToday, designTokenConfigs, DESIGN_TOKEN_EXCEPTIONS } = await import(${JSON.stringify(CONFIG_HREF)})`,
+    `const { lintToday, designTokenConfigs, deprecatedImportPaths, assertOneImportBoundary, DESIGN_TOKEN_EXCEPTIONS } = await import(${JSON.stringify(CONFIG_HREF)})`,
     body,
   ].join("\n")
   const run = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
@@ -299,6 +299,91 @@ describe("design-token lint boundary", () => {
     SLOW
   )
 
+  it(
+    "keeps the vendor and icon boundaries alive once the deprecation register fills up",
+    () => {
+      // The regression this is written against was measured, not imagined.
+      // The deprecation rule used to ship as its own flat-config object over
+      // PRODUCT_MODULES. Flat config resolves a rule by LAST WRITER — a second
+      // object naming `no-restricted-imports` over the same files replaces the
+      // first value whole — so `DEPRECATIONS` is empty was the only thing
+      // holding the vendor and icon boundaries up. Injecting a single entry
+      // into design-system.ts made BOTH stop reporting, in a real `eslint`
+      // run, with this entire suite still green: every case below lints a
+      // fixture, and a rule that has been overwritten simply says nothing.
+      //
+      // So this case runs the real linter over the real composed config with a
+      // NON-empty register, which is the state no other test can reach (the
+      // shipped register is empty and a test must not edit source to fill it).
+      const source = [
+        'import { Menu } from "react-aria-components"',
+        'import { Star } from "lucide-react"',
+        'import { OldThing } from "@/components/ui/design-system"',
+      ]
+      const out = inConfigModule(
+        [
+          'const configs = designTokenConfigs(DESIGN_TOKEN_EXCEPTIONS, "2026-08-06", deprecatedImportPaths(["OldThing"]))',
+          // The parser the shipped config gets from next/typescript. Only the
+          // language settings are supplied here — every RULE below is the real
+          // one, straight off the producer the default export calls.
+          'const parsing = { files: ["**/*.ts", "**/*.tsx"], languageOptions: { ecmaVersion: "latest", sourceType: "module" } }',
+          `const linter = new ESLint({ cwd: ${JSON.stringify(APP_ROOT)}, overrideConfigFile: true, overrideConfig: [parsing, ...configs] })`,
+          `const source = ${JSON.stringify(source.join("\n") + "\n")}`,
+          'const restricted = (r) => r.messages.filter((m) => m.ruleId === "no-restricted-imports").map((m) => m.message)',
+          'const out = {}',
+          'out.domain = restricted((await linter.lintText(source, { filePath: "src/components/shell/Probe.tsx" }))[0])',
+          'out.wrapper = restricted((await linter.lintText(source, { filePath: "src/components/ui/Menu.tsx" }))[0])',
+          // And the guard that stops the shape coming back: a second writer for
+          // the rule over a product glob, and a first writer that dropped the
+          // vendor paths, both have to fail the lint run at config load.
+          'const second = { name: "latecomer", files: ["src/components/**/*.tsx"], rules: { "no-restricted-imports": ["error", { paths: [] }] } }',
+          'try { assertOneImportBoundary([...configs, second]); out.twoWriters = null } catch (e) { out.twoWriters = e.message }',
+          'const gutted = configs.map((c) => c.name === "tenure/design-tokens" ? { ...c, rules: { ...c.rules, "no-restricted-imports": ["error", { paths: [], patterns: [] }] } } : c)',
+          'try { assertOneImportBoundary(gutted); out.dropped = null } catch (e) { out.dropped = e.message }',
+          'try { assertOneImportBoundary(configs); out.intact = "ok" } catch (e) { out.intact = e.message }',
+          // The assertions above call the guard directly, which would stay
+          // green the day the default export stopped calling it. So the
+          // load-bearing check is on the SHIPPED array — the exact value
+          // `export default` emits, whatever DEPRECATIONS holds today.
+          `const shipped = (await import(${JSON.stringify(CONFIG_HREF)})).default`,
+          'const writers = shipped.filter((c) => c?.rules && Object.prototype.hasOwnProperty.call(c.rules, "no-restricted-imports") && Array.isArray(c.files) && c.files.includes("src/components/**/*.tsx"))',
+          'out.shippedWriters = writers.map((c) => c.name ?? "unnamed")',
+          'out.shippedPaths = writers.flatMap((c) => (c.rules["no-restricted-imports"][1].paths ?? []).map((p) => p.name))',
+          "console.log(JSON.stringify(out))",
+        ].join("\n")
+      )
+
+      // All THREE restrictions report on the same file at the same time. Before
+      // the fix this array held the deprecation message alone.
+      const domain = out.domain.join("\n")
+      expect(domain).toContain("Vendor component library in a product module")
+      expect(domain).toContain('Import icons from "@/components/ui/icons"')
+      expect(domain).toContain("Deprecated design-system export")
+
+      // The wrapper layer keeps its one carve-out — it may name the vendor
+      // component library — and loses neither of the other two.
+      const wrapper = out.wrapper.join("\n")
+      expect(wrapper).not.toContain("Vendor component library in a product module")
+      expect(wrapper).toContain('Import icons from "@/components/ui/icons"')
+      expect(wrapper).toContain("Deprecated design-system export")
+
+      // The guard refuses the shape rather than trusting nobody rebuilds it.
+      expect(out.twoWriters).toContain("exactly one config object")
+      expect(out.dropped).toContain("no longer restricts react-aria-components")
+      expect(out.intact).toBe("ok")
+
+      // And the array that actually ships holds the invariant: ONE writer for
+      // the rule over product modules, and it names both vendor primitives.
+      // A second block appearing here is the regression, whether or not
+      // anybody remembered to call the guard.
+      expect(out.shippedWriters).toEqual(["tenure/design-tokens"])
+      expect(out.shippedPaths).toContain("react-aria-components")
+      expect(out.shippedPaths).toContain("class-variance-authority")
+      expect(out.shippedPaths).toContain("lucide-react")
+    },
+    SLOW
+  )
+
   it("leaves no shipping product module naming a vendor primitive", () => {
     const modules = productModulesOutsideWrappers()
     // Guards the walker itself: an empty list would make the assertion below
@@ -322,9 +407,13 @@ describe("design-token lint boundary", () => {
           'out.forwards = lintToday({ TENURE_DESIGN_TOKEN_TODAY: "2099-01-01" }, at)',
           "out.unset = lintToday({}, at)",
           'const base = { files: ["src/app/page.tsx"], allow: ["colorLiteral"], reason: "a reason long enough to clear the length check" }',
-          'try { designTokenConfigs([base], "2026-08-06"); out.noExpiry = null } catch (e) { out.noExpiry = e.message }',
-          'try { designTokenConfigs([{ ...base, expires: "soon" }], "2026-08-06"); out.badExpiry = null } catch (e) { out.badExpiry = e.message }',
-          'try { designTokenConfigs([{ ...base, allow: ["nope"], expires: "2027-01-01" }], "2026-08-06"); out.unknownRule = null } catch (e) { out.unknownRule = e.message }',
+          'try { designTokenConfigs([base], "2026-08-06", []); out.noExpiry = null } catch (e) { out.noExpiry = e.message }',
+          'try { designTokenConfigs([{ ...base, expires: "soon" }], "2026-08-06", []); out.badExpiry = null } catch (e) { out.badExpiry = e.message }',
+          'try { designTokenConfigs([{ ...base, allow: ["nope"], expires: "2027-01-01" }], "2026-08-06", []); out.unknownRule = null } catch (e) { out.unknownRule = e.message }',
+          // The deprecated-paths argument is required, and `[]` is how a caller
+          // says "nothing is deprecated". Defaulting it would let a caller that
+          // forgot it ship a config with the deprecation rule quietly off.
+          'try { designTokenConfigs([{ ...base, expires: "2027-01-01" }], "2026-08-06"); out.noDeprecated = null } catch (e) { out.noDeprecated = e.message }',
           "out.shippedExpiries = DESIGN_TOKEN_EXCEPTIONS.map((e) => Date.parse(e.expires))",
           "console.log(JSON.stringify(out))",
         ].join("\n")
@@ -339,6 +428,7 @@ describe("design-token lint boundary", () => {
       expect(out.noExpiry).toContain("needs an `expires` date")
       expect(out.badExpiry).toContain("needs an `expires` date")
       expect(out.unknownRule).toContain("suspends unknown rule")
+      expect(out.noDeprecated).toContain("needs the deprecated-import paths")
 
       // Every exception that actually ships carries one.
       expect(out.shippedExpiries.length).toBeGreaterThan(0)

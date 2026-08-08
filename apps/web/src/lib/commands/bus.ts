@@ -1,3 +1,4 @@
+import { safeLogText } from "@tenure/audit"
 import {
   ContractViolation,
   parseCommand,
@@ -295,7 +296,22 @@ export async function dispatch<R>(
 
     // The message is not returned. It may name a row, a column or another
     // tenant, and this string is rendered to a user.
-    console.error(`[command] ${command.action} failed:`, err)
+    //
+    // WRK-040-005 — and it is not returned to the LOG unscanned either. This is
+    // the widest log sink in the application: an arbitrary handler failure over
+    // a caller-supplied payload, so `err.message` is whatever the thrown thing
+    // chose to say about data this process did not author. A provider client
+    // that throws `Invalid API key: sk_live_…`, or a driver that echoes a row
+    // containing a webhook signing secret somebody pasted into a note field,
+    // puts a reusable credential into CloudWatch — where it is retained, widely
+    // readable, and outside every control the vault exists to impose.
+    //
+    // `safeLogText` is the same scanner the outbox refuses on and the audit
+    // record redacts with. It flattens first, deliberately: `Error.message` is
+    // not an own enumerable property, so passing the error straight to
+    // `redactSecretValues` would return `{}` — a redactor that appears to work
+    // and in fact discards the entire error.
+    console.error(`[command] ${command.action} failed: ${safeLogText(err)}`)
     return {
       ok: false,
       error: error(

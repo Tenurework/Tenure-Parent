@@ -28,6 +28,13 @@ playwright-report/
 # caught it sitting untracked-but-not-ignored, one `git add -A` away from
 # committing people's names into the repository.
 .next-visual/
+# Every other custom `distDir`. `NEXT_DIST_DIR` exists so two runs in one
+# checkout stop deleting each other's `.next`, and each one names its own
+# directory — so the pattern has to cover the directories rather than the one
+# that happened to be created first. Same hazard as above: a build output that
+# is untracked-but-not-ignored is one `git add -A` away from being committed,
+# and it is also scanned by every guard that walks `apps/**`.
+.next-*/
 out/
 
 # production

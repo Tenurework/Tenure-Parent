@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
+import { operatorFor } from "./operator-identity"
 
 /**
  * GE-022-007 — the launcher in a browser.
@@ -9,7 +10,7 @@ import { test, expect, type Page } from "@playwright/test"
  * §26.3.8 names context loss as the thing to minimise, and all three are it.
  */
 
-const OPERATOR = process.env.PLATFORM_OPERATORS ?? ""
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 
 test.beforeAll(() => {

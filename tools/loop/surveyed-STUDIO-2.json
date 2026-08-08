@@ -1,0 +1,191 @@
+[
+  {
+    "id": "STUDIO-000-008",
+    "title": "Sanitized live resource graph from the Resource Groups Tagging API and service APIs, with owner/stack/tags/tenant/cell/environment/dependencies/cost attribution/drift/retention/deletion behaviour",
+    "why_open": "There is no live AWS read anywhere in the Studio. apps/system-studio/package.json:12-21 declares exactly two AWS clients (@aws-sdk/client-dynamodb, @aws-sdk/lib-dynamodb); a repo-wide grep for ResourceGroupsTagging|GetCallerIdentity|client-sts|client-ecs|client-rds|client-cloudfront|client-acm|client-cost-explorer matches only three lines of ledger PROSE (docs/implementation/system-studio-aws-control-plane-execution-ledger.md:132, docs/implementation/global-engine-execution-ledger.md:209,510) and zero lines of code. apps/system-studio/src/lib/registry.ts:52-74 is the only AWS client factory and it builds DynamoDB only. The 'AWS estate' panel at apps/system-studio/src/app/platform/page.tsx:338-414 renders a build-time snapshot imported at :7 from src/generated/platform-truth.json, stamped docs/architecture/aws-inventory.json:2 generatedAt 2026-07-31 — eight days stale and refreshed only by a workflow_dispatch. The snapshot generator itself is shallow: tools/aws-inventory.mjs:90 is aws('ecs','list-clusters') with no list-services/describe-services/list-tasks, and there is no resourcegroupstaggingapi get-resources call at all, so no resource in the estate carries a tag, an owner, a stack, a tenant, a dependency, a drift verdict, a retention or a deletion behaviour. Identity is guessed rather than discovered: apps/system-studio/src/lib/cells.ts:55 falls back to region 'us-east-1', :62 falls back to a hardcoded 12-digit account id '047385673922', :65 falls back to partition 'aws' — exactly the GE-010-007 residency-defect shape — and the file is EXEMPTed from the guard that would catch it at tests/security/no-hardcoded-estate.test.mjs:33-41. Finally infrastructure/studio/iam.tf:39-43 gives the running task role NO policy at all ('Deliberately empty'), so on day one every one of these calls returns AccessDenied, which makes STUDIO-000-007's unknown-not-absent rendering the DEFAULT state rather than an edge case.",
+    "files": [
+      "apps/system-studio/src/lib/aws/client.ts",
+      "apps/system-studio/src/lib/aws/identity.ts",
+      "apps/system-studio/src/lib/aws/inventory.ts",
+      "apps/system-studio/src/lib/registry.ts",
+      "apps/system-studio/src/lib/cells.ts",
+      "apps/system-studio/src/app/platform/page.tsx",
+      "apps/system-studio/package.json",
+      "package-lock.json",
+      "infrastructure/studio/iam.tf",
+      "tests/architecture/forbidden-clients.test.mjs",
+      "tests/security/no-hardcoded-estate.test.mjs",
+      "apps/system-studio/e2e/layout.spec.ts"
+    ],
+    "smallest_real_change": "Add @aws-sdk/client-sts, @aws-sdk/client-resource-groups-tagging-api and @aws-sdk/client-ecs to apps/system-studio/package.json and run `npm install --package-lock-only` (tests/architecture/lockfile-knows-every-workspace.test.mjs and `npm ci` both die otherwise). Create ONE owning adapter apps/system-studio/src/lib/aws/client.ts — tests/architecture/forbidden-clients.test.mjs forbids a client constructed at a second call site — that builds every client from the DEFAULT provider chain with no region, account or partition literal. identity() calls STS GetCallerIdentity once per cache window and returns {accountId, arn, region, partition} derived from the resolved config and the ARN's own partition segment, or a typed {unknown: true, principal, action, minimumStatement}. inventory() pages GetResources and returns {resources, unknown} where AccessDeniedException / ThrottlingException / UnrecognizedClientException each become an `unknown` entry naming principal + action + the minimum IAM statement — NEVER []. Render on /platform behind an explicit `as of` timestamp and a per-surface named constant (INVENTORY_REFRESH_MS, IDENTITY_REFRESH_MS) rather than one global number, with exponential backoff and a short server-side cache. Delete the us-east-1/047385673922/aws fallbacks in cells.ts:55-65 and source them from identity(), then REMOVE cells.ts from the EXEMPT list in tests/security/no-hardcoded-estate.test.mjs:33-41 so the guard can never rot back. Add sts:GetCallerIdentity, tag:GetResources, ecs:ListServices/DescribeServices/ListTasks and dynamodb read actions to infrastructure/studio/iam.tf. Prove it with a stand-in client returning, per call, (a) AccessDeniedException, (b) ThrottlingException, (c) an empty-but-successful page, (d) a populated page, asserting FOUR DIFFERENT rendered strings — a stand-in returning [] regardless proves nothing. Mutate the page's call site, not the helper.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-070-002",
+    "title": "Deterministic ownership strategy and the twelve required resource tags (tenant, environment, cell, account purpose, module, release, stack, data class, owner seat, cost center, retention, managed-by)",
+    "why_open": "Nine of the twelve required tag keys exist nowhere in the repository. infrastructure/studio/main.tf:59-67 defines local.tags as exactly {Project, Component, ManagedBy, StateKey, Environment}, and that map is what every studio resource uses (dynamodb.tf:59, ecs.tf:4,15,83,114, network.tf:7,36,68,91, cloudfront.tf:53, ecr.tf:9, secrets.tf:22, iam.tf:15,42). infrastructure/terraform/main.tf:22-28 default_tags is thinner still — {Project, Environment, ManagedBy} — and several pilot resources bypass even that with a bare `tags = { Name = ... }` (rds.tf:5,61, vpc.tf:6,18,29,35,47,59, security_groups.tf:37,62,79,96, cloudfront.tf:134). There is no tenant tag, no cell, no module, no release, no data class, no owner seat, no cost center and no retention tag on anything. There is also no tag CONTRACT in code: `tenure:tenant` appears exactly once in the whole workspace, and it is inside an operator-instruction STRING at apps/system-studio/src/lib/cost-source.ts:62 — nothing declares the key, nothing validates a resource against it, and nothing fails when a resource ships untagged. Without this, STUDIO-000-008's tenant attribution has nothing to resolve from and the finops allocator's 'tagged for a tenant the fleet does not know' branch can never fire on real data.",
+    "files": [
+      "packages/provisioning/src/resource-tags.ts",
+      "packages/provisioning/src/index.ts",
+      "infrastructure/studio/main.tf",
+      "infrastructure/studio/dynamodb.tf",
+      "infrastructure/studio/ecs.tf",
+      "infrastructure/studio/cloudfront.tf",
+      "infrastructure/terraform/main.tf",
+      "apps/system-studio/src/lib/aws/inventory.ts",
+      "apps/system-studio/src/lib/cost-source.ts",
+      "tests/architecture/module-objects.test.mjs"
+    ],
+    "smallest_real_change": "Add packages/provisioning/src/resource-tags.ts exporting REQUIRED_RESOURCE_TAGS (the twelve keys, namespaced `tenure:*`) plus `tagProblems(tags): readonly {key, detail}[]` and a SHARED sentinel so a control-plane resource is EXPLICITLY marked shared rather than merely untagged — 'shared' and 'nobody tagged it' are different facts and only one is safe. Export it from packages/provisioning/src/index.ts. Extend local.tags in infrastructure/studio/main.tf:59-67 to carry every required key, with Tenant = the shared sentinel for control-plane resources. Wire the ONE production caller: apps/system-studio/src/lib/aws/inventory.ts calls tagProblems on every resource returned by GetResources so an untagged resource renders as 'unattributable — missing tenure:tenant' instead of being silently bucketed or dropped. Add a platform test that reads infrastructure/**/*.tf and fails on any `tags = {` that does not merge local.tags (the bare `tags = { Name = ... }` sites above are the current failures — record them as a named baseline rather than widening the rule). Mutate the inventory projection, not tagProblems.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-080-004",
+    "title": "Service operations exposed in Tenure language ('Enable custom domain', 'Create dedicated database', 'Activate Relay', 'Move tenant'), not raw AWS action names",
+    "why_open": "No operation catalogue of any kind exists for AWS-shaped work. apps/system-studio/src/lib/commands.ts:15-49 looks like one by its name and is not: `Destination` is {id, title, href, group, keywords} — a nav launcher whose entire vocabulary is four hrefs (/tenants, /, /platform, /tenants/new). The only thing in the Studio carrying a risk class and a label is module NAVIGATION, built at packages/platform-config/src/modules.ts:360-364 from `manifest.navigation` entries — those are in-product menu items for a tenant's modules, not operations against a service. Nothing anywhere maps a Tenure verb to an AWS capability, nothing declares reversibility, and there is consequently no typed confirmation, no refusal list for destructive operations and no place for the audit row that NEXT-SESSION.md §0.3 requires before an action runs. The only writes the Studio performs today are lifecycle transitions through apps/system-studio/src/app/tenants/actions.ts:545-628 and configuration publishes through .../configuration/actions.ts:101,157,245, and none of them touches AWS.",
+    "files": [
+      "apps/system-studio/src/lib/aws/operations.ts",
+      "apps/system-studio/src/lib/aws/client.ts",
+      "apps/system-studio/src/lib/commands.ts",
+      "apps/system-studio/src/app/tenants/actions.ts",
+      "apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx",
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/src/lib/audit.ts",
+      "packages/finops/src/reporting.ts"
+    ],
+    "smallest_real_change": "Add apps/system-studio/src/lib/aws/operations.ts declaring a closed `StudioOperation` union — start with only additive/reversible members: 'Scale a service' (ecs:UpdateService desiredCount, up only), 'Refresh an edge path' (cloudfront:CreateInvalidation), 'Tag a resource' (tag:TagResources) — each carrying {tenureLabel, awsCapability, reversible: true, confirmationPhrase, estimatedMonthlyDelta}. Every destructive verb (terminate, delete, revoke, scale-to-zero on a serving resource) is a REFUSED member whose payload is the exact `aws ...` CLI line a human runs themselves. The surface is separate from every read module and every entry requires the caller to pass the typed confirmationPhrase — reuse HighRiskConfirmation / HIGH_RISK_FIELDS at apps/system-studio/src/components/states.tsx:265,290 so the existing missingRiskFields check gates it. Order inside the handler is fixed: write the audit row (item STUDIO-020-012) BEFORE the call, record the outcome after. Prove with a stand-in ECS client: correct confirmation + reversible op succeeds and writes two audit rows; wrong confirmation refuses and writes a DENY row and makes NO client call (assert on the stand-in's call count); a destructive member is unreachable at the type level and its handler returns the CLI string. Mutate the action handler, not the catalogue.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-120-010",
+    "title": "Cost preview and approval thresholds actually REQUIRED for new accounts, NAT gateways, databases, Bedrock, data transfer and retention changes",
+    "why_open": "Marked PASS in the registry, but its two functions have no production caller — the exact 'declaration with no caller' pattern. packages/finops/src/reporting.ts:452 approvalFor and :480 previewPlanCost are referenced repo-wide ONLY by packages/finops/src/index.ts:109,118 (the re-export), packages/finops/src/finops.test.ts:657-680 (its own tests) and ledger prose at docs/implementation/system-studio-aws-control-plane-execution-ledger.md:195,206. The page the ledger cites as evidence does not call them: apps/system-studio/src/app/platform/cost/page.tsx imports the three CONSTANTS at :4-6 and renders them as a static four-row table at :100-130. Nothing computes an approval level for a real change, and the ledger concedes it at :211-214 ('published and computable but not yet enforced at execution time'). The requirement's verb is 'Require'; a table stating a policy nothing consults does not require anything.",
+    "files": [
+      "packages/finops/src/reporting.ts",
+      "packages/finops/src/finops.test.ts",
+      "apps/system-studio/src/app/platform/cost/page.tsx",
+      "apps/system-studio/src/lib/aws/operations.ts",
+      "apps/system-studio/src/lib/cost-source.ts",
+      "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    ],
+    "smallest_real_change": "Give previewPlanCost its first production caller: the mutation handler in apps/system-studio/src/lib/aws/operations.ts computes the changed resource's recurring monthly delta, calls previewPlanCost, and REFUSES to proceed when the returned level exceeds what the caller supplied approval for — 'PEER' with no reviewer, 'TWO_PERSON'/'EXECUTIVE' always, since no operator and no test result is human approval. Render the returned level and its reason in the confirmation dialog so the operator sees the band before confirming, and surface it on /platform/cost beside the static policy table so the two cannot drift. Prove by mutation of the PRODUCTION path: freeze the handler's estimate to zero and assert the refusal test goes red; freeze the level to 'NONE' and assert the same; restore. Do not assert by calling approvalFor directly — that is precisely the helper-mutation trap that left an earlier suite green. Then correct the ledger's Status line at :193-194 to name enforcement rather than only publication.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-020-012",
+    "title": "Every allow and deny logged to an append-only tamper-evident audit with actor, effective operator role, tenant/account/environment, resource/action, policy version, reason, correlation and result",
+    "why_open": "The Studio writes no audit row for any authorization decision, and has no audit module at all — there is no apps/system-studio/src/lib/audit.ts, and `recordAuditEvent` appears in ten apps/web files and zero Studio files. Both refusal points throw and record nothing: apps/system-studio/src/app/tenants/[slug]/configuration/actions.ts:54-60 requireOperator() and apps/system-studio/src/app/tenants/actions.ts:67. No allow is recorded either — the DynamoDB STEP# rows written at apps/system-studio/src/lib/registry.ts:500-511 record a lifecycle transition, not a permission decision, are not hash-chained, and exist only for tenants that moved state. The one available primitive is pure and unwired: packages/audit/src/index.ts:35-51 exports buildAuditRecord/hashRecord/verifyChain with NO persistence adapter, and the Studio cannot borrow apps/web's writer because apps/web/src/lib/audit-record.ts is Prisma-backed and tests/security/operator-plane-content.test.mjs forbids the Studio importing Prisma. The record shape is also short of the requirement: packages/audit/src/record.ts:66-70 makes tenantId REQUIRED (an estate-wide operator action has no tenant) and AuditRecord at :109-127 carries no account, region or environment field.",
+    "files": [
+      "apps/system-studio/src/lib/audit.ts",
+      "apps/system-studio/src/lib/registry.ts",
+      "apps/system-studio/src/app/tenants/actions.ts",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/actions.ts",
+      "packages/audit/src/record.ts",
+      "packages/audit/src/index.ts",
+      "tests/security/audit-writes.test.mjs",
+      "tests/security/operator-plane-content.test.mjs"
+    ],
+    "smallest_real_change": "DO NOT widen AuditRecord. Adding account/region/environment fields changes hashRecord (packages/audit/src/record.ts:264) and therefore invalidates every stored chain, and the construction sites that would silently keep compiling are apps/web/src/lib/audit-record.ts, apps/web/src/lib/admin/guard.ts, apps/web/src/app/(app)/approvals/actions.ts, apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts, apps/web/src/app/(app)/admin/payments/actions.ts and apps/web/src/lib/provisioning/reconcile.ts. Instead carry account/region/environment/policyRevision in `metadata` with declared sensitiveKeys, and use the SHARED sentinel from STUDIO-070-002 for tenantId on estate-wide actions so the required field stays honest. Add apps/system-studio/src/lib/audit.ts that calls buildAuditRecord with `previous` (so a tampered chain stops growing) and writes items pk=AUDIT#<yyyy-mm>, sk=<zero-padded seq> through the client apps/system-studio/src/lib/registry.ts already owns — forbidden-clients forbids a second one; export a putAuditItemIfAbsent alongside the existing putTenantItemIfAbsent:160-168 so the conditional write is the sequence guard. Call it on BOTH branches of requireOperator (configuration/actions.ts:54-60 and tenants/actions.ts:67) and from the mutation handler in STUDIO-080-004. Prove by mutating the PRODUCTION path: delete the DENY call and assert a test goes red; return a fixed previousHash and assert verifyChain reports a break.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-020-006",
+    "title": "Semantic permissions by resource/action/environment/tenant/account/region, enforced server-side at every command, query, job and export",
+    "why_open": "The Studio's entire server-side authorization is a single boolean over an env allowlist. apps/system-studio/src/lib/operators.ts:110-115 isOperator(email) does `list.has(email.toLowerCase())` and nothing else, and it is the ONLY check at every one of these call sites: src/app/page.tsx:55, src/app/platform/page.tsx:38, src/app/platform/cost/page.tsx:40, src/app/tenants/page.tsx:34, src/app/tenants/new/page.tsx:58, src/app/tenants/[slug]/page.tsx:113, src/app/tenants/[slug]/configuration/page.tsx:74, src/app/tenants/actions.ts:67 and src/app/tenants/[slug]/configuration/actions.ts:57. No resource, action, environment, account or region enters any decision, so every listed operator can advance any tenant's lifecycle and publish any tenant's configuration in any environment. The model has no place for those axes either: packages/authorization/src/model.ts:58 defines GrantScope as {kind:'tenant'} | {kind:'orgUnit'} — no account, no region, no environment — and apps/system-studio does not depend on @tenure/authorization at all (package.json:12-21). This is the gap that decides who may read a live AWS account and who may run a mutation, so it cannot be deferred behind the read plane.",
+    "files": [
+      "apps/system-studio/src/lib/operators.ts",
+      "apps/system-studio/src/lib/authorize.ts",
+      "apps/system-studio/src/app/tenants/actions.ts",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/actions.ts",
+      "apps/system-studio/src/app/platform/cost/page.tsx",
+      "apps/system-studio/src/app/platform/page.tsx",
+      "apps/system-studio/package.json",
+      "package-lock.json",
+      "packages/authorization/src/model.ts",
+      "tests/security/every-path-authorizes.test.mjs"
+    ],
+    "smallest_real_change": "Add apps/system-studio/src/lib/authorize.ts exporting `authorizeOperator({principalId, action, resource, tenantId, environment, accountId, region})` returning a typed {allowed, reason, policyRevision} — deny by default, and DENY when the target account/region is not the one identity() resolved (that is the cheap version of the residency check GE-010-007 exists for). Replace the bare isOperator call at every one of the nine sites above with it, keeping isOperator as the authentication half only. Add PLATFORM_OPERATOR_ROLES (email -> role family) so an operator's read scope and mutate scope differ; the mutation surface in STUDIO-080-004 asks for the mutate action, the Cost page for a read action. If GrantScope in packages/authorization/src/model.ts:58 is extended with account/region members, grep and fix every construction site in packages/authorization/src (decide.ts, service.ts, role-templates.ts, relationships.ts, support-session.ts, break-glass.ts) in the SAME change — an added optional field is invisible to tsc and every test builds its own fixture. Prove by mutating the production call sites: flip one page's action name to a read when it mutates and assert a test reds; make authorize return allowed:true unconditionally and assert the deny tests red.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-100-008",
+    "title": "Verify purge through real resource inventory, IaC/registry reconciliation, orphan scan and CUR/Cost Explorer after 24/48/72h settlement windows",
+    "why_open": "The reconciliation exists but its 'observed' input is derived from the registry's own beliefs, so it can never detect the thing it is for. apps/system-studio/src/app/tenants/[slug]/page.tsx:131-137 builds `observed` from observedFor({isolation, hasDeployment, serving, evidenceRecords}) — four registry fields — and packages/provisioning/src/residual-reconciliation.ts:173-191 observeResidual turns them into resource CLASSES by inference: `if (o.hasDeployment) observed.add('database','object-storage','snapshot')`. Nothing looks at AWS. A PURGED_ZERO_INCREMENTAL_COST tenant whose registry row was cleared reports `retains: []` (residual-reconciliation.ts:105-112) and therefore reports zero unexplained resources — which is exactly the 'strongest possible finding' the file's own comment says it exists to surface, silently inverted. There is no orphan scan (no caller resolves a resource the registry does not know about), no IaC reconciliation, and no settlement-window logic anywhere: apps/system-studio/src/lib/cost-source.ts:46-65 returns NOT_CONFIGURED because FINOPS_CUR_BUCKET/PREFIX are unset, and :83-97 the three readers throw.",
+    "files": [
+      "apps/system-studio/src/lib/tenant-state.ts",
+      "apps/system-studio/src/app/tenants/[slug]/page.tsx",
+      "apps/system-studio/src/lib/aws/inventory.ts",
+      "packages/provisioning/src/residual-reconciliation.ts",
+      "packages/provisioning/src/provisioning.test.ts",
+      "apps/system-studio/src/lib/cost-source.ts",
+      "apps/system-studio/e2e/states-logic.spec.ts"
+    ],
+    "smallest_real_change": "Change the SOURCE of `observed`, not the comparator. Add `observedFromInventory(slug, resources)` to apps/system-studio/src/lib/tenant-state.ts that maps live tagged resources (from STUDIO-000-008's inventory, matched on the tenure:tenant tag from STUDIO-070-002) to ResourceClass, and call it at apps/system-studio/src/app/tenants/[slug]/page.tsx:131 instead of observedFor's registry inference. Keep the registry-derived value beside it and render BOTH: a resource the inventory sees and the registry does not is the orphan, and a resource the registry claims and the inventory does not see is the overclaim — the reconcileResidual vocabulary already names both. When the inventory call was DENIED, render 'unknown — cannot verify purge' and never 'nothing retained'. Add a named SETTLEMENT_WINDOW_HOURS = [24, 48, 72] and refuse to render a purge as verified before the window has elapsed since the purge timestamp, with the elapsed hours shown. Prove with a stand-in inventory returning: a live ECS service tagged for a PURGED tenant (must render unexplained), an empty successful result inside the window (must render 'not yet verifiable'), an empty successful result after it (verified), and AccessDenied (unknown). Mutate the page's data source, not observeResidual.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-000-002",
+    "title": "Map every Studio route, endpoint, persistence layer, infrastructure stack, GitHub workflow, environment variable, secret name and external integration",
+    "why_open": "The map is split across four documents and the Studio-specific half is missing entirely. docs/architecture/entry-points.md covers routes/pages/actions and attributes only '1 routes · 8 pages · 3 action modules' to apps/system-studio; docs/architecture/github-current-state.md:18,31,49 lists secrets, environments and workflows for the repository as a whole, with nothing saying which of the sixteen .github/workflows files reach the Studio (deploy-studio.yml, aws-inventory.yml, ci.yml do). More concretely there is NO environment contract for the Studio: apps/web/src/lib/env.ts:1-60 is a zod schema that refuses to boot on an unsafe environment, and apps/system-studio has no equivalent module and no zod dependency (package.json:12-21). Every variable is read raw from process.env with a silent fallback — TENANT_TABLE at src/lib/registry.ts:44, AWS_ENDPOINT_URL_DYNAMODB at :69, AWS_REGION/AWS_ACCOUNT_ID/AWS_PARTITION/CELL_* at src/lib/cells.ts:55-81, FINOPS_CUR_BUCKET/FINOPS_CUR_PREFIX at src/lib/cost-source.ts:43-48, PLATFORM_OPERATORS/PLATFORM_OPERATOR_SECRET at src/lib/operators.ts:73-74, BUILD_COMMIT at src/app/platform/page.tsx:77. Every AWS variable this cluster adds would go in with the same silence.",
+    "files": [
+      "apps/system-studio/src/lib/env.ts",
+      "apps/system-studio/src/instrumentation.ts",
+      "apps/system-studio/src/lib/registry.ts",
+      "apps/system-studio/src/lib/cells.ts",
+      "apps/system-studio/src/lib/cost-source.ts",
+      "apps/system-studio/src/lib/operators.ts",
+      "apps/system-studio/package.json",
+      "package-lock.json",
+      "docs/architecture/entry-points.md",
+      "tools/entry-point-inventory.mjs",
+      "infrastructure/studio/ecs.tf"
+    ],
+    "smallest_real_change": "Add apps/system-studio/src/lib/env.ts in the shape of apps/web/src/lib/env.ts — a pure validateEnv() naming every variable above plus the new AWS ones, and an assertEnv() called from a new apps/system-studio/src/instrumentation.ts that refuses to boot. Add zod to apps/system-studio/package.json and run `npm install --package-lock-only`. Make it the ONLY reader: replace the raw process.env reads at registry.ts:44,69, cells.ts:55-81, cost-source.ts:47-48 and operators.ts:73-74 with the parsed object, which also removes the us-east-1/047385673922 fallbacks (see STUDIO-000-008). Extend tools/entry-point-inventory.mjs to emit a Studio section naming its stacks (infrastructure/studio vs infrastructure/terraform), the workflows that deploy or read for it, its environment variable names and its secret NAMES (never values), so docs/architecture/entry-points.md regenerates and the existing staleness check keeps it true. Prove by mutation: delete TENANT_TABLE from the schema and assert the boot test reds; set PLATFORM_OPERATOR_SECRET to a placeholder and assert assertEnv throws.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-030-011",
+    "title": "Core Web Vitals and route/component performance budgets; virtualize large tables and trees, stream long operations",
+    "why_open": "No budget is asserted anywhere and nothing is virtualized. apps/system-studio/e2e/layout.spec.ts:40 lists five routes and checks only overflow/clipping (:118-143, :180-201, :228-236); there is no LCP, CLS, INP or route-weight assertion in any Studio spec. Every table renders its full result set: apps/system-studio/src/app/platform/page.tsx:173-194 maps EVERY phase of the generated ledger and inside it EVERY item as a row, from a src/generated/platform-truth.json that is already thousands of lines, and :226-254 does the same for every module. apps/system-studio/src/app/tenants/page.tsx renders every tenant unbounded. globals.css:479-486 makes wide content scroll inside its own container, which is the layout half of the requirement and the only half that is done. This turns load-bearing the moment STUDIO-000-008 lands: a live Resource Groups Tagging inventory of a real estate is thousands of rows on one page.",
+    "files": [
+      "apps/system-studio/src/app/platform/page.tsx",
+      "apps/system-studio/src/app/tenants/page.tsx",
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/src/app/globals.css",
+      "apps/system-studio/e2e/layout.spec.ts",
+      "apps/system-studio/e2e/platform.spec.ts"
+    ],
+    "smallest_real_change": "Add a named per-surface row budget (e.g. INVENTORY_PAGE_ROWS, LEDGER_PAGE_ROWS) and a small server-side pager used by the estate table first, then by platform/page.tsx:173-194 — server pagination rather than a windowing library, because it needs no new dependency and keeps the page a server component. Render 'showing N of M' honestly so a truncated table can never read as a complete one. Add to apps/system-studio/e2e/layout.spec.ts a measured budget per route — DOM node count and, via the PerformanceObserver already available in Playwright, LCP — asserted against a named constant per route rather than one global number. Prove by mutation: raise the row budget above the fixture size and assert the 'showing N of M' test reds; remove the pager from the estate page and assert the node-count budget reds.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-100-002",
+    "title": "Fleet search, saved filters, group/bulk draft, comparison, release wave, health and cost charts, topology and export with semantic authorization",
+    "why_open": "apps/system-studio/src/app/tenants/page.tsx is 247 lines and contains none of the nine capabilities: there is no search input, no filter control, no saved filter, no bulk selection, no comparison view, no release wave, no chart, no topology and no export. The only occurrences of the word 'filter' in the file are array operations at :82 (`health.filter((h) => h.attention !== null)`) and :100. The health primitives it would rank on already exist and are unused for this — apps/system-studio/src/lib/fleet-health.ts:158 summariseFleet and :185 byUrgency — and cost per tenant cannot be charted at all because apps/system-studio/src/lib/cost-source.ts:46-65 returns NOT_CONFIGURED. The 'with semantic authorization' clause is unimplementable today for the reason given under STUDIO-020-006: authorization is one boolean, so an export would carry every tenant regardless of the operator.",
+    "files": [
+      "apps/system-studio/src/app/tenants/page.tsx",
+      "apps/system-studio/src/lib/fleet-health.ts",
+      "apps/system-studio/src/lib/authorize.ts",
+      "apps/system-studio/src/lib/cost-source.ts",
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/e2e/fleet-health-logic.spec.ts",
+      "apps/system-studio/e2e/layout.spec.ts"
+    ],
+    "smallest_real_change": "Start with the two that need no new data: a server-side search/filter driven by URL searchParams (?q=&signal=&state=) applied through the existing byUrgency/summariseFleet in fleet-health.ts, and a CSV export route that projects ONLY the tenants authorizeOperator (STUDIO-020-006) allows and writes an audit row (STUDIO-020-012) naming what was exported. Saved filters are the URL, persisted through the existing preferences store at apps/system-studio/src/lib/preferences.ts — no new storage. Defer charts until cost-source returns CONNECTED, and render the honest NOT_CONFIGURED arm rather than an empty chart. Prove by mutation on the page: drop the authorization projection from the export handler and assert a test showing a non-permitted tenant reds; make the filter ignore ?signal= and assert the filtered-count test reds.",
+    "already_done": false
+  },
+  {
+    "id": "STUDIO-030-005",
+    "title": "Comfortable and compact density modes without information loss, persisted only as operator preference",
+    "why_open": "NOT open — verified implemented and reachable. apps/system-studio/src/lib/preferences.ts:31 declares `type Density = 'comfortable' | 'compact'`, :44 defaults to comfortable, :91 maps it to a `data-density` attribute and :127-128 inlines a pre-paint script so it does not flash; apps/system-studio/src/app/globals.css:70-94 implements `:root[data-density='compact']` as spacing tokens only, with the comment at :76-78 stating type size and hit targets do not shrink (the 'without information loss' clause); apps/system-studio/src/components/PreferencesMenu.tsx:193-201 renders the control; persistence is localStorage under STORAGE_KEYS.density (preferences.ts:52), i.e. operator preference only. Covered by apps/system-studio/e2e/preferences.spec.ts and preferences-logic.spec.ts. Recorded here so the loop does not pay to survey it again.",
+    "files": [
+      "apps/system-studio/src/lib/preferences.ts",
+      "apps/system-studio/src/app/globals.css",
+      "apps/system-studio/src/components/PreferencesMenu.tsx",
+      "apps/system-studio/e2e/preferences.spec.ts",
+      "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
+    ],
+    "smallest_real_change": "No code change. Import STUDIO-030-005 into docs/implementation/system-studio-aws-control-plane-execution-ledger.md as PASS with the citations above, so the registry stops reporting it FAIL.",
+    "already_done": true
+  }
+]

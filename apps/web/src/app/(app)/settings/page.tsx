@@ -6,11 +6,15 @@ import { actingInstitutions, withTenantScope } from "@/lib/tenant-scope"
 import { BrandPreview } from "@/components/brand/BrandPreview"
 import { storageConfigured } from "@/lib/s3"
 import { aiConfigured } from "@/lib/ai"
+import { cellConnections, credentialExpiry } from "@/lib/auth-connections"
 import {
+  capabilityAdministrators,
+  certifiedCapabilityState,
   resolveCapability,
   type CapabilityState,
   type ConnectionResolution,
 } from "@/lib/connections/capability-resolution"
+import { ConnectionActionControl } from "@/components/connections/MissingConnectionCard"
 import { Card, CardHeader, Attribute } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
 import { PageHeader } from "@/components/ui/PageHeader"
@@ -20,6 +24,17 @@ import { ProfileImageEditor } from "@/components/ProfileImageEditor"
 import { updateProfile, setDelegation, revokeDelegation } from "./actions"
 
 export const dynamic = "force-dynamic"
+
+/**
+ * The OIDC scopes this application asks an identity provider for.
+ *
+ * NextAuth's Okta provider requests `openid profile email` — the three claims
+ * `sessionCallbacks` and the Prisma adapter need to create and identify a user.
+ * Written down here rather than left implicit in the library's defaults so the
+ * Connection Center can say WHICH permission is missing when a tenant's
+ * administrator granted fewer, instead of "sign-in is broken".
+ */
+const SSO_REQUIRED_SCOPES = ["openid", "profile", "email"] as const
 
 export default async function SettingsPage() {
   const session = await auth()
@@ -49,50 +64,169 @@ export default async function SettingsPage() {
      * `Connection` model exists in the schema, so a row claiming one would be
      * a canned value.
      */
-    const declaredConnections: { state: CapabilityState; whereToFix: string }[] = [
+    // WRK-030-004. The identity connection this cell actually holds, read from
+    // the registry record `auth.ts` gates sign-in on rather than from a second
+    // reading of the environment.
+    const ssoConnection = cellConnections().find((c) => c.connectionId === "cell-okta")
+    const ssoCredential = ssoConnection
+      ? credentialExpiry(
+          ssoConnection.credentials.find((c) => c.purpose === "oidc-client-secret")?.expiresAt ??
+            null,
+        )
+      : null
+    // Unset means "nobody has recorded what was granted", and the honest read
+    // of that is the assumption sign-in already makes: that the grant covers
+    // what NextAuth asks for. Defaulting to the empty set would show every
+    // deployment a permanent "Limited" nobody can clear, which is the alarm
+    // that teaches people to ignore the page.
+    const recordedScopes = (process.env.OKTA_GRANTED_SCOPES ?? "").split(/[\s,]+/).filter(Boolean)
+    const ssoGrantedScopes = recordedScopes.length > 0 ? recordedScopes : [...SSO_REQUIRED_SCOPES]
+
+    const declaredConnections: {
+      state: CapabilityState
+      whereToFix: string
+      manageHref: string
+    }[] = [
       {
         state: {
-          key: "ai.model",
+          // WRK-030-005. `certified` is DERIVED, never asserted. This used to be
+          // the literal `true` — and for the model connector it was false:
+          // `RELAY_ANTHROPIC_REVIEW` is NOT_SUBMITTED, `/api/ai/chat` refuses
+          // every vendor call because of it, and this row said "connected and
+          // working" about a capability the request path will not call.
+          // `certifiedCapabilityState` reads the same record the route reads.
+          ...certifiedCapabilityState("ai.model"),
+          ...capabilityAdministrators("ai.model"),
           label: "Tenure AI model",
-          certified: true,
           configured: aiConfigured(),
           reachable: true,
           connectableBy: "admin",
+          // Configured by an environment variable rather than by a scoped
+          // grant, so there is no scope subset to test. Empty on both sides is
+          // the honest answer; naming scopes nobody granted would invent a
+          // NEEDS_SCOPE_UPGRADE nothing could clear.
+          requiredScopes: [],
+          grantedScopes: [],
+          credential: null,
+          alternative:
+            "Search your workspace — the same records, returned as cited sources instead of prose.",
         },
+        // Named the environment variable, for the same reason and with the same
+        // problem as the single sign-on row below: nobody reading this page can
+        // set one. Who turns it on, then what still works without it.
         whereToFix:
-          "Configured by your Tenure operator (ANTHROPIC_API_KEY on the application). Retrieval and search keep working without it — answers arrive as cited sources instead of prose.",
+          "Turned on by your Tenure operator; there is nothing on your side to set up. Retrieval and search keep working without it — answers arrive as cited sources instead of prose.",
+        // Where a person goes IN TENURE. Never a provider console: the point of
+        // WRK-110-005 is that somebody who has never seen one can finish the
+        // job, and "open the Azure portal" is the failure it names.
+        manageHref: "/messages/compose",
       },
       {
         state: {
-          key: "documents.storage",
+          ...certifiedCapabilityState("documents.storage"),
+          ...capabilityAdministrators("documents.storage"),
           label: "Document storage",
-          certified: true,
           configured: storageConfigured(),
           reachable: true,
           connectableBy: "admin",
+          requiredScopes: [],
+          grantedScopes: [],
+          credential: null,
+          alternative:
+            "Documents already stored still open; only new uploads are unavailable.",
         },
         whereToFix:
-          "Configured by your Tenure operator (S3_DOCUMENTS_BUCKET). Without it, document upload is hidden rather than broken — existing documents still open.",
+          "Turned on by your Tenure operator; there is nothing on your side to set up. Without it, document upload is hidden rather than broken — existing documents still open.",
+        manageHref: "/messages/compose",
       },
       {
         state: {
-          key: "calendar.feed",
+          ...certifiedCapabilityState("calendar.feed"),
+          ...capabilityAdministrators("calendar.feed"),
           label: "Calendar subscription (ICS)",
-          certified: true,
-          // Per-user and always available: the feed is generated from rows this
-          // account can already read, so there is nothing to provision.
-          configured: true,
+          /**
+           * WRK-030-005 / WRK-110-005. False, and it is the honest value.
+           *
+           * This was `true` with the note "per-user and always available", which
+           * is a statement about the FEED and not about this account: the URL is
+           * a stateless signed link that expires 180 days after it is issued,
+           * Tenure stores no record that anybody pasted one into a calendar app,
+           * and it therefore cannot know whether this person is subscribed. The
+           * row printed "Calendar subscription (ICS) is connected and working"
+           * to a student who had never opened the dialog — the same
+           * working-looking claim `certified: true` was making one row above.
+           *
+           * Unconnected until they connect it is the claim the platform can
+           * support, and it produces the control that actually helps: Connect,
+           * which opens the calendar where Subscribe issues the link.
+           */
+          configured: false,
           reachable: true,
           connectableBy: "user",
+          requiredScopes: [],
+          grantedScopes: [],
+          credential: null,
+          alternative: "Open the calendar in Tenure — every event is there without a subscription.",
         },
         whereToFix:
-          "Yours to connect: open the calendar and choose Subscribe to copy a private feed URL into Google, Outlook or Apple Calendar.",
+          "Managed from the calendar: Subscribe issues your private feed link, and removing the calendar in Outlook, Google or Apple ends the subscription — the link is stateless, so Tenure holds nothing to switch off on its side.",
+        manageHref: "/calendar",
+      },
+      {
+        /**
+         * WRK-030-004 — the row that PRODUCES the reauth and scope-upgrade
+         * paths, from state this deployment genuinely holds.
+         *
+         * Every field is read from the identity connection `cellConnections()`
+         * already builds and `auth.ts` already gates sign-in on. Nothing here is
+         * a literal:
+         *
+         *   * `configured` is whether a connection is DESCRIBED at all, not
+         *     whether it is usable. That distinction is the whole point of the
+         *     reauth path: a connection whose client secret expired is
+         *     configured and broken, and collapsing it into "not connected"
+         *     sends an administrator to set up something that is already set up.
+         *   * `credential` is `OKTA_CLIENT_SECRET_EXPIRES_AT` through
+         *     `credentialExpiry`, which is `connectionHealth`'s verdict — the
+         *     same rule `oktaIsUsable()` applies at boot.
+         *   * `grantedScopes` is `OKTA_GRANTED_SCOPES`, which an operator sets
+         *     from what the tenant's Okta administrator actually granted the app
+         *     registration. Unset means "assume it covers what we ask for",
+         *     which is exactly the assumption sign-in makes today; writing it
+         *     down turns an invisible assumption into a row somebody can
+         *     correct.
+         */
+        state: {
+          ...certifiedCapabilityState("identity.sso"),
+          ...capabilityAdministrators("identity.sso"),
+          label: "Single sign-on",
+          configured: ssoConnection !== undefined,
+          reachable: true,
+          connectableBy: "admin",
+          requiredScopes: SSO_REQUIRED_SCOPES,
+          grantedScopes: ssoGrantedScopes,
+          credential: ssoCredential,
+          alternative:
+            "Sign-in still works through the methods your institution has already enabled.",
+        },
+        // WRK-110-005. This used to read "…against your institution's identity
+        // provider (OKTA_ISSUER, OKTA_CLIENT_ID and the client secret's
+        // reference)", which is the failure the requirement names, printed to
+        // every club member who opens Settings: a person who cannot act is
+        // handed the credential list instead of the people who can. The row
+        // already names them one line up — `Owned by {resolved.owner}`, which
+        // is `capabilityAdministrators` resolving real shipped roles — so the
+        // fix sentence points at that answer rather than at a secret store.
+        whereToFix:
+          "Set up for your whole institution by the people named above, working with your Tenure operator. There is nothing on your side to change, and nothing about your account changes while it is being set up.",
+        manageHref: "/messages/compose",
       },
     ]
     const connections: {
       state: CapabilityState
       resolved: ConnectionResolution
       whereToFix: string
+      manageHref: string
     }[] = declaredConnections.map((c) => ({ ...c, resolved: resolveCapability(c.state) }))
 
     const seats = await db.roleAssignment.findMany({
@@ -339,12 +473,13 @@ export default async function SettingsPage() {
               />
             </div>
             <ul className="divide-y divide-border">
-              {connections.map(({ state, resolved, whereToFix }) => (
+              {connections.map(({ state, resolved, whereToFix, manageHref }) => (
                 <li
                   key={state.key}
                   className="px-5 py-4"
                   data-connection={state.key}
                   data-connection-outcome={resolved.outcome}
+                  data-connection-status={resolved.statusWord}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -355,10 +490,22 @@ export default async function SettingsPage() {
                       </p>
                     </div>
                     <Badge variant={resolved.outcome === "CONNECTED" ? "success" : "default"}>
-                      {resolved.outcome === "CONNECTED" ? "Connected" : "Not connected"}
+                      {resolved.statusWord}
                     </Badge>
                   </div>
+                  {/* WRK-110-005 — the row's one control, and the fix beside it.
+                      `resolved.action` is the decision `resolveCapability` was
+                      already making and this page was throwing away: a
+                      CONNECTED per-user feed offered no Disconnect, and an
+                      admin-owned capability offered no way to ask one. The
+                      control comes from the resolution and never from this call
+                      site; only WHERE it goes is declared here, and it is
+                      always a page of Tenure. `whereToFix` is promoted beside
+                      it rather than buried under the row, because a control
+                      with no explanation of what it will do is the thing a
+                      nontechnical person stops at. */}
                   <p className="mt-2 text-[13px] text-text-3">{whereToFix}</p>
+                  <ConnectionActionControl action={resolved.action} href={manageHref} />
                 </li>
               ))}
             </ul>

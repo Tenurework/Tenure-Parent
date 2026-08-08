@@ -113,6 +113,12 @@ function storageWrites(text) {
  * that is what the exemption-count ratchets and review are for.
  */
 export function credentialWrites(text) {
+  // Live. This read `false && CREDENTIAL.test(write)`, so it returned [] for
+  // every input — the sweep below then reported every file in the cell as clean
+  // and the self-test beneath it was the only thing that noticed. A guard that
+  // cannot fail is not a weaker guard, it is a green tick over an unchecked
+  // property, and this one is Bible §9.1: a token in localStorage turns one XSS
+  // into one stolen session.
   return storageWrites(text).filter((write) => CREDENTIAL.test(write))
 }
 

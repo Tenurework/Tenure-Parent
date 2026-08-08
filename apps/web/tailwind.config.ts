@@ -15,6 +15,46 @@ const config: Config = {
     path.join(__dirname, "src/app/**/*.{js,ts,jsx,tsx,mdx}"),
   ],
   theme: {
+    /**
+     * TTES-GATE-010 — the three background-role keys do not generate a TEXT
+     * utility.
+     *
+     * Tailwind derives `textColor` from `colors`, so `surface` / `base` /
+     * `subtle` below were each producing a `text-*` class. One of them collides
+     * with a built-in font-size utility, and the collision was live rather than
+     * theoretical: `.text-base` was emitted as
+     *
+     *     .text-base { font-size: 1rem; line-height: 1.5rem; color: var(--bg-base) }
+     *
+     * — the page background, painted as ink. Twelve call sites write `text-base`
+     * meaning the font size. Eleven survived only because they also carry
+     * `text-text-1`, which Tailwind happens to emit later in the same layer;
+     * reordering the palette below would have blanked all eleven headings at
+     * once. The twelfth, `ui/Avatar.tsx`'s `lg` size, carries no colour utility
+     * of its own — it relies on `.avatar-monogram` in `@layer components`, which
+     * `@layer utilities` outranks — so every club card without a logo
+     * (`ClubCard.tsx:61`) drew its monogram initials in the page background
+     * colour on a tinted disc.
+     *
+     * Removing the three keys here fixes all twelve at the root and leaves the
+     * 256 `bg-*` usages untouched: only `textColor` is narrowed, and
+     * `text-surface` / `text-subtle` were referenced nowhere. `text-base` goes
+     * back to being exactly the font size every caller meant.
+     *
+     * This is a function so it reads the MERGED palette — `extend.colors` below
+     * is already folded into `theme("colors")` by the time it runs.
+     */
+    textColor: ({ theme }) => {
+      // Typed as the shape Tailwind's `textColor` actually accepts, not
+      // `unknown`. A colour scale is either a value or a nested scale, which is
+      // what `RecursiveKeyValuePair` means — casting to `unknown` made the
+      // return type unassignable and the whole config fail to compile.
+      const { base: _base, surface: _surface, subtle: _subtle, ...ink } = theme("colors") as Record<
+        string,
+        string | Record<string, string>
+      >
+      return ink
+    },
     extend: {
       colors: {
         shell: {

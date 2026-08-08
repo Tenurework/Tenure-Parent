@@ -48,7 +48,10 @@ export default async function DocumentSummaryPage({
       // UTF-8 decode as the SDK's transformToString() — this path is guarded to
       // textual mime types under 200 KB above.
       const content = (await getDocumentBytes(doc.objectKey)).toString("utf8")
-      summary = await summarizeDocument(doc.title, content)
+      // WRK-120-004. Charged to the institution that owns the document, which
+      // is the row's own `institutionId` — the same value the audit event below
+      // is written under, so the meter and the trail agree by construction.
+      summary = await summarizeDocument(doc.title, content, doc.institutionId)
       if (!summary) note = "Summarization was unavailable — try again shortly."
       else {
         await db.auditEvent.create({

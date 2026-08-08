@@ -1,11 +1,19 @@
+import Link from "next/link"
 
 import { fleetCompatibility, moduleAdoption } from "@tenure/platform-config"
 
 import { auth } from "@/lib/auth"
-import { fleet } from "@/lib/cells"
-import { isOperator, operatorConfigProblems } from "@/lib/operators"
+import { authorizeCommand } from "@/lib/authorize"
+import { fleet, primeEstate } from "@/lib/cells"
+import { operatorConfigProblems } from "@/lib/operators"
 import truth from "@/generated/platform-truth.json"
-import { StaleState } from "@/components/states"
+import {
+  DegradedState,
+  ErrorState,
+  PermissionDeniedState,
+  StaleState,
+  degradationOf,
+} from "@/components/states"
 
 export const dynamic = "force-dynamic"
 
@@ -34,11 +42,17 @@ export default async function PlatformPage() {
     )
   }
 
+  // STUDIO-020-006. `platform:read` — every role family holds it, but the
+  // decision is still a decision: it names the resource, the action and the
+  // account/region this control plane resolved, and it is refused when the
+  // allowlist itself does not parse.
   const session = await auth()
-  if (!isOperator(session?.user?.email)) {
+  const decision = authorizeCommand("platform.read", { principalId: session?.user?.email })
+  if (decision.reason === "NO_PRINCIPAL") {
     const { redirect } = await import("next/navigation")
     redirect("/signin")
   }
+  if (!decision.allowed) return <PermissionDeniedState />
 
   const { programme, ledger, findings, estate, suites } = truth
 
@@ -62,6 +76,12 @@ export default async function PlatformPage() {
    * compared against is the cell's own `release`, so a fleet that cannot say
    * what it is running reports exactly that rather than a reassuring pass.
    */
+  // GE-010-007. `fleet()` is synchronous and its estate facts now come from
+  // sts:GetCallerIdentity rather than from a compiled-in "us-east-1"/account
+  // literal. Priming resolves that identity once per process before the first
+  // synchronous read; a page that skipped it would fall back to the environment
+  // alone, and refuse rather than guess if that is unset too.
+  await primeEstate()
   const cells = fleet()
   const compatibility = cells.map((cell) => ({
     cell,
@@ -372,22 +392,50 @@ export default async function PlatformPage() {
           <dd>{estate.backupVaults === 0 ? "none" : estate.backupVaults}</dd>
         </dl>
 
-        <h3>Calls the inventory was refused</h3>
+        <h3>What the inventory could and could not read</h3>
         <p>
-          Recorded as findings rather than escalated to a wider role. All three are Organizations
-          calls, and their refusal is the evidence that no Organization exists — the answer, not an
-          obstacle.
+          Recorded as findings rather than escalated to a wider role. All three refusals are
+          Organizations calls, and their refusal is the evidence that no Organization exists — the
+          answer, not an obstacle.
         </p>
-        <table className="grid">
-          <tbody>
-            {denied.map((d) => (
-              <tr key={d.call}>
-                <td className="id">{d.call}</td>
-                <td>{d.reason}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/*
+          STUDIO-030-006. This was a table of the three refusals and nothing
+          else, which said what failed and never said what that left. An estate
+          page listing counts for nine services beside a list of three refused
+          calls reads as complete-with-footnotes; it is not, and `degraded` is
+          the word for it. `partialData` would be the wrong one — that names
+          fields missing from ONE answer, and these are whole reads that never
+          returned.
+
+          Derived from the inventory rather than written down: `working` is the
+          service reads that produced a count, `failing` is what the inventory
+          recorded as denied. A hand-kept list would say "9 of 12" on the day it
+          was typed and keep saying it after the tenth service was added.
+        */}
+        {(() => {
+          const answered = Object.keys(estate.summary)
+            // Not a read. It is the count of the failing half, and including it
+            // would let one refusal be counted on both sides of the ratio.
+            .filter((key) => key !== "deniedCalls")
+            .map((key) => key.replace(/([A-Z])/g, " $1").toLowerCase())
+          const refused = denied.map((d) => ({ source: d.call, why: d.reason }))
+
+          const state = degradationOf(answered, refused)
+          if (state.kind === "whole") {
+            return <p className="slug">Every service read answered; nothing was refused.</p>
+          }
+          if (state.kind === "down") {
+            return (
+              <ErrorState
+                what="the AWS inventory"
+                detail={state.failing.map((f) => `${f.source} — ${f.why}`).join("\n")}
+              />
+            )
+          }
+          return (
+            <DegradedState what="AWS inventory" working={state.working} failing={state.failing} />
+          )
+        })()}
 
         <h3>Queues with no producer and no consumer</h3>
         <p>
@@ -404,13 +452,44 @@ export default async function PlatformPage() {
         </div>
 
         <h3>Alarms</h3>
-        <div className="chips">
-          {estate.alarms.map((a) => (
-            <span className="chip" key={a.name}>
-              <b>{a.state}</b> {a.name}
-            </span>
-          ))}
-        </div>
+        {/*
+          STUDIO-080-008. This is the SNAPSHOT's view and it is deliberately
+          thin — the live one is at /platform/health, where every alarm carries a
+          verdict rather than a state. Two things had to change even here.
+
+          `alarmsUnavailable` distinguishes "the collector was refused" from "the
+          account has no alarms". Before it existed, `aws()` returned null on a
+          denial, `list(null)` was `[]`, and this row rendered as no alarms at
+          all — an operator reading a green console off a permission they did not
+          have.
+
+          And an alarm whose actions are disabled is reported as such rather than
+          as its state. A disabled alarm in OK notifies nobody; printing OK for
+          it is the most reassuring thing this page could get wrong.
+        */}
+        {"alarmsUnavailable" in estate && estate.alarmsUnavailable ? (
+          <p data-testid="alarms-unavailable">
+            unknown — the inventory was refused <code>cloudwatch:DescribeAlarms</code>. This is not
+            an estate with no alarms; it is an estate nobody was allowed to look at. The live read
+            is at <Link href="/platform/health">Health</Link>.
+          </p>
+        ) : (
+          <div className="chips">
+            {estate.alarms.map((a) => {
+              const disabled = "actionsEnabled" in a && a.actionsEnabled === false
+              return (
+                <span className="chip" key={a.name}>
+                  <b>{disabled ? "ACTIONS OFF" : a.state}</b> {a.name}
+                </span>
+              )
+            })}
+          </div>
+        )}
+        <p className="slug">
+          A snapshot compiled at a commit. <Link href="/platform/health">Health</Link> reads
+          CloudWatch live and reports seven verdicts, including the four this table cannot express —
+          disabled, stale, missing and unauthorized.
+        </p>
       </section>
 
       {/* ── Tests ─────────────────────────────────────────────────────── */}

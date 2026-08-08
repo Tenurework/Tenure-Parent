@@ -11,17 +11,27 @@
  * rejected. The second matters more than it looks — a violation is written to
  * a log, and these carry tenant data.
  */
+import fs from "node:fs"
+import path from "node:path"
+
 import { describe, expect, it } from "@jest/globals"
 
 import {
+  CHANGE_DOMAINS,
   CONTRACTS,
+  CONTROL_PLANE_SCHEMA_VERSIONS,
   ContractViolation,
   MAX_PAGE,
+  parseApiEnvelope,
   parseAuditEntry,
+  parseChangeDiff,
   parseCommand,
   parseConfigSnapshot,
   parseContractError,
+  parseCostFigure,
   parseDomainEvent,
+  parseDriftFinding,
+  parseEstateResource,
   parseFileRef,
   parseIdempotencyRecord,
   parseJobRequest,
@@ -528,12 +538,173 @@ describe("ProcessChain", () => {
   })
 })
 
+/* ------------------------------------------- the control-plane read plane -- */
+
+/**
+ * STUDIO-130-001 — the four control-plane contracts, held to the SAME table the
+ * published JSON Schema is held to.
+ *
+ * `docs/contracts/conformance-fixtures.json` is read from disk rather than
+ * duplicated here, because the other half of this proof —
+ * `tests/architecture/contracts-schemas-match-parsers.test.mjs` — runs the same
+ * rows against the committed schema documents. Two copies of a fixture table is
+ * how a schema comes to admit what a parser refuses with both suites green.
+ */
+const FIXTURES: Record<
+  string,
+  {
+    accept: { why: string; value: unknown }[]
+    reject: { why: string; by: "schema" | "parser"; field: string; value: unknown }[]
+  }
+> = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "../../../docs/contracts/conformance-fixtures.json"), "utf8"),
+)
+
+const CONTROL_PLANE_PARSERS = {
+  EstateResource: parseEstateResource,
+  CostFigure: parseCostFigure,
+  DriftFinding: parseDriftFinding,
+  ChangeDiff: parseChangeDiff,
+  ApiEnvelope: parseApiEnvelope,
+} as const
+
+describe("the control-plane contracts, over the published conformance table", () => {
+  it("has a fixture table for every control-plane contract", () => {
+    // Every assertion below iterates the table, and an empty table would make
+    // all of them pass while proving nothing.
+    expect(Object.keys(CONTROL_PLANE_PARSERS).sort()).toEqual(
+      Object.keys(FIXTURES).filter((k) => k !== "//").sort(),
+    )
+    for (const contract of Object.keys(CONTROL_PLANE_PARSERS)) {
+      expect(FIXTURES[contract].accept.length).toBeGreaterThan(0)
+      expect(FIXTURES[contract].reject.length).toBeGreaterThan(2)
+    }
+  })
+
+  for (const [contract, parse] of Object.entries(CONTROL_PLANE_PARSERS)) {
+    describe(contract, () => {
+      for (const row of FIXTURES[contract].accept) {
+        it(`accepts: ${row.why}`, () => {
+          expect(() => parse(row.value as never)).not.toThrow()
+        })
+      }
+
+      for (const row of FIXTURES[contract].reject) {
+        it(`refuses (${row.by}): ${row.why}`, () => {
+          let violation: ContractViolation | null = null
+          try {
+            parse(row.value as never)
+          } catch (err) {
+            violation = err instanceof ContractViolation ? err : null
+          }
+          expect(violation).toBeInstanceOf(ContractViolation)
+          // The field, not just the throw. A parser that refused everything for
+          // the wrong reason would pass a bare `toThrow`, and the field is what
+          // the schema-match suite compares its own verdict against.
+          expect(violation!.field).toBe(row.field)
+        })
+      }
+    })
+  }
+})
+
+describe("control-plane versioning", () => {
+  const estate = () => JSON.parse(JSON.stringify(FIXTURES.EstateResource.accept[0].value)) as Record<string, unknown>
+
+  it("accepts a producer one minor ahead", () => {
+    // Forward-compatible on purpose: a minor is additive, and refusing it would
+    // mean every consumer must be redeployed before any producer may add a field.
+    expect(() => parseEstateResource({ ...estate(), schemaVersion: "1.99" })).not.toThrow()
+  })
+
+  it("refuses a producer a major ahead", () => {
+    expect(() => parseEstateResource({ ...estate(), schemaVersion: "2.0" })).toThrow(
+      /major version this build does not implement/,
+    )
+  })
+
+  it("refuses a version that is not MAJOR.MINOR", () => {
+    expect(() => parseEstateResource({ ...estate(), schemaVersion: "v1" })).toThrow(/MAJOR\.MINOR/)
+  })
+
+  it("publishes a version for every control-plane contract", () => {
+    expect(Object.keys(CONTROL_PLANE_SCHEMA_VERSIONS).sort()).toEqual(
+      Object.keys(CONTROL_PLANE_PARSERS).sort(),
+    )
+    for (const version of Object.values(CONTROL_PLANE_SCHEMA_VERSIONS)) {
+      expect(version).toMatch(/^\d+\.\d+$/)
+    }
+  })
+})
+
+describe("ChangeDiff domains", () => {
+  it("names only the domains something actually emits", () => {
+    // STUDIO-060-003. Five of the ten domains the requirement lists are absent
+    // rather than empty: an empty section reads as "nothing changed there",
+    // which is the opposite of "this product does not compute that".
+    expect([...CHANGE_DOMAINS].sort()).toEqual([
+      "app-config",
+      "aws-resource",
+      "cost",
+      "relay",
+      "rollback",
+    ])
+    for (const absent of ["data-schema", "iam", "domain", "integration", "operations"]) {
+      expect(CHANGE_DOMAINS).not.toContain(absent)
+    }
+  })
+
+  it("refuses a cost entry that priced nothing", () => {
+    // The `cost` domain exists to carry a figure. An entry with `null` puts a
+    // cost heading over an unknown number, which an approver reads as a known
+    // one — the empty-section problem in a different shape.
+    expect(() =>
+      parseChangeDiff({
+        schemaVersion: "1.0",
+        entries: [
+          { domain: "cost", path: "p", before: null, after: "PEER", effect: "create", reversible: true, monthlyCostDeltaMinor: null },
+        ],
+      }),
+    ).toThrow(/must carry a figure/)
+  })
+
+  it("refuses a rollback that claims to be irreversible", () => {
+    // A rollback republishes an earlier revision forward as a new one and
+    // leaves the history intact, so nothing about it is unrecoverable. A
+    // producer marking one irreversible would make a confirmation surface
+    // refuse the action an operator reaches for during an incident.
+    expect(() =>
+      parseChangeDiff({
+        schemaVersion: "1.0",
+        entries: [
+          { domain: "rollback", path: "platform.branding.wordmark", before: "a", after: "b", effect: "update", reversible: false, monthlyCostDeltaMinor: null },
+        ],
+      }),
+    ).toThrow(/republishes forward/)
+  })
+
+  it("distinguishes an unpriced entry from a free one", () => {
+    // `null` and `0` are different answers. A threshold that read "not computed"
+    // as "costs nothing" would approve an unpriced change automatically.
+    const diff = parseChangeDiff({
+      schemaVersion: "1.0",
+      entries: [
+        { domain: "app-config", path: "a", before: 1, after: 2, effect: "update", reversible: true, monthlyCostDeltaMinor: null },
+        { domain: "aws-resource", path: "arn:aws:ecs:us-east-1:012345678901:service/x/y", before: null, after: "ecs:service", effect: "create", reversible: true, monthlyCostDeltaMinor: 0 },
+      ],
+    })
+    expect(diff.entries[0].monthlyCostDeltaMinor).toBeNull()
+    expect(diff.entries[1].monthlyCostDeltaMinor).toBe(0)
+  })
+})
+
 describe("every contract, uniformly", () => {
   const parsers = [
     parseTenantContext, parseCommand, parseQuery, parseDomainEvent, parseOutboxRecord,
     parseContractError, parseJobRequest, parseIdempotencyRecord, parsePermissionCheck,
     parsePermissionDecision, parseFileRef, parseConfigSnapshot, parseAuditEntry,
-    parseToolRegistration, parseProcessChain,
+    parseToolRegistration, parseProcessChain, parseEstateResource, parseCostFigure,
+    parseDriftFinding, parseChangeDiff, parseApiEnvelope,
   ]
 
   it("declares one parser per contract", () => {
@@ -565,6 +736,16 @@ describe("every contract, uniformly", () => {
       // failure mode is a false pass.
       () => parseToolRegistration({ toolKey: "k", module: "m", description: "A tool that does a thing usefully.", requiredPermission: SECRET, readOnly: true, reauthorizesPerCall: false }),
       () => parseContractError({ kind: SECRET, code: "c", safeDetail: "d", retryable: false, correlationId: "x" }),
+      // The control-plane four go through a schema validator rather than
+      // hand-written field checks, so the same property has to be proven of it:
+      // a pattern failure, an enum failure, and — the one most likely to leak —
+      // an unknown property, whose KEY is input and must not be named back.
+      () => parseEstateResource({ ...(FIXTURES.EstateResource.accept[0].value as object), region: SECRET }),
+      () => parseEstateResource({ ...(FIXTURES.EstateResource.accept[0].value as object), [SECRET]: 1 }),
+      () => parseChangeDiff({
+        schemaVersion: "1.0",
+        entries: [{ domain: SECRET, path: "a", before: null, after: 1, effect: "create", reversible: true, monthlyCostDeltaMinor: null }],
+      }),
     ]
 
     for (const attempt of attempts) {

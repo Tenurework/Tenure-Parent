@@ -95,6 +95,58 @@ variable "platform_reconcile_secret" {
   sensitive   = true
 }
 
+# ── STUDIO-070-002 — the ownership facts the tag contract needs ─────────────
+#
+# Variables rather than literals in `local.tags`, because both of these are
+# organisational facts that change without any code changing: a cost centre is
+# renamed by finance, and an owning seat moves between teams. Baking either into
+# the locals block means the estate's ownership is only correct until the next
+# reorganisation, and nobody notices it went stale.
+#
+# Both are validated. An empty cost centre would be accepted by AWS, merged onto
+# every resource in the stack, and then fail `tagProblems` at inventory time —
+# after the apply, which is the expensive place to find out.
+
+variable "owner_seat" {
+  description = <<-EOT
+    The named seat that answers for this stack — a role, never a person.
+
+    A person's address here is an ownership record that expires the day they
+    leave, which is the exact case WRK-120-005 exists for. `platform-engineering`
+    is a seat somebody always holds.
+  EOT
+  type        = string
+  default     = "platform-engineering"
+
+  validation {
+    condition     = trimspace(var.owner_seat) != ""
+    error_message = "owner_seat must name a seat. An empty owner tag reads as \"nobody decided\", which is the state this tag exists to remove."
+  }
+}
+
+variable "cost_center" {
+  description = "Where this stack's spend lands. Tagged onto every resource so the CUR can group by it without a lookup table."
+  type        = string
+  default     = "platform-engine"
+
+  validation {
+    condition     = trimspace(var.cost_center) != ""
+    error_message = "cost_center must be set. Untagged spend is reported unallocated, never spread."
+  }
+}
+
+variable "release" {
+  description = <<-EOT
+    The release these resources were created for.
+
+    Distinct from `schema_version`, which is what the ENGINE builds tenant
+    artifacts against. This one answers "which deploy created this resource",
+    which is the question asked during an incident.
+  EOT
+  type        = string
+  default     = "unpinned"
+}
+
 variable "cell_reconcile_url" {
   description = <<-EOT
     Where a cell accepts deployment manifests. `{region}` is substituted with

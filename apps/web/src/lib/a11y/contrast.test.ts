@@ -12,6 +12,10 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 
+import resolveConfig from "tailwindcss/resolveConfig"
+
+import tailwindConfig from "../../../tailwind.config"
+
 import {
   AA_THRESHOLD,
   composite,
@@ -341,10 +345,21 @@ describe("every declared colour is one the audit can actually measure", () => {
  * So the expectation is derived from the real files rather than from the array.
  */
 
-/** Every token the product can render as a foreground. Anchored, not prefixed:
- *  `--primary-light` starts with "primary" and is a background. */
+/**
+ * Every token the product can render as a foreground. Anchored, not prefixed:
+ * `--primary-light` starts with "primary" and is a background.
+ *
+ * The ramps are matched by `\d+`, NOT by the index range that ships today.
+ * `text-[123]` and `chart-[1-8]` were the ranges, and they put the ratchet's own
+ * blind spot inside the pattern that exists to find blind spots: adding
+ * `--text-4` — a fourth rung of the ink scale, which is a foreground by
+ * construction — left this suite 26/26 green with the token declared, bound and
+ * in no pairing. That is the exact sentence this gate was written to make
+ * false. A ramp is open-ended; the pattern has to be too, or the next rung is
+ * invisible for the same reason `--text-3` was.
+ */
 const FOREGROUND_TOKEN =
-  /^--(text-[123]|text-link|text-inverse|text-disabled|shell-text|shell-text-secondary|[\w-]+-text|primary|accent|accent-strong|success|warning|error|info|chart-[1-8]|border-control|border-focus)$/
+  /^--(text-\d+|text-link|text-inverse|text-disabled|shell-text|shell-text-secondary|[\w-]+-text|primary|accent|accent-strong|success|warning|error|info|chart-\d+|border-control|border-focus)$/
 
 /**
  * The foregrounds that are deliberately in no pairing, each with the reason and
@@ -447,5 +462,167 @@ describe("TTES-GATE-010 — the pairing list is complete, not convenient", () =>
       }
     }
     expect(missing).toEqual([])
+  })
+})
+
+/**
+ * TTES-GATE-010, the other direction.
+ *
+ * Everything above enumerates FROM `globals.css`: which declared token is
+ * unpaired, which declared token fails to resolve, which name `tailwind.config.
+ * ts` binds that the catalog does not carry. Every one of those walks
+ * stylesheet → component. None walks component → stylesheet, and the gate's own
+ * sentence has two halves: "adding a token, OR A NEW FOREGROUND-ON-SURFACE
+ * COMBINATION IN A COMPONENT, is invisible to the gate forever." The first half
+ * is closed. This is the second.
+ *
+ * It is not hypothetical. Two live defects were sitting in the product that
+ * every assertion above was structurally unable to see, because in both the
+ * component named something the stylesheet-first scan had no reason to look at:
+ *
+ *   1. `src/app/signin/page.tsx` painted the sign-in failure message with
+ *      `text-[--danger]` and `border-[--danger]`. `--danger` is declared in no
+ *      theme and is in no catalog — it was the only reference to that name in
+ *      the product. An undefined custom property with no fallback is invalid at
+ *      computed-value time, so `color` fell back to the inherited body ink and
+ *      `border-color` to `currentColor`: the one message telling somebody their
+ *      credentials failed rendered with no danger semantics whatsoever. A scan
+ *      that enumerates declared tokens can never find this, because the token is
+ *      precisely the one that is NOT declared.
+ *
+ *   2. `ui/Avatar.tsx`'s `lg` size wrote `text-base` for the font size, and
+ *      `tailwind.config.ts` had a colour named `base`, so Tailwind emitted
+ *      `.text-base { font-size: 1rem; …; color: var(--bg-base) }`. Every club
+ *      card without a logo (`ClubCard.tsx:61`) drew its monogram initials in the
+ *      page background colour. `--bg-base` is declared, resolves in all four
+ *      themes and is in the catalog — it passes every assertion above — and it
+ *      is a BACKGROUND by name, so the foreground pattern will never match it.
+ *      The only way to see it is to notice that a component renders it as ink.
+ *
+ * So this reads the utilities a component can actually write, from the RESOLVED
+ * Tailwind config rather than from the source text of it — `resolveConfig` is
+ * what the build calls, so narrowing `textColor` there is measured here — and
+ * requires every token reachable as ink to be declared, to resolve in all four
+ * themes, and to be paired or explicitly exempt.
+ */
+describe("TTES-GATE-010 — every foreground a component RENDERS is declared and paired", () => {
+  const themes = readThemes()
+  const pairedAsForeground = new Set(PAIRINGS.map((p) => p.fg))
+  const exempt = new Set(NOT_PAIRED.map((e) => e.token))
+
+  /**
+   * Utility suffix → token, for every `text-*` class Tailwind will emit.
+   *
+   * From `theme.textColor` of the resolved config, which is the map the text
+   * utilities are generated from. Reading `colors` instead would be wrong in the
+   * one direction that matters: `textColor` is deliberately narrower, and a test
+   * that ignored the narrowing could not tell whether removing it re-armed the
+   * `text-base` collision.
+   */
+  const textUtilities = (): Map<string, string> => {
+    const theme = resolveConfig(tailwindConfig as never).theme as Record<string, unknown>
+    const out = new Map<string, string>()
+    const add = (suffix: string, value: unknown) => {
+      if (typeof value !== "string") return
+      const ref = /^var\((--[\w-]+)\)$/.exec(value.trim())
+      // Only token-valued entries. Tailwind's stock palette (`text-red-500`) is
+      // literal hex; a component writing one is a raw-value violation, which is
+      // the ESLint design-token boundary's job and not this file's.
+      if (ref) out.set(suffix, ref[1])
+    }
+    for (const [key, value] of Object.entries(theme.textColor as Record<string, unknown>)) {
+      if (value && typeof value === "object") {
+        for (const [inner, v] of Object.entries(value as Record<string, unknown>)) {
+          add(inner === "DEFAULT" ? key : `${key}-${inner}`, v)
+        }
+      } else add(key, value)
+    }
+    return out
+  }
+
+  /**
+   * Comments are blanked before scanning, preserving offsets so line numbers
+   * still point at the real line. `shell/ShellHeader.tsx` carries a comment
+   * reading "NB: not `text-base`" — a warning ABOUT the hazard is not an
+   * instance of it, and a scanner that cannot tell the difference reports the
+   * documentation as the defect.
+   */
+  const strip = (source: string) =>
+    source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (block) => block.replace(/[^\n]/g, " "))
+
+  /** Every token a component renders as ink, with where it does it. */
+  const renderedForegrounds = (): Map<string, string[]> => {
+    const utilities = textUtilities()
+    const root = path.join(__dirname, "..", "..")
+    const files: string[] = []
+    const walk = (dir: string) => {
+      // `src/lib/a11y` names every token in order to audit it.
+      if (path.resolve(dir) === path.resolve(__dirname)) return
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) walk(full)
+        else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) files.push(full)
+      }
+    }
+    walk(root)
+
+    const found = new Map<string, string[]>()
+    for (const file of files) {
+      strip(fs.readFileSync(file, "utf8"))
+        .split("\n")
+        .forEach((line, i) => {
+          for (const chunk of line.split(/[\s"'`{}()=]+/)) {
+            // Strip Tailwind variant prefixes: `hover:`, `focus-visible:`,
+            // `group-hover:md:` and so on, down to the bare utility.
+            const utility = chunk.replace(/^(?:[\w-]+:)+/, "")
+            if (!utility.startsWith("text-")) continue
+            const suffix = utility.slice(5).replace(/\/\d+$/, "")
+            const arbitrary = /^\[(--[\w-]+)\]$/.exec(suffix)
+            const name = arbitrary ? arbitrary[1] : utilities.get(suffix)
+            if (!name) continue
+            if (!found.has(name)) found.set(name, [])
+            found.get(name)!.push(`${path.relative(root, file)}:${i + 1}`)
+          }
+        })
+    }
+    return found
+  }
+
+  it("every token rendered as ink is declared and resolves in all four themes", () => {
+    const found = renderedForegrounds()
+    // A guard on the guard. If the scan stops finding anything — a changed class
+    // convention, a broken variant strip — every assertion here passes
+    // vacuously and the ratchet is gone without a single failure.
+    expect(found.size).toBeGreaterThan(15)
+
+    const undeclared: string[] = []
+    for (const [name, sites] of found) {
+      for (const theme of ALL_THEMES) {
+        try {
+          token(themes[theme], name)
+        } catch {
+          undeclared.push(`${name} (${theme}) rendered as ink at ${sites[0]}`)
+        }
+      }
+    }
+    expect(undeclared).toEqual([])
+  })
+
+  it("every token rendered as ink is measured by a pairing", () => {
+    const found = renderedForegrounds()
+    const unaudited = [...found]
+      .filter(([name]) => !pairedAsForeground.has(name) && !exempt.has(name))
+      .map(([name, sites]) => `${name} rendered as ink at ${sites.slice(0, 3).join(", ")}`)
+    expect(unaudited).toEqual([])
+  })
+
+  it("no background-role token is reachable as a text utility at all", () => {
+    // The root cause of the Avatar defect, asserted where it was introduced
+    // rather than where it surfaced. These three name a surface; a `text-*`
+    // class for them has no legitimate use, and one of them collides with the
+    // built-in `text-base` font size, which is how it went unnoticed.
+    const utilities = textUtilities()
+    const surfaces = [...utilities].filter(([, name]) => /^--bg-/.test(name))
+    expect(surfaces).toEqual([])
   })
 })

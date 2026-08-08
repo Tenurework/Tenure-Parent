@@ -73,32 +73,98 @@ than assumed.
 | `J02-executive-metrics` | OSE director | From the dashboard, reach institution-wide reporting | — | — | — | — |
 | `J03-handoff-packet` | Club board member | From the dashboard, reach the handoff packet for my club | — | — | — | — |
 | `J04-find-a-record` | Club board member | From anywhere in the shell, search for a record by name | — | — | — | — |
+| `J05-connect-calendar` | Club member | From the dashboard, find the calendar subscription and connect it | — | — | — | — |
+| `J06-ask-admin-storage` | Club member | From the dashboard, ask an administrator about a connection only they can make | — | — | — | — |
+| `J07-disconnect-backup-approver` | OSE director | From settings, disconnect the backup approver who can act on my gate | — | — | — | — |
+| `J08-confirm-relay-action` | Club board member | Ask Tenure AI a question and confirm from the reply what it was allowed to do | — | — | — | — |
 
 `—` means **declared but never measured**. It is not the same as a missing row:
 a missing row fails the journey outright, because a journey nobody wrote down is
 a journey nobody can notice getting worse. An unmeasured row still runs, still
 records what it cost, and still refuses a `fill()`; it just has no ceiling yet.
 
+### The connection journeys — `WRK-110-005`
+
+`J05`–`J08` are the connect / ask-admin / fix / disconnect / confirm paths, and
+they exist because the decision behind them did and the surface did not.
+`resolveCapability` (`apps/web/src/lib/connections/capability-resolution.ts`) has
+returned exactly one control per capability since it was written, and
+`settings/page.tsx` printed the label, the explanation, the owner and the badge
+and never `resolved.action` — so `connect`, `ask-admin` and `disconnect` were
+decisions no test could reach because nothing rendered them.
+
+Each journey asserts two things beyond its counts, and they are the "without
+provider-console knowledge" half of the requirement rather than a proxy for it:
+
+- every URL the path visited is on the Tenure origin, and
+- the visible text along the path names none of `portal.azure.com`,
+  `admin center`, `API key`, `client secret`, `developer console`.
+
+**Two ids differ from the ones the requirement drafted, because the state they
+named does not exist.**
+
+- `J07-disconnect-backup-approver`, not `J07-disconnect-calendar`. The calendar
+  feed is a stateless signed URL that expires 180 days after it is issued and
+  Tenure stores no record that anybody pasted one into a calendar app — so it
+  cannot be disconnected from this side, and a Disconnect control on that row
+  would be a button that does nothing. The backup approver IS a per-user
+  connection with real persistence, a real `setDelegation` and a real
+  `revokeDelegation`, so the disconnect path is measured where it is genuine.
+- `J06-ask-admin-storage`, not `J06-ask-admin-ai`. After WRK-030-005 `ai.model`
+  derives `certified` from `RELAY_ANTHROPIC_REVIEW`, which is `NOT_SUBMITTED`,
+  so it resolves NOT_CERTIFIED and correctly offers **no control at all**.
+  Document storage is the row that genuinely resolves NEEDS_ADMIN.
+
+`fix` is not a journey of its own: it is the `whereToFix` sentence, promoted out
+from under the row and rendered beside the control, and every one of J05–J07
+reads it on the way past.
+
 ### Why the product rows are still unmeasured
 
-Filling them in needs a seeded database, and on 2026-08-07 the repository could
-not produce one:
+**The seed blocker this section used to record is gone.** It said
+`node apps/web/scripts/seed.mjs` aborted with "Argument `institutionId` is
+missing" because `LedgerEntry` had become tenant-scoped and the seed did not
+know. `scripts/seed.mjs:476` now sets it, and on 2026-08-07 the whole setup ran
+clean end to end:
 
 ```
-DATABASE_URL=postgresql://tenure:tenure@localhost:5460/tenure \
-  npx prisma migrate deploy      # succeeds — 9 migrations applied
-DATABASE_URL=... node apps/web/scripts/seed.mjs
-#   Invalid `prisma.ledgerEntry.create()` invocation:
-#   Argument `institutionId` is missing.
+export DATABASE_URL="postgresql://tenure:tenure@localhost:5462/tenure"
+npm exec --workspace apps/web -- prisma migrate deploy
+#   All migrations have been successfully applied.
+node apps/web/scripts/seed.mjs
+#   Seed complete — 26 clubs, 235 seats, 172 directory people,
+#   259 seat holdings, 34 deliverables, 15 board resources
+npm run type-check      # 0 errors
 ```
 
-`prisma/schema.prisma` has gained a required `LedgerEntry.institutionId` and
-`scripts/seed.mjs` does not set it, so the seed aborts part-way. Until the seed
-and the schema agree, no journey can sign in. `npm run build` is separately
-unavailable: `npm run type-check` reports errors in
-`src/app/(app)/approvals/[id]/page.tsx` and `src/components/finance/LedgerDrawer.tsx`.
+That sentence had been false for some time with nothing watching it, on rows
+nobody could fill in for as long as it stood. It is the reason
+`tests/architecture/pass-requires-evidence.test.mjs` now re-checks the one part
+of a blocker a machine can: a path an entry claims is absent.
 
-To record a row once that is fixed:
+**The build blocker is gone too, and it went the same way.** This section then
+said the measurement was stopped by `npm run build` failing to compile on
+`src/app/(app)/orgs/[slug]/finance/page.tsx` (`'OrgRecordHeader' is not
+defined`) and `src/components/ClubImageEditor.tsx` (a restricted
+`react-aria-components` import) — another slice's work caught half-applied, with
+`J01` and `J03` both ending on those pages. That slice has landed. Re-run on
+2026-08-07 from the repository root:
+
+```
+npm run build
+#   ✓ Compiled successfully
+#   ✓ Generating static pages (10/10)
+#   exit 0 — warnings only, no errors
+```
+
+Two blockers have now been written into this document and both became false
+without anybody noticing. That is the pattern worth naming rather than the two
+incidents: a blocker decides that a requirement is not startable, and
+`tools/loop/next-batch.mjs` stops offering an item for exactly as long as one
+stands, so the sentence keeps working long after it stops being true. Re-run the
+command before believing a paragraph in this section.
+
+To record the rows:
 
 ```
 docker run -d --name tenure-ux-pg -e POSTGRES_USER=tenure -e POSTGRES_PASSWORD=tenure \
@@ -139,6 +205,19 @@ every test in this repository — which is precisely why the requirement says
 `BLOCKED_EXTERNAL` in
 `docs/implementation/tenant-experience-execution-ledger.md` rather than as
 anything else.
+
+Two guards hold that position rather than trusting it:
+
+- `tests/architecture/ux-task-scorecard.test.mjs` — "no competitor task time has
+  been written down that nobody measured" fails on any row here that names one
+  of those products beside a number. Prose naming them is fine; the requirement
+  names them itself.
+- `tests/architecture/pass-requires-evidence.test.mjs` — "an entry that says a
+  file is absent is still right about it" re-runs the ledger's own
+  `ls docs/decisions/ADR-0009-competitive-benchmarking.md   # absent` check on
+  every CI run. A blocked item is one the loop skips for as long as it stays
+  blocked, so a blocker that quietly comes true is the most expensive stale
+  sentence there is — as the seed paragraph above was.
 
 What can be done now, and is done above, is the half that does not need them:
 Tenure's own per-persona costs, measured the same way every time, so that the

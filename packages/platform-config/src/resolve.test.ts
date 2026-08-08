@@ -142,6 +142,19 @@ describe("every shipped blueprint and binding is valid against the registry", ()
       ["platform.payments.legalEntityId", ""],
       // `test`, never `live`: an unconfigured tenant does not move real money.
       ["platform.payments.mode", "test"],
+      // WRK-120-004 added the fourth, and it arrived with a default of
+      // 20,000,000 tokens — reasoned about as the pilot's allowance, which is
+      // not what a default is. A default is what an institution nobody has
+      // configured inherits, and `requiresCapability: relay.modelBudget.publish`
+      // says raising a model allowance takes an authority. Handing 5,500
+      // assistant answers a month to a tenant that never got that authority is
+      // the escalation this test exists to catch, so the DEFAULT moved to zero
+      // rather than this list acquiring an exception. Zero is a floor and not a
+      // failure: `/api/ai/chat` already degrades to cited sources with no
+      // written answer once a budget is spent, so an unconfigured tenant lands
+      // on a path that exists. A real allowance is published, which is what
+      // makes the key configuration instead of a constant.
+      ["platform.relay.modelTokenBudgetPerMonth", 0],
     ])
   })
 })

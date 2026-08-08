@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
+import { operatorFor } from "./operator-identity"
 
 /**
  * GE-GATE-3 — the configuration engine, exercised end to end instead of
@@ -36,7 +37,7 @@ import { test, expect, type Page } from "@playwright/test"
  * the database is absent is worse than none, because the gate would cite it.
  */
 
-const OPERATOR = process.env.PLATFORM_OPERATORS?.split(",")[0]?.trim() ?? ""
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 const configured = !!process.env.TENANT_TABLE
 

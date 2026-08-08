@@ -111,10 +111,106 @@ export function gateChildren(id, file, all) {
 /** A decided child is one somebody finished with. FAIL is not a decision. */
 const DECIDED = new Set(["PASS", "NOT_APPLICABLE"])
 
-/** `- Children: 0 of 5 decided` → `{ decided: 0, total: 5 }`. */
+/**
+ * The child ratio a gate claims, in either spelling the ledgers actually use.
+ *
+ *   - Children: 0 of 5 decided            → { decided: 0, total: 5 }
+ *   - **2 of 4 children decided.** …      → { decided: 2, total: 4 }
+ *
+ * The second spelling is here because reading only the first made the truth
+ * check below skip the gates that needed it most: three `PACK-GATE-*` rows
+ * stated their ratio this way and every one was WRONG — 010 said 2 of 4 with
+ * one child decided, 030 said 3 of 5 with two, 080 said 0 of 5 with three. (A
+ * fourth, 060, used a shape this deliberately does not read; see
+ * `unparsedChildRatioLines`.) A parser that recognises one spelling does not
+ * make the others invalid, it makes them unchecked, and an unchecked ratio is a
+ * number a reader believes.
+ *
+ * What it must keep rejecting is a ratio that is not about children at all:
+ * `2901/2901 unit tests` satisfies the gate-evidence rule above and must not be
+ * mistaken for a count of finished requirements. Hence the discriminator in
+ * both branches — the key is literally `Children`, or the number pair is
+ * immediately followed by the word.
+ */
 export function statedChildRatio(body) {
-  const m = /^\s*[-*]\s*\*{0,2}Children\*{0,2}\s*:\s*\*{0,2}(\d+)\s*(?:\/|\s+of\s+)\s*(\d+)/m.exec(body)
-  return m ? { decided: Number(m[1]), total: Number(m[2]) } : null
+  const keyed = /^\s*[-*]\s*\*{0,2}Children\*{0,2}\s*:\s*\*{0,2}(\d+)\s*(?:\/|\s+of\s+)\s*(\d+)/m.exec(body)
+  if (keyed) return { decided: Number(keyed[1]), total: Number(keyed[2]) }
+  const prose = /(\d+)\s*(?:\/|\s+of\s+)\s*(\d+)\s*\*{0,2}\s+child(?:ren)?\b/i.exec(body)
+  return prose ? { decided: Number(prose[1]), total: Number(prose[2]) } : null
+}
+
+/**
+ * Lines that talk about a gate's children with a ratio in them, when nothing in
+ * the entry parses as a ratio at all.
+ *
+ * The residue of the two spellings above. `PACK-GATE-060` writes "A gate is
+ * proven by its children, and 0 of 4 are complete" — a child ratio by any
+ * reader's understanding, in a shape no parser should be widened to guess at,
+ * and wrong (one of its four is PASS). Rather than loosening `statedChildRatio`
+ * until it matches English, the entry is asked to say it once in the canonical
+ * place. Returns [] when the entry already states a ratio, so this only ever
+ * fires on a claim no checker can see.
+ */
+export function unparsedChildRatioLines(body) {
+  if (statedChildRatio(body)) return []
+  return body
+    .split("\n")
+    .filter((line) => /\bchild(?:ren)?\b/i.test(line) && /\d+\s*(?:\/|\s+of\s+)\s*\d+/.test(line))
+    .map((line) => line.trim())
+}
+
+/**
+ * Statuses an entry claims about ANOTHER requirement, in the one shape a
+ * checker can read: the id in backticks, then the status.
+ *
+ *     - Children: 2 of 5 decided — `TTES-040-001` PASS, `TTES-040-003` FAIL
+ *
+ * Why this exists on top of the ratio check above, which already reads the same
+ * line. A ratio is a COUNT, and a count is stable under the one edit this
+ * repository actually makes to a decided requirement: a PASS being withdrawn.
+ * Two were withdrawn in a single session (`PACK-GATE-000`, `PACK-GATE-020`). A
+ * gate saying "2 of 5 — 001 and 002 PASS" while 001 is withdrawn and 003 lands
+ * still says 2 of 5, the arithmetic still checks out, and every reader believes
+ * the two names rather than the total.
+ *
+ * `TTES-GATE-040` is the standing proof that per-child prose rots on its own:
+ * its `TTES-040-002` paragraph read "nothing" for as long as it took somebody to
+ * re-read it, while that child had been decided PASS with an e2e behind it. The
+ * ratio caught the count on the next run; nothing was watching the sentence.
+ *
+ * Deliberately narrow — the status has to FOLLOW the id, optionally through
+ * `is`/`was`/`=`. "`PACK-020-001`, the archetype axes it is named for, was FAIL"
+ * is prose about a child and is not a claim this reads, because a parser that
+ * guessed at English would report findings nobody wrote. The answer to a claim
+ * this cannot see is to state it in the canonical shape as well, exactly as
+ * `unparsedChildRatioLines` asks for the ratio.
+ */
+export function statedChildStatuses(body) {
+  const out = []
+  const re =
+    /`([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d{3}-\d+)`\s*(?:=\s*|\bis\s+|\bwas\s+)?\*{0,2}(PASS|FAIL|BLOCKED_EXTERNAL|NOT_APPLICABLE)\b/g
+  for (const m of body.matchAll(re)) out.push({ id: m[1], status: m[2] })
+  return out
+}
+
+/**
+ * Paths a ledger entry says do not exist yet, in the shape blockers write them:
+ *
+ *     ls docs/decisions/ADR-0009-competitive-benchmarking.md   # absent on 2026-08-07
+ *
+ * A `BLOCKED_EXTERNAL` entry is a claim about the world, and the world moves.
+ * This session found `docs/architecture/ux-task-scorecard.md` still recording
+ * that `node apps/web/scripts/seed.mjs` aborts on a missing `institutionId`
+ * when the seed had since been fixed and runs clean — a blocker that had become
+ * false with nothing watching, on an item the loop skips for exactly as long as
+ * it stays blocked. A path claimed absent is the one part of such a claim a
+ * machine can re-check.
+ */
+export function absenceClaims(body) {
+  const out = []
+  const re = /^\s*ls\s+([\w./@-]+)\s*#\s*absent(?:\s+on\s+([\d-]+))?/gm
+  for (const m of body.matchAll(re)) out.push({ path: m[1], since: m[2] ?? "" })
+  return out
 }
 
 test("the reader finds the ledger entries", () => {
@@ -202,9 +298,61 @@ test("the child-ratio detectors read real shapes and reject invented ones", () =
 
   assert.deepEqual(statedChildRatio("  - Children: 0 of 5 decided"), { decided: 0, total: 5 })
   assert.deepEqual(statedChildRatio("  - Children: 21/21 PASS"), { decided: 21, total: 21 })
+  // The prose spelling three PACK gates used, which reading only the keyed form
+  // left unchecked — and all three were wrong.
+  assert.deepEqual(statedChildRatio("  - **2 of 4 children decided.** PACK-010-001 …"), {
+    decided: 2,
+    total: 4,
+  })
+  assert.deepEqual(statedChildRatio("  - Reason: **0 of 5 children decided** — …"), { decided: 0, total: 5 })
   // The gate-evidence rule above accepts any ratio anywhere in the body, which
   // is how "2901/2901 unit tests" reads as a child ratio. This one does not.
   assert.equal(statedChildRatio("  - Evidence: 2901/2901 unit tests"), null)
+  assert.equal(statedChildRatio("  - Evidence: 136/136 suites, 3431/3431 tests green"), null)
+
+  // The residue: a ratio about children in a shape the parser is deliberately
+  // not widened to guess at.
+  assert.deepEqual(unparsedChildRatioLines("  - proven by its children, and 0 of 4 are complete"), [
+    "- proven by its children, and 0 of 4 are complete",
+  ])
+  // Silent once the entry says it in the canonical place, so the two never
+  // report the same entry twice.
+  assert.deepEqual(
+    unparsedChildRatioLines("  - Children: 1 of 4 decided\n  - its children, and 0 of 4 are complete"),
+    [],
+  )
+  // And silent on an entry that never mentions children at all.
+  assert.deepEqual(unparsedChildRatioLines("  - Evidence: 136/136 suites"), [])
+
+  assert.deepEqual(absenceClaims("    ls docs/decisions/ADR-0009.md   # absent on 2026-08-07"), [
+    { path: "docs/decisions/ADR-0009.md", since: "2026-08-07" },
+  ])
+  // Not every `ls` is a claim. Only one saying the thing is not there.
+  assert.deepEqual(absenceClaims("    ls docs/decisions/"), [])
+
+  // Per-child statuses: the shape that is read, and the shapes that are not.
+  assert.deepEqual(
+    statedChildStatuses("  - Children: 2 of 5 decided — `TTES-040-001` PASS, `TTES-040-003` FAIL"),
+    [
+      { id: "TTES-040-001", status: "PASS" },
+      { id: "TTES-040-003", status: "FAIL" },
+    ],
+  )
+  assert.deepEqual(statedChildStatuses("  - `TTES-050-002` is BLOCKED_EXTERNAL"), [
+    { id: "TTES-050-002", status: "BLOCKED_EXTERNAL" },
+  ])
+  assert.deepEqual(statedChildStatuses("  - `TTES-040-002` **PASS** — the console refusal"), [
+    { id: "TTES-040-002", status: "PASS" },
+  ])
+  // Prose about a child is not a claim about its status. Widening this to match
+  // would make the check report sentences nobody wrote as findings.
+  assert.deepEqual(
+    statedChildStatuses("  - `PACK-020-001`, the archetype axes it is named for, was FAIL"),
+    [],
+  )
+  assert.deepEqual(statedChildStatuses("  - `TTES-040-002` UI security: decided PASS since"), [])
+  // A gate id is not a requirement id and is not checked as one.
+  assert.deepEqual(statedChildStatuses("  - `TTES-GATE-040` FAIL"), [])
 })
 
 test("a gate that states its child ratio states the true one", () => {
@@ -230,20 +378,130 @@ test("a gate that states its child ratio states the true one", () => {
   assert.deepEqual(wrong, [], "A gate's stated child ratio disagrees with the children in the same ledger.")
 })
 
-test("a gate is not PASS while a child it counts is undecided", () => {
+test("an entry that states another requirement's status states the true one", () => {
+  // The count is checked above; this checks the NAMES. They fail differently.
+  // A ratio goes stale when a child is decided, which is loud — the arithmetic
+  // stops adding up on the next run. A named list goes stale when one child is
+  // decided and another is withdrawn, which is silent: the total is unchanged
+  // and the two sentences a reader actually reads are both wrong. PASSes ARE
+  // withdrawn here — two in one session — so that is not a hypothetical.
   const all = entries()
-  const premature = []
+  const status = new Map(all.map((e) => [e.id, e.status]))
+  const claims = []
+  const wrong = []
   for (const entry of all) {
-    if (entry.status !== "PASS") continue
-    const stated = statedChildRatio(entry.body)
-    const kids = stated && gateChildren(entry.id, entry.file, all)
+    for (const claim of statedChildStatuses(entry.body)) {
+      // An entry restating its own status is the Status line's job, not this.
+      if (claim.id === entry.id) continue
+      claims.push(`${entry.id} → ${claim.id}`)
+      const actual = status.get(claim.id)
+      if (actual === undefined) {
+        wrong.push(
+          `${entry.file} ${entry.id}: says \`${claim.id}\` is ${claim.status}, and no ledger entry has that id`,
+        )
+      } else if (actual !== claim.status) {
+        wrong.push(`${entry.file} ${entry.id}: says \`${claim.id}\` ${claim.status}, ledger says ${actual}`)
+      }
+    }
+  }
+  // Floor, because the finding is an absence: a parser that matched nothing
+  // would agree with every ledger forever, and this shape is written in exactly
+  // one place today.
+  assert.ok(
+    claims.length >= 5,
+    `Only ${claims.length} per-requirement status claims parsed across the ledgers; the ` +
+      "`\\`ID\\` STATUS` shape has changed and this check is no longer reading anything.",
+  )
+  assert.deepEqual(
+    wrong,
+    [],
+    "A ledger entry names another requirement's status and the ledger disagrees. Re-read the " +
+      "requirement rather than editing the number: a gate's named children are what a reader " +
+      "believes when the ratio still adds up.",
+  )
+})
+
+test("a gate is not PASS while a child it gates is undecided", () => {
+  // The children are derived from the ids, NOT from whether the entry chose to
+  // state a ratio. Reading `statedChildRatio` first was the hole and it was the
+  // wrong way round: the single edit that turns a false PASS into an
+  // unfalsifiable one — deleting the `Children:` line — also switched off the
+  // check that would have caught it. Two gates were already through it when
+  // this was fixed. `PACK-GATE-000` was PASS over an inventory (PACK-000-001)
+  // and a ledger import (PACK-000-003) that are both FAIL; `PACK-GATE-020` was
+  // PASS while `PACK-020-001`, the archetype axes the gate is named for, was
+  // FAIL. Neither stated a ratio, so neither was looked at.
+  const all = entries()
+  const gated = []
+  const premature = []
+  const unstated = []
+  for (const entry of all) {
+    const kids = gateChildren(entry.id, entry.file, all)
     if (!kids) continue
+    gated.push(entry.id)
+    if (entry.status !== "PASS") continue
     const undecided = kids.filter((k) => !DECIDED.has(k.status))
     if (undecided.length > 0) {
       premature.push(`${entry.file} ${entry.id}: ${undecided.map((k) => `${k.id}=${k.status}`).join(", ")}`)
     }
+    // A PASS gate has to say what it is claiming, so the ratio-truth check
+    // above has something to hold it to on the day a sixth child appears.
+    if (!statedChildRatio(entry.body)) {
+      unstated.push(`${entry.file} ${entry.id}: PASS with ${kids.length} children and no stated ratio`)
+    }
   }
+  // Floor: both findings are absences, and a derivation that returned null
+  // everywhere would report a clean repository. 182 gate entries exist; the
+  // ones whose children are derivable from the ids are the ones checked here.
+  assert.ok(gated.length >= 100, `Only ${gated.length} gates have derivable children; the id scheme has changed.`)
   assert.deepEqual(premature, [], "A gate is PASS while requirements it gates are not.")
+  assert.deepEqual(unstated, [], "A PASS gate does not say how many of its children are decided.")
+})
+
+test("a gate that talks about a child ratio states it where a checker can read it", () => {
+  // The escape hatch the two spellings leave. `PACK-GATE-060` said "A gate is
+  // proven by its children, and 0 of 4 are complete" — a ratio to every reader,
+  // no ratio to any parser, and wrong (PACK-060-001 is PASS). The answer is not
+  // a looser parser; it is one canonical line per gate.
+  const all = entries()
+  const unreadable = []
+  for (const entry of all) {
+    if (!gateChildren(entry.id, entry.file, all)) continue
+    for (const line of unparsedChildRatioLines(entry.body)) {
+      unreadable.push(`${entry.file} ${entry.id}: ${line.slice(0, 100)}`)
+    }
+  }
+  assert.deepEqual(
+    unreadable,
+    [],
+    "These gates claim a child ratio in prose nothing checks. State it as `- Children: N of M decided` " +
+      "as well, so the ratio-truth assertion above can hold it to the ledger.",
+  )
+})
+
+test("an entry that says a file is absent is still right about it", () => {
+  // A BLOCKED_EXTERNAL entry is a claim about the world, and the loop skips the
+  // item for as long as it stands — so a blocker that quietly comes true is the
+  // most expensive kind of stale sentence in this repository. One had already:
+  // `docs/architecture/ux-task-scorecard.md` recorded the seed aborting on a
+  // missing `institutionId` long after the seed was fixed.
+  const all = entries()
+  const claims = []
+  const wrong = []
+  for (const entry of all) {
+    for (const claim of absenceClaims(entry.body)) {
+      claims.push(`${entry.id} → ${claim.path}`)
+      if (fs.existsSync(path.join(ROOT, claim.path))) {
+        wrong.push(
+          `${entry.file} ${entry.id}: says \`${claim.path}\` was absent${claim.since ? ` on ${claim.since}` : ""}, ` +
+            `and it now exists — re-decide the item rather than leaving it blocked.`,
+        )
+      }
+    }
+  }
+  // Floor: a parser that matched nothing would agree with every ledger forever.
+  assert.ok(claims.length >= 1, "No entry states a re-checkable absence claim; the `ls … # absent` shape has changed.")
+  assert.deepEqual(wrong, [], "A blocker's absence claim has come true and the entry still says it has not.")
 })
 
 test("no entry claims a status the loop cannot act on", () => {

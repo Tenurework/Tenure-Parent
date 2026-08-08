@@ -1,0 +1,54 @@
+    await recordAuditEvent({
+      institutionId: scope.institutionId,
+      actor: { principalId: userId },
+      // The authority the requester acted under, not merely who they are. A
+      // reader six months later is establishing the second.
+      seat: seatFor(ctx, { institutionId: scope.institutionId }),
+      action: invocation.ok ? "Relay.ToolInvoked" : "Relay.ToolRefused",
+      resourceType: "RelayTool",
+      resourceId: invocation.ok ? invocation.tool.toolKey : invocation.refusal.toolKey,
+      outcome: invocation.ok ? "ALLOW" : "DENY",
+      // The engine's own words. Safe here and not on the wire: this row is read
+      // by an auditor, and `stripInternals` guards the browser.
+      reason: invocation.ok ? undefined : invocation.refusal.reason,
+      traceId: context.correlationId,
+      metadata: {
+        riskClass: invocation.ok ? invocation.riskClass : invocation.refusal.riskClass,
+        policyRevision: retrievalPolicyRevision,
+        configRevision: context.configRevision,
+        surfaceAllow: SURFACE_TOOL_POLICY,
+        // Mirrored beside the class and the revisions so one row read on its own
+        // answers "why not" without a join back to the `reason` column.
+        refusalReason: invocation.ok ? null : invocation.refusal.reason,
+        // WRK-GATE-050. The identity of the exact thing that ran, computed from
+        // the arguments that ran rather than from the proposal that arrived —
+        // `proposalDigest` derives the plan the same way `invokeRelayTool` does.
+        // This is the value a confirmation is bound to on a writing surface, and
+        // recording it on the reading one is what lets the two be compared.
+        planDigest: proposalDigest(proposal, context),
+        // WRK-040-003. Whether the outbound connector was activated, and why
+        // not when it was not. Without it a row cannot distinguish "we retrieved
+        // and sent" from "we retrieved and refused to send", which are the two
+        // materially different things this route does.
+        connectorActivated: activation.activated,
+        connectorReason: activation.reason,
+        // WRK-120-004. What this call was allowed to cost, and what the tenant
+        // had already spent when it was decided. Recorded on the same row as
+        // the exposure because "why did the assistant stop answering in March"
+        // and "how much did March cost" are the same question asked twice, and
+        // a meter with no decision beside it cannot answer the first.
+        budgetReason: budget.reason,
+        budgetPeriod: budget.period,
+        budgetUsedTokens: budget.usedTokens,
+        budgetCapTokens: budget.capTokens,
+        // Whether the retrieved rows actually crossed the vendor boundary. All
+        // four terms folded: the flag, the key, the tool and the connector.
+        modelExposure: available,
+        sourceCount: sources.length,
+        // WRK-GATE-050. WHICH rows, by identity and kind — never a title and
+        // never a body. `mode` is the §3.4 projection each row was carrying, so
+        // a reader can tell a REFERENCE_ONLY citation from a body that was
+        // actually projected without opening anything.
+        sources: scored.map((s) => ({ id: s.id, kind: s.kind, mode: s.mode })),
+      },
+    })

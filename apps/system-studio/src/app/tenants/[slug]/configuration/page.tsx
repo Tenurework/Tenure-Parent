@@ -2,11 +2,19 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 
 import { auth } from "@/lib/auth"
-import { isOperator } from "@/lib/operators"
+import { authorizeCommand } from "@/lib/authorize"
 import { getTenant, registryConfigured } from "@/lib/registry"
 import { DynamoConfigStore } from "@/lib/config-store"
 import { editableDomains, reservedDomains, withheldDomains } from "@/lib/editable-config"
-import { compareRevisions, dependantsOf, dependencyGraph, renderComparison, summarise } from "@/lib/revisions"
+import {
+  configurationChangeDiff,
+  dependantsOf,
+  dependencyGraph,
+  renderComparison,
+  rollbackChangeDiff,
+  rollbackSummary,
+  summarise,
+} from "@/lib/revisions"
 import { MODULES } from "@tenure/modules"
 import { resolveConfig, type ConfigLayer, type OptionPrice } from "@tenure/configuration"
 import { REGISTRY, layersFor } from "@tenure/platform-config"
@@ -71,9 +79,18 @@ export default async function ConfigurationPage({
 }) {
   const session = await auth()
   if (!session?.user?.email) redirect("/signin")
-  if (!isOperator(session.user.email)) return <PermissionDeniedState />
+  const principalId = session.user.email
 
   const { slug } = await params
+
+  // STUDIO-020-006. Reading a tenant's configuration and changing it are two
+  // permissions. A Support Engineer and an Auditor hold the first; the editor
+  // and the rollback controls below belong to the second, and are not rendered
+  // for anybody who does not hold it.
+  const read = authorizeCommand("configuration.read", { principalId, tenantId: slug })
+  if (!read.allowed) return <PermissionDeniedState />
+  const mayPublish = authorizeCommand("configuration.publish", { principalId, tenantId: slug }).allowed
+
   const seats = seatsFrom((await searchParams).seats)
   if (!registryConfigured()) {
     return <PartialDataState what="Configuration" missing={["TENANT_TABLE — the tenant registry"]} />
@@ -92,7 +109,30 @@ export default async function ConfigurationPage({
   // The most recent change, compared. Two revisions is the common question —
   // "what did the last publication actually do" — and it needs no controls.
   const previous = history.length >= 2 ? history[history.length - 2] : null
-  const lastChange = previous && latest ? renderComparison(compareRevisions(previous, latest)) : null
+  // STUDIO-060-003. The document first, the sentence derived from it — so the
+  // string an operator reads and the JSON anything else reads cannot disagree
+  // about what changed.
+  const lastChangeDiff = previous && latest ? configurationChangeDiff(previous, latest) : null
+  const lastChange = lastChangeDiff ? renderComparison(lastChangeDiff) : null
+
+  // STUDIO-060-003, the rollback arm. Every revision the control offers, with
+  // what returning to it would actually do — computed here, from the live
+  // revision, so the operator picking from the dropdown is told the consequence
+  // BEFORE pressing the button rather than reading it in the history
+  // afterwards. `live → target`, so `before` is what is running now.
+  const rollbackPreviews = latest
+    ? history
+        .filter((record) => record.revision !== latest.revision)
+        .map((record) => {
+          const diff = rollbackChangeDiff(latest, record)
+          return {
+            revision: record.revision,
+            summary: rollbackSummary(diff, record.revision),
+            changed: diff.entries.length,
+            rendered: renderComparison(diff),
+          }
+        })
+    : []
 
   /* ------------------------------------------------------------- §7 pricing --
    * What this tenant's configuration costs, per seat and for the organisation.
@@ -142,6 +182,13 @@ export default async function ConfigurationPage({
           the engine&rsquo;s one canonical path.
         </p>
 
+        {!mayPublish && (
+          <p className="refused" data-testid="configuration-read-only">
+            Read only. This configuration is yours to read and not to change.
+          </p>
+        )}
+
+        {mayPublish && (
         <ConfigurationEditor
           slug={slug}
           domains={domains.map((d) => ({
@@ -160,6 +207,7 @@ export default async function ConfigurationPage({
             })),
           }))}
         />
+        )}
       </section>
 
       <section className="system">
@@ -274,14 +322,43 @@ export default async function ConfigurationPage({
               </tbody>
             </table>
 
-            {lastChange && (
+            {lastChange && lastChangeDiff && (
               <>
                 <h3>What the last publication changed</h3>
-                <pre className="state-detail">{lastChange}</pre>
+                <pre className="state-detail" data-testid="last-change">{lastChange}</pre>
+                {/* The machine-readable form, in the product rather than only in
+                    a test. An operator diffing two consoles, a reviewer pasting
+                    it into a ticket and anything that later reads it over HTTP
+                    all need the document the sentence above was rendered from —
+                    and publishing it here is what makes the two provably the
+                    same thing rather than two renderings of the same intent. */}
+                <details>
+                  <summary>Machine-readable diff (schema {lastChangeDiff.schemaVersion})</summary>
+                  <pre className="state-detail" data-testid="last-change-json">
+                    {JSON.stringify(lastChangeDiff, null, 2)}
+                  </pre>
+                  <p className="slug">
+                    Published as <code>ChangeDiff</code> — see{" "}
+                    <code>docs/contracts/change-diff.schema.json</code>. Only the domains this
+                    product computes appear; a domain it does not compute is absent rather than
+                    empty, because an empty section reads as &ldquo;nothing changed&rdquo;.
+                  </p>
+                </details>
               </>
             )}
 
-            <RollbackControls slug={slug} revisions={revisions.map((r) => r.revision)} live={latest!.revision} />
+            {/* A rollback IS a publication — it republishes forward through the
+                same plan, four-eyes and immutability checks — so it takes the
+                same permission, and an operator who may not publish does not
+                get a control that publishes. */}
+            {mayPublish && (
+              <RollbackControls
+                slug={slug}
+                revisions={revisions.map((r) => r.revision)}
+                live={latest!.revision}
+                previews={rollbackPreviews}
+              />
+            )}
           </>
         )}
       </section>

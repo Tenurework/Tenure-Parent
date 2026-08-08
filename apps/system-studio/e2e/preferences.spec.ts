@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
+import { operatorFor } from "./operator-identity"
 
 import { documentAttributes, STORAGE_KEYS, type Preferences } from "../src/lib/preferences"
 
@@ -16,7 +17,7 @@ import { documentAttributes, STORAGE_KEYS, type Preferences } from "../src/lib/p
  * size (24x24 CSS pixels).
  */
 
-const OPERATOR = process.env.PLATFORM_OPERATORS ?? ""
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 
 test.beforeAll(() => {
@@ -49,6 +50,14 @@ const attributesOf = (page: Page) =>
     "data-density": document.documentElement.getAttribute("data-density"),
     "data-motion": document.documentElement.getAttribute("data-motion"),
     "data-contrast": document.documentElement.getAttribute("data-contrast"),
+    // `dir` is the fifth thing the pre-hydration script writes, and reading only
+    // the four `data-*` attributes left it unchecked: `documentAttributes()`
+    // returns a `dir` key, so every comparison below was against an object with
+    // one more key than this collected, and all eight cases failed on the
+    // absence rather than on a disagreement. Reading it is also the point —
+    // direction has to be set before paint for the same reason theme does, or
+    // an RTL operator gets a left-to-right flash on every load.
+    dir: document.documentElement.getAttribute("dir"),
   }))
 
 /** Text blocks failing AA against their effective background. */
@@ -130,6 +139,12 @@ test.describe("the preferences menu", () => {
       "data-density": "compact",
       "data-motion": "reduced",
       "data-contrast": "more",
+      // The server-rendered default, untouched: none of the four controls
+      // exercised above sets a direction, so `dir` must still read "ltr". Worth
+      // asserting rather than omitting — a preference write that clobbered the
+      // document direction as a side effect is exactly the kind of thing this
+      // test is positioned to catch.
+      dir: "ltr",
     })
   })
 
@@ -234,11 +249,18 @@ test.describe("the inline script agrees with the module it duplicates", () => {
           density: "comfortable",
           reducedMotion: "system",
           increasedContrast: "system",
+          direction: "ltr",
           ...testCase.stored,
         },
         testCase.device,
       )
-      expect(await attributesOf(page)).toEqual(expected)
+      // `documentAttributes` describes what the SCRIPT must write, not the DOM
+      // that results: `dir: null` means "leave the server default alone", and
+      // `layout.tsx:27` server-renders `<html lang="en" dir="ltr">`. So the
+      // attribute read back is "ltr" in exactly the cases the module returns
+      // null, and comparing the two directly asserted the script had erased an
+      // attribute it is documented never to touch.
+      expect(await attributesOf(page)).toEqual({ ...expected, dir: expected.dir ?? "ltr" })
     })
   }
 })

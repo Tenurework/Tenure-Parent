@@ -2,6 +2,8 @@ import {
   CATALOG_ENTRIES,
   RECERTIFICATION_WARNING_DAYS,
   RELAY_ANTHROPIC_CONNECTOR,
+  acceleratorAvailabilityFor,
+  authorizationRefusal,
   availabilityDecisions,
   availableToTenants,
   canAdvanceCatalog,
@@ -16,9 +18,22 @@ import {
   type ExtensionEntry,
   type ModelEntry,
   type PackageVersion,
+  type ProviderAuthorizationProfile,
 } from "./catalogs"
 import { PROVIDER_PACKS } from "./provider-packs"
-import { capabilityProblems, type ConnectorCapability } from "./connector-capability"
+import {
+  CERTIFICATION_CLAUSES,
+  NO_EVIDENCE,
+  capabilityKey,
+  capabilityProblems,
+  type CertificationClause,
+  type CertifiedDirection,
+  type ClauseEvidence,
+  type ConnectorCapability,
+  type EvidenceRef,
+} from "./connector-capability"
+import { selectorDiff, selectorProblems, type ResourceSelector } from "./resource-selector"
+import { WORK_ACCELERATORS } from "./work-accelerators"
 import {
   MODEL_CATALOG,
   RELAY_ANTHROPIC_REVIEW,
@@ -82,6 +97,53 @@ const PROVIDER_APPROVED: ProviderReview = {
   expiresAt: "2027-07-01T00:00:00.000Z",
 }
 
+/**
+ * WRK-100-004. Every clause cited, for the read direction — the shape a pack
+ * that has actually been driven through the contract carries.
+ *
+ * Written as a helper rather than a literal because most tests here are aimed
+ * at something else entirely and would otherwise be silently exercising the
+ * clause gate. `only` narrows it to a subset, which is what the clause tests
+ * need.
+ */
+const clauseMap = (
+  refs: (clause: CertificationClause) => readonly EvidenceRef[],
+): ClauseEvidence => ({
+  // Spelled out rather than `Object.fromEntries`, which loses the key types and
+  // needs a cast — and a cast is where a ninth clause would fail to arrive.
+  golden: refs("golden"),
+  negative: refs("negative"),
+  volume: refs("volume"),
+  "failure-outage": refs("failure-outage"),
+  "throttling-and-deprecation": refs("throttling-and-deprecation"),
+  "deletion-propagation": refs("deletion-propagation"),
+  "acl-change-propagation": refs("acl-change-propagation"),
+  "scope-exactness": refs("scope-exactness"),
+})
+
+const evidenceFor = (
+  direction: CertifiedDirection,
+  only: readonly CertificationClause[] = CERTIFICATION_CLAUSES,
+): ClauseEvidence =>
+  clauseMap((clause) =>
+    only.includes(clause) ? [{ direction, ref: `test-run:${clause}-${direction}-2026-07` }] : [],
+  )
+
+/**
+ * A connector authorization profile that holds up at the gate, so a test aimed
+ * at certification or provider review is not silently exercising WRK-040-001.
+ */
+const AUTHORIZED: ProviderAuthorizationProfile = {
+  authorizeEndpoint: "https://sis.example.invalid/oauth2/authorize",
+  tokenEndpoint: "https://sis.example.invalid/oauth2/token",
+  redirectPath: "/api/connections/tenure.sis/callback",
+  responseType: "code",
+  requiresPkce: true,
+  requiresNonce: true,
+  accountVerification: "id-token-claim",
+  verifiedAccountClaim: "sub",
+}
+
 const CONNECTOR: ConnectorEntry = {
   kind: "connector",
   key: "tenure.sis",
@@ -98,11 +160,12 @@ const CONNECTOR: ConnectorEntry = {
       capability: "student.list",
       direction: "read",
       status: "AVAILABLE",
-      evidenceRefs: ["review:sis-2026-004"],
+      clauseEvidence: evidenceFor("read"),
     },
   ],
   requestedScopes: ["sis:roster.read"],
   providerReview: PROVIDER_APPROVED,
+  authorization: AUTHORIZED,
 }
 
 const MODEL: ModelEntry = {
@@ -686,7 +749,11 @@ describe("each provider/product/capability/direction carries a status and its ev
         capability: "completion",
         direction: "write",
         status: "CERTIFICATION_PENDING",
-        evidenceRefs: ["apps/web/src/lib/ai.ts", "apps/web/src/lib/partition-services.ts"],
+        clauseEvidence: NO_EVIDENCE,
+        // Derived from the clause map by `classifyCapabilities`, which is the
+        // only place it is computed — the System Studio prints this and there
+        // is no second stored copy for it to drift from.
+        evidenceRefs: [],
         problems: [],
       },
     ])
@@ -711,7 +778,9 @@ describe("each provider/product/capability/direction carries a status and its ev
         capability: "c",
         direction: "read",
         status,
-        evidenceRefs: ["evidence:1"],
+        // The full contract, so this test is about the seven-state vocabulary
+        // and not about WRK-100-004's clause gate — which has its own suite.
+        clauseEvidence: evidenceFor("read"),
       }
       // Only the two running statuses are held to anything; the other five are
       // claims about work not done and prove nothing by construction.
@@ -723,14 +792,20 @@ describe("each provider/product/capability/direction carries a status and its ev
     const entry: ConnectorEntry = {
       ...CONNECTOR,
       key: "tenure.unevidenced",
-      capabilities: [{ ...CONNECTOR.capabilities[0], evidenceRefs: [] }],
+      capabilities: [{ ...CONNECTOR.capabilities[0], clauseEvidence: NO_EVIDENCE }],
     }
     const [decision] = availabilityDecisions([entry], SCOPE)
 
     expect(decision.available).toBe(true)
     // The artifact passes and the capability's own claim does not. Both facts
     // in one object, because a console holding only the first shows a green row.
-    expect(decision.capabilities?.[0].problems.map((p) => p.reason)).toEqual(["evidence-missing"])
+    const reasons = decision.capabilities?.[0].problems.map((p) => p.reason) ?? []
+    expect(reasons[0]).toBe("evidence-missing")
+    // And every clause under it, because "nothing is cited" and "the volume
+    // suite is missing" are different findings with different remedies.
+    expect(reasons.filter((r) => r === "clause-unproven")).toHaveLength(
+      CERTIFICATION_CLAUSES.length,
+    )
   })
 
   it("refuses a status that disagrees with the artifact-level verdict", () => {
@@ -908,3 +983,511 @@ describe("connectors record where they send data", () => {
     ).toBe("engine-incompatible")
   })
 })
+
+/* ------------------------------------------------------------- WRK-100-004 --
+ * The FULL certification contract, not a generic happy path.
+ *
+ * The gate used to check two things: somebody cited something, and the artifact
+ * gate agreed. One citation of any kind satisfied the first, so a pack citing a
+ * single smoke run passed the same gate as one driven through golden, negative,
+ * volume and failure suites. These assert on what `availabilityDecisions`
+ * EMITS, not on `capabilityProblems` called directly, so a production path that
+ * stopped calling it would red here.
+ */
+describe("a pack must prove every certification clause, in every direction it claims", () => {
+  const SCOPE = {
+    engineVersion: "2026.8.0",
+    region: "us-east-1",
+    partition: "aws",
+    marketplaceEnabled: false,
+    now: NOW,
+  }
+
+  const withCapability = (capability: ConnectorCapability): ConnectorEntry => ({
+    ...CONNECTOR,
+    key: "tenure.clause-gate",
+    capabilities: [capability],
+  })
+
+  it("declares the eight clauses the Bible asks for", () => {
+    // A count, and the names. Deleting one is how the contract quietly becomes
+    // a happy path again — and the mutation that proves this assertion is
+    // load-bearing is exactly that deletion.
+    expect(CERTIFICATION_CLAUSES).toHaveLength(8)
+    expect([...CERTIFICATION_CLAUSES]).toEqual([
+      "golden",
+      "negative",
+      "volume",
+      "failure-outage",
+      "throttling-and-deprecation",
+      "deletion-propagation",
+      "acl-change-propagation",
+      "scope-exactness",
+    ])
+    // And the "nothing cited" constant answers for all of them, so a planned
+    // pack states each clause rather than omitting keys.
+    expect(Object.keys(NO_EVIDENCE).sort()).toEqual([...CERTIFICATION_CLAUSES].sort())
+  })
+
+  it("emits seven clause problems for a pack that ran only the golden suite", () => {
+    const entry = withCapability({
+      ...CONNECTOR.capabilities[0],
+      status: "AVAILABLE",
+      clauseEvidence: evidenceFor("read", ["golden"]),
+    })
+    const [decision] = availabilityDecisions([entry], SCOPE)
+
+    const problems = decision.capabilities?.[0].problems ?? []
+    // Something IS cited, so the old gate is silent — which is the whole point.
+    expect(problems.filter((p) => p.reason === "evidence-missing")).toEqual([])
+    const unproven = problems.filter((p) => p.reason === "clause-unproven")
+    expect(unproven).toHaveLength(7)
+    expect(unproven.map((p) => p.clause)).toEqual([
+      "negative",
+      "volume",
+      "failure-outage",
+      "throttling-and-deprecation",
+      "deletion-propagation",
+      "acl-change-propagation",
+      "scope-exactness",
+    ])
+    // Named, so a console can say which suite is missing rather than "evidence".
+    expect(unproven.every((p) => p.direction === "read")).toBe(true)
+  })
+
+  it("says nothing when all eight clauses are cited", () => {
+    const entry = withCapability({
+      ...CONNECTOR.capabilities[0],
+      status: "AVAILABLE",
+      clauseEvidence: evidenceFor("read"),
+    })
+    expect(availabilityDecisions([entry], SCOPE)[0].capabilities?.[0].problems).toEqual([])
+  })
+
+  it("refuses a write claim proved only by read runs", () => {
+    // The file's own note: read and write are separately certifiable, and a
+    // pack certified to read a mailbox has not been certified to send from it.
+    // Nothing checked this before — the array was flat and a direction was not
+    // a thing an evidence ref could carry.
+    const entry = withCapability({
+      ...CONNECTOR.capabilities[0],
+      direction: "bidirectional",
+      status: "AVAILABLE",
+      clauseEvidence: evidenceFor("read"),
+    })
+    const problems = availabilityDecisions([entry], SCOPE)[0].capabilities?.[0].problems ?? []
+
+    expect(problems.filter((p) => p.reason === "evidence-missing")).toEqual([])
+    const unproven = problems.filter((p) => p.reason === "clause-unproven")
+    expect(unproven).toHaveLength(CERTIFICATION_CLAUSES.length)
+    expect(new Set(unproven.map((p) => p.direction))).toEqual(new Set(["write"]))
+  })
+
+  it("passes a bidirectional pack that proved both directions", () => {
+    const both: ClauseEvidence = clauseMap((clause) => [
+      { direction: "read", ref: `test-run:${clause}-read` },
+      { direction: "write", ref: `test-run:${clause}-write` },
+    ])
+
+    const entry = withCapability({
+      ...CONNECTOR.capabilities[0],
+      direction: "bidirectional",
+      status: "AVAILABLE",
+      clauseEvidence: both,
+    })
+    expect(availabilityDecisions([entry], SCOPE)[0].capabilities?.[0].problems).toEqual([])
+  })
+
+  it("holds a DEGRADED claim to the same contract, and asks nothing of the other five", () => {
+    // DEGRADED also says this runs against the provider today. The other five
+    // states are claims about work not done and prove nothing by construction.
+    const degraded = withCapability({
+      ...CONNECTOR.capabilities[0],
+      status: "DEGRADED",
+      clauseEvidence: evidenceFor("read", ["golden"]),
+    })
+    expect(
+      availabilityDecisions([degraded], SCOPE)[0]
+        .capabilities?.[0].problems.filter((p) => p.reason === "clause-unproven"),
+    ).toHaveLength(7)
+
+    for (const status of ["PLANNED", "DEVELOPMENT", "CERTIFICATION_PENDING", "SUSPENDED", "UNSUPPORTED"] as const) {
+      const entry = withCapability({
+        ...CONNECTOR.capabilities[0],
+        status,
+        clauseEvidence: NO_EVIDENCE,
+      })
+      expect(availabilityDecisions([entry], SCOPE)[0].capabilities?.[0].problems).toEqual([])
+    }
+  })
+
+  it("keeps one implementation of the evidence rule, and derives the flat list from it", () => {
+    // `claimIsUnproven` is called by `certificationState` for a certification
+    // record and by `capabilityProblems` for a capability. The flat
+    // `evidenceRefs` a console prints is derived here rather than stored, so
+    // there is no second copy to drift.
+    const entry = withCapability({
+      ...CONNECTOR.capabilities[0],
+      status: "AVAILABLE",
+      clauseEvidence: evidenceFor("read", ["golden", "negative"]),
+    })
+    expect(availabilityDecisions([entry], SCOPE)[0].capabilities?.[0].evidenceRefs).toEqual([
+      "test-run:golden-read-2026-07",
+      "test-run:negative-read-2026-07",
+    ])
+  })
+
+  it("leaves every declared pack citing nothing, which is the honest state", () => {
+    // Not one of the twenty-four has been built, so not one of them cites a
+    // clause. This reds the day somebody advances a pack without the runs.
+    for (const pack of PROVIDER_PACKS) {
+      for (const capability of pack.capabilities) {
+        expect(capability.status).toBe("PLANNED")
+        expect(capability.clauseEvidence).toEqual(NO_EVIDENCE)
+      }
+    }
+  })
+})
+
+/* ------------------------------------------------------------- WRK-040-001 --
+ * Provider-specific authorization profiles, gated rather than merely declared.
+ */
+describe("a pack states how it would be authorized, and the gate reads it", () => {
+  const SCOPE = {
+    engineVersion: "2026.8.0",
+    region: "us-east-1",
+    partition: "aws",
+    marketplaceEnabled: false,
+    now: NOW,
+  }
+
+  const withAuthorization = (over: Partial<ProviderAuthorizationProfile>): ConnectorEntry => ({
+    ...CONNECTOR,
+    key: "tenure.authorization",
+    authorization: { ...AUTHORIZED, ...over },
+  })
+
+  it("refuses a pack whose authorize endpoint is on a host it never declared", () => {
+    // An authorization host outside the pack's own egress list is an egress
+    // nobody reviewed: the connector would be approved to talk to the API and
+    // would in fact first talk to somewhere else entirely.
+    const [decision] = availabilityDecisions(
+      [withAuthorization({ authorizeEndpoint: "https://idp.elsewhere.invalid/authorize" })],
+      SCOPE,
+    )
+    expect(decision.available).toBe(false)
+    expect(decision.reason).toBe("authorization-endpoint-not-egressed")
+  })
+
+  it("refuses a pack with PKCE off", () => {
+    const [decision] = availabilityDecisions([withAuthorization({ requiresPkce: false })], SCOPE)
+    expect(decision.available).toBe(false)
+    expect(decision.reason).toBe("authorization-pkce-required")
+  })
+
+  it("refuses a redirect the identity package's open-redirect defence rejects", () => {
+    // `//evil.example` looks like a path, starts with a slash, and browsers
+    // navigate to another origin. This is `validateReturnPath` from
+    // `@tenure/identity` doing the work — not a second redirect rule written
+    // in this package, because two disagreeing validators is how an open
+    // redirect ships.
+    for (const redirectPath of [
+      "https://evil.example/cb",
+      "//evil.example/cb",
+      "/\\evil.example/cb",
+      "/api/../../etc/passwd",
+      "javascript:alert(1)",
+    ]) {
+      const [decision] = availabilityDecisions([withAuthorization({ redirectPath })], SCOPE)
+      expect(decision.reason).toBe("authorization-redirect-refused")
+    }
+  })
+
+  it("refuses an http endpoint, and one that is not a URL at all", () => {
+    for (const authorizeEndpoint of ["http://sis.example.invalid/authorize", "sis.example.invalid"]) {
+      expect(availabilityDecisions([withAuthorization({ authorizeEndpoint })], SCOPE)[0].reason).toBe(
+        "authorization-endpoint-insecure",
+      )
+    }
+  })
+
+  it("refuses ID-token verification that names no claim, or has no nonce to bind it", () => {
+    expect(
+      availabilityDecisions([withAuthorization({ verifiedAccountClaim: "  " })], SCOPE)[0].reason,
+    ).toBe("authorization-account-unverified")
+    expect(
+      availabilityDecisions([withAuthorization({ requiresNonce: false })], SCOPE)[0].reason,
+    ).toBe("authorization-account-unverified")
+  })
+
+  it("lets a profile that holds up through to the checks after it", () => {
+    // The refusals above are the authorization contract and not the connector
+    // being broken some other way: unmodified, the same entry is usable.
+    expect(availabilityDecisions([withAuthorization({})], SCOPE)[0].available).toBe(true)
+  })
+
+  it("accepts `null` for a connector with no user-delegated flow, and states it", () => {
+    // The Relay egress presents a platform credential. There is no person, no
+    // consent screen and no callback — a profile here would describe a flow
+    // nobody drives, and omitting the field would make "there is no flow"
+    // indistinguishable from "nobody wrote one down".
+    expect(RELAY_ANTHROPIC_CONNECTOR.authorization).toBeNull()
+    expect(isUsable(RELAY_ANTHROPIC_CONNECTOR, CTX).reason).toBe("uncertified")
+  })
+
+  it("holds every one of the twenty-four packs to the contract today", () => {
+    // Each is PLANNED, so `isUsable` reports `planned` and never reaches the
+    // authorization branch — which is exactly why this calls the gate function
+    // directly on the declared data. A pack that could not be advanced without
+    // failing the contract is one nobody would discover until the day they
+    // tried.
+    const offenders = PROVIDER_PACKS.map((pack) => ({
+      key: pack.key,
+      refusal: authorizationRefusal(pack.authorization, pack.egressHosts),
+    })).filter((p) => p.refusal !== null)
+
+    expect(offenders).toEqual([])
+  })
+
+  it("gives every pack an exact redirect of its own", () => {
+    // "Exact redirects" is one of the two clauses that cannot be inherited from
+    // the generic flow. Two packs sharing a callback path is a callback that
+    // cannot say which connection it belongs to.
+    const paths = PROVIDER_PACKS.map((p) => p.authorization.redirectPath)
+    expect(new Set(paths).size).toBe(paths.length)
+    for (const pack of PROVIDER_PACKS) {
+      expect(pack.authorization.redirectPath).toBe(`/api/connections/${pack.key}/callback`)
+      expect(pack.authorization.responseType).toBe("code")
+    }
+  })
+})
+
+/* ------------------------------------------------------------- WRK-020-002 --
+ * Versioned include/exclude resource selectors, and impact diffs.
+ */
+describe("a connection's scope is a versioned selection with an impact diff", () => {
+  const SCOPE = {
+    engineVersion: "2026.8.0",
+    region: "us-east-1",
+    partition: "aws",
+    marketplaceEnabled: false,
+    now: NOW,
+  }
+
+  const known = [
+    { externalId: "root", kind: "container" as const, ancestors: [] },
+    { externalId: "finance", kind: "container" as const, ancestors: ["root"] },
+    { externalId: "payroll", kind: "container" as const, ancestors: ["root", "finance"] },
+    { externalId: "budget.xlsx", kind: "object" as const, ancestors: ["root", "finance"] },
+    { externalId: "salaries.xlsx", kind: "object" as const, ancestors: ["root", "finance", "payroll"] },
+  ]
+
+  const VALID: ResourceSelector = {
+    version: 1,
+    include: [{ kind: "container", externalId: "finance", recursive: true }],
+    exclude: [{ kind: "container", externalId: "payroll", recursive: true }],
+  }
+
+  it("lets exclude beat include wherever the two overlap", () => {
+    // Stated once, here. A surface that re-derived it would eventually derive
+    // it the other way round, and the direction it gets wrong is the one where
+    // an excluded folder is indexed anyway.
+    const diff = selectorDiff(null, VALID, known)
+    expect(diff.added).toEqual(["finance", "budget.xlsx"])
+    expect(diff.added).not.toContain("salaries.xlsx")
+    expect(diff.added).not.toContain("payroll")
+  })
+
+  it("reports the removals when a folder leaves the include set", () => {
+    // "If I remove this folder from the selection, which indexed objects stop
+    // being reachable" — answered before somebody clicks Save, not after.
+    const narrowed: ResourceSelector = {
+      version: 2,
+      include: [{ kind: "object", externalId: "budget.xlsx", recursive: false }],
+      exclude: [],
+    }
+    const diff = selectorDiff(VALID, narrowed, known)
+    expect(diff.removed).toEqual(["finance"])
+    expect(diff.unchanged).toEqual(["budget.xlsx"])
+    expect(diff.added).toEqual([])
+  })
+
+  it("refuses an empty include set", () => {
+    expect(
+      selectorProblems({ version: 1, include: [], exclude: [] }).map((p) => p.reason),
+    ).toEqual(["include-empty"])
+  })
+
+  it("refuses an exclude rule no include could ever have matched", () => {
+    const dead: ResourceSelector = {
+      version: 1,
+      include: [{ kind: "object", externalId: "budget.xlsx", recursive: false }],
+      exclude: [{ kind: "object", externalId: "salaries.xlsx", recursive: false }],
+    }
+    expect(selectorProblems(dead).map((p) => p.reason)).toEqual(["exclude-matches-nothing"])
+  })
+
+  it("does not call a sub-folder exclusion dead just because nobody listed it", () => {
+    // The conservative half of the rule, pinned. A recursive include COULD
+    // contain a folder nothing here names, so an exclude under it is live —
+    // and a validator that deleted real protections would be worse than one
+    // that kept a redundant rule.
+    expect(selectorProblems(VALID)).toEqual([])
+  })
+
+  it("refuses a version that did not increase, and one that cannot be ordered", () => {
+    expect(selectorProblems({ ...VALID, version: 1 }, VALID).map((p) => p.reason)).toEqual([
+      "version-not-increased",
+    ])
+    expect(selectorProblems({ ...VALID, version: 2 }, VALID)).toEqual([])
+    expect(selectorProblems({ ...VALID, version: 0 }).map((p) => p.reason)).toEqual([
+      "version-invalid",
+    ])
+  })
+
+  it("stops a connector whose selection does not parse reaching an availability decision", () => {
+    // The caller. `availabilityDecisions` is what the System Studio renders per
+    // connector, so this asserts on what the production path EMITS rather than
+    // on `selectorProblems` alone.
+    const broken: ConnectorEntry = {
+      ...CONNECTOR,
+      key: "tenure.bad-selection",
+      selector: { version: 1, include: [], exclude: [] },
+    }
+    const [decision] = availabilityDecisions([broken], SCOPE)
+    expect(decision.available).toBe(false)
+    expect(decision.reason).toBe("selector-invalid")
+
+    // And the same entry with a selection that parses is offered, so the
+    // refusal is the selector and not the connector being broken some other way.
+    expect(
+      availabilityDecisions([{ ...broken, selector: VALID }], SCOPE)[0].available,
+    ).toBe(true)
+  })
+
+  it("leaves a connector that selects nothing yet alone", () => {
+    // Optional in the type and gated on the VALUE: the twenty-four planned
+    // packs select nothing because nobody has connected them to a workspace.
+    expect(CONNECTOR.selector).toBeUndefined()
+    expect(availabilityDecisions([CONNECTOR], SCOPE)[0].available).toBe(true)
+  })
+})
+
+/* ------------------------------------------------------------- WRK-130-001 --
+ * The ten accelerators, and the set selected for release.
+ */
+describe("the ten work accelerators are declared, and none of them is available", () => {
+  const SCOPE = {
+    engineVersion: "2026.8.0",
+    region: "us-east-1",
+    partition: "aws",
+    marketplaceEnabled: false,
+    now: NOW,
+  }
+
+  it("declares exactly ten, each resting on at least one capability", () => {
+    expect(WORK_ACCELERATORS).toHaveLength(10)
+    expect(WORK_ACCELERATORS.map((a) => a.key)).toEqual([
+      "cross-app-answer-with-citations",
+      "inbox-to-governed-work",
+      "meeting-lifecycle",
+      "approval-notification",
+      "document-to-process",
+      "work-tracking-synchronization",
+      "customer-service-continuity",
+      "transition-briefing",
+      "exception-command-center",
+      "connection-on-demand",
+    ])
+    for (const accelerator of WORK_ACCELERATORS) {
+      expect(accelerator.requiresCapabilities.length).toBeGreaterThan(0)
+      expect(accelerator.title.length).toBeGreaterThan(40)
+    }
+  })
+
+  it("names only capability keys the catalog actually declares", () => {
+    // A typo here would make an accelerator permanently unavailable for a
+    // reason nobody could see, which reads exactly like an honest verdict.
+    const declared = new Set(
+      CATALOG_ENTRIES.filter((e) => e.kind === "connector").flatMap((e) =>
+        e.capabilities.map(capabilityKey),
+      ),
+    )
+    for (const accelerator of WORK_ACCELERATORS) {
+      for (const key of accelerator.requiresCapabilities) {
+        expect([accelerator.key, key, declared.has(key)]).toEqual([accelerator.key, key, true])
+      }
+    }
+  })
+
+  it("returns ten unavailable verdicts against the catalog as it stands", () => {
+    // The honest state of the platform, written where it can go red the moment
+    // somebody overstates it. Every pack is PLANNED, so the set of capabilities
+    // selected for release is EMPTY and every accelerator is missing all of its.
+    const verdicts = acceleratorAvailabilityFor(CATALOG_ENTRIES, SCOPE)
+    expect(verdicts).toHaveLength(10)
+    expect(verdicts.filter((v) => v.available)).toEqual([])
+    for (const verdict of verdicts) {
+      expect(verdict.missing).toEqual([...verdict.accelerator.requiresCapabilities])
+    }
+  })
+
+  it("does not count an AVAILABLE capability whose certification does not hold up", () => {
+    // The two gates composing in the right order: advancing the capabilities
+    // behind accelerator 1 to AVAILABLE without the clause evidence trips
+    // WRK-100-004 first, so the accelerator stays unavailable.
+    const accelerator = WORK_ACCELERATORS[0]
+    const unevidenced = accelerator.requiresCapabilities.map(fabricate("smoke-only"))
+    const entry: ConnectorEntry = {
+      ...CONNECTOR,
+      key: "tenure.overclaimed",
+      capabilities: unevidenced,
+    }
+    const overclaimed = acceleratorAvailabilityFor([entry], SCOPE).find(
+      (v) => v.accelerator.key === accelerator.key,
+    )!
+    expect(overclaimed.available).toBe(false)
+    expect(overclaimed.missing).toEqual([...accelerator.requiresCapabilities])
+
+    // And with the full contract cited, the same accelerator flips.
+    const proven: ConnectorEntry = {
+      ...entry,
+      capabilities: accelerator.requiresCapabilities.map(fabricate("full")),
+    }
+    const flipped = acceleratorAvailabilityFor([proven], SCOPE).find(
+      (v) => v.accelerator.key === accelerator.key,
+    )!
+    expect(flipped.available).toBe(true)
+    expect(flipped.missing).toEqual([])
+  })
+})
+
+/**
+ * A capability row for a `provider/product/capability/direction` key, either
+ * citing one smoke run or the whole contract.
+ *
+ * Built from the key so the fabricated rows and the accelerator's requirement
+ * cannot drift — a fixture that spelled the four fields again would pass while
+ * naming something the accelerator does not require.
+ */
+function fabricate(depth: "smoke-only" | "full") {
+  return (key: string): ConnectorCapability => {
+    const [provider, product, capability, direction] = key.split("/")
+    const claimed = direction as ConnectorCapability["direction"]
+    const directions: readonly CertifiedDirection[] =
+      claimed === "bidirectional" ? ["read", "write"] : [claimed]
+    return {
+      provider,
+      product,
+      capability,
+      direction: claimed,
+      status: "AVAILABLE",
+      clauseEvidence:
+        depth === "smoke-only"
+          ? { ...NO_EVIDENCE, golden: [{ direction: "read", ref: "test-run:smoke" }] }
+          : clauseMap((clause) =>
+              directions.map((d) => ({ direction: d, ref: `test-run:${clause}-${d}` })),
+            ),
+    }
+  }
+}

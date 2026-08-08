@@ -1,5 +1,5 @@
 import { STATIC_DESTINATIONS, tenantDestination, type Destination } from "@/lib/commands"
-import { listTenants, registryConfigured } from "@/lib/registry"
+import { listFleet, registryConfigured } from "@/lib/registry"
 import { CommandPalette } from "@/components/CommandPalette"
 
 /**
@@ -20,7 +20,7 @@ export async function Launcher() {
   let tenants: Destination[] = []
   if (registryConfigured()) {
     try {
-      tenants = (await listTenants()).map((t) => tenantDestination(t.slug, t.displayName))
+      tenants = (await listFleet()).map((t) => tenantDestination(t.slug, t.displayName))
     } catch {
       tenants = []
     }

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test"
+import { operatorFor } from "./operator-identity"
 
 /**
  * NEXT-SESSION §7 — the running total, on the actual page.
@@ -14,7 +15,7 @@ import { test, expect, type Page } from "@playwright/test"
  * passes when there is no tenant to price is worse than none.
  */
 
-const OPERATOR = process.env.PLATFORM_OPERATORS?.split(",")[0]?.trim() ?? ""
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 const configured = !!process.env.TENANT_TABLE
 

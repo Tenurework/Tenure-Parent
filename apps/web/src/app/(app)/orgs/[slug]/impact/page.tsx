@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/icons"
 import { Card, CardHeader } from "@/components/ui/Card"
 import { StatGrid, StatTile } from "@/components/ui/Bento"
-import { OrgTabs } from "@/components/OrgTabs"
+import { OrgRecordHeader } from "@/components/OrgRecordHeader"
+import { Badge } from "@/components/ui/Badge"
 import { formatCents } from "@/lib/finance"
 
 export const dynamic = "force-dynamic"
@@ -94,13 +95,23 @@ export default async function ImpactPage({
 
     return (
       <div className="w-full">
-        <div className="mb-6">
-          <h1 className="text-text-1">{org.name}</h1>
-          <p className="mt-1 text-lead text-text-2">
-            Impact — a shareable summary of what this club has achieved, auto-built from its own record.
-          </p>
-        </div>
-        <OrgTabs slug={slug} />
+        <OrgRecordHeader
+          slug={slug}
+          org={org}
+          section="Impact"
+          subtitle="Impact — a shareable summary of what this club has achieved, auto-built from its own record."
+          status={
+            <>
+              <Badge variant={eventsPublished > 0 ? "success" : "default"}>
+                {eventsPublished} {eventsPublished === 1 ? "event" : "events"} published
+              </Badge>
+              <Badge variant={pending > 0 ? "warning" : "default"}>
+                {pending} approvals in flight
+              </Badge>
+              <Badge variant="default">{budgetPct}% of budget delivered</Badge>
+            </>
+          }
+        />
 
         <p className="mb-5 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-text-1">
           {narrative}.

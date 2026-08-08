@@ -436,3 +436,80 @@ describe("optimistic concurrency", () => {
     expect(complete).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * WRK-040-005 — the log sink.
+ *
+ * This is the widest one in the application: an arbitrary handler failure over a
+ * caller-supplied payload, so `err.message` is whatever the thrown thing chose
+ * to say about data this process did not author. A provider client that throws
+ * `Invalid API key: sk_live_…`, or a driver echoing a row containing a webhook
+ * signing secret somebody pasted into a note field, puts a reusable credential
+ * into CloudWatch — retained, widely readable, and outside every control the
+ * vault exists to impose.
+ *
+ * Asserted on what `dispatch` EMITS, never by calling the scanner directly: a
+ * test that proved the property against `redactSecretValues` would stay green
+ * the day the bus stopped using it, which is the exact failure being guarded.
+ */
+describe("a handler's error text is scanned before it reaches the log", () => {
+  const SIGNING_SECRET = "whsec_aaaaaaaaaa"
+  const LIVE_KEY = "sk_live_aaaaaaaaaaaaaaaa"
+
+  /** Every `console.error` the dispatch produced, flattened to one string. */
+  async function logsFrom(thrown: unknown): Promise<string> {
+    const lines: string[] = []
+    const spy = jest.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      lines.push(args.map((a) => (a instanceof Error ? a.message : String(a))).join(" "))
+    })
+    try {
+      await dispatch(
+        command(),
+        async () => {
+          throw thrown
+        },
+        ports(),
+        { requestDigest: "digest-a" },
+      )
+    } finally {
+      spy.mockRestore()
+    }
+    return lines.join("\n")
+  }
+
+  it("does not log a provider key an exception carried", async () => {
+    const line = await logsFrom(new Error(`Invalid API key provided: ${LIVE_KEY}`))
+
+    expect(line).not.toContain(LIVE_KEY)
+    expect(line).toContain("[redacted: this text carried a reusable credential]")
+    // Still says WHICH command failed. A redaction that took the action with it
+    // would trade one incident for another.
+    expect(line).toContain("Approval.Decide")
+  })
+
+  it("does not log a webhook signing secret echoed out of a payload", async () => {
+    const line = await logsFrom(
+      new Error(`column "endpoint" = ${SIGNING_SECRET} violates check constraint`),
+    )
+    expect(line).not.toContain(SIGNING_SECRET)
+  })
+
+  it("still logs an ordinary failure in full, so the redaction is not blanket", async () => {
+    // The guard's value depends on it never firing on the ninety-nine ordinary
+    // failures. A log that says nothing is a log nobody reads.
+    const line = await logsFrom(new Error("database is on fire"))
+    expect(line).toContain("database is on fire")
+    expect(line).not.toContain("[redacted")
+  })
+
+  it("survives a thrown value that is not an Error at all", async () => {
+    // `throw "…"` and `throw { … }` are both legal and both reach this branch.
+    // An `Error`'s `message` is not an own enumerable property, so a redactor
+    // that walked the object instead of flattening it first would print `{}`
+    // here and lose every failure this platform has.
+    expect(await logsFrom(`bare string with ${LIVE_KEY} in it`)).not.toContain(LIVE_KEY)
+    expect(await logsFrom({ detail: `object field with ${SIGNING_SECRET}` })).not.toContain(
+      SIGNING_SECRET,
+    )
+  })
+})

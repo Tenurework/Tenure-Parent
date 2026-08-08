@@ -1,0 +1,769 @@
+{
+  "//": "The accept/reject table both suites are held to. `tests/architecture/contracts-schemas-match-parsers.test.mjs` runs it against the COMMITTED JSON Schema; `packages/contracts/src/contracts.test.ts` runs the same rows through the real parsers. One table, two readers — a schema that admits something the parser refuses, or the reverse, cannot survive both. `by` says which half is expected to refuse: `schema` means the published document is enough to catch it (so a producer in another language catches it too), `parser` means it is a cross-field rule no JSON Schema keyword can express and only the runtime gate catches. `field` is the ContractViolation field the parser must name.",
+  "EstateResource": {
+    "accept": [
+      {
+        "why": "an ECS service, tagged to a tenant",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:ecs:us-east-1:012345678901:service/tenure-prod/web",
+          "service": "ecs",
+          "resourceType": "service",
+          "name": "web",
+          "accountId": "012345678901",
+          "region": "us-east-1",
+          "partition": "aws",
+          "tenantId": "acme",
+          "cell": "cell-1",
+          "environment": "production",
+          "stateful": false,
+          "tags": {
+            "tenure:tenant": "acme",
+            "tenure:cell": "cell-1"
+          },
+          "observedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "an S3 bucket, whose ARN carries neither region nor account",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:s3:::tenure-evidence",
+          "service": "s3",
+          "resourceType": "bucket",
+          "name": "tenure-evidence",
+          "accountId": "012345678901",
+          "region": "us-east-1",
+          "partition": "aws",
+          "tenantId": null,
+          "cell": null,
+          "environment": null,
+          "stateful": true,
+          "tags": {},
+          "observedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "a minor ahead of this build is forward-compatible and accepted",
+        "value": {
+          "schemaVersion": "1.7",
+          "arn": "arn:aws:cloudfront::012345678901:distribution/E1TENURE",
+          "service": "cloudfront",
+          "resourceType": "distribution",
+          "name": "E1TENURE",
+          "accountId": "012345678901",
+          "region": "global",
+          "partition": "aws",
+          "tenantId": null,
+          "cell": null,
+          "environment": null,
+          "stateful": false,
+          "tags": {},
+          "observedAt": "2026-08-07T10:00:00.000Z"
+        }
+      }
+    ],
+    "reject": [
+      {
+        "why": "no ARN — the handle every later action uses",
+        "by": "schema",
+        "field": "arn",
+        "value": {
+          "schemaVersion": "1.0",
+          "service": "ecs",
+          "resourceType": "service",
+          "name": "web",
+          "accountId": "012345678901",
+          "region": "us-east-1",
+          "partition": "aws",
+          "tenantId": null,
+          "cell": null,
+          "environment": null,
+          "stateful": false,
+          "tags": {},
+          "observedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "the account id is not twelve digits",
+        "by": "schema",
+        "field": "accountId",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:ecs:us-east-1:12345:service/tenure-prod/web",
+          "service": "ecs",
+          "resourceType": "service",
+          "name": "web",
+          "accountId": "12345",
+          "region": "us-east-1",
+          "partition": "aws",
+          "tenantId": null,
+          "cell": null,
+          "environment": null,
+          "stateful": false,
+          "tags": {},
+          "observedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "tenantId absent rather than null — 'no tenant tag' is a finding and must be stated",
+        "by": "schema",
+        "field": "tenantId",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:ecs:us-east-1:012345678901:service/tenure-prod/web",
+          "service": "ecs",
+          "resourceType": "service",
+          "name": "web",
+          "accountId": "012345678901",
+          "region": "us-east-1",
+          "partition": "aws",
+          "cell": null,
+          "environment": null,
+          "stateful": false,
+          "tags": {},
+          "observedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "stateful sent as a string, so 'false' would be truthy to a careless reader",
+        "by": "schema",
+        "field": "stateful",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:rds:us-east-1:012345678901:db:tenure-prod",
+          "service": "rds",
+          "resourceType": "db",
+          "name": "tenure-prod",
+          "accountId": "012345678901",
+          "region": "us-east-1",
+          "partition": "aws",
+          "tenantId": null,
+          "cell": null,
+          "environment": null,
+          "stateful": "false",
+          "tags": {},
+          "observedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "observedAt is not an instant, so nothing can say how stale the reading is",
+        "by": "schema",
+        "field": "observedAt",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:ecs:us-east-1:012345678901:service/tenure-prod/web",
+          "service": "ecs",
+          "resourceType": "service",
+          "name": "web",
+          "accountId": "012345678901",
+          "region": "us-east-1",
+          "partition": "aws",
+          "tenantId": null,
+          "cell": null,
+          "environment": null,
+          "stateful": false,
+          "tags": {},
+          "observedAt": "whenever"
+        }
+      },
+      {
+        "why": "a field the contract does not define — a producer this build has not been reconciled with",
+        "by": "schema",
+        "field": "(root)",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:ecs:us-east-1:012345678901:service/tenure-prod/web",
+          "service": "ecs",
+          "resourceType": "service",
+          "name": "web",
+          "accountId": "012345678901",
+          "region": "us-east-1",
+          "partition": "aws",
+          "tenantId": null,
+          "cell": null,
+          "environment": null,
+          "stateful": false,
+          "tags": {},
+          "observedAt": "2026-08-07T10:00:00.000Z",
+          "estimatedMonthlyCost": 4182
+        }
+      },
+      {
+        "why": "the ARN names a different account than the resource was reported under",
+        "by": "parser",
+        "field": "arn",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:ecs:us-east-1:999999999999:service/tenure-prod/web",
+          "service": "ecs",
+          "resourceType": "service",
+          "name": "web",
+          "accountId": "012345678901",
+          "region": "us-east-1",
+          "partition": "aws",
+          "tenantId": null,
+          "cell": null,
+          "environment": null,
+          "stateful": false,
+          "tags": {},
+          "observedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "the ARN names a different region than the resource was reported under",
+        "by": "parser",
+        "field": "arn",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:ecs:eu-west-2:012345678901:service/tenure-prod/web",
+          "service": "ecs",
+          "resourceType": "service",
+          "name": "web",
+          "accountId": "012345678901",
+          "region": "us-east-1",
+          "partition": "aws",
+          "tenantId": null,
+          "cell": null,
+          "environment": null,
+          "stateful": false,
+          "tags": {},
+          "observedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "a major version this build does not implement — the field may mean something else",
+        "by": "parser",
+        "field": "schemaVersion",
+        "value": {
+          "schemaVersion": "2.0",
+          "arn": "arn:aws:ecs:us-east-1:012345678901:service/tenure-prod/web",
+          "service": "ecs",
+          "resourceType": "service",
+          "name": "web",
+          "accountId": "012345678901",
+          "region": "us-east-1",
+          "partition": "aws",
+          "tenantId": null,
+          "cell": null,
+          "environment": null,
+          "stateful": false,
+          "tags": {},
+          "observedAt": "2026-08-07T10:00:00.000Z"
+        }
+      }
+    ]
+  },
+  "CostFigure": {
+    "accept": [
+      {
+        "why": "a tenant's actual spend for August",
+        "value": {
+          "schemaVersion": "1.0",
+          "dimension": "tenant",
+          "key": "acme",
+          "kind": "ACTUAL",
+          "amountMinor": 128400,
+          "currency": "USD",
+          "periodStart": "2026-08-01T00:00:00.000Z",
+          "periodEnd": "2026-09-01T00:00:00.000Z",
+          "sourceSystem": "aws-cur",
+          "sourceReference": "s3://tenure-cur/prod",
+          "retrievedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "a credit is negative, and refusing it would make a refund unreportable",
+        "value": {
+          "schemaVersion": "1.0",
+          "dimension": "account",
+          "key": "012345678901",
+          "kind": "ACTUAL",
+          "amountMinor": -50000,
+          "currency": "USD",
+          "periodStart": "2026-08-01T00:00:00.000Z",
+          "periodEnd": "2026-09-01T00:00:00.000Z",
+          "sourceSystem": "aws-cur",
+          "sourceReference": "s3://tenure-cur/prod",
+          "retrievedAt": "2026-08-07T10:00:00.000Z"
+        }
+      }
+    ],
+    "reject": [
+      {
+        "why": "a lowercase currency, which compares unequal to the same currency everywhere else",
+        "by": "schema",
+        "field": "currency",
+        "value": {
+          "schemaVersion": "1.0",
+          "dimension": "tenant",
+          "key": "acme",
+          "kind": "ACTUAL",
+          "amountMinor": 128400,
+          "currency": "usd",
+          "periodStart": "2026-08-01T00:00:00.000Z",
+          "periodEnd": "2026-09-01T00:00:00.000Z",
+          "sourceSystem": "aws-cur",
+          "sourceReference": "s3://tenure-cur/prod",
+          "retrievedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "a fractional minor unit — money that cannot be paid",
+        "by": "schema",
+        "field": "amountMinor",
+        "value": {
+          "schemaVersion": "1.0",
+          "dimension": "tenant",
+          "key": "acme",
+          "kind": "ACTUAL",
+          "amountMinor": 128400.5,
+          "currency": "USD",
+          "periodStart": "2026-08-01T00:00:00.000Z",
+          "periodEnd": "2026-09-01T00:00:00.000Z",
+          "sourceSystem": "aws-cur",
+          "sourceReference": "s3://tenure-cur/prod",
+          "retrievedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "a kind nothing publishes, so no consumer knows how to read the number",
+        "by": "schema",
+        "field": "kind",
+        "value": {
+          "schemaVersion": "1.0",
+          "dimension": "tenant",
+          "key": "acme",
+          "kind": "ESTIMATE",
+          "amountMinor": 128400,
+          "currency": "USD",
+          "periodStart": "2026-08-01T00:00:00.000Z",
+          "periodEnd": "2026-09-01T00:00:00.000Z",
+          "sourceSystem": "aws-cur",
+          "sourceReference": "s3://tenure-cur/prod",
+          "retrievedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "a period that ends before it starts covers no time at all",
+        "by": "parser",
+        "field": "periodEnd",
+        "value": {
+          "schemaVersion": "1.0",
+          "dimension": "tenant",
+          "key": "acme",
+          "kind": "ACTUAL",
+          "amountMinor": 128400,
+          "currency": "USD",
+          "periodStart": "2026-09-01T00:00:00.000Z",
+          "periodEnd": "2026-08-01T00:00:00.000Z",
+          "sourceSystem": "aws-cur",
+          "sourceReference": "s3://tenure-cur/prod",
+          "retrievedAt": "2026-08-07T10:00:00.000Z"
+        }
+      }
+    ]
+  },
+  "DriftFinding": {
+    "accept": [
+      {
+        "why": "an RDS instance whose storage differs from the declared size",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:rds:us-east-1:012345678901:db:tenure-prod",
+          "kind": "modified",
+          "field": "allocatedStorage",
+          "severity": "warning",
+          "reversible": true,
+          "detail": "Declared 100 GiB, observed 200 GiB.",
+          "detectedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "a resource in the account that nothing declares",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:s3:::tenure-scratch",
+          "kind": "unmanaged",
+          "field": null,
+          "severity": "critical",
+          "reversible": false,
+          "detail": "Present in the account and named by no declared resource.",
+          "detectedAt": "2026-08-07T10:00:00.000Z"
+        }
+      }
+    ],
+    "reject": [
+      {
+        "why": "a modified finding that does not say what differs",
+        "by": "parser",
+        "field": "field",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:rds:us-east-1:012345678901:db:tenure-prod",
+          "kind": "modified",
+          "field": null,
+          "severity": "warning",
+          "reversible": true,
+          "detail": "Something differs.",
+          "detectedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "a whole-resource finding that names an attribute says the resource exists and does not",
+        "by": "parser",
+        "field": "field",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:s3:::tenure-scratch",
+          "kind": "missing",
+          "field": "allocatedStorage",
+          "severity": "warning",
+          "reversible": false,
+          "detail": "Declared and not present.",
+          "detectedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "a severity outside the published three",
+        "by": "schema",
+        "field": "severity",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:s3:::tenure-scratch",
+          "kind": "unmanaged",
+          "field": null,
+          "severity": "warn",
+          "reversible": false,
+          "detail": "Present in the account and named by no declared resource.",
+          "detectedAt": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "no reversibility, so a reconcile surface has to guess whether undoing is possible",
+        "by": "schema",
+        "field": "reversible",
+        "value": {
+          "schemaVersion": "1.0",
+          "arn": "arn:aws:s3:::tenure-scratch",
+          "kind": "unmanaged",
+          "field": null,
+          "severity": "critical",
+          "detail": "Present in the account and named by no declared resource.",
+          "detectedAt": "2026-08-07T10:00:00.000Z"
+        }
+      }
+    ]
+  },
+  "ChangeDiff": {
+    "accept": [
+      {
+        "why": "one configuration value changed, nothing priced it",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": [
+            {
+              "domain": "app-config",
+              "path": "platform.payments.mode",
+              "before": "test",
+              "after": "live",
+              "effect": "update",
+              "reversible": true,
+              "monthlyCostDeltaMinor": null
+            }
+          ]
+        }
+      },
+      {
+        "why": "an empty diff — two revisions that resolve the same",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": []
+        }
+      },
+      {
+        "why": "an irreversible AWS deletion with a priced saving",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": [
+            {
+              "domain": "aws-resource",
+              "path": "arn:aws:rds:us-east-1:012345678901:db:tenure-prod",
+              "before": "rds:db",
+              "after": null,
+              "effect": "delete",
+              "reversible": false,
+              "monthlyCostDeltaMinor": -39000
+            },
+            {
+              "domain": "cost",
+              "path": "this plan in total",
+              "before": null,
+              "after": "TWO_PERSON",
+              "effect": "create",
+              "reversible": true,
+              "monthlyCostDeltaMinor": -39000
+            }
+          ]
+        }
+      },
+      {
+        "why": "a Relay allowance raised — its own domain, because it is a model-spend ceiling and not a cosmetic setting",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": [
+            {
+              "domain": "relay",
+              "path": "platform.relay.modelTokenBudgetPerMonth",
+              "before": 250000,
+              "after": 1000000,
+              "effect": "update",
+              "reversible": true,
+              "monthlyCostDeltaMinor": null
+            }
+          ]
+        }
+      },
+      {
+        "why": "a rollback preview — what returning to an earlier revision would change",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": [
+            {
+              "domain": "rollback",
+              "path": "platform.branding.primaryColor",
+              "before": "#101010",
+              "after": "#0b0b0b",
+              "effect": "update",
+              "reversible": true,
+              "monthlyCostDeltaMinor": null
+            }
+          ]
+        }
+      }
+    ],
+    "reject": [
+      {
+        "why": "a domain nothing computes — an empty section would read as 'nothing changed'",
+        "by": "schema",
+        "field": "entries[0].domain",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": [
+            {
+              "domain": "integration",
+              "path": "slack",
+              "before": null,
+              "after": "connected",
+              "effect": "create",
+              "reversible": true,
+              "monthlyCostDeltaMinor": null
+            }
+          ]
+        }
+      },
+      {
+        "why": "a fractional cost delta, which an approval threshold would compare against integers",
+        "by": "schema",
+        "field": "entries[0].monthlyCostDeltaMinor",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": [
+            {
+              "domain": "cost",
+              "path": "this plan in total",
+              "before": null,
+              "after": "PEER",
+              "effect": "create",
+              "reversible": true,
+              "monthlyCostDeltaMinor": 39.5
+            }
+          ]
+        }
+      },
+      {
+        "why": "no entries at all — an absent list is not an empty one",
+        "by": "schema",
+        "field": "entries",
+        "value": {
+          "schemaVersion": "1.0"
+        }
+      },
+      {
+        "why": "a create that carries a previous value",
+        "by": "parser",
+        "field": "entries[0].before",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": [
+            {
+              "domain": "app-config",
+              "path": "platform.payments.mode",
+              "before": "test",
+              "after": "live",
+              "effect": "create",
+              "reversible": true,
+              "monthlyCostDeltaMinor": null
+            }
+          ]
+        }
+      },
+      {
+        "why": "one path stated twice, which double-counts the cost an approval is assessed on",
+        "by": "parser",
+        "field": "entries[1].path",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": [
+            {
+              "domain": "aws-resource",
+              "path": "arn:aws:rds:us-east-1:012345678901:db:tenure-prod",
+              "before": "rds:db",
+              "after": null,
+              "effect": "delete",
+              "reversible": false,
+              "monthlyCostDeltaMinor": -39000
+            },
+            {
+              "domain": "aws-resource",
+              "path": "arn:aws:rds:us-east-1:012345678901:db:tenure-prod",
+              "before": "rds:db",
+              "after": "rds:db",
+              "effect": "update",
+              "reversible": true,
+              "monthlyCostDeltaMinor": -39000
+            }
+          ]
+        }
+      },
+      {
+        "why": "a cost entry that priced nothing — a cost heading over an unknown number reads as a known one",
+        "by": "parser",
+        "field": "entries[0].monthlyCostDeltaMinor",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": [
+            {
+              "domain": "cost",
+              "path": "this plan in total",
+              "before": null,
+              "after": "PEER",
+              "effect": "create",
+              "reversible": true,
+              "monthlyCostDeltaMinor": null
+            }
+          ]
+        }
+      },
+      {
+        "why": "a rollback marked irreversible — a rollback republishes forward, so this is a deletion mislabelled",
+        "by": "parser",
+        "field": "entries[0].reversible",
+        "value": {
+          "schemaVersion": "1.0",
+          "entries": [
+            {
+              "domain": "rollback",
+              "path": "platform.branding.primaryColor",
+              "before": "#101010",
+              "after": "#0b0b0b",
+              "effect": "update",
+              "reversible": false,
+              "monthlyCostDeltaMinor": null
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "ApiEnvelope": {
+    "accept": [
+      {
+        "why": "a first page with more to come",
+        "value": {
+          "schemaVersion": "1.0",
+          "items": [
+            {
+              "slug": "acme"
+            }
+          ],
+          "nextCursor": "Zm9vYmFyYmF6cXV4",
+          "asOf": "2026-08-07T10:00:00.000Z",
+          "correlationId": "req-9f3b2a1c4d5e6f708192a3b4c5d6e7f8"
+        }
+      },
+      {
+        "why": "the last page — nextCursor is null, not absent",
+        "value": {
+          "schemaVersion": "1.0",
+          "items": [],
+          "nextCursor": null,
+          "asOf": "2026-08-07T10:00:00.000Z",
+          "correlationId": "req-9f3b2a1c4d5e6f708192a3b4c5d6e7f8"
+        }
+      }
+    ],
+    "reject": [
+      {
+        "why": "nextCursor omitted — a missing field and a null one are opposite facts about paging",
+        "by": "schema",
+        "field": "nextCursor",
+        "value": {
+          "schemaVersion": "1.0",
+          "items": [],
+          "asOf": "2026-08-07T10:00:00.000Z",
+          "correlationId": "req-1"
+        }
+      },
+      {
+        "why": "no correlationId — a failure nobody can trace back to a request",
+        "by": "schema",
+        "field": "correlationId",
+        "value": {
+          "schemaVersion": "1.0",
+          "items": [],
+          "nextCursor": null,
+          "asOf": "2026-08-07T10:00:00.000Z"
+        }
+      },
+      {
+        "why": "asOf is not an instant, so the page has no age",
+        "by": "schema",
+        "field": "asOf",
+        "value": {
+          "schemaVersion": "1.0",
+          "items": [],
+          "nextCursor": null,
+          "asOf": "last tuesday",
+          "correlationId": "req-1"
+        }
+      },
+      {
+        "why": "items is a single object rather than a list",
+        "by": "schema",
+        "field": "items",
+        "value": {
+          "schemaVersion": "1.0",
+          "items": {
+            "slug": "acme"
+          },
+          "nextCursor": null,
+          "asOf": "2026-08-07T10:00:00.000Z",
+          "correlationId": "req-1"
+        }
+      },
+      {
+        "why": "an empty cursor string, which a client would send back as a position",
+        "by": "schema",
+        "field": "nextCursor",
+        "value": {
+          "schemaVersion": "1.0",
+          "items": [],
+          "nextCursor": "",
+          "asOf": "2026-08-07T10:00:00.000Z",
+          "correlationId": "req-1"
+        }
+      }
+    ]
+  }
+}

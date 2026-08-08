@@ -24,8 +24,22 @@ import path from "node:path"
  * `node` on the Node 20 CI pins and so cannot import a `.ts` module at all. The
  * choice was a second parser or one file both can reach, and two readers of the
  * same stylesheet that disagree about what it says is precisely the drift this
- * module was written to remove. It is re-exported here so this stays the name
- * anything inside `apps/web` reaches for.
+ * module was written to remove.
+ *
+ * Who reads what, so this stays checkable rather than aspirational:
+ *
+ *   * `readBlocks` below calls `paletteOf` and `blockAt`; `token` calls
+ *     `resolveToken`. Those are the live paths inside `apps/web`.
+ *   * `tools/entry-point-inventory.mjs` imports `paletteOf`, `resolveToken` and
+ *     `tokenNamesIn` from `./css-declarations.mjs` DIRECTLY — not through this
+ *     file — because it is `node` running `.mjs` and this module is TypeScript.
+ *
+ * The re-export below is therefore a module boundary, not a call path: it keeps
+ * `theme-tokens` the name `apps/web` imports the parser under if it ever needs
+ * the raw readers, without a second implementation existing. Nothing in
+ * `apps/web` imports these four names through here today. Said plainly because
+ * the alternative — a comment implying a consumer that does not exist — is the
+ * exact failure this module's own header warns about, one level up.
  */
 import { blockAt, declarationsIn, paletteOf, resolveToken, tokenNamesIn } from "./css-declarations.mjs"
 

@@ -7,12 +7,14 @@ import {
   nextStates,
   observeResidual,
   reconcileResidual,
+  type IsolationTier,
   type ObservedTenantResources,
   type ResourceClass,
   type TenantState,
 } from "@tenure/provisioning"
 
-import type { HighRisk } from "@/components/states"
+import { mutationForTransition, planMutation } from "./aws/mutate"
+import { riskDigest, type HighRisk } from "../components/states"
 
 /**
  * GE-022-006 — which lifecycle states mean "archived" and "about to be gone",
@@ -150,4 +152,134 @@ export function riskOf(
       ? `IRREVERSIBLE. No path back to a serving state exists from ${to}.`
       : `Reversible. A serving state is reachable again from ${to}.`,
   }
+}
+
+/**
+ * Which gate refused, and what the operator is told — STUDIO-140-006.
+ *
+ * `code` is what lands on the audit ledger's outcome row, so "how often was
+ * this refused, and by which gate" is a scan of one field. `detail` is what the
+ * operator reads, and no two arms may produce the same sentence: a gate whose
+ * arms all say "not allowed" is a gate no test can tell from a gate that
+ * stopped working.
+ */
+export interface HighRiskVerdict {
+  code: "REFUSED_CONFIRMATION" | "REFUSED_STALE_CONSEQUENCE" | "REFUSED_IRREVERSIBLE"
+  detail: string
+}
+
+/**
+ * The three refusals `advanceState` owns, decided in one place — STUDIO-140-006.
+ *
+ * ## Why this is not inline in the action
+ *
+ * It used to be, and that made it unprovable. A Next server action reaches its
+ * refusals only through an authenticated session and a live registry, so the
+ * ONLY thing that could exercise them was a browser suite gated on a running
+ * DynamoDB — and a suite that skips when the table is unset asserts nothing at
+ * all on the day the table is unset. The decision is pure: it needs the tenant's
+ * four observable facts, the transition, and the two strings the form submitted.
+ * Nothing in it needs a session, a socket or a clock.
+ *
+ * So it is a function, and `e2e/high-risk-fails-closed.spec.ts` drives all five
+ * refusals through it — the two the lifecycle engine owns (self-approval, an
+ * approver who is not an operator) coming from `advance()` itself — and asserts
+ * the five sentences differ. The same spec asserts, on the ACTION'S OWN SOURCE,
+ * that `advanceState` calls this before `gate()` and returns what it says: a
+ * pure decision nothing calls is the failure mode this whole item is about, and
+ * an extraction with no binding assertion would have reintroduced it.
+ *
+ * ## The risk is recomputed here, never accepted from the form
+ *
+ * `riskOf` is called on facts the SERVER holds — the tenant's isolation, its
+ * published deployment, its evidence — and the digest is taken of that. The
+ * browser's `riskDigest` field is only ever COMPARED against it. That is what
+ * makes the comparison meaningful: an operator who read a consequence that has
+ * since changed submits a digest of the old one, and the move is refused rather
+ * than applied under a description that stopped being true.
+ *
+ * Returns `null` when nothing here refuses. That is not "permitted" — the
+ * lifecycle engine, the command gate, the cost band and the change-class token
+ * all still run afterwards, and `advanceState` runs them in that order.
+ */
+export function highRiskVerdict(input: {
+  slug: string
+  from: TenantState
+  to: TenantState
+  /** The tenant's four observable facts, exactly as the tenant page reads them. */
+  isolation: IsolationTier
+  hasDeployment: boolean
+  serving: boolean
+  evidenceRecords: number
+  /** The registry table, so a refusal names the resource an operator would type. */
+  tenantTable: string | undefined
+  reason: string
+  /** What the operator typed into the confirmation field. Never trimmed here — the caller trims. */
+  typed: string
+  /** The digest the page rendered, as submitted. Compared, never trusted. */
+  submittedDigest: string
+  /**
+   * The audit row this attempt already wrote, named so a refusal is traceable
+   * to it.
+   *
+   * Nullable because the ledger's own record type is — a chain whose head has
+   * not been claimed yet has no sequence. Rendered as `unrecorded` rather than
+   * `null`, because "audit row null" reads as a bug in the message and this is
+   * the sentence an operator forwards to whoever they escalate to.
+   */
+  auditSequence: number | null
+}): HighRiskVerdict | null {
+  const auditRow = input.auditSequence ?? "unrecorded"
+  const observed = observeResidual({
+    isolation: input.isolation,
+    hasDeployment: input.hasDeployment,
+    serving: input.serving,
+    evidenceRecords: input.evidenceRecords,
+  })
+  const risk = riskOf(input.slug, input.from, input.to, observed)
+
+  // Only where the lifecycle demands a second identity. Demanding a typed
+  // target on every move is how a control becomes a field people paste into,
+  // and the change-class gate (STUDIO-060-007) already asks for its own token
+  // on the moves this one does not cover.
+  if (needsApproval(input.from, input.to)) {
+    if (input.typed !== input.slug) {
+      return {
+        code: "REFUSED_CONFIRMATION",
+        detail:
+          `Type ${input.slug} exactly to confirm. The server compares what was typed against the ` +
+          `target it resolved itself, so a confirmation typed for a different tenant is refused ` +
+          `rather than applied to this one. Audit row ${auditRow}.`,
+      }
+    }
+
+    if (input.submittedDigest !== riskDigest(risk)) {
+      return {
+        code: "REFUSED_STALE_CONSEQUENCE",
+        detail:
+          `The consequence changed while this page was open. What was approved was not what would ` +
+          `run now — reload and read it again. Audit row ${auditRow}.`,
+      }
+    }
+  }
+
+  // Two lifecycle moves are AWS mutations and both are in the destructive half.
+  // This console refuses to perform them and hands back the commands a human
+  // runs under their own credentials.
+  const mutation = mutationForTransition({
+    slug: input.slug,
+    to: input.to,
+    isolation: input.isolation,
+    serving: input.serving,
+    tenantTable: input.tenantTable,
+    reason: input.reason,
+  })
+  if (mutation) {
+    const verdict = planMutation(mutation)
+    if (verdict.outcome === "REFUSED_IRREVERSIBLE") {
+      return { code: "REFUSED_IRREVERSIBLE", detail: verdict.message }
+    }
+  }
+
+  return null
 }

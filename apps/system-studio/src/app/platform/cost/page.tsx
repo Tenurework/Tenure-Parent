@@ -7,11 +7,11 @@ import {
   money,
 } from "@tenure/finops"
 
-import { EmptyState } from "@/components/states"
+import { EmptyState, PermissionDeniedState } from "@/components/states"
 import { costSource } from "@/lib/cost-source"
 import { CostReportView, formatAmount } from "./CostReportView"
 import { auth } from "@/lib/auth"
-import { isOperator } from "@/lib/operators"
+import { authorizeCommand } from "@/lib/authorize"
 
 /**
  * The FinOps Center — STUDIO-120-008/009/010.
@@ -34,13 +34,23 @@ export const dynamic = "force-dynamic"
 const usd = (units: number) => formatAmount(money(units, "USD"))
 
 export default async function CostPage() {
-  // The same gate every operator page uses. Not extracted into a helper here:
-  // that is a refactor across six passing pages, and this one does not need it.
+  /*
+   * STUDIO-020-005/006. NOT the same gate every operator page uses — this is
+   * the page that separation of duties is most obviously about.
+   *
+   * `cost:read` is held by the FinOps Analyst, the Auditor and the Platform
+   * Super Admin. A Cloud Platform Engineer, a Support Engineer and a Release
+   * Manager are refused: the fleet's bill and the approval thresholds below are
+   * the inputs to a spend commitment, and the previous boolean gate meant
+   * everyone with an address in the allowlist could read them.
+   */
   const session = await auth()
-  if (!isOperator(session?.user?.email)) {
+  const decision = authorizeCommand("cost.read", { principalId: session?.user?.email })
+  if (decision.reason === "NO_PRINCIPAL") {
     const { redirect } = await import("next/navigation")
     redirect("/signin")
   }
+  if (!decision.allowed) return <PermissionDeniedState />
 
   const source = await costSource()
 

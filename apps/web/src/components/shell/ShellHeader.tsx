@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/Button"
 import { Menu, MenuItem, MenuPopover, MenuTrigger } from "@/components/ui/Menu"
-import { ChevronDown, LogOut, UserRound } from "@/components/ui/icons"
+import { ChevronDown, ListTodo, LogOut, UserRound } from "@/components/ui/icons"
 import { TenureAIMark, TenureLogo } from "@/components/brand/TenureLogo"
 import { EmailLink } from "@/components/EmailLink"
 import { SearchCommand } from "./SearchCommand"
@@ -105,6 +105,25 @@ export function ShellHeader({
 
           <SearchCommand sections={sections} />
         </div>
+
+        {/* TTES-030-001, Bible §5.1 — the work inbox is listed as part of the
+            UNIVERSAL SHELL, beside notifications and the profile menu, not as a
+            module page you have to already know exists. It sits here for the
+            same reason the bell does: it is true of every route.
+
+            A link rather than a nav-section entry deliberately. The side nav is
+            assembled from `navigationForSystem(slug, capabilities)`, which is
+            per-MODULE navigation — a tenant that does not run the approvals
+            module would lose the inbox with it, and the inbox is the union of
+            five sources, only one of which is approvals. */}
+        <Link
+          href="/inbox"
+          aria-label="Work inbox"
+          title="Work inbox"
+          className="grid h-9 w-9 place-items-center rounded-lg text-[--shell-text-secondary] no-underline transition-colors hover:bg-[--shell-item-hover] hover:text-[--shell-text]"
+        >
+          <ListTodo size={18} />
+        </Link>
 
         <NotificationBell initialUnread={unreadNotifications} />
 

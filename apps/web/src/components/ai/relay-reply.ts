@@ -28,6 +28,19 @@ export interface RelayReplyInput {
   aiDisabledReason: string | null
   /** Non-null when this principal may not run the retrieval tool; the engine's reason. */
   toolRefusal: string | null
+  /**
+   * WRK-GATE-070. Non-null when the vendor DID produce an answer and the route
+   * discarded it for citing a source that was not offered.
+   *
+   * Required, not optional, and that is the point: the route has emitted this
+   * field since the citation check landed, and this module's whole reason for
+   * existing is that a response field nobody typed is a response field nobody
+   * reads. An optional one would compile at `TenureAIPanel` untouched and leave
+   * the ladder below giving the answer at the bottom — "Tenure AI couldn't
+   * generate an answer just now" — which is false twice over: it did generate
+   * one, and the reason it is not on screen is not transient.
+   */
+  citationRefusal: string | null
   /** How many ranked sources the route returned. */
   sourceCount: number
 }
@@ -38,6 +51,8 @@ export type RelayOutcome =
   | "assistant-disabled"
   /** This principal, or this system, may not run `search.corpus`. */
   | "retrieval-refused"
+  /** The model answered, and cited a source that was never offered. */
+  | "citation-refused"
   /** Nobody has configured a model in this cell. */
   | "unconfigured"
 
@@ -57,6 +72,11 @@ export interface RelayReply {
  * anything" — the exact false statement this function exists to stop. And
  * `aiDisabledReason` is checked before "no key", because a tenant that turned
  * the vendor off has not failed to configure anything.
+ *
+ * `citationRefusal` (WRK-GATE-070) sits above both of the "nothing was
+ * configured / switched off" branches for the same reason: it is the only one
+ * of the five that describes a vendor call that actually happened, and the
+ * bottom branch it would otherwise fall into calls that a transient failure.
  */
 export function relayReply(input: RelayReplyInput): RelayReply {
   if (input.answer !== null && input.answer.trim() !== "") {
@@ -70,6 +90,27 @@ export function relayReply(input: RelayReplyInput): RelayReply {
       // looked at. It names the reason the engine gave instead.
       message: `I wasn't able to search your workspace for this. ${input.toolRefusal}`,
       showSources: false,
+    }
+  }
+
+  // WRK-GATE-070. Before every remaining branch, because every remaining branch
+  // describes a call that did not happen. This one describes a call that did:
+  // the vendor answered, the answer cited a record that was not retrieved, and
+  // the route dropped it. Reaching the bottom of this ladder instead would tell
+  // the reader a transient failure occurred, which would send them to retry the
+  // one thing that is not going to help — and, worse, would hide that a model
+  // fabricated a citation, which is the fact somebody needs to know.
+  if (input.citationRefusal) {
+    return {
+      outcome: "citation-refused",
+      message:
+        `I wrote an answer and did not show it: it cited a source that was not among the ones ` +
+        `retrieved for you, so nothing in it could be checked against a record you can open. ` +
+        `${input.citationRefusal}`,
+      // The sources are real and were genuinely matched — they are the honest
+      // remainder, and showing them is what makes this a degradation rather
+      // than a dead end.
+      showSources: input.sourceCount > 0,
     }
   }
 

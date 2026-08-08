@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -13,32 +17,76 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [{ "name": "next" }],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@tenure/configuration": ["../../packages/configuration/src/index.ts"],
-      "@tenure/blueprints": ["../../blueprints/index.ts"],
-      "@tenure/authorization": ["../../packages/authorization/src/index.ts"],
-      "@tenure/contracts": ["../../packages/contracts/src/index.ts"],
-      "@tenure/organization-model": ["../../packages/organization-model/src/index.ts"],
-      "@tenure/module-runtime": ["../../packages/module-runtime/src/index.ts"],
-      "@tenure/modules": ["../../modules/index.ts"],
-      "@tenure/releases": ["../../packages/releases/src/index.ts"],
-      "@tenure/payments": ["../../packages/payments/src/index.ts"],
-      "@tenure/payments/gateway": ["../../packages/payments/src/gateway.ts"],
-      "@tenure/platform-config": ["../../packages/platform-config/src/index.ts"],
-      "@tenure/provisioning": ["../../packages/provisioning/src/index.ts"],
-      "@tenure/finops": ["../../packages/finops/src/index.ts"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@tenure/audit": [
+        "../../packages/audit/src/index.ts"
+      ],
+      "@tenure/configuration": [
+        "../../packages/configuration/src/index.ts"
+      ],
+      "@tenure/blueprints": [
+        "../../blueprints/index.ts"
+      ],
+      "@tenure/authorization": [
+        "../../packages/authorization/src/index.ts"
+      ],
+      "@tenure/contracts": [
+        "../../packages/contracts/src/index.ts"
+      ],
+      "@tenure/organization-model": [
+        "../../packages/organization-model/src/index.ts"
+      ],
+      "@tenure/module-runtime": [
+        "../../packages/module-runtime/src/index.ts"
+      ],
+      "@tenure/modules": [
+        "../../modules/index.ts"
+      ],
+      "@tenure/releases": [
+        "../../packages/releases/src/index.ts"
+      ],
+      "@tenure/payments": [
+        "../../packages/payments/src/index.ts"
+      ],
+      "@tenure/payments/gateway": [
+        "../../packages/payments/src/gateway.ts"
+      ],
+      "@tenure/platform-config": [
+        "../../packages/platform-config/src/index.ts"
+      ],
+      "@tenure/provisioning": [
+        "../../packages/provisioning/src/index.ts"
+      ],
+      "@tenure/finops": [
+        "../../packages/finops/src/index.ts"
+      ]
     }
   },
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
-    "../../packages/*/src/**/*.ts",
     "../../blueprints/**/*.ts",
-    "../../modules/**/*.ts"
+    "../../modules/**/*.ts",
+    "../../packages/*/src/**/*.ts",
+    ".next-audit110/types/**/*.ts",
+    ".next-authz/types/**/*.ts",
+    ".next-fh003/types/**/*.ts",
+    ".next-hr140/types/**/*.ts",
+    ".next-roleverify/types/**/*.ts",
+    ".next-studio-120-003/types/**/*.ts",
+    ".next/types/**/*.ts",
+    "next-env.d.ts",
+    ".next-s130/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

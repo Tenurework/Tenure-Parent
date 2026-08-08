@@ -481,3 +481,77 @@ describe("money-mode is an authorised publication", () => {
     expect(currentPaymentMode({ values: { [MODE_KEY]: "live" } })).toBe("live")
   })
 })
+
+/**
+ * WRK-040-005 — the configuration sink.
+ *
+ * `sensitivity: "secret"` was a LABEL. It changed how a value is displayed and
+ * who is shown it; it never refused a value on the grounds of what the value IS.
+ * So `sk_live_…` typed into any ordinary `platform.*` string resolved into the
+ * snapshot every request reads, was checksummed into a revision, and became part
+ * of an immutable version history nobody can un-publish. That is the worst of
+ * the six sinks the item names: the other five leak a credential to somewhere it
+ * can be deleted from.
+ *
+ * Asserted on `planPublication` — the function `apps/system-studio`'s
+ * configuration actions call three times — and never on `findSecretValues`
+ * directly, so a mutation that stops the publication path calling the scanner
+ * reds these rather than passing beside them.
+ */
+describe("a configuration value carrying a reusable provider secret cannot be published", () => {
+  const LIVE_KEY = "sk_live_aaaaaaaaaaaaaaaa"
+  const SIGNING_SECRET = "whsec_aaaaaaaaaa"
+
+  it("blocks a publish whose value is a live provider key", () => {
+    const plan = base({
+      proposed: [layer("tenantOverlay", "acme", { "platform.terminology.seatSingular": LIVE_KEY })],
+    })
+
+    expect(plan.blocked).toBe(true)
+    expect(plan.blockers.join("\n")).toContain("provider secret key")
+    // The layer AND the key, which is the difference between "somewhere in this
+    // publication" and a line somebody can go and edit.
+    expect(plan.blockers.join("\n")).toContain("acme")
+    expect(plan.blockers.join("\n")).toContain("platform.terminology.seatSingular")
+  })
+
+  it("blocks one hidden inside a nested value, not only a top-level string", () => {
+    // The case a key-name rule cannot see and a shallow scan misses: the secret
+    // is three levels down, under a field called `note`.
+    const plan = base({
+      proposed: [
+        layer("tenantOverlay", "acme", {
+          "platform.terminology.seatSingular": {
+            support: { handover: { note: `rotate ${SIGNING_SECRET} before May` } },
+          },
+        }),
+      ],
+    })
+
+    expect(plan.blocked).toBe(true)
+    expect(plan.blockers.join("\n")).toContain("webhook signing secret")
+  })
+
+  it("does not block an ordinary publication, so the scan is not simply refusing everything", () => {
+    // Without this every assertion above would pass against a `planPublication`
+    // that had started blocking unconditionally.
+    const plan = base()
+    expect(plan.blocked).toBe(false)
+    expect(plan.blockers).toEqual([])
+  })
+
+  it("does not fire on a cuid, a checksum or an ordinary identifier", () => {
+    // The reason the rule is prefix-based rather than entropy-based: an entropy
+    // heuristic refuses every identifier a configuration legitimately carries,
+    // and a guard that fires on correct values gets routed around.
+    const plan = base({
+      proposed: [
+        layer("tenantOverlay", "acme", {
+          "platform.terminology.seatSingular": "cl9x8q7w60000abcdefghijkl",
+          "platform.localization.currency": "sha256:9f2b1c",
+        }),
+      ],
+    })
+    expect(plan.blockers).toEqual([])
+  })
+})

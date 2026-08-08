@@ -238,6 +238,25 @@ export const DESIGN_TOKEN_RULES = {
    Empty today, and that is honest: nothing has been deprecated yet. The rule
    still exists, so the day something is, one line in the register makes every
    import of it red.
+
+   IT IS PATHS, NOT A CONFIG BLOCK. This used to ship as its own flat-config
+   object — `{ files: PRODUCT_MODULES, rules: { "no-restricted-imports": [...] } }`
+   appended after `designTokenConfigs`. Flat config resolves a rule by LAST
+   WRITER: a later object naming the same rule over the same files REPLACES the
+   earlier value whole, it does not merge with it. So that block was a loaded
+   gun pointed at the vendor and icon boundaries — empty `DEPRECATIONS` meant
+   `deprecationImportRules` returned `[]` and nothing was wrong, and the first
+   line ever added to the register would have silently deleted
+   `no-restricted-imports` for every product module at once. Measured, not
+   reasoned: injecting one entry made
+   `import { Menu } from "react-aria-components"` in `src/components/shell/`
+   report nothing, and `import { Star } from "lucide-react"` report nothing.
+   Both gates, gone, with a green test suite.
+
+   So deprecations contribute PATHS into the single `no-restricted-imports`
+   value built by `restrictedImports` below, and `assertOneImportBoundary`
+   fails the lint run if a second writer for that rule over PRODUCT_MODULES
+   ever reappears.
 ──────────────────────────────────────────────────────────────────────────── */
 const DESIGN_SYSTEM_MODULE = "@/components/ui/design-system"
 
@@ -256,27 +275,21 @@ export function deprecatedNamesFrom(source) {
   return names
 }
 
-export function deprecationImportRules(names) {
+/**
+ * The deprecation register as `no-restricted-imports` PATH entries, to be
+ * merged into the one restricted-imports value rather than declared as a
+ * competing config block. See the section header above for why that difference
+ * is the whole point.
+ *
+ * @param names {string[]} keys of DEPRECATIONS; `[]` when nothing is deprecated
+ */
+export function deprecatedImportPaths(names) {
   if (names.length === 0) return []
   return [
     {
-      name: "tenure/design-system-deprecations",
-      files: PRODUCT_MODULES,
-      ignores: PRODUCT_MODULE_EXCLUSIONS,
-      rules: {
-        "no-restricted-imports": [
-          "error",
-          {
-            paths: [
-              {
-                name: DESIGN_SYSTEM_MODULE,
-                importNames: names,
-                message: `Deprecated design-system export. See DEPRECATIONS in ${DESIGN_SYSTEM_MODULE.replace("@/", "src/")}.ts for the replacement and the version it is removed in — the register carries both, and a version entry in VERSIONS carries the migration.`,
-              },
-            ],
-          },
-        ],
-      },
+      name: DESIGN_SYSTEM_MODULE,
+      importNames: names,
+      message: `Deprecated design-system export. See DEPRECATIONS in ${DESIGN_SYSTEM_MODULE.replace("@/", "src/")}.ts for the replacement and the version it is removed in — the register carries both, and a version entry in VERSIONS carries the migration.`,
     },
   ]
 }
@@ -306,20 +319,69 @@ const VENDOR_COMPONENT_PATTERNS = [
   { group: ["react-aria-components/*"], message: VENDOR_COMPONENT_MESSAGE },
 ]
 
-/** What a product module may not name: neither the icon vendor nor a component vendor. */
-const RESTRICTED_VENDOR_IMPORTS = [
-  "error",
-  {
-    paths: [...ICON_PATHS, ...VENDOR_COMPONENT_PATHS],
-    patterns: [...ICON_PATTERNS, ...VENDOR_COMPONENT_PATTERNS],
-  },
-]
+/**
+ * THE one `no-restricted-imports` value for a given glob — every list that has
+ * to hold there, composed into a single rule entry.
+ *
+ * Composed rather than declared in separate config blocks because flat config
+ * has no rule-level merge: two objects naming `no-restricted-imports` over
+ * overlapping files means the later one wins outright and the earlier one's
+ * paths stop being enforced, with no warning from ESLint and no failing test.
+ * Everything that restricts an import for the same files therefore has to
+ * arrive here, as paths, and `assertOneImportBoundary` checks that it did.
+ *
+ * @param vendorComponents {boolean} false inside the owned wrapper layer, which
+ *   exists to name `react-aria-components` / `class-variance-authority`
+ * @param deprecated {Array<object>} from `deprecatedImportPaths`; applies
+ *   everywhere, wrappers included — a deprecated export is deprecated for its
+ *   own neighbours too
+ */
+function restrictedImports({ vendorComponents, deprecated }) {
+  return [
+    "error",
+    {
+      paths: [...ICON_PATHS, ...(vendorComponents ? VENDOR_COMPONENT_PATHS : []), ...deprecated],
+      patterns: [...ICON_PATTERNS, ...(vendorComponents ? VENDOR_COMPONENT_PATTERNS : [])],
+    },
+  ]
+}
 
-/** What the owned wrapper layer may not name: the icon vendor, still. */
-const RESTRICTED_ICON_IMPORTS = [
-  "error",
-  { paths: ICON_PATHS, patterns: ICON_PATTERNS },
-]
+/**
+ * Fails the lint run if the import boundary over product modules has stopped
+ * being exactly one rule declaration carrying the vendor paths.
+ *
+ * This runs at config load — every `npm run lint`, every editor lint — because
+ * the failure it catches is invisible by construction: the rule that lost is
+ * simply not reported any more, so every existing test goes on passing while
+ * the boundary is gone. A config that cannot enforce what it claims has to
+ * refuse to load rather than quietly enforce less.
+ *
+ * @param configs {Array<object>} the assembled flat config
+ */
+export function assertOneImportBoundary(configs) {
+  const overProductModules = configs.filter(
+    (config) =>
+      config?.rules &&
+      Object.prototype.hasOwnProperty.call(config.rules, "no-restricted-imports") &&
+      Array.isArray(config.files) &&
+      config.files.some((glob) => PRODUCT_MODULES.includes(glob))
+  )
+
+  if (overProductModules.length !== 1) {
+    throw new Error(
+      `Expected exactly one config object to declare no-restricted-imports over PRODUCT_MODULES; found ${overProductModules.length} (${overProductModules.map((c) => c.name ?? "unnamed").join(", ")}). Flat config resolves a rule by last writer, not by merge, so a second declaration silently deletes the first — which is how the vendor and icon boundaries would disappear from every product module at once. Add the paths to restrictedImports() instead of adding a config block.`
+    )
+  }
+
+  const [, options] = overProductModules[0].rules["no-restricted-imports"]
+  const names = (options?.paths ?? []).map((path) => path.name)
+  const missing = VENDOR_COMPONENT_PATHS.map((path) => path.name).filter((name) => !names.includes(name))
+  if (missing.length > 0) {
+    throw new Error(
+      `The no-restricted-imports boundary over PRODUCT_MODULES no longer restricts ${missing.join(", ")}. Bible §7 ("Domain apps cannot import raw third-party components") and §16 are what this enforces; the owned wrappers in ${OWNED_WRAPPERS} are the sanctioned alternative. Remove the restriction deliberately if that is the decision — do not let it fall out of a rule value by accident.`
+    )
+  }
+}
 
 /**
  * Live exceptions. Every one carries an expiry that is enforced, not narrated.
@@ -394,10 +456,20 @@ function restrictedSyntax(allow = []) {
  *
  * @param exceptions {typeof DESIGN_TOKEN_EXCEPTIONS}
  * @param today {string} ISO date; entries whose `expires` is before it are dead
+ * @param deprecated {Array<object>} from `deprecatedImportPaths`. REQUIRED, and
+ *   `[]` is the way to say "nothing is deprecated". A defaulted parameter here
+ *   would mean a caller that forgot it silently shipped a config with the
+ *   deprecation rule switched off, which is the same class of failure the
+ *   separate-config-block version had.
  */
-export function designTokenConfigs(exceptions, today) {
+export function designTokenConfigs(exceptions, today, deprecated) {
   if (!ISO_DATE.test(today)) {
     throw new Error(`designTokenConfigs needs an ISO date; got ${JSON.stringify(today)}.`)
+  }
+  if (!Array.isArray(deprecated)) {
+    throw new Error(
+      `designTokenConfigs needs the deprecated-import paths as its third argument (pass [] when DEPRECATIONS is empty); got ${JSON.stringify(deprecated)}. They are merged into the one no-restricted-imports value rather than declared as their own config block — see deprecatedImportPaths.`
+    )
   }
 
   const configs = [
@@ -407,7 +479,7 @@ export function designTokenConfigs(exceptions, today) {
       ignores: PRODUCT_MODULE_EXCLUSIONS,
       rules: {
         "no-restricted-syntax": ["error", ...restrictedSyntax()],
-        "no-restricted-imports": RESTRICTED_VENDOR_IMPORTS,
+        "no-restricted-imports": restrictedImports({ vendorComponents: true, deprecated }),
       },
     },
     {
@@ -418,7 +490,7 @@ export function designTokenConfigs(exceptions, today) {
       name: "tenure/design-tokens-owned-wrappers",
       files: [OWNED_WRAPPERS],
       ignores: PRODUCT_MODULE_EXCLUSIONS,
-      rules: { "no-restricted-imports": RESTRICTED_ICON_IMPORTS },
+      rules: { "no-restricted-imports": restrictedImports({ vendorComponents: false, deprecated }) },
     },
     {
       // The registry is the boundary. It is the one module whose job is to name
@@ -489,8 +561,15 @@ const DESIGN_SYSTEM_SOURCE = readFileSync(
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
-  ...designTokenConfigs(DESIGN_TOKEN_EXCEPTIONS, lintToday()),
-  ...deprecationImportRules(deprecatedNamesFrom(DESIGN_SYSTEM_SOURCE)),
+  ...designTokenConfigs(
+    DESIGN_TOKEN_EXCEPTIONS,
+    lintToday(),
+    deprecatedImportPaths(deprecatedNamesFrom(DESIGN_SYSTEM_SOURCE))
+  ),
 ]
+
+/* Checked on the assembled array, not on the pieces: the thing that can be
+   wrong is the composition, and only the finished array shows it. */
+assertOneImportBoundary(eslintConfig)
 
 export default eslintConfig

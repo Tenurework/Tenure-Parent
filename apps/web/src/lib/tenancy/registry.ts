@@ -58,6 +58,16 @@ export const TENANT_SCOPED = [
   // decisions they constrain: a recusal readable across tenants would let one
   // institution see who has stood down from what in another.
   "ConflictDeclaration",
+  // WRK-030-002. A connection opportunity and its single-use launch token.
+  // Scoped because the row carries what a person was trying to do when a
+  // capability blocked them: readable across tenants it would let one
+  // institution enumerate another's members and their questions, and
+  // REDEEMABLE across tenants it would restore one tenant's intent inside
+  // another's scope. `redeemConnectionLaunchToken` refuses a cross-tenant
+  // redemption explicitly (WRONG_TENANT) rather than relying on the predicate
+  // alone, because the two answer different questions — the predicate hides the
+  // row, the refusal names why.
+  "ConnectionLaunchToken",
   "Recusal",
   // PAY-020-004 / PAY-080-004 / PAY-130-004. The payments objects. Every one of
   // them names a tenant, and the reason they must be scoped is sharper than
@@ -73,6 +83,12 @@ export const TENANT_SCOPED = [
   // the money under it. Read across tenants it exposes commercial terms;
   // written across tenants it redirects who pays.
   "PaymentsFundsFlowConfig",
+  // WRK-120-004. One row per model call, with the tokens the vendor reported.
+  // Scoped for two reasons that both matter: read across tenants it is a usage
+  // profile of another institution's assistant, and SUMMED across tenants it is
+  // the wrong number — `budgetVerdict` would compare one tenant's allowance
+  // against the whole platform's spend and refuse everybody.
+  "ModelUsageMeter",
 ] as const
 
 /**

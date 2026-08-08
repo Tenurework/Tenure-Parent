@@ -296,16 +296,123 @@ the commands or the ADR that would unblock it — if it cannot.
   - Mutation (on the caller): route passes `"any"` → that route test reds, because this requester
     holds `approvals.request.create` AND the approvals domain's own policy, so the write is
     genuinely offered; restored → green.
-  - Remaining, and why this is FAIL not PASS: the taxonomy is DERIVED in `relay-tools.ts`, not
-    DECLARED on the contract, and there is still no argument schema of any kind —
-    `ToolRegistration` (packages/contracts/src/index.ts) carries no input/output schema field, so
-    a tool's arguments are unvalidated by construction and `invokeRelayTool` can only check
-    argument NAMES. Both need packages/contracts, which a concurrent run owns; that is a
-    coordination constraint and not an external blocker, so the rest is buildable next tick.
+  - Done (2026-08-07, the "with schemas" half, at the door): the arguments are an ALLOW-LIST.
+    `TOOL_ARGUMENT_SCHEMAS` in `apps/web/src/lib/relay-tools.ts` declares, per `toolKey`, the
+    arguments a tool takes and the `'string' | 'number' | 'boolean'` each is; `invokeRelayTool`
+    gained two branches. `(a″)` refuses any tool key with NO schema entry — fail closed, and
+    decided before the surface's executable list because a tool whose arguments are undeclared is
+    not runnable anywhere and "not here" would imply it runs somewhere else. `(c)` refuses any
+    argument the schema does not declare, or declares at another type. Both reuse `proposalRefusal`,
+    so the refusal carries WRK-030-001's `disclosure`/`safeReason`/`remedy` triple, and both sit
+    BELOW `CALLER_DECIDED_ARGUMENTS`: a proposal naming `tenantId` still gets "the assistant tried
+    to choose whose data to use", not a generic "unknown argument".
+    The direction is the point. Before this, a registration nobody had declared arguments for was
+    the FULLY PERMISSIVE one — the door checked six names and passed every other key, at any type,
+    with any value, straight into `args: { ...proposal.args, tenantId, actorId }`. It is now the
+    unusable one.
+    Seeded with the one real registration, `search.corpus: { query: "string" }` from
+    `modules/index.ts`. `invokeRelayTool` takes the table as a defaulted last parameter — the same
+    seam, and the same reason, as `authorizeRegistrations` taking a registration list: the catalog
+    contributes ONE tool and it is read-only, so a gate exercised only against it is a gate
+    exercised only against the case it does not fire on. The default is the fail-closed production
+    value and `apps/web/src/app/api/ai/chat/route.ts` passes nothing.
+  - Tests (added): `relay-tools.test.ts` — "refuses an argument the tool never declared"
+    (`limit`, `rejected: "limit"`), "refuses a declared argument sent at the wrong type" (five
+    wrong types for `query`), "refuses a registration nobody declared a schema for, even when it
+    is offered" (against the SHIPPED table, with the tool genuinely offered AND executable), and
+    "keeps 'you may not choose the tenant' above 'that argument is unknown'". Plus a coherence
+    ratchet, "every registration this platform ships declares its arguments", in both directions.
+    `ai-kill-switch.test.ts` — "refuses a registration whose arguments nobody declared" drives it
+    through the ROUTE with a second read-only registration contributed by the real `search`
+    manifest, asserts it IS offered, and pins the exact sentence.
+  - Mutations (4 applied, 4 caught, all restored):
+    1. The `if (!schema)` fail-closed branch disabled → the route test "refuses it even though it
+       is offered and read-only" RED (the proposal falls through to the executable-list gate and
+       says "The assistant cannot do that here", which is the less true statement), plus the door
+       test and the audit-row test. Restored → green.
+    2. The unknown-argument branch changed to `console.warn` + `continue` → "refuses an argument
+       the tool never declared" RED. Restored → green.
+    3. On the PRODUCER: a second registration `search.snippets` added to `modules/index.ts` and
+       left out of the schema table → 7 RED, including the coherence ratchet ("covers each
+       tenant's registrations") and the route test. Removed → green.
+    4. `TOOL_ARGUMENT_SCHEMAS` emptied → 16 of 42 `ai-kill-switch.test.ts` tests RED, every one of
+       them a retrieval that now reads "That capability has not been set up for the assistant to
+       use yet." — the branch is reached from the ROUTE, not only from the door test. Restored →
+       42/42.
+  - Remaining, and why this is still FAIL not PASS: the schema is declared BESIDE the registration,
+    not ON it. `ToolRegistration` in **packages/contracts/src/index.ts** carries `toolKey`,
+    `module`, `description`, `requiredPermission`, `readOnly` and `reauthorizesPerCall` and no
+    input/output schema field, so a module cannot ship a tool's arguments with the tool and the
+    table in `relay-tools.ts` has to be kept in step by a test rather than by the type. The same
+    file is what would carry the taxonomy (`ActionRiskClass` is still DERIVED). packages/contracts
+    is owned by a concurrent run this session and was deliberately not edited here; that is a
+    coordination constraint, not an external blocker, so the remainder is buildable next tick.
+    Output schemas are absent entirely — nothing on this platform returns a tool result yet.
 
 - [ ] **WRK-050-002** — Implement action risk classes, immutable plan digest, preview, confirmation, approval, step-up, execution, receipt, compensation, and reconciliation.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Done (2026-08-07): two of the ten. **Action risk classes** landed earlier (WRK-050-005,
+    `ActionRiskClass` READ|DRAFT|WRITE|BULK|EXTERNAL_SHARE|DELETE|PRIVILEGED). **Immutable plan
+    digest** and **confirmation** land here.
+  - Code: `apps/web/src/lib/relay/action-plan.ts` (new) — `ActionPlan` carrying §7.3's fields this
+    platform can actually answer (acting identity, tenant, toolKey, target, recipients, body,
+    notification flag, permission impact) plus `args`, the catch-all that holds every argument the
+    named projections did not claim; `planDigest`, a key-order-independent SHA-256 over all of
+    them (the same canonicalisation discipline `apps/web/src/lib/provisioning/reconcile.ts`
+    documents for the deployment digest); `issueConfirmation(plan, secret, now, ttlMs)` returning
+    an HMAC over `{digest, tenant, actor, expiry}`; and `confirmationMatches(token, plan, context,
+    now, secret)` returning a TYPED refusal — `MALFORMED | WRONG_TENANT | WRONG_ACTOR | EXPIRED |
+    PLAN_CHANGED` — never a boolean, because "your approval timed out" and "somebody swapped the
+    recipient list under you" are a UI event and a security event.
+  - Code: `apps/web/src/lib/relay-tools.ts` — `planForInvocation` derives the plan from the
+    invocation's OWN resolved arguments (never from a plan a caller hands in, which is the exact
+    substitution §7.3 exists to stop), `mintConfirmation` / `verifyConfirmation` wrap the pair, and
+    gate `(e)` of `invokeRelayTool` — the single production door, called by
+    `apps/web/src/app/api/ai/chat/route.ts` — was `typeof token === "string" && token.trim().length
+    > 0` and is now `verifyConfirmation`. `now` comes off the validated context's own `at` rather
+    than `Date.now()`, so expiry is decided against the same instant every other decision on the
+    request was. The signing key is `RELAY_CONFIRMATION_SECRET ?? AUTH_SECRET`, and a process with
+    neither refuses every confirmation rather than passing them.
+    Gate `(e)` sits BELOW the recipient gate `(d)` deliberately: "you sent this to somebody who was
+    not on the list" is more specific than "that is not what was confirmed", and the second is what
+    a digest would say about the first.
+  - Consumers checked and fixed: `invokeRelayTool`'s callers are `chat/route.ts` and
+    `relay-tools.test.ts`; `RelayInvocation`/`RefusedTool` are consumed by `chat/route.ts` and
+    `ai-kill-switch.test.ts`. Every confirmation-bearing proposal in `relay-tools.test.ts` was
+    rewritten to mint a real token for its own arguments — the canned literal `"confirm_9f2"` is
+    gone. `ToolRegistration` was NOT widened; the plan is derived at the door for exactly that
+    reason.
+  - Tests: `apps/web/src/lib/relay/action-plan.test.ts` (new, 10 tests) — key-order independence,
+    recipients as a set, and every §7.3 field moving the digest; verify/PLAN_CHANGED/WRONG_ACTOR/
+    WRONG_TENANT/EXPIRED; a forged expiry with a kept signature; a token minted under another key;
+    and the no-secret path. `relay-tools.test.ts` "a writing tool needs a confirmation bound to
+    this exact plan" (9 tests) drives all of it through `invokeRelayTool`, including the four
+    strings the old shape check accepted (`"y"`, `"confirm_9f2"`, `"true"`, `" "`).
+  - Mutations (3 applied, 3 caught, all restored; the producer mutated, never the helper):
+    1. `recipients` dropped from `planDigest`'s canonicaliser → "refuses a confirmation minted for
+       a different recipient list" RED at the DOOR, and "refuses it for a plan whose recipient
+       changed" RED at the primitive. Restored → 68/68.
+    2. `toolKey` dropped from the same canonicaliser → a token minted for `search.corpus` is
+       accepted for `approvals.raise`; "refuses a confirmation minted for a different tool" RED in
+       both files. (This is why `toolKey` is in the digest and NOT duplicated in the token payload:
+       two copies of a field agreeing with each other would have kept the test green.) Restored.
+    3. Gate `(e)` reverted to the old `typeof token === "string" && length > 0` → 7 RED, including
+       "refuses the strings the old shape check accepted". Restored → green.
+  - Remaining, and why this is FAIL not PASS — eight of the ten:
+    * **preview** — nothing renders the plan to a person. `planDigest` and the `ActionPlan` are the
+      value a preview would show; the surface is missing.
+    * **approval / step-up** — no second-actor approval and no re-authentication challenge.
+    * **execution / receipt** — nothing executes a writing tool: `/api/ai/chat` declares
+      `SURFACE_TOOL_POLICY = "read-only"`, so the writing branch has no live surface and
+      `issueConfirmation` has no production caller. That is fail-closed and deliberate — a writing
+      surface added tomorrow gets no writes until it wires a human confirmation step — but it is
+      not "confirmation shipped end to end" and is not claimed as such.
+    * **compensation / reconciliation** — need durable idempotency, and
+      **apps/web/prisma/schema.prisma** has no `IdempotencyRecord` model; the only `idempotencyKey`
+      in the schema is `ApprovalRequest`'s. That is a schema migration.
+    * The risk ladder is `ActionRiskClass`, not §7.2's `A0_OBSERVE..A5_PROTECTED_DOMAIN`, and it is
+      derived from the permission string rather than declared — which needs
+      **packages/contracts/src/index.ts**, owned by a concurrent run.
 
 - [ ] **WRK-050-003** — Reauthorize at execution and invalidate approval after meaningful plan or authority change.
   - Status: FAIL
@@ -841,7 +948,74 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **WRK-GATE-050** — Relay accelerates work without becoming an autonomous authority.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Children: 3 of 6 decided — `WRK-050-001` FAIL, `WRK-050-002` FAIL,
+    `WRK-050-003` FAIL, `WRK-050-004` PASS, `WRK-050-005` PASS, `WRK-050-006`
+    PASS. A gate is proven by its children and by nothing else.
+  - **The PASS is withdrawn, and this is the record of it.** A run set this row
+    to `- [x]` / PASS with no `Children:` line while three of its six children
+    were FAIL, arguing on this row that the gate is about AUTHORITY while those
+    three are about COMPLETENESS. That argument is a good one and it is kept
+    below, but it is an argument for re-scoping the children, not for passing
+    the gate over them — the ledger's own rule, written out under
+    `TTES-GATE-040`, is that a gate cannot become PASS by anything done to the
+    gate's own row. `git show
+    HEAD:docs/implementation/universal-work-graph-execution-ledger.md` still has
+    this row as `- [ ]` / FAIL; the PASS existed only in an uncommitted working
+    tree, and that run was killed before review. To make this gate PASS
+    honestly, close `WRK-050-001`, `WRK-050-002` and `WRK-050-003`, or move the
+    completeness clauses out of them into a differently-numbered series and say
+    so in an ADR.
+  - What was open, in two halves, and both are closed.
+  - **(1) The brake on a writing tool was a shape assertion wearing the name of an
+    authorization.** `relay-tools.ts` gated `readOnly === false` on `typeof confirmationToken ===
+    "string" && token.trim().length > 0`. `grep -rn confirmationToken apps/web/src modules` found
+    it in exactly two places — that check, and a test passing the canned literal `"confirm_9f2"`.
+    Nothing minted a confirmation, nothing bound one to a plan or to the arguments it approved, and
+    nothing expired one; the token arrived in the same request body as the model's own proposal, so
+    the model confirmed itself. It is now `apps/web/src/lib/relay/action-plan.ts` — an HMAC over a
+    canonical digest of the plan (which covers the tool key and every non-caller-decided argument),
+    the tenant, the actor and a five-minute expiry — verified at gate `(e)` of `invokeRelayTool`.
+    `PROPOSAL_NOT_ACCEPTED { rejected: "confirmationToken" }` now means what its name says. Full
+    detail, tests and mutations under WRK-050-002.
+  - **(2) Nothing recorded that the relay ran.** `/api/ai/chat` invoked a tool, loaded the
+    caller's entire corpus and decided whether to post it to a vendor, and `grep -n
+    recordAuditEvent apps/web/src/app/api/ai/chat/route.ts` returned nothing — three comments about
+    auditing, zero writes. The route now writes ONE chained row per request through
+    `recordAuditEvent` from `@/lib/audit-record` (never raw `db.auditEvent.create`, ratcheted at 32
+    in `tests/security/audit-writes.test.mjs`, which still passes 6/6 and did not move), for the
+    ALLOW and the DENY alike, before the vendor call. The row carries: the actor and the SEAT they
+    acted under (`seatFor`), the `toolKey`, the `riskClass` `riskOf` returned, the policy and
+    configuration revisions, the surface's ceiling, the connector activation verdict and its
+    reason, whether the rows actually crossed the vendor boundary, the `planDigest` of the exact
+    plan that ran, and WHICH sources by `{id, kind, mode}`. Never a question, never a title, never
+    a body — asserted, not merely intended.
+    The chained-write half and the `$transaction`-callback stand-in were landed concurrently by the
+    run holding WRK-GATE-040 and are credited there; what this entry added is the connector
+    verdict, the exposure flag, the plan digest and the per-source identities — the four facts that
+    make "who asked, which tool, at which risk class, over which sources" answerable rather than
+    "a decision was taken".
+  - Mutations for (2) (3 applied, 3 caught, all restored; the ROUTE mutated, not the writer):
+    1. `sources: scored.map(…)` → `sources: []` → "names the tool, its risk class, the connector
+       verdict and the sources by id" RED. Restored.
+    2. `planDigest: proposalDigest(proposal, context)` frozen to a zero constant → "carries the
+       digest of the exact plan that ran" RED (the second request with a different argument no
+       longer differs). Restored.
+    3. `connectorActivated/connectorReason` frozen to `true`/`"activated"` → the same first test
+       RED on the verdict. Restored → 42/42.
+  - Why the AUTHORITY half is closed while WRK-050-001 and WRK-050-002 remain FAIL, which is
+    the argument for re-scoping and not a reason this row may be PASS: those two are about
+    COMPLETENESS of the tool contract and of the ten-step action lifecycle — schemas on
+    `ToolRegistration`, preview, receipt, compensation, reconciliation. This gate is about
+    AUTHORITY, and on every surface that exists the relay now has none of its own: it cannot choose
+    the tenant, the actor, a provider account, a credential, a recipient, a resource the grant did
+    not select, an argument nobody declared, or a tool nobody declared arguments for; it cannot
+    write without a confirmation cryptographically bound to the exact plan, issued to this person,
+    in this tenant, within five minutes; and it cannot read anything without leaving an
+    attributable, hash-chained row naming what it read. The one thing it still cannot do is
+    ACCEPT a confirmation from a human, because no writing surface exists to collect one — which
+    is the fail-closed direction.
+
+
 
 - [ ] **WRK-GATE-060** — Provider events and APIs converge to known source truth without duplicate business effects.
   - Status: FAIL

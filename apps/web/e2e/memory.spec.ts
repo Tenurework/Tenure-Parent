@@ -63,7 +63,16 @@ test.describe("institutional memory", () => {
   test("documents tab renders with upload gated by storage config", async ({ page }) => {
     await signIn(page, "Priya Raman")
     await page.goto("/orgs/simon-consulting-club/documents")
-    await expect(page.getByText("Club documents", { exact: false })).toBeVisible()
+    // TTES-030-001 replaced this page's hand-rolled `<h1>{org.name}</h1>` with
+    // the shared `OrgRecordHeader`, and the subtitle went from "Club documents
+    // — contracts, templates…" to the wording below. The old string is gone
+    // because the surface got the club-record anatomy, not because anything
+    // broke — so this asserts the new copy rather than a substring that would
+    // pass on either.
+    await expect(page.getByText("Documents — the club's files", { exact: false })).toBeVisible()
+    // And the header itself is present, so this cannot pass on the subtitle
+    // alone if the record header is dropped again later.
+    await expect(page.getByRole("heading", { name: "Simon Consulting Club" })).toBeVisible()
     // No S3 in CI — the upload form must be hidden, not broken
     await expect(page.getByText("No documents yet")).toBeVisible()
   })

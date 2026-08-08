@@ -368,6 +368,52 @@ jobs:
       - name: Run e2e suite
         run: npm run e2e
 
+      # ── The visual matrix, in the image its baselines came out of ───────────
+      #
+      # `npm run e2e` above SKIPS `e2e/visual-baselines.spec.ts`. The spec
+      # fingerprints its container — linux, PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      # (the Playwright images bake their browsers in; `npx playwright install`
+      # on this runner does not set it) and an `/etc/os-release` saying noble —
+      # and this runner is not that. That is deliberate: a screenshot comparison
+      # on a host whose font stack differs from the capture host measures
+      # fontconfig rather than the page, and that is exactly how the first
+      # version of this suite died — 37/37 red on its first CI run (`db95980`,
+      # withdrawn in `a8ceb8b`).
+      #
+      # So the comparison happens here, in the one image the committed PNGs in
+      # `apps/web/e2e/__screenshots__` were produced in. The container mounts the
+      # workspace and runs the repository's OWN @playwright/test rather than
+      # installing a second copy: playwright-core is pure JavaScript and the
+      # image carries the browser build matching the pinned version, so the
+      # runner and the container cannot disagree about which Playwright this is.
+      # `--network host` is what lets it reach the server started below; the
+      # `Upload traces on failure` step below collects the actual/diff PNGs.
+      - name: Visual baselines (pinned container)
+        working-directory: apps/web
+        env:
+          # The gallery route is fail-closed on this and nothing else sets it —
+          # the pilot's task definition (infrastructure/terraform/ecs.tf) does
+          # not, which is why the route cannot reach the pilot.
+          TENURE_UI_GALLERY: "true"
+        run: |
+          npm run start > /tmp/visual-server.log 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -fsS http://localhost:3000/api/health > /dev/null && break
+            sleep 2
+          done
+          # Not part of the wait loop: this is the assertion that the loop
+          # succeeded rather than simply ran out, so a server that never came up
+          # fails here instead of as 37 confusing navigation timeouts.
+          curl -fsS http://localhost:3000/api/health > /dev/null || {
+            echo "::error::the app did not start for the visual matrix"; cat /tmp/visual-server.log; exit 1;
+          }
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE:/work" -w /work/apps/web \
+            -e PLAYWRIGHT_BASE_URL=http://localhost:3000 \
+            -e DEV_LOGIN_PASSPHRASE \
+            mcr.microsoft.com/playwright:v1.61.1-noble \
+            node /work/node_modules/@playwright/test/cli.js test --project=visual --workers=4
+
       - name: Upload traces on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -406,7 +452,14 @@ jobs:
     env:
       # Throwaway values for an ephemeral instance, but not the placeholders
       # the environment contract rejects.
-      PLATFORM_OPERATORS: operator@tenure.example
+      # STUDIO-020-005 — `email:role`, one of the nine operator families. An
+      # entry with no role is REFUSED rather than defaulted to an administrator,
+      # so the bare address this used to carry would render "Not configured".
+      # Five families, because the role-separation spec proves a surface differs:
+      # the Auditor may read the fleet and holds no mutating control at all, the
+      # Cloud Platform Engineer holds them, and only FinOps/Auditor/Super Admin
+      # may read what the fleet costs.
+      PLATFORM_OPERATORS: operator@tenure.example:platform-super-admin,auditor@tenure.example:auditor-read-only,cloud@tenure.example:cloud-platform-engineer,finops@tenure.example:finops-analyst,support@tenure.example:support-engineer
       PLATFORM_OPERATOR_SECRET: ci-studio-not-a-placeholder-4c8e2f
       AUTH_SECRET: ci-studio-auth-not-a-placeholder-71bd93
       AUTH_TRUST_HOST: "true"
@@ -420,6 +473,16 @@ jobs:
       # reads exactly like a request that reached the real service. It does not
       # check that the key is real; it does check that it looks like one.
       AWS_REGION: us-east-1
+      # GE-010-007 / STUDIO-000-006. `lib/cells.ts` no longer defaults the
+      # estate: the account, region and partition come from the environment,
+      # then from sts:GetCallerIdentity, and then from nowhere — `fleet()`
+      # refuses rather than placing a tenant in us-east-1 because a variable was
+      # unset. This job's credentials are DynamoDB-Local shaped and cannot reach
+      # STS, so the two facts STS would have supplied are supplied here. Both are
+      # deliberately NOT the pilot's real values; nothing in this job talks to a
+      # real account.
+      AWS_ACCOUNT_ID: "000000000000"
+      AWS_PARTITION: aws
       AWS_ACCESS_KEY_ID: AKIALOCALDYNAMODBXX
       AWS_SECRET_ACCESS_KEY: localdynamodbsecretnotreal
       AWS_ENDPOINT_URL_DYNAMODB: http://localhost:8000
@@ -454,6 +517,21 @@ jobs:
           done
           echo "::error::DynamoDB Local never answered"
           exit 1
+
+      # STUDIO-100-001 / 100-002 / 030-004 / 130-002. Three specs assert
+      # properties of the DATA LAYOUT — a tenant with no DEPLOYMENT sort key is
+      # `never deployed`, a tenant placed in a region this control plane holds
+      # no credentials for is left out of the export, and a second page of the
+      # fleet is not the first. None of those can be written against an empty
+      # table, and none of them is skippable: `TENANT_TABLE` is set in this job,
+      # so `test.skip(!configured)` does not fire and the specs run against
+      # whatever is there. Without this step that is nothing, and they fail.
+      #
+      # The seeder writes the same item shapes `registry.ts` writes, and refuses
+      # to run without an explicit endpoint — so it cannot reach a real account
+      # by resolving a region.
+      - name: Seed the fleet the Studio e2e reads
+        run: node tools/dev/seed-studio-fleet.mjs
 
       - name: Build the Studio
         run: npm run studio:build

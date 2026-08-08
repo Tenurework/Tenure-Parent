@@ -92,6 +92,15 @@
       ],
       "@tenure/platform-config/compatibility": [
         "../../packages/platform-config/src/compatibility.ts"
+      ],
+      // WRK-030-005. The provider-activation gate, on its own entry point for
+      // the reason `./money` has one: `capability-resolution.ts` derives
+      // `certified` from it and is imported by MissingConnectionCard.tsx, which
+      // is client code. Reaching the package root from there pulls
+      // @tenure/configuration's node:crypto into a client bundle and the build
+      // fails with UnhandledSchemeError. provider-review.ts has no imports.
+      "@tenure/platform-config/provider-review": [
+        "../../packages/platform-config/src/provider-review.ts"
       ]
     }
   },
@@ -101,9 +110,11 @@
     "../../blueprints/**/*.ts",
     "../../modules/**/*.ts",
     "../../packages/*/src/**/*.ts",
+    ".next-nav030/types/**/*.ts",
+    ".next-visual/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
-    ".next-visual/types/**/*.ts"
+    ".next-gate030/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

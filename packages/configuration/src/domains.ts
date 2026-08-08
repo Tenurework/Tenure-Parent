@@ -191,8 +191,14 @@ export const CONFIG_DOMAINS: readonly ConfigDomain[] = [
     governs: "Assistant tool exposure, grounding sources, retention, and per-tenant model policy.",
     writableBy: [...PLATFORM_ONLY, "industryPack", "orgTemplate", "tenantBaseline", "tenantOverlay"],
     tenantAdminMayWrite: true,
-    status: "reserved",
-    reservedFor: "GE-039 (Relay)",
+    // WRK-120-004 moved this from `reserved` to `active` by giving it its first
+    // key: `platform.relay.modelTokenBudgetPerMonth`, the per-tenant ceiling on
+    // model spend. `writableBy` is unchanged — the domain already permitted the
+    // tenant-scope layer kinds, because "per-tenant model policy" is what it was
+    // reserved to govern. What stops a tenant raising its own allowance is
+    // `requiresCapability` on the definition, checked in `planPublication`, the
+    // same per-key authority `platform.payments.*` uses.
+    status: "active",
   },
   {
     id: "localization",

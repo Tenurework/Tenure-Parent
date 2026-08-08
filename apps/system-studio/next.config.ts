@@ -28,11 +28,29 @@ const nextConfig: NextConfig = {
    * Dockerfile bakes it in rather than the task definition supplying it.
    */
   deploymentId: process.env.DEPLOYMENT_ID,
+  /**
+   * `.next`, unless something asks for somewhere else.
+   *
+   * Two `next dev` processes in one working tree share `.next` and destroy each
+   * other's manifests — the second one's first rebuild deletes
+   * `routes-manifest.json` out from under the first, which then answers every
+   * request with ENOENT until it is restarted. That is not a production
+   * concern; it is what happens when a second instance is started to drive an
+   * e2e suite against a checkout somebody is already running.
+   *
+   * Unset in the container and in CI, so the build output stays exactly where
+   * the Dockerfile and `outputFileTracingRoot` expect it.
+   */
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Self-contained server bundle for the container.
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
   poweredByHeader: false,
   transpilePackages: [
+    // STUDIO-110-005. The audit record, its hash chain and the read half that
+    // verifies one. TypeScript source consumed without a build step, like every
+    // other platform package here.
+    "@tenure/audit",
     "@tenure/configuration",
     "@tenure/blueprints",
     // Reached transitively: `@tenure/platform-config` assembles a system, which

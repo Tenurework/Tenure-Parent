@@ -15,8 +15,7 @@ import {
 import { Card, CardHeader } from "@/components/ui/Card"
 import { StatGrid, StatTile } from "@/components/ui/Bento"
 import { Badge, ApprovalBadge } from "@/components/ui/Badge"
-import { OrgTabs } from "@/components/OrgTabs"
-import { PageHeader } from "@/components/ui/PageHeader"
+import { OrgRecordHeader } from "@/components/OrgRecordHeader"
 import { AIScopeAnchor } from "@/components/ai/AIProvider"
 import { EmailLink } from "@/components/EmailLink"
 import { EmptyState } from "@/components/ui/EmptyState"
@@ -106,13 +105,16 @@ export default async function HandoffPage({
         <AIScopeAnchor id={org.slug} label={org.name} />
 
         {/* TTES-030-001, Bible section 5.3 — record anatomy through the shared
-            primitive: identity, then state, then the primary actions, in that
-            order and in the same place on every record. This page hand-rolled
-            an h1 and a lead paragraph and had nowhere to put the state. */}
-        <PageHeader
-          breadcrumbs={[{ label: "Clubs", href: "/orgs" }, { label: org.name }]}
-          eyebrow="Transition and handoff"
-          title={org.name}
+            primitive: identity, then state, then the primary actions, then the
+            content tabs, in that order and in the same place on every one of
+            the club's six surfaces. This page used to reach for `PageHeader`
+            directly, which put the anatomy right here and nowhere else; it now
+            goes through the same `OrgRecordHeader` the other five do, so the
+            order is a component rather than six agreements. */}
+        <OrgRecordHeader
+          slug={slug}
+          org={org}
+          section="Transition and handoff"
           subtitle="Everything a new officer needs on day one, live from the seat lifecycle."
           status={
             <>
@@ -134,7 +136,6 @@ export default async function HandoffPage({
             </Link>
           }
         />
-        <OrgTabs slug={slug} />
 
         <div className="mb-5">
           <StatGrid>

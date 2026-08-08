@@ -8,7 +8,8 @@ import {
   getUserContext,
 } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
-import { OrgTabs } from "@/components/OrgTabs"
+import { OrgRecordHeader } from "@/components/OrgRecordHeader"
+import { Badge } from "@/components/ui/Badge"
 import { FinanceDashboard } from "@/components/finance/FinanceDashboard"
 import { ReimbursementForm } from "@/components/finance/ReimbursementForm"
 import { type LedgerEntryRow } from "@/components/finance/LedgerDrawer"
@@ -142,15 +143,32 @@ export default async function FinancePage({
       lines[0]?.currency ?? undefined,
     )
 
+    // For the record header's status row. Zero budgeted is 0%, not a division
+    // by zero: a club that has not been given a budget has not spent any of it.
+    const budgetedCents = lines.reduce((s, l) => s + l.budgetedCents, 0)
+    const spentCents = lines.reduce((s, l) => s + l.actualCents, 0)
+    const spendPct = budgetedCents > 0 ? Math.round((spentCents / budgetedCents) * 100) : 0
+
     return (
       <div className="w-full">
-        <div className="mb-4">
-          <h1 className="text-text-1">{org.name}</h1>
-          <p className="mt-1 text-sm text-text-2">
-            Finance — actual vs budget for {CURRENT_YEAR}, with editable forecasting.
-          </p>
-        </div>
-        <OrgTabs slug={slug} />
+        <OrgRecordHeader
+          slug={slug}
+          org={org}
+          section="Finance"
+          subtitle={`Finance — actual vs budget for ${CURRENT_YEAR}, with editable forecasting.`}
+          status={
+            <>
+              {/* Whether the ledger reconciles is THE state of this record, and
+                  it was previously only discoverable from a sentence below the
+                  tabs. `integrity` is the same value that sentence renders. */}
+              <Badge variant={integrity.reconciles ? "success" : "warning"}>
+                {integrity.reconciles ? "Ledger reconciled" : "Ledger out of balance"}
+              </Badge>
+              <Badge variant="default">{spendPct}% of budget spent</Badge>
+              <Badge variant="default">{lines.length} budget lines</Badge>
+            </>
+          }
+        />
 
         {/* Shown on both arms. "Reconciled" is a claim worth making explicitly:
             a page that only speaks up when something is wrong is one nobody can

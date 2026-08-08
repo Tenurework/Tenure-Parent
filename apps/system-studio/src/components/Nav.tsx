@@ -20,6 +20,26 @@ const ENTRIES = [
   { href: "/", label: "Systems", hint: "what each configured system currently is" },
   { href: "/platform", label: "Platform", hint: "the engine's own state" },
   { href: "/platform/cost", label: "Cost", hint: "what the fleet costs, and who it costs it for" },
+  {
+    href: "/platform/audit",
+    label: "Audit",
+    hint: "whether the trail of what this console did is intact, and what retention would destroy",
+  },
+  {
+    href: "/platform/estate",
+    label: "Estate",
+    hint: "what is actually running in AWS right now, read live",
+  },
+  {
+    href: "/platform/health",
+    label: "Health",
+    hint: "every alarm, and whether it would actually tell anybody",
+  },
+  {
+    href: "/platform/security",
+    label: "Security",
+    hint: "findings, and which of the six products answered",
+  },
 ] as const
 
 export function Nav() {

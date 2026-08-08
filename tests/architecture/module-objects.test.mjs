@@ -90,12 +90,13 @@ function manifests() {
  * a build pass, which is the failure this exists to prevent, and a declaration
  * nobody maintains is worse than none.
  *
- * The twelve are the platform's own tables rather than any module's — the
+ * The fourteen are the platform's own tables rather than any module's — the
  * NextAuth trio (`Account`, `Session`, `VerificationToken`), the identity
  * spine (`User`, `Institution`, `InstitutionMembership`), the notification pair,
- * the deliverables pair, and the transactional outbox AND inbox. Each belongs to
- * a domain that ships no module manifest today. Claiming them for a module to
- * make this number smaller would be the wrong kind of smaller.
+ * the deliverables pair, the transactional outbox AND inbox, and the two the
+ * `integrations` domain owns. Each belongs to a domain that ships no module
+ * manifest today. Claiming them for a module to make this number smaller would
+ * be the wrong kind of smaller.
  *
  * 11 -> 12, and this is the one direction this number is not supposed to move,
  * so it is argued rather than adjusted. `InboxEvent` arrived with the outbox
@@ -111,8 +112,33 @@ function manifests() {
  * into `budgeting`'s `objects` beside the four payments models it already
  * claims. That is the move this ratchet is asking for; this entry is the
  * exception it could not produce.
+ *
+ * 12 -> 14, argued the same way and for the same kind of table. Both arrivals
+ * belong to `integrations` in `tools/ownership-map.mjs` — the domain that owns
+ * `lib/connections/`, `lib/relay/` and `lib/ai.ts` — and `integrations` ships no
+ * `ModuleManifest`. There is no module to add them to:
+ *
+ *   * `ModelUsageMeter` (WRK-120-004) is one row per model-vendor call with the
+ *     tokens the vendor reported. Its domain question is "what did we hand to a
+ *     vendor and what did it cost", which is `integrations`' subject and no
+ *     tenant-facing module's. `budgeting` was the tempting home — it already
+ *     claims the payments models — and it is the wrong one: nothing bills for a
+ *     model call, so filing the meter under budgeting would assert a charging
+ *     relationship the ledger explicitly says does not exist.
+ *   * `ConnectionLaunchToken` (WRK-030-002) is a connection opportunity and its
+ *     single-use launch token. It is the storage behind `lib/connections/` —
+ *     the same `integrations` domain — and a launch token is not a capability a
+ *     tenant subscribes to.
+ *
+ * The twelve manifests in `modules/index.ts` are organizations, feed, messaging,
+ * approvals, events, resources, search, memory, budgeting, reimbursements,
+ * dashboard and administration. Handing either table to one of those to keep the
+ * number at 12 would put a model in a manifest whose owner does not answer for
+ * it, which is the failure PACK-040-002 exists to prevent — and PACK-010-003's
+ * "no pack reaches into another pack's private storage" would then be enforced
+ * against a lie.
  */
-const UNCLAIMED = 12
+const UNCLAIMED = 14
 
 test("the readers actually read something", () => {
   // Every assertion below passes on an empty list, and both lists come from

@@ -16,7 +16,7 @@ import { withTenantScope } from "@/lib/tenant-scope"
 import { canSeeMemoryCard } from "@/lib/memory"
 import { Card, CardHeader } from "@/components/ui/Card"
 import { Badge } from "@/components/ui/Badge"
-import { OrgTabs } from "@/components/OrgTabs"
+import { OrgRecordHeader } from "@/components/OrgRecordHeader"
 import { DraftAssist } from "@/components/DraftAssist"
 import { aiConfigured } from "@/lib/ai"
 import { createMemoryCard } from "./actions"
@@ -73,13 +73,24 @@ export default async function MemoryPage({
 
     return (
       <div className="w-full">
-        <div className="mb-4">
-          <h1 className="text-text-1">{org.name}</h1>
-          <p className="text-sm text-text-2 mt-1">
-            Institutional memory — knowledge that outlives every board.
-          </p>
-        </div>
-        <OrgTabs slug={slug} />
+        <OrgRecordHeader
+          slug={slug}
+          org={org}
+          section="Institutional memory"
+          subtitle="Institutional memory — knowledge that outlives every board."
+          status={
+            <>
+              <Badge variant={cards.length > 0 ? "success" : "warning"}>
+                {cards.length} {cards.length === 1 ? "card" : "cards"} you can read
+              </Badge>
+              {/* Seat-scoped cards this viewer is not a holder of are counted,
+                  never listed: the header says how much of the record is out of
+                  view rather than pretending the record is what you can see. */}
+              <Badge variant="default">{allCards.length - cards.length} seat-restricted</Badge>
+              <Badge variant="default">{org.roles.length} seats covered</Badge>
+            </>
+          }
+        />
 
         <div className="space-y-4">
           {canAdd && (

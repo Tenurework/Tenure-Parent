@@ -43,6 +43,8 @@ const config = {
     "^@tenure/platform-config$": "<rootDir>/../../packages/platform-config/src/index.ts",
     "^@tenure/platform-config/money$": "<rootDir>/../../packages/platform-config/src/money.ts",
     "^@tenure/platform-config/compatibility$": "<rootDir>/../../packages/platform-config/src/compatibility.ts",
+    // WRK-030-005. The client-safe activation gate — see apps/web/tsconfig.json.
+    "^@tenure/platform-config/provider-review$": "<rootDir>/../../packages/platform-config/src/provider-review.ts",
   },
   // scripts/ ships as ESM .mjs into the runtime image; its logic is testable too
   moduleFileExtensions: ["js", "jsx", "ts", "tsx", "mjs", "json", "node"],

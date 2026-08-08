@@ -6,8 +6,10 @@ import { validateTopology } from "@tenure/organization-model"
 import { CATALOG_ENTRIES, availabilityDecisions } from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
-import { fleet } from "@/lib/cells"
-import { isOperator, operatorConfigProblems } from "@/lib/operators"
+import { authorizeCommand } from "@/lib/authorize"
+import { fleet, primeEstate } from "@/lib/cells"
+import { operatorConfigProblems } from "@/lib/operators"
+import { PermissionDeniedState } from "@/components/states"
 import {
   REGISTRY,
   layersFor,
@@ -51,8 +53,17 @@ export default async function StudioPage() {
     )
   }
 
+  // STUDIO-020-006. A permission decision, not a membership test: the resource
+  // is named, the action is named, and the account/region/environment the
+  // decision is made in come from what this control plane resolved for itself.
   const session = await auth()
-  if (!isOperator(session?.user?.email)) redirect("/signin")
+  const decision = authorizeCommand("platform.read", { principalId: session?.user?.email })
+  // Two different facts, told apart. Nobody signed in goes to the sign-in page;
+  // somebody signed in who may not read this is refused without being told to
+  // go and do the thing they already did.
+  if (decision.reason === "NO_PRINCIPAL") redirect("/signin")
+  if (!decision.allowed) return <PermissionDeniedState />
+
 
   // The exact scope every availability decision below is made for. Bible §5:
   // Studio may show `Available` only when a decision passes for the exact
@@ -73,6 +84,13 @@ export default async function StudioPage() {
     marketplaceEnabled: false,
     now: new Date().toISOString(),
   }
+
+  // GE-010-007. `fleet()` is synchronous and its estate facts now come from
+  // sts:GetCallerIdentity rather than from a compiled-in "us-east-1"/account
+  // literal. Priming resolves that identity once per process before the first
+  // synchronous read; a page that skipped it would fall back to the environment
+  // alone, and refuse rather than guess if that is unset too.
+  await primeEstate()
   const capabilities = availabilityDecisions(CATALOG_ENTRIES, availabilityScope)
   const offered = capabilities.filter((d) => d.available)
   const refused = capabilities.filter((d) => !d.available)

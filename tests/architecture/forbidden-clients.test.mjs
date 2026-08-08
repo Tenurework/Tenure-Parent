@@ -204,6 +204,10 @@ const OWNERS = {
       'apps/system-studio/src/lib/registry.ts',
       'the tenant-registry adapter — the only module that talks to DynamoDB, and `server-only` so it cannot be bundled',
     ],
+    [
+      'apps/system-studio/src/lib/aws/client.ts',
+      'the estate-read adapter (STUDIO-070-004) — the only module holding a non-DynamoDB AWS client. Every client is built with an EMPTY config, so credentials come from the default provider chain and the region from the SDK, and moving account or partition needs no code change. Its surface is a closed `Capability` union rather than a service/action pair, so there is no path from a request to an arbitrary AWS call, and `server-only` keeps it out of any browser bundle',
+    ],
   ]),
   provider: new Map([
     [
@@ -398,6 +402,10 @@ test('every owning adapter exists and still holds the client it owns', () => {
     ['apps/web/src/lib/db.ts', /\bnew\s+PrismaClient\s*\(/],
     ['apps/web/src/lib/s3.ts', /\bnew\s+S3Client\s*\(/],
     ['apps/system-studio/src/lib/registry.ts', /\bnew\s+DynamoDBClient\s*\(/],
+    // Deleting the estate adapter must red this suite, not quietly re-open every
+    // page's right to build its own client. STS is the one it cannot be without:
+    // identity is what every other read's denial names.
+    ['apps/system-studio/src/lib/aws/client.ts', /\bnew\s+STSClient\s*\(/],
     ['apps/web/src/lib/ai.ts', PROVIDER_URL],
   ]
 

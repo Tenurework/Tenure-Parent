@@ -32,11 +32,24 @@ export type Density = "comfortable" | "compact"
 /** `system` follows the machine. `on` forces it. `off` means "only if the machine asks". */
 export type AccessibilityPreference = "system" | "on" | "off"
 
+/**
+ * STUDIO-030-007 — which way the layout runs.
+ *
+ * "RTL readiness" is a property of the stylesheet, not of a translation:
+ * `globals.css` holds zero physical-direction declarations, so setting this
+ * mirrors the layout instead of breaking it. It is a preference rather than a
+ * locale because there is no locale negotiation in this console and inventing
+ * one to prove a CSS property would be a feature nobody asked for — what an
+ * operator (and `layout.spec.ts`) needs is the ability to SET it.
+ */
+export type TextDirection = "ltr" | "rtl"
+
 export interface Preferences {
   colorScheme: ColorScheme
   density: Density
   reducedMotion: AccessibilityPreference
   increasedContrast: AccessibilityPreference
+  direction: TextDirection
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -44,6 +57,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   density: "comfortable",
   reducedMotion: "system",
   increasedContrast: "system",
+  direction: "ltr",
 }
 
 /** One key per preference, so a corrupt value for one does not lose the rest. */
@@ -52,6 +66,7 @@ export const STORAGE_KEYS = {
   density: "tenure-studio-density",
   reducedMotion: "tenure-studio-reduced-motion",
   increasedContrast: "tenure-studio-increased-contrast",
+  direction: "tenure-studio-direction",
 } as const satisfies Record<keyof Preferences, string>
 
 /**
@@ -95,6 +110,11 @@ export function documentAttributes(
     "data-contrast": resolveAccessibility(preferences.increasedContrast, device.increasedContrast)
       ? "more"
       : null,
+    // `dir` is a real HTML attribute rather than a data- hook, because it is
+    // what the layout engine keys on: `margin-inline-start` means nothing
+    // without it. `ltr` is the server-rendered default and the script only ever
+    // writes `rtl`, so there is one place a direction can come from.
+    dir: preferences.direction === "rtl" ? "rtl" : null,
   }
 }
 
@@ -137,6 +157,13 @@ export const NO_FLASH_SCRIPT = `
     if (get(${JSON.stringify(STORAGE_KEYS.increasedContrast)}, "system") === "on" ||
         ask("(prefers-contrast: more)")) {
       el.setAttribute("data-contrast", "more");
+    }
+
+    // STUDIO-030-007. Before the first paint, like the rest: flipping direction
+    // after hydration would reflow the entire page under the reader, which is
+    // worse than a colour flash.
+    if (get(${JSON.stringify(STORAGE_KEYS.direction)}, "ltr") === "rtl") {
+      el.setAttribute("dir", "rtl");
     }
   } catch (e) {
     /* Private mode denies localStorage. Falling through leaves the defaults,

@@ -117,6 +117,60 @@ const BARE_HOST = /\bwww\.[a-z0-9][a-z0-9.-]*\.[a-z]{2,}[^\s<>"'`)\]]*/gi
 /** `[text](url)` and `![alt](url)`, which hide the destination behind a label. */
 const MARKDOWN_LINK = /!?\[([^\]\n]{0,200})\]\(\s*([^)\s]{1,2000})(?:\s+"[^"\n]*")?\s*\)/g
 
+// ─── Detection, for the rows that must be held rather than cleaned ───────────
+
+/**
+ * WRK-010-005 — the §9.4 payloads that are not fixable by cleaning.
+ *
+ * §9.4 permits either remedy: hidden-text attacks and malicious links "are
+ * stripped **or** quarantined". `sanitizeUntrustedText` above takes the first
+ * road for everything, and for most of what it handles that is the right one — a
+ * zero-width character or a bidi override can be deleted and the remaining prose
+ * is intact, reviewable and still worth indexing. Nothing is lost by cleaning it.
+ *
+ * This list is the residue: content whose *entire substance* is a program. There
+ * is no version of `<script>fetch(...)</script>` or `javascript:` that is a
+ * record about a club, so stripping it leaves a row whose projected body is a
+ * fiction — an empty string or a fragment of an attack, indexed and cited as
+ * though it were what somebody wrote. Those rows are held instead: the title and
+ * the link stay so the row is findable and can be opened directly, and the body
+ * never enters the corpus, the ranking, a result set or a prompt.
+ *
+ * The patterns are the *same constants* the sanitiser uses, recompiled without
+ * `g`. Two reasons, and both are defects that would otherwise be invisible: a
+ * `g`-flagged regex carries `lastIndex` across `.test()` calls, so a shared
+ * global would return false on every second body it was asked about; and reusing
+ * the constants means a widened sanitiser pattern widens detection in the same
+ * edit, rather than the two drifting until a payload is cleaned but not caught.
+ *
+ * Called by `apps/web/src/lib/search-data.ts`, once per row body, to decide
+ * `QUARANTINED`.
+ */
+const ACTIVE_PAYLOAD_PATTERNS: readonly { readonly finding: string; readonly pattern: RegExp }[] = [
+  { finding: "active-element", pattern: new RegExp(ACTIVE_ELEMENT.source, "i") },
+  { finding: "active-tag", pattern: new RegExp(ACTIVE_TAG.source, "i") },
+  { finding: "event-handler", pattern: new RegExp(EVENT_HANDLER.source, "i") },
+  { finding: "dangerous-scheme", pattern: new RegExp(DANGEROUS_SCHEME.source, "i") },
+]
+
+/**
+ * Which active-content payloads a body carries. Empty means none.
+ *
+ * A list rather than a boolean because "this row was withheld" is a statement an
+ * operator has to be able to act on, and "it contained an event handler" and "it
+ * contained a `javascript:` URL" send them to different places.
+ */
+export function activeContentFindings(text: string): readonly string[] {
+  if (typeof text !== "string" || text.length === 0) return []
+  // Invisible codepoints first, for the reason `sanitizeUntrustedText` strips
+  // them first: `<scr<ZWSP>ipt>` must not walk past the detector any more than
+  // it may walk past the cleaner.
+  const visible = text.replace(INVISIBLE, "")
+  return ACTIVE_PAYLOAD_PATTERNS.filter(({ pattern }) => pattern.test(visible)).map(
+    ({ finding }) => finding,
+  )
+}
+
 /**
  * A link reduced to the one fact a reader needs and an exfiltrator cannot use.
  *
