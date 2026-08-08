@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { redirect } from "next/navigation"
 
 import { TENANT_BINDINGS, getBlueprint } from "@tenure/blueprints"
@@ -20,6 +21,28 @@ import {
 export const dynamic = "force-dynamic"
 
 /**
+ * STUDIO-030-011 — what this index shows before it is asked for more.
+ *
+ * Named per list rather than as one number, for the reason `INVENTORY_PAGE_ROWS`
+ * and `LEDGER_PAGE_ROWS` are named separately in `lib/api/envelope.ts`: a
+ * refusal is one sentence and a capability is a six-cell row, and one budget
+ * would be wrong for one of them without saying which.
+ *
+ * This page had no budget at all. It rendered every catalog refusal, every
+ * classified capability, and then — for EVERY configured system at once — the
+ * full payments table and all twenty-three resolved configuration values with
+ * their provenance: 1,024 DOM elements against a 400-element ceiling, most of
+ * it detail about one system printed on a page whose job is to list four.
+ *
+ * So each long list keeps its first page here and says what it is holding back,
+ * and `?show=` opens exactly one of them. Nothing is unreachable and nothing is
+ * silently truncated — a list that stops short without saying so is the defect
+ * `showingOf` exists to prevent.
+ */
+const CATALOG_REFUSALS_SHOWN = 6
+const CATALOG_CAPABILITIES_SHOWN = 8
+
+/**
  * Every configured organization system, and what each one currently is.
  *
  * Read-only. The engines underneath support editing — configuration publishes
@@ -32,7 +55,26 @@ export const dynamic = "force-dynamic"
  * configuration, so it must not be served from a host that serves any one of
  * them. See PD-007.
  */
-export default async function StudioPage() {
+export default async function StudioPage({
+  searchParams,
+}: {
+  /**
+   * Which one long list is open, if any: `catalog` for the integration
+   * catalog's refusals and capability rows, or a system's slug for that
+   * system's configuration and payments detail.
+   *
+   * In the URL rather than in component state, for the reason the fleet's
+   * filter is: it makes "look at this system's configuration" a link an
+   * operator can send during an incident, and it keeps the page a server
+   * component.
+   */
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const params = await searchParams
+  const raw = params.show
+  const show = typeof raw === "string" ? raw : ""
+  const catalogExpanded = show === "catalog"
+
   const misconfigured = operatorConfigProblems()
   if (misconfigured.length > 0) {
     // Before authentication, because a console whose access control is not
@@ -172,7 +214,7 @@ export default async function StudioPage() {
         {refused.length > 0 && (
           <>
             <h3>Not available, and why</h3>
-            {refused.map((d) => (
+            {(catalogExpanded ? refused : refused.slice(0, CATALOG_REFUSALS_SHOWN)).map((d) => (
               <p className="refused" key={d.entry.key}>
                 <b>{d.entry.key}</b> — {d.reason}
                 {/* The provider's own answer, where the refusal is about them.
@@ -186,6 +228,16 @@ export default async function StudioPage() {
                 {d.disclaimer ? ` — ${d.disclaimer}` : ""}
               </p>
             ))}
+            {refused.length > CATALOG_REFUSALS_SHOWN && (
+              <p className="slug" data-testid="catalog-count">
+                {catalogExpanded
+                  ? `all ${refused.length} refusals shown — `
+                  : `showing ${CATALOG_REFUSALS_SHOWN} of ${refused.length} refusals — `}
+                <Link href={catalogExpanded ? "/" : "/?show=catalog"}>
+                  {catalogExpanded ? "collapse the catalog" : "open the whole catalog"}
+                </Link>
+              </p>
+            )}
           </>
         )}
 
@@ -216,7 +268,10 @@ export default async function StudioPage() {
                 </tr>
               </thead>
               <tbody>
-                {classified.map((c) => (
+                {(catalogExpanded
+                  ? classified
+                  : classified.slice(0, CATALOG_CAPABILITIES_SHOWN)
+                ).map((c) => (
                   <tr key={`${c.entryKey}:${c.provider}/${c.product}/${c.capability}/${c.direction}`}>
                     <td className="id">{c.provider}</td>
                     <td>{c.product}</td>
@@ -239,6 +294,16 @@ export default async function StudioPage() {
                 ))}
               </tbody>
             </table>
+            {classified.length > CATALOG_CAPABILITIES_SHOWN && (
+              <p className="slug" data-testid="capability-count">
+                {catalogExpanded
+                  ? `all ${classified.length} capability rows shown — `
+                  : `showing ${CATALOG_CAPABILITIES_SHOWN} of ${classified.length} capability rows — `}
+                <Link href={catalogExpanded ? "/" : "/?show=catalog"}>
+                  {catalogExpanded ? "collapse the catalog" : "open the whole catalog"}
+                </Link>
+              </p>
+            )}
             {classified.flatMap((c) => c.problems).length > 0 && (
               <p className="error">
                 {classified.flatMap((c) => c.problems).length} capability claims do not hold up.
@@ -252,7 +317,14 @@ export default async function StudioPage() {
         )}
       </section>
 
-      {systems.map((s) => (
+      {systems.map((s) => {
+        // Exactly one system's detail is open at a time, and it is in the URL.
+        // Rendering all four at once is what put 705 of this page's elements on
+        // screen: two thirds of the index was the inside of things it lists.
+        const open = show === s.binding.slug
+        const values = s.config ? Object.keys(s.config.values).length : 0
+        const payments = s.error ? 0 : s.modules.paymentCapabilities.length
+        return (
         <section className="system" key={s.binding.slug}>
           <header>
             <h2>{s.binding.displayName}</h2>
@@ -314,7 +386,7 @@ export default async function StudioPage() {
                   ADR against the filesystem on each read, so a registry edited
                   to claim GA without writing the decision down fails here
                   rather than rendering as available. */}
-              {s.modules.paymentCapabilities.length > 0 && (
+              {open && s.modules.paymentCapabilities.length > 0 && (
                 <>
                   <h3>
                     Payments capabilities —{" "}
@@ -349,26 +421,43 @@ export default async function StudioPage() {
                 </>
               )}
 
-              <h3>Configuration, and where each value came from</h3>
-              <dl className="kv">
-                {s.config &&
-                  Object.keys(s.config.values)
-                    .sort()
-                    .map((key) => {
-                      const why = s.config!.explain(key)
-                      return (
-                        <div key={key} style={{ display: "contents" }}>
-                          <dt>{key}</dt>
-                          <dd>
-                            {JSON.stringify(s.config!.values[key])}{" "}
-                            <span className="slug">
-                              ({why.usedDefault ? "platform default" : why.contributors.map((c) => c.scope).join(" → ")})
-                            </span>
-                          </dd>
-                        </div>
-                      )
-                    })}
-              </dl>
+              {open && (
+                <>
+                  <h3>Configuration, and where each value came from</h3>
+                  <dl className="kv">
+                    {s.config &&
+                      Object.keys(s.config.values)
+                        .sort()
+                        .map((key) => {
+                          const why = s.config!.explain(key)
+                          return (
+                            <div key={key} style={{ display: "contents" }}>
+                              <dt>{key}</dt>
+                              <dd>
+                                {JSON.stringify(s.config!.values[key])}{" "}
+                                <span className="slug">
+                                  ({why.usedDefault ? "platform default" : why.contributors.map((c) => c.scope).join(" → ")})
+                                </span>
+                              </dd>
+                            </div>
+                          )
+                        })}
+                  </dl>
+                </>
+              )}
+
+              {/* The detail is one link away and says how much of it there is.
+                  Not a disclosure widget: a closed `<details>` still builds
+                  every element inside it, which is the same page under a lid.
+                  Problems below are never folded — a finding an operator has to
+                  ask for is a finding nobody reads. */}
+              <p className="slug" data-testid={`detail-${s.binding.slug}`}>
+                <Link href={open ? "/" : `/?show=${s.binding.slug}`}>
+                  {open
+                    ? `Hide ${values} configuration values and ${payments} payments capabilities`
+                    : `${values} configuration values and ${payments} payments capabilities — show`}
+                </Link>
+              </p>
 
               {s.configProblems!.length > 0 && (
                 <>
@@ -383,7 +472,8 @@ export default async function StudioPage() {
             </>
           )}
         </section>
-      ))}
+        )
+      })}
     </>
   )
 }

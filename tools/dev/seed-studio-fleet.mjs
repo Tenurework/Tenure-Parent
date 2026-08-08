@@ -10,12 +10,35 @@
  *
  * Three tenants, each one a case some assertion depends on:
  *
- *   seed-deployed    ACTIVE, with a DEPLOYMENT row — the healthy shape.
+ *   seed-deployed    Has a DEPLOYMENT row — which is the property its name
+ *                    states and the only thing that distinguishes it from
+ *                    `seed-nodeploy`. Its lifecycle state is `PURGE_PENDING`,
+ *                    for the reason below.
  *   seed-nodeploy    ACTIVE, with NO DEPLOYMENT row. The fleet page must say
  *                    `never deployed` for it. This is the case that was
  *                    unreachable while the page passed `hasDeployment: true`.
  *   seed-elsewhere   placed in eu-west-1, which this control plane holds no
  *                    credentials for — so the CSV export must not carry it.
+ *
+ * ## Why seed-deployed is PURGE_PENDING and not ACTIVE
+ *
+ * STUDIO-030-004 says an irreversible move must not sit beside an ordinary one,
+ * and `layout.spec.ts` asserts the vertical gap between the two groups on
+ * `/tenants/seed-deployed`. That assertion needs a tenant whose successors
+ * include BOTH kinds, and it was written believing ACTIVE was such a state.
+ * It is not, and no amount of styling makes it one: from ACTIVE the graph
+ * offers IDLE, SUSPENDING, HIBERNATING, EXPORTING, OFFBOARDING and LEGAL_HOLD,
+ * and every one of them can reach a serving state again — `change-class.ts`
+ * says so in as many words ("OFFBOARDING moves a tenant toward deletion without
+ * performing any"). `PURGE_PENDING` is the ONE state in the whole graph that
+ * offers both: PURGING, which is C7 and cannot be undone, alongside LEGAL_HOLD
+ * and OFFBOARDING, which can. It is also exactly the state the spec describes —
+ * "an operator reaching for an ordinary advance must not be able to hit
+ * PURGING" — because PURGING is offered from nowhere else.
+ *
+ * The registry row's coarser `lifecycle` moves with it. `TenantLifecycle` has
+ * no PURGE_PENDING; `DEPROVISIONING` is its member for the one-way door, and
+ * leaving it at ACTIVE would seed a fixture that contradicts itself.
  *
  * The endpoint is required, for the same reason `create-registry-table.mjs`
  * requires it: this writes rows, and letting the SDK resolve a region would
@@ -56,11 +79,11 @@ function manifestFor(slug, region) {
   }
 }
 
-function registryFor(slug, region, cellId) {
+function registryFor(slug, region, cellId, lifecycle) {
   return {
     tenantId: `tnt_seed_${slug.replace(/-/g, "")}`,
     slug,
-    lifecycle: "ACTIVE",
+    lifecycle,
     provenance: "composed",
     legalName: `${slug} Incorporated`,
     displayName: `Seed ${slug}`,
@@ -77,7 +100,7 @@ function registryFor(slug, region, cellId) {
   }
 }
 
-async function seed({ slug, region, cellId, withDeployment }) {
+async function seed({ slug, region, cellId, withDeployment, state, lifecycle }) {
   // Clear anything a previous run left, so the suite is repeatable. Every item
   // under the partition, not a guessed list of sort keys.
   const existing = await doc.send(
@@ -101,7 +124,7 @@ async function seed({ slug, region, cellId, withDeployment }) {
   await doc.send(
     new PutCommand({
       TableName: table,
-      Item: { ...base, sk: "REGISTRY", registry: registryFor(slug, region, cellId) },
+      Item: { ...base, sk: "REGISTRY", registry: registryFor(slug, region, cellId, lifecycle) },
     }),
   )
   await doc.send(
@@ -110,7 +133,7 @@ async function seed({ slug, region, cellId, withDeployment }) {
       Item: {
         ...base,
         sk: "STATE",
-        state: "ACTIVE",
+        state,
         digest: `seed-${slug}`,
         createdAt: AT,
         updatedAt: AT,
@@ -140,12 +163,36 @@ async function seed({ slug, region, cellId, withDeployment }) {
     )
   }
 
-  console.log(`seeded ${slug} (${region}, deployment=${!!withDeployment})`)
+  console.log(`seeded ${slug} (${region}, ${state}, deployment=${!!withDeployment})`)
 }
 
 const region = process.env.AWS_REGION ?? "us-east-1"
 const cellId = process.env.CELL_ID ?? `cell-${region}-a`
 
-await seed({ slug: "seed-deployed", region, cellId, withDeployment: true })
-await seed({ slug: "seed-nodeploy", region, cellId, withDeployment: false })
-await seed({ slug: "seed-elsewhere", region: "eu-west-1", cellId: "cell-eu-west-1-a", withDeployment: true })
+// The lifecycle-engine state and the registry's coarser lifecycle are written
+// together, from one place, so a fixture cannot claim two different things
+// about the same tenant.
+await seed({
+  slug: "seed-deployed",
+  region,
+  cellId,
+  withDeployment: true,
+  state: "PURGE_PENDING",
+  lifecycle: "DEPROVISIONING",
+})
+await seed({
+  slug: "seed-nodeploy",
+  region,
+  cellId,
+  withDeployment: false,
+  state: "ACTIVE",
+  lifecycle: "ACTIVE",
+})
+await seed({
+  slug: "seed-elsewhere",
+  region: "eu-west-1",
+  cellId: "cell-eu-west-1-a",
+  withDeployment: true,
+  state: "ACTIVE",
+  lifecycle: "ACTIVE",
+})

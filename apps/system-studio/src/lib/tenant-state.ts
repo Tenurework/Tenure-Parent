@@ -3,6 +3,7 @@ import {
   RESIDUAL_CLAIMS,
   RESIDUAL_COST,
   SERVING,
+  classify,
   needsApproval,
   nextStates,
   observeResidual,
@@ -36,11 +37,44 @@ export const ARCHIVED_STATES: ReadonlySet<TenantState> = new Set<TenantState>([
 export const PURGE_STATES: ReadonlySet<TenantState> = new Set<TenantState>(["PURGE_PENDING", "PURGING"])
 
 /**
+ * Does moving to `state` destroy something nothing can put back?
+ *
+ * Asked of `classify`, which is the platform's one answer to that question:
+ * C7 is defined as "destroys data or capability that cannot be recreated from
+ * anything this platform holds", and `requirementsFor` refuses to automate it.
+ * A second list here would be a list that disagrees with the gate the first
+ * time somebody adds a state. The target is not read by `classify` — the class
+ * of a lifecycle move is a property of the destination alone.
+ */
+function destroysTenant(state: TenantState): boolean {
+  return classify({ surface: "tenant-lifecycle", action: state, target: "" }) === "C7"
+}
+
+/**
  * Can a tenant that reaches `state` ever serve traffic again?
  *
  * Answered by walking the transition graph, not by a label. Breadth-first from
  * the target state: if no serving state is reachable, the move is one-way, and
  * that is the single most important thing to tell someone before they make it.
+ *
+ * ## The walk stops at a state that destroys the tenant
+ *
+ * Without that clause this function returned `true` for EVERY state in the
+ * graph, including `PURGING` — because `PURGING → FAILED → DRAFT → … → ACTIVE`
+ * is a path, and the walk followed it. So `riskOf` told an operator that the
+ * one action with no undo was "Reversible. A serving state is reachable again
+ * from PURGING", and `AdvanceControls` — which reads exactly this to decide
+ * what goes in the separated one-way group — never found a one-way move to
+ * separate. The whole of STUDIO-030-004 was unreachable code, and the layout
+ * suite's `fieldset.destructive` assertion is what found it.
+ *
+ * The path is real and it is not a recovery: rebuilding from DRAFT under the
+ * same slug produces a new, empty tenant. Coming back from PURGING is a new
+ * registration against a restored backup, which is a different operation with a
+ * different approval — the same thing `tenant-registry.ts` says about ARCHIVED.
+ * So a destroying state is entered and never left for this purpose: it is
+ * expanded no further, and only a state that is itself serving, or that reaches
+ * one WITHOUT passing through the shredder, counts as reversible.
  */
 export function canReachServing(state: TenantState): boolean {
   const seen = new Set<TenantState>([state])
@@ -48,6 +82,7 @@ export function canReachServing(state: TenantState): boolean {
   while (queue.length > 0) {
     const current = queue.shift()!
     if (SERVING.has(current)) return true
+    if (destroysTenant(current)) continue
     for (const next of nextStates(current)) {
       if (seen.has(next)) continue
       seen.add(next)

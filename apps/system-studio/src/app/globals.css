@@ -178,12 +178,66 @@
   box-sizing: border-box;
 }
 
+/*
+ * ── A closed <details> must leave no box behind ────────────────────────────
+ *
+ * Chrome hides the content of a closed `<details>` through
+ * `::details-content { content-visibility: hidden }`. That stops it PAINTING;
+ * it does not stop its children reporting a bounding rectangle. The estate's
+ * machine-readable diff measured 1026x84 at the top of the section BELOW it, so
+ * every text block after the disclosure was covered by something nobody could
+ * see — at 1440 as well as at 320, and under `dir="rtl"` too.
+ *
+ * `PreferencesMenu.tsx` already met this once and worked around it by rendering
+ * its panel only while open. That works for one component; this is the rule, so
+ * the next `<details>` somebody writes does not have to know. `display: none`
+ * is what browsers did before `::details-content` existed and is what a
+ * collapsed disclosure already means to a screen reader.
+ */
+details:not([open]) > *:not(summary) {
+  display: none;
+}
+
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
   font-size: 13.5px;
   line-height: 1.55;
+}
+
+/*
+ * ── Long identifiers wrap ──────────────────────────────────────────────────
+ *
+ * This console prints ARNs, account ids, IAM statements, AWS error codes and
+ * resource ids, and none of them contains a space. At 320 CSS pixels (WCAG 2.2
+ * AA 1.4.10 reflow) a single `{"Effect":"Allow","Action":["sts:GetCallerIdentity"]}`
+ * is four times the width of the card it sits in: the ELEMENT stays inside its
+ * container while its TEXT runs out of the box, which no overlap or
+ * page-overflow check can see and which `layout.spec.ts` measures directly as
+ * `scrollWidth > clientWidth`.
+ *
+ * `anywhere` rather than `break-word`, deliberately: only `anywhere` also
+ * reduces the element's min-content width, which is what stops one long token
+ * setting the floor for a grid track or a flex item and pushing the whole row
+ * past its section. Prose is unaffected — both values break a word only when it
+ * cannot fit on a line of its own.
+ *
+ * `td` and `th` are NOT in the list: a wide table already scrolls inside itself
+ * (`table.grid` below), and breaking every cell would collapse the columns
+ * rather than let a reader scroll them. A `<code>` inside a cell does wrap,
+ * which is intended — one embedded IAM statement should not set a 700px column
+ * width for a table of one-word verdicts.
+ */
+p,
+li,
+dt,
+dd,
+code,
+.slug,
+.chip,
+legend {
+  overflow-wrap: anywhere;
 }
 
 .masthead {
@@ -400,6 +454,30 @@ p {
   overflow-wrap: anywhere;
 }
 
+/*
+ * Below ~480px the two columns stop being two columns.
+ *
+ * `minmax(0, max-content)` shrinks the key column only after the value column
+ * has been squeezed to nothing first, so at 320px `dd` measured a clientWidth
+ * of ZERO while its text — an IAM statement, an AWS error code — kept its full
+ * width and printed outside the card. Narrowing the key column instead would
+ * make both unreadable; the pairs stack, which is what a key/value list does on
+ * a narrow screen. WCAG 2.2 AA 1.4.10.
+ *
+ * The same shape, and the same defect, in `.state-risk` — the five facts shown
+ * before a high-risk action, where the value is the thing that must not be lost.
+ */
+@media (max-width: 30rem) {
+  .kv,
+  .state-risk {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .kv dd,
+  .state-risk dd {
+    margin-block-end: var(--space-2);
+  }
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -463,9 +541,16 @@ form.signin button {
 }
 
 /* ── Tabs ──────────────────────────────────────────────────────────────── */
+/*
+ * Eight sections on one unwrapping flex row measured 572px, so EVERY route
+ * scrolled sideways at 320 — the nav, not the page content, was the single
+ * cause on all nine of them. The row gap is zero on purpose: wrapping must add
+ * a second line of tabs, not a band of empty space above them.
+ */
 .tabs {
   display: flex;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
   border-bottom: 1px solid var(--border);
   margin-bottom: 1.5rem;
   font-size: 0.9rem;
@@ -568,9 +653,13 @@ table.grid tr.gate td { font-weight: 600; }
 /* Two columns: twelve modules in one column pushed everything below the fold,
    and the section that decides what the system IS should not be the section an
    operator scrolls past. */
+/* `min(19rem, 100%)` rather than `19rem`: a bare 19rem is a 304px FLOOR on the
+   track, so in a 300px container every module label overflowed the form by the
+   difference. The `min()` lets the track fall back to the container's own width
+   when there is less than one column's worth of room. */
 .checks {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr));
   gap: 0.15rem 1.25rem;
   max-width: 46rem;
 }
@@ -670,10 +759,17 @@ form.compose button[type="submit"]:disabled,
   padding: 1rem 0;
   color: var(--muted);
 }
+/* A version and a lifecycle label are single tokens. Left to wrap, the hyphen
+   in `certified-limited` is a break opportunity, and an inline element split
+   across two lines reports ONE rectangle spanning both — which is a real
+   overlap with the module name on the line above, not an artefact: the reader
+   sees `certified-` orphaned from `limited`. Kept whole, the token moves to the
+   next line as a unit. */
 .check .version {
   font-size: 0.72rem;
   color: var(--muted);
   opacity: 0.8;
+  white-space: nowrap;
 }
 
 /* ─── Adopting a file-bound tenant ──────────────────────────────────────────
@@ -1077,6 +1173,20 @@ form.compose button[type="submit"]:disabled,
   padding-inline-start: var(--space-2);
   max-width: 100%;
 }
+
+/*
+ * `.scroll-x` was written onto eight table wrappers — the estate, health,
+ * security, the tenant's observations and the tag-compliance panel — and
+ * declared nowhere, so it was a class name doing nothing. Declared here rather
+ * than deleted from the markup: the wrappers are correct, and a bounded
+ * scroller around a wide table is what keeps the PAGE from being the thing that
+ * scrolls sideways.
+ */
+.scroll-x {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 table.grid.fleet {
   /* Sixteen columns do not fit at any width this console is read at, so the
      table is allowed to be wider than the page and scroll inside the wrapper
