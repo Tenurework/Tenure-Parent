@@ -66,7 +66,31 @@ const AUTHORITY_MARKERS = [
 ]
 
 /** Directories that hold copies, builds or dependencies rather than sources. */
-const SKIP_DIRS = new Set(["node_modules", ".next", ".git", "dist", "build", "coverage"])
+// Artefact directories, not source.
+//
+// `test-results/` is the one that mattered: Playwright writes an
+// `error-context.md` per failed test, and this walk collects every `.md` under
+// ROOT — so the document graph's content depended on whether the person
+// regenerating it had recently run a failing suite. Eight of them were in the
+// walk locally and none in CI, which is why `--check` reported the committed
+// graph stale on a Linux runner while it was current here, twice, pointing at
+// content nobody had edited. They are also `.md` files full of assertion text,
+// so a requirement-shaped string inside a failure snapshot could have been
+// parsed into the graph as a real requirement.
+//
+// `.next-visual` and `playwright-report` are the same class, listed before they
+// cost anybody the same afternoon.
+const SKIP_DIRS = new Set([
+  "node_modules",
+  ".next",
+  ".next-visual",
+  ".git",
+  "dist",
+  "build",
+  "coverage",
+  "test-results",
+  "playwright-report",
+])
 
 /**
  * A requirement, as the document states it.
