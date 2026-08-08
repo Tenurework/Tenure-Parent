@@ -39,9 +39,28 @@ variable "desired_count" {
 }
 
 variable "platform_operators" {
-  type        = string
-  default     = ""
-  description = "Comma-separated Tenure staff addresses. Empty means nobody can sign in, which the application enforces by refusing to serve."
+  type    = string
+  default = ""
+
+  description = <<-EOT
+    Comma-separated `email:role` entries — NOT bare addresses.
+
+    STUDIO-020-005 replaced the membership test with a role family, and
+    `parseOperators` REFUSES an entry that names no role rather than defaulting
+    one, because a default there makes everybody an administrator. So a value in
+    the old bare-address form locks every operator out of the console; that is
+    the intended direction of failure, but it is a surprise worth stating here.
+
+    Production holds exactly one entry:
+    `satvik@Tenurework.com:platform-super-admin`. The Tenure Global Deployment
+    Engine is a single-operator console — it composes, provisions and advances
+    every tenant in the estate, so the allowlist is the whole of who can do that
+    and it is deliberately one person rather than a team address.
+
+    Empty means nobody can sign in, which the application enforces by refusing
+    to serve. The roles are declared in
+    `apps/system-studio/src/lib/operators.ts` (`OPERATOR_ROLES`).
+  EOT
 }
 
 variable "platform_operator_secret" {
