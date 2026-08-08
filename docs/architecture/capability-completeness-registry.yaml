@@ -9,7 +9,7 @@
 # point: an unimported requirement used to be invisible, and invisible reads
 # exactly like done.
 
-requirement_count: 2046
+requirement_count: 2265
 by_prefix:
   ANL: 27
   CAT: 59
@@ -18,6 +18,7 @@ by_prefix:
   FIN: 34
   GE: 781
   HCM: 33
+  IER: 219
   INT: 65
   OPS: 32
   PACK: 53
@@ -29,9 +30,9 @@ by_prefix:
   WRK: 88
 by_status:
   BLOCKED_EXTERNAL: 13
-  FAIL: 1836
+  FAIL: 2057
   NOT_APPLICABLE: 1
-  PASS: 196
+  PASS: 194
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -10829,6 +10830,1977 @@ requirements:
     reason: decided in the execution ledger
     ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
     statement: Superiority is claimed only where measured evidence passes.
+  - id: "IER-000-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Register this Bible, version, digest, owner, dependencies, prefix, and precedence in the architecture document graph."
+  - id: "IER-000-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Import every IER-* requirement into the unified execution ledger without duplicate or missing IDs."
+  - id: "IER-000-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add IER-* completeness checks to CI and master prompt prefix validation."
+  - id: "IER-000-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Map every overlapping GE/CFG/HCM/INT/PACK/SIM requirement without divergent duplication.
+  - id: "IER-000-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Record current repository and deployed identity/roster/access behavior before changes.
+  - id: "IER-000-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Create ADRs for eligibility boundary, policy engine, temporal model, source trust, and identity linking."
+  - id: "IER-000-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Preserve existing user changes, historical ledgers, and evidence."
+  - id: "IER-000-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prohibit completion claims without code, migration, integration, test, deployment, rollback, and operational evidence."
+  - id: "IER-010-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Separate authentication, routing, person, external identity, roster assertion, affiliation, eligibility, assignment, tenant entitlement, authorization, and access grant."
+  - id: "IER-010-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement provider-independent stable person identity."
+  - id: "IER-010-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Key external identities by connection + verified issuer + immutable subject.
+  - id: "IER-010-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prevent email-only identity merge or privilege grant."
+  - id: "IER-010-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Model multiple identities, tenants, affiliations, seats, and historical assignments."
+  - id: "IER-010-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement explicit eligibility outcomes including indeterminate and manual review.
+  - id: "IER-010-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement deny-by-default authorization and failure behavior."
+  - id: "IER-010-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Separate commercial tenant capability entitlement from person eligibility and action authorization in schema/API/UI/reporting.
+  - id: "IER-020-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement PopulationSource with owner, scope, trust, cadence, freshness, retention, health, and version."
+  - id: "IER-020-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement field-level source authority and precedence."
+  - id: "IER-020-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement AttributeDefinition with type, purpose, classification, consumers, retention, and policy-use controls."
+  - id: "IER-020-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Generate minimum source contracts from active configured purposes and policies.
+  - id: "IER-020-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Prevent “collect all available fields” configuration.
+  - id: "IER-020-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Distinguish null, unknown, withheld, not applicable, false, and stale."
+  - id: "IER-020-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement effective-dated and system-dated source assertions."
+  - id: "IER-020-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement explicit source staleness and failure policy by risk.
+  - id: "IER-020-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement conflict detection; prohibit last-write-wins across authoritative sources."
+  - id: "IER-020-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Record correction and supersession without erasing historical truth.
+  - id: "IER-030-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Classify every roster/eligibility field and restrict its consumers.
+  - id: "IER-030-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Exclude sensitive and protected data by default.
+  - id: "IER-030-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Require documented necessity, review, safer-alternative analysis, and controls before sensitive proof is used."
+  - id: "IER-030-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Prefer narrow attestations over raw sensitive documents.
+  - id: "IER-030-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prohibit protected-class inference and opaque discriminatory policies."
+  - id: "IER-030-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement masking, redaction, export, search, analytics, and logging policy by attribute."
+  - id: "IER-030-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement correction, retention, deletion, restriction, and legal-hold behavior."
+  - id: "IER-030-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prohibit roster data from unrelated model training, marketing, or cross-tenant use."
+  - id: "IER-040-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Support governed manual, XLSX, CSV, object, API, webhook, SCIM, connector, snapshot, and delta modes by certified scope."
+  - id: "IER-040-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement immutable checksum-addressed SourceSnapshot with counts, schema, prior version, and evidence."
+  - id: "IER-040-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Quarantine and malware-scan files before parsing."
+  - id: "IER-040-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Reject macro-enabled, active-content, external-link, embedded-object, and unsupported workbooks."
+  - id: "IER-040-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Enforce file/row/column/cell/decompression/resource limits.
+  - id: "IER-040-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Never execute formulas and prevent CSV/formula injection on import/export.
+  - id: "IER-040-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Validate signed template headers, data types, values, cross-sheet references, and effective dates."
+  - id: "IER-040-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement tenant/cell object isolation and short-lived upload credentials."
+  - id: "IER-040-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Keep raw values out of logs and ordinary evidence.
+  - id: "IER-040-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement idempotent import and replay/duplicate handling.
+  - id: "IER-040-011"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement import state machine with retry, failure, rollback, supersession, hold, and destruction."
+  - id: "IER-040-012"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Enforce transient-file retention and approved destruction."
+  - id: "IER-050-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Generate tenant/policy-specific workbook templates rather than one universal all-fields sheet."
+  - id: "IER-050-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Generate README and DATA_DICTIONARY with purpose, owner, classification, allowed values, and instructions."
+  - id: "IER-050-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Generate only required PEOPLE, AFFILIATIONS, ORGANIZATION_NODES, SEAT_ASSIGNMENTS, MODULE_POPULATIONS, ATTESTATIONS, and CHANGE_CONTROL sheets."
+  - id: "IER-050-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Require stable non-SSN source person IDs and source record versions."
+  - id: "IER-050-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Preserve IDs as strings and dates with explicit ISO/timezone semantics.
+  - id: "IER-050-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Produce row-level safe error output and remediation."
+  - id: "IER-050-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Produce before/after impact preview for people, affiliations, seats, eligibility, sessions, modules, and downstream systems."
+  - id: "IER-050-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Bind approval to exact source, mapping, policy, and impact digests."
+  - id: "IER-060-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement versioned typed header/value/organization/status/date mappings.
+  - id: "IER-060-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Reject unknown values and unsafe implicit coercion.
+  - id: "IER-060-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Prohibit arbitrary executable mapping code.
+  - id: "IER-060-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Resolve by verified identity or stable approved source keys before weaker hints.
+  - id: "IER-060-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Use email only as a candidate hint, never final merge proof."
+  - id: "IER-060-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement ambiguous-match review with masked evidence and separation of duties."
+  - id: "IER-060-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Handle changed/recycled/shared email, changed name, rehire/return, duplicate source, and multiple sources."
+  - id: "IER-060-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement protected reversible person merge and split with session revocation and reconciliation.
+  - id: "IER-060-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prevent cross-tenant person correlation from exposing business records."
+  - id: "IER-060-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Test mapping and resolution with mutation, collision, and adversarial fixtures."
+  - id: "IER-070-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement typed deterministic versioned declarative eligibility policies.
+  - id: "IER-070-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Validate all attribute references, types, source trust, and freshness."
+  - id: "IER-070-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Support all/any/not, effective dates, explicit deny, exceptions, staged rollout, and expiry."
+  - id: "IER-070-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Define missing, stale, conflict, and unavailable-source behavior for every policy."
+  - id: "IER-070-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prohibit network calls, arbitrary code, hidden defaults, and nondeterminism in evaluation."
+  - id: "IER-070-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Prohibit LLM/embedding/probabilistic output as final access condition.
+  - id: "IER-070-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement compile-time lint, simulation, unit, property, boundary, and mutation tests."
+  - id: "IER-070-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Store immutable policy version/digest, approval, activation, and rollback."
+  - id: "IER-070-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Preserve past policy versions needed for historical explanations.
+  - id: "IER-070-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement safe end-user, admin, auditor, and operator explanation layers."
+  - id: "IER-070-011"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Produce decision receipts with policy and source revisions but no unnecessary raw PII.
+  - id: "IER-070-012"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Fail closed on engine error or indeterminate high-risk decisions."
+  - id: "IER-080-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement desired-versus-actual access reconciliation."
+  - id: "IER-080-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Reconcile tenant membership, module, organization, seat, workflow, report, file/search, Relay, connector, session, cache, and job scope."
+  - id: "IER-080-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement idempotent joiner provisioning with minimum privilege.
+  - id: "IER-080-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement mover diff with old-scope revocation, new-scope grant, SoD, and session rotation."
+  - id: "IER-080-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement leaver/graduate revocation, handoff, retention, and external-access cleanup."
+  - id: "IER-080-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Preserve durable-seat memory while protecting predecessor private data and credentials."
+  - id: "IER-080-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement reinstatement through fresh policy evaluation, not unconditional restoration."
+  - id: "IER-080-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement time-bound policy exceptions and separate break-glass controls."
+  - id: "IER-080-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Protect privileged grants and mass revocations with thresholds, preview, second approval, and rollback."
+  - id: "IER-080-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Ensure rollback re-evaluates current truth and cannot restore expired/revoked privilege."
+  - id: "IER-080-011"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Record reconciliation attempts, receipts, failure, retry, and compensation."
+  - id: "IER-080-012"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Measure and alarm on access/session revocation lag.
+  - id: "IER-090-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Resolve login from verified domain/slug/invitation/session/email hint through server-side tenant records."
+  - id: "IER-090-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prevent tenant/user enumeration, open redirect, and tenant confusion."
+  - id: "IER-090-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Handle shared domains without treating the domain as membership.
+  - id: "IER-090-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement invitation-only local Cognito sign-in by tenant policy."
+  - id: "IER-090-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Disable public self-registration by default."
+  - id: "IER-090-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Verify email ownership and then re-check active Tenure eligibility."
+  - id: "IER-090-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Use server-controlled revocable sessions and safe recovery."
+  - id: "IER-090-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Return only to the last currently authorized workspace or a safe chooser.
+  - id: "IER-090-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Reject client-supplied tenant/workspace authority."
+  - id: "IER-090-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Test correct-domain/unrostered, rostered/unverified, expired, suspended, and multi-tenant cases."
+  - id: "IER-100-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement SAML/OIDC transition without changing person_id or business history.
+  - id: "IER-100-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Bind federated identity by trusted connection + issuer + subject.
+  - id: "IER-100-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prefer approved stable directory/person cross-reference for pre-linking."
+  - id: "IER-100-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement high-assurance dual-login linking when no stable cross-reference exists."
+  - id: "IER-100-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Reject email-only automatic linking."
+  - id: "IER-100-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Detect duplicate profiles, already-linked subjects, claim drift, and takeover attempts."
+  - id: "IER-100-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Keep Cognito-specific linking inside the adapter after Tenure approves the link."
+  - id: "IER-100-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement test, pilot, hybrid, preferred, required, disablement, and retirement waves."
+  - id: "IER-100-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Preserve membership, seats, approvals, memory, preferences, and last authorized workspace."
+  - id: "IER-100-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Rotate/revoke sessions on identity-link changes."
+  - id: "IER-100-011"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Provide rollback and recovery without creating duplicate authority.
+  - id: "IER-100-012"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Test malicious issuer, wrong tenant, recycled email, replay, and subject collision."
+  - id: "IER-110-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement tenant-bound SCIM 2.0 Users and exact certified Group scope."
+  - id: "IER-110-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Support filtering, pagination, ETag/version, PATCH, externalId, idempotency, and standard errors."
+  - id: "IER-110-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Secure and rotate SCIM credentials; rate-limit and audit requests."
+  - id: "IER-110-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Map SCIM groups only through versioned bounded policies.
+  - id: "IER-110-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Prevent SCIM group text from directly granting privileged Tenure roles.
+  - id: "IER-110-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Support SCIM, HRIS/SIS, local roster, training, and Tenure source coexistence."
+  - id: "IER-110-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Prevent one source from overwriting attributes it does not own.
+  - id: "IER-110-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Revoke sessions/access promptly on deactivation without deleting history/person.
+  - id: "IER-110-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Re-evaluate all access on reactivation."
+  - id: "IER-110-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Run provider interoperability, replay, duplicate, pagination, and deprovisioning tests."
+  - id: "IER-120-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement workspace, module, feature, organization, workflow, report, seat-candidate, connector, jurisdiction, and time eligibility targets."
+  - id: "IER-120-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Require tenant capability entitlement before person eligibility can activate a module.
+  - id: "IER-120-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Require central server authorization after eligibility for every action/resource.
+  - id: "IER-120-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Derive UI navigation safely without using it as enforcement.
+  - id: "IER-120-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Enforce effective dates and future/expired states.
+  - id: "IER-120-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Enforce training/license/clearance proofs by narrow status, source, freshness, and scope."
+  - id: "IER-120-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement relationship, assignment, delegation, and separation-of-duty integration."
+  - id: "IER-120-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Test hidden-button bypass through direct API/server calls."
+  - id: "IER-130-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add Population, Identity, and Access Eligibility to the Tenant Configuration Graph."
+  - id: "IER-130-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement source, attribute, authority, mapping, policy, identity-route, lifecycle, review, and exception configuration."
+  - id: "IER-130-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement save/resume, versioning, diff, downstream invalidation, and collaborative drafts."
+  - id: "IER-130-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement synthetic simulation and data/security/privacy/cost/access impact preview.
+  - id: "IER-130-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement digest-bound approval, activation, monitoring, rollback, and evidence."
+  - id: "IER-130-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement source-health and staleness dashboards."
+  - id: "IER-130-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement import error and person-resolution workbenches."
+  - id: "IER-130-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement access reconciliation and SSO migration dashboards.
+  - id: "IER-130-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement delegated tenant Roster Studio with bounded permissions.
+  - id: "IER-130-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement accessible responsive loading/empty/error/conflict/stale/offline/blocked/success states.
+  - id: "IER-130-011"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prevent self-grant, protected-field selection, arbitrary code, and approval bypass."
+  - id: "IER-130-012"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Use Tenure Experience System and Analytics Cloud contracts without creating a parallel design or chart system.
+  - id: "IER-135-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement governed tenant-managed population additions as a first-class global capability."
+  - id: "IER-135-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Tag every entry with TENANT_MANUAL_ATTESTATION, creator, sponsor, reason, scope, effective time, and source trust."
+  - id: "IER-135-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Support TEMPORARY with mandatory end date, maximum duration, reminders, automatic expiry, and extension approval."
+  - id: "IER-135-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Support ONGOING with mandatory periodic recertification, revocation, and authoritative-source supersession."
+  - id: "IER-135-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prevent manual entries from asserting fields outside their accepted source-authority policy."
+  - id: "IER-135-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Require separate durable-seat assignment and approval for role authority."
+  - id: "IER-135-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Resolve later SIS/HRIS/SCIM records to the same person without email-only merge or duplicate count."
+  - id: "IER-135-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Define commercial usage metrics separately from durable organizational seats.
+  - id: "IER-135-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Emit privacy-minimized commercial usage and threshold events to the Tenure control plane."
+  - id: "IER-135-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement contract-driven grace, pending approval, guest classification, or denial for over-limit additions."
+  - id: "IER-135-011"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prohibit silent auto-charge, silent over-entitlement grant, duplicate counting, and PII in routine usage alerts."
+  - id: "IER-135-012"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Reconcile effective-dated usage counts with entitlements and billing through reproducible audited definitions."
+  - id: "IER-140-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Configure Simon through tenant overlay and reusable higher-education/nonprofit packs only."
+  - id: "IER-140-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Generate the Simon minimum roster template and data dictionary from active policies.
+  - id: "IER-140-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Require approved roster + invitation + verified University email + active interval for pilot workspace eligibility.
+  - id: "IER-140-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Treat rochester.edu/simon.rochester.edu only as routing/verification inputs, never authority."
+  - id: "IER-140-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Model OSE, clubs, affiliations, and durable seats through global organization schemas."
+  - id: "IER-140-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Configure club scope, OSE oversight, and VP → President → OSE policies."
+  - id: "IER-140-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Make program/cohort/graduation fields conditional and purpose-bound."
+  - id: "IER-140-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Exclude GPA, grades, financial aid, health, discipline, SSN, address, personal contacts, protected traits, and credentials by default."
+  - id: "IER-140-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement graduation/end-date revocation and seat handoff."
+  - id: "IER-140-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Preserve eligible seat memory without predecessor credentials/private data.
+  - id: "IER-140-011"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Generate Simon University SSO claim/linking/migration contract without fabricated metadata.
+  - id: "IER-140-012"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Prove local Cognito to SSO migration on synthetic users without duplicate person/workspace.
+  - id: "IER-140-013"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement FERPA-oriented purpose, access, disclosure, retention, correction, and incident controls without making unsupported compliance claims."
+  - id: "IER-140-014"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prove synthetic Simon, corporate, and nonprofit fixtures on the same engine."
+  - id: "IER-140-015"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prove no Simon tenant ID, domain, program, club, role, or workflow hard-coding in platform core."
+  - id: "IER-140-016"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Complete the reciprocal OSE/Tenure onboarding contract before requesting production roster data.
+  - id: "IER-140-017"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Configure OSE-authorized TEMPORARY/ONGOING additions, sponsor/approval, expiry/review, and commercial-count behavior."
+  - id: "IER-150-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement versioned population/attribute/policy templates for higher education.
+  - id: "IER-150-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement corporate workforce and contractor templates.
+  - id: "IER-150-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Define manufacturing/field qualification templates.
+  - id: "IER-150-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Define healthcare workforce templates without ingesting patient data into workforce eligibility.
+  - id: "IER-150-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Define financial-services licensing/SoD templates by certified scope."
+  - id: "IER-150-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Define public-sector/nonprofit/member/volunteer templates."
+  - id: "IER-150-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Include minimum fields, forbidden defaults, source trust, tests, privacy, and evidence in every pack."
+  - id: "IER-150-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prohibit industry-pack source forks and unsupported certification claims."
+  - id: "IER-160-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement versioned tenant-bound commands with actor, revision, reason, idempotency, correlation, and authorization."
+  - id: "IER-160-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement transactional outbox events with tenant/cell, schema, causality, effective time, and safe payload."
+  - id: "IER-160-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prevent secrets, tokens, raw assertions, and unnecessary PII in events/logs/evidence."
+  - id: "IER-160-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement immutable audit for source, mapping, match, policy, decision, reconciliation, link, review, and exception changes."
+  - id: "IER-160-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Monitor source health, drift, quality, matching, decisions, reconciliation, revocation, linking, reviews, exceptions, and retention."
+  - id: "IER-160-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Define and measure SLOs by risk without unsupported “real-time” claims."
+  - id: "IER-160-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement DLQ/retry/replay/reconciliation and alerting.
+  - id: "IER-160-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement runbooks for source, import, grant/revocation, link, SCIM/IdP, policy, privacy, and rollback incidents."
+  - id: "IER-170-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Complete identity/roster/eligibility/access threat model and abuse cases.
+  - id: "IER-170-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Enforce tenant isolation in database, objects, queues, caches, indexes, exports, logs, jobs, and evidence."
+  - id: "IER-170-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prevent cross-tenant identity correlation from becoming cross-tenant access."
+  - id: "IER-170-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Protect source upload, webhook, API, SCIM, and SSO boundaries from forgery/replay."
+  - id: "IER-170-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Protect policy authoring and activation with semantic permissions, step-up, SoD, and approval."
+  - id: "IER-170-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Protect operator/support access with purpose, time, approval, redaction, and audit."
+  - id: "IER-170-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement rate/resource limits for login discovery, import, mapping, policy, SCIM, and explanation."
+  - id: "IER-170-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement security scans, dependency checks, secret scans, and sensitive-log tests."
+  - id: "IER-170-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prohibit long-lived credentials and browser-held AWS credentials."
+  - id: "IER-170-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Verify rollback cannot resurrect unsafe access.
+  - id: "IER-180-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add unit, property, mutation, boundary, temporal, concurrency, idempotency, retry, and recovery tests."
+  - id: "IER-180-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add clean-database migration and rollback/forward-fix tests."
+  - id: "IER-180-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add malicious XLSX/CSV, formula, oversized, schema-drift, Unicode, and duplicate tests."
+  - id: "IER-180-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Add file/API/webhook/SCIM/connector integration tests.
+  - id: "IER-180-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Add joiner/mover/leaver/graduate/rehire lifecycle tests.
+  - id: "IER-180-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add local Cognito invitation and session-revocation tests."
+  - id: "IER-180-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add local-to-SSO link/migration and takeover-negative tests."
+  - id: "IER-180-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add cross-tenant API/database/cache/file/search/event/export/Relay/operator abuse tests."
+  - id: "IER-180-009"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add module/scope/seat/SoD/effective-date authorization tests."
+  - id: "IER-180-010"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add stale/conflicting source and policy-engine failure tests."
+  - id: "IER-180-011"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Add headless Chromium full suite and critical Firefox/WebKit smoke.
+  - id: "IER-180-012"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Add keyboard, screen-reader, responsive, light/dark/high-contrast, reduced-motion, locale, offline, and slow-network tests."
+  - id: "IER-180-013"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Run synthetic Simon, corporate, and nonprofit fixtures through the same implementation."
+  - id: "IER-180-014"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Prohibit real Simon/person data in code, fixtures, logs, screenshots, traces, videos, and evidence."
+  - id: "IER-180-015"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Record exact tests, counts, results, commits, digests, deployment runs, rollback, and sanitized evidence."
+  - id: "IER-180-016"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Require independent security/QA review before a domain gate passes.
+  - id: "IER-190-001"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Implement legacy roster/source inventory, immutable extraction, mapping, mock conversion, delta, and reconciliation."
+  - id: "IER-190-002"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement secure tenant export with CSV/formula safety and short retention.
+  - id: "IER-190-003"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Integrate tenant suspension, hibernation, reactivation, offboarding, hold, and purge."
+  - id: "IER-190-004"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Re-run identity/source/policy/eligibility/reconciliation/isolation gates after restore or reactivation."
+  - id: "IER-190-005"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Implement source/connector/SCIM shutdown and final access revocation in offboarding.
+  - id: "IER-190-006"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Require protected approval for production activation, mass access change, irreversible link migration, and purge."
+  - id: "IER-190-007"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: Deploy through System Studio/approved AWS workflows with artifact/config/schema digests.
+  - id: "IER-190-008"
+    prefix: IER
+    source_document: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    section: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    status: FAIL
+    imported: true
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    statement: "Verify alarms, runbooks, backup/restore, rollback, support owner, and cost before availability."
   - id: "INT-000-001"
     prefix: INT
     source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
@@ -12093,7 +14065,7 @@ requirements:
     prefix: PACK
     source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
     section: "docs/implementation/erp-pack-factory-execution-ledger.md"
-    status: PASS
+    status: FAIL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
@@ -12111,7 +14083,7 @@ requirements:
     prefix: PACK
     source_document: "docs/implementation/erp-pack-factory-execution-ledger.md"
     section: "docs/implementation/erp-pack-factory-execution-ledger.md"
-    status: PASS
+    status: FAIL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"

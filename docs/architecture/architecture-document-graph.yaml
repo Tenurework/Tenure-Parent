@@ -6,12 +6,12 @@
 # duplicate upload cannot double-count the requirements it states.
 
 generated_from: tools/document-graph.mjs
-document_count: 34
+document_count: 36
 alias_count: 6
-requirement_statements: 4014
+requirement_statements: 4452
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
-authorities: 24
+authorities: 26
 references: 10
 documents:
   - id: "aws-current-state"
@@ -82,8 +82,8 @@ documents:
     family: "ux-task-scorecard"
     superseded_by: null
     supersedes: []
-    sha256: b62e9bd51af353eb426939298f997bd621784caaaddbaa7ad113757db64d493a
-    bytes: 7876
+    sha256: d60d1c44c25edaab744fb57e5c42f53f97d7e5346aaddf487636cd3e3c1fa3f1
+    bytes: 9574
     aliases: []
     requirement_prefixes:
       - TTES
@@ -157,13 +157,28 @@ documents:
     family: "erp-pack-factory-execution-ledger"
     superseded_by: null
     supersedes: []
-    sha256: "0bfffa9fb062c1458c96a2e8c5d247069c2a67de27089d445847096fc3cd231a"
-    bytes: 83374
+    sha256: eab536de965018b3826127b7e01aace2b091c364c48cd1771e9a3333bad20688
+    bytes: 87328
     aliases: []
     requirement_prefixes:
       - PACK
     states_requirements: 53
     mentions_requirement_ids: 43
+  - id: "identity-eligibility-entitlement-execution-ledger"
+    title: "Global Identity, Eligibility, Entitlement, Roster and Access Continuity Engine — execution ledger"
+    version: unversioned
+    canonical_path: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
+    role: authority
+    family: "identity-eligibility-entitlement-execution-ledger"
+    superseded_by: null
+    supersedes: []
+    sha256: "1db8adfac4f9dff2d4c0345b35317f6ff17d3ea78b646dcda332d57b022ccf14"
+    bytes: 63335
+    aliases: []
+    requirement_prefixes:
+      - IER
+    states_requirements: 219
+    mentions_requirement_ids: 219
   - id: "payments-treasury-execution-ledger"
     title: "Payments, Treasury, Cards and the Stripe Control Plane — execution ledger"
     version: unversioned
@@ -397,6 +412,21 @@ documents:
       - CAT
     states_requirements: 59
     mentions_requirement_ids: 49
+  - id: "tenure-global-identity-eligibility-entitlement-roster-and-access-continuity-engine-claude-bible-v1-0-1-"
+    title: "Tenure Global Identity, Eligibility, Entitlement, Roster, and Access Continuity Engine"
+    version: "1.0"
+    canonical_path: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
+    role: authority
+    family: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible
+    superseded_by: null
+    supersedes: []
+    sha256: f93238f09a62a8c48a0259cf8a7e77aa1b19e78069062878fd21758d9487cf4f
+    bytes: 114671
+    aliases: []
+    requirement_prefixes:
+      - IER
+    states_requirements: 219
+    mentions_requirement_ids: 219
   - id: "tenure-global-integration-ecosystem-and-connector-certification-claude-bible-v1-0"
     title: "Tenure Global Integration Ecosystem, Internal Pipeline, and Connector Certification Bible"
     version: "1.0"

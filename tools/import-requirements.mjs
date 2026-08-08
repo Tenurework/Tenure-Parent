@@ -52,6 +52,11 @@ const LEDGER_FOR = {
   EXT: "global-engine-execution-ledger.md",
   STUDIO: "system-studio-aws-control-plane-execution-ledger.md",
   SIMON: "simon-ose-absorption-execution-ledger.md",
+  // Added 2026-08-08 with the Bible that states them. 219 requirements arrived
+  // in one upload and were NOT IMPORTED — counted by the document graph, named
+  // by no ledger, and therefore invisible to the queue. Invisible reads exactly
+  // like done, which is the failure `UNIMPORTED = 0` exists to prevent.
+  IER: "identity-eligibility-entitlement-execution-ledger.md",
 }
 
 const TITLE = {
@@ -67,6 +72,7 @@ const TITLE = {
   OPS: "Operations, Supply, Manufacturing and Service Cloud",
   ANL: "Enterprise Analytics, Reporting and Visualization Cloud",
   PLN: "Planning, EPM and Decision Cloud",
+  IER: "Global Identity, Eligibility, Entitlement, Roster and Access Continuity Engine",
 }
 
 const HEADER = (prefix, title, source) => `# ${title} — execution ledger
