@@ -220,17 +220,23 @@ planning-epm                  27   simon-ose-absorption          14
 
 ### 2.2 Test and guard baseline (must not regress)
 
-| Check | Value at `c97b71c` |
+**THIS TABLE LISTED EIGHT CHECKS AND CI RUNS TEN.** The two it omitted are the two
+that reddened `main` on 2026-08-07 with all eight of these green. Updated to the
+values at `3887c1f`:
+
+| Check | Value at `3887c1f` |
 |---|---|
 | `npm run type-check` | 0 errors |
 | `npm run studio:type-check` | 0 errors |
 | `npm run lint` | 0 errors (pre-existing warnings only) |
-| `npm run test --workspace apps/web -- --ci` | **3448 passing, 137 suites** |
-| `npm run test:platform` | **238 pass, 0 fail** |
+| `npm run test --workspace apps/web -- --ci` | **4110 passing, 177 suites** |
+| `npm run test:platform` | **311 pass, 0 fail** |
+| `npm run test:isolation` | **185 pass, 0 fail** ← was missing |
+| `npm ci --dry-run` | resolves ← was missing |
 | `npm run build` | apps/web compiles |
 | `npm run build --workspace apps/system-studio` | compiles |
-| apps/web Playwright | **152/152** on a fresh migrate+seed |
-| Studio Playwright | **185/185** on a pristine registry table |
+| apps/web Playwright | **175/175** on a fresh migrate+seed |
+| Studio Playwright | **208/208** on a pristine registry table AND a Studio started with the operator env |
 
 **The last two are not optional and are not blocked.** They are the only checks
 that caught either of the two total outages in the PACK run — both invisible to
@@ -239,7 +245,29 @@ minutes, not the "record the operator commands" this file used to advise.
 
 `adoption.spec.ts` (Studio) and the apps/web suite are **not idempotent**. A
 reused table or database fails them; a fresh one passes. Re-create before
-believing a failure.
+believing a failure. `test:isolation` is the same — its 19 `*.itest.ts` files
+mutate seeded rows, so a second run without re-seeding fails on state, not code.
+
+**The Studio suite has no `webServer`.** `apps/system-studio/playwright.config.ts`
+starts nothing; you must run `npm run start --workspace apps/system-studio`
+yourself with the operator env, and pass that env to the Playwright process too.
+Eight "failures" on 2026-08-07 were a Studio left running from an earlier session
+against a DynamoDB table that already had `rochester` adopted. Kill whatever holds
+`:3100` and recreate the table before believing anything that suite says.
+
+### 2.2b THE GUARDS ONLY SEE TRACKED FILES
+
+`test:platform` was **307/307 before `git add` and 303/307 after it**, with no
+code changing in between. The architecture and security guards enumerate through
+`git ls-files --cached`, so 158 new files were invisible to every one of them.
+
+**Stage first, then verify.** Verifying a working tree measures a repository that
+does not contain the work being verified.
+
+The same shape, one layer out: nothing local runs `npm ci`, so a workspace
+missing from `package-lock.json` passes all ten checks above and kills every CI
+job on its first step. `tests/architecture/lockfile-knows-every-workspace.test.mjs`
+now catches that inside `test:platform`; it did not exist when it was needed.
 
 ### 2.3 Commits, 2026-08-07 (second session)
 
