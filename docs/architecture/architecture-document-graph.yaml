@@ -82,8 +82,8 @@ documents:
     family: "ux-task-scorecard"
     superseded_by: null
     supersedes: []
-    sha256: "1713295acb7a39a0a41ca2c4779c5b11658ea98956893e351437d9d9b77680c2"
-    bytes: 12761
+    sha256: "6abc697bc43291cb3528f19d53f42c1bb3ea798d49c2c90b7df820b08d65c32d"
+    bytes: 12537
     aliases: []
     requirement_prefixes:
       - TTES
@@ -158,8 +158,8 @@ documents:
     family: "erp-pack-factory-execution-ledger"
     superseded_by: null
     supersedes: []
-    sha256: eab536de965018b3826127b7e01aace2b091c364c48cd1771e9a3333bad20688
-    bytes: 87328
+    sha256: "1981ff470d1078a61d1c25c3428853d9f7ad62519873b0b42bf160b519e17e8d"
+    bytes: 86053
     aliases: []
     requirement_prefixes:
       - PACK
@@ -204,8 +204,8 @@ documents:
     family: "system-studio-aws-control-plane-execution-ledger"
     superseded_by: null
     supersedes: []
-    sha256: "8f08ca381ab39a90bc6d9495fb67323f7b1214a6049787f3a019d35f4b4f6120"
-    bytes: 75298
+    sha256: "2c9410eef578edee8f804fa139bbf5cdd4fba5e05b2e6c9482e538c57d4359b5"
+    bytes: 74182
     aliases: []
     requirement_prefixes:
       - GE

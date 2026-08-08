@@ -223,7 +223,19 @@ export function classify() {
   const byDigest = new Map()
 
   for (const file of sourceFiles()) {
-    const bytes = fs.readFileSync(file)
+    const raw = fs.readFileSync(file)
+    // Line endings normalized BEFORE hashing, and the byte count taken from the
+    // normalized form.
+    //
+    // Git converts CRLF to LF on commit and back on checkout, so the same
+    // document is 12,761 bytes in a Windows working tree and 12,537 in a Linux
+    // one — the difference being exactly its line count. Hashing the raw bytes
+    // therefore recorded a property of the CHECKOUT rather than of the
+    // document, and `--check` called the committed graph stale in CI while it
+    // was current on the machine that wrote it. A digest whose value depends on
+    // who generated it also cannot do the job it is here for: `byDigest` uses
+    // it to recognise one logical document reached by two paths.
+    const bytes = Buffer.from(raw.toString("utf8").split("\r\n").join("\n"), "utf8")
     const text = bytes.toString("utf8")
     const name = path.basename(file)
     const isAuthority = AUTHORITY_MARKERS.some((re) => re.test(name) || re.test(text.slice(0, 4000)))
