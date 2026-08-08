@@ -43,11 +43,33 @@ function readDevice() {
 }
 
 function apply(preferences: Preferences) {
-  const attributes = documentAttributes(preferences, readDevice())
-  for (const [name, value] of Object.entries(attributes)) {
+  const { dir: _dir, ...hooks } = documentAttributes(preferences, readDevice())
+
+  // The `data-` hooks are the preferences' own: absent IS the state, because
+  // light, comfortable, full motion and normal contrast are what the stylesheet
+  // does with no attribute at all. So `null` removes.
+  for (const [name, value] of Object.entries(hooks)) {
     if (value === null) document.documentElement.removeAttribute(name)
     else document.documentElement.setAttribute(name, value)
   }
+
+  /*
+   * STUDIO-030-007. `dir` is not one of those, and treating it as one is what
+   * this line fixes.
+   *
+   * It is the document's own attribute: `layout.tsx` renders `dir="ltr"` and the
+   * pre-paint script only ever UPGRADES it to `rtl` — it never removes it,
+   * because an absent `dir` is an attribute the script has nothing to flip and
+   * every `margin-inline-start` in `globals.css` resolves against. Running the
+   * `null` arm above over it made this effect delete, a moment after hydration,
+   * the direction the server had rendered — silent drift from the script, on
+   * every route, for every operator who has no `rtl` stored.
+   *
+   * `documentAttributes` is right to report `null`: it means "the preferences
+   * ask for no override", which `preferences-logic.spec.ts` pins. Writing the
+   * resolved direction here mirrors the script exactly instead.
+   */
+  document.documentElement.setAttribute("dir", preferences.direction)
 }
 
 function readStored(): Preferences {

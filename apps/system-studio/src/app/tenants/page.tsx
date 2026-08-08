@@ -331,8 +331,35 @@ export default async function TenantsPage({
                     const why = explainAttention(h)
                     return (
                       <tr key={h.slug}>
+                        {/*
+                          The tenant is the cell's TEXT, and the link beside it
+                          is named for what it opens.
+
+                          It used to be `<Link>{h.slug}</Link>`, which put a
+                          second link called `seed-nodeploy` on this page — the
+                          fleet table below renders one with that exact name for
+                          the same tenant. Two links, one name, and nothing in
+                          either name saying which list it belongs to: a screen
+                          reader pulling up the links on this page announced the
+                          same tenant twice with no way to tell the attention
+                          list from the inventory. (Playwright's strict mode
+                          refuses it for the same reason a person would.)
+
+                          Naming this one for the attention it is about fixes
+                          that in the direction that adds information: the slug
+                          is still read out, as the cell's own text, so nothing
+                          is lost for anyone.
+                        */}
                         <td className="id">
-                          <Link href={`/tenants/${h.slug}`}>{h.slug}</Link>
+                          {h.slug}
+                          <br />
+                          <Link
+                            className="slug"
+                            href={`/tenants/${h.slug}`}
+                            aria-label={`Open the system that needs attention: ${h.attention?.replace(/-/g, " ")}`}
+                          >
+                            open
+                          </Link>
                         </td>
                         <td className="slug">{h.state}</td>
                         <td>

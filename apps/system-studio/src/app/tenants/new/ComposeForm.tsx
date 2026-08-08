@@ -74,6 +74,7 @@ export function ComposeForm({
   blueprints,
   modules,
   plans,
+  defaultPlanId,
   regions,
   axes,
   alwaysOnModules,
@@ -88,6 +89,16 @@ export function ComposeForm({
   // component fails the build — which is the build telling the truth about
   // what would otherwise be shipped to a browser.
   plans: Array<{ planId: string; displayName: string; grants: string }>
+  /**
+   * The plan the select opens on.
+   *
+   * Required, and passed in rather than defaulted here: the form cannot decide
+   * it, because deciding it means resolving the preset's modules against a
+   * plan's entitlements, and that is `resolveModules` on the server. A literal
+   * in this file is what made the composer open on a plan its own action
+   * refused.
+   */
+  defaultPlanId: string
   /** From the fleet. A hard-coded list offers a region no cell serves. */
   regions: readonly string[]
   /**
@@ -485,7 +496,11 @@ export function ComposeForm({
           label="Plan"
           hint="What was contracted. Entitlements and quotas follow from it."
         >
-          <select id="planId" name="planId" defaultValue="institution-core">
+          {/* Not a literal. `defaultPlanId` is the first plan whose
+              entitlements let the default preset resolve, decided on the server
+              by the same `resolveModules` the action refuses with — see
+              `page.tsx`. */}
+          <select id="planId" name="planId" defaultValue={defaultPlanId}>
             {plans.map((p) => (
               <option key={p.planId} value={p.planId}>
                 {p.displayName} — {p.grants}

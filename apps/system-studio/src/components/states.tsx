@@ -134,10 +134,36 @@ function StateBlock({
   actions?: ReactNode
 }) {
   const meta = STATE_META[kind]
+
+  /*
+   * STUDIO-140-006. Thirteen of the fourteen kinds REPORT — something loaded,
+   * failed, was refused, went stale. `highRisk` is the odd one: it is a panel
+   * inside a live `<form>` describing what pressing the button WOULD do, and it
+   * carries the required confirmation input.
+   *
+   * That difference has to reach the markup, because two things went wrong when
+   * it did not. `role="status"` made an interactive form section an ARIA live
+   * region, so a screen reader announced a static panel — and kept announcing
+   * the name of the act while the actual refusal, a plain `<p>` with no role,
+   * said nothing. And `.state-headline` is the class this console means "here
+   * is what happened" by, so `Move <slug> to PROVISIONING` was, to anything
+   * reading the page, indistinguishable from an outcome; the refusal locator in
+   * `high-risk-fails-closed.spec.ts` reads exactly that pair and was answered by
+   * a proposal every time, including before the server had answered at all.
+   *
+   * A proposal is a `group`, named by its own heading.
+   */
+  const proposal = kind === "highRisk"
+
   return (
-    <section className={`state state-${meta.tone}`} data-state={kind} role="status">
+    <section
+      className={`state state-${meta.tone}`}
+      data-state={kind}
+      role={proposal ? "group" : "status"}
+      {...(proposal ? { "aria-label": headline } : {})}
+    >
       <p className="state-label">{meta.label}</p>
-      <p className="state-headline">{headline}</p>
+      <p className={proposal ? "state-proposal" : "state-headline"}>{headline}</p>
       {children ? <div className="state-body">{children}</div> : null}
       {actions ? <div className="state-actions">{actions}</div> : null}
     </section>

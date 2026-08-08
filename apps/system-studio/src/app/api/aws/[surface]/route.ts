@@ -83,14 +83,18 @@ interface RequestContext {
 }
 
 /**
- * Authenticate, authorize and rate-limit, or return the problem document.
+ * Resolve the surface and the caller, or return the problem document.
+ *
+ * Everything decided here is decided BEFORE the request has been read for
+ * meaning: which surface was asked for, and who is asking. Authorization is
+ * deliberately not part of it — see `admit`.
  *
  * Returns a discriminated result rather than throwing, because every one of
  * these is a normal outcome with its own status and its own `type` — and a
  * thrown error would arrive at Next's handler as a 500 with a digest, which
  * tells a caller nothing.
  */
-async function admit(
+async function identify(
   request: Request,
   surfaceRaw: string,
 ): Promise<{ ok: true; ctx: RequestContext } | { ok: false; response: Response }> {
@@ -128,10 +132,61 @@ async function admit(
     }
   }
 
-  const command = SURFACE_COMMAND[surface]
-  const decision = authorizeCommand(command, { principalId })
+  return { ok: true, ctx: { correlationId, instance, principalId, surface } }
+}
+
+/**
+ * The tenant a request names, when the surface is about one tenant.
+ *
+ * `operations` is backed by `tenant.lifecycle`, which is in
+ * `TENANT_SCOPED_RESOURCES` (`src/lib/operators.ts`) — a lifecycle permission
+ * that is not about a particular tenant is a permission over all of them, so
+ * `authorizeOperator` refuses it outright when no tenant is in scope. The slug
+ * is therefore not a filter the surface applies after it has been let in; it is
+ * the subject the policy decision is ABOUT, and the request cannot be
+ * authorized until it has been read out.
+ *
+ * Which is why a missing one is a 400 and not a 403. "You did not say which
+ * tenant" is a property of the request, true whoever sends it and true before
+ * anybody's role is consulted — and answering it with `tenant.lifecycle:read
+ * was refused (TENANT_SCOPE_MISSING)` told a caller their operator lacked a
+ * permission when what was actually wrong was their URL. It also made the
+ * surface unreachable: every `GET /api/aws/operations` and every `POST` to it
+ * was refused, because the route asked the policy a question about no tenant at
+ * all and the policy correctly declined to answer it.
+ */
+function tenantRequired(ctx: RequestContext, where: string): Response {
+  return problemResponse({
+    type: PROBLEM.badRequest,
+    title: "A tenant is required",
+    status: 400,
+    detail: `Operations are per tenant. ${where}`,
+    instance: ctx.instance,
+    correlationId: ctx.correlationId,
+  })
+}
+
+/**
+ * Authorize and rate-limit a request whose subject is now known.
+ *
+ * `tenantId` is the tenant the request named, or null for the surfaces that are
+ * about the fleet rather than about one tenant (`tenants.read` and `cost.read`
+ * are not tenant-scoped resources). Passing it is what makes the decision the
+ * real one: without it the operations surface was authorized against no subject.
+ */
+function admit(
+  ctx: RequestContext,
+  tenantId: string | null,
+): { ok: true } | { ok: false; response: Response } {
+  const command = SURFACE_COMMAND[ctx.surface]
+  const decision = authorizeCommand(command, {
+    principalId: ctx.principalId,
+    ...(tenantId ? { tenantId } : {}),
+  })
   // STUDIO-020-012 — the allow as well as the deny.
-  console.info(`[authz] ${decisionLine(principalId, command, decision)} correlation=${correlationId}`)
+  console.info(
+    `[authz] ${decisionLine(ctx.principalId, command, decision)} correlation=${ctx.correlationId}`,
+  )
   if (!decision.allowed) {
     return {
       ok: false,
@@ -142,13 +197,13 @@ async function admit(
         // Names the permission and the policy, never whether the resource
         // exists — the same discipline the console's denial state is built on.
         detail: `${decision.permission} was refused (${decision.reason}), policy ${decision.policyRevision}.`,
-        instance,
-        correlationId,
+        instance: ctx.instance,
+        correlationId: ctx.correlationId,
       }),
     }
   }
 
-  const rate = consumeRate(surface, principalId)
+  const rate = consumeRate(ctx.surface, ctx.principalId)
   if (!rate.allowed) {
     return {
       ok: false,
@@ -157,17 +212,54 @@ async function admit(
         title: "Too many requests",
         status: 429,
         detail:
-          `The ${surface} surface allows ${rate.limit} requests per operator per ` +
-          `${Math.round(SURFACES[surface].windowMs / 1000)}s. It backs ${SURFACES[surface].awsAction}, ` +
+          `The ${ctx.surface} surface allows ${rate.limit} requests per operator per ` +
+          `${Math.round(SURFACES[ctx.surface].windowMs / 1000)}s. It backs ${SURFACES[ctx.surface].awsAction}, ` +
           `which is why the budget is what it is.`,
-        instance,
-        correlationId,
+        instance: ctx.instance,
+        correlationId: ctx.correlationId,
         headers: { "retry-after": String(rate.retryAfterSeconds) },
       }),
     }
   }
 
-  return { ok: true, ctx: { correlationId, instance, principalId, surface } }
+  return { ok: true }
+}
+
+/**
+ * When the rows on a page were last current — which is NOT when they were read.
+ *
+ * `asOf` is part of the body, so it is part of the ETag (`etagFor` in
+ * `src/lib/api/envelope.ts`, pinned by `envelope-contract.test.ts`). Stamping it
+ * with `new Date()` therefore made every representation unique, every
+ * `If-None-Match` a miss and the 304 path unreachable — precisely the "no-op
+ * that looks implemented" that `etagFor` keeps the correlation id out of the
+ * digest to avoid. The correlation id was excluded and this was missed, because
+ * a clock reading does not look like a per-request value until you notice that
+ * it is one.
+ *
+ * The registry stamps `updatedAt` on every write, so the newest one on the page
+ * is the moment the page stopped changing — which is exactly what the contract
+ * means by "when the underlying data was current" (`ApiEnvelope`,
+ * `packages/contracts`). It moves the instant anything on the page does, so a
+ * poller is never told "unchanged" about something that changed; it simply stops
+ * moving when nothing else does. The cost surface already did this, reporting
+ * the report's own `asOf` — this is the registry surfaces catching up with it.
+ *
+ * A page with no rows has no such moment, so it falls back to the read's own
+ * clock. That leaves an empty page without a 304, which costs nothing: the
+ * saving this mechanism exists for is not re-shipping a list, and there is no
+ * list.
+ */
+function currencyOf(stamps: ReadonlyArray<string | null | undefined>, readAt: string): string {
+  let newest: string | null = null
+  for (const stamp of stamps) {
+    // ISO-8601 UTC strings of equal precision compare correctly as strings,
+    // which is the property the registry's own sort keys already rely on.
+    if (typeof stamp === "string" && stamp !== "" && (newest === null || stamp > newest)) {
+      newest = stamp
+    }
+  }
+  return newest ?? readAt
 }
 
 /** A 2xx envelope, with its ETag, honouring `If-None-Match`. */
@@ -205,12 +297,21 @@ const csvCell = (value: unknown): string => {
 
 export async function GET(request: Request, { params }: Params) {
   const { surface: surfaceRaw } = await params
-  const admitted = await admit(request, surfaceRaw)
-  if (!admitted.ok) return admitted.response
-  const ctx = admitted.ctx
+  const identified = await identify(request, surfaceRaw)
+  if (!identified.ok) return identified.response
+  const ctx = identified.ctx
 
   const url = new URL(request.url)
-  const asOf = new Date().toISOString()
+  /** When this read ran. The audit clock, not the envelope's `asOf` — see `currencyOf`. */
+  const readAt = new Date().toISOString()
+
+  // The subject, before the policy is asked about it. See `tenantRequired`.
+  const slug =
+    ctx.surface === "operations" ? (url.searchParams.get("slug") ?? "").trim() : ""
+  if (ctx.surface === "operations" && !slug) return tenantRequired(ctx, "Pass ?slug=<tenant>.")
+
+  const admitted = admit(ctx, slug || null)
+  if (!admitted.ok) return admitted.response
 
   if (!registryConfigured() && ctx.surface !== "cost") {
     return problemResponse({
@@ -251,18 +352,6 @@ export async function GET(request: Request, { params }: Params) {
     }
 
     if (ctx.surface === "operations") {
-      const slug = (url.searchParams.get("slug") ?? "").trim()
-      if (!slug) {
-        return problemResponse({
-          type: PROBLEM.badRequest,
-          title: "A tenant is required",
-          status: 400,
-          detail: "Operations are per tenant. Pass ?slug=<tenant>.",
-          instance: ctx.instance,
-          correlationId: ctx.correlationId,
-        })
-      }
-
       const cursorParam = url.searchParams.get("cursor")
       const start = cursorParam
         ? decodeCursor<Record<string, unknown>>(cursorParam)
@@ -274,7 +363,12 @@ export async function GET(request: Request, { params }: Params) {
         items: page.operations,
         // Sealed, so the DynamoDB key never leaves this process readable.
         nextCursor: page.lastEvaluatedKey ? encodeCursor(page.lastEvaluatedKey) : null,
-        asOf,
+        // An operation record never changes after it completes, so the newest
+        // timestamp in the page is when this page stopped changing.
+        asOf: currencyOf(
+          page.operations.map((o) => o.completedAt ?? o.requestedAt),
+          readAt,
+        ),
       })
     }
 
@@ -359,7 +453,9 @@ export async function GET(request: Request, { params }: Params) {
         resourceId: null,
         outcome: "ALLOW",
         reason: null,
-        occurredAt: asOf,
+        // The clock, not the data's currency: this records when somebody took
+        // the file, which is a fact about the act rather than about the rows.
+        occurredAt: readAt,
         correlationId: ctx.correlationId,
         detail: {
           format: "csv",
@@ -373,7 +469,7 @@ export async function GET(request: Request, { params }: Params) {
         status: 200,
         headers: {
           "content-type": "text/csv; charset=utf-8",
-          "content-disposition": `attachment; filename="tenure-fleet-${asOf.slice(0, 10)}.csv"`,
+          "content-disposition": `attachment; filename="tenure-fleet-${readAt.slice(0, 10)}.csv"`,
           "cache-control": "no-store",
           "x-correlation-id": ctx.correlationId,
           "x-refused-count": String(refused.length),
@@ -390,7 +486,10 @@ export async function GET(request: Request, { params }: Params) {
     return envelopeResponse(request, ctx, {
       items,
       nextCursor: nextOffset < permitted.length ? encodeCursor({ offset: nextOffset }) : null,
-      asOf,
+      asOf: currencyOf(
+        items.map((row) => row.updatedAt),
+        readAt,
+      ),
     })
   } catch (err) {
     if (err instanceof CursorRejected) {
@@ -434,11 +533,16 @@ export async function GET(request: Request, { params }: Params) {
  */
 export async function POST(request: Request, { params }: Params) {
   const { surface: surfaceRaw } = await params
-  const admitted = await admit(request, surfaceRaw)
-  if (!admitted.ok) return admitted.response
-  const ctx = admitted.ctx
+  const identified = await identify(request, surfaceRaw)
+  if (!identified.ok) return identified.response
+  const ctx = identified.ctx
 
   if (ctx.surface !== "operations") {
+    // Still authorized first, so a caller who may not read this surface is told
+    // that rather than told its shape. Neither is tenant-scoped, so there is no
+    // subject to resolve before asking.
+    const admitted = admit(ctx, null)
+    if (!admitted.ok) return admitted.response
     return problemResponse({
       type: PROBLEM.notFound,
       title: "This surface is read-only",
@@ -479,6 +583,23 @@ export async function POST(request: Request, { params }: Params) {
       correlationId: ctx.correlationId,
     })
   }
+
+  /*
+   * The subject, and only now can it be read: on a write it is in the body, and
+   * the body could not be parsed before the header check above, which is
+   * deliberately the first thing this route does.
+   *
+   * So authorization happens here rather than at the top. That is not a
+   * relaxation — nothing has acted yet; `advanceState` below is the first thing
+   * that can — and it is what makes the decision a real one. Asked with no
+   * tenant, `tenant.lifecycle:read` is refused as TENANT_SCOPE_MISSING whoever
+   * is asking, which is why every write to this route used to be a 403.
+   */
+  const slug = String(body.slug ?? "").trim()
+  if (!slug) return tenantRequired(ctx, 'Name one in the body as "slug".')
+
+  const admitted = admit(ctx, slug)
+  if (!admitted.ok) return admitted.response
 
   const form = new FormData()
   const put = (key: string, value: unknown) => {

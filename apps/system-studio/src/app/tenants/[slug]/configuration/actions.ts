@@ -128,14 +128,45 @@ async function requireOperator(command: StudioCommand, tenantId: string): Promis
   return email!
 }
 
-/** Build the overlay a form submission describes. Only declared, editable keys. */
+/**
+ * Build the overlay a form submission describes. Only declared, editable keys —
+ * and of those, only the ones that actually override something.
+ *
+ * ## Why a value equal to the platform default is dropped
+ *
+ * The editor renders every editable key with the value that currently applies,
+ * which for most keys is the platform default nobody has ever overridden. This
+ * function used to put ALL of them into the layer, so pressing Publish wrote
+ * sixteen overrides that changed nothing — and `planPublication`'s own lint said
+ * so, sixteen times, on every single review: "set to the platform default. The
+ * override does nothing and hides that the default is what applies." A lint that
+ * fires on every publication is not describing operator mistakes.
+ *
+ * It was also blocking the write path outright. One of those keys is
+ * `platform.relay.modelTokenBudgetPerMonth`, which needs the capability
+ * `relay.modelBudget.publish` — so a layer carrying every key needs that
+ * capability to publish ANY key, and an operator changing an office's NAME was
+ * refused for a model budget they had not touched and could not see they were
+ * setting. The gate was right; what reached it was wrong.
+ *
+ * The test is the same one the lint applies, so the two cannot disagree: equal
+ * to the default means there is no override to record. A key the operator
+ * genuinely edits away from the default still lands here, and a key they edit
+ * BACK to the default is recorded as the removal it is — which is what the diff
+ * an approver reads should say.
+ */
 function layerFrom(slug: string, form: FormData, revision: number, changeReason: string, approvedBy: string): VersionedLayer {
   const values: Record<string, unknown> = {}
 
   for (const { fields } of editableDomains()) {
     for (const field of fields) {
       const parsed = parseField(field, form.get(field.key) as string | null)
-      if (parsed !== undefined) values[field.key] = parsed
+      if (parsed === undefined) continue
+      // Scalars — `inputFor` admits string, number and boolean, and anything
+      // else is rendered read-only and never parsed — so a structural compare
+      // is exact rather than approximate.
+      if (JSON.stringify(parsed) === JSON.stringify(field.defaultValue)) continue
+      values[field.key] = parsed
     }
   }
 

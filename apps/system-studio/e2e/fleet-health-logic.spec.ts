@@ -24,6 +24,7 @@ import {
   summariseFleet,
   type HealthObservation,
 } from "../src/lib/fleet-health"
+import { operatorFor } from "./operator-identity"
 
 /**
  * GE-033-002 / STUDIO-120-003 — fleet health, derived without reading a
@@ -703,7 +704,12 @@ test.describe("ordering", () => {
  * `unobserved` — the honest answer, and the one that only appears if the page
  * really calls `observeFleet` and really passes what came back into `healthOf`.
  */
-const OPERATOR = process.env.PLATFORM_OPERATORS?.split(",")[0]?.trim() ?? ""
+// Through `operatorFor`, not `PLATFORM_OPERATORS.split(",")[0]`: the variable's
+// grammar is `email:role`, so the raw first entry is an address, a colon and a
+// role, and typing that into the Email field is a sign-in the console refuses —
+// correctly, and for a reason that has nothing to do with fleet health. See
+// `operator-identity.ts`, which exists because of exactly this.
+const OPERATOR = operatorFor()
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 const registryConfigured = !!process.env.TENANT_TABLE
 

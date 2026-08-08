@@ -72,6 +72,10 @@ function renderComposer(): string {
       blueprints={blueprints}
       modules={modules}
       plans={[{ planId: "institution", displayName: "Institution", grants: "finance" }]}
+      // The only plan offered here, so it is also the one the select opens on.
+      // `page.tsx` derives this from `resolveModules`; this render is about the
+      // prices, and a plan the preset cannot use would not change one of them.
+      defaultPlanId="institution"
       regions={["us-east-1"]}
       alwaysOnModules={[...ALWAYS_ON_MODULES]}
       suiteModules={suiteModules}

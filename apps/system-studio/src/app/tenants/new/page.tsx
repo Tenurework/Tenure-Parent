@@ -8,9 +8,12 @@ import {
   TENANT_BINDINGS,
   compileArchetype,
   getBlueprint,
+  type ArchetypeSelection,
 } from "@tenure/blueprints"
 import { MODULE_CATALOG } from "@tenure/modules"
-import { ENABLEABLE } from "@tenure/module-runtime"
+import { ENABLEABLE, resolveModules } from "@tenure/module-runtime"
+import { compareVersionStrings } from "@tenure/platform-config"
+import { ENGINE_VERSION } from "@tenure/configuration"
 import {
   BUSINESS_DOMAINS,
   COEXISTENCE_PROFILES,
@@ -119,6 +122,47 @@ export default async function NewTenantPage() {
         : "blueprint modules only",
   }))
 
+  /*
+   * The plan the form opens on, decided by the resolver that would refuse it.
+   *
+   * This used to be `defaultValue="institution-core"`, a literal in the markup,
+   * and it made the composer's out-of-the-box state one the server always
+   * rejected: the default blueprint's preset carries `budgeting` and
+   * `reimbursements`, both of which require the `finance` entitlement, and
+   * `institution-core` grants none. Opening the page and pressing Register —
+   * which is what an operator does the first time, and what
+   * `high-risk-fails-closed.spec.ts` does every time — produced three problems
+   * and registered nothing.
+   *
+   * So it is derived, from the catalog order (cheapest commitment first) and
+   * from `resolveModules` — the SAME call `composeTenant` makes, with the same
+   * engine version and the same operating model. A default the form offers and
+   * a default the action refuses can no longer disagree, because one function
+   * decides both.
+   *
+   * The fallback is the first plan rather than none: if no plan can carry the
+   * preset that is a fact about the catalog, and the operator should meet it as
+   * the action's own itemised refusal — which names the modules and the
+   * entitlement — rather than as an empty select with nothing to choose.
+   */
+  const presetModules = compileArchetype(blueprints[0].axes as ArchetypeSelection).modules
+  const defaultPlanId =
+    PLAN_CATALOG.find(
+      (plan) =>
+        resolveModules(MODULE_CATALOG, {
+          requested: presetModules,
+          entitlements: plan.entitlements,
+          runningEngineVersion: ENGINE_VERSION,
+          compareVersions: compareVersionStrings,
+          operatingModel: blueprints[0].axes.operatingModel,
+          // Every domain Tenure's own, which is what the form defaults
+          // `coexistence` to (TENURE_CLOUD_PRIMARY, no external domain).
+          systemOfRecord: Object.fromEntries(
+            BUSINESS_DOMAINS.map((domain) => [domain, "tenure" as const]),
+          ),
+        }).problems.length === 0,
+    )?.planId ?? PLAN_CATALOG[0].planId
+
   return (
     <>
 
@@ -140,6 +184,7 @@ export default async function NewTenantPage() {
         blueprints={blueprints}
         modules={modules}
         plans={plans}
+        defaultPlanId={defaultPlanId}
         regions={placeableRegions()}
         alwaysOnModules={[...ALWAYS_ON_MODULES]}
         suiteModules={suiteModules}

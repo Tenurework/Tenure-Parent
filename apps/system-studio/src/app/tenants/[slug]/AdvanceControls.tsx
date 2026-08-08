@@ -117,6 +117,44 @@ export function AdvanceControls({
     <div className="advance">
       <h3>Move to</h3>
 
+      {/*
+        The refusal, at the top of the block and announced.
+
+        It used to be the LAST child of this div — below the confirmation panel,
+        which `HighRiskConfirmation` renders through `StateBlock` as a
+        `role="status"` live region carrying `Move <slug> to <STATE>` in a
+        `.state-headline`. So on a refused high-risk move the page said, in the
+        one region a screen reader announces, the name of the act that had just
+        been refused, and the reason it was refused was a bare `<p>` further
+        down with no role at all — unannounced, and after a panel long enough
+        that a sighted operator had scrolled past the top of it too.
+
+        `role="alert"` because this is the outcome of something the operator
+        just did and did not get. Above the form because that is where an error
+        summary belongs when the thing it is about is the whole submission.
+      */}
+      {result?.error &&
+        (/not a legal transition|no longer in/i.test(result.error) ? (
+          // A refusal because the tenant moved under you is a conflict, not a
+          // failure: another operator did something legitimate and the page is
+          // now stale. Told apart by the lifecycle engine's own wording, so a
+          // rename of the message is a test failure rather than a silent
+          // downgrade to a generic error.
+          <ConflictState
+            what={slug}
+            theirChange={result.error}
+            actions={
+              <button type="button" className="primary-action" onClick={() => window.location.reload()}>
+                Reload to see the current state
+              </button>
+            }
+          />
+        ) : (
+          <p className="error" role="alert">
+            {result.error}
+          </p>
+        ))}
+
       {ordinary.length > 0 && <div className="chips">{ordinary.map(chip)}</div>}
 
       {irreversible.length > 0 && (
@@ -235,27 +273,6 @@ export function AdvanceControls({
         </form>
       )}
 
-      {/*
-        A refusal because the tenant moved under you is a conflict, not a
-        failure: another operator did something legitimate and the page is now
-        stale. Told apart by the lifecycle engine's own wording, so a rename of
-        the message is a test failure rather than a silent downgrade to a
-        generic error.
-      */}
-      {result?.error &&
-        (/not a legal transition|no longer in/i.test(result.error) ? (
-          <ConflictState
-            what={slug}
-            theirChange={result.error}
-            actions={
-              <button type="button" className="primary-action" onClick={() => window.location.reload()}>
-                Reload to see the current state
-              </button>
-            }
-          />
-        ) : (
-          <p className="error">{result.error}</p>
-        ))}
     </div>
   )
 }

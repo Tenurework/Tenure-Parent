@@ -1,6 +1,6 @@
 import "server-only"
 
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto"
+import { createCipheriv, createDecipheriv, createHash, createHmac } from "node:crypto"
 
 import {
   CONTROL_PLANE_SCHEMA_VERSIONS,
@@ -103,11 +103,58 @@ function cursorKey(): Buffer {
   return createHash("sha256").update(`tenure-studio-cursor:${secret}`).digest()
 }
 
+/**
+ * The nonce for a position, derived from the position itself.
+ *
+ * Deliberately not `randomBytes`, and this is the one decision in the file that
+ * needs its reasoning written down.
+ *
+ * A random nonce made the sealed token different on every call, so
+ * `GET /api/aws/fleet?limit=2` returned a different `nextCursor` each time it
+ * was asked — for the same page, at the same offset, over unchanged data. That
+ * is not merely untidy: `nextCursor` is part of the body and therefore part of
+ * the ETag (`etagFor`), so a surface with a next page could never answer
+ * `If-None-Match` with a 304. The conditional-request mechanism was unreachable
+ * on exactly the surfaces that have enough rows to need it.
+ *
+ * So the nonce is an HMAC of the plaintext, under a key derived separately from
+ * the one that encrypts it. This is the construction AES-GCM-SIV exists for, and
+ * it is safe in the way that matters here: GCM's catastrophic failure is
+ * reusing one nonce across DIFFERENT plaintexts under the same key, and a nonce
+ * that is a function of the plaintext cannot do that — equal plaintexts get the
+ * same nonce, and different plaintexts get different ones.
+ *
+ * What is given up is that two identical positions now seal to identical bytes,
+ * so a holder can tell that two cursors point at the same place. That is not a
+ * secret: the holder is the one paging, and it already knows where it is. What
+ * the cursor has to withhold — the table key inside it, and the ability to mint
+ * one for a position nobody issued — is unchanged, because those rest on the key
+ * and the authentication tag, not on the nonce being unpredictable.
+ */
+function cursorNonce(plaintext: string): Buffer {
+  const secret = process.env.AUTH_SECRET?.trim()
+  if (!secret) {
+    throw new CursorUnavailable(
+      "AUTH_SECRET is not set, so a page cursor cannot be sealed. Pagination is refused rather " +
+        "than falling back to a readable cursor — a cursor a client can decode is a scan position " +
+        "a client can forge.",
+    )
+  }
+  // A separate key from `cursorKey()`. Deriving the nonce and the encryption key
+  // from the same bytes would tie two independent uses of one secret together
+  // for no reason; domain separation costs one string.
+  return createHmac("sha256", createHash("sha256").update(`tenure-studio-cursor-nonce:${secret}`).digest())
+    .update(plaintext)
+    .digest()
+    .subarray(0, 12)
+}
+
 /** Seal a continuation position into a token a caller can hold and cannot read. */
 export function encodeCursor(position: unknown): string {
-  const iv = randomBytes(12)
+  const plaintext = JSON.stringify(position)
+  const iv = cursorNonce(plaintext)
   const cipher = createCipheriv("aes-256-gcm", cursorKey(), iv)
-  const sealed = Buffer.concat([cipher.update(JSON.stringify(position), "utf8"), cipher.final()])
+  const sealed = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()])
   return Buffer.concat([iv, cipher.getAuthTag(), sealed]).toString("base64url")
 }
 

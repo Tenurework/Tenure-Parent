@@ -273,7 +273,16 @@ export async function gateChange(input: ChangeGateInput): Promise<ChangeRefusal>
       return {
         allowed: false,
         changeClass,
-        detail: `${changeClass} needs a SECOND identity; ${input.requestedBy} cannot be both.`,
+        // "cannot be both" — both WHAT. The sentence named the two roles
+        // nowhere, so the refusal an operator actually meets for a
+        // self-approval never said what the rule is, and the rule is the only
+        // part of it they can act on. The lifecycle engine behind this gate has
+        // always said it in words ("cannot approve their own"); this is the
+        // gate that answers first saying the same thing.
+        detail:
+          `${changeClass} needs a SECOND identity; ${input.requestedBy} cannot be both the ` +
+          `operator who requested this and the operator who approves it — an operator cannot ` +
+          `approve their own change.`,
       }
     }
   }

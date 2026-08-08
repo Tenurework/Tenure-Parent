@@ -901,8 +901,31 @@ export async function advanceState(
     result.ok ? `${result.detail} (operation ${operationId})` : result.error,
   );
 
-  revalidatePath(`/tenants/${slug}`);
-  revalidatePath("/tenants");
+  /*
+   * Only when something moved.
+   *
+   * `revalidatePath` on a REFUSAL threw the refusal away. The reason lives in
+   * `useActionState`, and revalidating re-renders the route, remounts
+   * `AdvanceControls` and takes that state with it — so an operator who was
+   * refused saw the button sit on "Moving…", no message, and a tenant that had
+   * not moved. The one thing they had to be told was the one thing the refresh
+   * discarded, and it was the refusals reached through the change-class gate
+   * and the lifecycle engine — a second identity, an approver nobody knows —
+   * which is to say the controls whose whole job is to say no out loud.
+   *
+   * GE-032-003 is the open finding that records the same mechanism on the
+   * configuration editor, where what it swallows is a confirmation. This is the
+   * same mechanism on a path where what it swallows is a denial.
+   *
+   * Nothing about the tenant changed when it was refused, so there is nothing
+   * to re-read. The operation record and the ledger row this attempt DID write
+   * are on screen the next time the page is loaded, which is exactly when
+   * somebody is looking for them.
+   */
+  if (result.ok) {
+    revalidatePath(`/tenants/${slug}`);
+    revalidatePath("/tenants");
+  }
 
   if (!result.ok) return { error: result.error, operationId };
   return { operationId };

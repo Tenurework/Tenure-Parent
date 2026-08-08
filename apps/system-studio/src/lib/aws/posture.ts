@@ -70,7 +70,12 @@ export function managementAccountVerdict(
 
   if (organization.state === "UNKNOWN") {
     return {
-      verdict: "SEPARATED",
+      // STUDIO-000-007. A denied `DescribeOrganization` is a question nobody was
+      // allowed to ask, not an answer of "separated". Reporting the reassuring
+      // verdict off a call that never ran is the exact failure this module's
+      // UNKNOWN arm exists to prevent — and the detail below has always said
+      // "unknown", so the label was contradicting its own sentence.
+      verdict: "UNKNOWN",
       detail:
         `unknown — account ${self} is running here, but ${organization.action} was refused ` +
         `(${organization.errorCode}), so whether this is the management account is not known. ` +

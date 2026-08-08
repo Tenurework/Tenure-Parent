@@ -877,7 +877,12 @@ form.compose button[type="submit"]:disabled,
   letter-spacing: 0.08em;
   color: var(--muted);
 }
-.state-headline {
+/* `.state-proposal` is the high-risk panel's headline — the same type as an
+   outcome's, deliberately, because it is the same line of the same block. It is
+   a separate class only so that "what happened" and "what would happen" are
+   distinguishable to anything reading the page; see `StateBlock`. */
+.state-headline,
+.state-proposal {
   margin: var(--space-1) 0 0;
   color: var(--text);
 }
