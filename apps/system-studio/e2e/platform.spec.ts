@@ -81,6 +81,19 @@ test.describe("platform console", () => {
     await expect(page.getByRole("heading", { name: "Organization systems" })).toBeVisible()
   })
 
+  test("shows connector setup references without credential values", async ({ page }) => {
+    await signIn(page)
+
+    await expect(page.getByRole("heading", { name: "Setup references — 4" })).toBeVisible()
+    await expect(page.getByRole("cell", { name: "slack.workspace", exact: true }).first()).toBeVisible()
+    for (const name of ["SLACK_APP_ID", "SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET", "SLACK_SIGNING_SECRET"]) {
+      await expect(page.getByRole("cell", { name, exact: true })).toBeVisible()
+    }
+
+    const body = await page.locator("body").innerText()
+    expect(body).not.toMatch(/\bxox[abposr]-/)
+  })
+
   test("reports the programme exactly as the ledger records it", async ({ page }) => {
     await signIn(page)
     await page.goto("/platform")

@@ -4,7 +4,7 @@
 a hand-written map is accurate on the day it is written and wrong from the next commit.
 Regenerate it instead. `docs/architecture/repository-map.json` is the machine-readable form.
 
-Tracked files: **1190**. Workspace globs: `apps/*`, `packages/*`, `blueprints`, `modules`.
+Tracked files: **1191**. Workspace globs: `apps/*`, `packages/*`, `blueprints`, `modules`.
 
 ## Workspaces
 
@@ -73,5 +73,5 @@ Tracked files: **1190**. Workspace globs: `apps/*`, `packages/*`, `blueprints`, 
 | apps/web isolation (jest, needs Postgres) | 22 |
 | apps/web e2e (playwright) | 37 |
 | system-studio e2e (playwright) | 26 |
-| platform (node:test) | 63 |
+| platform (node:test) | 64 |
 | packages (jest, via apps/web roots) | 97 |

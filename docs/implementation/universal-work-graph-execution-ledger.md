@@ -670,6 +670,13 @@ the commands or the ADR that would unblock it — if it cannot.
 - [ ] **WRK-090-001** — Implement Slack workspace/channel/thread/message/app-event packs with distribution-aware scopes and rates.
   - Status: FAIL
   - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Incremental evidence 2026-08-11: the Slack provider pack now carries the
+    repository-level setup references required to begin wiring the Slack app:
+    `SLACK_APP_ID`, `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET` and
+    `SLACK_SIGNING_SECRET`, all as GitHub Actions secret names only. This does
+    not satisfy WRK-090-001 yet: no Slack API client, event verification,
+    distribution-aware scope model, rate profile, workspace/channel/thread
+    object model or reconciliation tests have been implemented.
 
 - [ ] **WRK-090-002** — Implement Zoom meeting/webinar/report/recording/transcript packs with separate Phone/Contact Center/RTMS gates.
   - Status: FAIL

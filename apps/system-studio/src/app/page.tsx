@@ -153,6 +153,16 @@ export default async function StudioPage({
   const classified = capabilities.flatMap((d) =>
     (d.capabilities ?? []).map((c) => ({ ...c, entryKey: d.entry.key })),
   )
+  const setupReferences = capabilities.flatMap((d) => {
+    const entry = d.entry
+    if (entry.kind !== "connector" || !entry.setup) return []
+    return entry.setup.credentialRefs.map((ref) => ({
+      entryKey: entry.key,
+      displayName: entry.displayName,
+      notes: entry.setup?.notes ?? "",
+      ...ref,
+    }))
+  })
 
   const systems = TENANT_BINDINGS.map((binding) => {
     const blueprint = getBlueprint(binding.blueprintId)
@@ -247,6 +257,42 @@ export default async function StudioPage({
                 </Link>
               </p>
             )}
+          </>
+        )}
+
+        {setupReferences.length > 0 && (
+          <>
+            <h3>Setup references — {setupReferences.length}</h3>
+            <table className="grid">
+              <thead>
+                <tr>
+                  <th>Connector</th>
+                  <th>Field</th>
+                  <th>Reference</th>
+                  <th>Source</th>
+                  <th>Required</th>
+                </tr>
+              </thead>
+              <tbody>
+                {setupReferences.map((ref) => (
+                  <tr key={`${ref.entryKey}:${ref.key}`}>
+                    <td className="id" title={ref.displayName}>
+                      {ref.entryKey}
+                    </td>
+                    <td>{ref.label}</td>
+                    <td className="slug" title={ref.notes || ref.referenceName}>
+                      {ref.referenceName}
+                    </td>
+                    <td className="slug">{ref.source}</td>
+                    <td>{ref.required ? "yes" : "no"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="slug">
+              Reference names only. Studio renders where credentials must live; it does not read
+              or display secret values.
+            </p>
           </>
         )}
 

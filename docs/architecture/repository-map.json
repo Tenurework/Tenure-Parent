@@ -1,6 +1,6 @@
 {
   "generatedFrom": "git ls-files",
-  "totalTrackedFiles": 1190,
+  "totalTrackedFiles": 1191,
   "workspaceGlobs": [
     "apps/*",
     "packages/*",
@@ -430,7 +430,7 @@
     },
     {
       "name": "platform (node:test)",
-      "files": 63
+      "files": 64
     },
     {
       "name": "packages (jest, via apps/web roots)",

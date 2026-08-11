@@ -90,6 +90,14 @@ the commands or the ADR that would unblock it — if it cannot.
 - [ ] **INT-030-004** — Ensure secrets never appear in configuration, events, logs or evidence.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+  - Incremental evidence 2026-08-11: `slack.workspace` now declares only
+    GitHub Actions secret **names** (`SLACK_APP_ID`, `SLACK_CLIENT_ID`,
+    `SLACK_CLIENT_SECRET`, `SLACK_SIGNING_SECRET`) in its setup schema. System
+    Studio renders those reference names and the source store, while
+    `packages/provisioning/src/catalogs.test.ts` and
+    `apps/system-studio/e2e/platform.spec.ts` assert the surface does not
+    contain Slack token-shaped values. This is not a connector certification:
+    Slack capability status remains `PLANNED`.
 
 - [ ] **INT-030-005** — Pass wrong-account, wrong-tenant, over-scope and revoked-consent negative tests.
   - Status: FAIL
@@ -162,6 +170,12 @@ the commands or the ADR that would unblock it — if it cannot.
 - [ ] **INT-070-002** — Generate connection setup from connector/configuration schemas.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+  - Incremental evidence 2026-08-11: `ConnectorEntry.setup` can now carry a
+    rendered setup schema for credential references, and the System Studio
+    catalog section renders that schema from `availabilityDecisions` rather
+    than from a hand-written Slack row. The first concrete row is Slack's
+    GitHub-secret-name contract. Remaining work: full schema generation for all
+    connector setup fields, save/resume, preview, approval, canary and rollback.
 
 - [ ] **INT-070-003** — Implement save/resume, diff, preview, approval, canary and rollback UX.
   - Status: FAIL

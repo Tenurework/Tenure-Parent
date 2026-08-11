@@ -1,6 +1,7 @@
 import type {
   CatalogLifecycle,
   ConnectorEntry,
+  ConnectorSetupSchema,
   ProviderAuthorizationProfile,
 } from "./catalogs"
 import {
@@ -115,6 +116,8 @@ function pack(p: {
   capabilityStatus?: ConnectorCapabilityStatus
   /** What proved it, clause by clause. `NO_EVIDENCE` is the honest default. */
   clauseEvidence?: ClauseEvidence
+  /** INT-070-002. Setup schema the Studio can render without secret values. */
+  setup?: ConnectorSetupSchema
   /**
    * WRK-040-001. Written out per pack rather than defaulted by this helper.
    *
@@ -160,6 +163,7 @@ function pack(p: {
     },
     requirementIds: p.requirementIds,
     authorization: p.authorization,
+    ...(p.setup ? { setup: p.setup } : {}),
   }
 }
 
@@ -309,6 +313,44 @@ export const PROVIDER_PACKS: readonly ProviderPackEntry[] = [
       claim: "authed_user.id",
       pkce: true,
     }),
+    setup: {
+      notes:
+        "GitHub repository secret names only. Values stay in GitHub Actions until a brokered vault migration exists.",
+      credentialRefs: [
+        {
+          key: "slackAppId",
+          label: "Slack app id",
+          purpose: "app-id",
+          source: "github-actions-secret",
+          referenceName: "SLACK_APP_ID",
+          required: true,
+        },
+        {
+          key: "slackClientId",
+          label: "OAuth client id",
+          purpose: "client-id",
+          source: "github-actions-secret",
+          referenceName: "SLACK_CLIENT_ID",
+          required: true,
+        },
+        {
+          key: "slackClientSecret",
+          label: "OAuth client secret",
+          purpose: "client-secret",
+          source: "github-actions-secret",
+          referenceName: "SLACK_CLIENT_SECRET",
+          required: true,
+        },
+        {
+          key: "slackSigningSecret",
+          label: "Request signing secret",
+          purpose: "webhook-signing-secret",
+          source: "github-actions-secret",
+          referenceName: "SLACK_SIGNING_SECRET",
+          required: true,
+        },
+      ],
+    },
   }),
   pack({
     key: "zoom.meetings",

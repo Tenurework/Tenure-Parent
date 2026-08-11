@@ -1260,6 +1260,22 @@ describe("a pack states how it would be authorized, and the gate reads it", () =
       expect(pack.authorization.responseType).toBe("code")
     }
   })
+
+  it("declares Slack GitHub secret names as setup references, never values", () => {
+    const slack = PROVIDER_PACKS.find((pack) => pack.key === "slack.workspace")
+    expect(slack).toBeDefined()
+
+    const refs = slack!.setup?.credentialRefs ?? []
+    expect(refs.map((ref) => ref.referenceName).sort()).toEqual([
+      "SLACK_APP_ID",
+      "SLACK_CLIENT_ID",
+      "SLACK_CLIENT_SECRET",
+      "SLACK_SIGNING_SECRET",
+    ])
+    expect(refs.every((ref) => ref.source === "github-actions-secret")).toBe(true)
+    expect(refs.every((ref) => ref.required)).toBe(true)
+    expect(JSON.stringify(refs)).not.toMatch(/\bxox[abposr]-|secret-[A-Za-z0-9]{8,}/)
+  })
 })
 
 /* ------------------------------------------------------------- WRK-020-002 --

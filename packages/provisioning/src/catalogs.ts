@@ -297,6 +297,31 @@ export const ACCOUNT_VERIFICATIONS = [
   "admin-consent-grant",
 ] as const
 
+export type ConnectorCredentialSource = "github-actions-secret" | "aws-secrets-manager"
+
+export interface ConnectorCredentialRequirement {
+  /**
+   * Stable field id inside the setup schema. This is not the provider's secret
+   * value and not the vault path; it is the configuration question the Studio
+   * renders.
+   */
+  key: string
+  label: string
+  purpose: "app-id" | "client-id" | "client-secret" | "webhook-signing-secret" | "access-token"
+  source: ConnectorCredentialSource
+  /**
+   * Name only. A GitHub Actions secret name, a Secrets Manager ARN, or an SSM
+   * parameter name. Never a value.
+   */
+  referenceName: string
+  required: boolean
+}
+
+export interface ConnectorSetupSchema {
+  credentialRefs: readonly ConnectorCredentialRequirement[]
+  notes?: string
+}
+
 /**
  * Whether an authorization profile could be driven at all, and if not, why.
  *
@@ -398,8 +423,19 @@ export interface ConnectorEntry extends CatalogEntry {
    * considered the question. The same reason `maxEngine` and `signatureRef` are
    * `T | null` rather than optional — an absence that means something is a
    * claim, and a claim is stated.
-   */
+  */
   authorization: ProviderAuthorizationProfile | null
+  /**
+   * INT-070-002 / INT-030-004 — setup fields the Studio can render without
+   * ever seeing a credential value.
+   *
+   * Optional because the Relay egress and the unstarted provider packs have
+   * different setup stories. Where present, every credential is a REFERENCE:
+   * a secret name or vault path, not the secret itself. The System Studio may
+   * print these names so an operator can see which external store must be
+   * configured; it must never read or display the value behind them.
+   */
+  setup?: ConnectorSetupSchema
   /**
    * WRK-020-002 — which resources inside the connected workspace are in scope.
    *
