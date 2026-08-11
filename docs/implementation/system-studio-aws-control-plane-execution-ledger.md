@@ -688,6 +688,19 @@ confirmed green.
   `tenants/[slug]/page.tsx`, and an optional field a caller does not set is
   invisible to `tsc` — it would keep reporting "nothing unexplained", which is
   the answer an operator most wants to be true.
+  - Incremental evidence 2026-08-11: `apps/system-studio/src/lib/aws/retained.ts`
+    now reads tenant-attributed retained resources through the existing
+    read-only AWS gateway: Resource Groups Tagging API attribution, RDS
+    snapshots, CloudWatch log groups and AWS Backup recovery points. The tenant
+    State panel passes that live retained observation as a required input to
+    `residualFindings`, renders retained source rows, and renders denied/error
+    reads as unobserved rather than as absence. `aws-unknown-is-not-absent.spec.ts`
+    proves populated retained reads map into residual classes and an
+    `AccessDeniedException` does not become "none"; `states-logic.spec.ts`
+    proves the residual API still requires an explicit retained observation.
+    Remaining work: real residual dollar calculation, S3 object-version bucket
+    scoping, KMS key tag reads, DNS/Route 53 retained-control treatment,
+    archive/legal-hold bytes, and closure proof for purge/offboarding.
 - **STUDIO-080-006 (drift)** — the comparison, severity scale, ownership, safe
   remediation, ignore-with-required-expiry and recurrence counter are built,
   wired and proven (M9, M14, M15). `compareDesiredToActual` had NO production

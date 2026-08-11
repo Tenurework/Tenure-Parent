@@ -15,11 +15,19 @@ import {
 import { auth } from "@/lib/auth"
 import { authorizeCommand, controlPlaneIdentity } from "@/lib/authorize"
 import { ArchivedState, PendingDeletionState, PermissionDeniedState } from "@/components/states"
-import { ARCHIVED_STATES, PURGE_STATES, observedFor, residualFindings, riskOf } from "@/lib/tenant-state"
+import {
+  ARCHIVED_STATES,
+  NO_RETAINED_AWS_OBSERVATION,
+  PURGE_STATES,
+  observedFor,
+  residualFindings,
+  riskOf,
+} from "@/lib/tenant-state"
 import { fleet, primeEstate } from "@/lib/cells"
 import { observeFleet } from "@/lib/aws/health"
 import { compareDesiredToActual, desiredFromDeployment } from "@/lib/aws/drift"
 import { estateInventory } from "@/lib/aws/inventory"
+import { retainedObservation, retainedReadingsForTenant } from "@/lib/aws/retained"
 import { getTenant, registryConfigured } from "@/lib/registry"
 import { dynamoAuditLedger } from "@/lib/audit-ledger"
 import { DeploymentPanel } from "@/components/DeploymentPanel"
@@ -176,7 +184,6 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
     serving: tenant.deployment?.serving === true,
     evidenceRecords: tenant.evidence.length,
   })
-  const residual = residualFindings(tenant.state, observed)
 
   /**
    * STUDIO-080-006 — desired versus actual, computed here because this is where
@@ -190,6 +197,13 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
    * recreate it — the failure the whole module exists to refuse.
    */
   const estate = await estateInventory()
+  const retained = retainedObservation(
+    await retainedReadingsForTenant(tenant.slug, undefined, {
+      identity: estate.identity,
+      tagged: estate.tagged,
+    }),
+  )
+  const residual = residualFindings(tenant.state, observed, retained)
   const driftReport = compareDesiredToActual(
     tenant.deployment
       ? desiredFromDeployment({
@@ -378,8 +392,9 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
               <p className="error">
                 Retained beyond that note, and still billing:{" "}
                 {residual.unexplained.join(", ")}. Observed from{" "}
-                {tenant.manifest.isolation} placement, the published artifact and{" "}
-                {tenant.evidence.length} evidence records — not from anything inside the tenant.
+                {tenant.manifest.isolation} placement, the published artifact,{" "}
+                {tenant.evidence.length} evidence records and live retained-resource AWS reads —
+                not from anything inside the tenant.
               </p>
             )}
             {residual.overclaimed.length > 0 && (
@@ -387,6 +402,16 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
                 Claimed by that note and not held here: {residual.overclaimed.join(", ")}. An
                 operator told they are paying for something they are not stops believing the panel
                 that carries the real finding.
+              </p>
+            )}
+            {residual.retainedSources.length > 0 && (
+              <p className="slug">
+                Live retained-resource sources: {residual.retainedSources.join("; ")}.
+              </p>
+            )}
+            {residual.retainedUnknown.length > 0 && (
+              <p className="refused">
+                Live retained-resource reads unobserved: {residual.retainedUnknown.join("; ")}.
               </p>
             )}
           </>
@@ -445,7 +470,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
               // Computed here, on the server, from the transition graph itself.
               // Reversibility especially: a hand-written label saying "this can
               // be undone" is a claim, and the graph is the fact.
-              risk: riskOf(tenant.slug, tenant.state, to, observed),
+              risk: riskOf(tenant.slug, tenant.state, to, NO_RETAINED_AWS_OBSERVATION, observed),
               // STUDIO-060-007. The token the gate in `runAdvance` will compare,
               // produced by the same function that compares it. Null for a class
               // that needs none, which is what hides the field.

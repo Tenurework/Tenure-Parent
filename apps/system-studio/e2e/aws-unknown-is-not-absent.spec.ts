@@ -12,6 +12,7 @@ import { identityHeadline, partitionOf, resolveIdentity } from "../src/lib/aws/i
 import { estateInventory, estateLines } from "../src/lib/aws/inventory"
 import { describeOrganization } from "../src/lib/aws/organization"
 import { centralizationPosture, managementAccountVerdict } from "../src/lib/aws/posture"
+import { retainedObservation, retainedReadingsForTenant } from "../src/lib/aws/retained"
 import { reconcileTopology } from "../src/lib/aws/topology"
 import type { AwsGateway, AwsRead } from "../src/lib/aws/read"
 
@@ -293,6 +294,86 @@ test.describe("a denied estate read is never an empty list", () => {
     expect(gw.calls.get("rds:DescribeDBInstances")).toBe(1)
     expect(gw.calls.get("cloudfront:ListDistributions")).toBe(1)
     expect(gw.calls.get("acm:ListCertificates")).toBe(1)
+  })
+})
+
+/* ========================================================== 2b. retained == */
+
+test.describe("retained tenant resources are live AWS reads, not registry prose", () => {
+  test("maps tagged snapshots, log groups and recovery points into residual classes", async () => {
+    const snapshotArn = "arn:aws:rds:eu-west-2:123456789012:snapshot:acme-archive"
+    const logArn = "arn:aws:logs:eu-west-2:123456789012:log-group:/tenure/acme"
+    const dbArn = "arn:aws:rds:eu-west-2:123456789012:db:acme"
+    const gw = standIn({
+      "sts:GetCallerIdentity": COMMERCIAL_IDENTITY,
+      "tag:GetResources": () => ({
+        ResourceTagMappingList: [
+          {
+            ResourceARN: snapshotArn,
+            Tags: [{ Key: "tenure:tenant", Value: "acme" }],
+          },
+          {
+            ResourceARN: logArn,
+            Tags: [{ Key: "tenure:tenant", Value: "acme" }],
+          },
+          {
+            ResourceARN: dbArn,
+            Tags: [{ Key: "tenure:tenant", Value: "acme" }],
+          },
+        ],
+      }),
+      "rds:DescribeDBSnapshots": () => ({
+        DBSnapshots: [
+          {
+            DBSnapshotArn: snapshotArn,
+            DBSnapshotIdentifier: "acme-archive",
+            Status: "available",
+            AllocatedStorage: 5,
+          },
+        ],
+      }),
+      "logs:DescribeLogGroups": () => ({
+        logGroups: [{ arn: logArn, logGroupName: "/tenure/acme", storedBytes: 2048 }],
+      }),
+      "backup:ListBackupVaults": () => ({
+        BackupVaultList: [{ BackupVaultName: "tenant-recovery" }],
+      }),
+      "backup:ListRecoveryPointsByBackupVault": () => ({
+        RecoveryPoints: [
+          {
+            RecoveryPointArn: "arn:aws:backup:eu-west-2:123456789012:recovery-point:rp-1",
+            ResourceArn: dbArn,
+            Status: "COMPLETED",
+            BackupSizeInBytes: 4096,
+          },
+        ],
+      }),
+    })
+
+    const observed = retainedObservation(await retainedReadingsForTenant("acme", gw, { now: NOW }))
+    expect(observed.classes).toEqual(expect.arrayContaining(["snapshot", "audit-evidence", "database"]))
+    expect(observed.sources.join("\n")).toContain("rds-snapshot acme-archive")
+    expect(observed.sources.join("\n")).toContain("log-group /tenure/acme")
+    expect(observed.sources.join("\n")).toContain("backup-recovery-point")
+    expect(observed.unknown).toEqual([])
+  })
+
+  test("keeps denied retained reads unknown rather than treating them as no residual cost", async () => {
+    const gw = standIn({
+      "sts:GetCallerIdentity": COMMERCIAL_IDENTITY,
+      "tag:GetResources": () => ({ ResourceTagMappingList: [] }),
+      "rds:DescribeDBSnapshots": () => {
+        throw awsError("AccessDeniedException")
+      },
+      "logs:DescribeLogGroups": () => ({ logGroups: [] }),
+      "backup:ListBackupVaults": () => ({ BackupVaultList: [] }),
+    })
+
+    const observed = retainedObservation(await retainedReadingsForTenant("acme", gw, { now: NOW }))
+    expect(observed.classes).toEqual([])
+    expect(observed.unknown.join("\n")).toContain("AccessDeniedException")
+    expect(observed.unknown.join("\n")).toContain("rds:DescribeDBSnapshots")
+    expect(observed.unknown.join("\n")).not.toContain("none")
   })
 })
 

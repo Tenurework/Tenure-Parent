@@ -113,6 +113,33 @@ export function observedFor(input: ObservedTenantResources): readonly ResourceCl
   return observeResidual(input)
 }
 
+export interface RetainedAwsObservation {
+  /**
+   * Resource classes found by live retained-resource AWS reads.
+   *
+   * Kept separate from the registry observation so "the registry says it should
+   * hold snapshots" and "AWS shows retained snapshots" cannot be confused.
+   */
+  classes: readonly ResourceClass[]
+  /** Human-readable source rows, rendered on the tenant page. */
+  sources: readonly string[]
+  /** Reads that could not be made. These are not treated as absence. */
+  unknown: readonly string[]
+}
+
+export const NO_RETAINED_AWS_OBSERVATION: RetainedAwsObservation = {
+  classes: [],
+  sources: [],
+  unknown: [],
+}
+
+function combineResidualClasses(
+  registry: readonly ResourceClass[],
+  retained: RetainedAwsObservation,
+): readonly ResourceClass[] {
+  return [...new Set<ResourceClass>([...registry, ...retained.classes])]
+}
+
 /**
  * The residual claim for a state, checked against what is retained.
  *
@@ -125,17 +152,34 @@ export function observedFor(input: ObservedTenantResources): readonly ResourceCl
 export function residualFindings(
   state: TenantState,
   observed: readonly ResourceClass[],
-): { note: string; unexplained: readonly ResourceClass[]; overclaimed: readonly ResourceClass[] } | null {
+  retained: RetainedAwsObservation,
+): {
+  note: string
+  unexplained: readonly ResourceClass[]
+  overclaimed: readonly ResourceClass[]
+  retainedSources: readonly string[]
+  retainedUnknown: readonly string[]
+} | null {
   const claim = RESIDUAL_CLAIMS[state]
   if (!claim) return null
-  const { unexplained, overclaimed } = reconcileResidual(claim, observed)
-  return { note: claim.note, unexplained, overclaimed }
+  const { unexplained, overclaimed } = reconcileResidual(
+    claim,
+    combineResidualClasses(observed, retained),
+  )
+  return {
+    note: claim.note,
+    unexplained,
+    overclaimed,
+    retainedSources: retained.sources,
+    retainedUnknown: retained.unknown,
+  }
 }
 
 export function riskOf(
   slug: string,
   from: TenantState,
   to: TenantState,
+  retained: RetainedAwsObservation,
   /**
    * What the tenant is holding right now.
    *
@@ -152,7 +196,7 @@ export function riskOf(
   // destination state is SUPPOSED to retain, and nothing compared it to what
   // this tenant actually holds. A hibernated tenant still running a dedicated
   // task rendered identically to one that is not.
-  const findings = residualFindings(to, observed)
+  const findings = residualFindings(to, observed, retained)
 
   return {
     target: `${slug} — currently ${from}`,
@@ -164,6 +208,9 @@ export function riskOf(
         : "",
       findings && findings.overclaimed.length > 0
         ? `Claimed by that note and not held here: ${findings.overclaimed.join(", ")}.`
+        : "",
+      findings && findings.retainedUnknown.length > 0
+        ? `Live retained-resource reads are unobserved: ${findings.retainedUnknown.join("; ")}.`
         : "",
     ]
       .filter(Boolean)
@@ -271,7 +318,7 @@ export function highRiskVerdict(input: {
     serving: input.serving,
     evidenceRecords: input.evidenceRecords,
   })
-  const risk = riskOf(input.slug, input.from, input.to, observed)
+  const risk = riskOf(input.slug, input.from, input.to, NO_RETAINED_AWS_OBSERVATION, observed)
 
   // Only where the lifecycle demands a second identity. Demanding a typed
   // target on every move is how a control becomes a field people paste into,

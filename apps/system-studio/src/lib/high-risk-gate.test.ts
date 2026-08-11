@@ -240,7 +240,7 @@ jest.mock("next/navigation", () => ({
 
 import { advanceState, composeTenant } from "../app/tenants/actions"
 import { riskDigest } from "../components/states"
-import { observedFor, riskOf } from "./tenant-state"
+import { NO_RETAINED_AWS_OBSERVATION, observedFor, riskOf } from "./tenant-state"
 
 const registry = jest.requireMock("./registry") as {
   __calls: string[]
@@ -334,6 +334,7 @@ function digestFor(slug: string, from: TenantState, to: TenantState): string {
       slug,
       from,
       to,
+      NO_RETAINED_AWS_OBSERVATION,
       observedFor({
         isolation: MANIFEST.isolation,
         hasDeployment: false,
