@@ -1,54 +1,72 @@
 import NextAuth from "next-auth"
+import Cognito from "next-auth/providers/cognito"
 import Credentials from "next-auth/providers/credentials"
 
-import { authenticateOperator } from "./operators"
+import { cognitoProviderConfig, studioAuthMode } from "./auth-config"
+import { authenticateOperator, roleOf } from "./operators"
 
 /**
  * Sign-in for the System Studio.
  *
- * JWT sessions and one credentials provider — deliberately no database and no
- * adapter. This console reads blueprints, module manifests, configuration
- * definitions and release artifacts, all of which are code, so giving it a
- * database connection would be granting an authority it does not need to do its
- * job. The tenant-data surfaces that DO need one stay in the application until
- * the tenancy chokepoint is extracted into a package they can both share.
+ * JWT sessions and no database adapter. In production the provider is AWS
+ * Cognito: it authenticates and federates, then the Studio's allowlist decides
+ * whether the authenticated email is an operator. Credentials mode is retained
+ * only as an explicit local/CI harness so Playwright can exercise the console
+ * without a live hosted UI.
  *
- * `trustHost` is on because this runs behind a load balancer under a hostname
- * the process cannot know. It is safe here only because there is no
- * email-callback flow to poison — the sign-in is a form post, and the session
+ * `trustHost` is on because this runs behind CloudFront -> ALB -> Next. It is
+ * safe here because there is no email-callback flow to poison, and the session
  * cookie is signed with AUTH_SECRET.
  */
+const cognito = cognitoProviderConfig()
+const missingIssuer = "https://example.invalid/missing-cognito-issuer"
+
+const provider =
+  studioAuthMode() === "credentials"
+    ? Credentials({
+        id: "operator",
+        name: "Tenure operator",
+        credentials: {
+          email: { label: "Email", type: "email" },
+          secret: { label: "Operator secret", type: "password" },
+        },
+        authorize(raw) {
+          const email = typeof raw?.email === "string" ? raw.email : ""
+          const secret = typeof raw?.secret === "string" ? raw.secret : ""
+
+          if (!authenticateOperator(email, secret)) return null
+
+          const normalized = email.trim().toLowerCase()
+          return { id: normalized, email: normalized, name: normalized }
+        },
+      })
+    : Cognito({
+        clientId: cognito.clientId || "missing-cognito-client-id",
+        clientSecret: cognito.clientSecret || "missing-cognito-client-secret",
+        issuer: cognito.issuer || missingIssuer,
+      })
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/signin" },
-  providers: [
-    Credentials({
-      id: "operator",
-      name: "Tenure operator",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        secret: { label: "Operator secret", type: "password" },
-      },
-      authorize(raw) {
-        const email = typeof raw?.email === "string" ? raw.email : ""
-        const secret = typeof raw?.secret === "string" ? raw.secret : ""
-
-        // Returning null is a refusal with no reason attached. The caller cannot
-        // learn whether the address was unknown or the secret was wrong, which
-        // is what stops this being an operator-address oracle.
-        if (!authenticateOperator(email, secret)) return null
-
-        return { id: email.trim().toLowerCase(), email: email.trim().toLowerCase(), name: email }
-      },
-    }),
-  ],
+  providers: [provider],
   callbacks: {
-    // The session carries an identity and nothing else. Authority is re-derived
-    // from PLATFORM_OPERATORS on every request, so removing someone from the
-    // list takes effect immediately rather than when their token expires.
+    async signIn({ user }) {
+      if (studioAuthMode() === "credentials") return true
+      const email = typeof user.email === "string" ? user.email.trim().toLowerCase() : ""
+      return roleOf(email) !== null
+    },
+    async jwt({ token, user, profile }) {
+      const profileEmail =
+        profile && typeof profile.email === "string" ? profile.email.trim().toLowerCase() : ""
+      const userEmail = typeof user?.email === "string" ? user.email.trim().toLowerCase() : ""
+      const tokenEmail = typeof token.email === "string" ? token.email.trim().toLowerCase() : ""
+      token.email = userEmail || profileEmail || tokenEmail
+      return token
+    },
     async session({ session, token }) {
-      if (session.user && token.sub) session.user.email = token.sub
+      if (session.user && typeof token.email === "string") session.user.email = token.email
       return session
     },
   },

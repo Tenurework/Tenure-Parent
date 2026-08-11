@@ -16,7 +16,7 @@ resource "random_password" "operator_secret" {
 
 resource "aws_secretsmanager_secret" "studio" {
   name                    = "${local.name_prefix}/app"
-  description             = "Session signing key and the shared operator secret for the System Studio."
+  description             = "Session signing key, Cognito client secret and delivery secrets for the System Studio."
   recovery_window_in_days = 7
 
   tags = local.tags
@@ -26,9 +26,13 @@ resource "aws_secretsmanager_secret_version" "studio" {
   secret_id = aws_secretsmanager_secret.studio.id
 
   secret_string = jsonencode({
-    AUTH_SECRET = random_password.auth_secret.result
+    AUTH_SECRET           = random_password.auth_secret.result
+    COGNITO_CLIENT_SECRET = aws_cognito_user_pool_client.studio.client_secret
+
     # Supplied wins over generated. See the variable's description for why a
-    # generated secret is close to useless in a public repository.
+    # generated secret is close to useless in a public repository. Cognito uses
+    # this only as the initial operator password; the production app does not
+    # compare it as a reusable login secret.
     PLATFORM_OPERATOR_SECRET = (
       var.platform_operator_secret != ""
       ? var.platform_operator_secret

@@ -185,12 +185,12 @@ jobs:
             echo
             echo "| | |"
             echo "|---|---|"
-            echo "| Email | one of \`PLATFORM_OPERATORS\` |"
-            echo "| Operator secret | the \`PLATFORM_OPERATOR_SECRET\` repository secret |"
+            echo "| Provider | AWS Cognito hosted UI |"
+            echo "| Operator identity | an email listed in \`PLATFORM_OPERATORS\` |"
             echo
-            echo "The secret is **supplied**, not generated, and is deliberately absent from this summary, from the logs and from the repository. This repository is public, so anything a workflow prints is world-readable and archived — whoever set the repository secret already knows the value, and it never has to travel."
+            echo "The Studio no longer accepts the shared-secret login in production. Terraform creates the Cognito user pool and app client, passes the generated client secret through Secrets Manager, and seeds the listed operator emails into the pool."
             echo
-            echo "Both are required. Neither is enough alone, and a wrong value for either gives the same refusal — the page does not confirm which addresses are operators."
+            echo "Authority still comes from \`PLATFORM_OPERATORS\`, not Cognito groups or email domains. A Cognito-authenticated address that is not on the allowlist is refused with the same generic sign-in failure."
             echo
             echo "---"
             echo

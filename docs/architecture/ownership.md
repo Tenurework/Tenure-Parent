@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**733 files · 13 domains with code · 1 declared and unbuilt · 22 shared.**
+**734 files · 13 domains with code · 1 declared and unbuilt · 22 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
@@ -16,7 +16,7 @@ defensible.
 
 | Domain | Files | Experience | What it owns |
 |---|---:|---|---|
-| `control-plane` | 137 | deployer + engine + tenant | Composing, provisioning and operating tenants. The engine, not any tenant. |
+| `control-plane` | 138 | deployer + engine + tenant | Composing, provisioning and operating tenants. The engine, not any tenant. |
 | `identity` | 72 | engine + tenant | Who someone is: providers, sessions, the sign-in surface. |
 | `authorization` | 44 | engine + tenant | What someone may do: capabilities, policy decisions, delegation. |
 | `organization` | 45 | engine + tenant | The org graph: institutions, organizations, roles, seats, the directory. |
@@ -47,7 +47,7 @@ is gone rather than reworded.
 | Experience | Files | What it is |
 |---|---:|---|
 | `tenant` | 399 | What a customer signs into. Everything it serves is scoped to one institution. |
-| `deployer` | 95 | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
+| `deployer` | 96 | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
 | `engine` | 239 | Library code with no surface of its own. It renders to nobody; it is rendered through by whichever app imports it, so it belongs to neither audience and is available to both. |
 
 ### Rendered to no declared audience

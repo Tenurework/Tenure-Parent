@@ -252,6 +252,10 @@ export interface OperatorConfigProblem {
   detail: string
 }
 
+export interface OperatorConfigOptions {
+  requireSharedSecret?: boolean
+}
+
 /** One parsed `email:role` entry. */
 export interface OperatorEntry {
   email: string
@@ -328,6 +332,7 @@ function parseOperators(env: NodeJS.ProcessEnv): ParsedOperators {
 /** Problems with the operator configuration. Empty means usable. */
 export function operatorConfigProblems(
   env: NodeJS.ProcessEnv = process.env,
+  options: OperatorConfigOptions = {},
 ): OperatorConfigProblem[] {
   const problems: OperatorConfigProblem[] = []
 
@@ -342,27 +347,33 @@ export function operatorConfigProblems(
     })
   }
 
-  const secret = (env.PLATFORM_OPERATOR_SECRET ?? "").trim()
-  if (!secret) {
-    problems.push({ variable: "PLATFORM_OPERATOR_SECRET", detail: "Not set." })
-  } else {
-    if (secret.length < 24) {
-      problems.push({
-        variable: "PLATFORM_OPERATOR_SECRET",
-        detail: `Too short (${secret.length}); at least 24 characters. This is the only thing standing between the internet and every tenant's configuration.`,
-      })
-    }
-    if (PLACEHOLDERS.includes(normalise(secret))) {
-      problems.push({
-        variable: "PLATFORM_OPERATOR_SECRET",
-        detail: `Is a placeholder ("${secret}"). The usual failure is a value set during setup and never revisited.`,
-      })
-    }
-    if (secret.length >= 24 && distinctChars(secret) < 10) {
-      problems.push({
-        variable: "PLATFORM_OPERATOR_SECRET",
-        detail: `Only ${distinctChars(secret)} distinct characters. Long is not the same as unguessable.`,
-      })
+  const rawMode = (env.STUDIO_AUTH_MODE ?? "").trim().toLowerCase()
+  const requireSharedSecret =
+    options.requireSharedSecret ?? (rawMode === "cognito" ? false : true)
+
+  if (requireSharedSecret) {
+    const secret = (env.PLATFORM_OPERATOR_SECRET ?? "").trim()
+    if (!secret) {
+      problems.push({ variable: "PLATFORM_OPERATOR_SECRET", detail: "Not set." })
+    } else {
+      if (secret.length < 24) {
+        problems.push({
+          variable: "PLATFORM_OPERATOR_SECRET",
+          detail: `Too short (${secret.length}); at least 24 characters. This is the only thing standing between the internet and every tenant's configuration.`,
+        })
+      }
+      if (PLACEHOLDERS.includes(normalise(secret))) {
+        problems.push({
+          variable: "PLATFORM_OPERATOR_SECRET",
+          detail: `Is a placeholder ("${secret}"). The usual failure is a value set during setup and never revisited.`,
+        })
+      }
+      if (secret.length >= 24 && distinctChars(secret) < 10) {
+        problems.push({
+          variable: "PLATFORM_OPERATOR_SECRET",
+          detail: `Only ${distinctChars(secret)} distinct characters. Long is not the same as unguessable.`,
+        })
+      }
     }
   }
 
@@ -412,7 +423,9 @@ export function isOperator(
  */
 export function secretMatches(provided: string, env: NodeJS.ProcessEnv = process.env): boolean {
   const expected = (env.PLATFORM_OPERATOR_SECRET ?? "").trim()
-  if (!expected || operatorConfigProblems(env).length > 0) return false
+  if (!expected || operatorConfigProblems(env, { requireSharedSecret: true }).length > 0) {
+    return false
+  }
 
   const a = Buffer.from(provided.trim())
   const b = Buffer.from(expected)

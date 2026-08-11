@@ -445,6 +445,7 @@ jobs:
       PLATFORM_OPERATOR_SECRET: ci-studio-not-a-placeholder-4c8e2f
       AUTH_SECRET: ci-studio-auth-not-a-placeholder-71bd93
       AUTH_TRUST_HOST: "true"
+      STUDIO_AUTH_MODE: credentials
       NEXTAUTH_URL: http://localhost:3100
       PORT: "3100"
       TENANT_TABLE: tenure-tenants-ci

@@ -16,6 +16,16 @@ output "operator_secret_command" {
   value       = "aws secretsmanager get-secret-value --secret-id ${aws_secretsmanager_secret.studio.name} --query SecretString --output text"
 }
 
+output "cognito_user_pool_id" {
+  description = "Cognito user pool backing System Studio authentication."
+  value       = aws_cognito_user_pool.studio.id
+}
+
+output "cognito_hosted_ui_domain" {
+  description = "Hosted UI domain used by the Cognito provider."
+  value       = "${aws_cognito_user_pool_domain.studio.domain}.auth.${var.aws_region}.amazoncognito.com"
+}
+
 output "ecs_cluster" {
   value = aws_ecs_cluster.studio.name
 }

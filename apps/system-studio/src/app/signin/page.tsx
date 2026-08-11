@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { AuthError } from "next-auth"
 
 import { auth, signIn } from "@/lib/auth"
+import { authConfigProblems, studioAuthMode } from "@/lib/auth-config"
 import { isOperator, operatorConfigProblems } from "@/lib/operators"
 
 export const dynamic = "force-dynamic"
@@ -20,7 +21,11 @@ export default async function SignInPage({
 }: {
   searchParams: Promise<{ error?: string }>
 }) {
-  const misconfigured = operatorConfigProblems()
+  const authMode = studioAuthMode()
+  const misconfigured = [
+    ...authConfigProblems(),
+    ...operatorConfigProblems(undefined, { requireSharedSecret: authMode === "credentials" }),
+  ]
   if (misconfigured.length > 0) {
     return (
       <div className="misconfigured">
@@ -49,6 +54,17 @@ export default async function SignInPage({
 
       {error && <p className="error">Those credentials were not accepted.</p>}
 
+      {authMode === "cognito" ? (
+        <form
+          className="signin"
+          action={async () => {
+            "use server"
+            await signIn("cognito", { redirectTo: "/" })
+          }}
+        >
+          <button type="submit">Continue with Cognito</button>
+        </form>
+      ) : (
       <form
         className="signin"
         action={async (formData: FormData) => {
@@ -89,6 +105,7 @@ export default async function SignInPage({
         </label>
         <button type="submit">Sign in</button>
       </form>
+      )}
     </>
   )
 }

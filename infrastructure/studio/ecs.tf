@@ -49,6 +49,11 @@ resource "aws_ecs_task_definition" "studio" {
         # Behind an ALB behind CloudFront, so the process cannot know its own
         # public hostname.
         { name = "AUTH_TRUST_HOST", value = "true" },
+        { name = "AUTH_URL", value = "https://${aws_cloudfront_distribution.studio.domain_name}" },
+        { name = "NEXTAUTH_URL", value = "https://${aws_cloudfront_distribution.studio.domain_name}" },
+        { name = "STUDIO_AUTH_MODE", value = "cognito" },
+        { name = "COGNITO_CLIENT_ID", value = aws_cognito_user_pool_client.studio.id },
+        { name = "COGNITO_ISSUER", value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.studio.id}" },
         { name = "PLATFORM_OPERATORS", value = var.platform_operators },
         # The tenant registry. Passed by name rather than hardcoded in the app
         # so the same image runs against a different table in a different cell.
@@ -65,6 +70,7 @@ resource "aws_ecs_task_definition" "studio" {
 
       secrets = [
         { name = "AUTH_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:AUTH_SECRET::" },
+        { name = "COGNITO_CLIENT_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:COGNITO_CLIENT_SECRET::" },
         { name = "PLATFORM_OPERATOR_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:PLATFORM_OPERATOR_SECRET::" },
         { name = "PLATFORM_RECONCILE_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:PLATFORM_RECONCILE_SECRET::" },
       ]
