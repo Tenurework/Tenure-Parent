@@ -8905,6 +8905,13 @@ immediately, which is the guard working.
 - [ ] **GE-GATE-17** — CI/CD, immutable promotion, migration, performance, drift, rollback, and production-readiness evidence are complete; production authority remains protected.
   - Status: FAIL
   - Reason: imported from `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`; not yet implemented
+  - Incremental evidence 2026-08-11: the web app no longer imports
+    `next/font/google`, because Docker promotion failed when the CI runner could
+    not fetch `Plus Jakarta Sans` from `fonts.gstatic.com` during `next build`.
+    The existing `--font-inter` / `--font-display-face` contract is now declared
+    in `globals.css` as local CSS font stacks, and
+    `tests/security/no-remote-build-fonts.test.mjs` guards the source tree
+    against reintroducing build-time remote font fetches.
 
 - [ ] **GE-GATE-18** — `GE-*` and `EXT-*` are unified, the live/repository truth is evidenced, insecure/obsolete assumptions are explicit, and implementation can proceed without guessing protected inputs.
   - Status: FAIL

@@ -52,6 +52,8 @@ const PRIMITIVE_EXACT = new Set([
   "--footer-height",
   "--content-max",
   "--gutter",
+  "--font-inter",
+  "--font-display-face",
   "--font-sans",
   "--font-display",
   "--control-h",

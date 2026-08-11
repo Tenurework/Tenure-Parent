@@ -25,14 +25,6 @@ import { CHART_SLOTS } from "@/components/charts/palette"
 const TAILWIND_CONFIG = path.join(__dirname, "..", "..", "..", "tailwind.config.ts")
 const TOKENS_TS = path.join(__dirname, "tokens.ts")
 
-/**
- * `--font-inter` and `--font-display-face` are the two names Tailwind references
- * that `globals.css` does not declare: `next/font` emits them onto the <html>
- * element at render time. They are listed here by name rather than skipped by a
- * pattern so a THIRD undeclared name cannot join them silently.
- */
-const PROVIDED_BY_NEXT_FONT = new Set(["--font-inter", "--font-display-face"])
-
 describe("the catalog is generated from the stylesheet, not maintained beside it", () => {
   it("tokens.ts is exactly what the generator emits from globals.css", () => {
     // The whole pipeline rests on this. If tokens.ts can drift from the CSS then
@@ -151,9 +143,7 @@ describe("the three copies of the token list are now one", () => {
     const referenced = [...config.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1])
     expect(referenced.length).toBeGreaterThan(30)
     const cataloged = new Set<string>(TOKENS.map((t) => t.name))
-    const undeclared = [...new Set(referenced)].filter(
-      (name) => !cataloged.has(name) && !PROVIDED_BY_NEXT_FONT.has(name),
-    )
+    const undeclared = [...new Set(referenced)].filter((name) => !cataloged.has(name))
     expect(undeclared).toEqual([])
   })
 

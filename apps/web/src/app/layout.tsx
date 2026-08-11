@@ -1,23 +1,6 @@
 import type { Metadata, Viewport } from "next"
-import { Inter, Plus_Jakarta_Sans } from "next/font/google"
 import { documentLocalization } from "@/lib/tenancy/locale-cookie"
 import "./globals.css"
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-})
-
-// Display face for headings and brand moments — a modern, humanist geometric
-// sans that pairs with Inter's neutral UI text. Self-hosted at build by
-// next/font, so no runtime network request and no CSP concern.
-const displayFace = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-display-face",
-  display: "swap",
-  weight: ["500", "600", "700", "800"],
-})
 
 export const metadata: Metadata = {
   title: {
@@ -66,12 +49,7 @@ export default async function RootLayout({
   // right-to-left reader, and `<html>` cannot be set from a nested layout.
   const { locale: lang, direction: dir } = await documentLocalization()
   return (
-    <html
-      lang={lang}
-      dir={dir}
-      className={`${inter.variable} ${displayFace.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang={lang} dir={dir} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>

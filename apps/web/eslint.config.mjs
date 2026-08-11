@@ -201,7 +201,7 @@ export const DESIGN_TOKEN_RULES = {
       `Property[key.name="fontFamily"]`,
     ],
     message:
-      "Unregistered font family. Use font-sans or font-display (tailwind.config.ts fontFamily → --font-inter / --font-display-face), which are the faces next/font actually loads.",
+      "Unregistered font family. Use font-sans or font-display (tailwind.config.ts fontFamily → --font-inter / --font-display-face), which are the local font tokens globals.css declares.",
   },
   arbitraryZIndex: {
     selectors: [

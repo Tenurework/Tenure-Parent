@@ -326,7 +326,7 @@ Allowlisted as necessarily public:
 
 TTES-000-001. The two experiences render from two stylesheets, and nothing
 compared them until now. `apps/web/src/app/globals.css` declares
-224 token names; `apps/system-studio/src/app/globals.css` declares
+226 token names; `apps/system-studio/src/app/globals.css` declares
 21; 12 names are declared by both and
 5 of those carry different values — so one token name means two
 colours across the platform, which is fine when it is a decision and is a defect
@@ -419,6 +419,8 @@ justified, and capped at 1 so the next one fails the build.
 | `--error-light` | tenant | `#fae7e1` | — |
 | `--error-text` | tenant | `#a3331f` | — |
 | `--font-display` | tenant | `var(--font-display-face), var(--font-inter), system-ui, -apple-system, sans-serif` | — |
+| `--font-display-face` | tenant | `"Plus Jakarta Sans", var(--font-inter)` | — |
+| `--font-inter` | tenant | `Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` | — |
 | `--font-sans` | tenant | `var(--font-inter), system-ui, -apple-system, sans-serif` | — |
 | `--footer-height` | tenant | `38px` | — |
 | `--gutter` | tenant | `clamp(1rem, 0.6rem + 1.6vw, 2.5rem)` | — |

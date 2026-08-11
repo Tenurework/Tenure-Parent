@@ -68,6 +68,8 @@ export const TOKENS = [
   { name: "--error-light", layer: "semantic" },
   { name: "--error-text", layer: "semantic" },
   { name: "--font-display", layer: "primitive" },
+  { name: "--font-display-face", layer: "primitive" },
+  { name: "--font-inter", layer: "primitive" },
   { name: "--font-sans", layer: "primitive" },
   { name: "--footer-height", layer: "primitive" },
   { name: "--gutter", layer: "primitive" },

@@ -359,7 +359,11 @@
     --row-h: 32px;
     --density-gap: var(--space-5);
 
-    /* Typography */
+    /* Typography. These names are intentionally local CSS variables rather
+       than next/font outputs, so Docker and CI builds never depend on fetching
+       remote font files. */
+    --font-inter: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-display-face: "Plus Jakarta Sans", var(--font-inter);
     --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
   }
 

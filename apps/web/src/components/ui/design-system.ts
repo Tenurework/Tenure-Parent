@@ -33,7 +33,7 @@ import { ALL_THEMES, readThemes } from "@/lib/a11y/theme-tokens"
  * version it will be removed in. A deprecation nothing enforces is a comment.
  */
 
-export const DESIGN_SYSTEM_VERSION = "1.1.0"
+export const DESIGN_SYSTEM_VERSION = "1.2.0"
 
 export interface DesignSystemRelease {
   /** Semver. Minor for an added token, major for a removed or re-meant one. */
@@ -98,6 +98,22 @@ export const VERSIONS: readonly DesignSystemRelease[] = [
       "forever. Pass \"no-results\" wherever the surface is behind a filter, " +
       "\"empty\" otherwise. ShellHeader and SearchCommand require `sections`, and " +
       "TenureAIPanel requires `scope`; both are supplied by src/app/(app)/layout.tsx.",
+  },
+  {
+    version: "1.2.0",
+    date: "2026-08-11",
+    tokenHash: "819ecce5e6d820acca1b11704f5ace6c",
+    notes:
+      "Additive. Declares --font-inter and --font-display-face in globals.css " +
+      "instead of letting next/font/google stamp them onto <html> during render. " +
+      "The rendered font contract stays the same for Tailwind and components, " +
+      "but Docker promotion no longer depends on fetching Google font files " +
+      "from fonts.gstatic.com during next build.",
+    migration:
+      "No component migration. Keep using font-sans and font-display; do not " +
+      "import next/font/google in the web source. If a tenant needs a brand font, " +
+      "add a declared local token or self-hosted asset rather than a build-time " +
+      "third-party fetch.",
   },
 ]
 
