@@ -8,9 +8,9 @@ import { CATALOG_ENTRIES, availabilityDecisions } from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
 import { authorizeCommand } from "@/lib/authorize"
-import { fleet, primeEstate } from "@/lib/cells"
+import { FleetMisconfigured, fleet, primeEstate } from "@/lib/cells"
 import { operatorConfigProblems } from "@/lib/operators"
-import { PermissionDeniedState } from "@/components/states"
+import { ErrorState, PermissionDeniedState } from "@/components/states"
 import {
   REGISTRY,
   layersFor,
@@ -113,12 +113,28 @@ export default async function StudioPage({
   // would actually serve these tenants, and the engine version from the build.
   // An engine that cannot say what version it is fails every compatibility
   // range closed, which is the correct answer and not a fallback.
+  // GE-010-007. `fleet()` is synchronous and its estate facts now come from
+  // sts:GetCallerIdentity rather than from a compiled-in "us-east-1"/account
+  // literal. Priming resolves that identity once per process before the first
+  // synchronous read; a page that skipped it would fall back to the environment
+  // alone, and refuse rather than guess if that is unset too.
+  await primeEstate()
+  let cells: ReturnType<typeof fleet>
+  try {
+    cells = fleet()
+  } catch (err) {
+    if (err instanceof FleetMisconfigured) {
+      return <ErrorState what="the cell registry" detail={err.message} />
+    }
+    throw err
+  }
+
   const availabilityScope = {
-    region: fleet()[0]?.region ?? "",
+    region: cells[0]?.region ?? "",
     // The partition too, because an egress restriction is a partition fact
     // before it is a region one. Read from the cell registry, which reads the
     // environment and validates it — never a literal here.
-    partition: fleet()[0]?.partition,
+    partition: cells[0]?.partition,
     engineVersion: process.env.ENGINE_VERSION ?? process.env.SCHEMA_VERSION ?? "unpinned",
     // The marketplace is closed as a property of the code, not of a flag
     // somebody forgot to set. Passing `false` here is the deliberate act the
@@ -126,13 +142,6 @@ export default async function StudioPage({
     marketplaceEnabled: false,
     now: new Date().toISOString(),
   }
-
-  // GE-010-007. `fleet()` is synchronous and its estate facts now come from
-  // sts:GetCallerIdentity rather than from a compiled-in "us-east-1"/account
-  // literal. Priming resolves that identity once per process before the first
-  // synchronous read; a page that skipped it would fall back to the environment
-  // alone, and refuse rather than guess if that is unset too.
-  await primeEstate()
   const capabilities = availabilityDecisions(CATALOG_ENTRIES, availabilityScope)
   const offered = capabilities.filter((d) => d.available)
   const refused = capabilities.filter((d) => !d.available)
