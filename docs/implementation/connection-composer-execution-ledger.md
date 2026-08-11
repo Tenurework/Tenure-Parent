@@ -19,9 +19,16 @@ undecided and returns the item to the queue every tick, forever. An unfinished
 requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — naming
 the commands or the ADR that would unblock it — if it cannot.
 
-- [ ] **CAT-000-001** — Import every `CAT-*` requirement into the master execution ledger and document graph.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-000-001** — Import every `CAT-*` requirement into the master execution ledger and document graph.
+  - Status: PASS
+  - Evidence:
+    - `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md` states 59 `CAT-*` requirements, including gates.
+    - `docs/implementation/connection-composer-execution-ledger.md` carries all 59 `CAT-*` rows.
+    - `tools/document-graph.mjs` now imports gate-shaped IDs through the same execution-system import detector as numbered IDs.
+    - `tests/architecture/document-graph.test.mjs` asserts that every `CAT-*` Bible requirement appears in the execution system, has a connection-composer ledger row, and resolves to the catalog Bible in the generated registry.
+    - Mutation proof: changing the ledger row `CAT-GATE-090` to `CAT-GATE-999` made `node --test tests/architecture/document-graph.test.mjs` fail on missing `CAT-GATE-090` and the unimported ratchet.
+  - Tests: `node --test tests/architecture/document-graph.test.mjs`
+  - Honest limit: This proves import and document-graph wiring only. It does not implement catalog inventory, provider lifecycle classification, UI configuration, connector runtime, certification, cost, or deployment behavior for the remaining `CAT-*` requirements.
 
 - [ ] **CAT-000-002** — Inventory every integration/app/system currently named, displayed, configured, coded, deployed, marketed, or used by a tenant.
   - Status: FAIL

@@ -33,6 +33,8 @@ import {
  */
 
 const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8")
+const CAT_BIBLE =
+  "Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md"
 
 /**
  * Requirements no execution document mentions.
@@ -212,6 +214,41 @@ test("the unimported count only shrinks", () => {
     `${unimported.length} unimported, and the ratchet says ${UNIMPORTED}. Lower UNIMPORTED to ` +
       `${unimported.length} — a ratchet that is not tightened when the debt is paid stops ` +
       `meaning anything.`,
+  )
+})
+
+test("the connection composer catalog is completely imported", () => {
+  // CAT-000-001 is specifically about the integration catalog Bible, not just
+  // the global unimported count. This keeps a partial CAT import from hiding
+  // behind unrelated document-graph coverage.
+  const expected = requirementsIn(read(CAT_BIBLE))
+    .map((r) => r.id)
+    .filter((id) => id.startsWith("CAT-"))
+    .sort()
+  const imported = importedIds()
+  const ledger = ledgerStatuses()
+  const rows = buildRegistry(classify(), ledger, imported).filter((r) => r.prefix === "CAT")
+
+  assert.equal(expected.length, 59, "The catalog Bible's CAT requirement count changed.")
+  assert.deepEqual(
+    expected.filter((id) => !imported.has(id)),
+    [],
+    "Every CAT requirement, including gates, must appear in the execution system.",
+  )
+  assert.deepEqual(
+    expected.filter((id) => ledger.get(id)?.source_ledger !== "docs/implementation/connection-composer-execution-ledger.md"),
+    [],
+    "Every CAT requirement must have a connection-composer ledger row.",
+  )
+  assert.deepEqual(
+    rows.map((r) => r.id).sort(),
+    expected,
+    "The generated registry must own exactly the CAT requirements stated by the catalog Bible.",
+  )
+  assert.deepEqual(
+    rows.filter((r) => r.source_document !== CAT_BIBLE).map((r) => r.id),
+    [],
+    "CAT registry rows must resolve back to the catalog Bible.",
   )
 })
 

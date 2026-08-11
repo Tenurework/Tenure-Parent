@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "6038a62",
+  "commit": "78ea5ee",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 241,
@@ -1724,26 +1724,25 @@
     "sources": [
       "Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md",
       "Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md",
+      "Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md",
       "Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md",
       "Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md",
       "Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md",
+      "Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md",
       "Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md",
+      "Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md",
       "Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md",
       "Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md",
       "Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md",
       "Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md",
+      "Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md",
       "docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md",
       "docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md",
-      "docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md",
-      "docs/implementation/erp-pack-factory-execution-ledger.md",
-      "docs/implementation/identity-eligibility-entitlement-execution-ledger.md",
-      "docs/implementation/payments-treasury-execution-ledger.md",
-      "docs/implementation/system-studio-aws-control-plane-execution-ledger.md",
-      "docs/implementation/universal-work-graph-execution-ledger.md"
+      "docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md"
     ],
     "totalItems": 2265,
     "totalGates": 181,
-    "decided": 218,
+    "decided": 219,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -1785,7 +1784,7 @@
         "source": "CAT",
         "items": 5,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "CAT · CAT-010 — Cardinality and dimensions",
@@ -3230,9 +3229,149 @@
         "done": 0
       },
       {
-        "phase": "IER · docs/implementation/identity-eligibility-entitlement-execution-ledger.md",
+        "phase": "IER · IER-000 — Document graph and execution truth",
         "source": "IER",
-        "items": 219,
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-010 — Boundaries and canonical semantics",
+        "source": "IER",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-020 — Source and attribute governance",
+        "source": "IER",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-030 — Privacy and sensitive data",
+        "source": "IER",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-040 — Secure ingestion",
+        "source": "IER",
+        "items": 12,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-050 — Workbook and source contracts",
+        "source": "IER",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-060 — Mapping and person resolution",
+        "source": "IER",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-070 — Eligibility policy engine",
+        "source": "IER",
+        "items": 12,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-080 — Access reconciliation and continuity",
+        "source": "IER",
+        "items": 12,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-090 — Login routing and independent Cognito",
+        "source": "IER",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-100 — SSO migration and identity linking",
+        "source": "IER",
+        "items": 12,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-110 — SCIM and lifecycle sources",
+        "source": "IER",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-120 — Module and scope eligibility",
+        "source": "IER",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-130 — System Studio and tenant experience",
+        "source": "IER",
+        "items": 12,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-135 — Tenant-managed additions and commercial usage",
+        "source": "IER",
+        "items": 12,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-140 — Simon Tenant #1",
+        "source": "IER",
+        "items": 17,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-150 — Industry packs",
+        "source": "IER",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-160 — APIs, events, audit, and observability",
+        "source": "IER",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-170 — Security and isolation",
+        "source": "IER",
+        "items": 10,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-180 — Testing and evidence",
+        "source": "IER",
+        "items": 16,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "IER · IER-190 — Lifecycle and production readiness",
+        "source": "IER",
+        "items": 8,
         "gates": 0,
         "done": 0
       },
@@ -3356,18 +3495,270 @@
         "done": 0
       },
       {
-        "phase": "PACK · docs/implementation/erp-pack-factory-execution-ledger.md",
+        "phase": "PACK · PACK-000 — Truth and registry",
         "source": "PACK",
-        "items": 53,
-        "gates": 10,
-        "done": 15
+        "items": 5,
+        "gates": 1,
+        "done": 2
       },
       {
-        "phase": "PAY · docs/implementation/payments-treasury-execution-ledger.md",
+        "phase": "PACK · PACK-010 — Product-line kernel",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "PACK · PACK-020 — Archetype model",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 3
+      },
+      {
+        "phase": "PACK · PACK-030 — Pack contract and lifecycle",
+        "source": "PACK",
+        "items": 6,
+        "gates": 1,
+        "done": 2
+      },
+      {
+        "phase": "PACK · PACK-040 — Functional suites",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 2
+      },
+      {
+        "phase": "PACK · PACK-050 — Industry packs",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "PACK · PACK-060 — Process chains and accounting",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "PACK · PACK-070 — UI, data, integration and Relay contributions",
+        "source": "PACK",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PACK · PACK-080 — Release, upgrade and certification",
+        "source": "PACK",
+        "items": 6,
+        "gates": 1,
+        "done": 3
+      },
+      {
+        "phase": "PACK · PACK-090 — Proving systems",
+        "source": "PACK",
+        "items": 5,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 2. Non-negotiable product boundaries",
         "source": "PAY",
-        "items": 224,
+        "items": 8,
         "gates": 0,
-        "done": 37
+        "done": 2
+      },
+      {
+        "phase": "PAY · 3. Capability Completeness contract",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "PAY · 4. Target architecture",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 5
+      },
+      {
+        "phase": "PAY · 5. Canonical domain model",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 4
+      },
+      {
+        "phase": "PAY · 6. Legal entity, merchant, and connected-account topology",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 2
+      },
+      {
+        "phase": "PAY · 7. Merchant onboarding, KYC/KYB, and requirements",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 8. Inbound payment acceptance",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "PAY · 9. Funds-flow models and multi-party splitting",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 4
+      },
+      {
+        "phase": "PAY · 10. Internal organizational payment pipeline",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 2
+      },
+      {
+        "phase": "PAY · 11. Vendor, contractor, beneficiary, and marketplace payouts",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 12. Embedded financial accounts and money management",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 13. Cards and spend management",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 14. Refunds, disputes, chargebacks, holds, and risk",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "PAY · 15. Ledger, accounting events, and reconciliation",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 3
+      },
+      {
+        "phase": "PAY · 16. Provider gateway, API versioning, secrets, and webhooks",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 3
+      },
+      {
+        "phase": "PAY · 17. Authorization, approval, and financial controls",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 4
+      },
+      {
+        "phase": "PAY · 18. System Studio: Payments and Treasury Studio",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "PAY · 19. Tenant runtime UX",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 20. Relay by Tenure for payments",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 2
+      },
+      {
+        "phase": "PAY · 21. Globalization, tax, reporting, and records",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 22. Security, privacy, PCI, abuse, and audit",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 23. Reliability, observability, operations, and support",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 24. Tenant lifecycle, hibernation, offboarding, and purge",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 25. Simon OSE Tenant #1 configuration",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 1
+      },
+      {
+        "phase": "PAY · 26. Migration and coexistence",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 27. Testing and certification matrix",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · 28. Rollout sequence",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 0
+      },
+      {
+        "phase": "PAY · Operations and evidence",
+        "source": "PAY",
+        "items": 8,
+        "gates": 0,
+        "done": 1
       },
       {
         "phase": "PLN · PLN-000 — Foundation",
@@ -3519,121 +3910,107 @@
       {
         "phase": "STUDIO · 4. Phase 0 — Establish repository, AWS, product, and deployed truth",
         "source": "STUDIO",
-        "items": 8,
-        "gates": 0,
-        "done": 0
-      },
-      {
-        "phase": "STUDIO · What was actually wrong",
-        "source": "STUDIO",
-        "items": 12,
-        "gates": 0,
-        "done": 10
+        "items": 11,
+        "gates": 1,
+        "done": 2
       },
       {
         "phase": "STUDIO · 5.5 Control-plane account topology",
         "source": "STUDIO",
-        "items": 7,
-        "gates": 0,
-        "done": 0
+        "items": 11,
+        "gates": 1,
+        "done": 2
       },
       {
         "phase": "STUDIO · 6.2 Login flow",
         "source": "STUDIO",
-        "items": 11,
-        "gates": 0,
-        "done": 0
+        "items": 14,
+        "gates": 1,
+        "done": 2
       },
       {
         "phase": "STUDIO · 7.2 Global shell",
         "source": "STUDIO",
-        "items": 13,
-        "gates": 0,
+        "items": 14,
+        "gates": 1,
         "done": 0
       },
       {
         "phase": "STUDIO · 8. Core domain model and desired-state contract",
         "source": "STUDIO",
-        "items": 9,
-        "gates": 0,
+        "items": 10,
+        "gates": 1,
         "done": 0
       },
       {
         "phase": "STUDIO · Stage 11 — Review, simulate, approve, and launch",
         "source": "STUDIO",
-        "items": 7,
-        "gates": 0,
+        "items": 8,
+        "gates": 1,
         "done": 0
       },
       {
         "phase": "STUDIO · 10. Change classification, preview, approvals, and command contract",
         "source": "STUDIO",
-        "items": 9,
-        "gates": 0,
+        "items": 11,
+        "gates": 1,
         "done": 0
-      },
-      {
-        "phase": "STUDIO · STUDIO-120: FinOps Center",
-        "source": "STUDIO",
-        "items": 20,
-        "gates": 15,
-        "done": 3
       },
       {
         "phase": "STUDIO · 11.2 Stack layers",
         "source": "STUDIO",
-        "items": 9,
-        "gates": 0,
-        "done": 0
+        "items": 11,
+        "gates": 1,
+        "done": 1
       },
       {
         "phase": "STUDIO · Security, operations, and cost",
         "source": "STUDIO",
-        "items": 6,
-        "gates": 0,
-        "done": 0
+        "items": 9,
+        "gates": 1,
+        "done": 2
       },
       {
         "phase": "STUDIO · 13. Relay by Tenure inside System Studio",
         "source": "STUDIO",
-        "items": 12,
-        "gates": 0,
+        "items": 13,
+        "gates": 1,
         "done": 0
       },
       {
         "phase": "STUDIO · 14. Tenant fleet, release, lifecycle, and verified zero cost",
         "source": "STUDIO",
-        "items": 12,
-        "gates": 0,
+        "items": 13,
+        "gates": 1,
         "done": 0
       },
       {
         "phase": "STUDIO · 15. Security, privacy, governance, and supply chain",
         "source": "STUDIO",
-        "items": 9,
-        "gates": 0,
+        "items": 11,
+        "gates": 1,
         "done": 0
       },
       {
         "phase": "STUDIO · 16. Reliability, observability, operations, DR, and FinOps",
         "source": "STUDIO",
-        "items": 9,
-        "gates": 0,
-        "done": 0
+        "items": 13,
+        "gates": 1,
+        "done": 3
       },
       {
         "phase": "STUDIO · 17. API, event, and extension contracts",
         "source": "STUDIO",
-        "items": 6,
-        "gates": 0,
+        "items": 8,
+        "gates": 1,
         "done": 0
       },
       {
         "phase": "STUDIO · 18. Testing and release proof",
         "source": "STUDIO",
-        "items": 8,
-        "gates": 0,
-        "done": 0
+        "items": 10,
+        "gates": 1,
+        "done": 1
       },
       {
         "phase": "TTES · TTES-000 — Separation and truth",
@@ -3678,11 +4055,102 @@
         "done": 2
       },
       {
-        "phase": "WRK · docs/implementation/universal-work-graph-execution-ledger.md",
+        "phase": "WRK · WRK-000 — Truth and constitutional binding",
         "source": "WRK",
-        "items": 88,
-        "gates": 14,
-        "done": 10
+        "items": 5,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "WRK · WRK-010 — Universal Work Graph",
+        "source": "WRK",
+        "items": 7,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "WRK · WRK-020 — Connection authority and selectors",
+        "source": "WRK",
+        "items": 6,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "WRK · WRK-030 — Missing-connection and launch UX",
+        "source": "WRK",
+        "items": 7,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "WRK · WRK-040 — OAuth, consent, and token security",
+        "source": "WRK",
+        "items": 7,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "WRK · WRK-050 — Relay tools and external actions",
+        "source": "WRK",
+        "items": 7,
+        "gates": 1,
+        "done": 3
+      },
+      {
+        "phase": "WRK · WRK-060 — Sync, events, and reconciliation",
+        "source": "WRK",
+        "items": 6,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "WRK · WRK-070 — Search, RAG, citations, and memory",
+        "source": "WRK",
+        "items": 7,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "WRK · WRK-080 — Microsoft 365 and Google Workspace",
+        "source": "WRK",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "WRK · WRK-090 — Slack, Zoom, Notion, and Box",
+        "source": "WRK",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "WRK · WRK-100 — Secondary workspace and work-management packs",
+        "source": "WRK",
+        "items": 5,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "WRK · WRK-110 — Experience and accessibility",
+        "source": "WRK",
+        "items": 6,
+        "gates": 1,
+        "done": 0
+      },
+      {
+        "phase": "WRK · WRK-120 — AWS, operations, cost, and lifecycle",
+        "source": "WRK",
+        "items": 7,
+        "gates": 1,
+        "done": 1
+      },
+      {
+        "phase": "WRK · WRK-130 — Acceleration proof and release",
+        "source": "WRK",
+        "items": 6,
+        "gates": 1,
+        "done": 0
       }
     ]
   },

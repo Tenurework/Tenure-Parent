@@ -55,12 +55,12 @@ const SEARCH_ROOTS = ["apps/web/src", "apps/web/scripts", "packages"]
  * and `Budget` as having writers it had not found, for the wrong reason.
  */
 function writersOf(model) {
-  const pattern = `\\b[A-Za-z_$][A-Za-z0-9_$]*\\.${delegateOf(model)}\\.(${WRITE_METHODS.join("|")})\\(`
+  const pattern = `(^|[^A-Za-z0-9_$])[A-Za-z_$][A-Za-z0-9_$]*\\.${delegateOf(model)}\\.(${WRITE_METHODS.join("|")})\\(`
   let out = ""
   try {
     out = execFileSync(
       "git",
-      ["grep", "-lE", pattern, "--", ...SEARCH_ROOTS.map((r) => `${r}/*`)],
+      ["grep", "-lE", pattern, "--", ...SEARCH_ROOTS],
       { cwd: ROOT, encoding: "utf8" },
     )
   } catch (err) {

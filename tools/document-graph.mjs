@@ -119,7 +119,7 @@ const SKIP_DIRS = new Set([
  * Found by an adversarial reviewer instructed to refute, not by reading.
  */
 const REQUIREMENT = /^\s*(?:[-*]\s*\[[ xX]\]\s*|[-*]\s+)?\*{0,2}([A-Z]{2,8}-(?:\d{3}-\d{3}|GATE-\d+))\*{0,2}\s*[—–\-:]\s*(.+?)\s*$/
-const ANY_ID = /\b([A-Z]{2,8}-\d{3}-\d{3})\b/g
+const ANY_ID = /\b([A-Z]{2,8}-(?:\d{3}-\d{3}|GATE-\d+))\b/g
 /**
  * A requirement id, in every shape the Bibles use.
  *
@@ -238,7 +238,10 @@ export function classify() {
     const bytes = Buffer.from(raw.toString("utf8").split("\r\n").join("\n"), "utf8")
     const text = bytes.toString("utf8")
     const name = path.basename(file)
-    const isAuthority = AUTHORITY_MARKERS.some((re) => re.test(name) || re.test(text.slice(0, 4000)))
+    const relative = rel(file)
+    const isExecutionLedger = /^docs\/implementation\/.+-ledger\.md$/.test(relative)
+    const isAuthority =
+      !isExecutionLedger && AUTHORITY_MARKERS.some((re) => re.test(name) || re.test(text.slice(0, 4000)))
     if (!isAuthority) continue
 
     const digest = crypto.createHash("sha256").update(bytes).digest("hex")
@@ -252,7 +255,7 @@ export function classify() {
       // parenthesis first — so without this the copy becomes the canonical
       // document and the real one becomes its alias, which reads as though
       // somebody had deliberately made the duplicate authoritative.
-      const candidate = rel(file)
+      const candidate = relative
       if (uploadCopyRank(candidate) < uploadCopyRank(existing.canonical_path)) {
         existing.aliases.push(existing.canonical_path)
         existing.canonical_path = candidate
@@ -276,7 +279,7 @@ export function classify() {
       id: idFor(name),
       title: titleOf(text, name),
       version: versionOf(name, text),
-      canonical_path: rel(file),
+      canonical_path: relative,
       aliases: [],
       sha256: digest,
       bytes: bytes.length,

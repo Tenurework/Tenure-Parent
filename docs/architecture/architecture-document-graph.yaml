@@ -6,12 +6,12 @@
 # duplicate upload cannot double-count the requirements it states.
 
 generated_from: tools/document-graph.mjs
-document_count: 36
+document_count: 31
 alias_count: 6
-requirement_statements: 4466
+requirement_statements: 3850
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
-authorities: 26
+authorities: 21
 references: 10
 documents:
   - id: "aws-current-state"
@@ -59,7 +59,7 @@ documents:
       - EXT
       - GE
     states_requirements: 186
-    mentions_requirement_ids: 170
+    mentions_requirement_ids: 187
   - id: "tenure-global-system-architecture-bible-v1-0"
     title: Tenure Global System Architecture Bible
     version: "1.1"
@@ -149,70 +149,7 @@ documents:
     requirement_prefixes:
       - GE
     states_requirements: 0
-    mentions_requirement_ids: 5
-  - id: "erp-pack-factory-execution-ledger"
-    title: ERP Archetype and Specialized System Pack Factory — execution ledger
-    version: unversioned
-    canonical_path: "docs/implementation/erp-pack-factory-execution-ledger.md"
-    role: authority
-    family: "erp-pack-factory-execution-ledger"
-    superseded_by: null
-    supersedes: []
-    sha256: "1981ff470d1078a61d1c25c3428853d9f7ad62519873b0b42bf160b519e17e8d"
-    bytes: 86053
-    aliases: []
-    requirement_prefixes:
-      - PACK
-    states_requirements: 53
-    mentions_requirement_ids: 43
-  - id: "identity-eligibility-entitlement-execution-ledger"
-    title: "Global Identity, Eligibility, Entitlement, Roster and Access Continuity Engine — execution ledger"
-    version: unversioned
-    canonical_path: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
-    role: authority
-    family: "identity-eligibility-entitlement-execution-ledger"
-    superseded_by: null
-    supersedes: []
-    sha256: "1db8adfac4f9dff2d4c0345b35317f6ff17d3ea78b646dcda332d57b022ccf14"
-    bytes: 63335
-    aliases: []
-    requirement_prefixes:
-      - IER
-    states_requirements: 219
-    mentions_requirement_ids: 219
-  - id: "payments-treasury-execution-ledger"
-    title: "Payments, Treasury, Cards and the Stripe Control Plane — execution ledger"
-    version: unversioned
-    canonical_path: "docs/implementation/payments-treasury-execution-ledger.md"
-    role: authority
-    family: "payments-treasury-execution-ledger"
-    superseded_by: null
-    supersedes: []
-    sha256: "815ade22fb9a2e5b61ca0cebfef509e6e556530a12f3e1fab59668253a113490"
-    bytes: 180056
-    aliases: []
-    requirement_prefixes:
-      - GE
-      - PAY
-    states_requirements: 224
-    mentions_requirement_ids: 226
-  - id: "system-studio-aws-control-plane-execution-ledger"
-    title: "Tenure System Studio + AWS-Authoritative Control Plane — execution ledger"
-    version: unversioned
-    canonical_path: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
-    role: authority
-    family: "system-studio-aws-control-plane-execution-ledger"
-    superseded_by: null
-    supersedes: []
-    sha256: "2c9410eef578edee8f804fa139bbf5cdd4fba5e05b2e6c9482e538c57d4359b5"
-    bytes: 74182
-    aliases: []
-    requirement_prefixes:
-      - GE
-      - STUDIO
-      - WRK
-    states_requirements: 32
-    mentions_requirement_ids: 35
+    mentions_requirement_ids: 6
   - id: "tenure-claude-code-global-engine-execution-prompt-v1-0"
     title: "Tenure Global Distribution Engine: Master Claude Code Execution Prompt"
     version: "1.0"
@@ -227,7 +164,7 @@ documents:
     requirement_prefixes:
       - GE
     states_requirements: 552
-    mentions_requirement_ids: 534
+    mentions_requirement_ids: 552
   - id: "tenure-claude-code-unified-global-engine-master-prompt-v2-0"
     title: "Tenure Global Distribution Engine: Unified Behemoth Claude Code Master Execution Prompt"
     version: "2.0"
@@ -242,7 +179,7 @@ documents:
     requirement_prefixes:
       - GE
     states_requirements: 709
-    mentions_requirement_ids: 675
+    mentions_requirement_ids: 709
   - id: "tenure-simon-ose-tenant-absorption-and-global-update-inheritance-claude-bible-v1-0"
     title: "Simon OSE Tenant #1 Absorption into Tenure Parent"
     version: "1.0"
@@ -258,7 +195,7 @@ documents:
     requirement_prefixes:
       - SIMON
     states_requirements: 157
-    mentions_requirement_ids: 143
+    mentions_requirement_ids: 157
   - id: "tenure-system-studio-aws-authoritative-control-plane-claude-bible-v1-0"
     title: "Tenure System Studio + AWS-Authoritative Global Distribution Engine"
     version: "1.0"
@@ -274,23 +211,7 @@ documents:
     requirement_prefixes:
       - STUDIO
     states_requirements: 167
-    mentions_requirement_ids: 152
-  - id: "universal-work-graph-execution-ledger"
-    title: Universal Work Graph and Workspace Connector Cloud — execution ledger
-    version: unversioned
-    canonical_path: "docs/implementation/universal-work-graph-execution-ledger.md"
-    role: authority
-    family: "universal-work-graph-execution-ledger"
-    superseded_by: null
-    supersedes: []
-    sha256: "1792e33dae624881af54f6a2e97d8455467ef863c2d64a81f2889077c33e9552"
-    bytes: 98698
-    aliases: []
-    requirement_prefixes:
-      - TTES
-      - WRK
-    states_requirements: 88
-    mentions_requirement_ids: 75
+    mentions_requirement_ids: 167
   - id: "tenure-behemoth-capability-completeness-audit-v1-0"
     title: Tenure Behemoth Capability Completeness Audit
     version: "1.0"
@@ -337,7 +258,7 @@ documents:
     requirement_prefixes:
       - GE
     states_requirements: 781
-    mentions_requirement_ids: 737
+    mentions_requirement_ids: 781
   - id: "tenure-declarative-tenant-configurator-and-deployer-ux-claude-bible-v1-0"
     title: "Tenure Declarative Tenant Configurator, Decision Graph, and Deployer Experience Bible"
     version: "1.0"
@@ -353,7 +274,7 @@ documents:
     requirement_prefixes:
       - CFG
     states_requirements: 79
-    mentions_requirement_ids: 67
+    mentions_requirement_ids: 79
   - id: "tenure-enterprise-analytics-reporting-and-visualization-cloud-claude-bible-v1-0"
     title: "Tenure Enterprise Analytics, Reporting, and Visualization Cloud Bible"
     version: "1.0"
@@ -368,7 +289,7 @@ documents:
     requirement_prefixes:
       - ANL
     states_requirements: 27
-    mentions_requirement_ids: 22
+    mentions_requirement_ids: 27
   - id: "tenure-erp-archetype-and-specialized-system-pack-factory-claude-bible-v1-0"
     title: "Tenure ERP Archetype, Specialized System Pack, and Capability Certification Factory Bible"
     version: "1.0"
@@ -384,7 +305,7 @@ documents:
     requirement_prefixes:
       - PACK
     states_requirements: 53
-    mentions_requirement_ids: 43
+    mentions_requirement_ids: 53
   - id: "tenure-financial-management-cloud-claude-bible-v1-0"
     title: Tenure Financial Management Cloud Bible
     version: "1.0"
@@ -399,7 +320,7 @@ documents:
     requirement_prefixes:
       - FIN
     states_requirements: 34
-    mentions_requirement_ids: 28
+    mentions_requirement_ids: 34
   - id: "tenure-global-deployer-integration-catalog-and-tenant-connection-composer-claude-bible-v1-0"
     title: "Tenure Global Deployer Integration Catalog, Tenant Connection Composer, and Major App Certification Bible"
     version: "1.0"
@@ -414,7 +335,7 @@ documents:
     requirement_prefixes:
       - CAT
     states_requirements: 59
-    mentions_requirement_ids: 49
+    mentions_requirement_ids: 59
   - id: "tenure-global-identity-eligibility-entitlement-roster-and-access-continuity-engine-claude-bible-v1-0-1-"
     title: "Tenure Global Identity, Eligibility, Entitlement, Roster, and Access Continuity Engine"
     version: "1.0"
@@ -445,7 +366,7 @@ documents:
     requirement_prefixes:
       - INT
     states_requirements: 65
-    mentions_requirement_ids: 54
+    mentions_requirement_ids: 65
   - id: "tenure-global-payments-treasury-and-stripe-control-plane-claude-bible-v1-0"
     title: "Tenure Global Payments, Treasury, Cards, and Stripe Control Plane"
     version: "1.0"
@@ -475,7 +396,7 @@ documents:
     requirement_prefixes:
       - OPS
     states_requirements: 32
-    mentions_requirement_ids: 26
+    mentions_requirement_ids: 32
   - id: "tenure-people-hr-and-workforce-cloud-claude-bible-v1-0"
     title: "Tenure People, HR, and Workforce Cloud Bible"
     version: "1.0"
@@ -490,7 +411,7 @@ documents:
     requirement_prefixes:
       - HCM
     states_requirements: 33
-    mentions_requirement_ids: 27
+    mentions_requirement_ids: 33
   - id: "tenure-planning-epm-and-decision-cloud-claude-bible-v1-0"
     title: "Tenure Planning, EPM, and Decision Cloud Bible"
     version: "1.0"
@@ -505,7 +426,7 @@ documents:
     requirement_prefixes:
       - PLN
     states_requirements: 27
-    mentions_requirement_ids: 22
+    mentions_requirement_ids: 27
   - id: "tenure-simon-ose-tenant-absorption-and-global-update-inheritance-claude-bible-v1-0"
     title: "Simon OSE Tenant #1 Absorption into Tenure Parent"
     version: "1.0"
@@ -520,7 +441,7 @@ documents:
     requirement_prefixes:
       - SIMON
     states_requirements: 157
-    mentions_requirement_ids: 143
+    mentions_requirement_ids: 157
   - id: "tenure-system-studio-aws-authoritative-control-plane-claude-bible-v1-0"
     title: "Tenure System Studio + AWS-Authoritative Global Distribution Engine"
     version: "1.0"
@@ -535,7 +456,7 @@ documents:
     requirement_prefixes:
       - STUDIO
     states_requirements: 167
-    mentions_requirement_ids: 152
+    mentions_requirement_ids: 167
   - id: "tenure-tenant-experience-system-and-product-uiux-claude-bible-v1-0"
     title: Tenure Tenant Experience System and Product UI/UX Bible
     version: "1.1"
@@ -551,7 +472,7 @@ documents:
     requirement_prefixes:
       - TTES
     states_requirements: 34
-    mentions_requirement_ids: 28
+    mentions_requirement_ids: 34
   - id: "tenure-universal-work-graph-and-workspace-connector-cloud-claude-bible-v1-0"
     title: "Tenure Universal Work Graph, Workspace Connector Cloud, and Relay Cross-App Action Bible"
     version: "1.0"
@@ -566,4 +487,4 @@ documents:
     requirement_prefixes:
       - WRK
     states_requirements: 88
-    mentions_requirement_ids: 74
+    mentions_requirement_ids: 88
