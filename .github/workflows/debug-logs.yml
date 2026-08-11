@@ -1,67 +1,124 @@
 name: Debug Logs
 
-# Manual utility: dump ECS service events, stopped-task reasons, and app
-# logs so container/deployment failures can be diagnosed from Actions.
-on: workflow_dispatch
+# Manual utility: dump the Studio ECS service events, stopped-task reasons and
+# app logs so server-side route failures can be diagnosed from Actions.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   logs:
-    # Disarmed outside the repository that owns the production deployment, so
-    # that importing this file cannot deploy as a side effect. Flipping the
-    # repository name is the cutover, and is a reviewed change — see
-    # docs/decisions/ADR-0005-CANONICAL-MONOREPO.md and the cutover plan.
-    if: github.repository == 'Tenurework/Tenure'
+    # Armed only where the Studio is owned. This job is read-only and uses the
+    # same OIDC read role as the inventory workflow, so it can inspect failures
+    # without either mutating AWS or consuming the legacy deployment keys.
+    if: github.repository == 'Tenurework/Tenure-Parent'
 
-    name: Dump ECS + app logs
+    name: Dump Studio ECS + app logs
     runs-on: ubuntu-latest
+    environment: aws-read
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id:     ${{ secrets.ACCESSKEYID }}
-          aws-secret-access-key: ${{ secrets.SECRETACCESSKEY }}
-          aws-region:            ${{ secrets.AWS_REGION || 'us-east-1' }}
+          role-to-assume: ${{ vars.AWS_READ_ROLE_ARN }}
+          role-session-name: debug-studio-logs-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Locate Studio service
+        run: |
+          set -euo pipefail
+          mask() { sed -E 's/[0-9]{12}/************/g'; }
+
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          CLUSTER=$(aws ecs list-clusters \
+            --query 'clusterArns[?contains(@, `tenure-studio`)] | [0]' \
+            --output text)
+
+          if [ -z "$CLUSTER" ] || [ "$CLUSTER" = "None" ]; then
+            echo "::error::No ECS cluster containing tenure-studio was visible to the read role."
+            exit 1
+          fi
+
+          SERVICE=$(aws ecs list-services --cluster "$CLUSTER" \
+            --query 'serviceArns[?contains(@, `tenure-studio`)] | [0]' \
+            --output text)
+
+          if [ -z "$SERVICE" ] || [ "$SERVICE" = "None" ]; then
+            echo "::error::No ECS service containing tenure-studio was visible in the Studio cluster."
+            exit 1
+          fi
+
+          LOG_GROUP="/ecs/tenure-studio"
+
+          {
+            echo "ACCOUNT=$ACCOUNT"
+            echo "CLUSTER=$CLUSTER"
+            echo "SERVICE=$SERVICE"
+            echo "LOG_GROUP=$LOG_GROUP"
+          } >> "$GITHUB_ENV"
+
+          echo "Studio target:"
+          printf 'cluster=%s\nservice=%s\nlogGroup=%s\n' "$CLUSTER" "$SERVICE" "$LOG_GROUP" | mask
 
       - name: Service state + deployment events
         run: |
-          aws ecs describe-services --cluster tenure-pilot --services tenure-pilot-app \
-            --query 'services[0].{taskDef:taskDefinition,desired:desiredCount,running:runningCount,pending:pendingCount}' \
-            --output table
+          set -euo pipefail
+          mask() { sed -E 's/[0-9]{12}/************/g'; }
+
+          aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+            --query 'services[0].{taskDef:taskDefinition,desired:desiredCount,running:runningCount,pending:pendingCount,status:status}' \
+            --output table | mask
           echo "=== Deployments ==="
-          aws ecs describe-services --cluster tenure-pilot --services tenure-pilot-app \
+          aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
             --query 'services[0].deployments[].{status:status,taskDef:taskDefinition,desired:desiredCount,running:runningCount,failed:failedTasks,state:rolloutState,reason:rolloutStateReason}' \
-            --output table
+            --output table | mask
           echo "=== Events (newest first) ==="
-          aws ecs describe-services --cluster tenure-pilot --services tenure-pilot-app \
-            --query 'services[0].events[:25].[createdAt,message]' --output text
+          aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+            --query 'services[0].events[:25].[createdAt,message]' --output text | mask
 
       - name: All stopped tasks with task-def revisions
         run: |
-          TASKS=$(aws ecs list-tasks --cluster tenure-pilot \
+          set -euo pipefail
+          mask() { sed -E 's/[0-9]{12}/************/g'; }
+
+          TASKS=$(aws ecs list-tasks --cluster "$CLUSTER" \
             --desired-status STOPPED --query 'taskArns' --output text)
           if [ -n "$TASKS" ]; then
-            aws ecs describe-tasks --cluster tenure-pilot --tasks $TASKS \
+            aws ecs describe-tasks --cluster "$CLUSTER" --tasks $TASKS \
               --query 'tasks[].{stopped:stoppedAt,taskDef:taskDefinitionArn,reason:stoppedReason,exit:containers[0].exitCode,creason:containers[0].reason}' \
-              --output json
+              --output json | mask
           else
             echo "No stopped tasks"
           fi
 
       - name: Running tasks with revisions and health
         run: |
-          TASKS=$(aws ecs list-tasks --cluster tenure-pilot --query 'taskArns' --output text)
-          [ -n "$TASKS" ] && aws ecs describe-tasks --cluster tenure-pilot --tasks $TASKS \
+          set -euo pipefail
+          mask() { sed -E 's/[0-9]{12}/************/g'; }
+
+          TASKS=$(aws ecs list-tasks --cluster "$CLUSTER" --query 'taskArns' --output text)
+          [ -n "$TASKS" ] && aws ecs describe-tasks --cluster "$CLUSTER" --tasks $TASKS \
             --query 'tasks[].{def:taskDefinitionArn,status:lastStatus,health:healthStatus,started:startedAt}' \
-            --output json || echo none
+            --output json | mask || echo none
 
       - name: Newest log streams and their tails
         run: |
-          STREAMS=$(aws logs describe-log-streams --log-group-name /ecs/tenure-pilot \
+          set -euo pipefail
+          mask() { sed -E 's/[0-9]{12}/************/g'; }
+
+          STREAMS=$(aws logs describe-log-streams --log-group-name "$LOG_GROUP" \
             --order-by LastEventTime --descending --limit 4 \
             --query 'logStreams[].logStreamName' --output text)
           for s in $STREAMS; do
             echo "===== STREAM HEAD: $s ====="
-            aws logs get-log-events --log-group-name /ecs/tenure-pilot \
+            aws logs get-log-events --log-group-name "$LOG_GROUP" \
               --log-stream-name "$s" --limit 30 --start-from-head \
-              --query 'events[].message' --output text || true
+              --query 'events[].message' --output text | mask || true
           done

@@ -258,7 +258,6 @@ test('no workflow uses a long-lived key unless it is still on the list', () => {
     'platform-plan.yml',
     'custom-domain.yml',
     'db-recovery.yml',
-    'debug-logs.yml',
     'force-redeploy.yml',
     'ops-status.yml',
     'probe-debug.yml',
@@ -289,7 +288,7 @@ test('no workflow uses a long-lived key unless it is still on the list', () => {
     !STILL_ON_KEYS.has('aws-inventory.yml'),
     'aws-inventory.yml is back on long-lived keys — that is a regression, not a fix',
   )
-  assert.ok(STILL_ON_KEYS.size <= 14, 'the long-lived-key list grew; it may only shrink')
+  assert.ok(STILL_ON_KEYS.size <= 13, 'the long-lived-key list grew; it may only shrink')
 })
 
 test('every workflow that assumes a role can actually mint a token', () => {

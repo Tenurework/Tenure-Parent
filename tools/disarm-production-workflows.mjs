@@ -54,7 +54,6 @@ export const ENGINE_JOBS = {
 export const GUARDED_JOBS = {
   'custom-domain.yml': ['status'],
   'db-recovery.yml': ['recover'],
-  'debug-logs.yml': ['logs'],
   'deploy.yml': ['ci-check', 'deploy'],
   'force-redeploy.yml': ['redeploy'],
   'ops-status.yml': ['snapshot'],

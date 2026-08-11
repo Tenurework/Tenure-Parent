@@ -155,7 +155,7 @@ test('no workflow grants contents: write without saying why', () => {
  *
  * MAY ONLY SHRINK.
  */
-const WORKFLOWS_WITHOUT_PERMISSIONS = 9
+const WORKFLOWS_WITHOUT_PERMISSIONS = 8
 
 test('the count of workflows relying on the repository default only shrinks', () => {
   const relying = workflows

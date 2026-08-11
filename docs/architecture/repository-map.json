@@ -1,6 +1,6 @@
 {
   "generatedFrom": "git ls-files",
-  "totalTrackedFiles": 470,
+  "totalTrackedFiles": 1190,
   "workspaceGlobs": [
     "apps/*",
     "packages/*",
@@ -21,9 +21,14 @@
         "type-check",
         "e2e"
       ],
-      "dependsOnWorkspaces": [],
-      "fileCount": 14,
-      "testFiles": 2,
+      "dependsOnWorkspaces": [
+        "@tenure/audit",
+        "@tenure/contracts",
+        "@tenure/finops",
+        "@tenure/provisioning"
+      ],
+      "fileCount": 128,
+      "testFiles": 40,
       "hasDockerfile": true
     },
     {
@@ -42,9 +47,11 @@
         "e2e",
         "postinstall"
       ],
-      "dependsOnWorkspaces": [],
-      "fileCount": 294,
-      "testFiles": 56,
+      "dependsOnWorkspaces": [
+        "@tenure/contracts"
+      ],
+      "fileCount": 492,
+      "testFiles": 155,
       "hasDockerfile": true
     },
     {
@@ -54,7 +61,7 @@
       "description": "Tenure-authored system definitions, and the binding from each institution to the one it runs.",
       "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 6,
+      "fileCount": 8,
       "testFiles": 0,
       "hasDockerfile": false
     },
@@ -76,7 +83,7 @@
       "description": "The canonical audit record: required fields enforced at construction, sensitive values redacted by rule, and the release and policy versions a decision was made under.",
       "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 4,
+      "fileCount": 7,
       "testFiles": 1,
       "hasDockerfile": false
     },
@@ -87,8 +94,8 @@
       "description": "Combined RBAC, ABAC and relationship-based authorization with hierarchical scope inheritance, delegation, separation of duties, and an explainable decision.",
       "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 6,
-      "testFiles": 1,
+      "fileCount": 20,
+      "testFiles": 7,
       "hasDockerfile": false
     },
     {
@@ -97,9 +104,45 @@
       "private": true,
       "description": "Layered, governed configuration resolution. Organization-specific behaviour without organization-specific code.",
       "scripts": [],
+      "dependsOnWorkspaces": [
+        "@tenure/audit",
+        "@tenure/finops"
+      ],
+      "fileCount": 28,
+      "testFiles": 11,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/contracts",
+      "name": "@tenure/contracts",
+      "private": true,
+      "description": "The shapes every module agrees on, each one a runtime gate rather than an erased interface.",
+      "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 8,
+      "fileCount": 3,
       "testFiles": 1,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/finops",
+      "name": "@tenure/finops",
+      "private": true,
+      "description": "Cost allocation and reporting: CUR line items attributed to tenants by tag, shared cost split by a documented driver, unallocated cost reported rather than hidden, and every figure carrying its currency and as-of.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 13,
+      "testFiles": 4,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/identity",
+      "name": "@tenure/identity",
+      "private": true,
+      "description": "The canonical identity model: a durable person, the external identities that authenticate them, effective-dated tenant memberships, invitations, sessions, authentication events and recovery paths — liveness computed from the clock, and no status change without an audit record.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 57,
+      "testFiles": 28,
       "hasDockerfile": false
     },
     {
@@ -120,8 +163,8 @@
       "description": "Module manifests, dependency and incompatibility resolution, entitlement gating, and the navigation modules contribute.",
       "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 5,
-      "testFiles": 1,
+      "fileCount": 8,
+      "testFiles": 2,
       "hasDockerfile": false
     },
     {
@@ -131,8 +174,19 @@
       "description": "Configurable organization hierarchies: declared node types, containment rules, cycle prevention, effective-dated reparenting, typed relationships.",
       "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 5,
-      "testFiles": 1,
+      "fileCount": 15,
+      "testFiles": 6,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/payments",
+      "name": "@tenure/payments",
+      "private": true,
+      "description": "Provider-neutral payments primitives, quoting only: qualified external references (a raw provider id is never a key), balance-transaction ingest that can tell a retry from a conflict, the approved-capability registry, eligibility simulation, the responsibility matrix, funds-flow and charge-model decisions, posting templates, webhook verification and the money-movement refusal engine. No provider SDK, no network, no write verb.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 27,
+      "testFiles": 12,
       "hasDockerfile": false
     },
     {
@@ -142,8 +196,21 @@
       "description": "What the platform makes configurable: the definitions, the registry, and resolution for one institution.",
       "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 12,
-      "testFiles": 4,
+      "fileCount": 30,
+      "testFiles": 12,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/provisioning",
+      "name": "@tenure/provisioning",
+      "private": true,
+      "description": "The tenant lifecycle: a state machine with approval gates, and a manifest that describes what to build.",
+      "scripts": [],
+      "dependsOnWorkspaces": [
+        "@tenure/platform-config"
+      ],
+      "fileCount": 30,
+      "testFiles": 10,
       "hasDockerfile": false
     },
     {
@@ -170,6 +237,24 @@
     }
   ],
   "workflows": [
+    {
+      "file": ".github/workflows/aws-inventory.yml",
+      "name": "AWS · Read-only inventory",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": true,
+      "guardedTo": null
+    },
+    {
+      "file": ".github/workflows/bootstrap-oidc.yml",
+      "name": "AWS · Bootstrap OIDC (one-time)",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": true,
+      "guardedTo": "Tenurework/Tenure-Parent"
+    },
     {
       "file": ".github/workflows/ci.yml",
       "name": "CI",
@@ -202,9 +287,11 @@
     {
       "file": ".github/workflows/debug-logs.yml",
       "name": "Debug Logs",
-      "triggers": [],
+      "triggers": [
+        "workflow_dispatch"
+      ],
       "reachesAws": true,
-      "guardedTo": "Tenurework/Tenure"
+      "guardedTo": "Tenurework/Tenure-Parent"
     },
     {
       "file": ".github/workflows/deploy-studio.yml",
@@ -288,12 +375,26 @@
       "triggers": [],
       "reachesAws": true,
       "guardedTo": "Tenurework/Tenure"
+    },
+    {
+      "file": ".github/workflows/visual-baselines-refresh.yml",
+      "name": "Visual baselines · refresh",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": false,
+      "guardedTo": null
     }
   ],
   "terraformStacks": [
     {
+      "dir": "infrastructure/oidc",
+      "files": 4,
+      "stateKey": "oidc/terraform.tfstate"
+    },
+    {
       "dir": "infrastructure/studio",
-      "files": 9,
+      "files": 10,
       "stateKey": "studio/terraform.tfstate"
     },
     {
@@ -305,41 +406,41 @@
   "prismaSchemas": [
     {
       "file": "apps/web/prisma/schema.prisma",
-      "models": 39,
-      "enums": 21,
-      "migrations": 1
+      "models": 52,
+      "enums": 24,
+      "migrations": 14
     }
   ],
   "testSuites": [
     {
       "name": "apps/web unit (jest)",
-      "files": 24
+      "files": 97
     },
     {
       "name": "apps/web isolation (jest, needs Postgres)",
-      "files": 4
+      "files": 22
     },
     {
       "name": "apps/web e2e (playwright)",
-      "files": 28
+      "files": 37
     },
     {
       "name": "system-studio e2e (playwright)",
-      "files": 2
+      "files": 26
     },
     {
       "name": "platform (node:test)",
-      "files": 1
+      "files": 63
     },
     {
       "name": "packages (jest, via apps/web roots)",
-      "files": 12
+      "files": 97
     }
   ],
   "docs": {
-    "architecture": 5,
-    "decisions": 7,
-    "migrations": 2,
-    "implementation": 1
+    "architecture": 18,
+    "decisions": 12,
+    "migrations": 4,
+    "implementation": 23
   }
 }

@@ -92,12 +92,13 @@ const terraformStacks = [...new Set(files.filter((f) => f.endsWith('.tf')).map((
   .map((dir) => ({
     dir,
     files: under(dir).filter((f) => f.endsWith('.tf')).length,
-    stateKey: /key=([^"\s]+)/.exec(
+    stateKey:
       files
         .filter((f) => f.startsWith('.github/workflows/'))
         .map(read)
-        .find((t) => t.includes(dir)) ?? '',
-    )?.[1] ?? '(not referenced by any workflow)',
+        .filter((t) => t.includes(dir))
+        .map((t) => /key=([^"\s]+)/.exec(t)?.[1])
+        .find(Boolean) ?? '(not referenced by any workflow)',
   }))
 
 const prismaSchemas = files.filter((f) => f.endsWith('schema.prisma')).map((f) => {

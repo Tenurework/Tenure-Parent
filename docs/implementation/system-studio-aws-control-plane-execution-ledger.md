@@ -478,10 +478,17 @@ policy at all, "not allowed to look" was going to be the default on day one.
     exactly the reassuring answer this whole session exists to stop printing.
   - Code: `infrastructure/studio/iam.tf`,
     `apps/system-studio/src/lib/aws/identity.ts`,
-    `apps/system-studio/src/lib/aws/topology.ts`
+    `apps/system-studio/src/lib/aws/topology.ts`,
+    `.github/workflows/debug-logs.yml`
   - Tests: `tests/security/studio-task-role-is-narrow.test.mjs`
   - Evidence: `node --test tests/security/studio-task-role-is-narrow.test.mjs`
     — 5/5 passing. 2 mutations applied, 2 caught (M12, M13 below).
+  - Incremental evidence: `debug-logs.yml` is now armed for
+    `Tenurework/Tenure-Parent`, assumes `vars.AWS_READ_ROLE_ARN` through the
+    `aws-read` environment, and dumps only read-side Studio ECS service state,
+    stopped-task reasons and log tails. It no longer uses the shared
+    `ACCESSKEYID` / `SECRETACCESSKEY` pair and no longer targets the pilot
+    cluster.
 
   The fifth assertion is the one that earns the file. A guard that only forbids
   excess is satisfied by an EMPTY policy, and an empty policy is how every estate

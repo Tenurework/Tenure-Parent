@@ -75,7 +75,7 @@ const isGuarded = (job) => guardedRepository(job) === PRODUCTION_OWNER
  * point of the allowlist is to make the exemption deliberate and few — not to
  * create a hole.
  */
-const READ_ONLY_JOBS = new Set(['platform-plan.yml:plan', 'aws-inventory.yml:inventory'])
+const READ_ONLY_JOBS = new Set(['platform-plan.yml:plan', 'aws-inventory.yml:inventory', 'debug-logs.yml:logs'])
 
 /**
  * Jobs that deploy THIS repository's own component, and are therefore armed

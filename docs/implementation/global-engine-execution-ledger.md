@@ -439,8 +439,11 @@ for progress:
   - Status: PASS
   - Evidence: `aws-inventory.yml` run `30701877182` — green, with
     **`principal type: assumed-role`** in its own output. No long-lived key is
-    available to that job. A ratchet in `oidc-trust.test.mjs` lists the fourteen
-    workflows still on keys and **may only shrink**.
+    available to that job. Incremental evidence: `debug-logs.yml` now also uses
+    `vars.AWS_READ_ROLE_ARN`, runs in the `aws-read` environment, and targets the
+    Studio ECS service/log group rather than the pilot. A ratchet in
+    `oidc-trust.test.mjs` lists the thirteen workflows still on keys and **may
+    only shrink**.
 
 - [ ] **GE-011-005** — Staging and production behind protected human approval.
   - Status: FAIL — the deploy role's trust names a GitHub environment
@@ -457,7 +460,7 @@ for progress:
     detection against what is *deployed*.
 
 - [ ] **GE-GATE-1** — Multi-account baseline and OIDC identity operational; no long-lived key used routinely.
-  - Status: FAIL — OIDC identity is operational for the read path, but fourteen
+  - Status: FAIL — OIDC identity is operational for the read path, but thirteen
     workflows still use long-lived keys and there is no Organization.
 
 ---
@@ -1922,10 +1925,13 @@ implemented, mutation-proven and recorded on its own; pushed together.
     Any action from outside `actions`/`aws-actions`/`docker`/`hashicorp` must be
     SHA-pinned — no ratchet, no grace. A tag move by GitHub is a different kind
     of event from a tag move by an account registered last week, and the second
-    is what pinning defends against. The 42 trusted-publisher tags and the 10
+    is what pinning defends against. The 42 trusted-publisher tags and the 8
     workflows relying on the repository default are ratchets that **may only
     shrink**, and the assertion fails in both directions — a ratchet not
     tightened when the debt is paid stops meaning anything.
+  - Incremental evidence: `debug-logs.yml` now declares `contents: read` and
+    `id-token: write`, so it no longer relies on the repository default and no
+    longer consumes `ACCESSKEYID` / `SECRETACCESSKEY`.
   - Found two real things: `ops-status.yml` granted `contents: write` with no
     stated reason (legitimate — it publishes a snapshot branch — so the reason
     is now recorded), and `deploy.yml` granted `id-token: write` with the
@@ -2042,7 +2048,7 @@ implemented, mutation-proven and recorded on its own; pushed together.
     (GE-011-004), the deploy environments now exist and are guarded
     (GE-011-005), the key inventory and retirement checklist exist
     (GE-011-006), and drift detection covers the repository-side surfaces
-    (GE-011-007). What has not: **fourteen workflows still authenticate with
+    (GE-011-007). What has not: **thirteen workflows still authenticate with
     long-lived keys**, and the ratchet in `oidc-trust.test.mjs` lists them. The
     gate cannot pass while that is true, and moving them is gated on the same
     Organization work.
@@ -7724,10 +7730,10 @@ immediately, which is the guard working.
   OIDC-authenticating workflow fails to assume its role", and then Deploy Studio
   went green on the very next push, which the claim said should not happen. It
   authenticates with the static `ACCESSKEYID` / `SECRETACCESSKEY` secrets, not
-  OIDC. Exactly **one** workflow here uses `role-to-assume`:
-  `aws-inventory.yml`, and it is `workflow_dispatch` only — so nothing is
-  failing on a schedule and nothing is failing on push. The next operator who
-  runs an inventory is the one who finds it.
+  OIDC. Exactly **two** workflows here use `role-to-assume`:
+  `aws-inventory.yml` and `debug-logs.yml`, both `workflow_dispatch` only — so
+  nothing is failing on a schedule and nothing is failing on push. The next
+  operator who runs an inventory or Studio log dump is the one who finds it.
 
   That the deploy path still runs on long-lived keys rather than the OIDC roles
   this stack exists to provide is a separate and larger gap, and it is GE-011's,
