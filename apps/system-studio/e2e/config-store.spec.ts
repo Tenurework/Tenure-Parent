@@ -144,11 +144,11 @@ test.describe("configuration publish and rollback, against a real DynamoDB", () 
 
     const map = page.getByTestId("configuration-map")
     await expect(map).toBeVisible()
-    await expect(map.getByRole("link", { name: /terminology/i })).toBeVisible()
+    await expect(map.getByRole("link", { name: /organization/i })).toBeVisible()
     await expect(map.getByRole("link", { name: /branding/i })).toBeVisible()
 
     await page.setViewportSize({ width: 320, height: 1000 })
-    await page.getByRole("link", { name: /terminology/i }).click()
+    await page.getByRole("link", { name: /organization/i }).click()
     await expect(page.locator(FIELD_SELECTOR)).toBeVisible()
 
     const overflowsPage = await page.evaluate(
