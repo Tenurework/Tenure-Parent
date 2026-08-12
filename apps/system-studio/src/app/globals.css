@@ -621,6 +621,22 @@ table.grid td.id {
 }
 table.grid tr.gate td { font-weight: 600; }
 
+/*
+ * Health verdict cells carry two facts: the operator-facing verdict and the
+ * raw CloudWatch state. They stack instead of sitting inline so narrow table
+ * columns cannot draw "Actions off" directly on top of "Healthy" at 320px.
+ */
+table.grid td.alarm-verdict {
+  min-width: 8rem;
+  white-space: normal;
+}
+table.grid td.alarm-verdict b,
+table.grid td.alarm-verdict .slug {
+  display: block;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 /* ── Forms ─────────────────────────────────────────────────────────────── */
 .field { margin: 0.9rem 0; }
 /* Direct children only.

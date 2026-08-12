@@ -72,7 +72,7 @@ export default async function HealthPage() {
               {surface.rows.map((row) => (
                 <tr key={`${row.type}:${row.name}`} data-verdict={row.verdict}>
                   <td className="id">{row.name}</td>
-                  <td>
+                  <td className="alarm-verdict">
                     <b>{ALARM_WORDS[row.verdict]}</b> <span className="slug">{row.verdict}</span>
                   </td>
                   <td className="slug">{row.type}</td>
