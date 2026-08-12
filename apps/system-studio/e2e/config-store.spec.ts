@@ -138,6 +138,25 @@ async function publishOfficeName(page: Page, name: string, reason: string): Prom
 test.describe("configuration publish and rollback, against a real DynamoDB", () => {
   test.skip(!configured, "needs TENANT_TABLE and a reachable DynamoDB")
 
+  test("renders a responsive configuration map from the editable domains", async ({ page }) => {
+    await signIn(page)
+    await openConfiguration(page)
+
+    const map = page.getByTestId("configuration-map")
+    await expect(map).toBeVisible()
+    await expect(map.getByRole("link", { name: /terminology/i })).toBeVisible()
+    await expect(map.getByRole("link", { name: /branding/i })).toBeVisible()
+
+    await page.setViewportSize({ width: 320, height: 1000 })
+    await page.getByRole("link", { name: /terminology/i }).click()
+    await expect(page.locator(FIELD_SELECTOR)).toBeVisible()
+
+    const overflowsPage = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    )
+    expect(overflowsPage, "the configuration map makes the page scroll sideways at 320px").toBe(false)
+  })
+
   test("publishes, publishes again, rolls back, and never rewinds history", async ({ page }) => {
     await signIn(page)
     const before = await historyRevisions(page)

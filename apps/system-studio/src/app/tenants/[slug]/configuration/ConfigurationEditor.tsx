@@ -79,50 +79,83 @@ export function ConfigurationEditor({
   const set = (key: string) => (event: { target: { value: string } }) =>
     setValues((previous) => ({ ...previous, [key]: event.target.value }))
 
+  const domainSummaries = domains.map((domain) => {
+    const filled = domain.fields.filter((field) => (values[field.key] ?? "").trim() !== "").length
+    const readOnly = domain.fields.filter((field) => field.input === "unsupported").length
+    return {
+      id: domain.id,
+      governs: domain.governs,
+      total: domain.fields.length,
+      filled,
+      readOnly,
+    }
+  })
+
   return (
     <form className="config-editor">
       <input type="hidden" name="slug" value={slug} />
 
-      {domains.map((domain) => (
-        <fieldset key={domain.id} className="pref-group">
-          <legend>{domain.id}</legend>
-          <p className="pref-hint">{domain.governs}</p>
-
-          {domain.fields.map((field) => (
-            <div className="field" key={field.key}>
-              <label htmlFor={field.key}>{field.key}</label>
-              {field.input === "boolean" ? (
-                <select id={field.key} name={field.key} value={values[field.key] ?? ""} onChange={set(field.key)}>
-                  {/* Empty means "do not set", which is not the same as false. */}
-                  <option value="">unset — the default applies</option>
-                  <option value="true">true</option>
-                  <option value="false">false</option>
-                </select>
-              ) : (
-                <input
-                  id={field.key}
-                  name={field.key}
-                  type={field.input === "number" ? "number" : "text"}
-                  value={values[field.key] ?? ""}
-                  onChange={set(field.key)}
-                  placeholder={`default: ${field.defaultValue}`}
-                  readOnly={field.input === "unsupported"}
-                />
-              )}
-              <p className="hint">
-                {field.description}
-                {field.input === "unsupported" && " — lists and objects are read-only until there is an editor for them."}
-              </p>
-              {/* The price, beside the choice rather than on a summary the
-                  operator has to go and find. §7: cost is never a surprise at
-                  the end because it was never only at the end. */}
-              <p className="hint" data-price={field.key}>
-                {field.price}
-              </p>
-            </div>
+      <div className="config-shell">
+        <nav className="config-map" aria-label="Configuration domains" data-testid="configuration-map">
+          <p className="state-label">Configuration map</p>
+          {domainSummaries.map((domain) => (
+            <a key={domain.id} href={`#config-domain-${domain.id}`} className="config-map-link">
+              <span>
+                <b>{domain.id}</b>
+                <small>{domain.governs}</small>
+              </span>
+              <span className="config-map-count">
+                {domain.filled}/{domain.total}
+                {domain.readOnly > 0 ? ` · ${domain.readOnly} read-only` : ""}
+              </span>
+            </a>
           ))}
-        </fieldset>
-      ))}
+        </nav>
+
+        <div className="config-fields">
+          {domains.map((domain) => (
+            <fieldset key={domain.id} id={`config-domain-${domain.id}`} className="pref-group config-domain">
+              <legend>{domain.id}</legend>
+              <p className="pref-hint">{domain.governs}</p>
+
+              {domain.fields.map((field) => (
+                <div className="field config-field" key={field.key}>
+                  <label htmlFor={field.key}>{field.key}</label>
+                  {field.input === "boolean" ? (
+                    <select id={field.key} name={field.key} value={values[field.key] ?? ""} onChange={set(field.key)}>
+                      {/* Empty means "do not set", which is not the same as false. */}
+                      <option value="">unset — the default applies</option>
+                      <option value="true">true</option>
+                      <option value="false">false</option>
+                    </select>
+                  ) : (
+                    <input
+                      id={field.key}
+                      name={field.key}
+                      type={field.input === "number" ? "number" : "text"}
+                      value={values[field.key] ?? ""}
+                      onChange={set(field.key)}
+                      placeholder={`default: ${field.defaultValue}`}
+                      readOnly={field.input === "unsupported"}
+                    />
+                  )}
+                  <p className="hint">
+                    {field.description}
+                    {field.input === "unsupported" &&
+                      " — lists and objects are read-only until there is an editor for them."}
+                  </p>
+                  {/* The price, beside the choice rather than on a summary the
+                      operator has to go and find. §7: cost is never a surprise at
+                      the end because it was never only at the end. */}
+                  <p className="hint" data-price={field.key}>
+                    {field.price}
+                  </p>
+                </div>
+              ))}
+            </fieldset>
+          ))}
+        </div>
+      </div>
 
       <div className="field">
         <label htmlFor="changeReason">Reason for the change</label>
