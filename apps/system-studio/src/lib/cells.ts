@@ -69,6 +69,10 @@ let resolvedEstate: { accountId: string; region: string; partition: string } | n
 
 export async function primeEstate(): Promise<void> {
   if (resolvedEstate) return
+  const region = process.env.AWS_REGION?.trim()
+  const accountId = process.env.AWS_ACCOUNT_ID?.trim()
+  const partition = process.env.AWS_PARTITION?.trim()
+  if (region && accountId && partition) return
   const { resolveIdentity } = await import("./aws/identity")
   const identity = await resolveIdentity()
   if (identity.state !== "ACTUAL" && identity.state !== "STALE") return

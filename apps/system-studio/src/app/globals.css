@@ -3,30 +3,72 @@
  *
  * ── The palette ────────────────────────────────────────────────────────────
  *
- * Cool low-glare surfaces, forest-green accent and darker muted text. Not white
- * and not black: pure #fff against pure #000 is the highest-contrast pairing a
- * screen can produce, and an operator reads this console for long stretches.
- * The System Studio Bible calls the prior brown/gold palette obsolete, so the
- * brand/action/focus token is the protected forest green and status tokens are
- * semantic rather than decorative.
+ * Material Design 3, translated for the Tenure control plane rather than copied
+ * from a consumer app. The seed is Tenure forest green; the surface ladder is
+ * cool and low-glare; every component below reads from semantic roles instead
+ * of one-off colours. The old `--bg`/`--surface` names stay as aliases because
+ * they are the product contract the architecture inventory reads.
  *
  * Status is carried by weight and a *muted* tint, never by a saturated colour.
  * A console where the eye is pulled to whatever is reddest stops being read.
  */
 
 :root {
-  --bg: #f3f6f4;
-  --surface: #fbfcfb;
-  --surface-2: #edf2ef;
-  --border: #d4ddd8;
-  --border-strong: #b5c4bc;
-  --text: #1f2d28;
-  --muted: #52645c;
-  --accent: #0f3d2e;
-  --ok: #246b45;
-  --warn: #765b12;
-  --bad: #8a3f3b;
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --md-ref-primary-10: #062117;
+  --md-ref-primary-30: #0b5c3d;
+  --md-ref-primary-40: #14784f;
+  --md-ref-primary-80: #7fd6aa;
+  --md-ref-primary-90: #c3eed8;
+  --md-ref-secondary-40: #47665a;
+  --md-ref-tertiary-40: #3c6370;
+  --md-sys-color-primary: #0b5c3d;
+  --md-sys-color-on-primary: #f7fff9;
+  --md-sys-color-primary-container: #c3eed8;
+  --md-sys-color-on-primary-container: #062117;
+  --md-sys-color-secondary: #47665a;
+  --md-sys-color-on-secondary: #f7fff9;
+  --md-sys-color-tertiary: #3c6370;
+  --md-sys-color-error: #8b2f35;
+  --md-sys-color-warning: #765b12;
+  --md-sys-color-success: #246b45;
+  --md-sys-color-background: #f4f7f3;
+  --md-sys-color-on-background: #17231d;
+  --md-sys-color-surface: #fbfdf8;
+  --md-sys-color-surface-dim: #dce4de;
+  --md-sys-color-surface-bright: #fbfdf8;
+  --md-sys-color-surface-container-lowest: #fdfefb;
+  --md-sys-color-surface-container-low: #f0f5ef;
+  --md-sys-color-surface-container: #e9f0ea;
+  --md-sys-color-surface-container-high: #e2ebe4;
+  --md-sys-color-surface-container-highest: #dbe5dd;
+  --md-sys-color-on-surface: #17231d;
+  --md-sys-color-on-surface-variant: #485950;
+  --md-sys-color-outline: #718178;
+  --md-sys-color-outline-variant: #c7d1ca;
+  --md-sys-color-scrim: rgba(13, 24, 18, 0.42);
+  --md-sys-state-hover: rgba(11, 92, 61, 0.08);
+  --md-sys-state-focus: rgba(11, 92, 61, 0.14);
+  --md-sys-state-pressed: rgba(11, 92, 61, 0.16);
+  --md-sys-elevation-1: 0 1px 2px rgba(25, 44, 34, 0.09), 0 1px 3px rgba(25, 44, 34, 0.07);
+  --md-sys-elevation-2: 0 2px 6px rgba(25, 44, 34, 0.11), 0 1px 3px rgba(25, 44, 34, 0.08);
+  --md-sys-shape-xs: 4px;
+  --md-sys-shape-sm: 6px;
+  --md-sys-shape-md: 8px;
+  --md-sys-shape-full: 999px;
+  --md-sys-type-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --md-sys-type-mono: "SFMono-Regular", "Roboto Mono", Menlo, Consolas, monospace;
+  --bg: var(--md-sys-color-background);
+  --surface: var(--md-sys-color-surface-container-lowest);
+  --surface-2: var(--md-sys-color-surface-container);
+  --border: var(--md-sys-color-outline-variant);
+  --border-strong: var(--md-sys-color-outline);
+  --text: var(--md-sys-color-on-surface);
+  --muted: var(--md-sys-color-on-surface-variant);
+  --accent: var(--md-sys-color-primary);
+  --ok: var(--md-sys-color-success);
+  --warn: var(--md-sys-color-warning);
+  --bad: var(--md-sys-color-error);
+  font-family: var(--md-sys-type-font);
   color-scheme: light;
 }
 
@@ -46,17 +88,47 @@
  * these, which is the trap in reusing one accent set across both.
  */
 :root[data-theme="dark"] {
-  --bg: #101713;
-  --surface: #17201b;
-  --surface-2: #0c120f;
-  --border: #2d3a33;
-  --border-strong: #46564d;
-  --text: #edf4f0;
-  --muted: #a4b2aa;
-  --accent: #82cfa3;
-  --ok: #8fc79e;
-  --warn: #d9bc67;
-  --bad: #dc8b84;
+  --md-sys-color-primary: #9bdcba;
+  --md-sys-color-on-primary: #003824;
+  --md-sys-color-primary-container: #124f37;
+  --md-sys-color-on-primary-container: #c3eed8;
+  --md-sys-color-secondary: #b4cdc0;
+  --md-sys-color-on-secondary: #20362d;
+  --md-sys-color-tertiary: #a7ced9;
+  --md-sys-color-error: #f3b6b8;
+  --md-sys-color-warning: #dfc56e;
+  --md-sys-color-success: #9ed5ad;
+  --md-sys-color-background: #101813;
+  --md-sys-color-on-background: #e5eee8;
+  --md-sys-color-surface: #101813;
+  --md-sys-color-surface-dim: #101813;
+  --md-sys-color-surface-bright: #344139;
+  --md-sys-color-surface-container-lowest: #0b100d;
+  --md-sys-color-surface-container-low: #171f1a;
+  --md-sys-color-surface-container: #1b251f;
+  --md-sys-color-surface-container-high: #26312a;
+  --md-sys-color-surface-container-highest: #303c34;
+  --md-sys-color-on-surface: #e5eee8;
+  --md-sys-color-on-surface-variant: #bdcbc3;
+  --md-sys-color-outline: #87988e;
+  --md-sys-color-outline-variant: #3d4a42;
+  --md-sys-color-scrim: rgba(0, 0, 0, 0.62);
+  --md-sys-state-hover: rgba(155, 220, 186, 0.1);
+  --md-sys-state-focus: rgba(155, 220, 186, 0.16);
+  --md-sys-state-pressed: rgba(155, 220, 186, 0.18);
+  --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.22);
+  --md-sys-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.36), 0 1px 3px rgba(0, 0, 0, 0.28);
+  --bg: var(--md-sys-color-background);
+  --surface: var(--md-sys-color-surface-container-low);
+  --surface-2: var(--md-sys-color-surface-container);
+  --border: var(--md-sys-color-outline-variant);
+  --border-strong: var(--md-sys-color-outline);
+  --text: var(--md-sys-color-on-surface);
+  --muted: var(--md-sys-color-on-surface-variant);
+  --accent: var(--md-sys-color-primary);
+  --ok: var(--md-sys-color-success);
+  --warn: var(--md-sys-color-warning);
+  --bad: var(--md-sys-color-error);
   color-scheme: dark;
 }
 
@@ -114,14 +186,20 @@
  * toward `--text` and makes structure explicit.
  */
 :root[data-contrast="more"] {
-  --muted: #37483f;
-  --border: #a4b4ab;
-  --border-strong: #75887d;
+  --md-sys-color-on-surface-variant: #26382f;
+  --md-sys-color-outline: #43554b;
+  --md-sys-color-outline-variant: #87988e;
+  --muted: var(--md-sys-color-on-surface-variant);
+  --border: var(--md-sys-color-outline-variant);
+  --border-strong: var(--md-sys-color-outline);
 }
 :root[data-theme="dark"][data-contrast="more"] {
-  --muted: #d5e0da;
-  --border: #607268;
-  --border-strong: #82948a;
+  --md-sys-color-on-surface-variant: #edf7f0;
+  --md-sys-color-outline: #c6d7ce;
+  --md-sys-color-outline-variant: #82948a;
+  --muted: var(--md-sys-color-on-surface-variant);
+  --border: var(--md-sys-color-outline-variant);
+  --border-strong: var(--md-sys-color-outline);
 }
 
 /*
@@ -198,6 +276,8 @@ body {
   color: var(--text);
   font-size: 13.5px;
   line-height: 1.55;
+  min-block-size: 100vh;
+  text-rendering: optimizeLegibility;
 }
 
 /*
@@ -236,18 +316,46 @@ legend {
 
 .masthead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-5);
+  min-block-size: 64px;
+  padding-block: var(--space-3);
+  padding-inline: max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5)));
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--md-sys-color-surface-container-low);
+  box-shadow: var(--md-sys-elevation-1);
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 20;
 }
 .masthead .mark {
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: 32px;
+  padding-inline: var(--space-3);
+  border-radius: var(--md-sys-shape-full);
+  color: var(--md-sys-color-on-primary-container);
+  background: var(--md-sys-color-primary-container);
+  font-size: 0.92rem;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+.masthead .mark::before {
+  content: "";
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: var(--md-sys-shape-xs);
+  background: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--md-sys-color-on-primary-container);
 }
 .masthead .title {
   color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
 }
 /*
  * The preferences control takes the flexible space, so it and the Internal
@@ -261,14 +369,12 @@ legend {
 
 .pref-trigger {
   font: inherit;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  background: var(--surface-2);
+  font-size: 0.82rem;
+  color: var(--text);
+  background: transparent;
   border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 0 var(--space-2);
+  border-radius: var(--md-sys-shape-full);
+  padding-inline: var(--space-3);
   cursor: pointer;
   list-style: none;
   display: flex;
@@ -278,8 +384,9 @@ legend {
      the token is identical in both densities on purpose — compact tightens the
      space around a control, never the control. */
   min-height: var(--tap);
-  min-width: 64px;
-  transition: color var(--motion-fast) var(--ease-entry),
+  min-inline-size: 76px;
+  transition: background var(--motion-fast) var(--ease-entry),
+    color var(--motion-fast) var(--ease-entry),
     border-color var(--motion-fast) var(--ease-entry);
 }
 /* Safari draws a disclosure triangle that `list-style: none` alone does not remove. */
@@ -288,6 +395,7 @@ legend {
 }
 .pref-trigger:hover {
   color: var(--text);
+  background: var(--md-sys-state-hover);
   border-color: var(--border-strong);
 }
 .pref-trigger:focus-visible {
@@ -297,20 +405,21 @@ legend {
 
 .pref-panel {
   position: absolute;
-  right: 0;
-  top: calc(100% + var(--space-1));
+  inset-inline-end: 0;
+  inset-block-start: calc(100% + var(--space-2));
   z-index: 10;
-  min-width: 15rem;
-  background: var(--surface);
+  min-inline-size: 15rem;
+  background: var(--md-sys-color-surface-container-high);
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  border-radius: var(--md-sys-shape-md);
   padding: var(--space-3);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  box-shadow: var(--md-sys-elevation-2);
   /* A panel that scrolls the page sideways is the defect the layout suite
      exists to catch; it is anchored to the right edge and bounded here. */
-  max-width: min(20rem, calc(100vw - var(--space-4)));
+  max-inline-size: min(20rem, calc(100vw - var(--space-4)));
 }
 
 .pref-group {
@@ -344,7 +453,10 @@ legend {
      input is ~13px on its own; the row is what a person actually hits. */
   min-height: var(--tap);
   color: var(--text);
+  padding-inline: var(--space-1);
+  border-radius: var(--md-sys-shape-xs);
 }
+.pref-option:hover { background: var(--md-sys-state-hover); }
 .pref-option input {
   accent-color: var(--accent);
   margin: 0;
@@ -355,11 +467,12 @@ legend {
 }
 
 .masthead .internal {
-  margin-inline-start: 0.6rem;
-  color: var(--accent);
+  margin-inline-start: var(--space-1);
+  color: var(--md-sys-color-on-primary-container);
+  background: var(--md-sys-color-primary-container);
   border: 1px solid var(--accent);
-  border-radius: 3px;
-  padding: 0 0.45rem;
+  border-radius: var(--md-sys-shape-full);
+  padding: 0 var(--space-2);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -369,27 +482,82 @@ main {
   box-sizing: border-box;
   inline-size: min(100%, 1280px);
   margin-inline: auto;
-  padding: var(--space-5);
+  padding-block: var(--space-5) var(--space-6);
+  padding-inline: var(--space-5);
 }
 @media (max-width: 640px) {
+  .masthead {
+    min-block-size: auto;
+    padding-inline: 16px;
+    gap: var(--space-2);
+  }
+  .masthead .preferences {
+    margin-inline-start: 0;
+  }
+  .masthead .title {
+    flex: 1 1 9rem;
+  }
+  .tabs {
+    padding-inline: 16px;
+    gap: var(--space-1);
+  }
+  .tabs a,
+  .tabs .here {
+    flex: 1 1 calc(50% - var(--space-1));
+    justify-content: center;
+    min-inline-size: min(9rem, 100%);
+  }
   main {
     padding-inline: 16px;
     padding-block: var(--space-4);
   }
+  .system {
+    padding: var(--space-3);
+  }
+  .system > header {
+    align-items: flex-start;
+  }
+  .badge {
+    margin-inline-start: 0;
+  }
+  .state-actions > *,
+  form.compose button[type="submit"],
+  .advance button[type="submit"],
+  .primary-action,
+  .adopt button[type="submit"] {
+    max-inline-size: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .tabs a,
+  .tabs .here {
+    flex-basis: 100%;
+  }
+  .masthead .mark,
+  .pref-trigger,
+  .masthead .internal {
+    min-inline-size: 0;
+  }
 }
 
 h1 {
-  font-size: 1.05rem;
-  margin: 0 0 0.35rem;
+  font-size: clamp(1.18rem, 1rem + 0.6vw, 1.55rem);
+  line-height: 1.2;
+  font-weight: 720;
+  letter-spacing: 0;
+  margin: 0 0 var(--space-2);
 }
 h2 {
-  font-size: 0.95rem;
+  font-size: 1rem;
+  line-height: 1.3;
+  font-weight: 680;
   margin: 0;
 }
 h3 {
   font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.06em;
   color: var(--muted);
   margin: var(--space-5) 0 var(--space-2);
 }
@@ -400,27 +568,36 @@ p {
 
 .system {
   border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 5px;
-  padding: var(--space-4) var(--space-4);
+  background: var(--md-sys-color-surface-container-low);
+  border-radius: var(--md-sys-shape-md);
+  padding: var(--space-4);
   margin-bottom: var(--space-4);
+  box-shadow: var(--md-sys-elevation-1);
 }
 .system > header {
   display: flex;
   align-items: baseline;
   gap: var(--space-3);
   border-bottom: 1px solid var(--border);
-  padding-bottom: var(--space-2);
+  padding-block-end: var(--space-3);
+  margin-block-end: var(--space-2);
+  flex-wrap: wrap;
+}
+.system > header > h2 {
+  min-inline-size: min(18rem, 100%);
 }
 .slug {
   color: var(--muted);
 }
 .badge {
   margin-inline-start: auto;
-  border-radius: 3px;
-  padding: 0 0.45rem;
+  border-radius: var(--md-sys-shape-full);
+  padding: 0.08rem 0.55rem;
   font-size: 11px;
   border: 1px solid currentColor;
+  background: var(--md-sys-color-surface-container-high);
+  font-weight: 650;
+  white-space: nowrap;
 }
 .badge.ok {
   color: var(--ok);
@@ -433,9 +610,9 @@ p {
 }
 .progress-meter {
   block-size: 10px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-2);
-  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--md-sys-color-surface-container-highest);
+  border-radius: var(--md-sys-shape-full);
   margin: var(--space-3) 0 var(--space-2);
   overflow: hidden;
 }
@@ -501,9 +678,10 @@ p {
 }
 .chip {
   border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 0.05rem 0.4rem;
-  color: var(--muted);
+  border-radius: var(--md-sys-shape-full);
+  padding: 0.12rem 0.55rem;
+  color: var(--text);
+  background: var(--md-sys-color-surface-container-high);
 }
 .chip b {
   color: var(--text);
@@ -519,6 +697,11 @@ form.signin {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  background: var(--md-sys-color-surface-container-low);
+  border: 1px solid var(--border);
+  border-radius: var(--md-sys-shape-md);
+  padding: var(--space-5);
+  box-shadow: var(--md-sys-elevation-1);
 }
 form.signin label {
   display: flex;
@@ -527,23 +710,24 @@ form.signin label {
   color: var(--muted);
 }
 form.signin input {
-  background: var(--bg);
+  background: var(--md-sys-color-surface-container-lowest);
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--md-sys-shape-sm);
   color: var(--text);
   padding: 0.45rem 0.55rem;
   font: inherit;
 }
 form.signin button {
-  background: var(--accent);
+  background: var(--md-sys-color-primary);
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--md-sys-shape-full);
   /* The one place text sits ON the accent, so it takes the page colour rather
      than the text colour. Named, not hardcoded, so a palette change carries. */
-  color: var(--surface);
+  color: var(--md-sys-color-on-primary);
   font: inherit;
   font-weight: 600;
-  padding: 0.5rem;
+  min-block-size: calc(var(--tap) + var(--space-4));
+  padding: 0.55rem var(--space-4);
   cursor: pointer;
 }
 .error {
@@ -551,9 +735,10 @@ form.signin button {
 }
 .misconfigured {
   border: 1px solid var(--bad);
-  border-radius: 5px;
+  border-radius: var(--md-sys-shape-md);
   padding: 0.8rem 1rem;
   color: var(--bad);
+  background: var(--md-sys-color-surface-container-low);
 }
 
 /* ── Tabs ──────────────────────────────────────────────────────────────── */
@@ -566,23 +751,39 @@ form.signin button {
 .tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 1.5rem;
+  gap: var(--space-2);
   border-bottom: 1px solid var(--border);
-  margin-bottom: 1.5rem;
+  margin: 0;
+  padding-block: var(--space-3);
+  padding-inline: max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5)));
   font-size: 0.9rem;
+  background: var(--md-sys-color-surface);
 }
 .tabs a,
 .tabs .here {
-  padding: 0.6rem 0;
+  min-block-size: calc(var(--tap) + var(--space-2));
+  display: inline-flex;
+  align-items: center;
+  padding-block: 0.25rem;
+  padding-inline: var(--space-3);
+  border-radius: var(--md-sys-shape-full);
   text-decoration: none;
   color: inherit;
-  opacity: 0.6;
-}
-.tabs a:hover { opacity: 1; }
-.tabs .here {
   opacity: 1;
+  border: 1px solid transparent;
+  transition: background var(--motion-fast) var(--ease-entry),
+    border-color var(--motion-fast) var(--ease-entry);
+}
+.tabs a { color: var(--muted); }
+.tabs a:hover {
+  background: var(--md-sys-state-hover);
+  color: var(--text);
+}
+.tabs .here {
+  color: var(--md-sys-color-on-primary-container);
+  background: var(--md-sys-color-primary-container);
   font-weight: 600;
-  box-shadow: inset 0 -2px 0 currentColor;
+  box-shadow: none;
 }
 
 /* ── Tables ────────────────────────────────────────────────────────────── */
@@ -594,12 +795,15 @@ table.grid {
   margin: 0.75rem 0 0.25rem;
   display: block;
   overflow-x: auto;
+  background: var(--md-sys-color-surface-container-lowest);
+  border: 1px solid var(--border);
+  border-radius: var(--md-sys-shape-md);
 }
 table.grid th,
 table.grid td {
   text-align: start;
-  padding-block: 0.4rem;
-  padding-inline: 0 0.75rem;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
   border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
@@ -607,8 +811,9 @@ table.grid th {
   font-weight: 600;
   font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   color: var(--muted);
+  background: var(--md-sys-color-surface-container);
 }
 table.grid td.num,
 table.grid th.num { text-align: end; font-variant-numeric: tabular-nums; }
@@ -668,17 +873,28 @@ table.grid td.alarm-verdict .slug {
   width: 100%;
   min-width: 0;
   max-width: min(34rem, 100%);
-  padding: 0.5rem 0.6rem;
+  min-block-size: calc(var(--tap) + var(--space-4));
+  padding: 0.55rem 0.75rem;
   font: inherit;
   font-size: 0.92rem;
   color: inherit;
-  background: var(--surface-2);
+  background: var(--md-sys-color-surface-container-lowest);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--md-sys-shape-sm);
+  transition: background var(--motion-fast) var(--ease-entry),
+    border-color var(--motion-fast) var(--ease-entry),
+    box-shadow var(--motion-fast) var(--ease-entry);
+}
+.field input:hover,
+.field select:hover,
+.field textarea:hover {
+  border-color: var(--border-strong);
+  background: var(--md-sys-color-surface-container-low);
 }
 .field input:focus, .field select:focus, .field textarea:focus {
-  outline: 2px solid currentColor;
-  outline-offset: 1px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--accent);
 }
 /* Colour, not opacity. Stacking 0.55 opacity on top of an already-muted grey
    put hint text near 3:1 against the card — the guidance that explains what a
@@ -710,13 +926,13 @@ table.grid td.alarm-verdict .slug {
   gap: 0.5rem;
   align-items: start;
   padding: 0.4rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--md-sys-shape-sm);
   font-size: 0.85rem;
   text-transform: none;
   letter-spacing: 0;
   cursor: pointer;
 }
-.check:hover { background: var(--surface-2); }
+.check:hover { background: var(--md-sys-state-hover); }
 .check input { margin: 0.2rem 0 0; }
 .check b { font-weight: 600; text-transform: none; }
 /* The description is support, not a label — it must not inherit the caption
@@ -734,13 +950,14 @@ table.grid td.alarm-verdict .slug {
 form.compose button[type="submit"],
 .advance button[type="submit"] {
   margin-top: 1rem;
+  min-block-size: calc(var(--tap) + var(--space-4));
   padding: 0.55rem 1.1rem;
   font: inherit;
   font-weight: 600;
-  color: inherit;
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  color: var(--md-sys-color-on-primary);
+  background: var(--md-sys-color-primary);
+  border: 1px solid var(--md-sys-color-primary);
+  border-radius: var(--md-sys-shape-full);
   cursor: pointer;
 }
 form.compose button[type="submit"]:disabled,
@@ -755,15 +972,20 @@ form.compose button[type="submit"]:disabled,
   font: inherit;
   font-size: 0.85rem;
   color: var(--text);
-  background: transparent;
+  background: var(--md-sys-color-surface-container-high);
   padding: 0.3rem 0.6rem;
   cursor: pointer;
   border: 1px solid var(--border);
 }
-.advance .chips button.chip:hover { border-color: var(--text); }
+.advance .chips button.chip:hover {
+  border-color: var(--border-strong);
+  background: var(--md-sys-state-hover);
+}
 .advance .chips button.chip.chosen {
-  border-color: currentColor;
-  box-shadow: inset 0 0 0 1px currentColor;
+  color: var(--md-sys-color-on-primary-container);
+  background: var(--md-sys-color-primary-container);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 /* ── Breadcrumb ────────────────────────────────────────────────────────────
@@ -784,15 +1006,18 @@ form.compose button[type="submit"]:disabled,
 .primary-action {
   display: inline-block;
   margin-top: 1rem;
-  padding: 0.5rem 0.95rem;
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
-  border-radius: 4px;
-  color: var(--text);
+  min-block-size: calc(var(--tap) + var(--space-4));
+  padding: 0.55rem 1rem;
+  background: var(--md-sys-color-primary);
+  border: 1px solid var(--md-sys-color-primary);
+  border-radius: var(--md-sys-shape-full);
+  color: var(--md-sys-color-on-primary);
   font-weight: 600;
   text-decoration: none;
 }
-.primary-action:hover { border-color: var(--text); }
+.primary-action:hover {
+  box-shadow: inset 0 0 0 999px var(--md-sys-state-hover);
+}
 
 /* An empty section states what is absent and links to what creates it, rather
    than rendering an empty table that looks like a loading failure. */
@@ -851,22 +1076,23 @@ form.compose button[type="submit"]:disabled,
 .adopt .problems {
   margin: 0.9rem 0 0;
   padding: 0.7rem 0.9rem 0.7rem 1.7rem;
-  background: var(--surface-2);
+  background: var(--md-sys-color-surface-container);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--md-sys-shape-md);
   font-size: 0.85rem;
   line-height: 1.55;
   max-width: 46rem;
 }
 .adopt button[type="submit"] {
   margin-top: 1rem;
+  min-block-size: calc(var(--tap) + var(--space-4));
   padding: 0.5rem 0.9rem;
   font: inherit;
   font-size: 0.9rem;
-  color: var(--text);
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong, var(--border));
-  border-radius: 4px;
+  color: var(--md-sys-color-on-primary);
+  background: var(--md-sys-color-primary);
+  border: 1px solid var(--md-sys-color-primary);
+  border-radius: var(--md-sys-shape-full);
   cursor: pointer;
 }
 .adopt button[type="submit"]:disabled { cursor: progress; color: var(--muted); }
@@ -895,11 +1121,12 @@ form.compose button[type="submit"]:disabled,
  */
 .state {
   border: 1px solid var(--border);
-  border-inline-start-width: 3px;
-  background: var(--surface);
-  border-radius: 4px;
+  border-inline-start-width: 4px;
+  background: var(--md-sys-color-surface-container-low);
+  border-radius: var(--md-sys-shape-md);
   padding: var(--space-3) var(--space-4);
   margin: var(--space-3) 0;
+  box-shadow: var(--md-sys-elevation-1);
 }
 .state-quiet {
   border-inline-start-color: var(--border-strong);
@@ -915,8 +1142,9 @@ form.compose button[type="submit"]:disabled,
   margin: 0;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--muted);
+  font-weight: 700;
 }
 /* `.state-proposal` is the high-risk panel's headline — the same type as an
    outcome's, deliberately, because it is the same line of the same block. It is
@@ -939,6 +1167,7 @@ form.compose button[type="submit"]:disabled,
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  align-items: center;
 }
 
 /*
@@ -950,21 +1179,24 @@ form.compose button[type="submit"]:disabled,
  */
 .config-shell {
   display: grid;
-  grid-template-columns: minmax(12rem, 0.34fr) minmax(0, 1fr);
+  grid-template-columns: minmax(13rem, 0.32fr) minmax(0, 1fr);
   align-items: start;
   gap: var(--space-5);
 }
 .config-map {
   position: sticky;
-  top: var(--space-4);
+  top: calc(64px + var(--space-4));
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  max-height: calc(100vh - var(--space-6));
+  max-height: calc(100vh - 64px - var(--space-6));
   overflow: auto;
-  border-inline-start: 3px solid var(--accent);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--accent);
+  border-radius: var(--md-sys-shape-md);
   padding: var(--space-3);
-  background: var(--surface-2);
+  background: var(--md-sys-color-surface-container);
+  box-shadow: var(--md-sys-elevation-1);
 }
 .config-map-link {
   display: grid;
@@ -974,13 +1206,17 @@ form.compose button[type="submit"]:disabled,
   min-height: var(--tap);
   color: var(--text);
   text-decoration: none;
+  padding: var(--space-2);
+  border-radius: var(--md-sys-shape-sm);
+  transition: background var(--motion-fast) var(--ease-entry);
 }
 .config-map-link > span:first-child {
   min-width: 0;
 }
 .config-map-link:hover,
 .config-map-link:focus-visible {
-  text-decoration: underline;
+  background: var(--md-sys-state-hover);
+  text-decoration: none;
 }
 .config-map-link:focus-visible {
   outline: 2px solid var(--accent);
@@ -1005,6 +1241,10 @@ form.compose button[type="submit"]:disabled,
 }
 .config-domain {
   scroll-margin-top: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--md-sys-shape-md);
+  padding: var(--space-3);
+  background: var(--md-sys-color-surface-container-lowest);
 }
 .config-field {
   min-width: 0;
@@ -1020,6 +1260,9 @@ form.compose button[type="submit"]:disabled,
   .config-map {
     position: static;
     max-height: none;
+  }
+  .config-domain {
+    padding: var(--space-3);
   }
 }
 
@@ -1138,8 +1381,8 @@ form.compose button[type="submit"]:disabled,
 }
 .skeleton span {
   height: 10px;
-  border-radius: 2px;
-  background: var(--surface-2);
+  border-radius: var(--md-sys-shape-full);
+  background: var(--md-sys-color-surface-container-highest);
   border: 1px solid var(--border);
 }
 .skeleton span:nth-child(1) {
@@ -1168,7 +1411,7 @@ form.compose button[type="submit"]:disabled,
   justify-content: center;
   align-items: flex-start;
   padding-top: 12vh;
-  background: rgba(51, 48, 44, 0.35);
+  background: var(--md-sys-color-scrim);
 }
 
 .palette {
@@ -1176,20 +1419,21 @@ form.compose button[type="submit"]:disabled,
   max-height: 70vh;
   display: flex;
   flex-direction: column;
-  background: var(--surface);
+  background: var(--md-sys-color-surface-container-high);
   border: 1px solid var(--border-strong);
-  border-radius: 5px;
+  border-radius: var(--md-sys-shape-md);
   overflow: hidden;
+  box-shadow: var(--md-sys-elevation-2);
 }
 
 .palette-input {
   font: inherit;
   color: var(--text);
-  background: var(--surface-2);
+  background: var(--md-sys-color-surface-container-lowest);
   border: 0;
   border-bottom: 1px solid var(--border);
   padding: var(--space-3);
-  min-height: var(--tap);
+  min-height: calc(var(--tap) + var(--space-5));
 }
 .palette-input:focus-visible {
   outline: 2px solid var(--accent);
@@ -1208,10 +1452,10 @@ form.compose button[type="submit"]:disabled,
   align-items: center;
   gap: var(--space-2);
   padding: 0 var(--space-2);
-  min-height: var(--tap);
+  min-height: calc(var(--tap) + var(--space-2));
 }
 .palette-result.chosen {
-  background: var(--surface-2);
+  background: var(--md-sys-state-focus);
 }
 
 .palette-go {
@@ -1252,9 +1496,9 @@ form.compose button[type="submit"]:disabled,
   font: inherit;
   font-size: 11px;
   color: var(--muted);
-  background: none;
+  background: var(--md-sys-color-surface-container-low);
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--md-sys-shape-full);
   cursor: pointer;
   padding: 0 var(--space-2);
   min-height: var(--tap);
@@ -1300,6 +1544,7 @@ form.compose button[type="submit"]:disabled,
   border-inline-start: 1px solid var(--border);
   padding-inline-start: var(--space-2);
   max-width: 100%;
+  border-radius: var(--md-sys-shape-md);
 }
 
 /*
@@ -1328,7 +1573,7 @@ table.grid.fleet {
 .fleet-filter {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: flex-end;
   gap: var(--space-3);
   margin: var(--space-3) 0;
 }
@@ -1361,10 +1606,10 @@ table.grid.fleet {
 fieldset.destructive {
   margin-block-start: var(--space-6);
   border: 1px solid var(--border-strong);
-  border-inline-start-width: 3px;
-  border-radius: 4px;
+  border-inline-start-width: 4px;
+  border-radius: var(--md-sys-shape-md);
   padding: var(--space-3) var(--space-4);
-  background: var(--surface-2);
+  background: var(--md-sys-color-surface-container);
 }
 fieldset.destructive legend {
   padding-inline: var(--space-2);
