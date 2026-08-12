@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "64d165e",
+  "commit": "b9f6ce1",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 241,
@@ -1742,7 +1742,7 @@
     ],
     "totalItems": 2265,
     "totalGates": 181,
-    "decided": 219,
+    "decided": 220,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -1854,7 +1854,7 @@
         "source": "CFG",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "CFG · CFG-010 — Schema package registry",

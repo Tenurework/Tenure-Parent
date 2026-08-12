@@ -346,9 +346,9 @@ ratchet rather than a snapshot.
 
 | Token | tenant | deployer | Status | Record |
 |---|---|---|---|---|
-| `--accent` | `#26364a` | `#7a6440` | deliberate | The console is meant to be unmistakable at a glance — apps/system-studio/src/app/globals.css says so in its opening comment: an internal surface that looks like the customer application is one someone screenshots into a customer conversation by accident. Tenure navy against desaturated ochre is that difference, and it is the whole reason the console has its own stylesheet. |
-| `--border` | `#e6e4dd` | `#dbd6cf` | deliberate | Downstream of --accent. The console is warm off-white paper where the product is cooler, so a hairline tuned against one surface reads wrong on the other. Both were measured against their own background rather than copied across. |
-| `--border-strong` | `#d3d0c8` | `#c3bdb4` | deliberate | The same hairline one step darker, and it has to sit on the same surface it was measured against — so it diverges for exactly the reason --border does. |
+| `--accent` | `#26364a` | `#0f3d2e` | deliberate | The tenant product still uses its own navy accent while System Studio now uses the protected forest-green operator accent from the System Studio Bible. They share a token name because both are the local action/focus accent, but the values remain separate so the customer product and the operator control plane are not visually collapsed into one surface. |
+| `--border` | `#e6e4dd` | `#d4ddd8` | deliberate | Downstream of each surface palette. The Studio uses a cool low-glare control-plane canvas while the tenant product keeps its own tenant-facing canvas, so a hairline tuned against one surface reads wrong on the other. Both are measured against their own background rather than copied across. |
+| `--border-strong` | `#d3d0c8` | `#b5c4bc` | deliberate | The same hairline one step darker, and it has to sit on the same surface it was measured against — so it diverges for exactly the reason --border does. |
 | `--ease-entry` | `cubic-bezier(0.16, 1, 0.3, 1)` | `cubic-bezier(0, 0, 0.2, 1)` | unreconciled | Nobody decided this. The console has carried cubic-bezier(0, 0, 0.2, 1) — the Material decelerate curve — since it got a motion scale; the product declared cubic-bezier(0.16, 1, 0.3, 1), a stronger ease-out, when its own motion layer landed. Both satisfy the same rule (Bible §26.3.7, decelerating on entry) and both apps agree on the DURATIONS either side of it (--motion-fast 120ms, --motion-base 180ms), which is what makes the curve look like drift rather than a choice. Recorded, not excused: the entry exists so the difference is visible and owned, and the test refuses a second one. |
 | `--space-6` | `24px` | `28px` | deliberate | Both scales are 4px-based and agree at steps 1–5; step 6 is where they part. 24px continues the product's 4/8/12/16/20/24/32 ramp toward its dense table chrome; 28px gives the console the looser top-of-section gap its long-form key/value pages read better with. A scale decision rather than a palette one, and the only reason it is visible at all is this table — the survey that opened TTES-000-001 missed it. |
 
@@ -373,12 +373,12 @@ justified, and capped at 1 so the next one fails the build.
 
 | Token | Experience | tenant | deployer |
 |---|---|---|---|
-| `--accent` | **both (differ)** | `#26364a` | `#7a6440` |
+| `--accent` | **both (differ)** | `#26364a` | `#0f3d2e` |
 | `--accent-hover` | tenant | `#1a2634` | — |
 | `--accent-light` | tenant | `#eef1f5` | — |
 | `--accent-strong` | tenant | `#16202c` | — |
 | `--accent-text` | tenant | `#ffffff` | — |
-| `--bad` | deployer | — | `#7d4f4c` |
+| `--bad` | deployer | — | `#8a3f3b` |
 | `--badge-accent-bg` | tenant | `#eef1f5` | — |
 | `--badge-accent-text` | tenant | `#26364a` | — |
 | `--badge-approved-bg` | tenant | `#e4f2ea` | — |
@@ -389,15 +389,15 @@ justified, and capped at 1 so the next one fails the build.
 | `--badge-pending-text` | tenant | `#8a5c0f` | — |
 | `--badge-rejected-bg` | tenant | `#fae7e1` | — |
 | `--badge-rejected-text` | tenant | `#a3331f` | — |
-| `--bg` | deployer | — | `#f2f0ed` |
+| `--bg` | deployer | — | `#f3f6f4` |
 | `--bg-base` | tenant | `#f0efe9` | — |
 | `--bg-overlay` | tenant | `rgba(20, 21, 24, 0.5)` | — |
 | `--bg-subtle` | tenant | `#ebeae3` | — |
 | `--bg-surface` | tenant | `#fbfaf7` | — |
-| `--border` | **both (differ)** | `#e6e4dd` | `#dbd6cf` |
+| `--border` | **both (differ)** | `#e6e4dd` | `#d4ddd8` |
 | `--border-control` | tenant | `#847f76` | — |
 | `--border-focus` | tenant | `#198052` | — |
-| `--border-strong` | **both (differ)** | `#d3d0c8` | `#c3bdb4` |
+| `--border-strong` | **both (differ)** | `#d3d0c8` | `#b5c4bc` |
 | `--chart-1` | tenant | `#1c8c5a` | — |
 | `--chart-2` | tenant | `#b07a10` | — |
 | `--chart-3` | tenant | `#0e9aa7` | — |
@@ -430,8 +430,8 @@ justified, and capped at 1 so the next one fails the build.
 | `--motion-base` | both (agree) | `180ms` | `180ms` |
 | `--motion-fast` | both (agree) | `120ms` | `120ms` |
 | `--motion-slow` | tenant | `240ms` | — |
-| `--muted` | deployer | — | `#67635c` |
-| `--ok` | deployer | — | `#4c6350` |
+| `--muted` | deployer | — | `#52645c` |
+| `--ok` | deployer | — | `#246b45` |
 | `--primary` | tenant | `#198052` | — |
 | `--primary-hover` | tenant | `#14724a` | — |
 | `--primary-light` | tenant | `#f0f9f4` | — |
@@ -479,8 +479,8 @@ justified, and capped at 1 so the next one fails the build.
 | `--success` | tenant | `#1c8c5a` | — |
 | `--success-light` | tenant | `#e4f2ea` | — |
 | `--success-text` | tenant | `#14724a` | — |
-| `--surface` | deployer | — | `#fbfaf8` |
-| `--surface-2` | deployer | — | `#eceae6` |
+| `--surface` | deployer | — | `#fbfcfb` |
+| `--surface-2` | deployer | — | `#edf2ef` |
 | `--tap` | deployer | — | `24px` |
 | `--tenure-amber-300` | tenant | `#e3bd78` | — |
 | `--tenure-amber-400` | tenant | `#d9a441` | — |
@@ -583,14 +583,14 @@ justified, and capped at 1 so the next one fails the build.
 | `--tenure-white-a05` | tenant | `rgba(255, 255, 255, 0.05)` | — |
 | `--tenure-white-a07` | tenant | `rgba(255, 255, 255, 0.07)` | — |
 | `--tenure-white-a09` | tenant | `rgba(255, 255, 255, 0.09)` | — |
-| `--text` | deployer | — | `#33302c` |
+| `--text` | deployer | — | `#1f2d28` |
 | `--text-1` | tenant | `#191a1c` | — |
 | `--text-2` | tenant | `#565b62` | — |
 | `--text-3` | tenant | `#63686f` | — |
 | `--text-disabled` | tenant | `#b7bac0` | — |
 | `--text-inverse` | tenant | `#ffffff` | — |
 | `--text-link` | tenant | `#14724a` | — |
-| `--warn` | deployer | — | `#7d6538` |
+| `--warn` | deployer | — | `#765b12` |
 | `--warning` | tenant | `#b07a10` | — |
 | `--warning-light` | tenant | `#f7efd8` | — |
 | `--warning-text` | tenant | `#8a5c0f` | — |

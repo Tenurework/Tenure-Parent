@@ -92,6 +92,21 @@ export default async function PlatformPage() {
   // the reason, which is the part that matters.
   const denied = Array.isArray(estate.deniedCalls) ? estate.deniedCalls : []
   const percent = ((programme.decided / programme.totalItems) * 100).toFixed(1)
+  const percentValue = Number(percent)
+  const sourceSummaries = [...new Set(programme.phases.map((p) => p.source))].map((source) => {
+    const rows = programme.phases.filter((p) => p.source === source)
+    const sum = (pick: (p: (typeof rows)[number]) => number) => rows.reduce((n, p) => n + pick(p), 0)
+    const items = sum((p) => p.items)
+    const gates = sum((p) => p.gates)
+    const decided = sum((p) => p.done)
+    return {
+      source,
+      items,
+      gates,
+      decided,
+      percent: items === 0 ? "0.0" : ((decided / items) * 100).toFixed(1),
+    }
+  })
   // Set by the deploy workflow. Unset locally, which correctly means "cannot
   // tell" — an unknown build must claim neither freshness nor staleness.
   const buildCommit = process.env.BUILD_COMMIT
@@ -156,6 +171,17 @@ export default async function PlatformPage() {
           {programme.decided} of {programme.totalItems} settled in total.
         </p>
 
+        <div
+          aria-label={`Programme settled ${percent}%`}
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={percentValue}
+          className="progress-meter"
+          role="meter"
+        >
+          <span style={{ inlineSize: `${percent}%` }} />
+        </div>
+
         {/*
           Grouped by document, not listed by phase. There are 178 phases across
           the four prompts; a table with 178 rows is a wall, and the question
@@ -169,19 +195,18 @@ export default async function PlatformPage() {
               <th className="num">Items</th>
               <th className="num">Gates</th>
               <th className="num">Decided</th>
+              <th className="num">Settled</th>
             </tr>
           </thead>
           <tbody>
-            {[...new Set(programme.phases.map((p) => p.source))].map((source) => {
-              const rows = programme.phases.filter((p) => p.source === source)
-              const sum = (pick: (p: (typeof rows)[number]) => number) =>
-                rows.reduce((n, p) => n + pick(p), 0)
+            {sourceSummaries.map((summary) => {
               return (
-                <tr key={source}>
-                  <td>{source}</td>
-                  <td className="num">{sum((p) => p.items)}</td>
-                  <td className="num">{sum((p) => p.gates)}</td>
-                  <td className="num">{sum((p) => p.done)}</td>
+                <tr key={summary.source}>
+                  <td>{summary.source}</td>
+                  <td className="num">{summary.items}</td>
+                  <td className="num">{summary.gates}</td>
+                  <td className="num">{summary.decided}</td>
+                  <td className="num">{summary.percent}%</td>
                 </tr>
               )
             })}

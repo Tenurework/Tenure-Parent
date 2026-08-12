@@ -18,10 +18,11 @@
  *     "the shell and the design system — what every domain renders through",
  *     which was simply not true of six files no other app can even import.
  *   * Nothing inventoried design tokens at all, and the two stylesheets had
- *     diverged in silence: `--accent` is `#26364a` in the product and `#7a6440`
- *     in the console, `--border` and `--border-strong` differ, `--space-6` is
- *     24px against 28px, and `--ease-entry` differs too. One token name, two
- *     colours, and no record saying whether that was a decision.
+ *     diverged in silence: `--accent` is tenant navy in the product and forest
+ *     green in the console, `--border` and `--border-strong` differ,
+ *     `--space-6` is 24px against 28px, and `--ease-entry` differs too. One
+ *     token name, two colours, and no record saying whether that was a
+ *     decision.
  *
  * ## What makes this a ratchet rather than a snapshot
  *

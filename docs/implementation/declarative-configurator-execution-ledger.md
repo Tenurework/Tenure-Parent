@@ -23,9 +23,11 @@ the commands or the ADR that would unblock it — if it cannot.
   - Status: FAIL
   - Reason: imported from `Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md`; not yet implemented
 
-- [ ] **CFG-000-002** — Import every `CFG-*` item into the canonical execution ledger without creating a divergent checklist.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CFG-000-002** — Import every `CFG-*` item into the canonical execution ledger without creating a divergent checklist.
+  - Status: PASS
+  - Evidence: `tests/architecture/document-graph.test.mjs` now contains `the declarative configurator catalog is completely imported`, which compares every `CFG-*` requirement parsed from `Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md` to `importedIds()`, requires each row's `source_ledger` to be `docs/implementation/declarative-configurator-execution-ledger.md`, and requires the generated registry to resolve exactly those 79 rows back to that Bible.
+  - Verification: `node --test tests/architecture/document-graph.test.mjs` passed 13/13 on 2026-08-11.
+  - Mutation proof: the same test first failed when its pinned CFG count was set to 83 (`79 !== 83`), proving the guard notices a divergent configurator import denominator before this row was marked PASS.
 
 - [ ] **CFG-000-003** — Map existing form/configuration code to retain, refactor, migrate or retire with evidence.
   - Status: FAIL

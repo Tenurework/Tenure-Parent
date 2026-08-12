@@ -434,12 +434,12 @@ export const PUBLIC_ACTIONS = new Set(['tenant:(app)/actions.ts → signOutActio
 
 /* ── Design tokens (TTES-000-001) ──────────────────────────────────────────
  *
- * The two experiences render from two stylesheets that share nine token names
- * and agree on five of them. `--accent` is `#26364a` in the tenant app and
- * `#7a6440` in the Studio; `--border`, `--border-strong` and `--space-6` differ
- * too. None of that was written down anywhere, so one token name meant two
- * things and nothing could tell a deliberate divergence from a copy-paste that
- * drifted.
+ * The two experiences render from two stylesheets that share token names and
+ * deliberately differ where their audiences differ. `--accent` is tenant navy
+ * in the product and protected forest green in the Studio; `--border`,
+ * `--border-strong` and `--space-6` differ too. None of that was originally
+ * written down anywhere, so one token name meant two things and nothing could
+ * tell a deliberate divergence from a copy-paste that drifted.
  *
  * The table below is the record. It is not documentation — the test fails when
  * a name diverges without an entry AND when an entry describes a divergence
@@ -466,11 +466,11 @@ export const SHARED_TOKENS = new Map([
     {
       status: 'deliberate',
       why:
-        'The console is meant to be unmistakable at a glance — ' +
-        'apps/system-studio/src/app/globals.css says so in its opening comment: an internal ' +
-        'surface that looks like the customer application is one someone screenshots into a ' +
-        'customer conversation by accident. Tenure navy against desaturated ochre is that ' +
-        'difference, and it is the whole reason the console has its own stylesheet.',
+        'The tenant product still uses its own navy accent while System Studio now uses the ' +
+        'protected forest-green operator accent from the System Studio Bible. They share a ' +
+        'token name because both are the local action/focus accent, but the values remain ' +
+        'separate so the customer product and the operator control plane are not visually ' +
+        'collapsed into one surface.',
     },
   ],
   [
@@ -478,9 +478,10 @@ export const SHARED_TOKENS = new Map([
     {
       status: 'deliberate',
       why:
-        'Downstream of --accent. The console is warm off-white paper where the product is ' +
-        'cooler, so a hairline tuned against one surface reads wrong on the other. Both were ' +
-        'measured against their own background rather than copied across.',
+        'Downstream of each surface palette. The Studio uses a cool low-glare control-plane ' +
+        'canvas while the tenant product keeps its own tenant-facing canvas, so a hairline ' +
+        'tuned against one surface reads wrong on the other. Both are measured against their ' +
+        'own background rather than copied across.',
     },
   ],
   [

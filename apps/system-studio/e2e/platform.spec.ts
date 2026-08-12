@@ -112,6 +112,9 @@ test.describe("platform console", () => {
     // in a sentence, so an unscoped text match resolves to both and fails on
     // strict mode — which is the locator telling the truth, not a nuisance.
     await expect(page.locator(".badge", { hasText: `${programme.decided} of ${programme.totalItems}` })).toBeVisible()
+    const percent = ((programme.decided / programme.totalItems) * 100).toFixed(1)
+    await expect(page.locator(".badge", { hasText: `${percent}%` })).toBeVisible()
+    await expect(page.getByRole("meter", { name: `Programme settled ${percent}%` })).toBeVisible()
     expect(programme.decided).toBeGreaterThanOrEqual(ledger.done)
 
     // Both numerators are stated, and they are not the same number. The badge
@@ -128,6 +131,12 @@ test.describe("platform console", () => {
     // is named, with its own totals.
     for (const source of ["GE", "EXT", "STUDIO", "SIMON"]) {
       await expect(page.getByRole("cell", { name: source, exact: true })).toBeVisible()
+    }
+    for (const source of ["CFG", "CAT", "ANL"]) {
+      const rows = programme.phases.filter((p) => p.source === source)
+      const items = rows.reduce((n, p) => n + p.items, 0)
+      const decided = rows.reduce((n, p) => n + p.done, 0)
+      await expect(page.getByRole("row", { name: new RegExp(`^${source}\\b.*${((decided / items) * 100).toFixed(1)}%`) })).toBeVisible()
     }
   })
 

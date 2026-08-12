@@ -1,46 +1,40 @@
 /*
- * Deliberately plain, and deliberately not the product's design system.
- *
- * An internal console that looks like the customer application is one someone
- * screenshots into a customer conversation by accident. It should be obvious at
- * a glance which of the two you are looking at.
+ * Deliberately plain, and deliberately operator-focused.
  *
  * ── The palette ────────────────────────────────────────────────────────────
  *
- * Off-white surfaces, darker muted grey text. Not white and not black: pure
- * #fff against pure #000 is the highest-contrast pairing a screen can produce,
- * and an operator reads this console for long stretches. Everything here is
- * warm-shifted and desaturated so nothing vibrates.
+ * Cool low-glare surfaces, forest-green accent and darker muted text. Not white
+ * and not black: pure #fff against pure #000 is the highest-contrast pairing a
+ * screen can produce, and an operator reads this console for long stretches.
+ * The System Studio Bible calls the prior brown/gold palette obsolete, so the
+ * brand/action/focus token is the protected forest green and status tokens are
+ * semantic rather than decorative.
  *
  * Status is carried by weight and a *muted* tint, never by a saturated colour.
  * A console where the eye is pulled to whatever is reddest stops being read.
  */
 
 :root {
-  --bg: #f2f0ed;        /* warm off-white — the page */
-  --surface: #fbfaf8;   /* cards sit slightly above it */
-  --surface-2: #eceae6; /* inputs sit slightly below */
-  --border: #dbd6cf;
-  --border-strong: #c3bdb4;
-  --text: #33302c;      /* darker muted grey, not black */
-  /* #6e6a64 measured 4.47:1 on --surface-2, just under AA. The control that
-     exposed it was new; every other use of --muted on that surface had the
-     same defect and nothing had measured it. 4.97:1 at worst now. */
-  --muted: #67635c;
-  --accent: #7a6440;    /* desaturated ochre */
-  --ok: #4c6350;
-  --warn: #7d6538;
-  --bad: #7d4f4c;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --bg: #f3f6f4;
+  --surface: #fbfcfb;
+  --surface-2: #edf2ef;
+  --border: #d4ddd8;
+  --border-strong: #b5c4bc;
+  --text: #1f2d28;
+  --muted: #52645c;
+  --accent: #0f3d2e;
+  --ok: #246b45;
+  --warn: #765b12;
+  --bad: #8a3f3b;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color-scheme: light;
 }
 
 /*
  * ── Dark ───────────────────────────────────────────────────────────────────
  *
- * The same discipline inverted, not a different design. Warm-shifted and
- * desaturated, and still neither pure black nor pure white: #23211e rather than
- * #000, and the light theme's own #f2f0ed as the text.
+ * Independently art-directed, not an inversion. Green-charcoal surfaces rather
+ * than pure black, and softened text rather than pure white.
  *
  * Every pair here was measured rather than eyeballed, and the e2e suite
  * measures them again on the rendered page — a token can be correct and still
@@ -52,17 +46,17 @@
  * these, which is the trap in reusing one accent set across both.
  */
 :root[data-theme="dark"] {
-  --bg: #23211e;
-  --surface: #2b2825;
-  --surface-2: #1c1a17;
-  --border: #3d3934;
-  --border-strong: #55504a;
-  --text: #f2f0ed;
-  --muted: #a09a92;
-  --accent: #b99a63;
-  --ok: #8fae95;
-  --warn: #c4a86a;
-  --bad: #c58f8a;
+  --bg: #101713;
+  --surface: #17201b;
+  --surface-2: #0c120f;
+  --border: #2d3a33;
+  --border-strong: #46564d;
+  --text: #edf4f0;
+  --muted: #a4b2aa;
+  --accent: #82cfa3;
+  --ok: #8fc79e;
+  --warn: #d9bc67;
+  --bad: #dc8b84;
   color-scheme: dark;
 }
 
@@ -120,14 +114,14 @@
  * toward `--text` and makes structure explicit.
  */
 :root[data-contrast="more"] {
-  --muted: #4a4640;
-  --border: #b3aca2;
-  --border-strong: #8a8279;
+  --muted: #37483f;
+  --border: #a4b4ab;
+  --border-strong: #75887d;
 }
 :root[data-theme="dark"][data-contrast="more"] {
-  --muted: #d6d2cb;
-  --border: #6b655d;
-  --border-strong: #8e877e;
+  --muted: #d5e0da;
+  --border: #607268;
+  --border-strong: #82948a;
 }
 
 /*
@@ -372,8 +366,16 @@ legend {
 }
 
 main {
+  box-sizing: border-box;
+  inline-size: min(100%, 1280px);
+  margin-inline: auto;
   padding: var(--space-5);
-  max-width: 1100px;
+}
+@media (max-width: 640px) {
+  main {
+    padding-inline: 16px;
+    padding-block: var(--space-4);
+  }
 }
 
 h1 {
@@ -428,6 +430,20 @@ p {
 }
 .badge.bad {
   color: var(--bad);
+}
+.progress-meter {
+  block-size: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  border-radius: 3px;
+  margin: var(--space-3) 0 var(--space-2);
+  overflow: hidden;
+}
+.progress-meter > span {
+  display: block;
+  block-size: 100%;
+  background: var(--warn);
+  min-inline-size: 1px;
 }
 
 /* Key/value pairs.

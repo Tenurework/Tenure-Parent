@@ -35,6 +35,7 @@ import {
 const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8")
 const CAT_BIBLE =
   "Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md"
+const CFG_BIBLE = "Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md"
 
 /**
  * Requirements no execution document mentions.
@@ -249,6 +250,45 @@ test("the connection composer catalog is completely imported", () => {
     rows.filter((r) => r.source_document !== CAT_BIBLE).map((r) => r.id),
     [],
     "CAT registry rows must resolve back to the catalog Bible.",
+  )
+})
+
+test("the declarative configurator catalog is completely imported", () => {
+  // CFG-000-002 is not a claim that configurator behaviour is implemented. It
+  // is the wiring item: every requirement must be visible to the one execution
+  // system and owned by the configurator ledger, or the queue can skip it while
+  // the Platform console still reports a plausible denominator.
+  const expected = requirementsIn(read(CFG_BIBLE))
+    .map((r) => r.id)
+    .filter((id) => id.startsWith("CFG-"))
+    .sort()
+  const imported = importedIds()
+  const ledger = ledgerStatuses()
+  const rows = buildRegistry(classify(), ledger, imported).filter((r) => r.prefix === "CFG")
+
+  assert.equal(expected.length, 79, "The configurator Bible's CFG requirement count changed.")
+  assert.deepEqual(
+    expected.filter((id) => !imported.has(id)),
+    [],
+    "Every CFG requirement, including gates, must appear in the execution system.",
+  )
+  assert.deepEqual(
+    expected.filter(
+      (id) =>
+        ledger.get(id)?.source_ledger !== "docs/implementation/declarative-configurator-execution-ledger.md",
+    ),
+    [],
+    "Every CFG requirement must have a declarative-configurator ledger row.",
+  )
+  assert.deepEqual(
+    rows.map((r) => r.id).sort(),
+    expected,
+    "The generated registry must own exactly the CFG requirements stated by the configurator Bible.",
+  )
+  assert.deepEqual(
+    rows.filter((r) => r.source_document !== CFG_BIBLE).map((r) => r.id),
+    [],
+    "CFG registry rows must resolve back to the configurator Bible.",
   )
 })
 

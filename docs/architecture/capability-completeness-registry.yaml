@@ -30,9 +30,9 @@ by_prefix:
   WRK: 88
 by_status:
   BLOCKED_EXTERNAL: 13
-  FAIL: 2046
+  FAIL: 2045
   NOT_APPLICABLE: 1
-  PASS: 205
+  PASS: 206
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -826,7 +826,7 @@ requirements:
     prefix: CFG
     source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
     section: "CFG-000 — Truth and authority"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
