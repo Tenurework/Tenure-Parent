@@ -52,10 +52,12 @@ export default async function HealthPage() {
 
         <p data-testid="alarm-headline">{surface.headline}</p>
         <p>
-          Seven verdicts, not three. <b>{ALARM_WORDS.DISABLED}</b> outranks{" "}
-          <b>{ALARM_WORDS.OK}</b>: an alarm whose actions are switched off protects nothing,
-          whatever its metric says. <b>{ALARM_WORDS.MISSING}</b> is only ever produced from a
-          successful response, so it can never describe an estate this engine was refused.
+          Seven verdicts, not three.{" "}
+          <span className="inline-verdict">{ALARM_WORDS.DISABLED}</span> outranks{" "}
+          <span className="inline-verdict">{ALARM_WORDS.OK}</span>: an alarm whose actions are
+          switched off protects nothing, whatever its metric says.{" "}
+          <span className="inline-verdict">{ALARM_WORDS.MISSING}</span> is only ever produced from
+          a successful response, so it can never describe an estate this engine was refused.
         </p>
 
         <div className="scroll-x">

@@ -637,6 +637,12 @@ table.grid td.alarm-verdict .slug {
   overflow-wrap: anywhere;
 }
 
+.inline-verdict {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 /* ── Forms ─────────────────────────────────────────────────────────────── */
 .field { margin: 0.9rem 0; }
 /* Direct children only.
