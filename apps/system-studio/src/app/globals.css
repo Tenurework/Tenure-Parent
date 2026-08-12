@@ -657,14 +657,17 @@ table.grid td.alarm-verdict .slug {
   letter-spacing: 0.05em;
   color: var(--muted);
   margin-bottom: 0.35rem;
+  overflow-wrap: anywhere;
 }
 .field input[type="text"],
 .field input[type="email"],
+.field input[type="number"],
 .field input:not([type]),
 .field select,
 .field textarea {
   width: 100%;
-  max-width: 34rem;
+  min-width: 0;
+  max-width: min(34rem, 100%);
   padding: 0.5rem 0.6rem;
   font: inherit;
   font-size: 0.92rem;
@@ -1004,6 +1007,7 @@ form.compose button[type="submit"]:disabled,
   scroll-margin-top: var(--space-6);
 }
 .config-field {
+  min-width: 0;
   margin-block: var(--space-4) 0;
   padding-block-start: var(--space-3);
   border-block-start: 1px solid var(--border);
