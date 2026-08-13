@@ -1,0 +1,43 @@
+/*
+ * The Evidence surface's layout, and nothing else.
+ *
+ * ## Why a module at all, when the rule is "consume the primitives"
+ *
+ * Because there is exactly one thing this route needs that no primitive owns:
+ * the space BETWEEN the cards. `.md3-card` sets its own internal `gap` and no
+ * outer margin — correctly, because a card does not know what it is stacked
+ * against — and `main` is a plain block with padding. Left alone, five cards on
+ * this page share edges and read as one undivided wall, which is the specific
+ * complaint this work exists to answer.
+ *
+ * So this file holds a stack and nothing more. It declares no colour, no font
+ * size, no border, no radius and no shadow: every one of those is a
+ * `--md-sys-*` role that `globals.css` owns and that a route-local stylesheet
+ * must never restate. If a rule here ever needs a colour, the rule belongs in
+ * the token layer instead.
+ *
+ * The `--space-*` steps are read, not redefined — the same scale every
+ * primitive already uses, so this stack tightens with the compact density
+ * preference rather than staying put while everything around it moves.
+ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/*
+ * A flex item's automatic minimum size is its content's, so one long AWS
+ * identifier or one 71-character digest inside a card would push that card
+ * wider than the stack and scroll the whole page sideways — the defect
+ * `layout.spec.ts` measures at 320 CSS pixels (WCAG 2.2 AA 1.4.10 reflow).
+ *
+ * `.md3-surface` already sets this on itself; the rule is here as well because
+ * several of these items are a plain wrapper carrying a `data-testid`, and a
+ * wrapper is exactly the element nobody remembers to constrain. Wide content
+ * still scrolls inside `.md3-table-shell`, which is where it should.
+ */
+.stack > * {
+  min-inline-size: 0;
+}

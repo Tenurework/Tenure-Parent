@@ -111,9 +111,16 @@ test.describe("platform console", () => {
     // Scoped to the badge. The paragraph below it states the same two numbers
     // in a sentence, so an unscoped text match resolves to both and fails on
     // strict mode — which is the locator telling the truth, not a nuisance.
-    await expect(page.locator(".badge", { hasText: `${programme.decided} of ${programme.totalItems}` })).toBeVisible()
+    //
+    // `.md3-badge`, not `.badge`. The class changed because the page did: the
+    // ad-hoc `.badge` rule in `globals.css` hand-sets an 11px font size and its
+    // own pill geometry, and `/platform` now uses the `Badge` primitive from
+    // `components/md3/` like every other Material 3 surface. The ASSERTION is
+    // unchanged — same element, same two numbers, same reason for scoping to
+    // it. Only the selector follows the component.
+    await expect(page.locator(".md3-badge", { hasText: `${programme.decided} of ${programme.totalItems}` })).toBeVisible()
     const percent = ((programme.decided / programme.totalItems) * 100).toFixed(1)
-    await expect(page.locator(".badge", { hasText: `${percent}%` })).toBeVisible()
+    await expect(page.locator(".md3-badge", { hasText: `${percent}%` })).toBeVisible()
     await expect(page.getByRole("meter", { name: `Programme settled ${percent}%` })).toBeVisible()
     expect(programme.decided).toBeGreaterThanOrEqual(ledger.done)
 

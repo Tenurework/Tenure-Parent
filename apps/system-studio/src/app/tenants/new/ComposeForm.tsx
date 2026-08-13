@@ -4,7 +4,27 @@ import { useActionState, useMemo, useState } from "react"
 
 import { activationPreview, fromMinorUnits, toDecimal, type OptionPrice } from "@tenure/finops"
 
+/*
+ * Relative, not `@/components/md3`, and it is the toolchain that decides this.
+ *
+ * The Studio has no jest of its own — `apps/web/jest.config.js` collects
+ * `apps/system-studio/src` through that app's next/jest transform, and its
+ * `moduleNameMapper` resolves `^@/(.*)$` to `apps/web/src/$1`. So a Studio
+ * component that imports `@/components/md3` cannot be rendered by the only
+ * runner that can render one, and `compose-pricing.test.tsx` — which asserts
+ * the real catalog's prices reach the markup — would fail to resolve a module
+ * rather than fail on a price. The alias is right in the app and wrong under
+ * the test; the relative path is right under both.
+ */
+import { Badge, Button, Card, DataTable, EmptyState } from "../../../components/md3"
+
 import { composeTenant, type ComposeResult } from "../actions"
+import {
+  canPlace,
+  placementRefusal,
+  placementSummary,
+  type PlacementOffer,
+} from "./placement"
 
 /**
  * PAY-160-002 — a price in whole minor units, rendered at its currency's own
@@ -38,6 +58,28 @@ const DOMAIN_PRICE_NOTE =
  * without discarding what was typed. It deliberately does NOT validate: the
  * rules live in `@tenure/provisioning` and run on the server. A second copy in
  * the browser is a second copy that will disagree.
+ *
+ * ## The shape of the page, and why it changed
+ *
+ * It was one flat wall of rows under one heading per stage, led by the
+ * apparatus: the first thing an operator met was a seat-count box. The
+ * operator's summary of this console was that it "looks like a construction
+ * site", and this surface was a fair example.
+ *
+ * It now leads with the ANSWER — what registering does, what the configuration
+ * would cost if it were activated today, what is still undecided before it
+ * could be, and where it would run — and every stage below is a Material 3
+ * `Card` with a real heading, a sentence saying what the card is, and a line
+ * saying WHERE ITS FACTS CAME FROM AND AS OF WHEN. That last part is not
+ * decoration: three of these cards are populated from catalogs compiled into
+ * this build and one is read live from the fleet at request time, and until a
+ * card said so an operator had no way to tell which of the two they were
+ * looking at.
+ *
+ * The colours, type sizes, elevations and shapes are the token layer's — via
+ * `components/md3`. There is no hand-set size and no literal colour in this
+ * file, which is the rule `docs/architecture/studio-design-system.md` states and
+ * `e2e/md3-tokens-logic.spec.ts` enforces on the primitives it depends on.
  */
 export interface ComposeAxis {
   id: string
@@ -70,17 +112,67 @@ export interface ComposeModule {
   price: OptionPrice
 }
 
+type ComposeProblem = ComposeResult["problems"][number]
+
+/**
+ * A labelled control, its hint, and the server's complaints about it.
+ *
+ * At module scope, deliberately. It used to be declared inside `ComposeForm`,
+ * which gave it a new component identity on every render — so React unmounted
+ * and remounted every field whenever any state changed, and the operator
+ * ticking module checkboxes lost keyboard focus on each tick. Hoisting it is
+ * the fix; the props are the state it used to close over.
+ */
+function Field({
+  name,
+  label,
+  hint,
+  problems,
+  children,
+}: {
+  name: string
+  label: string
+  hint?: string
+  problems: readonly ComposeProblem[]
+  children: React.ReactNode
+}) {
+  return (
+    <div className="field">
+      <label htmlFor={name}>{label}</label>
+      {children}
+      {hint && <p className="hint">{hint}</p>}
+      {problems.map((p) => (
+        <p className="error" key={p.reason}>
+          {p.detail}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/** One row of the ledger preview: a priced line, or the total under them. */
+interface LedgerRow {
+  key: string
+  option: string
+  perSeat: string
+  perOrg: string
+  extended: string
+  total: boolean
+}
+
 export function ComposeForm({
   blueprints,
   modules,
   plans,
   defaultPlanId,
-  regions,
+  placement,
   axes,
   alwaysOnModules,
   suiteModules,
   coexistenceProfiles,
   businessDomains,
+  engineVersion,
+  fleetReadAt,
 }: {
   blueprints: ComposeBlueprint[]
   modules: ComposeModule[]
@@ -99,8 +191,16 @@ export function ComposeForm({
    * refused.
    */
   defaultPlanId: string
-  /** From the fleet. A hard-coded list offers a region no cell serves. */
-  regions: readonly string[]
+  /**
+   * What the fleet will accept — or why it could not say.
+   *
+   * This replaced a bare `regions: readonly string[]`, and the type changed
+   * rather than gaining an optional field on purpose: an OPTIONAL prop a caller
+   * omits is invisible to `tsc`, and the whole point of the change is that
+   * every construction site has to state what it knows about placement. There
+   * are two of them and both are in this directory.
+   */
+  placement: PlacementOffer
   /**
    * The archetype axes and the values each accepts, from `ARCHETYPE_AXES`.
    *
@@ -126,6 +226,24 @@ export function ComposeForm({
   coexistenceProfiles: Array<{ id: string; meaning: string }>
   /** The closed business-domain vocabulary, from `BUSINESS_DOMAINS`. */
   businessDomains: readonly string[]
+  /**
+   * The engine version the catalogs below were compiled at.
+   *
+   * Every panel states what it is AS OF. For the blueprint, module and plan
+   * catalogs the honest answer is not a clock reading — they are compiled into
+   * this build and do not change between requests — it is the version of the
+   * build. Printing a timestamp beside them would suggest a freshness they do
+   * not have.
+   */
+  engineVersion: string
+  /**
+   * When the fleet was read, in ISO-8601.
+   *
+   * This one IS a clock reading, because the cell registry is read on the
+   * server per request. It is passed in rather than taken here so the server
+   * and the browser cannot disagree about it.
+   */
+  fleetReadAt: string
 }) {
   const [result, action, pending] = useActionState<ComposeResult | null, FormData>(
     composeTenant,
@@ -231,111 +349,161 @@ export function ComposeForm({
 
   const problemsFor = (field: string) => (result?.problems ?? []).filter((p) => p.field === field)
 
-  const Field = ({
-    name,
-    label,
-    hint,
-    children,
-  }: {
-    name: string
-    label: string
-    hint?: string
-    children: React.ReactNode
-  }) => (
-    <div className="field">
-      <label htmlFor={name}>{label}</label>
-      {children}
-      {hint && <p className="hint">{hint}</p>}
-      {problemsFor(name).map((p) => (
-        <p className="error" key={p.reason}>
-          {p.detail}
-        </p>
-      ))}
-    </div>
-  )
+  const enableableCount = modules.filter((m) => m.enableable).length
+  const refusal = placementRefusal(placement)
+  const placeable = canPlace(placement)
+
+  const ledgerRows: LedgerRow[] = [
+    ...quote.lines.map((line) => ({
+      key: line.optionKey,
+      option: line.optionKey,
+      perSeat: priceLabel(line.perSeatMinor, quote.currency),
+      perOrg: priceLabel(line.perOrgMinor, quote.currency),
+      extended: priceLabel(line.extendedMinor, quote.currency),
+      total: false,
+    })),
+    {
+      key: "__total",
+      option: "Total, per month",
+      perSeat: "",
+      perOrg: "",
+      extended: priceLabel(quote.runningTotalMinor, quote.currency),
+      total: true,
+    },
+  ]
 
   return (
-    <form action={action} className="compose">
-      {/* PAY-160-002 — the running total, across all five stages.
-          Sticky rather than a footer: the price of the composition has to be
-          visible while the composition is being made, not discovered after the
-          last stage. It is the figure `activationPreview` emits, not a second
-          arithmetic written here. */}
+    <form action={action}>
+      {/* ── The answer, before the apparatus ────────────────────────────────
+          PAY-160-002. What registering does, what it would cost, what is not
+          settled yet, and where it would run — the four things an operator came
+          to this page to find out, above the form that decides them.
+
+          Sticky rather than a footer: the price of a composition has to be
+          visible WHILE the composition is being made, not discovered after the
+          last stage. The inline style carries position only; every colour,
+          radius and shadow on the card below is a token, through `Surface`. */}
       <div
         data-testid="running-total"
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 2,
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: "6px",
-          padding: "var(--space-3) var(--space-4)",
-          marginBottom: "var(--space-4)",
-        }}
+        style={{ position: "sticky", insetBlockStart: 0, zIndex: 2 }}
       >
-        <strong>
-          Running total{" "}
-          <span data-testid="running-total-amount">
-            {priceLabel(quote.runningTotalMinor, quote.currency)}
-          </span>{" "}
-          per month
-        </strong>
-        <p className="slug">
-          {quote.lines.length} option(s) at {quote.seatCount} seat(s), per-organization plus per-seat.
-          List price for the configuration below, not a contracted price — see the pre-activation
-          disclosure at the end.
-        </p>
-        <div className="field">
-          <label htmlFor="seatCount">Seats</label>
-          <input
-            id="seatCount"
-            name="seatCount"
-            type="number"
-            min={0}
-            step={1}
-            value={seats}
-            onChange={(e) => setSeats(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-          />
-          <p className="hint">
-            How many people hold a seat. Per-seat and whole-organization charges are quoted
-            separately below because they behave differently: a ledger costs the same for ten
-            officers and two hundred, and messaging does not.
-          </p>
-        </div>
+        <Card
+          headline="This composition"
+          headerAside={
+            <Badge
+              tone={preview.readyToActivate ? "ok" : "warn"}
+              title="Whether every pre-activation disclosure has been settled. Registering in DRAFT does not require it; activating does."
+            >
+              {preview.readyToActivate
+                ? "every disclosure settled"
+                : `${preview.openTopics.length} undecided`}
+            </Badge>
+          }
+          supportingText="Registering puts this tenant in DRAFT. Nothing is built, nothing is billed and no routing changes — provisioning is a separate, approved step taken from the tenant's own page once its plan has been read."
+          container="high"
+          level={1}
+        >
+          <dl className="kv">
+            <dt>List price if activated today</dt>
+            <dd>
+              <b data-testid="running-total-amount">
+                {priceLabel(quote.runningTotalMinor, quote.currency)}
+              </b>{" "}
+              per month — {quote.lines.length} option(s) at {quote.seatCount} seat(s),
+              per-organization plus per-seat. List price for the configuration below, not a
+              contracted price.
+            </dd>
+
+            <dt>Before it could be activated</dt>
+            <dd>
+              {preview.readyToActivate
+                ? "Nothing is open. Each of the seven disclosures below carries where it was decided."
+                : `${preview.openTopics.length} of ${preview.disclosures.length} disclosures are open, and none of them is defaulted. They are listed at the end of this form with what would record each one.`}
+            </dd>
+
+            <dt>Where it would run</dt>
+            <dd>{placementSummary(placement)}</dd>
+
+            <dt>As of</dt>
+            <dd>
+              Blueprint, module and plan catalogs as compiled into this build, engine{" "}
+              <code>{engineVersion}</code>. Fleet read at <code>{fleetReadAt}</code>.
+            </dd>
+          </dl>
+
+          <div className="field">
+            <label htmlFor="seatCount">Seats</label>
+            <input
+              id="seatCount"
+              name="seatCount"
+              type="number"
+              min={0}
+              step={1}
+              value={seats}
+              onChange={(e) => setSeats(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
+            />
+            <p className="hint">
+              How many people hold a seat. Per-seat and whole-organization charges are quoted
+              separately below because they behave differently: a ledger costs the same for ten
+              officers and two hundred, and messaging does not.
+            </p>
+          </div>
+        </Card>
       </div>
 
-      <section className="system">
-        <header>
-          <h2>Identity</h2>
-        </header>
+      <Card
+        headline="Identity"
+        supportingText="What this tenant is called, in the URL, in the contract and on screen."
+      >
+        <p className="hint">
+          As of now: nothing here is read from anywhere. These are the values you are supplying,
+          and the slug is the only one that is expensive to change afterwards.
+        </p>
 
         <Field
           name="slug"
           label="Slug"
           hint="Becomes platform.tenurework.com/<slug> and part of resource names. Changing it later is a migration."
+          problems={problemsFor("slug")}
         >
           <input id="slug" name="slug" required placeholder="midtown-arts" autoComplete="off" />
         </Field>
 
-        <Field name="legalName" label="Legal name" hint="The entity this system belongs to.">
+        <Field
+          name="legalName"
+          label="Legal name"
+          hint="The entity this system belongs to."
+          problems={problemsFor("legalName")}
+        >
           <input id="legalName" name="legalName" required placeholder="Midtown Arts Collective" />
         </Field>
 
-        <Field name="displayName" label="Display name" hint="What its users see.">
+        <Field
+          name="displayName"
+          label="Display name"
+          hint="What its users see."
+          problems={problemsFor("displayName")}
+        >
           <input id="displayName" name="displayName" required placeholder="Midtown Arts" />
         </Field>
-      </section>
+      </Card>
 
-      <section className="system">
-        <header>
-          <h2>System</h2>
-        </header>
+      <Card
+        headline="Blueprint and archetype"
+        supportingText="The preset, and the point on each axis the engine will compile the system from."
+      >
+        <p className="hint">
+          As of engine <code>{engineVersion}</code>: {blueprints.length} blueprint(s) and{" "}
+          {axes.length} axes, read from the catalog compiled into this build. A blueprint supplies
+          the starting position on every axis; one axis moved is a genuinely different system rather
+          than a fourth blueprint (PACK-020-001, PACK-GATE-020).
+        </p>
 
         <Field
           name="blueprintId"
           label="Blueprint"
           hint="The preset. It supplies the starting position on every axis below and the modules that follow from them — all of which you can then change."
+          problems={problemsFor("blueprintId")}
         >
           <select
             id="blueprintId"
@@ -352,10 +520,6 @@ export function ComposeForm({
           </select>
         </Field>
 
-        {/* The axes. A blueprint supplies the DEFAULT position on each; what is
-            chosen here is what the engine compiles, and one axis moved is a
-            genuinely different system rather than a fourth blueprint
-            (PACK-020-001, PACK-GATE-020, PACK-020-003). */}
         {axes.map((axis) =>
           axis.cardinality === "one" ? (
             <Field
@@ -363,6 +527,7 @@ export function ComposeForm({
               name={`archetype.${axis.id}`}
               label={axis.label}
               hint={axis.effect}
+              problems={problemsFor(`archetype.${axis.id}`)}
             >
               <select
                 id={`archetype.${axis.id}`}
@@ -388,6 +553,7 @@ export function ComposeForm({
               name={`archetype.${axis.id}`}
               label={axis.label}
               hint={axis.effect}
+              problems={problemsFor(`archetype.${axis.id}`)}
             >
               <div className="checks">
                 {axis.values.map((v) => (
@@ -413,16 +579,38 @@ export function ComposeForm({
             </Field>
           ),
         )}
+      </Card>
 
-        {/* PACK-020-002 / PACK-000-004.
-            Checked from the preset the axes above compile to, and submitted as
-            the DIFF from it. A module outside `ENABLEABLE` is shown with its
-            lifecycle and refused rather than offered as if it were available —
-            which is what dropping `lifecycle` from this list used to do. */}
+      {/* PACK-020-002 / PACK-000-004.
+          Checked from the preset the axes above compile to, and submitted as
+          the DIFF from it. A module outside `ENABLEABLE` is shown with its
+          lifecycle and refused rather than offered as if it were available —
+          which is what dropping `lifecycle` from this list used to do. */}
+      <Card
+        headline="Modules"
+        headerAside={
+          <Badge
+            tone={enableableCount === modules.length ? "neutral" : "warn"}
+            title="How many of the catalog's modules the resolver would currently accept."
+          >
+            {enableableCount} of {modules.length} enableable
+          </Badge>
+        }
+        supportingText="What the system can do. Starts at what the axes above compile to; every tick or untick is recorded as an edit against that preset."
+      >
+        <p className="hint">
+          As of engine <code>{engineVersion}</code>: the module catalog compiled into this build,
+          with each manifest&rsquo;s own list price and lifecycle carried through. A module the
+          resolver would refuse is shown with the lifecycle that refuses it rather than being
+          hidden, because an option absent from a list is indistinguishable from one that does not
+          exist.
+        </p>
+
         <Field
           name="modules"
           label="Modules"
-          hint="Starts at what the axes above compile to. Ticking or unticking one records a per-module edit against that preset, which is what a suite cannot express."
+          hint="Ticking or unticking one records a per-module edit against the preset, which is what a suite cannot express."
+          problems={problemsFor("modules")}
         >
           <div className="checks">
             {modules.map((m) => (
@@ -486,20 +674,29 @@ export function ComposeForm({
               <input key={`remove-${key}`} type="hidden" name="moduleRemove" value={key} />
             ))}
         </Field>
+      </Card>
 
-        {/* Entitlements are a consequence of the contracted plan, not free
-            text. Typed, every tenant's commercial state was a typing exercise:
-            a typo was a silently missing feature and there was nothing to
-            reconcile an invoice against (GE-030-004). */}
+      {/* Entitlements are a consequence of the contracted plan, not free
+          text. Typed, every tenant's commercial state was a typing exercise:
+          a typo was a silently missing feature and there was nothing to
+          reconcile an invoice against (GE-030-004). */}
+      <Card
+        headline="Plan"
+        supportingText="What was contracted. Entitlements and quotas follow from it, and a module the plan does not grant is refused rather than quietly dropped."
+      >
+        <p className="hint">
+          As of engine <code>{engineVersion}</code>: {plans.length} plan(s) from the catalog
+          compiled into this build. The plan this opens on is not a literal — it is the first one
+          whose entitlements let the default preset resolve, decided on the server by the same
+          `resolveModules` the action refuses with.
+        </p>
+
         <Field
           name="planId"
           label="Plan"
           hint="What was contracted. Entitlements and quotas follow from it."
+          problems={problemsFor("planId")}
         >
-          {/* Not a literal. `defaultPlanId` is the first plan whose
-              entitlements let the default preset resolve, decided on the server
-              by the same `resolveModules` the action refuses with — see
-              `page.tsx`. */}
           <select id="planId" name="planId" defaultValue={defaultPlanId}>
             {plans.map((p) => (
               <option key={p.planId} value={p.planId}>
@@ -508,31 +705,73 @@ export function ComposeForm({
             ))}
           </select>
         </Field>
-      </section>
+      </Card>
 
-      <section className="system">
-        <header>
-          <h2>Placement</h2>
-        </header>
+      <Card
+        headline="Placement"
+        headerAside={
+          <Badge
+            tone={placeable ? "info" : "warn"}
+            title="Whether the fleet named a region this composition could be placed in."
+          >
+            {placeable ? "fleet answered" : "no region offered"}
+          </Badge>
+        }
+        supportingText="Which cell this system runs in, and how much of it the tenant has to itself."
+      >
+        <p className="hint">
+          As of <code>{fleetReadAt}</code>: read from the cell registry on the server, for this
+          request. Not a hard-coded list — a hard-coded list lets an operator pick a region no cell
+          serves, and placement then refuses with &ldquo;no cell in your residency&rdquo;, which is
+          a confusing way to learn the list was a guess.
+        </p>
 
-        <Field name="region" label="Region">
-          {/* From the fleet, not a literal list. A hard-coded list lets an
-              operator pick a region no cell serves, and placement then
-              refuses with "no cell in your residency" — a confusing way to
-              learn the list was a guess. */}
-          <select id="region" name="region" defaultValue={regions[0]}>
-            {regions.map((r: string) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {placement.state === "OFFERED" ? (
+          <Field name="region" label="Region" problems={problemsFor("region")}>
+            <select id="region" name="region" defaultValue={placement.regions[0]}>
+              {placement.regions.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : (
+          /*
+           * STUDIO-000-007. Unknown is not empty, and neither is a refusal.
+           *
+           * The page used to call `placeableRegions()` bare, and that function
+           * throws rather than inventing an estate — so a console with no AWS
+           * credentials served a 500 here. It now renders WHICH of the three
+           * things happened, and what would fix it, and it does not offer a
+           * region control there is no fleet behind.
+           */
+          <div>
+            {/* Not `role="status"`. `components/states.tsx` reserves the live
+                region for the governed state block; this panel is rendered with
+                the page, and announcing a static refusal every time the page
+                settles is how a screen reader is trained to ignore one. */}
+            <p className="md3-title-small">{refusal?.headline}</p>
+            <p className="md3-body-medium">{refusal?.detail}</p>
+            <p className="md3-body-medium">{refusal?.remedy}</p>
+            {placement.state === "UNKNOWN" && (
+              <dl className="kv">
+                {placement.problems.map((p) => (
+                  <div key={p.field} style={{ display: "contents" }}>
+                    <dt>{p.field}</dt>
+                    <dd>{p.detail}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
+        )}
 
         <Field
           name="isolation"
           label="Isolation"
           hint="Pooled shares the cell's database and cluster; isolation is the application's tenant scope. A dedicated account needs an AWS Organization, which does not exist yet."
+          problems={problemsFor("isolation")}
         >
           <select id="isolation" name="isolation" defaultValue="pooled">
             <option value="pooled">pooled — shares the cell</option>
@@ -541,20 +780,28 @@ export function ComposeForm({
             <option value="dedicated-account">dedicated-account — unavailable, needs GE-010</option>
           </select>
         </Field>
-      </section>
+      </Card>
 
       {/* PACK-020-004. Separate from Placement on purpose: placement is where
           Tenure runs, this is who is allowed to write. A `pooled` tenant can be
           authoritative for everything and a `silo` tenant for nothing. */}
-      <section className="system">
-        <header>
-          <h2>Coexistence</h2>
-        </header>
+      <Card
+        headline="Coexistence"
+        supportingText="How this system sits beside whatever the customer already runs, and which side writes what."
+      >
+        <p className="hint">
+          As of engine <code>{engineVersion}</code>: {coexistenceProfiles.length} profile(s) and{" "}
+          {businessDomains.length} business domain(s), from the closed vocabularies the server
+          validates against — so this form cannot offer a profile or a domain the server refuses.
+          Customer on-premise estates and other clouds are external systems, not Tenure deployment
+          targets.
+        </p>
 
         <Field
           name="coexistence"
           label="Profile"
-          hint="How this system sits beside whatever the customer already runs. Customer on-premise estates and other clouds are external systems, not Tenure deployment targets."
+          hint="How this system sits beside whatever the customer already runs."
+          problems={problemsFor("coexistence")}
         >
           <select id="coexistence" name="coexistence" defaultValue="TENURE_CLOUD_PRIMARY">
             {coexistenceProfiles.map((p) => (
@@ -569,6 +816,7 @@ export function ComposeForm({
           name="systemOfRecord"
           label="Domains an external system owns"
           hint="Exactly one system writes a domain's facts. A module that writes a domain ticked here is refused — dual write is prohibited, and buying the entitlement would not change that."
+          problems={problemsFor("systemOfRecord")}
         >
           <div className="checks">
             {businessDomains.map((domain) => (
@@ -602,6 +850,7 @@ export function ComposeForm({
           name="objectAuthority"
           label="Object and field authority (optional)"
           hint="One per line. `finance.Invoice external INBOUND` says the customer's system writes it and Tenure receives a copy. `finance.Invoice.internalNote tenure` says that one field is ours. An object may not disagree with its domain above, and BIDIRECTIONAL is refused outside COEXISTENCE_TRANSITION and HYBRID_PROCESS_SPLIT."
+          problems={problemsFor("objectAuthority")}
         >
           <textarea
             id="objectAuthority"
@@ -611,25 +860,30 @@ export function ComposeForm({
             placeholder={"finance.Invoice external INBOUND\nfinance.Invoice.internalNote tenure"}
           />
         </Field>
-      </section>
+      </Card>
 
-      <section className="system">
-        <header>
-          <h2>First administrator</h2>
-        </header>
+      <Card
+        headline="First administrator"
+        supportingText="Who can sign in once it is provisioned. A system nobody can sign into is not deployed."
+      >
+        <p className="hint">
+          As of now: nothing here is read from anywhere. Provisioning creates exactly one
+          invitation, to the address below.
+        </p>
 
         <Field
           name="initialAdminEmail"
           label="Email"
-          hint="Provisioning creates exactly one invitation. A system nobody can sign into is not deployed."
+          hint="Provisioning creates exactly one invitation."
+          problems={problemsFor("initialAdminEmail")}
         >
           <input id="initialAdminEmail" name="initialAdminEmail" type="email" required />
         </Field>
 
-        <Field name="notes" label="Notes" hint="Shown on the plan.">
+        <Field name="notes" label="Notes" hint="Shown on the plan." problems={problemsFor("notes")}>
           <textarea id="notes" name="notes" rows={3} />
         </Field>
-      </section>
+      </Card>
 
       {/* ── Before activation ────────────────────────────────────────────
           PAY-160-002 / Bible §18. The seven things that must be settled
@@ -642,83 +896,114 @@ export function ComposeForm({
           can make. What IS decided is the ledger preview: it is the quote
           above, which is exactly what would be posted if this configuration
           were activated today. */}
-      <section className="system" data-testid="pre-activation">
-        <header>
-          <h2>Before activation</h2>
-          <span className={`badge ${preview.readyToActivate ? "ok" : "warn"}`}>
-            {preview.readyToActivate
-              ? "every disclosure settled"
-              : `${preview.openTopics.length} undecided`}
-          </span>
-        </header>
-        <p>
-          Registering in <code>DRAFT</code> commits to none of this. Provisioning is a separate,
-          approved step, and it must not be taken while anything below is open — a system that
-          takes money before its merchant of record, funds flow and loss responsibility are
-          settled is one nobody can say who is liable for.
-        </p>
-        <table className="grid">
-          <thead>
-            <tr>
-              <th>Disclosure</th>
-              <th>State</th>
-              <th>What it says today</th>
-            </tr>
-          </thead>
-          <tbody>
-            {preview.disclosures.map((d) => (
-              <tr key={d.topic} data-testid={`disclosure-${d.topic}`}>
-                <td>{d.label}</td>
-                <td>
-                  <span className={`badge ${d.state === "DECIDED" ? "ok" : "warn"}`}>
-                    {d.state === "DECIDED" ? "decided" : "undecided"}
-                  </span>
-                </td>
-                <td>
-                  {d.statement}{" "}
-                  <span className="slug">
-                    {d.state === "DECIDED"
-                      ? `Recorded in ${d.recordedIn}.`
-                      : `Would be recorded by ${d.wouldRecordIt}.`}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div data-testid="pre-activation">
+        <Card
+          headline="Before activation"
+          headerAside={
+            <Badge tone={preview.readyToActivate ? "ok" : "warn"}>
+              {preview.readyToActivate
+                ? "every disclosure settled"
+                : `${preview.openTopics.length} undecided`}
+            </Badge>
+          }
+          supportingText="Registering in DRAFT commits to none of this. Provisioning is a separate, approved step, and it must not be taken while anything below is open — a system that takes money before its merchant of record, funds flow and loss responsibility are settled is one nobody can say who is liable for."
+        >
+          <p className="hint">
+            As of this composition, recomputed as it changes. Six of the seven are decisions no code
+            can make, so each open one names the artefact that would record it rather than showing a
+            default.
+          </p>
 
-        <h3>Ledger preview</h3>
-        <table className="grid">
-          <thead>
-            <tr>
-              <th>Option</th>
-              <th className="num">Per seat</th>
-              <th className="num">Per organization</th>
-              <th className="num">At {quote.seatCount} seats</th>
-            </tr>
-          </thead>
-          <tbody>
-            {quote.lines.map((quoteLine) => (
-              <tr key={quoteLine.optionKey}>
-                <td>{quoteLine.optionKey}</td>
-                <td className="num">{priceLabel(quoteLine.perSeatMinor, quote.currency)}</td>
-                <td className="num">{priceLabel(quoteLine.perOrgMinor, quote.currency)}</td>
-                <td className="num">{priceLabel(quoteLine.extendedMinor, quote.currency)}</td>
-              </tr>
-            ))}
-            <tr>
-              <td>
-                <b>Total, per month</b>
-              </td>
-              <td className="num" />
-              <td className="num" />
-              <td className="num" data-testid="ledger-preview-total">
-                <b>{priceLabel(quote.runningTotalMinor, quote.currency)}</b>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+          <DataTable
+            caption="Pre-activation disclosures"
+            rows={preview.disclosures}
+            rowKey={(d) => d.topic}
+            columns={[
+              {
+                key: "disclosure",
+                header: "Disclosure",
+                cell: (d) => <span data-testid={`disclosure-${d.topic}`}>{d.label}</span>,
+              },
+              {
+                key: "state",
+                header: "State",
+                cell: (d) => (
+                  <Badge tone={d.state === "DECIDED" ? "ok" : "warn"}>
+                    {d.state === "DECIDED" ? "decided" : "undecided"}
+                  </Badge>
+                ),
+              },
+              {
+                key: "statement",
+                header: "What it says today",
+                cell: (d) => (
+                  <>
+                    {d.statement}{" "}
+                    <span className="slug">
+                      {d.state === "DECIDED"
+                        ? `Recorded in ${d.recordedIn}.`
+                        : `Would be recorded by ${d.wouldRecordIt}.`}
+                    </span>
+                  </>
+                ),
+              },
+            ]}
+            empty={
+              <EmptyState
+                headline="No disclosure applies"
+                description="activationPreview returned no topics at all, which it is not expected to do — seven are unconditional. Treat this as a defect in the preview rather than as a settled configuration."
+              />
+            }
+          />
+        </Card>
+      </div>
+
+      <Card
+        headline="Ledger preview"
+        supportingText="Exactly what would be posted, per month, if this configuration were activated today."
+      >
+        <p className="hint">
+          As of this composition, at {quote.seatCount} seat(s), in {quote.currency}. Every line is
+          the manifest&rsquo;s own list price in whole minor units with no proration applied.
+        </p>
+
+        <DataTable
+          caption={`Monthly charge lines at ${quote.seatCount} seat(s)`}
+          rows={ledgerRows}
+          rowKey={(row) => row.key}
+          columns={[
+            {
+              key: "option",
+              header: "Option",
+              cell: (row) => (row.total ? <b>{row.option}</b> : row.option),
+            },
+            { key: "perSeat", header: "Per seat", align: "end", cell: (row) => row.perSeat },
+            {
+              key: "perOrg",
+              header: "Per organization",
+              align: "end",
+              cell: (row) => row.perOrg,
+            },
+            {
+              key: "extended",
+              header: `At ${quote.seatCount} seats`,
+              align: "end",
+              cell: (row) =>
+                row.total ? (
+                  <b data-testid="ledger-preview-total">{row.extended}</b>
+                ) : (
+                  row.extended
+                ),
+            },
+          ]}
+          empty={
+            <EmptyState
+              headline="No option carries a charge yet"
+              description="Nothing selected above has a per-seat or per-organization price, so there is no line to post. That is a statement about the selection, not a discount."
+            />
+          }
+        />
+      </Card>
 
       {(result?.problems.length ?? 0) > 0 && (
         <p className="error">
@@ -727,9 +1012,18 @@ export function ComposeForm({
         </p>
       )}
 
-      <button type="submit" disabled={pending}>
-        {pending ? "Registering…" : "Register in DRAFT"}
-      </button>
+      {!placeable && (
+        <p className="error">
+          Composing is disabled: {placementSummary(placement)} A manifest with no region is refused
+          by the server, so this form will not submit one.
+        </p>
+      )}
+
+      <div className="md3-card-actions">
+        <Button type="submit" variant="filled" disabled={pending || !placeable}>
+          {pending ? "Registering…" : "Register in DRAFT"}
+        </Button>
+      </div>
     </form>
   )
 }

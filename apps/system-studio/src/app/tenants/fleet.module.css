@@ -1,0 +1,69 @@
+/*
+ * Layout for the tenant fleet surface. Scoped to this route, and deliberately
+ * tiny.
+ *
+ * ── What this file may contain, and what it may not ────────────────────────
+ *
+ * Only geometry: flow direction, gap, wrapping, and the one wrapping rule a
+ * table cell full of identifiers needs. Every value is a token declared in
+ * `globals.css`.
+ *
+ * It may NOT contain a colour, a font size, a weight, a radius or a shadow.
+ * Those are the token layer's answers and `components/md3/` is how a surface
+ * asks for them — a page that sets its own would be a page the contrast audit
+ * in `e2e/md3-tokens-logic.spec.ts` cannot see, which is the exact failure that
+ * rule exists to prevent.
+ *
+ * It exists at all because the primitives are self-contained by design:
+ * `.md3-card` sets its own padding and carries no outer margin, so three cards
+ * in a column touch. The gap between sibling regions is a property of the page,
+ * not of the card, and this is the page.
+ */
+
+/* The page's own column. One gap, so no card has to know what follows it. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/*
+ * A table cell that carries more than one fact — a slug and its display name, a
+ * badge and the sentence explaining it.
+ *
+ * `overflow-wrap: anywhere` is here rather than on `td` for the reason
+ * `globals.css` states about `td`: breaking every cell collapses the columns of
+ * a table that is meant to scroll. Breaking the cells that hold identifiers —
+ * an owner address, a release id — is what keeps one long token from setting a
+ * 700px column width for a table of one-word verdicts.
+ */
+.cell {
+  display: flex;
+  flex-direction: column;
+  /* `flex-start`, so a badge in a stacked cell is the width of its own word
+     rather than being stretched to the width of the column beside it. */
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * An identifier the operator will compare character by character: a slug, a
+ * region, a release. Monospace so `seed-nodeploy` and `seed-nodep1oy` do not
+ * look alike.
+ *
+ * The stack is the `--md-sys-type-mono` token, not a hand-written list.
+ */
+.identifier {
+  font-family: var(--md-sys-type-mono);
+  overflow-wrap: anywhere;
+}
+
+/* The pager and the filter's own controls sit on one wrapping row. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

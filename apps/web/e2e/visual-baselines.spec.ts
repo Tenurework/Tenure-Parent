@@ -156,9 +156,17 @@ async function enter(
   const isDark = await page.evaluate(() => document.documentElement.classList.contains("dark"))
   expect(isDark).toBe(cell.theme === "dark")
 
-  // Self-hosted next/font faces swap in after first paint. Without this the
-  // first cell in a run is captured in the fallback face and every later cell
-  // in Inter, and the difference is every glyph on the page.
+  // Web fonts swap in after first paint, so without this the first cell in a
+  // run is captured in the fallback face and every later cell in the real one,
+  // and the difference is every glyph on the page.
+  //
+  // NOTE (design system 1.2.0): the app no longer ships a web font at all.
+  // `next/font/google` was removed and no woff2 is committed, so `--font-inter`
+  // and `--font-display-face` resolve through the CSS stack to whatever the
+  // capture host has installed. This await is now a no-op, and the face in any
+  // baseline is a property of the container image rather than of the page —
+  // which is the thing the pinned image was supposed to stop mattering. Restore
+  // a self-hosted face before regenerating baselines.
   await page.evaluate(() => document.fonts.ready)
 }
 

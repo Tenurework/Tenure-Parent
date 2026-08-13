@@ -20,8 +20,42 @@ import {
   ListServicesCommand,
 } from "@aws-sdk/client-ecs"
 import { BackupClient, ListBackupVaultsCommand, ListRecoveryPointsByBackupVaultCommand } from "@aws-sdk/client-backup"
+import { BudgetsClient, DescribeBudgetsCommand } from "@aws-sdk/client-budgets"
 import { CloudWatchLogsClient, DescribeLogGroupsCommand } from "@aws-sdk/client-cloudwatch-logs"
+import {
+  EventBridgeClient,
+  ListRulesCommand,
+  ListTargetsByRuleCommand,
+} from "@aws-sdk/client-eventbridge"
+import {
+  DescribeAffectedEntitiesCommand,
+  DescribeEventsCommand,
+  HealthClient,
+} from "@aws-sdk/client-health"
+import {
+  GetAccountAuthorizationDetailsCommand,
+  IAMClient,
+  ListAccessKeysCommand,
+} from "@aws-sdk/client-iam"
 import { KMSClient, ListKeysCommand } from "@aws-sdk/client-kms"
+import {
+  GetFunctionConcurrencyCommand,
+  LambdaClient,
+  ListFunctionsCommand,
+} from "@aws-sdk/client-lambda"
+import {
+  GetAccountCommand,
+  GetConfigurationSetCommand,
+  ListConfigurationSetsCommand,
+  ListEmailIdentitiesCommand,
+  ListSuppressedDestinationsCommand,
+  SESv2Client,
+} from "@aws-sdk/client-sesv2"
+import {
+  GetQueueAttributesCommand,
+  ListQueuesCommand,
+  SQSClient,
+} from "@aws-sdk/client-sqs"
 import { ListHostedZonesCommand, Route53Client } from "@aws-sdk/client-route-53"
 import { ListObjectVersionsCommand, S3Client } from "@aws-sdk/client-s3"
 import {
@@ -93,6 +127,13 @@ let backup: BackupClient | null = null
 let kms: KMSClient | null = null
 let route53: Route53Client | null = null
 let s3: S3Client | null = null
+let sesv2: SESv2Client | null = null
+let sqs: SQSClient | null = null
+let lambda: LambdaClient | null = null
+let iam: IAMClient | null = null
+let budgets: BudgetsClient | null = null
+let awsHealth: HealthClient | null = null
+let eventbridge: EventBridgeClient | null = null
 
 /**
  * Every client is constructed with an empty config, on purpose.
@@ -277,6 +318,178 @@ export function gateway(): AwsGateway {
               Bucket: String(input.Bucket),
               Prefix: str(input.Prefix),
               KeyMarker: str(input.KeyMarker),
+            }),
+          )
+
+        /* ------------------------------------------------ SES (SESv2) --
+         * `SendEmailCommand` is not imported, and `ses:SendEmail` is denied on
+         * the task role. The console reports on this account's mail; it does
+         * not send any.
+         */
+        case "ses:GetAccount":
+          if (!sesv2) sesv2 = new SESv2Client({})
+          return sesv2.send(new GetAccountCommand({}))
+
+        case "ses:ListEmailIdentities":
+          if (!sesv2) sesv2 = new SESv2Client({})
+          return sesv2.send(
+            new ListEmailIdentitiesCommand({ NextToken: str(input.NextToken), PageSize: 100 }),
+          )
+
+        case "ses:ListConfigurationSets":
+          if (!sesv2) sesv2 = new SESv2Client({})
+          return sesv2.send(
+            new ListConfigurationSetsCommand({ NextToken: str(input.NextToken), PageSize: 100 }),
+          )
+
+        case "ses:GetConfigurationSet":
+          if (!sesv2) sesv2 = new SESv2Client({})
+          return sesv2.send(
+            new GetConfigurationSetCommand({
+              ConfigurationSetName: String(input.ConfigurationSetName),
+            }),
+          )
+
+        case "ses:ListSuppressedDestinations":
+          if (!sesv2) sesv2 = new SESv2Client({})
+          return sesv2.send(
+            new ListSuppressedDestinationsCommand({
+              NextToken: str(input.NextToken),
+              PageSize: 100,
+            }),
+          )
+
+        /* ------------------------------------------------------- SQS -- */
+        case "sqs:ListQueues":
+          if (!sqs) sqs = new SQSClient({})
+          return sqs.send(
+            new ListQueuesCommand({
+              QueueNamePrefix: str(input.QueueNamePrefix),
+              NextToken: str(input.NextToken),
+              MaxResults: 1000,
+            }),
+          )
+
+        case "sqs:GetQueueAttributes":
+          if (!sqs) sqs = new SQSClient({})
+          return sqs.send(
+            new GetQueueAttributesCommand({
+              QueueUrl: String(input.QueueUrl),
+              // Named rather than "All". "All" also returns the queue's access
+              // policy and its KMS key id, which this console has no use for
+              // and therefore should not hold in a render.
+              AttributeNames: [
+                "ApproximateNumberOfMessages",
+                "ApproximateNumberOfMessagesNotVisible",
+                "ApproximateNumberOfMessagesDelayed",
+                "RedrivePolicy",
+                "RedriveAllowPolicy",
+                "QueueArn",
+                "CreatedTimestamp",
+                "LastModifiedTimestamp",
+                "VisibilityTimeout",
+                "MessageRetentionPeriod",
+              ],
+            }),
+          )
+
+        /* ---------------------------------------------------- Lambda -- */
+        case "lambda:ListFunctions":
+          if (!lambda) lambda = new LambdaClient({})
+          return lambda.send(new ListFunctionsCommand({ Marker: str(input.Marker), MaxItems: 50 }))
+
+        case "lambda:GetFunctionConcurrency":
+          if (!lambda) lambda = new LambdaClient({})
+          return lambda.send(
+            new GetFunctionConcurrencyCommand({ FunctionName: String(input.FunctionName) }),
+          )
+
+        /* ------------------------------------------------------- IAM --
+         * Two reads and nothing else. No Create, Attach, Put, Update or
+         * Delete command is imported from this package, and the task role
+         * denies every one of them by name.
+         */
+        case "iam:GetAccountAuthorizationDetails":
+          if (!iam) iam = new IAMClient({})
+          return iam.send(
+            new GetAccountAuthorizationDetailsCommand({
+              // Groups are not modelled by this platform, and AWS-managed
+              // policy documents are AWS's, not this estate's — asking for
+              // them would multiply the response size for nothing.
+              Filter: ["User", "Role", "LocalManagedPolicy"],
+              Marker: str(input.Marker),
+              MaxItems: 100,
+            }),
+          )
+
+        case "iam:ListAccessKeys":
+          if (!iam) iam = new IAMClient({})
+          return iam.send(
+            new ListAccessKeysCommand({
+              UserName: String(input.UserName),
+              Marker: str(input.Marker),
+            }),
+          )
+
+        /* --------------------------------------------------- Budgets --
+         * `AccountId` is required by the API and is passed in by the caller
+         * from `sts:GetCallerIdentity` — never from an environment default,
+         * because a budget read against the wrong account returns an empty
+         * list rather than an error.
+         */
+        case "budgets:DescribeBudgets":
+          if (!budgets) budgets = new BudgetsClient({})
+          return budgets.send(
+            new DescribeBudgetsCommand({
+              AccountId: String(input.AccountId),
+              MaxResults: 100,
+              NextToken: str(input.NextToken),
+            }),
+          )
+
+        /* ------------------------------------------------ AWS Health -- */
+        case "health:DescribeEvents":
+          if (!awsHealth) awsHealth = new HealthClient({})
+          return awsHealth.send(
+            new DescribeEventsCommand({
+              // Closed events are history. This surface answers "is something
+              // wrong now, or about to be".
+              filter: { eventStatusCodes: ["open", "upcoming"] },
+              maxResults: 100,
+              nextToken: str(input.nextToken),
+            }),
+          )
+
+        case "health:DescribeAffectedEntities":
+          if (!awsHealth) awsHealth = new HealthClient({})
+          return awsHealth.send(
+            new DescribeAffectedEntitiesCommand({
+              filter: { eventArns: strings(input.eventArns) ?? [] },
+              maxResults: 100,
+              nextToken: str(input.nextToken),
+            }),
+          )
+
+        /* ----------------------------------------------- EventBridge -- */
+        case "events:ListRules":
+          if (!eventbridge) eventbridge = new EventBridgeClient({})
+          return eventbridge.send(
+            new ListRulesCommand({
+              EventBusName: str(input.EventBusName),
+              NamePrefix: str(input.NamePrefix),
+              NextToken: str(input.NextToken),
+              Limit: 100,
+            }),
+          )
+
+        case "events:ListTargetsByRule":
+          if (!eventbridge) eventbridge = new EventBridgeClient({})
+          return eventbridge.send(
+            new ListTargetsByRuleCommand({
+              Rule: String(input.Rule),
+              EventBusName: str(input.EventBusName),
+              NextToken: str(input.NextToken),
+              Limit: 100,
             }),
           )
       }

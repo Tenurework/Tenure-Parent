@@ -1134,3 +1134,640 @@ provisioning run can be held to afterwards.
 - `fleet-capacity` and `edge-cache` are **classified and not performed**. No code
   updates a desired count or invalidates a path; the arms exist so the gate is
   there when one does, and `REFUSED_OPERATIONS` renders the refusal meanwhile.
+
+---
+
+## STUDIO-070-004 (EventBridge) — the scheduled job that stopped running
+
+- [x] **STUDIO-070-004 / EVENTBRIDGE** — Read EventBridge rules, their schedule
+  or pattern, whether each is ENABLED, and their targets, behind the typed
+  capability registry; render DISABLED as outranking healthy, on the precedent
+  `alarms.ts` set for an alarm with its actions switched off.
+  - Status: PASS for the reader. The route that renders it is NOT claimed —
+    see "What is NOT closed" below.
+  - Code: `apps/system-studio/src/lib/aws/eventbridge.ts`
+  - Tests: `apps/system-studio/src/lib/aws/eventbridge.test.ts` — 25 cases
+  - Evidence: `cd apps/web && npx jest --ci ../system-studio/src/lib/aws/eventbridge.test.ts`
+    — 25 passed, 25 total. 12 mutations applied to the PRODUCTION module, 12
+    caught, file restored byte-identical and re-run green (M1–M12 below).
+  - Capabilities used, both already in the registry and granted:
+    `events:ListRules` and `events:ListTargetsByRule`, at `EVENTBRIDGE_TTL_MS`
+    (240s). Nothing was added to `capabilities.ts`, `client.ts`, `read.ts`,
+    `throttle.ts` or `iam.tf` by this work.
+
+  `infrastructure/terraform/scheduler.tf` creates one rule on
+  `cron(0 13 * * ? *)` whose target POSTs `/api/jobs/reminders`. It is the only
+  thing that makes a club's 24-hour deliverable warning fire, and a disabled
+  EventBridge rule raises no alarm, logs no error and appears in no failure
+  count — it simply stops. So `ruleVerdict` checks `State === "DISABLED"` before
+  it looks at anything else, exactly as `verdictFor` in `alarms.ts` checks
+  `ActionsEnabled === false` before it looks at `StateValue`.
+
+  Three further verdicts exist for the same reason. `NO_TARGET` is an ENABLED
+  rule whose `ListTargetsByRule` answered SUCCESSFULLY with nothing — it fires
+  into empty space, which deleting an `aws_cloudwatch_event_target` produces
+  while leaving the rule intact. `TARGETS_UNKNOWN` is an ENABLED rule whose
+  targets call was refused, throttled or broke, and it is deliberately NOT
+  `NO_TARGET`: "this rule invokes nothing" and "we were not allowed to ask what
+  it invokes" are opposite facts and only the first is something to go and fix.
+  `UNTRIGGERED` is ENABLED with neither a schedule nor a pattern.
+
+  Nothing here is ever an empty list because a call failed. A denied
+  `events:ListRules` is DENIED carrying the principal, the action and a
+  pasteable minimum statement, and the surface renders it as ONE row whose
+  verdict is `UNAUTHORIZED` — `rows: []` is unreachable on that path. A throttle
+  is `UNREADABLE`, a separate word, because no IAM statement fixes it.
+  `targetCount` is `number | null` and `null` for exactly the states where the
+  count is not known; `0` would be a claim the read never made.
+
+  Region and partition come from the resolved identity or are `null`, and the
+  scope sentence says which region and which buses were read. There is no
+  `us-east-1` literal in the module — that literal under an unresolved identity
+  is GE-010-007, a console telling an operator a job runs in a jurisdiction it
+  does not run in.
+
+  Attribution goes through `taggedResources` / `tagIndex` in `tags.ts`. It has a
+  fourth arm `tags.ts` does not need: when `tag:GetResources` is itself refused
+  every rule comes back untagged, and folding that into "shared" would attribute
+  the estate to platform overhead on the strength of a call nobody was allowed
+  to make. `unattributed` is likewise NOT folded into `shared`, per the bug
+  recorded in `attributionOf`.
+
+  `throttle.ts` owns WHEN to retry — `isTransient`, `READ_ATTEMPTS`,
+  `backoffMs` — and `read.ts` owns WHAT HAPPENED once the budget is spent.
+  `readWithBackoff` is not called directly because it converts the error to a
+  string, and a string cannot be classified into DENIED with a statement. The
+  schedule is shared instead, so the wait the page quotes and the wait
+  `nextAttemptAt` quotes are the same number from the same function.
+
+  ### Mutations, applied to the production module and each confirmed red
+
+  | # | Mutation | Result |
+  |---|---|---|
+  | M1 | DISABLED no longer outranks a live schedule | 3 failed / 22 passed |
+  | M2 | an unreadable target list reported as NO_TARGET | 2 failed / 23 passed |
+  | M3 | a denied ListRules renders as an empty table | 1 failed / 24 passed |
+  | M4 | region falls back to the `us-east-1` literal | 1 failed / 24 passed |
+  | M5 | a denied tag index attributes rules as merely untagged | 1 failed / 24 passed |
+  | M6 | `throttle.ts`'s transient set no longer consulted | 1 failed / 24 passed |
+  | M7 | rows sorted with `localeCompare` instead of codepoint | 1 failed / 24 passed |
+  | M8 | an unknown target count reported as zero | 2 failed / 23 passed |
+  | M9 | only the first page of rules is read | 1 failed / 24 passed |
+  | M10 | a cadence that is not this capability's | 1 failed / 24 passed |
+  | M11 | the throttle wait invented instead of taken from the schedule | 1 failed / 24 passed |
+  | M12 | a target's input body carried onto the surface | 1 failed / 24 passed |
+
+  Baseline before: 25/25. After restore: 25/25, file byte-identical.
+
+  ### What is NOT closed, and is not claimed
+
+  - **No route renders this yet.** `eventBridgeSurface()` defaults to
+    `liveGateway()` and is production-shaped — same signature as `alarmSurface`,
+    which `app/platform/health/page.tsx` calls — but no page or API route in
+    this repository imports it at the time of writing. A route agent owns that
+    file. Until it lands, this is a reader nothing reads.
+  - **Only the buses it is told to read.** `events:ListEventBuses` is not in the
+    capability registry and was NOT added here. `eventBridgeSurface` defaults to
+    `["default"]`, which is where `scheduler.tf` puts its rule, and `scopeNote`
+    states that a rule on another bus was not looked at and is not claimed to be
+    absent. A stated scope is not a silent absence, but it is not discovery
+    either.
+  - **No `MISSING` verdict.** `alarms.ts` can say "declared in Terraform and
+    absent from a successful response" because `expected-alarms.ts` derives the
+    expected set from the Terraform. There is no equivalent for rules, so this
+    surface cannot tell a deleted `aws_cloudwatch_event_rule` from one that
+    never existed. Building that needs an expected-rules source of the same
+    kind; it is not faked here.
+  - **Target inputs are not carried,** only `hasInput`. The body is arbitrary
+    caller-supplied JSON and is where a bearer token would sit.
+
+---
+
+## AWS Health — "is it us, or is it AWS", read live
+
+Filed under the two requirements it actually serves. **No new requirement id was
+invented**: there is no `STUDIO-080-009` in the bible, and writing one into a
+ledger would be a claim about a checklist nobody wrote.
+
+### STUDIO-070-004 — the AWS Health adapter, behind the typed capability
+
+- **Was**: `capabilities.ts` named `health:DescribeEvents` and
+  `health:DescribeAffectedEntities` and `client.ts` could send both, and nothing
+  called either. The console could show this estate's CloudWatch alarms and had
+  no way to ask whether AWS itself was having an event — so an AWS-side
+  impairment in the region we run in and a bad deploy of ours looked identical.
+- **Now**: `apps/system-studio/src/lib/aws/aws-health.ts` — `awsHealthSurface()`
+  reading open and upcoming events, their services, regions, start/end times and
+  their affected entities, attributed to tenants. No `@aws-sdk` import: every
+  call goes through the `AwsGateway` seam in `read.ts`, so `forbidden-clients`
+  still permits exactly one client module.
+- **Capabilities used, none added**: `health:DescribeEvents`,
+  `health:DescribeAffectedEntities`, `sts:GetCallerIdentity`, `tag:GetResources`
+  — asserted by a test that fails if a fifth is ever called. `capabilities.ts`,
+  `client.ts`, `read.ts`, `throttle.ts` and `iam.tf` were **not edited**.
+- **Paging and the API's own limits are honoured**: `DescribeEvents` follows
+  `nextToken`; the entity filter is chunked to **ten** event ARNs, which is the
+  API's maximum — an eleventh produces a `ValidationException` that would have
+  rendered as "the entity read is broken" for what is really a paging rule.
+
+### STUDIO-000-007 — every arm of the union is reachable, and says something different
+
+- **Four AWS behaviours, four different sentences**, asserted pairwise distinct
+  rather than asserted individually: populated, empty-but-successful, denied,
+  throttled. A denial carries the principal, the action and the pasteable
+  minimum statement and never renders as `[]` — the surface returns one
+  `UNAUTHORIZED` row, because an empty table on this page is the sentence "AWS is
+  having no events" written in whitespace.
+- **A throttle is its own state.** Retried through `readAws`'s backoff first: a
+  throttle that clears on the retry is `ACTUAL`, and one that does not is
+  `THROTTLED` with the wait named. Both are proven.
+- **`SubscriptionRequiredException` is UNCONFIGURED with a named remedy** — the
+  Health API needs Business or higher. Not `EMPTY` (nobody said there are no
+  events), not `ERROR` (nothing is broken), and NOT a minimum IAM statement,
+  which would send an operator to edit a policy that is already correct.
+- **Events readable + entities refused is a state of its own.** They are two
+  grants, so `entitiesKnown: false` travels on the row and the sentence quotes
+  `health:DescribeAffectedEntities` — not the action that succeeded. A row can
+  never print "0 affected resources" about an event nobody was allowed to open.
+- **Region and partition come from the resolved identity.** The verdict for a
+  public event compares the event's region against STS's answer; when identity
+  did not answer the verdict is `OPEN_REGION_UNKNOWN`, not a guess. A `us-east-1`
+  literal here is GE-010-007 wearing a different hat, and the test that proves it
+  runs the SAME event against a `eu-west-2` estate and a `us-east-1` one.
+- **Attribution is the tagging API's, via `tags.ts`.** The tag index outranks the
+  tag map AWS Health carried on the entity when the event was raised — ownership
+  today is who gets called today — and the entity map is the fallback for a
+  resource the index does not carry.
+
+### A deviation, stated
+
+The brief said "mark it shared where no tag says otherwise". This module keeps
+`tags.ts`'s **three** arms instead: `shared` only where somebody set
+`tenure:tenant = tenure:shared`, and `unattributed` where nobody tagged it at
+all. Folding the second into the first is the exact fold `tags.ts` was rewritten
+to prevent, and during an incident it is the difference between "this is platform
+overhead" and "nobody knows whose this is". Both counts are rendered.
+
+### Evidence
+
+- `cd apps/web && npx jest --ci --testPathPattern aws-health` — **20 tests, all
+  passing** (`apps/system-studio/src/lib/aws/aws-health.test.ts`).
+- `cd apps/system-studio && npx tsc --noEmit` — no error in either file this work
+  owns. (Concurrent, other agents' files: `lambda.test.ts`, `sqs.ts`.)
+- `node tools/run-platform-tests.mjs` — 393 tests. The three reds
+  (`the committed documents match what the generators produce now`, `no
+  operator-facing module lists the unfiltered bindings`, `the committed map
+  matches the code`) reproduce with these two files **moved out of the tree**,
+  so they are baseline, not this work.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Applied to `aws-health.ts` — never to the test's stand-in — one at a time, with
+the file restored from an in-memory copy of the original after each. The final
+run after restoration is 20/20 green.
+
+| # | mutation | result |
+|---|---|---|
+| M1 | the DENIED arm of `composeRows` returns `[]` | RED — "AccessDenied — UNKNOWN carrying the principal, the action and a statement" |
+| M2 | `ourRegion` falls back to a `"us-east-1"` literal | RED — "identity that did not answer produces OPEN_REGION_UNKNOWN, not a guess" |
+| M3 | `entitiesKnown` hardcoded `true` | RED — "a row never reads as 'touches nothing' when the entity call was refused" |
+| M4 | the UNCONFIGURED headline reworded as the EMPTY one | RED — "it is not EMPTY, not ERROR, and names the plan to buy" |
+| M5 | the event's stale tag map outranks the tag index | RED — "the current tag index outranks the tags the event was raised with" |
+| M6 | `MAX_EVENT_ARNS_PER_FILTER` raised from 10 to 25 | RED — "event ARNs are chunked to the filter's limit of ten" |
+| M7 | an unmade entity call reports EMPTY instead of UNCONFIGURED | RED — "empty-but-successful — a claim, worded as AWS's answer" |
+
+No guard was disabled to iterate, and none was left disabled: the mutation script
+restores the original bytes after every case and the restored run is recorded
+above.
+
+### What is NOT closed, and is not claimed
+
+- **Nothing renders this yet.** The production path is real — `awsHealthSurface()`
+  with no gateway resolves `liveGateway()` → `gateway()` in `client.ts` → the
+  real Health client — but the only caller today is the test. The intended
+  consumer is `apps/system-studio/src/app/platform/health/page.tsx`, which this
+  work did not touch because a route agent owns it. Until that lands, this is a
+  readable surface with no page, and is recorded as such rather than as PASS for
+  the rendering half of any requirement.
+- **Never run against a real account.** There is no AWS Organization and no
+  Business support plan on this account, so every state above was produced by a
+  stand-in that reproduces the API's shapes, its pagination, its ten-ARN filter
+  limit and its error names. `SubscriptionRequiredException` in particular is the
+  answer a real call would give today, and it is handled — but it has not been
+  observed. Unblocking is the same gate as GE-010: an account with Business or
+  Enterprise support, then `aws health describe-events --region us-east-1`
+  against it.
+- **Type widening: nothing was widened.** `aws-health.ts` adds types and changes
+  none. The types it consumes — `AwsRead<T>`, `DenialContext`, `AwsGateway`
+  (`read.ts`), `Identity` (`identity.ts`), `Attribution` / `TaggedResource`
+  (`tags.ts`) — were read, not edited, and `grep -rn "aws-health"` across
+  `apps`, `packages`, `tests` and `tools` finds no consumer outside the module
+  and its test, so there is no construction site elsewhere to check.
+
+---
+
+## STUDIO-070-004 — service adapter: SES
+
+- [x] **STUDIO-070-004 (SES adapter)** — Read SES back through the typed
+  capability registry: verified identities, the configuration set, the sending
+  quota and 24-hour send rate, the account-level suppression list, and whether
+  the account is still in the sandbox.
+  - Status: PASS **for the read adapter's stated scope**. It is not a rendered
+    surface: no route or page imports it yet, and this entry does not claim one.
+    `tools/loop/studio-program.mjs:318` fans a route agent out over the same
+    module path; when that lands, the rendering claim belongs in its entry, not
+    in this one.
+  - Code: `apps/system-studio/src/lib/aws/ses.ts`
+  - Tests: `apps/system-studio/src/lib/aws/ses.test.ts` — 51 cases
+  - Evidence: `cd apps/web && npx jest --ci --rootDir . --testPathPattern "aws/ses"`
+    — **51/51 passing**. 10 mutations applied to the production path, 10 caught
+    (table below). `npx tsc -p` over the two files — 0 errors.
+
+  `infrastructure/terraform/ses.tf` provisions a `tenurework.com` domain
+  identity, a from-address identity, a configuration set requiring TLS, and
+  account-level suppression on BOUNCE and COMPLAINT. Nothing read any of it
+  back, so two different outages were the same blank screen: a domain identity
+  Terraform created and nobody finished verifying at the registrar, and an
+  account still in the SES sandbox. The second silently limits who can be
+  emailed — SES delivers only to recipients that are themselves verified
+  identities and refuses every other address — and it is the fact this module is
+  built around.
+
+  **`Stated<T>`, and the refusal to invent an approval.** SES production access
+  is an approval AWS grants after reviewing a request. `ProductionAccessEnabled`
+  absent from a `GetAccount` response is therefore neither `true` nor `false`,
+  and `productionAccessFrom` returns a third arm, `UNSTATED`, carrying why.
+  `Details.ReviewDetails` — AWS's own status and case id for that request — is
+  carried verbatim when SES returns it and `stated: false` when it does not; it
+  is never assembled, never inferred from `ProductionAccessEnabled`, and carries
+  no date this module made up. Every other optional SES field (`SendingEnabled`,
+  `EnforcementStatus`, the three quota numbers, `TlsPolicy`, a suppression
+  entry's `Reason`) goes through the same union, so `{ stated: false }` has no
+  `value` field and a caller that reaches for one does not compile.
+
+  **A denial is never an empty list.** Every read returns `AwsRead<T>`. The
+  configuration-set surface is a two-stage read — `ListConfigurationSets` names
+  the sets `GetConfigurationSet` describes — and a refusal of the LIST is carried
+  through to the detail surface *naming `ses:ListConfigurationSets`*, because a
+  line naming `ses:GetConfigurationSet` would send an operator to grant a
+  permission that was never the problem, and a line saying "no configuration
+  sets" would tell them Terraform never applied.
+
+  **The throttle schedule is `throttle.ts`'s.** `SES_FIRST_BACKOFF_MS` is
+  `backoffMs(2)` and the budget is `READ_ATTEMPTS`, so the wait a THROTTLED SES
+  panel prints is `backoffMs(READ_ATTEMPTS + 1)` — the same number
+  `readWithBackoff` would have put in `nextAttemptAt`. Asserted as an identity
+  against `throttle.ts`, not as a literal.
+
+  **Residency.** SES ARNs are assembled from `resolveIdentity()`'s partition,
+  region and account, and `sesArn` returns `null` rather than assembling one from
+  defaults when identity is unresolved — in which case attribution is `unknown`
+  rather than `unattributable`, because there was no key to look the tags up
+  under. A GovCloud case in the suite proves the tag join lands only when both
+  partition and region come from the resolved identity.
+
+  **Attribution** goes through `taggedResources()` and `attributionOf()` in
+  `tags.ts` — no second implementation. `unattributed` is deliberately not
+  folded into `shared`; the SES *account* is `shared` as a statement of fact
+  (there is no per-tenant SES account), not as a fallback for a missing tag.
+
+  **The suppression list contains real people.** Entries carry the address,
+  because "why did this person not get their reminder" is the question the list
+  answers, but the sentence a surface prints by default is counts by reason and
+  by domain with no local part in it, and every entry also carries
+  `maskedAddress`. A page printing `address` is making that choice explicitly.
+
+  ### Mutations applied to the production path, and what caught them
+
+| # | mutation in `ses.ts` | result |
+|---|---|---|
+| S1 | `productionAccessFrom` treats an ABSENT `ProductionAccessEnabled` as production access granted | RED ×2 — "an ABSENT ProductionAccessEnabled is UNSTATED"; green on restore |
+| S2 | a denied `ses:ListConfigurationSets` falls through to an empty set list | RED ×2 — "a denied ListConfigurationSets does not render as 'no configuration sets'" |
+| S3 | `sesArn` hardcodes the region instead of using the resolved identity (GE-010-007) | RED ×6 — including the GovCloud tag join |
+| S4 | `verificationFrom` treats any non-empty `VerificationStatus` as VERIFIED | RED ×6 — including the four-different-sentences case for identities |
+| S5 | an unreadable tag index becomes `unattributable` instead of `unknown` | RED ×2 — "a DENIED tag index is unknown attribution, not unattributable" |
+| S6 | the retry schedule stops coming from `throttle.ts` and is typed in `ses.ts` | RED ×5 — all four surfaces' four-case matrix, plus the schedule identity |
+| S7 | the default suppression sentence prints every suppressed address | RED ×1 — "the default sentence carries no local part" |
+| S8 | an empty suppression list loses its ability to report EMPTY | RED ×2 — EMPTY collapses into ACTUAL and two sentences become one |
+| S9 | a thrown SES error is swallowed into an empty identity list | RED ×4 — "a denied SES read is never an empty list" |
+| S10 | the page budget stops reporting that the suppression list was truncated | RED ×1 — "a suppression list longer than the page budget says it is truncated" |
+
+  All ten restored; the file is byte-identical to its pre-mutation state and the
+  suite is 51/51 green. No guard was left disabled — `ses.ts` and `ses.test.ts`
+  contain no `false &&`, no `|| true` and no mutation stub.
+
+  ### What is NOT closed, and is not claimed
+
+- **Nothing renders this yet.** `sesReadings()` reaches the real `SESv2Client`
+  through `liveGateway()` → `client.ts`, and the tests drive that exact function
+  rather than a helper — but no route or page imports the module, so no operator
+  can see any of it today. That is the route agent's item.
+- **No SES read has been performed against a real AWS account.** Every case here
+  is a stand-in gateway raising the four answers the real client raises. The
+  account does not exist to read; the same gate blocks GE-010 and STUDIO-GATE-010.
+- **`ses:SendEmail` is absent and stays absent.** A console that reads every
+  tenant's mail configuration must not be able to send as them;
+  `infrastructure/studio/iam.tf` denies it explicitly.
+
+---
+
+## Budgets — the live read (STUDIO-000-006 · "budgets"; feeds STUDIO-120-009)
+
+No checkbox is moved by this entry, deliberately. STUDIO-000-006's title lists
+ten other things that are still not read, and STUDIO-120-009 was recorded against
+`packages/finops`' arithmetic rather than against an AWS reader. This records what
+the reader now does and the one thing it cannot do.
+
+- Status: **PASS** for every budget, its limit, its actual and its forecast.
+  **FAIL** for the alert thresholds and whether they reach a subscriber.
+- Code: `apps/system-studio/src/lib/aws/budgets.ts`
+- Tests: `apps/system-studio/src/lib/aws/budgets.test.ts` — 26 cases, all passing.
+  `cd apps/web && npx jest --ci --testPathPattern "aws/budgets"`.
+- Type check: `cd apps/system-studio && npx tsc --noEmit` — exit 0.
+- Regression: `cd apps/web && npx jest --ci --testPathPattern "system-studio"` —
+  21 suites, 410 tests, all passing.
+- Guards: `node --test tests/security/no-hardcoded-estate.test.mjs
+  tests/architecture/forbidden-clients.test.mjs
+  tests/security/operator-plane-content.test.mjs` — 14 pass, 0 fail.
+
+`budgetReadings()` resolves identity first and threads the account into
+`DescribeBudgets`. That is not ceremony: the API is scoped by account id and
+answering it with the wrong account returns an **empty list rather than an
+error**, so `String(undefined)` reaching `client.ts` would have produced the one
+answer this surface must never produce by accident. When identity did not
+resolve, the call is not made and the read is UNCONFIGURED quoting the identity
+failure — so the operator is sent to the read that actually failed rather than to
+the Budgets policy.
+
+Every budget ARN is built from the resolved partition and account. The suite runs
+the whole module against an `aws-us-gov` identity for exactly this reason: a
+literal `arn:aws:` fails there and nowhere else, which is GE-010-007 in miniature.
+
+Money is `@tenure/finops` — integer minor units, currency carried, parsed from
+the decimal STRING AWS sends. Two fixtures exist only to catch the float path: a
+JPY limit, which a hardcoded two-decimal parser counts a hundredfold wrong, and a
+`0.0000004` USD actual, which any round-to-cents path zeroes.
+
+And `Amount`/`Unit` is only money for a **COST** budget. A `USAGE` budget's unit
+is `GB` and an `RI_UTILIZATION` budget's is `PERCENTAGE`; feeding either to
+`fromDecimal` produces a `Money` denominated in "GB" that then sums with dollars.
+Those types get `limit: null` and a separate `quantity` carrying the real unit.
+
+### What is NOT closed, and is not claimed
+
+**A budget's alert thresholds and their subscribers are NOT read.** A threshold
+with an empty subscriber list fires into nothing — the budget is breached, AWS
+evaluates the notification, and no human is told — and on every console that has
+shipped this reads exactly like a budget that is fine.
+
+`BudgetReading.alerting` is therefore an `AwsRead` permanently in the
+UNCONFIGURED state, whose `why` names the two capabilities that would answer it:
+
+    budgets:DescribeNotificationsForBudget
+    budgets:DescribeSubscribersForNotification
+
+Both are authorised by `budgets:ViewBudget`, which `infrastructure/studio/iam.tf`
+already grants, so **no IAM change is the remedy** — what is missing is two
+entries in `capabilities.ts` and two arms in `client.ts`. This module did not add
+them: the registry is the enumeration of everything the console can reach, and a
+service adapter that extends it on its own is how that enumeration stops being
+true. `isUnknown()` returns true for UNCONFIGURED and `httpStatusFor()` answers
+501, so a route that forgets to narrow gets "not implemented" rather than a page
+claiming the thresholds are wired. A test asserts both capabilities are ABSENT
+from the registry, so the day they land the placeholder fails rather than
+surviving.
+
+**Not run against a real AWS account.** Every case is a stand-in gateway raising
+the four answers the real client raises. The same gate blocks GE-010 and
+STUDIO-GATE-010.
+
+**`attributionOf` is not folded.** An untagged budget reports `unattributed`, not
+`shared`. "Somebody decided this is platform overhead" and "nobody tagged it" are
+different facts and only the first is a decision; `tags.ts` says so at length and
+this reader does not disagree with it.
+
+### Mutations proven ON THE PRODUCTION PATH
+
+Applied to `budgets.ts`, run, restored, re-run. Every one was caught by the
+assertion that is about it, not incidentally.
+
+| # | Mutation | Red |
+|---|---|---|
+| B1 | a refused `DescribeBudgets` falls through to `[]` | 6 |
+| B2 | ARN built with the literal partition `aws` | 3 |
+| B3 | `alerting` returns EMPTY — "no thresholds" — instead of UNKNOWN | 2 |
+| B4 | amounts through `Number()` rounded to hundredths | 2 |
+| B5 | the identity guard switched off — `if (false && !estate)` | 1 |
+| B6 | retry schedule typed inline instead of `throttle.ts` | 1 |
+| B7 | an untagged budget folded into `shared` | 1 |
+| B8 | every budget type treated as money, so a GB limit gets a currency | 1 |
+| B9 | a budget with no AWS forecast reported `UNDER` | 1 |
+| B10 | `watchesTenant` taken from the owner tag instead of the cost filters | 1 |
+
+Restored: **0 red / 26 green.**
+
+B10 is recorded because it first survived. The fixture had one budget whose owner
+tag and cost filter named the same tenant, so reading either for the other gave
+the same answer and the assertion proved nothing. The fixture now carries a
+budget owned by `tenure:shared` that watches `north-hills` — a real
+misconfiguration and the only shape that can tell the two fields apart.
+
+## STUDIO-070-004 (SQS) — every queue, its backlog, and the dead-letter queues nobody was told about
+
+- **Was**: `infrastructure/terraform/sqs.tf` creates five queues — `default`,
+  `email`, `notifications` and the two dead-letter queues `default-dlq` and
+  `email-dlq` — and nothing in the running product had ever issued an SQS call.
+  A message that failed its last retry and landed in `email-dlq` produced
+  exactly the same console as a queue that was never written to: nothing.
+- **Now**: `apps/system-studio/src/lib/aws/sqs.ts`. `queueReadings()` resolves
+  identity, reads the tag index, lists every queue and reads each queue's
+  attributes, and returns `SqsReadings` — `AwsRead<readonly QueueReading[]>` for
+  the listing, an `AwsRead<QueueDepth>` per queue, a `DeadLetterState`, an
+  explicit `asOf`, and both capabilities' own `refreshMs` read from the registry
+  rather than retyped.
+- **Two capabilities, two readings**: `sqs:ListQueues` and
+  `sqs:GetQueueAttributes` are separate IAM actions and a role is routinely
+  granted one without the other. A refused `GetQueueAttributes` names
+  `sqs:GetQueueAttributes` and prints that minimum statement — not the listing
+  action — and the queue still appears saying it was refused, rather than
+  vanishing or rendering as `0 visible`. This is `retained.ts`'s
+  `backup:ListBackupVaults` lesson applied at construction time.
+- **The DLQ is a state, not a cell in a table**: `DeadLetterState` has four arms
+  — `unknown`, `none-configured`, `clear` and `failed-deliveries` — and the
+  `clear` arm carries the queues it could NOT read, so "clear" never quietly
+  means "clear as far as we bothered to look". Which queues ARE dead-letter
+  queues is derived from a policy AWS returned (another queue's `RedrivePolicy`
+  naming this ARN, or this queue's own `byQueue` `RedriveAllowPolicy`), never
+  from a `-dlq` suffix.
+- **Residency**: region and partition come from the resolved identity and from
+  the `QueueArn` AWS returns. There is no region literal and no `"aws"`
+  partition fallback in the file; with identity unresolved no ARN is assembled
+  at all and the surface says "region unknown". A GovCloud identity produces
+  `arn:aws-us-gov:sqs:us-gov-west-1:…` and the whole rendered surface contains
+  no `us-east-1`.
+- **Attribution** goes through `tags.ts` and the Resource Groups Tagging API, and
+  adds a FOURTH answer the three-way contract cannot express: `unknown`, for
+  when the tag index itself was denied or throttled. "We could not look up this
+  queue's tags" is not "this queue has no tenant tag", and the second sends an
+  operator to add a tag that is already there.
+- **Counts are never guessed.** An absent `ApproximateNumberOfMessages` throws
+  inside `readAws`, so the queue's depth is ERROR naming the attribute — `0`
+  would be a claim, and it is the claim that makes a backlog invisible.
+- **Mutation proven on the production path**, ten mutations applied to `sqs.ts`
+  (never to the test or a helper), each run, each red, each restored:
+
+| # | mutation applied to `sqs.ts` | result |
+|---|---|---|
+| M1 | the refused/throttled listing passthrough replaced with an ACTUAL empty array | RED ×5 |
+| M2 | `deriveQueueArn` uses a `us-east-1` literal instead of the resolved region | RED ×2 |
+| M3 | dead-letter queues identified by the `-dlq` suffix instead of by redrive policy | RED ×1 |
+| M4 | `requiredCount` defaults an absent count to `0` instead of throwing | RED ×1 |
+| M5 | an unreadable tag index reported as `unattributable — missing tenure:tenant` | RED ×2 |
+| M6 | "no DLQ found, some queues unreadable" reported as a finding instead of unknown | RED ×1 |
+| M7 | the oldest-message sentence dropped from the rendered queue line | RED ×1 |
+| M8 | a refused `GetQueueAttributes` reported under the `sqs:ListQueues` capability | RED ×1 |
+| M9 | queues past the depth-read cap given an EMPTY depth instead of UNCONFIGURED | RED ×1 |
+| M10 | the retry schedule retyped as literals instead of `throttle.ts`'s | RED ×1 |
+
+  All ten restored; the suite is 31/31 green and `sqs.ts` contains no
+  `false &&`, no `|| true` and no mutation stub.
+
+### Evidence
+
+- `npx jest --ci --testPathPattern "aws/sqs"` — **31 passed, 31 total.**
+- `npx jest --ci --testPathPattern "system-studio"` — **21 suites, 410 tests,
+  all passing** (includes the concurrent service agents' suites).
+- `cd apps/system-studio && npx tsc --noEmit` — no error in `sqs.ts` or
+  `sqs.test.ts`. The two remaining errors are missing `.next-config-md3` type
+  stubs from another agent's `tsconfig.json` include.
+- `node --test tests/architecture/forbidden-clients.test.mjs` — 6/6 pass. The
+  fixture's queue URLs are composed from their parts rather than written as a
+  literal `https://…amazonaws.com`, so the guard stays absolute rather than
+  gaining an exception for tests.
+- `node tools/run-platform-tests.mjs` — **390 pass, 3 fail**, and the identical
+  three fail with `sqs.ts` and `sqs.test.ts` moved out of the tree. They are
+  another agent's stale generated documents, not this work.
+
+### What is NOT closed, and is not claimed
+
+- **The age of the oldest message is NOT read.** It is not an SQS queue
+  attribute — no SDK version has one — it is the CloudWatch metric
+  `AWS/SQS ApproximateAgeOfOldestMessage`, and the capability registry holds no
+  `cloudwatch:GetMetricData`. Every queue therefore carries an `oldestMessage`
+  field whose only arm is `NOT_READABLE`, naming the capability that would
+  answer it. This item is **FAIL** until `cloudwatch:GetMetricData` is added to
+  `capabilities.ts` by whoever owns that file, plus the matching grant in
+  `infrastructure/studio/iam.tf`.
+- **Nothing renders this yet.** `queueReadings()` reaches the real `SQSClient`
+  through `liveGateway()` → `client.ts`, and the tests drive that exact
+  function — but `SURFACES` in `lib/aws/result.ts` has no SQS entry and no route
+  or page imports the module, so no operator can see any of it today. That is
+  the route agent's item, and this work does not claim it.
+- **No SQS read has been performed against a real AWS account.** Every case is a
+  stand-in gateway raising the answers the real client raises. The same gate
+  blocks GE-010 and STUDIO-GATE-010.
+- **`sqs:ReceiveMessage`, `sqs:DeleteMessage` and `sqs:PurgeQueue` are absent and
+  stay absent.** Reading a queue's depth must not become the ability to consume
+  or destroy the messages in it.
+
+---
+
+### Lambda joins the live AWS reads — STUDIO-080-001 (partial), STUDIO-000-007, STUDIO-000-009
+
+**No checkbox is ticked by this entry.** STUDIO-080-001 asks for a
+cross-account, cross-region inventory carrying cost, drift, retention and
+deletion behaviour; what landed is one service's slice of it, in one region, and
+saying otherwise would be a sign-off nobody gave. The item stays as it is.
+
+- Status of this slice: PASS
+- Code: `apps/system-studio/src/lib/aws/lambda.ts`
+- Tests: `apps/system-studio/src/lib/aws/lambda.test.ts` — 23 cases, all passing
+  under `npx jest --ci --testPathPattern "system-studio/src/lib/aws/lambda"`
+- Evidence: six mutations applied to the production path, six caught, all
+  restored (M-L1 … M-L6 below); `md5sum` of the file after the last restore is
+  identical to the pre-mutation snapshot.
+
+**What it reads.** `lambda:ListFunctions` paged by `Marker`, and
+`lambda:GetFunctionConcurrency` per function: runtime, package type, memory,
+timeout, code size, architectures, last-modified and reserved concurrency. Both
+capabilities were already in the registry and in `client.ts` and nothing called
+them, so every function in the account was invisible from the console that is
+supposed to be authoritative about the estate.
+
+**A runtime AWS has end-of-lifed is a scheduled outage, and AWS publishes no API
+for the calendar.** So `RUNTIME_DEPRECATION_CALENDAR` is a transcription of the
+public runtime-support page, stamped `RUNTIME_CALENDAR_AS_OF` and carrying the
+page's URL on every verdict derived from it. The stamp is load-bearing: past
+`CALENDAR_MAX_AGE_MS` (90 days) the reassuring verdict SUPPORTED is withdrawn
+and becomes UNKNOWN_STALE_CALENDAR, while DEPRECATED and APPROACHING stand — a
+date in the past does not move, over-warning costs a lookup, and under-warning is
+the outage. A runtime the transcription has never heard of is UNKNOWN_RUNTIME and
+is never assumed current; a container-image function is NOT_A_MANAGED_RUNTIME and
+says plainly that this console cannot see the age of a base image. **This is the
+one input in the module that a human must maintain**, and it degrades to
+"unknown" rather than to "fine" when nobody does.
+
+**Reserved concurrency is `AwsRead<number>`, not `number | null`.** Lambda
+reports an unreserved function by omitting the field, so "shares the account
+pool" and "we were refused `GetFunctionConcurrency`" arrive from the SDK as the
+same shape and must not arrive as the same shape here: EMPTY is the first, DENIED
+the second, and a reservation of `0` is ACTUAL and renders as *"throttled to
+zero and cannot be invoked at all"*, because folding it into "no reservation"
+hides the loudest thing the read can find. Functions past
+`CONCURRENCY_READ_BUDGET` carry UNCONFIGURED saying *"Not read is not
+unreserved"* rather than being reported as sharing the pool.
+
+**A denied tag read does not become an untagged estate.** `attributionOf({})`
+answers `unattributed`, which MEANS "nobody tagged this" — so feeding it an empty
+index because `tag:GetResources` was refused would report every function in the
+account as untagged: a specific, actionable, false finding produced by a call
+nobody was allowed to make. `FunctionAttribution` carries `known: false` and the
+refused call's own sentence. The published `EstateResource` contract has no third
+state for `tenantId`, and the code says so at the field rather than glossing it.
+
+**Region and partition come from the resolved identity and from the ARNs the API
+returned.** `residencyAnomalies()` reports a function whose ARN names a region
+other than the one this engine resolved, which is the GE-010-007 shape.
+`tests/security/no-hardcoded-estate.test.mjs` passes over the module.
+
+**The throttle schedule is `throttle.ts`'s.** `readAws` is given
+`attempts: READ_ATTEMPTS` and `backoffMs: backoffMs(2)`, which reproduces that
+module's curve exactly; the test asserts the recorded waits are
+`[backoffMs(2), backoffMs(3)]` and that the reported `retryAfterMs` equals
+`backoffMs(READ_ATTEMPTS + 1)`. Two backoff curves would be two answers to "how
+long until it tries again".
+
+#### Mutations applied to the production path, and what caught them
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M-L1 | `try { … } catch { return [] }` around the `ListFunctions` page loop | **5 red** — the denial rendered as an empty estate |
+| M-L2 | `runtimeRiskLine` counts over the value regardless of read state | **2 red** — a refused read printed "no functions to check against the runtime calendar" |
+| M-L3 | the `calendar.stale` degradation removed from `runtimeSupportFor` | **1 red** — a 104-day-old transcription still called a runtime supported |
+| M-L4 | `describeReservedConcurrency` treats every non-ACTUAL as "no reservation" | **2 red** — a refusal claimed the function shares the account pool |
+| M-L5 | `tagsUnavailable` pinned to `null` | **1 red** — a denied `tag:GetResources` reported all six functions unattributable |
+| M-L6 | `backoffMs(2)` replaced with a literal `50` | **1 red** — the surface stopped using `throttle.ts`'s schedule |
+
+Each was restored immediately and the suite returned to 23 green.
+
+#### What is NOT closed, and is not claimed
+
+- **The runtime calendar is a transcription, not a read.** AWS exposes the
+  deprecation dates on a documentation page only. The dates below the stamp are
+  the published ones; anything AWS announced after the stamp is not in it, which
+  is exactly why a stale stamp withdraws SUPPORTED instead of keeping it.
+- **No page imports this yet.** The module is the data layer; the route that
+  renders it is another agent's file, and until that lands nothing in the running
+  product calls `lambdaInventory`.
+- **Reserved concurrency is read for the first `CONCURRENCY_READ_BUDGET` (100)
+  functions.** `GetFunctionConcurrency` has no bulk form and shares an
+  account-wide throttle with the deploy pipeline. Functions past the budget are
+  UNCONFIGURED, never "unreserved".
+- **Nothing here decides whether a function is unmanaged.** No
+  `aws_lambda_function` exists in `infrastructure/`, so an expected-set
+  comparison would be a claim this repository cannot support; `drift.ts` owns
+  that question.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. It is a shared generated artefact that every service agent in
+  this batch staled; regenerating it belongs to one `npm run generate` after they
+  all land, not to seven concurrent writers.

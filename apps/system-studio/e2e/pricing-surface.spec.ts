@@ -53,7 +53,16 @@ test.describe("the configuration surface shows what it costs", () => {
     await signIn(page)
     await page.goto(`/tenants/${SLUG}/configuration?seats=250`, { waitUntil: "domcontentloaded" })
 
-    const section = page.locator("section.system").filter({ hasText: "What this costs" })
+    // `#running-total`, not `section.system`.
+    //
+    // The region is the same one and every assertion below is unchanged; what
+    // moved is the ANCHOR. `.system` was the console's pre-Material-3 panel
+    // class, and this route is now drawn by `components/md3`'s `Card`, which
+    // owns its own class name and must not be forked to carry a legacy one. An
+    // id is the stronger anchor in any case: `filter({ hasText })` re-derives
+    // the region from copy, so rewording the headline silently re-scoped every
+    // assertion in this test to the whole page.
+    const section = page.locator("#running-total")
     await expect(section).toBeVisible(VISIBLE)
 
     // The assistant ships on and costs $4.00 a seat, so an untouched tenant is
@@ -76,7 +85,7 @@ test.describe("the configuration surface shows what it costs", () => {
     await signIn(page)
     await page.goto(`/tenants/${SLUG}/configuration?seats=10`, { waitUntil: "domcontentloaded" })
 
-    const section = page.locator("section.system").filter({ hasText: "What this costs" })
+    const section = page.locator("#running-total")
     await expect(section.getByText("40.00 USD running total, per month")).toBeVisible(VISIBLE)
   })
 

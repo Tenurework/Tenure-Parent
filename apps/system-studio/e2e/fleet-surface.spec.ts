@@ -19,6 +19,27 @@ const OPERATOR = (process.env.PLATFORM_OPERATORS ?? "").split(",")[0]?.split(":"
 const SECRET = process.env.PLATFORM_OPERATOR_SECRET ?? ""
 const configured = !!process.env.TENANT_TABLE
 
+/**
+ * The fleet inventory, located by what it SAYS rather than by what it is
+ * styled with.
+ *
+ * It used to be `table.grid.fleet`. That class pair is gone: the surface now
+ * composes `components/md3/DataTable`, whose whole point is that a header and
+ * its cells are derived from one declaration — so a table's identity is its
+ * required, visible caption rather than a class name a restyle can take away.
+ *
+ * The assertions underneath are unchanged and are the part that matters: the
+ * same sixteen columns, in the same order, with the same four probe strings.
+ * `page.getByTestId("fleet-count")` still pins the truncation sentence. Nothing
+ * here is weaker than it was; it is pinned to different markup because the
+ * markup deliberately changed.
+ */
+function fleetTable(page: Page) {
+  return page.locator("table", {
+    has: page.locator("caption", { hasText: "Tenants registered in this console" }),
+  })
+}
+
 async function signIn(page: Page) {
   await page.goto("/signin")
   await page.getByLabel("Email").fill(OPERATOR)
@@ -50,7 +71,7 @@ test.describe("the fleet table", () => {
     await page.goto("/tenants")
     await page.waitForLoadState("networkidle")
 
-    const headers = await page.locator("table.grid.fleet thead th").allTextContents()
+    const headers = await fleetTable(page).locator("thead th").allTextContents()
     expect(headers.map((h) => h.trim())).toEqual([
       "Tenant",
       "Owner",
@@ -91,7 +112,7 @@ test.describe("the fleet table", () => {
     const count = page.getByTestId("fleet-count")
     await expect(count).toBeVisible()
 
-    const rows = await page.locator("table.grid.fleet tbody tr").count()
+    const rows = await fleetTable(page).locator("tbody tr").count()
     const text = (await count.textContent()) ?? ""
     const total = Number(text.match(/(\d+)\s+tenants/)?.[1] ?? text.match(/of\s+(\d+)/)?.[1] ?? 0)
 

@@ -13,24 +13,60 @@
  * A console where the eye is pulled to whatever is reddest stops being read.
  */
 
+/*
+ * The reference ramp: tones of the seed, with no meaning attached.
+ *
+ * Material's two layers, kept as two layers. `--md-ref-*` says what a colour IS
+ * and `--md-sys-*` says what it is FOR, and the arrows below are what makes that
+ * more than a naming convention — the light theme's roles RESOLVE through the
+ * ramp rather than restating its hex codes beside it. Before this they were
+ * seven tones declared, referenced by nothing, sitting above the same values
+ * spelled a second time: a ramp that could drift from the palette it was
+ * supposedly the source of, and nothing to notice.
+ *
+ * `--md-ref-primary-40` was the eighth and is gone. It was the one tone no role
+ * ever resolved to, which in a two-layer system means it was not a reference —
+ * it was a colour nobody had decided the use of.
+ */
 :root {
   --md-ref-primary-10: #062117;
   --md-ref-primary-30: #0b5c3d;
-  --md-ref-primary-40: #14784f;
   --md-ref-primary-80: #7fd6aa;
   --md-ref-primary-90: #c3eed8;
   --md-ref-secondary-40: #47665a;
   --md-ref-tertiary-40: #3c6370;
-  --md-sys-color-primary: #0b5c3d;
+  --md-sys-color-primary: var(--md-ref-primary-30);
   --md-sys-color-on-primary: #f7fff9;
-  --md-sys-color-primary-container: #c3eed8;
-  --md-sys-color-on-primary-container: #062117;
-  --md-sys-color-secondary: #47665a;
+  --md-sys-color-primary-container: var(--md-ref-primary-90);
+  --md-sys-color-on-primary-container: var(--md-ref-primary-10);
+  --md-sys-color-secondary: var(--md-ref-secondary-40);
   --md-sys-color-on-secondary: #f7fff9;
-  --md-sys-color-tertiary: #3c6370;
+  --md-sys-color-secondary-container: #d3e5db;
+  --md-sys-color-on-secondary-container: #10251c;
+  --md-sys-color-tertiary: var(--md-ref-tertiary-40);
+  --md-sys-color-on-tertiary: #f7fdff;
+  --md-sys-color-tertiary-container: #cbe6ef;
+  --md-sys-color-on-tertiary-container: #0b232c;
   --md-sys-color-error: #8b2f35;
+  --md-sys-color-on-error: #fff8f7;
+  --md-sys-color-error-container: #f7dedd;
+  --md-sys-color-on-error-container: #2d0709;
+  /*
+   * `warning` and `success` are NOT Material roles. They are this console's two
+   * extra status families, and they are declared with the same four-part shape —
+   * base / on / container / on-container — so a status pill is built the same way
+   * whichever family it belongs to. Without the container half, the only way to
+   * fill a warning chip was an ad-hoc rgba, which is the thing the state-layer
+   * section below exists to end.
+   */
   --md-sys-color-warning: #765b12;
+  --md-sys-color-on-warning: #fffcf3;
+  --md-sys-color-warning-container: #f4e6c2;
+  --md-sys-color-on-warning-container: #241a00;
   --md-sys-color-success: #246b45;
+  --md-sys-color-on-success: #f7fff9;
+  --md-sys-color-success-container: #c8e9d4;
+  --md-sys-color-on-success-container: #052314;
   --md-sys-color-background: #f4f7f3;
   --md-sys-color-on-background: #17231d;
   --md-sys-color-surface: #fbfdf8;
@@ -41,20 +77,34 @@
   --md-sys-color-surface-container: #e9f0ea;
   --md-sys-color-surface-container-high: #e2ebe4;
   --md-sys-color-surface-container-highest: #dbe5dd;
+  --md-sys-color-surface-variant: #dfe7e1;
   --md-sys-color-on-surface: #17231d;
   --md-sys-color-on-surface-variant: #485950;
   --md-sys-color-outline: #718178;
   --md-sys-color-outline-variant: #c7d1ca;
+  /*
+   * The inverse trio. Used where a surface has to read as NOT part of the page —
+   * a snackbar, a hovercard over a table. Declared rather than improvised,
+   * because the improvisation is always "invert the two you can remember", and
+   * the inverse of a green-tinted paper is not a green-tinted charcoal.
+   */
+  --md-sys-color-inverse-surface: #2b342e;
+  --md-sys-color-inverse-on-surface: #eff5f0;
+  --md-sys-color-inverse-primary: var(--md-ref-primary-80);
   --md-sys-color-scrim: rgba(13, 24, 18, 0.42);
   --md-sys-state-hover: rgba(11, 92, 61, 0.08);
   --md-sys-state-focus: rgba(11, 92, 61, 0.14);
   --md-sys-state-pressed: rgba(11, 92, 61, 0.16);
+  --md-sys-elevation-0: none;
   --md-sys-elevation-1: 0 1px 2px rgba(25, 44, 34, 0.09), 0 1px 3px rgba(25, 44, 34, 0.07);
   --md-sys-elevation-2: 0 2px 6px rgba(25, 44, 34, 0.11), 0 1px 3px rgba(25, 44, 34, 0.08);
-  --md-sys-shape-xs: 4px;
-  --md-sys-shape-sm: 6px;
-  --md-sys-shape-md: 8px;
-  --md-sys-shape-full: 999px;
+  --md-sys-elevation-3: 0 4px 10px rgba(25, 44, 34, 0.12), 0 1px 3px rgba(25, 44, 34, 0.09);
+  --md-sys-elevation-4: 0 8px 16px rgba(25, 44, 34, 0.13), 0 2px 4px rgba(25, 44, 34, 0.1);
+  --md-sys-elevation-5: 0 12px 24px rgba(25, 44, 34, 0.15), 0 4px 6px rgba(25, 44, 34, 0.11);
+  --md-sys-shape-xs: var(--md-sys-shape-corner-extra-small);
+  --md-sys-shape-sm: var(--md-sys-shape-corner-small);
+  --md-sys-shape-md: var(--md-sys-shape-corner-medium);
+  --md-sys-shape-full: var(--md-sys-shape-corner-full);
   --md-sys-type-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --md-sys-type-mono: "SFMono-Regular", "Roboto Mono", Menlo, Consolas, monospace;
   --bg: var(--md-sys-color-background);
@@ -91,13 +141,27 @@
   --md-sys-color-primary: #9bdcba;
   --md-sys-color-on-primary: #003824;
   --md-sys-color-primary-container: #124f37;
-  --md-sys-color-on-primary-container: #c3eed8;
+  --md-sys-color-on-primary-container: var(--md-ref-primary-90);
   --md-sys-color-secondary: #b4cdc0;
   --md-sys-color-on-secondary: #20362d;
+  --md-sys-color-secondary-container: #345048;
+  --md-sys-color-on-secondary-container: #d0e8dc;
   --md-sys-color-tertiary: #a7ced9;
+  --md-sys-color-on-tertiary: #0b323d;
+  --md-sys-color-tertiary-container: #27454f;
+  --md-sys-color-on-tertiary-container: #c3e8f3;
   --md-sys-color-error: #f3b6b8;
+  --md-sys-color-on-error: #45161a;
+  --md-sys-color-error-container: #62282c;
+  --md-sys-color-on-error-container: #ffdad9;
   --md-sys-color-warning: #dfc56e;
+  --md-sys-color-on-warning: #3b2f00;
+  --md-sys-color-warning-container: #56450d;
+  --md-sys-color-on-warning-container: #f6e6bf;
   --md-sys-color-success: #9ed5ad;
+  --md-sys-color-on-success: #06351f;
+  --md-sys-color-success-container: #1d4b33;
+  --md-sys-color-on-success-container: #c8e9d4;
   --md-sys-color-background: #101813;
   --md-sys-color-on-background: #e5eee8;
   --md-sys-color-surface: #101813;
@@ -108,16 +172,32 @@
   --md-sys-color-surface-container: #1b251f;
   --md-sys-color-surface-container-high: #26312a;
   --md-sys-color-surface-container-highest: #303c34;
+  --md-sys-color-surface-variant: #3f4a44;
   --md-sys-color-on-surface: #e5eee8;
   --md-sys-color-on-surface-variant: #bdcbc3;
   --md-sys-color-outline: #87988e;
   --md-sys-color-outline-variant: #3d4a42;
-  --md-sys-color-scrim: rgba(0, 0, 0, 0.62);
+  --md-sys-color-inverse-surface: #e5eee8;
+  --md-sys-color-inverse-on-surface: #17231d;
+  --md-sys-color-inverse-primary: var(--md-ref-primary-30);
+  /*
+   * Not `rgba(0, 0, 0, …)`. The scrim is a BACKGROUND, and
+   * `preferences.spec.ts` reads every rendered background looking for pure
+   * black — so the one token whose job is to darken the page was also the one
+   * token that could fail the "neither pure black nor pure white" assertion,
+   * and only while a dialog happened to be open. Green-charcoal at the same
+   * opacity is indistinguishable to the eye and unambiguous to the test.
+   */
+  --md-sys-color-scrim: rgba(6, 11, 8, 0.62);
   --md-sys-state-hover: rgba(155, 220, 186, 0.1);
   --md-sys-state-focus: rgba(155, 220, 186, 0.16);
   --md-sys-state-pressed: rgba(155, 220, 186, 0.18);
+  --md-sys-elevation-0: none;
   --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.22);
   --md-sys-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.36), 0 1px 3px rgba(0, 0, 0, 0.28);
+  --md-sys-elevation-3: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --md-sys-elevation-4: 0 8px 18px rgba(0, 0, 0, 0.44), 0 2px 4px rgba(0, 0, 0, 0.32);
+  --md-sys-elevation-5: 0 12px 26px rgba(0, 0, 0, 0.48), 0 4px 6px rgba(0, 0, 0, 0.34);
   --bg: var(--md-sys-color-background);
   --surface: var(--md-sys-color-surface-container-low);
   --surface-2: var(--md-sys-color-surface-container);
@@ -130,6 +210,170 @@
   --warn: var(--md-sys-color-warning);
   --bad: var(--md-sys-color-error);
   color-scheme: dark;
+}
+
+/*
+ * ── Shape ──────────────────────────────────────────────────────────────────
+ *
+ * Material's corner ramp, calibrated for a console rather than copied from a
+ * phone. The NAMES are Material's — none, extra-small, small, medium, large,
+ * extra-large, full — and the ramp is monotonic, which is the only property a
+ * component can actually rely on. The VALUES are tighter than consumer Material
+ * (which starts at 4 and reaches 28) because every radius here is drawn around
+ * a data row, a status pill or a form control, and a 28px corner on a table
+ * card reads as a toy.
+ *
+ * The four older `--md-sys-shape-*` names are aliases onto this ramp rather than
+ * a second set of numbers. Roughly ninety rules below already name them; two
+ * ramps that were meant to agree is how a design system gets a 6px corner beside
+ * an 8px one and nobody can say which was intended.
+ */
+:root {
+  --md-sys-shape-corner-none: 0;
+  --md-sys-shape-corner-extra-small: 4px;
+  --md-sys-shape-corner-small: 6px;
+  --md-sys-shape-corner-medium: 8px;
+  --md-sys-shape-corner-large: 12px;
+  --md-sys-shape-corner-extra-large: 16px;
+  --md-sys-shape-corner-full: 999px;
+}
+
+/*
+ * ── The type scale ─────────────────────────────────────────────────────────
+ *
+ * Five roles, three sizes each, and every one carries all FOUR of the things a
+ * type style is: size, line-height, weight and tracking. Three of the four is
+ * what a "type scale" usually means in practice, and the missing one is always
+ * tracking — which is why a 0.72rem uppercase label ends up with a hand-tuned
+ * `letter-spacing: 0.06em` at each of the eleven places this stylesheet used to
+ * write one.
+ *
+ * Sizes are `rem`, so a viewer who has raised their browser's base font size
+ * gets the whole scale raised with it. The three display sizes and the two
+ * largest headlines are `clamp()`d because `layout.spec.ts` runs every route at
+ * 320 CSS pixels: a fixed 2.5rem headline is 40px of unbreakable word on a
+ * 320px screen, and the token, not the page, is where that has to be solved.
+ *
+ * Density does NOT touch this block. Compact tightens space; it does not shrink
+ * type (Bible §26.3.4), and `preferences.spec.ts` asserts the body size is
+ * identical in both densities.
+ */
+:root {
+  --md-sys-typescale-display-large-size: clamp(1.75rem, 1.35rem + 2vw, 2.5rem);
+  --md-sys-typescale-display-large-line-height: 1.15;
+  --md-sys-typescale-display-large-weight: 400;
+  --md-sys-typescale-display-large-tracking: -0.02em;
+  --md-sys-typescale-display-medium-size: clamp(1.55rem, 1.25rem + 1.5vw, 2rem);
+  --md-sys-typescale-display-medium-line-height: 1.18;
+  --md-sys-typescale-display-medium-weight: 400;
+  --md-sys-typescale-display-medium-tracking: -0.01em;
+  --md-sys-typescale-display-small-size: clamp(1.4rem, 1.2rem + 1vw, 1.75rem);
+  --md-sys-typescale-display-small-line-height: 1.2;
+  --md-sys-typescale-display-small-weight: 400;
+  --md-sys-typescale-display-small-tracking: 0;
+
+  --md-sys-typescale-headline-large-size: clamp(1.18rem, 1rem + 0.6vw, 1.55rem);
+  --md-sys-typescale-headline-large-line-height: 1.2;
+  --md-sys-typescale-headline-large-weight: 720;
+  --md-sys-typescale-headline-large-tracking: 0;
+  --md-sys-typescale-headline-medium-size: clamp(1.1rem, 1rem + 0.4vw, 1.3rem);
+  --md-sys-typescale-headline-medium-line-height: 1.25;
+  --md-sys-typescale-headline-medium-weight: 700;
+  --md-sys-typescale-headline-medium-tracking: 0;
+  --md-sys-typescale-headline-small-size: 1.08rem;
+  --md-sys-typescale-headline-small-line-height: 1.3;
+  --md-sys-typescale-headline-small-weight: 700;
+  --md-sys-typescale-headline-small-tracking: 0;
+
+  --md-sys-typescale-title-large-size: 1rem;
+  --md-sys-typescale-title-large-line-height: 1.3;
+  --md-sys-typescale-title-large-weight: 680;
+  --md-sys-typescale-title-large-tracking: 0;
+  --md-sys-typescale-title-medium-size: 0.92rem;
+  --md-sys-typescale-title-medium-line-height: 1.4;
+  --md-sys-typescale-title-medium-weight: 650;
+  --md-sys-typescale-title-medium-tracking: 0.005em;
+  --md-sys-typescale-title-small-size: 0.84rem;
+  --md-sys-typescale-title-small-line-height: 1.45;
+  --md-sys-typescale-title-small-weight: 650;
+  --md-sys-typescale-title-small-tracking: 0.01em;
+
+  --md-sys-typescale-body-large-size: 0.94rem;
+  --md-sys-typescale-body-large-line-height: 1.55;
+  --md-sys-typescale-body-large-weight: 400;
+  --md-sys-typescale-body-large-tracking: 0.005em;
+  --md-sys-typescale-body-medium-size: 0.86rem;
+  --md-sys-typescale-body-medium-line-height: 1.55;
+  --md-sys-typescale-body-medium-weight: 400;
+  --md-sys-typescale-body-medium-tracking: 0.01em;
+  --md-sys-typescale-body-small-size: 0.78rem;
+  --md-sys-typescale-body-small-line-height: 1.5;
+  --md-sys-typescale-body-small-weight: 400;
+  --md-sys-typescale-body-small-tracking: 0.015em;
+
+  --md-sys-typescale-label-large-size: 0.82rem;
+  --md-sys-typescale-label-large-line-height: 1.35;
+  --md-sys-typescale-label-large-weight: 600;
+  --md-sys-typescale-label-large-tracking: 0.01em;
+  --md-sys-typescale-label-medium-size: 0.75rem;
+  --md-sys-typescale-label-medium-line-height: 1.35;
+  --md-sys-typescale-label-medium-weight: 600;
+  --md-sys-typescale-label-medium-tracking: 0.03em;
+  /*
+   * 0.69rem is 11px at a 16px root, which is the size this console's badges,
+   * legends and section eyebrows have always been. It is a LABEL, never body
+   * text: WCAG has no minimum type size, but an 11px paragraph is a defect
+   * whatever the contrast ratio says, so the scale offers this size only under
+   * a name that means "one or two words".
+   */
+  --md-sys-typescale-label-small-size: 0.69rem;
+  --md-sys-typescale-label-small-line-height: 1.35;
+  --md-sys-typescale-label-small-weight: 650;
+  --md-sys-typescale-label-small-tracking: 0.06em;
+}
+
+/*
+ * ── State layers ───────────────────────────────────────────────────────────
+ *
+ * Material's interaction model, as opacities rather than as colours.
+ *
+ * The older `--md-sys-state-hover/-focus/-pressed` above are baked rgba values:
+ * the accent, pre-composited at one opacity. They work, they are used by about
+ * ten rules below, and they have one hard limit — a baked layer only fits the
+ * surface it was baked for. On a filled button the hover tint has to come from
+ * the button's ON colour, not from the page's accent, and the only way to
+ * express that with a baked value is to bake a second one. That is how a
+ * stylesheet acquires nine hand-mixed rgba() values that nobody can re-derive.
+ *
+ * So a state layer is drawn as a `::before` filled with `currentColor` at one of
+ * these opacities (`.md3-state` below). `currentColor` is by definition the
+ * on-colour of whatever container the control is in, so ONE rule is correct on
+ * primary, on a tonal container, on an error chip and on a bare surface — and
+ * the contrast of the hovered state is computable from the tokens rather than
+ * from a screenshot. `md3-tokens-logic.spec.ts` composites every one of them and
+ * requires the result to still clear AA.
+ *
+ * The values are Material's own: hover 8%, focus 12%, pressed 12%.
+ *
+ * ## Material's disabled opacities are deliberately absent
+ *
+ * Material dims disabled content to 38%. At that opacity every one of the pairs
+ * below drops under 3:1, and Material is not wrong to do it — WCAG 1.4.3 exempts
+ * "text that is part of an inactive user interface component" by name, so a 38%
+ * label is conformant.
+ *
+ * It is still the wrong answer HERE. A disabled control in this console is
+ * usually the most important thing on the screen: it is the transition an
+ * operator came to perform and cannot, and the reason is next to it. So a
+ * disabled control keeps a readable label — `on-surface-variant` on
+ * `surface-container-highest`, 6.86:1, audited with every other pair — and loses
+ * its container fill and its state layer instead. There are no disabled-opacity
+ * tokens because nothing may use one.
+ */
+:root {
+  --md-sys-state-hover-opacity: 0.08;
+  --md-sys-state-focus-opacity: 0.12;
+  --md-sys-state-pressed-opacity: 0.12;
 }
 
 /*
@@ -217,7 +461,42 @@
   --ease-entry: cubic-bezier(0, 0, 0.2, 1);
 }
 
+/*
+ * The same three decisions under Material's names, so a component written
+ * against the Material vocabulary lands on this console's band instead of on
+ * Material's own ramp — which runs 50ms to 600ms and would put a 600ms
+ * `long4` transition in a control plane whose documented ceiling is 220ms
+ * (Bible §26.3.7).
+ *
+ * `short` and `medium` are ALIASES, not copies: `--motion-fast` and
+ * `--motion-base` are the tokens `[data-motion="reduced"]` zeroes and the ones
+ * the tenant product also declares, and a second pair of numbers beside them is
+ * a second thing to zero and a second thing to forget.
+ *
+ * There are two durations rather than Material's twelve, and no `long`. The
+ * band's 220ms ceiling is asserted by `preferences.spec.ts` against the rendered
+ * page, which is where a ceiling belongs; a third token nothing was allowed to
+ * reach would be a number in a stylesheet pretending to be a decision.
+ *
+ * `--ease-entry` is likewise aliased rather than restated. It is one of the two
+ * tokens the two experiences disagree about (`SHARED_TOKENS` in
+ * `tools/entry-point-inventory.mjs` records the disagreement as unreconciled),
+ * and declaring a second decelerate curve here would make that record describe
+ * one of two curves in one stylesheet.
+ */
+:root {
+  --md-sys-motion-duration-short: var(--motion-fast);
+  --md-sys-motion-duration-medium: var(--motion-base);
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-decelerate: var(--ease-entry);
+  --md-sys-motion-easing-accelerate: cubic-bezier(0.3, 0, 1, 1);
+}
+
 :root[data-motion="reduced"] {
+  /* `--md-sys-motion-duration-short` and `-medium` are aliases onto these two,
+     so zeroing the pair zeroes the Material names with them. That is the whole
+     reason they are aliases: one place to zero, and no second token that still
+     reads 180ms while the page has stopped moving. */
   --motion-fast: 0s;
   --motion-base: 0s;
 }
@@ -1625,4 +1904,607 @@ fieldset.destructive .chip {
   /* Deliberately taller than an ordinary chip, so the two are distinguishable
      without colour and without reading the heading. */
   min-height: calc(var(--tap) + var(--space-2));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * THE MD3 PRIMITIVES
+ *
+ * Everything above this line is a screen: a rule written for the masthead, the
+ * fleet table, the high-risk panel. Everything below is a COMPONENT — the small
+ * set of shapes every Studio surface is assembled from, styled here because
+ * `src/components/md3/*.tsx` is not allowed to contain a colour.
+ *
+ * That is the rule, and it is checkable rather than aspirational:
+ * `e2e/md3-tokens-logic.spec.ts` reads every file in `components/md3/` and fails
+ * on a hex code, an `rgb(`, an `hsl(`, or a colour keyword. A component decides
+ * WHICH role applies; it never decides what the role's colour is. The moment one
+ * does, the palette has two homes and the contrast audit only knows about one.
+ *
+ * Corollary, and it is the half people skip: a boundary that carries meaning —
+ * the edge of a control, the edge of a focusable thing — is drawn with
+ * `--md-sys-color-outline`, which is audited at 3:1 against every surface
+ * (WCAG 2.2 AA 1.4.11). `--md-sys-color-outline-variant` is a DECORATIVE
+ * hairline: a divider between two rows that are already distinguishable, the
+ * edge of a card that already has its own background. It is roughly 1.5:1 and
+ * is not permitted to be the only thing separating a control from the page.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── The type scale, as classes ────────────────────────────────────────────
+ *
+ * One class per role, and each applies all four parts of the style. Applying
+ * three of the four is the common failure: the size and weight carry, the
+ * tracking is forgotten, and a 0.69rem label with default tracking looks like a
+ * mistake next to one that has it.
+ */
+.md3-display-large {
+  font-size: var(--md-sys-typescale-display-large-size);
+  line-height: var(--md-sys-typescale-display-large-line-height);
+  font-weight: var(--md-sys-typescale-display-large-weight);
+  letter-spacing: var(--md-sys-typescale-display-large-tracking);
+}
+.md3-display-medium {
+  font-size: var(--md-sys-typescale-display-medium-size);
+  line-height: var(--md-sys-typescale-display-medium-line-height);
+  font-weight: var(--md-sys-typescale-display-medium-weight);
+  letter-spacing: var(--md-sys-typescale-display-medium-tracking);
+}
+.md3-display-small {
+  font-size: var(--md-sys-typescale-display-small-size);
+  line-height: var(--md-sys-typescale-display-small-line-height);
+  font-weight: var(--md-sys-typescale-display-small-weight);
+  letter-spacing: var(--md-sys-typescale-display-small-tracking);
+}
+.md3-headline-large {
+  font-size: var(--md-sys-typescale-headline-large-size);
+  line-height: var(--md-sys-typescale-headline-large-line-height);
+  font-weight: var(--md-sys-typescale-headline-large-weight);
+  letter-spacing: var(--md-sys-typescale-headline-large-tracking);
+}
+.md3-headline-medium {
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+}
+.md3-headline-small {
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  font-weight: var(--md-sys-typescale-headline-small-weight);
+  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+}
+.md3-title-large {
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
+}
+.md3-title-medium {
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  font-weight: var(--md-sys-typescale-title-medium-weight);
+  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+}
+.md3-title-small {
+  font-size: var(--md-sys-typescale-title-small-size);
+  line-height: var(--md-sys-typescale-title-small-line-height);
+  font-weight: var(--md-sys-typescale-title-small-weight);
+  letter-spacing: var(--md-sys-typescale-title-small-tracking);
+}
+.md3-body-large {
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  font-weight: var(--md-sys-typescale-body-large-weight);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+}
+.md3-body-medium {
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  font-weight: var(--md-sys-typescale-body-medium-weight);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+}
+.md3-body-small {
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-weight: var(--md-sys-typescale-body-small-weight);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+}
+.md3-label-large {
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+}
+.md3-label-medium {
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+}
+.md3-label-small {
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
+  font-weight: var(--md-sys-typescale-label-small-weight);
+  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+}
+
+/* ── The state layer ───────────────────────────────────────────────────────
+ *
+ * `currentColor` at a token opacity, drawn between the container and the
+ * content. That is the whole mechanism, and it is why there is exactly one rule
+ * here rather than one per variant: `currentColor` on a filled button is the ON
+ * colour of the button, on a text button it is the accent, on an error chip it
+ * is the error's on-colour. The layer is always the right colour because it is
+ * never a colour — it is whatever the text already is.
+ *
+ * `isolation: isolate` plus `z-index: -1` is what puts the layer above the
+ * element's own background and below its text. Without the isolation the
+ * negative index escapes to the nearest ancestor stacking context and the layer
+ * paints behind the CARD, where it is invisible.
+ *
+ * `overflow: hidden` clips it to the corner radius. A full-radius pill with a
+ * square hover tint is the tell that a state layer was added without one.
+ */
+.md3-state {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.md3-state::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+.md3-state:hover::before {
+  opacity: var(--md-sys-state-hover-opacity);
+}
+.md3-state:focus-visible::before {
+  opacity: var(--md-sys-state-focus-opacity);
+}
+.md3-state:active::before {
+  opacity: var(--md-sys-state-pressed-opacity);
+}
+/*
+ * A disabled control has no interaction states, and `:hover` DOES match a
+ * disabled <button> in every engine — the pointer events are suppressed, the
+ * selector is not. Without this the one control that cannot be pressed is the
+ * one that lights up under the cursor.
+ */
+.md3-state:disabled::before,
+.md3-state[aria-disabled="true"]::before {
+  opacity: 0;
+}
+
+/* ── Surface ───────────────────────────────────────────────────────────────
+ *
+ * A container colour and an elevation, and nothing else. Every other primitive
+ * below is a Surface with content rules added, which is why the elevation ramp
+ * appears exactly once in this file.
+ */
+.md3-surface {
+  display: block;
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-sys-color-surface-container-low);
+  border: 1px solid transparent;
+  min-inline-size: 0;
+  /* A surface that changes level eases between shadows rather than snapping.
+     `medium` because it is a region moving rather than a control responding —
+     the state layer below uses `short` for the same reason in reverse. Both are
+     zeroed by `[data-motion="reduced"]`, which zeroes what they alias. */
+  transition: box-shadow var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-standard);
+}
+/* The corner ramp, once. Every value is a token and there is no eighth. */
+.md3-surface[data-shape="none"] {
+  border-radius: var(--md-sys-shape-corner-none);
+}
+.md3-surface[data-shape="extra-small"] {
+  border-radius: var(--md-sys-shape-corner-extra-small);
+}
+.md3-surface[data-shape="small"] {
+  border-radius: var(--md-sys-shape-corner-small);
+}
+.md3-surface[data-shape="medium"] {
+  border-radius: var(--md-sys-shape-corner-medium);
+}
+.md3-surface[data-shape="large"] {
+  border-radius: var(--md-sys-shape-corner-large);
+}
+.md3-surface[data-shape="extra-large"] {
+  border-radius: var(--md-sys-shape-corner-extra-large);
+}
+.md3-surface[data-shape="full"] {
+  border-radius: var(--md-sys-shape-corner-full);
+}
+.md3-surface[data-container="lowest"] {
+  background: var(--md-sys-color-surface-container-lowest);
+}
+.md3-surface[data-container="low"] {
+  background: var(--md-sys-color-surface-container-low);
+}
+.md3-surface[data-container="default"] {
+  background: var(--md-sys-color-surface-container);
+}
+.md3-surface[data-container="high"] {
+  background: var(--md-sys-color-surface-container-high);
+}
+.md3-surface[data-container="highest"] {
+  background: var(--md-sys-color-surface-container-highest);
+}
+/*
+ * The inverse container: a surface that must read as NOT part of the page it is
+ * drawn on. Its accent has to invert with it — `primary` on `inverse-surface` is
+ * 1.4:1 in light, so a text button inside one would be legible in dark and
+ * invisible in light, which is the failure mode of every inverse surface that
+ * ships without this rule.
+ */
+.md3-surface[data-container="inverse"] {
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+}
+.md3-surface[data-container="inverse"] .md3-button[data-variant="text"],
+.md3-surface[data-container="inverse"] .md3-button[data-variant="outlined"] {
+  color: var(--md-sys-color-inverse-primary);
+}
+.md3-surface[data-level="0"] {
+  box-shadow: var(--md-sys-elevation-0);
+}
+.md3-surface[data-level="1"] {
+  box-shadow: var(--md-sys-elevation-1);
+}
+.md3-surface[data-level="2"] {
+  box-shadow: var(--md-sys-elevation-2);
+}
+.md3-surface[data-level="3"] {
+  box-shadow: var(--md-sys-elevation-3);
+}
+.md3-surface[data-level="4"] {
+  box-shadow: var(--md-sys-elevation-4);
+}
+.md3-surface[data-level="5"] {
+  box-shadow: var(--md-sys-elevation-5);
+}
+/* Decorative, by the rule at the top of this section: the card already differs
+   from the page by its background, and this is the edge of that difference. */
+.md3-surface[data-outlined="true"] {
+  border-color: var(--md-sys-color-outline-variant);
+}
+
+/* ── Card ──────────────────────────────────────────────────────────────────
+ *
+ * A Surface with a headline, supporting text and an action row. The header
+ * wraps rather than truncating: `layout.spec.ts` runs every route at 320 CSS
+ * pixels, and a headline with a status badge beside it is two items on one line
+ * at 1440 and two lines at 320.
+ */
+.md3-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+.md3-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  min-inline-size: 0;
+}
+.md3-card-headline {
+  margin: 0;
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+.md3-card-support {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.md3-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
+}
+
+/* ── Button ────────────────────────────────────────────────────────────────
+ *
+ * Four variants and two tones. The height is `--tap` plus a space step, so it is
+ * at or above the 24x24 CSS pixels WCAG 2.2 AA 2.5.8 asks for in BOTH densities
+ * — `--tap` is the one token compact does not reduce, and building the height
+ * out of it rather than out of a padding is what keeps that true.
+ */
+.md3-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-block-size: calc(var(--tap) + var(--space-3));
+  padding-inline: var(--space-4);
+  max-inline-size: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--md-sys-shape-corner-full);
+  font-family: inherit;
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  /*
+   * Asymmetric on purpose, which is Material's rule and is the reason there are
+   * two curves rather than one: a thing ARRIVING decelerates into place and a
+   * thing LEAVING accelerates away. The base rule is the leaving half — it is
+   * what applies when the pointer goes — and the arriving half overrides the
+   * timing function below. One curve in both directions is the version that
+   * feels slightly wrong and that nobody can point at.
+   */
+  transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-accelerate),
+    border-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-accelerate),
+    color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-accelerate);
+}
+.md3-button:hover,
+.md3-button:focus-visible {
+  transition-timing-function: var(--md-sys-motion-easing-decelerate);
+}
+.md3-button:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+.md3-button[data-variant="filled"] {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+}
+.md3-button[data-variant="tonal"] {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+.md3-button[data-variant="outlined"] {
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  /* `outline`, not `outline-variant`: this border IS the control, and a control
+     boundary is held to 3:1 (WCAG 2.2 AA 1.4.11). */
+  border-color: var(--md-sys-color-outline);
+}
+.md3-button[data-variant="text"] {
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  padding-inline: var(--space-3);
+}
+.md3-button[data-tone="danger"][data-variant="filled"] {
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error);
+}
+.md3-button[data-tone="danger"][data-variant="tonal"] {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+.md3-button[data-tone="danger"][data-variant="outlined"],
+.md3-button[data-tone="danger"][data-variant="text"] {
+  color: var(--md-sys-color-error);
+}
+/*
+ * Disabled keeps its label readable. See the state-layer note above: this
+ * console does not use Material's 38% dim, because the control an operator
+ * cannot press is usually the one they came to press and the label is how they
+ * find out which it was. `on-surface-variant` clears 4.5:1 on every surface in
+ * this file, in both themes and in increased contrast.
+ */
+.md3-button:disabled,
+.md3-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  color: var(--md-sys-color-on-surface-variant);
+  background: transparent;
+}
+/*
+ * A disabled filled or tonal button keeps a container and keeps an edge, and
+ * the edge is `outline` rather than `outline-variant`. It is the only thing
+ * still marking where the control is once the fill has gone neutral, which
+ * makes it a boundary that carries meaning — 3:1 (WCAG 2.2 AA 1.4.11), not a
+ * hairline. Drawn in `outline-variant` it measured 1.21:1 in light and 1.24:1
+ * in dark against `surface-container-highest`: a control whose edge nobody can
+ * find.
+ */
+.md3-button[data-variant="filled"]:disabled,
+.md3-button[data-variant="tonal"]:disabled,
+.md3-button[data-variant="filled"][aria-disabled="true"],
+.md3-button[data-variant="tonal"][aria-disabled="true"] {
+  background: var(--md-sys-color-surface-container-highest);
+  border-color: var(--md-sys-color-outline);
+}
+
+/* ── Chip ──────────────────────────────────────────────────────────────────
+ *
+ * A choice, a filter, a value. Interactive chips get the state layer; a chip
+ * rendered as a plain <span> is a value and does not.
+ */
+.md3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: var(--tap);
+  padding-inline: var(--space-3);
+  max-inline-size: 100%;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  font-family: inherit;
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  overflow-wrap: anywhere;
+}
+button.md3-chip,
+a.md3-chip {
+  cursor: pointer;
+  text-decoration: none;
+}
+.md3-chip:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+.md3-chip[data-selected="true"] {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  border-color: var(--md-sys-color-secondary);
+}
+.md3-chip:disabled,
+.md3-chip[aria-disabled="true"] {
+  cursor: not-allowed;
+  color: var(--md-sys-color-on-surface-variant);
+  background: transparent;
+}
+
+/* ── Badge ─────────────────────────────────────────────────────────────────
+ *
+ * A status, and it is a WORD. Bible §26.3.2 forbids meaning carried by colour
+ * alone, so the tone tints the pill and the text says what it means — which is
+ * also why there is no icon-only badge and no dot.
+ */
+.md3-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline: var(--space-2);
+  min-block-size: calc(var(--tap) - var(--space-1));
+  border: 1px solid transparent;
+  border-radius: var(--md-sys-shape-corner-full);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
+  font-weight: var(--md-sys-typescale-label-small-weight);
+  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.md3-badge[data-tone="neutral"] {
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+  border-color: var(--md-sys-color-outline-variant);
+}
+.md3-badge[data-tone="info"] {
+  background: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+}
+.md3-badge[data-tone="ok"] {
+  background: var(--md-sys-color-success-container);
+  color: var(--md-sys-color-on-success-container);
+}
+.md3-badge[data-tone="warn"] {
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+}
+.md3-badge[data-tone="bad"] {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+/* ── DataTable ─────────────────────────────────────────────────────────────
+ *
+ * The shell, not the data. It scrolls INSIDE its own border so the page never
+ * scrolls sideways — the defect `layout.spec.ts` measures directly at 320 CSS
+ * pixels — and the border is what tells a reader the region continues past the
+ * edge rather than ending there.
+ */
+.md3-table-shell {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-sys-color-surface-container-lowest);
+}
+.md3-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-weight: var(--md-sys-typescale-body-small-weight);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+}
+/* Visible, not `sr-only`. A table of eleven ARNs with no caption is a table
+   nobody can describe, and the reader who needs the caption most is the one
+   reading it aloud. */
+.md3-table > caption {
+  text-align: start;
+  padding: var(--space-3);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  text-transform: uppercase;
+}
+.md3-table th {
+  text-align: start;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  background: var(--md-sys-color-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  border-block-end: 1px solid var(--md-sys-color-outline);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.md3-table td {
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  color: var(--md-sys-color-on-surface);
+  border-block-end: 1px solid var(--md-sys-color-outline-variant);
+  vertical-align: top;
+}
+.md3-table tbody tr:last-child td {
+  border-block-end: 0;
+}
+/* `end`, not `right`: this stylesheet has no physical directions in it, and
+   `layout.spec.ts` re-runs every route under `dir="rtl"`. A column of figures
+   read against a fixed unit is the one thing that must NOT mirror, and
+   `text-align: end` is that by definition. */
+.md3-table [data-align="end"] {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+.md3-table-empty td {
+  padding: 0;
+}
+
+/* ── EmptyState ────────────────────────────────────────────────────────────
+ *
+ * What is absent, why, and what would create it. Deliberately left-aligned and
+ * deliberately not centred in a large box: a centred illustration is a consumer
+ * pattern, and in a console an empty list is a fact about the estate rather than
+ * an occasion.
+ */
+.md3-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4);
+}
+.md3-empty-headline {
+  margin: 0;
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+.md3-empty-description {
+  margin: 0;
+  max-inline-size: 46rem;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.md3-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
 }

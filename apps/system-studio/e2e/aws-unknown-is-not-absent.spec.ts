@@ -375,6 +375,40 @@ test.describe("retained tenant resources are live AWS reads, not registry prose"
     expect(observed.unknown.join("\n")).toContain("rds:DescribeDBSnapshots")
     expect(observed.unknown.join("\n")).not.toContain("none")
   })
+
+  test("a denied vault list names ListBackupVaults, not the action it never reached", async () => {
+    // Two capabilities, two IAM actions, and a role is routinely granted one
+    // without the other. A denial quoting the wrong action hands the operator a
+    // minimum statement that does not contain the permission they are missing:
+    // they grant it, redeploy, and are refused identically.
+    const gw = standIn({
+      "sts:GetCallerIdentity": COMMERCIAL_IDENTITY,
+      "tag:GetResources": () => ({ ResourceTagMappingList: [] }),
+      "rds:DescribeDBSnapshots": () => ({ DBSnapshots: [] }),
+      "logs:DescribeLogGroups": () => ({ logGroups: [] }),
+      "backup:ListBackupVaults": () => {
+        throw awsError("AccessDeniedException")
+      },
+    })
+
+    const readings = await retainedReadingsForTenant("acme", gw, { now: NOW })
+    expect(readings.vaults.state).toBe("DENIED")
+    if (readings.vaults.state !== "DENIED") throw new Error("unreachable")
+    expect(readings.vaults.action).toBe("backup:ListBackupVaults")
+    expect(readings.vaults.minimumStatement).toContain("backup:ListBackupVaults")
+
+    // The recovery-point read was never made, and says so. EMPTY here would
+    // have claimed "this tenant retains no recovery points" on the strength of
+    // a call that never happened.
+    expect(readings.recoveryPoints.state).toBe("UNCONFIGURED")
+    expect(gw.calls.get("backup:ListRecoveryPointsByBackupVault")).toBeUndefined()
+
+    const observed = retainedObservation(readings)
+    const unknown = observed.unknown.join("\n")
+    expect(unknown).toContain("backup:ListBackupVaults")
+    expect(unknown).toContain("recovery points")
+    expect(unknown).not.toContain("none —")
+  })
 })
 
 /* ============================================================= 3. alarms == */

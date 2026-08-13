@@ -1,0 +1,132 @@
+/*
+ * Layout for the FinOps Center. Scoped to `/platform/cost`, and deliberately
+ * tiny.
+ *
+ * ── What this file may contain, and what it may not ────────────────────────
+ *
+ * Only geometry: flow direction, gap, wrapping, and the one wrapping rule a
+ * figure made of a long formatted amount needs. Every value is a token declared
+ * in `globals.css`.
+ *
+ * It may NOT contain a colour — not a literal and not a `var(--md-sys-color-*)`
+ * reference either. The reason is the reason `tenants/fleet.module.css` gives:
+ * `e2e/md3-tokens-logic.spec.ts` computes WCAG 2.2 AA for the foreground /
+ * background PAIRS it can find, and every pair it can find is one declared in
+ * `globals.css`. A pair invented in a route stylesheet is a pair the audit does
+ * not know exists. So the colour on this page comes entirely from the
+ * primitives: `Surface` sets `on-surface` on a container, the base `p` rule sets
+ * the quieter `on-surface-variant`, and the answer tiles below get their two
+ * levels of emphasis from that difference rather than from anything here.
+ *
+ * It also may not contain a font size, a weight, a radius or a shadow. Those are
+ * the type scale's and the elevation ramp's answers, and `components/md3/` plus
+ * the `.md3-*` type classes are how this surface asks for them.
+ */
+
+/*
+ * The page's own column.
+ *
+ * `.md3-card` sets its own padding and carries no outer margin, so three cards
+ * in a column touch. The gap between sibling regions is a property of the page,
+ * not of the card, and this is the page.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* The title and the one line under it, tight against each other. */
+.pageHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/*
+ * The answer, as tiles.
+ *
+ * `auto-fit` with a `minmax` floor rather than a fixed column count: three
+ * across at 1440, two at 900, one at 320, with no media query and nothing to
+ * keep in step with `layout.spec.ts`'s four widths. The floor is 11rem because
+ * that is what the longest label here needs on one or two lines — a narrower
+ * floor lets a third track appear that is too tight for its own caption.
+ */
+.answers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-3);
+}
+
+/*
+ * One tile.
+ *
+ * `min-inline-size: 0` because a grid item's automatic minimum size is its
+ * content, so one long formatted amount would set the track width and push the
+ * row past the card — the exact defect `layout.spec.ts` measures at 320 CSS
+ * pixels.
+ */
+.answer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  padding: var(--space-3);
+}
+
+/*
+ * One line of a tile — the label, the figure, or the note.
+ *
+ * `display: block` on all three, including the `<span>` carrying the figure,
+ * because `layout.spec.ts` detects text wider than its box by comparing
+ * `scrollWidth` to `clientWidth` — and both are 0 on a non-replaced inline
+ * element, so an inline figure that overflowed would be measured as fine. A
+ * block box is one the check can actually see, and `overflow-wrap` is what
+ * keeps it from ever being wider than the track.
+ *
+ * The margin is zeroed because the tile's own `gap` is the spacing; the base
+ * `p` rule's `0.3rem` would add to it and only between the `<p>`s.
+ */
+.answerLine {
+  display: block;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The thresholds table's own minimum width.
+ *
+ * `.md3-table` is `inline-size: 100%` inside a shell that scrolls, which is
+ * right for a table of identifiers and wrong for this one: at the 320 CSS pixels
+ * `layout.spec.ts` measures, three columns squeeze until the sentence in `Why`
+ * wraps to fifteen lines and every row is two hundred pixels of mostly-empty
+ * height. A minimum makes the shell do the job it exists for — scroll — instead
+ * of the row growing downward.
+ *
+ * `:global` because the class belongs to the primitive while the MEASUREMENT
+ * belongs to this page: `DataTable` cannot know how long this table's sentences
+ * are, and a `minWidth` prop on the shared shell would be one page's answer
+ * imposed on every other. Nothing here changes how the primitive looks.
+ */
+.thresholds :global(.md3-table) {
+  min-inline-size: 34rem;
+}
+
+/*
+ * The remediation list.
+ *
+ * `padding-inline-start` is logical, so the numbers stay on the reading side
+ * when `layout.spec.ts` re-runs this route under `dir="rtl"`, and it is a
+ * padding rather than a `gap` because the list keeps its markers: `display:
+ * flex` on the `<ol>` blockifies each `<li>`, and a numbered remediation list
+ * whose numbers vanish is a list an operator cannot follow in order. The
+ * separation between steps is therefore a margin between siblings.
+ */
+.steps {
+  margin: 0;
+  padding-inline-start: var(--space-6);
+}
+.steps > li + li {
+  margin-block-start: var(--space-2);
+}

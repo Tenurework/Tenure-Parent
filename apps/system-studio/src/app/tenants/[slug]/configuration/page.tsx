@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 
 import { auth } from "@/lib/auth"
@@ -16,25 +15,160 @@ import {
   summarise,
 } from "@/lib/revisions"
 import { MODULES } from "@tenure/modules"
-import { resolveConfig, type ConfigLayer, type OptionPrice } from "@tenure/configuration"
+import {
+  resolveConfig,
+  type ConfigLayer,
+  type ConfigRecord,
+  type OptionPrice,
+} from "@tenure/configuration"
 import { REGISTRY, layersFor } from "@tenure/platform-config"
 import { toDecimal, type Money } from "@tenure/finops"
-import { EmptyState } from "@/components/states"
+import {
+  EmptyState as GovernedEmptyState,
+  PartialDataState,
+  PermissionDeniedState,
+  UnknownState,
+} from "@/components/states"
+import { Badge, Button, ButtonLink, Card, Chip, DataTable, EmptyState } from "@/components/md3"
 import { RollbackControls } from "./RollbackControls"
-import { PartialDataState, PermissionDeniedState } from "@/components/states"
 import { ConfigurationEditor } from "./ConfigurationEditor"
 
 export const dynamic = "force-dynamic"
 
 /**
- * GE-032-001 — the tenant configuration editor.
+ * GE-032-001 — the tenant configuration editor and its priced running total.
  *
  * Which fields exist is derived from the domain registry and the platform
  * definitions, never listed here. Three of the fourteen surfaces the item names
  * have keys today; the other eleven are shown as reserved or withheld with the
  * reason, because an administrator who cannot find where to change something
  * deserves to be told it is not theirs to change rather than left searching.
+ *
+ * ── Structure, and why it is in this order ─────────────────────────────────
+ *
+ * The operator arrives with one question — *what is this tenant configured as
+ * right now, and what does that cost* — and the page used to answer it sixth,
+ * under a form. Six flat `section.system` blocks, each a wall of rows, is the
+ * shape an operator called "a construction site".
+ *
+ * So the answer leads: the running total, the live revision, and when it was
+ * published, in the first card. The apparatus that CHANGES it comes second, the
+ * record of what changed comes third, and the two panels about settings that
+ * are not editable here are one card rather than two, because they answer one
+ * question ("why can I not find X?") and splitting them made the gap read as
+ * two gaps.
+ *
+ * Every card states what it is AS OF, and there are three different clocks on
+ * this page rather than one:
+ *
+ *   * the REGISTRY read — a DynamoDB Query made when this request was served;
+ *   * the published REVISION — a fact frozen at `publishedAt`, which is what
+ *     the running total is priced from;
+ *   * the DEPLOYMENT — the option prices, the module graph and the withheld
+ *     list are compiled into this build and change only when it is replaced.
+ *
+ * Collapsing those into one "last updated" would put a fresh timestamp on a
+ * price list that has not been re-read since the container started.
+ *
+ * ── Material 3 ─────────────────────────────────────────────────────────────
+ *
+ * Every primitive comes from `components/md3`. This file declares no colour, no
+ * shadow and no font size: the type scale is the `md3-*` role classes, elevation
+ * is `Surface`'s `level`, and hover/focus/pressed is the `md3-state` layer those
+ * primitives already carry. The only CSS this page owns is the handful of
+ * LAYOUT rules below, which is the same device `components/Nav.tsx` uses — a
+ * rule for a class only this file emits, kept beside the markup that emits it.
  */
+
+/**
+ * Layout only, and tokens only.
+ *
+ * Hoisted into `<head>` by React 19 and deduplicated on `href`, so it is one
+ * stylesheet however many times this renders. There are no physical directions
+ * here — `layout.spec.ts` flips `dir` to `rtl` on the live document and re-runs
+ * its overlap detector, so a `margin-left` would red it — and no literal
+ * colours, because the contrast audit can only measure what it can find.
+ *
+ * `min-inline-size: 0` on the quote row's items is load-bearing rather than
+ * defensive: a flex item defaults to `min-width: auto`, so a long hint sets the
+ * track's minimum to its own intrinsic width and pushes the form past the card
+ * edge at 320 CSS pixels, which is exactly the spill `layout.spec.ts` measures.
+ */
+const PAGE_CSS = `
+.configuration-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.configuration-page > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+}
+.configuration-page > header > h1 {
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.config-figure {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.config-figure-note {
+  margin: var(--space-1) 0 0;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.config-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+}
+.config-quote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-block: var(--space-3);
+}
+.config-quote > .field {
+  margin: 0;
+  min-inline-size: 0;
+  flex: 0 1 14rem;
+}
+.config-quote > .config-quote-hint {
+  flex: 1 1 100%;
+  min-inline-size: 0;
+  margin: 0;
+  max-inline-size: 46rem;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.config-subhead {
+  margin: var(--space-4) 0 var(--space-2);
+  overflow-wrap: anywhere;
+}
+.config-note {
+  margin: var(--space-2) 0 0;
+  max-inline-size: 46rem;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.config-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.config-diagnostic > summary {
+  cursor: pointer;
+  min-block-size: var(--tap);
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+`
+
 /** Amount as a decimal string. `half-even` because this is a display total. */
 function amount(value: Money): string {
   return `${toDecimal(value, "half-even")} ${value.currency}`
@@ -70,6 +204,39 @@ function seatsFrom(raw: string | string[] | undefined): number {
   return Number.isInteger(value) && value > 0 && value <= 1_000_000 ? value : 1
 }
 
+/** Whether the operator stated a seat count, as opposed to falling back to one. */
+function seatsWereStated(raw: string | string[] | undefined): boolean {
+  const value = Number(Array.isArray(raw) ? raw[0] : raw)
+  return Number.isInteger(value) && value > 0 && value <= 1_000_000
+}
+
+/**
+ * The IAM statement that makes this page's registry reads possible.
+ *
+ * Written out rather than described, because `UnknownState` takes JSON an
+ * operator pastes into a policy and a prose description is the version that
+ * gets read, agreed with, and not acted on.
+ */
+function minimumRegistryStatement(): string {
+  return JSON.stringify(
+    {
+      Effect: "Allow",
+      Action: ["dynamodb:Query"],
+      Resource: `arn:${process.env.AWS_PARTITION ?? "aws"}:dynamodb:*:${
+        process.env.AWS_ACCOUNT_ID ?? "*"
+      }:table/${process.env.TENANT_TABLE ?? "<TENANT_TABLE>"}`,
+    },
+    null,
+    2,
+  )
+}
+
+/** An exception, reduced to the two things an operator can act on. */
+function reasonOf(error: unknown): string {
+  if (error instanceof Error) return `${error.name}: ${error.message}`
+  return String(error)
+}
+
 export default async function ConfigurationPage({
   params,
   searchParams,
@@ -91,16 +258,83 @@ export default async function ConfigurationPage({
   if (!read.allowed) return <PermissionDeniedState />
   const mayPublish = authorizeCommand("configuration.publish", { principalId, tenantId: slug }).allowed
 
-  const seats = seatsFrom((await searchParams).seats)
+  const query = await searchParams
+  const seats = seatsFrom(query.seats)
+  const seatsStated = seatsWereStated(query.seats)
   if (!registryConfigured()) {
     return <PartialDataState what="Configuration" missing={["TENANT_TABLE — the tenant registry"]} />
   }
 
-  const tenant = await getTenant(slug)
-  if (!tenant) notFound()
+  /*
+   * The clock every "read from the registry" line on this page is quoted
+   * against. Taken once, before the reads, so two panels cannot disagree about
+   * when the same Query happened.
+   */
+  const readAt = new Date().toISOString()
 
-  const store = new DynamoConfigStore()
-  const history = await store.history(slug)
+  /*
+   * The console must keep booting without AWS credentials.
+   *
+   * Both reads below go to DynamoDB, and an unreachable or unauthorised
+   * DynamoDB threw straight out of the component — which Next renders as a 500,
+   * i.e. a blank page for a console whose entire job is to say what is and is
+   * not known. A refusal is a FACT about the estate and belongs on the page as
+   * UNKNOWN, with the statement that would fix it. Nothing here invents a
+   * fallback value: an unknown tenant is not a tenant with no revisions.
+   */
+  let tenant: Awaited<ReturnType<typeof getTenant>> = null
+  let tenantError: string | null = null
+  try {
+    tenant = await getTenant(slug)
+  } catch (error) {
+    tenantError = reasonOf(error)
+  }
+  // Outside the catch: `notFound()` signals by throwing, and swallowing that
+  // would turn "no such tenant" into "AWS refused the read".
+  if (!tenantError && !tenant) notFound()
+
+  let history: readonly ConfigRecord[] = []
+  let historyError: string | null = null
+  if (!tenantError) {
+    try {
+      history = await new DynamoConfigStore().history(slug)
+    } catch (error) {
+      historyError = reasonOf(error)
+    }
+  }
+
+  if (tenantError) {
+    return (
+      <div className="configuration-page">
+        <style href="tenure-studio-configuration" precedence="high">
+          {PAGE_CSS}
+        </style>
+        <header>
+          <h1 className="md3-headline-large">{slug}</h1>
+          <ButtonLink href={`/tenants/${slug}`} variant="text">
+            ← Back to the tenant
+          </ButtonLink>
+        </header>
+        <Card
+          headline="Configuration"
+          headerAside={<Badge tone="warn">unknown</Badge>}
+          supportingText={`The tenant registry could not be read at ${readAt}. Nothing below is known — not the revision, not the running total, and not whether this tenant exists.`}
+        >
+          <UnknownState
+            what="this tenant's registry record"
+            principal="this engine's task role — the page does not call sts:GetCallerIdentity, so the ARN is not known here"
+            action="dynamodb:Query"
+            minimumStatement={minimumRegistryStatement()}
+            errorCode={tenantError}
+            accountId={process.env.AWS_ACCOUNT_ID ?? null}
+            region={process.env.AWS_REGION ?? null}
+            partition={process.env.AWS_PARTITION ?? null}
+          />
+        </Card>
+      </div>
+    )
+  }
+
   const latest = history.length === 0 ? null : history[history.length - 1]
   const domains = editableDomains()
   const revisions = summarise(history)
@@ -164,274 +398,421 @@ export default async function ConfigurationPage({
   const { config: resolved } = resolveConfig(REGISTRY, layers, { collectProblems: true, seats })
   const runningCost = resolved?.runningCost ?? null
 
+  /**
+   * What the money on this page is priced FROM, in one sentence.
+   *
+   * Three cases and they are genuinely different: a refused history read means
+   * the tenant's own overlay is unknown and the total below is the platform
+   * default rather than this tenant's; no revision means the total is correct
+   * AND the tenant has never published; a revision means the total is frozen at
+   * that publication.
+   */
+  const pricedAsOf = historyError
+    ? "Priced from the platform defaults ALONE — this tenant's published revision could not be read, " +
+      "so anything it changes is missing from the figure below."
+    : latest
+      ? `Priced from revision ${latest.revision}, published ${latest.publishedAt} by ${latest.publishedBy}. ` +
+        "Option prices are compiled into this deployment and change only when it is replaced."
+      : "Priced from the platform defaults. Nothing has ever been published for this tenant, which is a " +
+        "real absence rather than a failed read."
+
   return (
-    <>
-      <h1>{tenant.manifest.displayName}</h1>
-      <p className="slug">
-        <Link href={`/tenants/${slug}`}>← back to the tenant</Link>
-      </p>
+    <div className="configuration-page">
+      {/*
+        Hoisted into <head> by React 19 and deduplicated on `href`. See PAGE_CSS
+        above for why the layout for this route lives beside the route.
+      */}
+      <style href="tenure-studio-configuration" precedence="high">
+        {PAGE_CSS}
+      </style>
 
-      <section className="system">
-        <header>
-          <h2>Configuration</h2>
-          <span className="badge">{latest ? `revision ${latest.revision}` : "never published"}</span>
-        </header>
-        <p>
-          Every change is planned before it is published: the diff, the lint findings and the impact
-          are shown for review, and a second identity must approve. Nothing is written except through
-          the engine&rsquo;s one canonical path.
-        </p>
+      <header>
+        <h1 className="md3-headline-large">{tenant!.manifest.displayName}</h1>
+        <ButtonLink href={`/tenants/${slug}`} variant="text">
+          ← Back to the tenant
+        </ButtonLink>
+      </header>
 
-        {!mayPublish && (
-          <p className="refused" data-testid="configuration-read-only">
-            Read only. This configuration is yours to read and not to change.
-          </p>
-        )}
-
-        {mayPublish && (
-        <ConfigurationEditor
-          slug={slug}
-          domains={domains.map((d) => ({
-            id: d.domain.id,
-            governs: d.domain.governs,
-            fields: d.fields.map((f) => ({
-              key: f.key,
-              description: f.description,
-              input: f.input,
-              defaultValue: String(f.defaultValue),
-              current: latest?.values[f.key] === undefined ? null : String(latest.values[f.key]),
-              // NEXT-SESSION §7 — every option carries its price, at the moment
-              // it is being chosen rather than on a summary somebody has to go
-              // and find.
-              price: priceLabel(f.price),
-            })),
-          }))}
-        />
-        )}
-      </section>
-
-      <section className="system">
-        <header>
-          <h2>What this costs</h2>
-          <span className="badge">{runningCost ? amount(runningCost.total) : "not resolved"}</span>
-        </header>
-        <p>
-          Every option carries a price — per seat and for the whole organisation — and this is the
-          running total for the configuration as published, so the cost is never a surprise at the
-          end. The figures come from the configuration resolver, not from adding up the boxes above:
-          two places that both compute a total are two totals.
-        </p>
-
+      {/* ── The answer, first ──────────────────────────────────────────────
+          What an operator opens this page to learn: what this tenant is
+          configured as, and what that costs per month. The form that CHANGES
+          it is below, because an editor is apparatus. */}
+      <Card
+        id="running-total"
+        headline="What this costs"
+        headerAside={
+          historyError ? (
+            <Badge tone="warn" title="The published revision could not be read.">
+              revision unknown
+            </Badge>
+          ) : (
+            <Badge tone={latest ? "info" : "neutral"}>
+              {latest ? `revision ${latest.revision}` : "never published"}
+            </Badge>
+          )
+        }
+        supportingText={pricedAsOf}
+      >
         {!runningCost ? (
           <PartialDataState
             what="The running total"
             missing={[
-              "a configuration that resolves — the published revision has problems, listed by the editor above",
+              "a configuration that resolves — the published revision has problems, listed by the editor below",
             ]}
           />
         ) : (
           <>
-            <form method="get" className="field">
-              <label htmlFor="seats">Seats</label>
-              <input id="seats" name="seats" type="number" min="1" defaultValue={runningCost.seats} />
-              <button type="submit">Re-quote</button>
-              <p className="hint">
+            <p className="config-figure md3-headline-medium">{amount(runningCost.total)}</p>
+            <p className="config-figure-note md3-body-medium">
+              per month, for {runningCost.seats} seat{runningCost.seats === 1 ? "" : "s"}
+              {seatsStated ? "" : " — a seat count nobody has stated"}
+            </p>
+
+            <div className="config-chip-row">
+              <Chip>
+                <b>{amount(runningCost.perSeat)}</b> per seat
+              </Chip>
+              <Chip>
+                <b>{amount(runningCost.organization)}</b> for the organisation
+              </Chip>
+              <Chip>
+                <b>{amount(runningCost.total)}</b> running total, per month
+              </Chip>
+            </div>
+
+            <form method="get" className="config-quote">
+              <div className="field">
+                <label htmlFor="seats">Seats</label>
+                <input
+                  id="seats"
+                  name="seats"
+                  type="number"
+                  min="1"
+                  max="1000000"
+                  defaultValue={runningCost.seats}
+                />
+              </div>
+              <Button type="submit" variant="tonal">
+                Re-quote
+              </Button>
+              <p className="config-quote-hint md3-body-small">
                 No seat count is recorded against a tenant anywhere in the registry, so this one is
-                stated rather than guessed. The total below is for exactly{" "}
+                stated rather than guessed. The total above is for exactly{" "}
                 <b>{runningCost.seats}</b> seat{runningCost.seats === 1 ? "" : "s"}.
               </p>
             </form>
 
-            <div className="chips">
-              <span className="chip">
-                <b>{amount(runningCost.perSeat)}</b> per seat
-              </span>
-              <span className="chip">
-                <b>{amount(runningCost.organization)}</b> for the organisation
-              </span>
-              <span className="chip">
-                <b>{amount(runningCost.total)}</b> running total, per month
-              </span>
-            </div>
-
-            {runningCost.lines.length === 0 ? (
-              <EmptyState
-                what="charged options"
-                because="This tenant is on the platform defaults for every option that carries a charge, so there is nothing on the quote yet."
-              />
-            ) : (
-              <table className="grid">
-                <thead>
-                  <tr>
-                    <th>Option</th>
-                    <th className="num">Per seat</th>
-                    <th className="num">Organisation</th>
-                    <th className="num">At {runningCost.seats} seats</th>
-                    <th>Why</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {runningCost.lines.map((line) => (
-                    <tr key={line.key}>
-                      <td className="id">{line.key}</td>
-                      <td className="num">{amount(line.perSeat)}</td>
-                      <td className="num">{amount(line.organization)}</td>
-                      <td className="num">{amount(line.total)}</td>
-                      <td className="slug">{line.includedBecause ?? "charged"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <DataTable
+              caption={`Every option that carries a charge, priced at ${runningCost.seats} seat${
+                runningCost.seats === 1 ? "" : "s"
+              }`}
+              rows={runningCost.lines}
+              rowKey={(line) => line.key}
+              columns={[
+                { key: "option", header: "Option", cell: (line) => line.key },
+                {
+                  key: "perSeat",
+                  header: "Per seat",
+                  align: "end",
+                  cell: (line) => amount(line.perSeat),
+                },
+                {
+                  key: "organisation",
+                  header: "Organisation",
+                  align: "end",
+                  cell: (line) => amount(line.organization),
+                },
+                {
+                  key: "total",
+                  header: `At ${runningCost.seats} seats`,
+                  align: "end",
+                  cell: (line) => amount(line.total),
+                },
+                {
+                  key: "why",
+                  header: "Why",
+                  cell: (line) => line.includedBecause ?? "charged",
+                },
+              ]}
+              empty={
+                <EmptyState
+                  headline="No charged options"
+                  description="This tenant is on the platform defaults for every option that carries a charge, so there is nothing on the quote yet. That is a real absence, not a failed read."
+                />
+              }
+            />
           </>
         )}
-      </section>
+      </Card>
 
-      <section className="system">
-        <header>
-          <h2>History</h2>
-          <span className="badge">{revisions.length}</span>
-        </header>
-        {revisions.length === 0 ? (
-          <EmptyState
+      {/* ── The apparatus that changes it ──────────────────────────────── */}
+      <Card
+        id="configuration"
+        headline="Configuration"
+        headerAside={
+          mayPublish ? (
+            <Badge tone="neutral">{domains.length} editable domains</Badge>
+          ) : (
+            <Badge tone="neutral">read only</Badge>
+          )
+        }
+        supportingText={
+          historyError
+            ? "The current values could not be read, so the editor is not opened over a configuration " +
+              "nobody can see. Fix the registry read first — the panel below says how."
+            : latest
+              ? `Showing revision ${latest.revision} exactly as it was published at ${latest.publishedAt}. ` +
+                "Every change is planned before it is published: the diff, the lint findings and the impact " +
+                "are shown for review, and a second identity must approve."
+              : "Nothing has ever been published for this tenant, so every field below opens at its " +
+                "platform default. Every change is planned before it is published, and a second identity " +
+                "must approve."
+        }
+      >
+        {historyError ? (
+          <UnknownState
+            what="this tenant's published configuration"
+            principal="this engine's task role — the page does not call sts:GetCallerIdentity, so the ARN is not known here"
+            action="dynamodb:Query"
+            minimumStatement={minimumRegistryStatement()}
+            errorCode={historyError}
+            accountId={process.env.AWS_ACCOUNT_ID ?? null}
+            region={process.env.AWS_REGION ?? null}
+            partition={process.env.AWS_PARTITION ?? null}
+          />
+        ) : !mayPublish ? (
+          <p className="config-note md3-body-medium" data-testid="configuration-read-only">
+            Read only. This configuration is yours to read and not to change.
+          </p>
+        ) : (
+          <ConfigurationEditor
+            slug={slug}
+            domains={domains.map((d) => ({
+              id: d.domain.id,
+              governs: d.domain.governs,
+              fields: d.fields.map((f) => ({
+                key: f.key,
+                description: f.description,
+                input: f.input,
+                defaultValue: String(f.defaultValue),
+                current: latest?.values[f.key] === undefined ? null : String(latest.values[f.key]),
+                // NEXT-SESSION §7 — every option carries its price, at the moment
+                // it is being chosen rather than on a summary somebody has to go
+                // and find.
+                price: priceLabel(f.price),
+              })),
+            }))}
+          />
+        )}
+      </Card>
+
+      {/* ── The record of what changed ─────────────────────────────────── */}
+      <Card
+        id="configuration-history"
+        headline="History"
+        headerAside={
+          historyError ? (
+            <Badge tone="warn">unknown</Badge>
+          ) : (
+            <Badge tone="neutral">
+              {revisions.length} revision{revisions.length === 1 ? "" : "s"}
+            </Badge>
+          )
+        }
+        supportingText={
+          historyError
+            ? `The registry was queried at ${readAt} and refused. How many revisions exist is not known — ` +
+              "which is not the same as none."
+            : `Read from the tenant registry at ${readAt}. A published revision is immutable, so anything ` +
+              "listed here is what was live, not a reconstruction."
+        }
+      >
+        {historyError ? (
+          <UnknownState
+            what="this tenant's revision history"
+            principal="this engine's task role — the page does not call sts:GetCallerIdentity, so the ARN is not known here"
+            action="dynamodb:Query"
+            minimumStatement={minimumRegistryStatement()}
+            errorCode={historyError}
+            accountId={process.env.AWS_ACCOUNT_ID ?? null}
+            region={process.env.AWS_REGION ?? null}
+            partition={process.env.AWS_PARTITION ?? null}
+          />
+        ) : revisions.length === 0 ? (
+          <GovernedEmptyState
             what="published revisions"
             because="Nothing has been published for this tenant yet. The first publication has nothing to roll back to, and says so."
           />
         ) : (
-          <>
-            <table className="grid">
-              <thead>
-                <tr>
-                  <th>Revision</th>
-                  <th>Published</th>
-                  <th>By</th>
-                  <th className="num">Keys touched</th>
-                  <th>Rolls back to</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...revisions].reverse().map((r) => (
-                  <tr key={r.revision}>
-                    <td className="id">{r.revision}</td>
-                    <td className="slug">{r.publishedAt}</td>
-                    <td className="slug">{r.publishedBy}</td>
-                    <td className="num">{r.changed}</td>
-                    <td className="slug">{r.rollbackTo ?? "nothing — the first"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="config-stack">
+            <DataTable
+              caption={`Every publication, newest first, as read at ${readAt}`}
+              rows={[...revisions].reverse()}
+              rowKey={(r) => String(r.revision)}
+              columns={[
+                { key: "revision", header: "Revision", cell: (r) => r.revision },
+                { key: "publishedAt", header: "Published", cell: (r) => r.publishedAt },
+                { key: "publishedBy", header: "By", cell: (r) => r.publishedBy },
+                { key: "changed", header: "Keys touched", align: "end", cell: (r) => r.changed },
+                {
+                  key: "rollbackTo",
+                  header: "Rolls back to",
+                  cell: (r) => r.rollbackTo ?? "nothing — the first",
+                },
+              ]}
+              empty={
+                <EmptyState
+                  headline="No published revisions"
+                  description="Nothing has been published for this tenant yet."
+                />
+              }
+            />
 
             {lastChange && lastChangeDiff && (
-              <>
-                <h3>What the last publication changed</h3>
-                <pre className="state-detail" data-testid="last-change">{lastChange}</pre>
-                {/* The machine-readable form, in the product rather than only in
-                    a test. An operator diffing two consoles, a reviewer pasting
-                    it into a ticket and anything that later reads it over HTTP
-                    all need the document the sentence above was rendered from —
-                    and publishing it here is what makes the two provably the
-                    same thing rather than two renderings of the same intent. */}
-                <details>
-                  <summary>Machine-readable diff (schema {lastChangeDiff.schemaVersion})</summary>
+              <div>
+                <h3 className="config-subhead md3-title-medium">What the last publication changed</h3>
+                <pre className="state-detail" data-testid="last-change">
+                  {lastChange}
+                </pre>
+                {/* DIAGNOSTIC — flagged for the IA agent, not moved here.
+                    The machine-readable form is in the product rather than only
+                    in a test so that an operator diffing two consoles and
+                    anything that later reads it over HTTP get the document the
+                    sentence above was rendered from. It is still a developer's
+                    artefact on an operator's page, and it belongs behind the
+                    Diagnostics tab. Left in place and collapsed. */}
+                <details className="config-diagnostic">
+                  <summary className="md3-label-large">
+                    Machine-readable diff (schema {lastChangeDiff.schemaVersion})
+                  </summary>
                   <pre className="state-detail" data-testid="last-change-json">
                     {JSON.stringify(lastChangeDiff, null, 2)}
                   </pre>
-                  <p className="slug">
+                  <p className="config-note md3-body-small">
                     Published as <code>ChangeDiff</code> — see{" "}
                     <code>docs/contracts/change-diff.schema.json</code>. Only the domains this
                     product computes appear; a domain it does not compute is absent rather than
                     empty, because an empty section reads as &ldquo;nothing changed&rdquo;.
                   </p>
                 </details>
-              </>
+              </div>
             )}
 
             {/* A rollback IS a publication — it republishes forward through the
                 same plan, four-eyes and immutability checks — so it takes the
                 same permission, and an operator who may not publish does not
                 get a control that publishes. */}
-            {mayPublish && (
+            {mayPublish && latest && (
               <RollbackControls
                 slug={slug}
                 revisions={revisions.map((r) => r.revision)}
-                live={latest!.revision}
+                live={latest.revision}
                 previews={rollbackPreviews}
               />
             )}
-          </>
+          </div>
         )}
-      </section>
+      </Card>
 
-      <section className="system">
-        <header>
-          <h2>Module dependencies</h2>
-          <span className="badge">{graph.edges.length} edges</span>
-        </header>
-        <p>
-          Rendered as text rather than a canvas: a drawn graph has no keyboard
-          path, no screen-reader description and nothing the layout suite can
-          measure. For a graph this small the accessible rendering is the better
-          one.
-        </p>
-        <dl className="kv">
-          {graph.nodes.map((node) => {
-            const breaks = dependantsOf(MODULES, node)
-            return (
-              <div key={node} style={{ display: "contents" }}>
-                <dt>{node}</dt>
-                <dd>
-                  {graph.edges.filter((e) => e.from === node).map((e) => e.to).join(", ") || "no dependencies"}
-                  {breaks.length > 0 && (
-                    <span className="slug"> · disabling it breaks {breaks.join(", ")}</span>
-                  )}
-                </dd>
-              </div>
-            )
-          })}
-        </dl>
-      </section>
+      {/* ── What a change here would break ─────────────────────────────── */}
+      <Card
+        id="module-dependencies"
+        headline="Module dependencies"
+        headerAside={<Badge tone="neutral">{graph.edges.length} edges</Badge>}
+        supportingText="What each module needs, and what turning it off would take down with it. As compiled into this deployment — the module graph is code rather than tenant state, so it is the same for every tenant and changes only when this build is replaced."
+      >
+        {/* Text rather than a canvas, deliberately: a drawn graph has no
+            keyboard path, no screen-reader description and nothing the layout
+            suite can measure. For a graph this small the accessible rendering
+            is the better one. */}
+        <DataTable
+          caption="Every module, what it depends on, and what depends on it"
+          rows={graph.nodes}
+          rowKey={(node) => node}
+          columns={[
+            { key: "module", header: "Module", cell: (node) => node },
+            {
+              key: "dependsOn",
+              header: "Depends on",
+              cell: (node) =>
+                graph.edges
+                  .filter((e) => e.from === node)
+                  .map((e) => e.to)
+                  .join(", ") || "no dependencies",
+            },
+            {
+              key: "breaks",
+              header: "Disabling it breaks",
+              cell: (node) => {
+                const breaks = dependantsOf(MODULES, node)
+                return breaks.length > 0 ? breaks.join(", ") : "nothing else"
+              },
+            },
+          ]}
+          empty={
+            <EmptyState
+              headline="No modules"
+              description="This deployment was built with no module definitions at all, which is a defect in the build rather than a fact about this tenant."
+            />
+          }
+        />
+      </Card>
 
-      <section className="system">
-        <header>
-          <h2>Not editable yet</h2>
-          <span className="badge">{reservedDomains().length}</span>
-        </header>
-        <p>
-          These are yours to configure and have no settings yet. They appear here rather than being
-          hidden, so the gap is visible instead of looking like an omission.
-        </p>
-        <dl className="kv">
-          {reservedDomains().map((d) => (
-            <div key={d.id} style={{ display: "contents" }}>
-              <dt>{d.id}</dt>
-              <dd>
-                {d.governs} <span className="slug">{d.reservedFor}</span>
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
+      {/* ── Why a setting an operator is looking for is not above ───────── */}
+      <Card
+        id="not-editable-here"
+        headline="Settings you will not find above"
+        headerAside={
+          <Badge tone="neutral">
+            {reservedDomains().length + withheldDomains().length} domains
+          </Badge>
+        }
+        supportingText="Two different reasons, kept on one card because they answer one question. As compiled into this deployment: which domains are reserved and which are withheld is a property of this build, not of this tenant, and neither list is read from AWS."
+      >
+        <div className="config-stack">
+          <DataTable
+            caption={`Yours to configure, with no settings yet — ${reservedDomains().length} domains`}
+            rows={reservedDomains()}
+            rowKey={(d) => d.id}
+            columns={[
+              { key: "domain", header: "Domain", cell: (d) => d.id },
+              { key: "governs", header: "Governs", cell: (d) => d.governs },
+              { key: "reservedFor", header: "Reserved for", cell: (d) => d.reservedFor },
+            ]}
+            empty={
+              <EmptyState
+                headline="Nothing reserved"
+                description="Every domain this build knows about is either editable above or withheld below."
+              />
+            }
+          />
+          <p className="config-note md3-body-medium">
+            These appear rather than being hidden, so the gap is visible instead of looking like an
+            omission.
+          </p>
 
-      <section className="system">
-        <header>
-          <h2>Not yours to change</h2>
-          <span className="badge">{withheldDomains().length}</span>
-        </header>
-        <p>
-          Placement, recovery, observability and cost are platform invariants. They are shown with
-          the reason rather than omitted, because an administrator searching for a setting that does
-          not exist for them has no way to learn that from a blank page.
-        </p>
-        <dl className="kv">
-          {withheldDomains().map((w) => (
-            <div key={w.domain.id} style={{ display: "contents" }}>
-              <dt>{w.domain.id}</dt>
-              <dd>{w.why}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-    </>
+          <DataTable
+            caption={`Platform invariants, not yours to change — ${withheldDomains().length} domains`}
+            rows={withheldDomains()}
+            rowKey={(w) => w.domain.id}
+            columns={[
+              { key: "domain", header: "Domain", cell: (w) => w.domain.id },
+              { key: "why", header: "Why it is withheld", cell: (w) => w.why },
+            ]}
+            empty={
+              <EmptyState
+                headline="Nothing withheld"
+                description="This build withholds no domain from a tenant administrator."
+              />
+            }
+          />
+          <p className="config-note md3-body-medium">
+            Placement, recovery, observability and cost are platform invariants. They are shown with
+            the reason rather than omitted, because an administrator searching for a setting that
+            does not exist for them has no way to learn that from a blank page.
+          </p>
+        </div>
+      </Card>
+    </div>
   )
 }

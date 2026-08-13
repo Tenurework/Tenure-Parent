@@ -104,16 +104,23 @@ export const VERSIONS: readonly DesignSystemRelease[] = [
     date: "2026-08-11",
     tokenHash: "819ecce5e6d820acca1b11704f5ace6c",
     notes:
-      "Additive. Declares --font-inter and --font-display-face in globals.css " +
-      "instead of letting next/font/google stamp them onto <html> during render. " +
-      "The rendered font contract stays the same for Tailwind and components, " +
-      "but Docker promotion no longer depends on fetching Google font files " +
-      "from fonts.gstatic.com during next build.",
+      "Declares --font-inter and --font-display-face in globals.css instead of " +
+      "letting next/font/google stamp them onto <html> during render. Docker " +
+      "promotion no longer depends on fetching Google font files from " +
+      "fonts.gstatic.com during next build. The TOKEN NAMES are unchanged, but " +
+      "the RENDERED FACE is not: next/font used to self-host a subsetted Inter " +
+      "and Plus Jakarta Sans, and no font binary ships in this repository, so " +
+      "both names now resolve through the CSS font stack to whatever the " +
+      "reader's system provides — Plus Jakarta Sans is effectively never " +
+      "installed, so font-display falls through to the body face. Metrics " +
+      "therefore differ from the faces the layout was tuned against, and no " +
+      "suite measures it: the visual project is withdrawn in ci.yml and " +
+      "apps/web/e2e/__screenshots__ holds no baselines.",
     migration:
       "No component migration. Keep using font-sans and font-display; do not " +
-      "import next/font/google in the web source. If a tenant needs a brand font, " +
-      "add a declared local token or self-hosted asset rather than a build-time " +
-      "third-party fetch.",
+      "import next/font/google in the web source. Restoring the intended faces " +
+      "means committing self-hosted woff2 files with @font-face declarations " +
+      "(or next/font/local), not re-adding a build-time third-party fetch.",
   },
 ]
 

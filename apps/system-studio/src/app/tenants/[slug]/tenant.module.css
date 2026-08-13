@@ -1,0 +1,155 @@
+/*
+ * Layout for one tenant's page. Scoped to this route, and deliberately tiny.
+ *
+ * ── What this file may contain, and what it may not ────────────────────────
+ *
+ * Only geometry: flow direction, gap, wrapping, and the wrapping rule an AWS
+ * identifier needs. Every value is a token declared in `globals.css`.
+ *
+ * It may NOT contain a colour, a font size, a weight, a radius or a shadow.
+ * Those are the token layer's answers and `components/md3/` is how a surface
+ * asks for them — a page that sets its own would be a page the contrast audit
+ * in `e2e/md3-tokens-logic.spec.ts` cannot see, which is the exact failure that
+ * rule exists to prevent. `tenant-page-logic.spec.ts` reads this file and fails
+ * on a literal, so the rule is checked rather than remembered.
+ *
+ * It exists at all because the primitives are self-contained by design:
+ * `.md3-card` sets its own padding and carries no outer margin, so three cards
+ * in a column touch. The gap between sibling regions is a property of the page,
+ * not of the card, and this is the page. The same reasoning as
+ * `../fleet.module.css`, which is the sibling route's copy of it.
+ */
+
+/* The page's own column. One gap, so no card has to know what follows it. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/*
+ * The tenant's name, and the line under it.
+ *
+ * A column rather than a row: the display name is an `h1` and the identifiers
+ * below it are a separate reading, and putting them on one line is what makes a
+ * 320px viewport draw one over the other.
+ */
+.lead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/*
+ * A wrapping row of small things — the status badges under the name, the two
+ * chips in an answer panel, a row of links.
+ *
+ * `align-items: center` rather than `baseline`: these are pills with their own
+ * block size, and baseline-aligning a pill against a bare word puts the pill
+ * a few pixels low at every width.
+ */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * A stack of facts inside a card: a sentence, then a list, then a note.
+ *
+ * The gap is one step tighter than the page's, because things inside one card
+ * are one thought and things in different cards are not.
+ */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+/* The same, at the tightest step — for lines that belong to each other. */
+.tight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+/*
+ * An identifier the operator will compare character by character: a slug, a
+ * digest, an ARN, an ISO timestamp. Monospace so `seed-nodeploy` and
+ * `seed-nodep1oy` do not look alike.
+ *
+ * `overflow-wrap: anywhere` rather than `break-word`: only `anywhere` also
+ * reduces the element's min-content width, which is what stops one 64-character
+ * digest setting the floor for a grid track and pushing the row past its card.
+ * `globals.css` deliberately excludes `td` from the global rule so that a wide
+ * table scrolls rather than collapsing its columns; this opts the cells that
+ * hold identifiers back in, one cell at a time.
+ */
+.identifier {
+  font-family: var(--md-sys-type-mono);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A table cell carrying more than one fact — a move and the reason for it, a
+ * chain hash and the hash it follows.
+ */
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The two-column answer list: what the fact is, and what it says.
+ *
+ * `minmax(0, max-content)` sizes the term column to the longest term that is
+ * actually present rather than to a guess, and the `minmax(0, …)` on both
+ * tracks is what lets a long value shrink instead of printing outside the card.
+ */
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-5);
+  align-items: baseline;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.facts dt {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.facts dd {
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Below ~480px the two columns stop being two columns.
+ *
+ * `minmax(0, max-content)` shrinks the term column only after the value column
+ * has been squeezed to nothing first, so at 320px the value measured a
+ * clientWidth of ZERO while its text — an ARN, an AWS error code — kept its
+ * full width and printed outside the card. Narrowing the term column instead
+ * would make both unreadable; the pairs stack, which is what a description list
+ * does on a narrow screen. WCAG 2.2 AA 1.4.10, and the same rule `globals.css`
+ * applies to `.kv` for the same measured reason.
+ */
+@media (max-width: 30rem) {
+  .facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .facts dd {
+    margin-block-end: var(--space-2);
+  }
+}

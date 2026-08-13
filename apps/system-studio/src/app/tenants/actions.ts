@@ -476,6 +476,16 @@ export async function composeTenant(
     ]);
   }
 
+  // STUDIO-000-006 / GE-010-007. `placementFor` below reaches `fleet()`, which
+  // THROWS `FleetMisconfigured` rather than defaulting to `us-east-1` and a
+  // literal account. `primeEstate()` resolves the real identity once per
+  // process. `adoptTenant` already awaits it for exactly this reason (see
+  // below); compose did not, so which of the two paths worked depended on
+  // whether some page had happened to prime the process first — and an
+  // unprimed compose died inside the try, wrote a FAILED outcome and 500'd
+  // the operator instead of placing the tenant.
+  await primeEstate();
+
   try {
     // GE-030-001. The registry record is what is TRUE about the tenant —
     // immutable id, lifecycle, placement, residency, release, config revision —

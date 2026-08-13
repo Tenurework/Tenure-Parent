@@ -1,0 +1,146 @@
+/*
+ * Layout for the engine's own state page (`/platform`). Scoped to this route.
+ *
+ * ── What this file may contain, and what it may not ────────────────────────
+ *
+ * Only geometry: flow direction, gap, wrapping, and the wrapping rule a cell
+ * full of AWS identifiers needs. Every value is a token declared in
+ * `globals.css`.
+ *
+ * It may NOT contain a colour, a font size, a weight, a radius or a shadow.
+ * Those are the token layer's answers and `components/md3/` is how a surface
+ * asks for them. A page that set its own would be a page the contrast audit in
+ * `e2e/md3-tokens-logic.spec.ts` cannot see and the rendered-page audit in
+ * `e2e/preferences.spec.ts` would have to catch after the fact — which is the
+ * exact failure the rule exists to prevent. There is no colour here at all:
+ * `globals.css` already paints `p` with `--md-sys-color-on-surface-variant`,
+ * so a muted line needs a paragraph, not a class.
+ *
+ * It exists because the primitives are self-contained by design: `.md3-card`
+ * sets its own padding and carries no outer margin, so cards in a column touch.
+ * The gap between sibling regions is a property of the page, and this is the
+ * page.
+ */
+
+/* The page's own column. One gap, so no card has to know what follows it. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/*
+ * A run of blocks inside one card: a paragraph, a table, a provenance footer.
+ *
+ * `.md3-card` is already a flex column with `--space-2` between its own parts
+ * (header, support, children, actions). Everything a caller passes as children
+ * arrives as ONE flex item, so without this the paragraph and the table below
+ * it fall back to margin collapsing and sit closer together than the card's own
+ * rhythm.
+ */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+/*
+ * A paragraph whose spacing comes from its parent's gap rather than from its
+ * own margin.
+ *
+ * `globals.css` sets `p { margin: 0.3rem 0 }`, which is right for prose in a
+ * document and wrong inside a flex column that already has a gap — the two add
+ * up and the card's vertical rhythm stops being the card's.
+ */
+.line {
+  margin: 0;
+  /* Prose does not need the full width of a 1440px console to be readable. */
+  max-inline-size: 62rem;
+}
+
+/*
+ * The two sentences every panel on this page ends with: what it is AS OF, and
+ * what it does not know.
+ *
+ * A group rather than two loose paragraphs so the pair reads as a footer and
+ * cannot drift apart when a card grows a table between them.
+ */
+.provenance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+/* A row of value chips — service counts, queue names, tenants running a module. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * An identifier an operator compares character by character: a commit sha, a
+ * cell id, a queue name, a module key. Monospace so `tenure-pilot-default` and
+ * `tenure-pilot-default-dlq` do not have to be counted.
+ *
+ * The stack is the `--md-sys-type-mono` token, not a hand-written font list.
+ *
+ * `overflow-wrap: anywhere` is here rather than on `td` for the reason
+ * `globals.css` gives for leaving `td` out of its own wrap list: breaking every
+ * cell collapses the columns of a table that is meant to scroll instead.
+ * Breaking the cells that carry identifiers is what stops one long token
+ * setting the width of a column of one-word verdicts.
+ */
+.identifier {
+  font-family: var(--md-sys-type-mono);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A table cell carrying more than one fact — a finding and the item that owns
+ * it, a verdict and the reasons behind it.
+ *
+ * `flex-start`, so a chip in a stacked cell is the width of its own word rather
+ * than being stretched to the width of the column beside it.
+ */
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The one disclosure on this page: 241 ledger items, phase by phase.
+ *
+ * `globals.css` already makes a closed `<details>` `display: none` its
+ * contents — a closed disclosure still reports a bounding rectangle in Chrome
+ * otherwise, and everything below it is measured as covered by something
+ * nobody can see. Nothing here undoes that; this is spacing only.
+ */
+.disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+/*
+ * The summary is the control, so it carries the state layer (`md3-state` in the
+ * markup) and a real hit area. `--tap` is the WCAG 2.2 AA 2.5.8 floor and is
+ * the one token compact density does not reduce.
+ */
+.summary {
+  min-block-size: var(--tap);
+  padding-block: var(--space-2);
+  padding-inline: var(--space-2);
+  border-radius: var(--md-sys-shape-corner-small);
+  cursor: pointer;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}

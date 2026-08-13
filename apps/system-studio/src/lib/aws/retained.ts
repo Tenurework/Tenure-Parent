@@ -67,6 +67,18 @@ export interface RetainedReadings {
   taggedRetained: readonly RetainedResource[]
   snapshots: AwsRead<readonly RetainedResource[]>
   logGroups: AwsRead<readonly RetainedResource[]>
+  /**
+   * The vault list, read and reported in its own right.
+   *
+   * `backup:ListBackupVaults` and `backup:ListRecoveryPointsByBackupVault` are
+   * two capabilities with two IAM actions, and a role is routinely granted one
+   * without the other. Folding the vault listing into the recovery-point read
+   * made a denied `ListBackupVaults` render as "refused
+   * backup:ListRecoveryPointsByBackupVault", so the minimum statement an
+   * operator pasted into a policy did not contain the action that was actually
+   * missing — they would grant it, redeploy, and be refused identically.
+   */
+  vaults: AwsRead<readonly string[]>
   recoveryPoints: AwsRead<readonly RetainedResource[]>
 }
 
@@ -199,45 +211,82 @@ async function readLogGroups(
   )
 }
 
-async function readRecoveryPoints(
+async function readBackupVaults(
   gw: AwsGateway,
   ctx: ReadContext,
-): Promise<AwsRead<readonly RetainedResource[]>> {
-  return readAws<readonly RetainedResource[]>(
-    "backup:ListRecoveryPointsByBackupVault",
+): Promise<AwsRead<readonly string[]>> {
+  return readAws<readonly string[]>(
+    "backup:ListBackupVaults",
     async () => {
-      const out: RetainedResource[] = []
+      const out: string[] = []
       let vaultToken: string | undefined
       do {
         const vaults = (await gw.call("backup:ListBackupVaults", {
           NextToken: vaultToken,
         })) as ListBackupVaultsResponse
         for (const vault of vaults?.BackupVaultList ?? []) {
-          if (!vault.BackupVaultName) continue
-          let pointToken: string | undefined
-          do {
-            const response = (await gw.call("backup:ListRecoveryPointsByBackupVault", {
-              BackupVaultName: vault.BackupVaultName,
-              NextToken: pointToken,
-            })) as ListRecoveryPointsResponse
-            for (const point of response?.RecoveryPoints ?? []) {
-              if (!point.RecoveryPointArn) continue
-              const resourceTags = point.ResourceArn ? (ctx.tags.get(point.ResourceArn) ?? {}) : {}
-              const pointTags = ctx.tags.get(point.RecoveryPointArn) ?? {}
-              if (!ownedByTenant({ ...resourceTags, ...pointTags }, ctx.slug)) continue
-              out.push({
-                kind: "backup-recovery-point",
-                className: "snapshot",
-                id: point.RecoveryPointArn,
-                detail: `${vault.BackupVaultName}: ${point.Status ?? "unknown status"}`,
-                bytes: typeof point.BackupSizeInBytes === "number" ? point.BackupSizeInBytes : null,
-              })
-            }
-            pointToken = response?.NextToken || undefined
-          } while (pointToken)
+          if (vault.BackupVaultName) out.push(vault.BackupVaultName)
         }
         vaultToken = vaults?.NextToken || undefined
       } while (vaultToken)
+      return out
+    },
+    { now: ctx.now, denial: ctx.denial },
+  )
+}
+
+async function readRecoveryPoints(
+  gw: AwsGateway,
+  ctx: ReadContext,
+  vaults: AwsRead<readonly string[]>,
+): Promise<AwsRead<readonly RetainedResource[]>> {
+  // No vault names, and not because there are none: the call below is never
+  // made, and saying so is the only honest answer. UNCONFIGURED is `isUnknown`,
+  // so this reaches the surface as an unknown rather than as "no recovery
+  // points" — which is what an EMPTY here would have claimed.
+  if (vaults.state !== "ACTUAL" && vaults.state !== "STALE" && vaults.state !== "EMPTY") {
+    return {
+      state: "UNCONFIGURED",
+      capability: "backup:ListRecoveryPointsByBackupVault",
+      // The subject is spelled inside `why` because `describeRead` renders
+      // UNCONFIGURED as "not configured — <why>" and drops its label, so a
+      // reason that did not name itself would reach the page unattributed.
+      why:
+        `retained AWS Backup recovery points were not read — the vault list they are ` +
+        `enumerated from could not be read. ` +
+        describeRead(vaults, "AWS Backup vaults"),
+    }
+  }
+
+  const vaultNames = vaults.state === "EMPTY" ? [] : vaults.value
+
+  return readAws<readonly RetainedResource[]>(
+    "backup:ListRecoveryPointsByBackupVault",
+    async () => {
+      const out: RetainedResource[] = []
+      for (const vaultName of vaultNames) {
+        let pointToken: string | undefined
+        do {
+          const response = (await gw.call("backup:ListRecoveryPointsByBackupVault", {
+            BackupVaultName: vaultName,
+            NextToken: pointToken,
+          })) as ListRecoveryPointsResponse
+          for (const point of response?.RecoveryPoints ?? []) {
+            if (!point.RecoveryPointArn) continue
+            const resourceTags = point.ResourceArn ? (ctx.tags.get(point.ResourceArn) ?? {}) : {}
+            const pointTags = ctx.tags.get(point.RecoveryPointArn) ?? {}
+            if (!ownedByTenant({ ...resourceTags, ...pointTags }, ctx.slug)) continue
+            out.push({
+              kind: "backup-recovery-point",
+              className: "snapshot",
+              id: point.RecoveryPointArn,
+              detail: `${vaultName}: ${point.Status ?? "unknown status"}`,
+              bytes: typeof point.BackupSizeInBytes === "number" ? point.BackupSizeInBytes : null,
+            })
+          }
+          pointToken = response?.NextToken || undefined
+        } while (pointToken)
+      }
       return out
     },
     { now: ctx.now, denial: ctx.denial },
@@ -265,12 +314,15 @@ export async function retainedReadingsForTenant(
     tags: tagIndex(tagged.state === "ACTUAL" ? tagged.value : []),
   }
 
-  const [taggedRetained, snapshots, logGroups, recoveryPoints] = await Promise.all([
+  const [taggedRetained, snapshots, logGroups, vaults] = await Promise.all([
     readTaggedRetained(ctx),
     readSnapshots(gw, ctx),
     readLogGroups(gw, ctx),
-    readRecoveryPoints(gw, ctx),
+    readBackupVaults(gw, ctx),
   ])
+  // Sequential after the vault list, because the recovery-point read is keyed
+  // by vault name and there is nothing to ask for until that answer exists.
+  const recoveryPoints = await readRecoveryPoints(gw, ctx, vaults)
 
   return {
     identity,
@@ -278,6 +330,7 @@ export async function retainedReadingsForTenant(
     taggedRetained,
     snapshots,
     logGroups,
+    vaults,
     recoveryPoints,
   }
 }
@@ -287,7 +340,7 @@ function retainedItems(read: AwsRead<readonly RetainedResource[]>): readonly Ret
   return []
 }
 
-function unknownLine(read: AwsRead<readonly RetainedResource[]>, label: string): string | null {
+function unknownLine(read: AwsRead<unknown>, label: string): string | null {
   if (read.state === "ACTUAL" || read.state === "STALE" || read.state === "EMPTY") return null
   return describeRead(read, label)
 }
@@ -304,6 +357,10 @@ export function retainedObservation(readings: RetainedReadings): RetainedAwsObse
         : describeRead(readings.tagged, "tenant tag index"),
       unknownLine(readings.snapshots, "retained RDS snapshots"),
       unknownLine(readings.logGroups, "retained CloudWatch log groups"),
+      // Named separately from the recovery points, because they are separate
+      // IAM actions: a denial here must quote ListBackupVaults, not the action
+      // that was never reached.
+      unknownLine(readings.vaults, "AWS Backup vaults"),
       unknownLine(readings.recoveryPoints, "retained AWS Backup recovery points"),
     ].filter((line): line is string => line !== null),
   }

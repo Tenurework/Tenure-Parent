@@ -37,6 +37,8 @@
  * nobody would ever notice.
  */
 
+import { studioAuthMode } from "./auth-config"
+
 /**
  * Values that are obviously not secrets.
  *
@@ -347,9 +349,23 @@ export function operatorConfigProblems(
     })
   }
 
-  const rawMode = (env.STUDIO_AUTH_MODE ?? "").trim().toLowerCase()
+  // Derived from `studioAuthMode`, which is the ONE definition of which
+  // provider is actually constructed in `./auth` — not from a second reading of
+  // `STUDIO_AUTH_MODE`.
+  //
+  // The second reading disagreed with the first in exactly one configuration,
+  // and it is the one a production image runs in when the task definition is
+  // not the terraform one: `NODE_ENV=production` with `STUDIO_AUTH_MODE` unset
+  // is Cognito mode — the credentials provider is never built, so
+  // `PLATFORM_OPERATOR_SECRET` cannot be presented at sign-in — yet the raw
+  // read still demanded it. `/signin` (which asked `studioAuthMode`) rendered a
+  // working Cognito button, the operator authenticated, and every page and
+  // every server action then refused with CONFIG_UNUSABLE and told them to set
+  // a secret their deployment does not use. `secretMatches` passes
+  // `requireSharedSecret: true` explicitly, so the rules that guard a real
+  // shared-secret login are unchanged by this.
   const requireSharedSecret =
-    options.requireSharedSecret ?? (rawMode === "cognito" ? false : true)
+    options.requireSharedSecret ?? studioAuthMode(env) !== "cognito"
 
   if (requireSharedSecret) {
     const secret = (env.PLATFORM_OPERATOR_SECRET ?? "").trim()

@@ -122,6 +122,39 @@ const THROTTLE_NAMES = new Set([
   "SlowDown",
 ])
 
+/**
+ * Errors that mean "this account has not bought the thing you are asking about".
+ *
+ * `SubscriptionRequiredException` is what the AWS Health API raises on any
+ * support plan below Business. It is not a denial — no IAM statement fixes it,
+ * so rendering the pasteable minimum statement would send an operator to edit a
+ * policy that is already correct. It is not an ERROR either — nothing is broken.
+ * And it is emphatically not EMPTY: "we cannot ask whether AWS is having an
+ * incident" and "AWS is not having an incident" are the two answers this whole
+ * union exists to keep apart.
+ *
+ * So it maps to UNCONFIGURED, whose `why` names the remedy in the operator's
+ * language: buy the plan, or accept that this panel stays dark.
+ */
+const SUBSCRIPTION_NAMES = new Set([
+  "SubscriptionRequiredException",
+  "OptInRequired",
+])
+
+/** Why each subscription error happened, in words that name what to buy. */
+const SUBSCRIPTION_REMEDY: Readonly<Record<string, string>> = {
+  SubscriptionRequiredException:
+    "the AWS Health API is only available on a Business, Enterprise On-Ramp or Enterprise Support plan. " +
+    "On a Basic or Developer plan this account cannot be asked whether AWS is having an incident, " +
+    "which is not the same as AWS having none.",
+  OptInRequired:
+    "this AWS service has not been enabled for this account. Enabling it is an account action, not an IAM grant.",
+}
+
+export function isSubscriptionRequired(error: unknown): boolean {
+  return SUBSCRIPTION_NAMES.has(errorName(error))
+}
+
 /** Anything with "NotAuthorized" in it, whatever the service calls it this year. */
 const DENIAL_SHAPE = /not\s*authori[sz]/i
 
@@ -214,6 +247,16 @@ export async function readAws<T>(
           partition: denial.partition,
           errorCode: errorName(error),
           minimumStatement: minimumStatementText(capability),
+        }
+      }
+      if (isSubscriptionRequired(error)) {
+        const code = errorName(error)
+        return {
+          state: "UNCONFIGURED",
+          capability,
+          why:
+            SUBSCRIPTION_REMEDY[code] ??
+            `${capability} needs an account subscription this account does not hold (${code}).`,
         }
       }
       if (isThrottle(error)) {

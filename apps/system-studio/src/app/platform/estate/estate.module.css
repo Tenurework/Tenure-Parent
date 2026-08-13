@@ -1,0 +1,111 @@
+/*
+ * Layout for the AWS estate surface. Scoped to this route, and deliberately
+ * small.
+ *
+ * ── What this file may contain, and what it may not ────────────────────────
+ *
+ * Only geometry: flow direction, gap, wrapping, and the wrapping rule a cell
+ * full of ARNs needs. Every value is a token declared in `globals.css`.
+ *
+ * It may NOT contain a colour, a font size, a weight, a radius or a shadow.
+ * Those are the token layer's answers and `components/md3/` is how a surface
+ * asks for them — a page that sets its own would be a page the contrast audit
+ * in `e2e/md3-tokens-logic.spec.ts` cannot see, which is the exact failure that
+ * rule exists to prevent.
+ *
+ * It exists at all because the primitives are self-contained by design:
+ * `.md3-card` sets its own padding and carries no outer margin, so three cards
+ * in a column touch. The gap between sibling regions is a property of the page,
+ * not of the card, and this is the page.
+ */
+
+/* The page's own column. One gap, so no card has to know what follows it. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/*
+ * A column INSIDE a card: a paragraph, a table, and the state panels for the
+ * surfaces that did not answer. Same reason as `.page` one level down — a
+ * `DataTable` carries no outer margin either.
+ */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* A row of chips or badges that must wrap rather than push the page wide. */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/*
+ * A table cell carrying more than one fact — a resource name and the surface it
+ * came from, a verdict and the account that fills it.
+ *
+ * `overflow-wrap: anywhere` is here rather than on `td` for the reason
+ * `globals.css` states about `td`: breaking every cell collapses the columns of
+ * a table that is meant to scroll. Breaking the cells that hold identifiers is
+ * what keeps one 100-character ARN from setting the column width for a table of
+ * one-word verdicts.
+ */
+.cell {
+  display: flex;
+  flex-direction: column;
+  /* `flex-start`, so a badge in a stacked cell is the width of its own word
+     rather than stretched to the width of the column beside it. */
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * An identifier an operator compares character by character: an ARN, an account
+ * id, a resource name. Monospace so `tenure-prod-01` and `tenure-prod-0l` do
+ * not look alike.
+ *
+ * The stack is the `--md-sys-type-mono` token, not a hand-written list, and the
+ * SIZE is left alone: `md3-body-small` on the table is the size, and a second
+ * opinion here is how a page acquires a type scale of its own.
+ */
+.identifier {
+  font-family: var(--md-sys-type-mono);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The identity facts, as a description list.
+ *
+ * One column until there is room for two. A fixed two-column grid puts
+ * "Account / region / partition" and a 130-character principal ARN side by side
+ * at 320 CSS pixels, where neither fits — `layout.spec.ts` measures exactly
+ * that as text wider than its box. `minmax(0, …)` on both tracks rather than a
+ * bare width, because a grid track's default `min-width: auto` refuses to
+ * shrink below its longest unbreakable token, which is what an ARN is.
+ */
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  margin: 0;
+}
+.facts > dt {
+  margin: 0;
+}
+.facts > dd {
+  margin: 0;
+}
+
+@media (min-width: 40rem) {
+  .facts {
+    grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+    gap: var(--space-2) var(--space-4);
+  }
+}

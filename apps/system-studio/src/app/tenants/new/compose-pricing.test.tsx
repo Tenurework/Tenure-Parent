@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server"
 
-import { ARCHETYPE_AXES, ALWAYS_ON_MODULES, FUNCTIONAL_SUITES, compileArchetype, getBlueprint, TENANT_BINDINGS } from "@tenure/blueprints"
+import { ARCHETYPE_AXES, ALWAYS_ON_MODULES, BLUEPRINTS, FUNCTIONAL_SUITES, compileArchetype } from "@tenure/blueprints"
 import { ENABLEABLE } from "@tenure/module-runtime"
 import { MODULE_CATALOG } from "@tenure/modules"
 
@@ -50,10 +50,7 @@ const modules = MODULE_CATALOG.all().map((m) => ({
   price: m.price,
 }))
 
-const blueprints = [...new Set(TENANT_BINDINGS.map((b) => b.blueprintId))].map((id) => ({
-  id,
-  axes: getBlueprint(id)!.axes,
-}))
+const blueprints = BLUEPRINTS.map((b) => ({ id: b.id, axes: b.axes }))
 
 const suiteModules = Object.fromEntries(
   FUNCTIONAL_SUITES.map((suite) => [
@@ -76,7 +73,12 @@ function renderComposer(): string {
       // `page.tsx` derives this from `resolveModules`; this render is about the
       // prices, and a plan the preset cannot use would not change one of them.
       defaultPlanId="institution"
-      regions={["us-east-1"]}
+      // The fleet answered and named a region. `placement.test.tsx` drives the
+      // three arms where it did not; this file is about the prices, and a form
+      // that refused to render a region control would still quote them.
+      placement={{ state: "OFFERED", regions: ["us-east-1"] }}
+      engineVersion="0.0.0-test"
+      fleetReadAt="2026-01-01T00:00:00.000Z"
       alwaysOnModules={[...ALWAYS_ON_MODULES]}
       suiteModules={suiteModules}
       coexistenceProfiles={[{ id: "TENURE_CLOUD_PRIMARY", meaning: "Tenure is authoritative" }]}

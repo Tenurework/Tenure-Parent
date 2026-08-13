@@ -89,6 +89,27 @@ const ALLOWED_MUTATIONS = new Set([
 
 const READ_VERB = /^[a-z0-9-]+:(List|Describe|Get|BatchGet|Search|Lookup|Select|Query|Scan)/
 
+/**
+ * Reads whose IAM action is not SPELLED as a read.
+ *
+ * Exactly one so far. AWS Budgets does not authorize `DescribeBudgets` with an
+ * action of that name: its classic budget APIs are covered by two actions,
+ * `budgets:ViewBudget` and `budgets:ModifyBudget`. A policy naming
+ * `budgets:DescribeBudgets` grants nothing and fails as a quiet AccessDenied,
+ * which on a cost page is indistinguishable from an account with no budgets.
+ *
+ * This is a separate set from ALLOWED_MUTATIONS on purpose: ViewBudget is not a
+ * mutation, and filing it under a constant with that name would be a lie a
+ * future reader would inherit. The write half, `budgets:ModifyBudget`, is
+ * explicitly denied on the role and is not here.
+ *
+ * The verb regex is deliberately NOT widened to accept `View*`. Adding an entry
+ * to this set is one line in a file called `studio-task-role-is-narrow`; adding
+ * a verb to the regex silently admits every future `View*` action across every
+ * service, which is the kind of edit nobody reviews.
+ */
+const READS_NOT_SPELLED_AS_READS = new Set(['budgets:ViewBudget'])
+
 test('the studio task role holds at least one policy, and this guard can see it', () => {
   // A parse that finds nothing reports "no violations", which is the failure
   // mode every survey-shaped guard has. It fails instead.
@@ -134,6 +155,7 @@ test('every Allow on the studio task role is a read verb, or one of the six regi
       if (statement.effect !== 'Allow') continue
       for (const action of statement.actions) {
         if (ALLOWED_MUTATIONS.has(action)) continue
+        if (READS_NOT_SPELLED_AS_READS.has(action)) continue
         if (READ_VERB.test(action)) continue
         offenders.push(`${policy.file} "${policy.name}" — Allow ${action}`)
       }
@@ -148,6 +170,18 @@ test('every Allow on the studio task role is a read verb, or one of the six regi
       `genuinely required, add it to ALLOWED_MUTATIONS in this file with a reason — that edit ` +
       `is the review this guard exists to force.`,
   )
+})
+
+test('the not-spelled-as-a-read exemptions are all actions the code actually declares', () => {
+  // Otherwise this set is a hole: anything added to it stops being checked by
+  // the verb rule whether or not a capability ever asks for it.
+  const source = fs.readFileSync('apps/system-studio/src/lib/aws/capabilities.ts', 'utf8')
+  for (const action of READS_NOT_SPELLED_AS_READS) {
+    assert.ok(
+      source.includes(`"${action}"`),
+      `${action} is exempt from the read-verb rule but no capability declares it — remove the exemption`,
+    )
+  }
 })
 
 test('no managed administrator policy is attached to the studio task role', () => {

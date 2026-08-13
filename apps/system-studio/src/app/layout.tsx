@@ -40,6 +40,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PreferencesMenu />
           <span className="internal">Internal</span>
         </header>
+        {/*
+          The console's sections, grouped by the domains the System Studio
+          Bible section 7.2 names, with everything unfinished behind the last
+          group. Which surface belongs to which domain, and which side of that
+          last line each route falls on, is decided once in
+          docs/architecture/studio-information-architecture.md and compiled into
+          the table in components/Nav.tsx. A route added to this application is
+          not navigable until it is placed there, which is deliberate: the
+          eleven-route flat row this replaced grew one page at a time, each
+          addition defensible on its own.
+        */}
         <Nav />
         {/* GE-022-007. In the layout so Ctrl/Cmd-K reaches it from every route. */}
         <Launcher />

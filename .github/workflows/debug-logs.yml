@@ -42,7 +42,11 @@ jobs:
             --output text)
 
           if [ -z "$CLUSTER" ] || [ "$CLUSTER" = "None" ]; then
-            echo "::error::No ECS cluster containing tenure-studio was visible to the read role."
+            # Names the region as well as the role. `ecs:ListClusters` is
+            # regional, so a Studio deployed outside $AWS_REGION is invisible
+            # here for a reason that has nothing to do with permissions — and
+            # an error that blames only the role sends the operator to IAM.
+            echo "::error::No ECS cluster containing tenure-studio was visible to the read role in ${AWS_REGION}. Either the role cannot list clusters, or the Studio is not in this region — set the AWS_REGION secret to the region it is deployed in."
             exit 1
           fi
 
@@ -104,9 +108,23 @@ jobs:
           mask() { sed -E 's/[0-9]{12}/************/g'; }
 
           TASKS=$(aws ecs list-tasks --cluster "$CLUSTER" --query 'taskArns' --output text)
-          [ -n "$TASKS" ] && aws ecs describe-tasks --cluster "$CLUSTER" --tasks $TASKS \
-            --query 'tasks[].{def:taskDefinitionArn,status:lastStatus,health:healthStatus,started:startedAt}' \
-            --output json | mask || echo none
+
+          # STUDIO-000-007. "none" is a claim, and it must only be printed when
+          # the call answered. The previous form was
+          # `[ -n "$TASKS" ] && aws ecs describe-tasks … || echo none`, in which a
+          # refused or failed describe-tasks fell through to `echo none` — an
+          # operator diagnosing an outage read "no running tasks" when the truth
+          # was that we were not allowed to look.
+          if [ -z "$TASKS" ]; then
+            echo "none — the cluster reported no tasks"
+          elif DESCRIBED=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks $TASKS \
+              --query 'tasks[].{def:taskDefinitionArn,status:lastStatus,health:healthStatus,started:startedAt}' \
+              --output json 2>&1); then
+            printf '%s\n' "$DESCRIBED" | mask
+          else
+            echo "::warning::unknown — ecs:DescribeTasks did not answer. This is NOT 'no running tasks'."
+            printf '%s\n' "$DESCRIBED" | mask
+          fi
 
       - name: Newest log streams and their tails
         run: |
@@ -116,9 +134,20 @@ jobs:
           STREAMS=$(aws logs describe-log-streams --log-group-name "$LOG_GROUP" \
             --order-by LastEventTime --descending --limit 4 \
             --query 'logStreams[].logStreamName' --output text)
+          # The tail is the point of this workflow, and the read role is on
+          # ViewOnlyAccess — which lists and describes but does not read the
+          # inside of anything. If `logs:GetLogEvents` is not granted, every
+          # stream below is refused. The previous `|| true` swallowed that and
+          # the job went green having printed nothing, which reads exactly like
+          # an estate with no log output.
           for s in $STREAMS; do
             echo "===== STREAM HEAD: $s ====="
-            aws logs get-log-events --log-group-name "$LOG_GROUP" \
-              --log-stream-name "$s" --limit 30 --start-from-head \
-              --query 'events[].message' --output text | mask || true
+            if EVENTS=$(aws logs get-log-events --log-group-name "$LOG_GROUP" \
+                --log-stream-name "$s" --limit 30 --start-from-head \
+                --query 'events[].message' --output text 2>&1); then
+              printf '%s\n' "$EVENTS" | mask
+            else
+              echo "::warning::unknown — logs:GetLogEvents did not answer for $s. This is NOT an empty stream; grant logs:GetLogEvents on $LOG_GROUP to the read role if the reason below is AccessDenied."
+              printf '%s\n' "$EVENTS" | mask
+            fi
           done

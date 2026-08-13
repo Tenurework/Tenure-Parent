@@ -4,10 +4,9 @@ import { redirect } from "next/navigation"
 import {
   ALWAYS_ON_MODULES,
   ARCHETYPE_AXES,
+  BLUEPRINTS,
   FUNCTIONAL_SUITES,
-  TENANT_BINDINGS,
   compileArchetype,
-  getBlueprint,
   type ArchetypeSelection,
 } from "@tenure/blueprints"
 import { MODULE_CATALOG } from "@tenure/modules"
@@ -45,6 +44,7 @@ import { auth } from "@/lib/auth"
 import { authorizeCommand } from "@/lib/authorize"
 import { PermissionDeniedState } from "@/components/states"
 import { ComposeForm } from "./ComposeForm"
+import { placementOffer } from "./placement"
 
 export const dynamic = "force-dynamic"
 
@@ -67,12 +67,23 @@ export default async function NewTenantPage() {
   if (decision.reason === "NO_PRINCIPAL") redirect("/signin")
   if (!decision.allowed) return <PermissionDeniedState />
 
-  const blueprints = [...new Set(TENANT_BINDINGS.map((b) => b.blueprintId))].map((id) => ({
-    id,
-    // The blueprint's own point on every axis, so opening the form shows the
-    // preset rather than an empty composition the operator has to reconstruct.
-    axes: getBlueprint(id)!.axes,
-  }))
+  /*
+   * Every blueprint, from the blueprint catalog.
+   *
+   * This used to be the distinct `blueprintId`s of `TENANT_BINDINGS` — the
+   * blueprints somebody is already bound to — which had two defects at once.
+   * `corporate-divisions` exists in `BLUEPRINTS` and no tenant is bound to it,
+   * so the composer could not offer it at all: a blueprint nobody had used yet
+   * was a blueprint nobody could use. And `TENANT_BINDINGS` carries the
+   * FIXTURES, which is why `tests/architecture/no-fixture-tenants-on-operator-surfaces.test.mjs`
+   * names this file — an operator surface has no business reading the
+   * unfiltered bindings.
+   *
+   * The catalog answers the question that was actually being asked. Its first
+   * entry is the same blueprint the bindings' first entry pointed at, so the
+   * form still opens where it did.
+   */
+  const blueprints = BLUEPRINTS.map((b) => ({ id: b.id, axes: b.axes }))
 
   // PACK-000-004. `lifecycle` used to be dropped here, so a module in
   // `development` or `retired` was offered to an operator as a plain checkbox
@@ -163,31 +174,47 @@ export default async function NewTenantPage() {
         }).problems.length === 0,
     )?.planId ?? PLAN_CATALOG[0].planId
 
+  /*
+   * STUDIO-000-007. Where the fleet will accept a tenant — or why it cannot say.
+   *
+   * `placeableRegions()` was called bare here, and it THROWS: `lib/cells.ts`
+   * refuses to invent an estate, so a deployment with no `AWS_REGION`,
+   * `AWS_ACCOUNT_ID` or `AWS_PARTITION` that `sts:GetCallerIdentity` cannot
+   * answer for gets a `FleetMisconfigured` — and this route answered 500. A
+   * stack trace is not a refusal an operator can act on, and the console is
+   * required to boot without AWS credentials and say what is missing.
+   *
+   * `placementOffer` catches it and returns one of four states; the form
+   * renders a region control for one of them and a named remedy for the other
+   * three. The refusal to guess a region is unchanged — it is now stated
+   * instead of thrown.
+   */
+  const placement = placementOffer(placeableRegions)
+  const fleetReadAt = new Date().toISOString()
+
   return (
     <>
-
       <p className="breadcrumb">
         <Link href="/tenants">Tenants</Link> <span aria-hidden="true">/</span> Compose
       </p>
 
       <h1>Compose a tenant</h1>
-      <p>
-        This registers the tenant in <code>DRAFT</code>. Nothing is built, nothing is billed, and no
-        routing changes — provisioning is a separate, approved step you take from the tenant&rsquo;s
-        page once you have read its plan.
+      <p className="md3-body-medium">
+        Everything below describes one system. The panel at the top says what registering it will
+        and will not do, what it would cost if it were activated today, and what is still open —
+        each stage after it states where its own facts came from.
       </p>
 
-      {/* The axis table, from the engine that compiles it. A hard-coded list of
-          axis values in the form would offer an operator a composition the
-          compiler refuses. */}
       <ComposeForm
         blueprints={blueprints}
         modules={modules}
         plans={plans}
         defaultPlanId={defaultPlanId}
-        regions={placeableRegions()}
+        placement={placement}
         alwaysOnModules={[...ALWAYS_ON_MODULES]}
         suiteModules={suiteModules}
+        engineVersion={ENGINE_VERSION}
+        fleetReadAt={fleetReadAt}
         // PACK-020-004. From the closed lists the validator checks against, so
         // the form cannot offer a profile or a domain the server refuses.
         coexistenceProfiles={COEXISTENCE_PROFILES.map((id) => ({

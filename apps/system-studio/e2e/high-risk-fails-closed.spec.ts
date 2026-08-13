@@ -97,7 +97,23 @@ async function advance(page: Page, slug: string, to: string, owner?: string): Pr
   await page.getByRole("button", { name: `Move to ${to}` }).click()
   await expect(page.locator(".advance .error, .advance .state")).toHaveCount(0, { timeout: 30_000 })
   await page.goto(`/tenants/${slug}`)
-  await expect(page.locator("section.system").first()).toBeVisible()
+  /*
+   * `section.md3-card`, not `section.system`.
+   *
+   * This asserts "the tenant page rendered a panel" before reading the state out
+   * of it, and it named the class the page used to carry. The tenant page is now
+   * built from `components/md3/Card`, whose element is `<section class="md3-surface
+   * md3-card">` — a freshly composed tenant has no deployment and no evidence, so
+   * the only two `section.system` elements left on the route (the shared
+   * deployment and evidence panels) are both absent and the old locator matched
+   * nothing.
+   *
+   * Deliberately the same strength: one structural class naming the page's own
+   * panels, replaced by the structural class that now names them. A weaker
+   * version — `main`, or `body` — would pass on a page that rendered a heading
+   * and nothing else, which is exactly the failure this line is here to catch.
+   */
+  await expect(page.locator("section.md3-card").first()).toBeVisible()
   await expect(page.getByText(to, { exact: false }).first()).toBeVisible()
 }
 
@@ -250,7 +266,15 @@ test.describe("a high-risk move is a gate, not a caption", () => {
     // The chain. Rendered newest-first, so each row's previousHash is the hash
     // of the row BELOW it. A dropped row breaks this, which is the whole point
     // of writing a hash chain rather than a table of events.
-    const links = await page.locator("[data-testid='audit-ledger'] td[data-audit-hash]").evaluateAll(
+    //
+    // `[data-audit-hash]` rather than `td[data-audit-hash]`. The ledger is now
+    // rendered through `components/md3/DataTable`, which owns the `<td>` and
+    // takes each cell's CONTENT from the caller — so the chain attributes moved
+    // one element in, onto the span inside the cell. Nothing else changed: this
+    // still reads every rendered chain link, still expects one per row, and
+    // still fails if a row is dropped. Dropping the `td` widens what the
+    // selector may match and narrows nothing.
+    const links = await page.locator("[data-testid='audit-ledger'] [data-audit-hash]").evaluateAll(
       (cells) =>
         cells.map((c) => ({
           hash: c.getAttribute("data-audit-hash") ?? "",

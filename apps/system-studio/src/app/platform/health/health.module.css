@@ -1,0 +1,181 @@
+/*
+ * Layout for the Health page. Scoped to this route, and deliberately tiny.
+ *
+ * ── What this file may contain, and what it may not ────────────────────────
+ *
+ * Only geometry: flow direction, gap, wrapping, and the wrapping rule an AWS
+ * identifier needs. Every value is a token declared in `globals.css`.
+ *
+ * It may NOT contain a colour, a font size, a weight, a radius or a shadow.
+ * Those are the token layer's answers and `components/md3/` is how a surface
+ * asks for them — a page that sets its own would be a page the contrast audit
+ * in `e2e/md3-tokens-logic.spec.ts` cannot see, which is the exact failure that
+ * rule exists to prevent. `e2e/health-page-logic.spec.ts` reads this file and
+ * fails on a literal, so the rule is checked rather than remembered.
+ *
+ * It exists at all because the primitives are self-contained by design:
+ * `.md3-card` sets its own padding and carries no outer margin, so three cards
+ * in a column touch. The gap between sibling regions is a property of the page,
+ * not of the card, and this is the page. The same reasoning as
+ * `../../tenants/fleet.module.css` and `../../tenants/[slug]/tenant.module.css`.
+ */
+
+/* The page's own column. One gap, so no card has to know what follows it. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/*
+ * The page title and the line under it.
+ *
+ * A column rather than a row: the identity line is an ARN, an account number and
+ * a partition, and on a denial it is a whole IAM statement. Putting it beside
+ * the heading is what makes a 320px viewport draw one over the other.
+ */
+.lead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* A wrapping row of small things: chips, buttons, a pair of counts. */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+/*
+ * A stack of facts inside a card: a sentence, then a list, then a table.
+ *
+ * The gap is one step tighter than the page's, because things inside one card
+ * are one thought and things in different cards are not.
+ */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+/* The same, at the tightest step — for lines that belong to each other. */
+.tight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+/*
+ * An identifier the operator will compare character by character: an alarm
+ * name, an ARN, an ISO timestamp, an IAM statement.
+ *
+ * `overflow-wrap: anywhere` rather than `break-word`: only `anywhere` also
+ * reduces the element's min-content width, which is what stops one 64-character
+ * alarm name setting the floor for a table column and pushing the row past its
+ * card. `globals.css` deliberately excludes `td` and `th` from its global rule
+ * so that a wide table scrolls rather than collapsing its columns; this opts the
+ * cells that hold identifiers back in, one cell at a time.
+ */
+.identifier {
+  font-family: var(--md-sys-type-mono);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A table cell carrying prose rather than an identifier — the sentence a verdict
+ * comes with. `td` is outside the global wrapping rule for the reason above, and
+ * these sentences carry ISO timestamps and, on a refusal, an inline IAM
+ * statement: without this the text runs out of its box and
+ * `layout.spec.ts`'s scrollWidth check reads it at 320px.
+ */
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The two-column answer list: what the fact is, and what it says.
+ *
+ * `minmax(0, max-content)` sizes the term column to the longest term that is
+ * actually present rather than to a guess, and the `minmax(0, …)` on both
+ * tracks is what lets a long value shrink instead of printing outside the card.
+ */
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-5);
+  align-items: baseline;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.facts dt {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.facts dd {
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Below ~480px the two columns stop being two columns.
+ *
+ * `minmax(0, max-content)` shrinks the term column only after the value column
+ * has been squeezed to nothing first, so at 320px the value measures a
+ * clientWidth of ZERO while its text keeps its full width and prints outside the
+ * card. The pairs stack instead, which is what a description list does on a
+ * narrow screen. WCAG 2.2 AA 1.4.10, and the same rule `globals.css` applies to
+ * `.kv` for the same measured reason.
+ */
+@media (max-width: 30rem) {
+  .facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .facts dd {
+    margin-block-end: var(--space-2);
+  }
+}
+
+/*
+ * A disclosure inside a card: the long list of quiet alarms, and the legend.
+ *
+ * The summary is a control, so it carries a real hit area — `--tap` is WCAG 2.2
+ * AA 2.5.8's 24x24 CSS pixels and is deliberately the same in both densities.
+ * It carries no colour of its own: it inherits `on-surface` from the card it
+ * sits in, which is the only way the contrast audit can see it.
+ *
+ * Nothing here undoes `details:not([open]) > *:not(summary) { display: none }`
+ * from `globals.css`. A closed `<details>` still reports a bounding rectangle in
+ * Chrome even though it does not paint, so without that rule its contents
+ * overlap whatever follows — measured, at every width, by `layout.spec.ts`.
+ */
+.disclosure {
+  min-inline-size: 0;
+}
+
+.disclosure > summary {
+  cursor: pointer;
+  min-block-size: var(--tap);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The gap between the summary and what it reveals. */
+.disclosure > summary + * {
+  margin-block-start: var(--space-3);
+}

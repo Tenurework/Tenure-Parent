@@ -78,6 +78,107 @@ export const POSTURE_REFRESH_MS = 3_600_000
  */
 export const SECRET_REF_REFRESH_MS = 30_000
 
+/* ------------------------------------------- STUDIO-070-004 continuation --
+ *
+ * The seven services the engine PROVISIONS or DEPENDS ON and could not see.
+ *
+ * `infrastructure/terraform/ses.tf` creates a domain identity, an email
+ * identity and a configuration set; `sqs.tf` creates five queues; `scheduler.tf`
+ * creates an EventBridge rule that is the only thing making deliverable
+ * reminders fire. None of it was readable from here, so "the reminders stopped"
+ * and "the rule is DISABLED" were the same blank screen.
+ *
+ * Each fact below gets its own cadence, and they are separate constants because
+ * they are separate arguments. A queue's DEPTH is a different kind of number
+ * from the SET of queues that exist, and giving both the same TTL means either
+ * polling ListQueues every ten seconds — an account-wide throttle the operator
+ * did not ask for — or showing a backlog that is four minutes stale, which is a
+ * backlog nobody can act on.
+ */
+
+/**
+ * SES account state: sandbox, 24-hour quota and send rate.
+ *
+ * The fastest-moving SES fact and the one that silently limits who can be
+ * emailed. A quota that is 90% spent has to be seen before it is 100% spent,
+ * and `GetAccount` is one cheap call.
+ */
+export const SES_ACCOUNT_TTL_MS = 90_000
+
+/**
+ * SES configuration: identities and configuration sets.
+ *
+ * These change when Terraform runs, not when mail is sent. Polling them at the
+ * account cadence would triple the SES call rate to re-read a domain
+ * verification that moves once a quarter.
+ */
+export const SES_CONFIG_TTL_MS = 600_000
+
+/**
+ * The account suppression list.
+ *
+ * Grows on every bounce and complaint, so it is not configuration — but each
+ * entry is permanent until removed, so a three-minute-old list is never wrong
+ * about an address, only about how recently one was added.
+ */
+export const SES_SUPPRESSION_TTL_MS = 180_000
+
+/** Which queues exist. Terraform's answer, and it changes when Terraform runs. */
+export const SQS_QUEUE_TTL_MS = 150_000
+
+/**
+ * Queue depth, in-flight and delayed counts.
+ *
+ * The fastest cadence in this registry, faster than ECS deliberately: a backlog
+ * that matters is one that is growing right now, and a dead-letter queue that
+ * became non-empty thirty seconds ago is a delivery that already failed.
+ */
+export const SQS_DEPTH_TTL_MS = 10_000
+
+/**
+ * Function configuration and reserved concurrency.
+ *
+ * Runtime, memory, timeout and last-modified change on deploy. A deprecated
+ * runtime is a scheduled outage that moves on AWS's calendar, not on ours.
+ */
+export const LAMBDA_TTL_MS = 45_000
+
+/**
+ * Roles, policies and access keys.
+ *
+ * Changed by a human running Terraform, so minutes rather than seconds — and
+ * IAM is a low-TPS, account-wide API whose throttle is shared with every other
+ * principal in the account, including the deploy role. Polling it hard here
+ * would rate-limit the pipeline.
+ */
+export const IAM_POSTURE_TTL_MS = 720_000
+
+/**
+ * Budgets: limit, actual and forecast.
+ *
+ * AWS recomputes budget actuals a few times a day; anything faster returns the
+ * same number. The Budgets API is also metered per request, so a dashboard left
+ * open is a line on the bill it is supposed to be watching.
+ */
+export const BUDGETS_TTL_MS = 4 * 3_600_000
+
+/**
+ * Open and upcoming AWS Health events.
+ *
+ * This is the read that answers "is it us or is it AWS", which is asked during
+ * an incident, by someone watching the page. Fast, and cheap enough to be.
+ */
+export const AWS_HEALTH_TTL_MS = 25_000
+
+/**
+ * EventBridge rules and their targets.
+ *
+ * A DISABLED scheduled rule is a job that stopped running silently — the same
+ * defect shape as an alarm with its actions switched off. Four minutes is the
+ * longest anybody should be told a reminder pipeline is fine when it is off.
+ */
+export const EVENTBRIDGE_TTL_MS = 240_000
+
 /* -------------------------------------------------------- the catalogue -- */
 
 /** Which page a capability feeds. Used by the read-only API to group surfaces. */
@@ -247,7 +348,13 @@ export const CAPABILITIES = {
     // Scoped to this platform's own namespace. A star here would let the
     // console confirm the existence of every secret in the account, which is
     // itself information worth withholding.
-    resource: "arn:aws:secretsmanager:*:*:secret:tenure/*",
+    //
+    // The partition is a wildcard, not the literal `aws`. This engine refuses
+    // to boot without AWS_PARTITION rather than assume one, and a statement an
+    // operator pastes is not the place to make the assumption anyway: in
+    // aws-us-gov an `arn:aws:` resource matches nothing and the grant silently
+    // does not work.
+    resource: "arn:*:secretsmanager:*:*:secret:tenure/*",
     refreshMs: SECRET_REF_REFRESH_MS,
     surface: "posture",
     reads: "whether a manifest's secret reference names something that exists — never its value",
@@ -293,6 +400,181 @@ export const CAPABILITIES = {
     refreshMs: RDS_TTL_MS,
     surface: "retention",
     reads: "object versions retained under a tenant's prefix, and the bytes they hold",
+  },
+
+  /* -------------------------------------------------- SES (SESv2 API) --
+   * Terraform provisions the domain identity, the from-address identity and
+   * the configuration set. Nothing read them back, so "the pilot cannot mail
+   * this domain" and "the pilot has not been given production access" were
+   * both invisible from the console that provisioned them.
+   *
+   * SESv2's IAM actions carry the `ses:` prefix — the same namespace as the
+   * v1 API — which is why the action names below do not say "sesv2".
+   *
+   * `ses:SendEmail` is deliberately absent and is explicitly DENIED on the
+   * task role: a console that can read every tenant's mail configuration must
+   * not also be able to send as them.
+   */
+  "ses:GetAccount": {
+    iamActions: ["ses:GetAccount"],
+    // Account-level; the API has no resource to scope to.
+    resource: "*",
+    refreshMs: SES_ACCOUNT_TTL_MS,
+    surface: "posture",
+    reads: "whether this account is still in the SES sandbox, its 24-hour quota and how much of it is spent",
+  },
+  "ses:ListEmailIdentities": {
+    iamActions: ["ses:ListEmailIdentities"],
+    resource: "*",
+    refreshMs: SES_CONFIG_TTL_MS,
+    surface: "estate",
+    reads: "the sending identities this engine created and whether each is actually verified",
+  },
+  "ses:ListConfigurationSets": {
+    iamActions: ["ses:ListConfigurationSets"],
+    resource: "*",
+    refreshMs: SES_CONFIG_TTL_MS,
+    surface: "estate",
+    reads: "which configuration sets exist, which is the name every GetConfigurationSet needs",
+  },
+  "ses:GetConfigurationSet": {
+    iamActions: ["ses:GetConfigurationSet"],
+    // This one genuinely scopes: the ARN pattern is written with a wildcard
+    // partition rather than a literal `aws`, because this engine refuses to
+    // invent a partition anywhere else and a policy is not the exception.
+    resource: "arn:*:ses:*:*:configuration-set/*",
+    refreshMs: SES_CONFIG_TTL_MS,
+    surface: "estate",
+    reads: "one configuration set's TLS policy, reputation tracking and whether sending is enabled on it",
+  },
+  "ses:ListSuppressedDestinations": {
+    iamActions: ["ses:ListSuppressedDestinations"],
+    resource: "*",
+    refreshMs: SES_SUPPRESSION_TTL_MS,
+    surface: "health",
+    reads: "addresses SES will refuse to mail because they bounced or complained",
+  },
+
+  /* --------------------------------------------------------------- SQS --
+   * Five queues in `sqs.tf`, two of them dead-letter queues, and no way to see
+   * that anything had landed in one. A DLQ with messages in it is a delivery
+   * that failed and nobody was told.
+   */
+  "sqs:ListQueues": {
+    iamActions: ["sqs:ListQueues"],
+    resource: "*",
+    refreshMs: SQS_QUEUE_TTL_MS,
+    surface: "estate",
+    reads: "every queue URL in the region, which is the input to every depth read",
+  },
+  "sqs:GetQueueAttributes": {
+    iamActions: ["sqs:GetQueueAttributes"],
+    resource: "arn:*:sqs:*:*:*",
+    refreshMs: SQS_DEPTH_TTL_MS,
+    surface: "health",
+    reads: "one queue's visible, in-flight and delayed message counts, and its redrive policy",
+  },
+
+  /* ------------------------------------------------------------ Lambda -- */
+  "lambda:ListFunctions": {
+    iamActions: ["lambda:ListFunctions"],
+    resource: "*",
+    refreshMs: LAMBDA_TTL_MS,
+    surface: "estate",
+    reads: "functions, their runtime, memory, timeout and when each was last modified",
+  },
+  "lambda:GetFunctionConcurrency": {
+    iamActions: ["lambda:GetFunctionConcurrency"],
+    resource: "arn:*:lambda:*:*:function:*",
+    refreshMs: LAMBDA_TTL_MS,
+    surface: "estate",
+    reads: "one function's reserved concurrency — absent means it shares the account pool",
+  },
+
+  /* --------------------------------------------------------------- IAM --
+   * STUDIO-000-009 asks for console-created and unmanaged resources,
+   * long-lived keys and wildcard policies.
+   *
+   * `GetAccountAuthorizationDetails` is ONE call that returns roles, users,
+   * their attached and inline policies AND the policy documents themselves,
+   * which is what a wildcard sweep has to read. The alternative is
+   * ListRoles → ListAttachedRolePolicies → GetPolicy → GetPolicyVersion →
+   * ListRolePolicies → GetRolePolicy: six grants, N+1 calls, and six chances
+   * for one of them to be the denied one that quietly empties the sweep.
+   *
+   * Every mutating IAM verb is explicitly DENIED on the task role. That Deny
+   * used to be `iam:*`, which would have refused these two reads as well —
+   * see the note in infrastructure/studio/iam.tf.
+   */
+  "iam:GetAccountAuthorizationDetails": {
+    iamActions: ["iam:GetAccountAuthorizationDetails"],
+    resource: "*",
+    refreshMs: IAM_POSTURE_TTL_MS,
+    surface: "security",
+    reads: "every role and user with its attached and inline policy documents, which is where a wildcard grant is visible",
+  },
+  "iam:ListAccessKeys": {
+    iamActions: ["iam:ListAccessKeys"],
+    resource: "arn:*:iam::*:user/*",
+    refreshMs: IAM_POSTURE_TTL_MS,
+    surface: "security",
+    reads: "one user's access keys and their creation dates — a long-lived key is an age, not a boolean",
+  },
+
+  /* ----------------------------------------------------------- Budgets --
+   * The IAM action is `budgets:ViewBudget`, NOT `budgets:DescribeBudgets`.
+   * AWS Budgets authorizes its classic budget APIs with two actions,
+   * ViewBudget and ModifyBudget, and a policy naming the API's own name grants
+   * nothing at all — it denies quietly, which reads exactly like an account
+   * with no budgets. The capability is keyed by the API and grants the action.
+   */
+  "budgets:DescribeBudgets": {
+    iamActions: ["budgets:ViewBudget"],
+    resource: "arn:*:budgets::*:budget/*",
+    refreshMs: BUDGETS_TTL_MS,
+    surface: "cost",
+    reads: "each budget's limit, actual and forecast spend, and the thresholds that are supposed to notify somebody",
+  },
+
+  /* -------------------------------------------------------- AWS Health --
+   * Needs a Business or Enterprise Support plan. On any lesser plan the API
+   * raises `SubscriptionRequiredException`, which `read.ts` maps to
+   * UNCONFIGURED with the plan named — not to ERROR, because no IAM change
+   * fixes it, and not to EMPTY, because "no support plan" is not "no events".
+   */
+  "health:DescribeEvents": {
+    iamActions: ["health:DescribeEvents"],
+    resource: "*",
+    refreshMs: AWS_HEALTH_TTL_MS,
+    surface: "health",
+    reads: "open and upcoming AWS-side events affecting this account, with their services and regions",
+  },
+  "health:DescribeAffectedEntities": {
+    iamActions: ["health:DescribeAffectedEntities"],
+    resource: "*",
+    refreshMs: AWS_HEALTH_TTL_MS,
+    surface: "health",
+    reads: "which of this account's resources one AWS Health event actually touches",
+  },
+
+  /* ------------------------------------------------------ EventBridge --
+   * `scheduler.tf`'s rule is the only thing that makes deliverable reminders
+   * fire. A DISABLED rule is a job that stopped running and said nothing, and
+   * a rule whose target was removed is the same outage one level down.
+   */
+  "events:ListRules": {
+    iamActions: ["events:ListRules"],
+    resource: "*",
+    refreshMs: EVENTBRIDGE_TTL_MS,
+    surface: "estate",
+    reads: "every rule on a bus, its schedule or pattern, and whether it is ENABLED or DISABLED",
+  },
+  "events:ListTargetsByRule": {
+    iamActions: ["events:ListTargetsByRule"],
+    resource: "arn:*:events:*:*:rule/*",
+    refreshMs: EVENTBRIDGE_TTL_MS,
+    surface: "estate",
+    reads: "what one rule actually invokes — a rule with no target is enabled and inert",
   },
 } as const satisfies Record<string, CapabilitySpec>
 

@@ -71,12 +71,28 @@ async function openAudit(page: Page) {
   })
 }
 
-/** How many records the page says this chain holds, or 0 when it holds none. */
+/**
+ * How many records the page says this chain holds, or 0 when it holds none.
+ *
+ * Read from a NAMED cell rather than from `row.locator("td")[1]`.
+ *
+ * The positional version asserted a column order it never declared: inserting a
+ * column to the left of Records, or reordering two, left this helper reading a
+ * different number entirely and every assertion built on it — "three audited
+ * acts must add six chained rows", "the count is unchanged, which is what
+ * distinguishes an edit from a removal" — comparing the wrong figure while
+ * still going green. That is the row-shifted-by-one-column defect the table
+ * primitive's own documentation argues against, reproduced in the test that was
+ * supposed to catch it.
+ *
+ * `chain-<partition>-records` is on the cell that holds the figure, so the
+ * helper now fails loudly if that column is removed instead of silently reading
+ * its neighbour.
+ */
 async function recordCount(page: Page): Promise<number> {
-  const row = page.getByTestId(`chain-${PARTITION}`)
-  if ((await row.count()) === 0) return 0
-  const cells = await row.locator("td").allTextContents()
-  return Number(cells[1])
+  const cell = page.getByTestId(`chain-${PARTITION}-records`)
+  if ((await cell.count()) === 0) return 0
+  return Number((await cell.innerText()).trim())
 }
 
 /**
@@ -217,8 +233,13 @@ test.describe("the audit chain, written and verified against a real DynamoDB", (
     await placeHold(page, `retention-${RUN}`, "Everything on this chain is preserved.")
 
     await openAudit(page)
-    const cells = await page.getByTestId(`retention-${PARTITION}`).locator("td").allTextContents()
-    const heldBack = Number(cells[3])
+    // Named, not positional, for the reason `recordCount` above is: reading the
+    // fourth `td` of the retention row asserted a column order this spec never
+    // declared, and a column inserted to its left would have moved the figure
+    // without moving the assertion.
+    const heldBack = Number(
+      (await page.getByTestId(`retention-${PARTITION}-held`).innerText()).trim(),
+    )
     expect(heldBack, "an unscoped hold preserves every record past retention").toBeGreaterThan(0)
     await expect(page.getByTestId("held-back-table")).toBeVisible()
   })

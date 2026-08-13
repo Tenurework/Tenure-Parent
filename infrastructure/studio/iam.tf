@@ -141,6 +141,62 @@ resource "aws_iam_role_policy" "studio_estate_read" {
         Resource = "*"
       },
       {
+        # ── The seven services the engine provisioned and could not see ────
+        #
+        # `infrastructure/terraform/ses.tf` creates a domain identity, an email
+        # identity and a configuration set. `sqs.tf` creates five queues, two of
+        # them dead-letter queues. `scheduler.tf` creates the EventBridge rule
+        # that is the only thing making deliverable reminders fire. None of it
+        # was readable from this role, so the console that provisions the estate
+        # could not answer "did that work".
+        #
+        # `ses:SendEmail`, `sqs:SendMessage`, `sqs:PurgeQueue`,
+        # `lambda:InvokeFunction` and `events:PutEvents` are absent here and
+        # DENIED below. Reading a mail configuration and sending mail as that
+        # configuration are different powers, and this role holds the first.
+        Sid    = "MessagingAndSchedulingReads"
+        Effect = "Allow"
+        Action = [
+          "ses:GetAccount",
+          "ses:ListEmailIdentities",
+          "ses:ListConfigurationSets",
+          "ses:GetConfigurationSet",
+          "ses:ListSuppressedDestinations",
+          "sqs:ListQueues",
+          "sqs:GetQueueAttributes",
+          "lambda:ListFunctions",
+          "lambda:GetFunctionConcurrency",
+          "events:ListRules",
+          "events:ListTargetsByRule",
+        ]
+        Resource = "*"
+      },
+      {
+        # ── Account posture: IAM, budgets, and AWS's own incidents ─────────
+        #
+        # `budgets:ViewBudget` is spelled the way AWS spells it and NOT
+        # `budgets:DescribeBudgets`. AWS Budgets authorizes its classic budget
+        # APIs with exactly two actions, ViewBudget and ModifyBudget; a policy
+        # naming the API's own name grants nothing, and the failure is a quiet
+        # AccessDenied that renders identically to an account with no budgets.
+        # It is the one read verb in this policy not spelled Get/List/Describe,
+        # and `studio-task-role-is-narrow` names it explicitly for that reason.
+        #
+        # `iam:GetAccountAuthorizationDetails` returns policy DOCUMENTS, which
+        # is the point: a wildcard grant is only visible in the document. It
+        # returns no credential material — IAM has no API that does.
+        Sid    = "AccountPostureReads"
+        Effect = "Allow"
+        Action = [
+          "iam:GetAccountAuthorizationDetails",
+          "iam:ListAccessKeys",
+          "budgets:ViewBudget",
+          "health:DescribeEvents",
+          "health:DescribeAffectedEntities",
+        ]
+        Resource = "*"
+      },
+      {
         # Object VERSIONS only, and only for reading how much is retained.
         # s3:GetObject is deliberately absent: the console reports that a
         # tenant's objects still exist and their size, and has no business
@@ -154,6 +210,21 @@ resource "aws_iam_role_policy" "studio_estate_read" {
         # Belt and braces against a future edit. Even if somebody widens an
         # Allow above, an explicit Deny on the destructive verbs cannot be
         # routed around by a broader Allow in the same policy.
+        #
+        # ── Why `iam:*` is no longer here, and what replaced it ─────────────
+        #
+        # This list used to end `iam:*`. An explicit Deny beats every Allow, in
+        # this policy and in any other attached to the same role, so that one
+        # line would have refused `iam:GetAccountAuthorizationDetails` and
+        # `iam:ListAccessKeys` above — the IAM posture reads would have shipped
+        # permanently DENIED, correctly rendered as "unknown", and blind.
+        #
+        # It is replaced by the IAM actions that actually grant or escalate
+        # privilege, named one by one. That list is longer and, unlike `iam:*`,
+        # it is not exhaustive — so the primary control remains the Allow side,
+        # where the only two IAM actions this role holds are a Get and a List.
+        # If a future edit needs more IAM than that, this Deny is the second
+        # place it has to be argued for.
         Sid    = "NeverWrite"
         Effect = "Deny"
         Action = [
@@ -166,7 +237,55 @@ resource "aws_iam_role_policy" "studio_estate_read" {
           "s3:DeleteObjectVersion",
           "kms:ScheduleKeyDeletion",
           "organizations:LeaveOrganization",
-          "iam:*",
+          # Privilege grant and escalation.
+          "iam:CreateRole",
+          "iam:UpdateRole",
+          "iam:DeleteRole",
+          "iam:CreateUser",
+          "iam:DeleteUser",
+          "iam:CreateGroup",
+          "iam:AddUserToGroup",
+          "iam:CreateAccessKey",
+          "iam:UpdateAccessKey",
+          "iam:CreateLoginProfile",
+          "iam:UpdateLoginProfile",
+          "iam:CreatePolicy",
+          "iam:CreatePolicyVersion",
+          "iam:SetDefaultPolicyVersion",
+          "iam:AttachRolePolicy",
+          "iam:AttachUserPolicy",
+          "iam:AttachGroupPolicy",
+          "iam:PutRolePolicy",
+          "iam:PutUserPolicy",
+          "iam:PutGroupPolicy",
+          "iam:UpdateAssumeRolePolicy",
+          "iam:PassRole",
+          "iam:CreateServiceLinkedRole",
+          "iam:CreateInstanceProfile",
+          "iam:AddRoleToInstanceProfile",
+          "iam:DeleteRolePermissionsBoundary",
+          "iam:DeleteUserPermissionsBoundary",
+          # The five writes behind the seven new reads. A console that can see
+          # a queue must not be able to purge it, and one that can read a mail
+          # configuration must not be able to send as it.
+          "ses:SendEmail",
+          "ses:SendBulkEmail",
+          "ses:DeleteEmailIdentity",
+          "ses:PutAccountSendingAttributes",
+          "sqs:SendMessage",
+          "sqs:DeleteMessage",
+          "sqs:PurgeQueue",
+          "sqs:DeleteQueue",
+          "lambda:InvokeFunction",
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+          "lambda:DeleteFunction",
+          "events:PutEvents",
+          "events:PutRule",
+          "events:PutTargets",
+          "events:DeleteRule",
+          "events:DisableRule",
+          "budgets:ModifyBudget",
         ]
         Resource = "*"
       },

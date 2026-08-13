@@ -750,7 +750,14 @@ test.describe("the fleet page reports what it could not observe", () => {
     await signIn(page)
     await page.goto("/tenants")
 
-    const first = page.locator("section", { hasText: "Fleet health" }).first().locator("tbody tr td.id a").first()
+    // `td a`, not `td.id a`. The fleet surface now composes
+    // `components/md3/DataTable`, which derives every cell from one column
+    // declaration and therefore does not let a caller put a class on a `<td>`.
+    // The property this line needs is unchanged and is the one it always
+    // wanted: the first link in the first row of the attention list opens that
+    // tenant. (`td.id` survives on `/tenants/[slug]`, which is a different
+    // surface and a different agent's file; line 760 below still uses it.)
+    const first = page.locator("section", { hasText: "Fleet health" }).first().locator("tbody tr td a").first()
     await first.click()
     await page.waitForURL(/\/tenants\/[^/]+$/)
 
