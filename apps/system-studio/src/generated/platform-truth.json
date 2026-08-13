@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "b9f6ce1",
+  "commit": "8c1161d",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 241,
@@ -4270,7 +4270,7 @@
     },
     {
       "name": "end to end",
-      "files": 64,
+      "files": 66,
       "what": "real browser"
     }
   ]

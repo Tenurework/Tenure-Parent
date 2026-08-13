@@ -6,13 +6,13 @@
 # duplicate upload cannot double-count the requirements it states.
 
 generated_from: tools/document-graph.mjs
-document_count: 31
+document_count: 32
 alias_count: 6
 requirement_statements: 3850
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
 authorities: 21
-references: 10
+references: 11
 documents:
   - id: "aws-current-state"
     title: AWS current state
@@ -29,6 +29,21 @@ documents:
       - GE
     states_requirements: 0
     mentions_requirement_ids: 1
+  - id: "studio-information-architecture"
+    title: System Studio information architecture and route map
+    version: unversioned
+    canonical_path: "docs/architecture/studio-information-architecture.md"
+    role: reference
+    family: "studio-information-architecture"
+    superseded_by: null
+    supersedes: []
+    sha256: "2b8490e2f9b62c26278921d16cf618a22564370915b8e94555822b194dc532e3"
+    bytes: 20304
+    aliases: []
+    requirement_prefixes:
+      - STUDIO
+    states_requirements: 0
+    mentions_requirement_ids: 22
   - id: "subsystem-paths"
     title: "Subsystem paths, duplicates, and contradictions"
     version: unversioned
