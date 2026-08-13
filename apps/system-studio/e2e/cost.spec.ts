@@ -181,7 +181,15 @@ test.describe("the FinOps Center leads with the answer", () => {
     expect(rows).toHaveLength(4)
 
     const amountsIn = (cell: string) => cell.match(/\$[\d.,]+/g) ?? []
-    const value = (amount: string) => parseFloat(amount.replace(/[$,]/g, ""))
+    /**
+     * A band with no amount in it is a broken table, not a zero. Assert the cell
+     * was there before parsing it, so the failure names the missing amount rather
+     * than arriving later as a NaN comparison nobody can read.
+     */
+    const value = (amount: string | undefined) => {
+      expect(amount, "a threshold band named no dollar amount").toBeDefined()
+      return parseFloat(String(amount).replace(/[$,]/g, ""))
+    }
 
     const [first, second, third, fourth] = rows.map((cells) => amountsIn(cells[0]))
     expect(first, "the first band is open at the bottom, so it names one amount").toHaveLength(1)

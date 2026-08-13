@@ -76,25 +76,8 @@
     "../../blueprints/**/*.ts",
     "../../modules/**/*.ts",
     "../../packages/*/src/**/*.ts",
-    ".next-audit110/types/**/*.ts",
-    ".next-authz/types/**/*.ts",
-    ".next-compose-md3/types/**/*.ts",
-    ".next-config-md3/types/**/*.ts",
-    ".next-cost-agent/types/**/*.ts",
-    ".next-estate-md3/types/**/*.ts",
-    ".next-fh003/types/**/*.ts",
-    ".next-health/types/**/*.ts",
-    ".next-hr140/types/**/*.ts",
-    ".next-index-route/types/**/*.ts",
-    ".next-md3/types/**/*.ts",
-    ".next-platform-md3/types/**/*.ts",
-    ".next-roleverify/types/**/*.ts",
-    ".next-s130/types/**/*.ts",
-    ".next-sec110/types/**/*.ts",
-    ".next-studio-120-003/types/**/*.ts",
     ".next/types/**/*.ts",
-    "next-env.d.ts",
-    ".next-pl-md3-dev/types/**/*.ts"
+    "next-env.d.ts"
   ],
   "exclude": [
     "node_modules"
