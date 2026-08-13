@@ -327,7 +327,7 @@ Allowlisted as necessarily public:
 TTES-000-001. The two experiences render from two stylesheets, and nothing
 compared them until now. `apps/web/src/app/globals.css` declares
 226 token names; `apps/system-studio/src/app/globals.css` declares
-160; 12 names are declared by both and
+64; 12 names are declared by both and
 5 of those carry different values — so one token name means two
 colours across the platform, which is fine when it is a decision and is a defect
 when it is drift.
@@ -429,40 +429,26 @@ justified, and capped at 1 so the next one fails the build.
 | `--info-text` | tenant | `#1f66b8` | — |
 | `--md-ref-primary-10` | deployer | — | `#062117` |
 | `--md-ref-primary-30` | deployer | — | `#0b5c3d` |
+| `--md-ref-primary-40` | deployer | — | `#14784f` |
 | `--md-ref-primary-80` | deployer | — | `#7fd6aa` |
 | `--md-ref-primary-90` | deployer | — | `#c3eed8` |
 | `--md-ref-secondary-40` | deployer | — | `#47665a` |
 | `--md-ref-tertiary-40` | deployer | — | `#3c6370` |
 | `--md-sys-color-background` | deployer | — | `#f4f7f3` |
 | `--md-sys-color-error` | deployer | — | `#8b2f35` |
-| `--md-sys-color-error-container` | deployer | — | `#f7dedd` |
-| `--md-sys-color-inverse-on-surface` | deployer | — | `#eff5f0` |
-| `--md-sys-color-inverse-primary` | deployer | — | `#7fd6aa` |
-| `--md-sys-color-inverse-surface` | deployer | — | `#2b342e` |
 | `--md-sys-color-on-background` | deployer | — | `#17231d` |
-| `--md-sys-color-on-error` | deployer | — | `#fff8f7` |
-| `--md-sys-color-on-error-container` | deployer | — | `#2d0709` |
 | `--md-sys-color-on-primary` | deployer | — | `#f7fff9` |
 | `--md-sys-color-on-primary-container` | deployer | — | `#062117` |
 | `--md-sys-color-on-secondary` | deployer | — | `#f7fff9` |
-| `--md-sys-color-on-secondary-container` | deployer | — | `#10251c` |
-| `--md-sys-color-on-success` | deployer | — | `#f7fff9` |
-| `--md-sys-color-on-success-container` | deployer | — | `#052314` |
 | `--md-sys-color-on-surface` | deployer | — | `#17231d` |
 | `--md-sys-color-on-surface-variant` | deployer | — | `#485950` |
-| `--md-sys-color-on-tertiary` | deployer | — | `#f7fdff` |
-| `--md-sys-color-on-tertiary-container` | deployer | — | `#0b232c` |
-| `--md-sys-color-on-warning` | deployer | — | `#fffcf3` |
-| `--md-sys-color-on-warning-container` | deployer | — | `#241a00` |
 | `--md-sys-color-outline` | deployer | — | `#718178` |
 | `--md-sys-color-outline-variant` | deployer | — | `#c7d1ca` |
 | `--md-sys-color-primary` | deployer | — | `#0b5c3d` |
 | `--md-sys-color-primary-container` | deployer | — | `#c3eed8` |
 | `--md-sys-color-scrim` | deployer | — | `rgba(13, 24, 18, 0.42)` |
 | `--md-sys-color-secondary` | deployer | — | `#47665a` |
-| `--md-sys-color-secondary-container` | deployer | — | `#d3e5db` |
 | `--md-sys-color-success` | deployer | — | `#246b45` |
-| `--md-sys-color-success-container` | deployer | — | `#c8e9d4` |
 | `--md-sys-color-surface` | deployer | — | `#fbfdf8` |
 | `--md-sys-color-surface-bright` | deployer | — | `#fbfdf8` |
 | `--md-sys-color-surface-container` | deployer | — | `#e9f0ea` |
@@ -471,101 +457,19 @@ justified, and capped at 1 so the next one fails the build.
 | `--md-sys-color-surface-container-low` | deployer | — | `#f0f5ef` |
 | `--md-sys-color-surface-container-lowest` | deployer | — | `#fdfefb` |
 | `--md-sys-color-surface-dim` | deployer | — | `#dce4de` |
-| `--md-sys-color-surface-variant` | deployer | — | `#dfe7e1` |
 | `--md-sys-color-tertiary` | deployer | — | `#3c6370` |
-| `--md-sys-color-tertiary-container` | deployer | — | `#cbe6ef` |
 | `--md-sys-color-warning` | deployer | — | `#765b12` |
-| `--md-sys-color-warning-container` | deployer | — | `#f4e6c2` |
-| `--md-sys-elevation-0` | deployer | — | `none` |
 | `--md-sys-elevation-1` | deployer | — | `0 1px 2px rgba(25, 44, 34, 0.09), 0 1px 3px rgba(25, 44, 34, 0.07)` |
 | `--md-sys-elevation-2` | deployer | — | `0 2px 6px rgba(25, 44, 34, 0.11), 0 1px 3px rgba(25, 44, 34, 0.08)` |
-| `--md-sys-elevation-3` | deployer | — | `0 4px 10px rgba(25, 44, 34, 0.12), 0 1px 3px rgba(25, 44, 34, 0.09)` |
-| `--md-sys-elevation-4` | deployer | — | `0 8px 16px rgba(25, 44, 34, 0.13), 0 2px 4px rgba(25, 44, 34, 0.1)` |
-| `--md-sys-elevation-5` | deployer | — | `0 12px 24px rgba(25, 44, 34, 0.15), 0 4px 6px rgba(25, 44, 34, 0.11)` |
-| `--md-sys-motion-duration-medium` | deployer | — | `180ms` |
-| `--md-sys-motion-duration-short` | deployer | — | `120ms` |
-| `--md-sys-motion-easing-accelerate` | deployer | — | `cubic-bezier(0.3, 0, 1, 1)` |
-| `--md-sys-motion-easing-decelerate` | deployer | — | `cubic-bezier(0, 0, 0.2, 1)` |
-| `--md-sys-motion-easing-standard` | deployer | — | `cubic-bezier(0.2, 0, 0, 1)` |
-| `--md-sys-shape-corner-extra-large` | deployer | — | `16px` |
-| `--md-sys-shape-corner-extra-small` | deployer | — | `4px` |
-| `--md-sys-shape-corner-full` | deployer | — | `999px` |
-| `--md-sys-shape-corner-large` | deployer | — | `12px` |
-| `--md-sys-shape-corner-medium` | deployer | — | `8px` |
-| `--md-sys-shape-corner-none` | deployer | — | `0` |
-| `--md-sys-shape-corner-small` | deployer | — | `6px` |
 | `--md-sys-shape-full` | deployer | — | `999px` |
 | `--md-sys-shape-md` | deployer | — | `8px` |
 | `--md-sys-shape-sm` | deployer | — | `6px` |
 | `--md-sys-shape-xs` | deployer | — | `4px` |
 | `--md-sys-state-focus` | deployer | — | `rgba(11, 92, 61, 0.14)` |
-| `--md-sys-state-focus-opacity` | deployer | — | `0.12` |
 | `--md-sys-state-hover` | deployer | — | `rgba(11, 92, 61, 0.08)` |
-| `--md-sys-state-hover-opacity` | deployer | — | `0.08` |
 | `--md-sys-state-pressed` | deployer | — | `rgba(11, 92, 61, 0.16)` |
-| `--md-sys-state-pressed-opacity` | deployer | — | `0.12` |
 | `--md-sys-type-font` | deployer | — | `Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` |
 | `--md-sys-type-mono` | deployer | — | `"SFMono-Regular", "Roboto Mono", Menlo, Consolas, monospace` |
-| `--md-sys-typescale-body-large-line-height` | deployer | — | `1.55` |
-| `--md-sys-typescale-body-large-size` | deployer | — | `0.94rem` |
-| `--md-sys-typescale-body-large-tracking` | deployer | — | `0.005em` |
-| `--md-sys-typescale-body-large-weight` | deployer | — | `400` |
-| `--md-sys-typescale-body-medium-line-height` | deployer | — | `1.55` |
-| `--md-sys-typescale-body-medium-size` | deployer | — | `0.86rem` |
-| `--md-sys-typescale-body-medium-tracking` | deployer | — | `0.01em` |
-| `--md-sys-typescale-body-medium-weight` | deployer | — | `400` |
-| `--md-sys-typescale-body-small-line-height` | deployer | — | `1.5` |
-| `--md-sys-typescale-body-small-size` | deployer | — | `0.78rem` |
-| `--md-sys-typescale-body-small-tracking` | deployer | — | `0.015em` |
-| `--md-sys-typescale-body-small-weight` | deployer | — | `400` |
-| `--md-sys-typescale-display-large-line-height` | deployer | — | `1.15` |
-| `--md-sys-typescale-display-large-size` | deployer | — | `clamp(1.75rem, 1.35rem + 2vw, 2.5rem)` |
-| `--md-sys-typescale-display-large-tracking` | deployer | — | `-0.02em` |
-| `--md-sys-typescale-display-large-weight` | deployer | — | `400` |
-| `--md-sys-typescale-display-medium-line-height` | deployer | — | `1.18` |
-| `--md-sys-typescale-display-medium-size` | deployer | — | `clamp(1.55rem, 1.25rem + 1.5vw, 2rem)` |
-| `--md-sys-typescale-display-medium-tracking` | deployer | — | `-0.01em` |
-| `--md-sys-typescale-display-medium-weight` | deployer | — | `400` |
-| `--md-sys-typescale-display-small-line-height` | deployer | — | `1.2` |
-| `--md-sys-typescale-display-small-size` | deployer | — | `clamp(1.4rem, 1.2rem + 1vw, 1.75rem)` |
-| `--md-sys-typescale-display-small-tracking` | deployer | — | `0` |
-| `--md-sys-typescale-display-small-weight` | deployer | — | `400` |
-| `--md-sys-typescale-headline-large-line-height` | deployer | — | `1.2` |
-| `--md-sys-typescale-headline-large-size` | deployer | — | `clamp(1.18rem, 1rem + 0.6vw, 1.55rem)` |
-| `--md-sys-typescale-headline-large-tracking` | deployer | — | `0` |
-| `--md-sys-typescale-headline-large-weight` | deployer | — | `720` |
-| `--md-sys-typescale-headline-medium-line-height` | deployer | — | `1.25` |
-| `--md-sys-typescale-headline-medium-size` | deployer | — | `clamp(1.1rem, 1rem + 0.4vw, 1.3rem)` |
-| `--md-sys-typescale-headline-medium-tracking` | deployer | — | `0` |
-| `--md-sys-typescale-headline-medium-weight` | deployer | — | `700` |
-| `--md-sys-typescale-headline-small-line-height` | deployer | — | `1.3` |
-| `--md-sys-typescale-headline-small-size` | deployer | — | `1.08rem` |
-| `--md-sys-typescale-headline-small-tracking` | deployer | — | `0` |
-| `--md-sys-typescale-headline-small-weight` | deployer | — | `700` |
-| `--md-sys-typescale-label-large-line-height` | deployer | — | `1.35` |
-| `--md-sys-typescale-label-large-size` | deployer | — | `0.82rem` |
-| `--md-sys-typescale-label-large-tracking` | deployer | — | `0.01em` |
-| `--md-sys-typescale-label-large-weight` | deployer | — | `600` |
-| `--md-sys-typescale-label-medium-line-height` | deployer | — | `1.35` |
-| `--md-sys-typescale-label-medium-size` | deployer | — | `0.75rem` |
-| `--md-sys-typescale-label-medium-tracking` | deployer | — | `0.03em` |
-| `--md-sys-typescale-label-medium-weight` | deployer | — | `600` |
-| `--md-sys-typescale-label-small-line-height` | deployer | — | `1.35` |
-| `--md-sys-typescale-label-small-size` | deployer | — | `0.69rem` |
-| `--md-sys-typescale-label-small-tracking` | deployer | — | `0.06em` |
-| `--md-sys-typescale-label-small-weight` | deployer | — | `650` |
-| `--md-sys-typescale-title-large-line-height` | deployer | — | `1.3` |
-| `--md-sys-typescale-title-large-size` | deployer | — | `1rem` |
-| `--md-sys-typescale-title-large-tracking` | deployer | — | `0` |
-| `--md-sys-typescale-title-large-weight` | deployer | — | `680` |
-| `--md-sys-typescale-title-medium-line-height` | deployer | — | `1.4` |
-| `--md-sys-typescale-title-medium-size` | deployer | — | `0.92rem` |
-| `--md-sys-typescale-title-medium-tracking` | deployer | — | `0.005em` |
-| `--md-sys-typescale-title-medium-weight` | deployer | — | `650` |
-| `--md-sys-typescale-title-small-line-height` | deployer | — | `1.45` |
-| `--md-sys-typescale-title-small-size` | deployer | — | `0.84rem` |
-| `--md-sys-typescale-title-small-tracking` | deployer | — | `0.01em` |
-| `--md-sys-typescale-title-small-weight` | deployer | — | `650` |
 | `--motion-base` | both (agree) | `180ms` | `180ms` |
 | `--motion-fast` | both (agree) | `120ms` | `120ms` |
 | `--motion-slow` | tenant | `240ms` | — |
