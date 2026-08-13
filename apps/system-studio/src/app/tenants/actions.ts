@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 
 import {
   ARCHETYPE_AXIS_VALUES,
-  TENANT_BINDINGS,
+  BLUEPRINTS,
+  RESERVED_TENANT_SLUGS,
   applyModuleEdits,
   archetypeProblems,
   compileArchetype,
@@ -381,7 +382,13 @@ export async function composeTenant(
   };
 
   const { valid, problems } = validateManifest(manifest, {
-    knownBlueprints: [...new Set(TENANT_BINDINGS.map((b) => b.blueprintId))],
+    // Every blueprint in the catalog, not the ones somebody is already bound
+    // to. The distinct `blueprintId`s of the bindings had the same two defects
+    // here that `tenants/new/page.tsx` documents at its own call site:
+    // `corporate-divisions` exists and has no binding, so a manifest naming it
+    // was rejected as unknown — a blueprint nobody had used yet was one nobody
+    // could use — and the bindings carry the fixtures.
+    knownBlueprints: BLUEPRINTS.map((b) => b.id),
     knownModules: MODULE_CATALOG.keys(),
     // The closed axis table, from the engine that will compile the composition.
     // Passing nothing would make every axis value acceptable.
@@ -389,10 +396,7 @@ export async function composeTenant(
     // Both sources of truth for an existing slug: registered tenants, and the
     // file-based bindings that predate the registry. Missing the second would
     // let someone register "rochester" over the live pilot.
-    takenSlugs: [
-      ...(await takenSlugs()),
-      ...TENANT_BINDINGS.map((b) => b.slug),
-    ],
+    takenSlugs: [...(await takenSlugs()), ...RESERVED_TENANT_SLUGS],
   });
 
   // Module dependencies are resolved here, not only at VALIDATING. A manifest

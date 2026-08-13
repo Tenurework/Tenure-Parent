@@ -86,6 +86,58 @@ describe("every capability names the IAM actions it needs", () => {
     }
   })
 
+  test.each([...ALL_CAPABILITIES])("%s names no action that could change anything", (capability) => {
+    // A write capability in a read-only console is the defect this exists to
+    // stop, and it would arrive as one plausible line in a diff of eighty.
+    // Both halves are checked: the KEY, because that is what a caller writes,
+    // and the ACTIONS, because that is what the IAM grant will carry.
+    for (const name of [capability, ...CAPABILITIES[capability].iamActions]) {
+      expect(name).not.toMatch(/Create|Put|Delete|Update|Terminate|Send|Invoke/)
+      // The stronger form: the verb must be one of the ones that only read.
+      // `View` is here for `budgets:ViewBudget` and `Filter` for
+      // `logs:FilterLogEvents` — two reads AWS did not spell as reads.
+      expect(name.slice(name.indexOf(":") + 1)).toMatch(
+        /^(List|Describe|Get|BatchGet|Lookup|Filter|Search|Select|Query|Scan|View)/,
+      )
+    }
+  })
+
+  test("no command this file can dispatch is a write", () => {
+    // One level below the registry: every `…Command` identifier that appears
+    // in client.ts, imported or constructed. A capability could be spelled as
+    // a read and dispatch `PutBucketPolicyCommand`, and the switch is the last
+    // place that would be noticed.
+    // Comments stripped first: client.ts states, in prose, that
+    // `SendEmailCommand` and `GetSecretValueCommand` are deliberately NOT
+    // imported. Naming the command you refuse to hold is the clearest way to
+    // write that rule down, and it must not trip the rule.
+    const dispatchable = CLIENT_SRC.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "")
+    const commands = [...new Set([...dispatchable.matchAll(/\b([A-Za-z0-9_]+Command)\b/g)].map((m) => m[1]))]
+    expect(commands.length).toBeGreaterThan(40)
+    for (const command of commands) {
+      expect(command).not.toMatch(/Create|Put|Delete|Update|Terminate|Send|Invoke/)
+      expect(command).toMatch(/^(List|Describe|Get|BatchGet|Lookup|Filter|Search|Select|Query|Scan|View)/)
+    }
+  })
+
+  test("only two actions need the task-role guard's not-spelled-as-a-read exemption", () => {
+    // The regex here is `READ_VERB` from
+    // `tests/security/studio-task-role-is-narrow.test.mjs`, copied verbatim.
+    // That guard refuses any granted action whose verb is not one of these,
+    // and exempts named ones through its READS_NOT_SPELLED_AS_READS set.
+    //
+    // So this case answers, from THIS side, the question the sibling writing
+    // the IAM grant has to ask: which of these actions will that guard refuse?
+    // Exactly two. `budgets:ViewBudget` is already exempt there;
+    // `logs:FilterLogEvents` is the one this registry adds, and it needs the
+    // same one-line exemption or the platform suite reds when the grant lands.
+    const roleGuardReadVerb = /^[a-z0-9-]+:(List|Describe|Get|BatchGet|Search|Lookup|Select|Query|Scan)/
+    const refused = ALL_CAPABILITIES.flatMap((c) => [...CAPABILITIES[c].iamActions]).filter(
+      (action) => !roleGuardReadVerb.test(action),
+    )
+    expect([...new Set(refused)].sort()).toEqual(["budgets:ViewBudget", "logs:FilterLogEvents"])
+  })
+
   test("the minimum statement a denial prints is pasteable for every capability", () => {
     for (const capability of ALL_CAPABILITIES) {
       const statement = minimumStatement(capability)
@@ -112,8 +164,90 @@ describe("every capability names the IAM actions it needs", () => {
  * is the difference between deciding to share a cadence and inheriting one.
  */
 const DELIBERATELY_SHARED: Readonly<Record<string, readonly Capability[]>> = {
-  /** One deployment moves the cluster list, the service list and the counts. */
-  ECS_TTL_MS: ["ecs:ListClusters", "ecs:ListServices", "ecs:DescribeServices"],
+  /**
+   * One deployment moves the cluster list, the service list, the counts, the
+   * task list and every task's status. `ecs:DescribeTaskDefinition` is NOT
+   * here: a revision is immutable, so it has a cadence of its own.
+   */
+  ECS_TTL_MS: [
+    "ecs:ListClusters",
+    "ecs:ListServices",
+    "ecs:DescribeServices",
+    "ecs:DescribeClusters",
+    "ecs:ListTasks",
+    "ecs:DescribeTasks",
+  ],
+  /** A certificate's summary and its detail renew on the same 60-day horizon. */
+  ACM_TTL_MS: ["acm:ListCertificates", "acm:DescribeCertificate"],
+  /**
+   * The operator pool's configuration, all of it written by one Terraform
+   * apply. `cognito-idp:ListUsers` is deliberately absent: membership changes
+   * when a person joins or leaves, which is a different clock.
+   */
+  COGNITO_POOL_TTL_MS: [
+    "cognito-idp:ListUserPools",
+    "cognito-idp:DescribeUserPool",
+    "cognito-idp:ListUserPoolClients",
+    "cognito-idp:DescribeUserPoolClient",
+    "cognito-idp:DescribeUserPoolDomain",
+    "cognito-idp:GetUserPoolMfaConfig",
+  ],
+  /** The shape of the network. One apply moves all six together. */
+  NETWORK_TOPOLOGY_TTL_MS: [
+    "ec2:DescribeVpcs",
+    "ec2:DescribeSubnets",
+    "ec2:DescribeRouteTables",
+    "ec2:DescribeInternetGateways",
+    "ec2:DescribeNatGateways",
+    "ec2:DescribeVpcEndpoints",
+  ],
+  /** The RULES on that network — faster, because this is where an estate opens. */
+  SECURITY_GROUP_TTL_MS: ["ec2:DescribeSecurityGroups", "ec2:DescribeNetworkAcls"],
+  /** The front door's shape. Target HEALTH is separate and much faster. */
+  LOAD_BALANCER_TTL_MS: [
+    "elasticloadbalancing:DescribeLoadBalancers",
+    "elasticloadbalancing:DescribeListeners",
+    "elasticloadbalancing:DescribeTargetGroups",
+    "elasticloadbalancing:DescribeRules",
+  ],
+  /** A repository and its expiry rules are one Terraform declaration. */
+  ECR_REPO_TTL_MS: ["ecr:DescribeRepositories", "ecr:GetLifecyclePolicy"],
+  /** Cluster and replication-group status are the same cache, asked two ways. */
+  ELASTICACHE_TTL_MS: [
+    "elasticache:DescribeCacheClusters",
+    "elasticache:DescribeReplicationGroups",
+  ],
+  /** The registry table's control-plane facts all move on one apply. */
+  DYNAMODB_TABLE_TTL_MS: [
+    "dynamodb:ListTables",
+    "dynamodb:DescribeTable",
+    "dynamodb:DescribeContinuousBackups",
+    "dynamodb:DescribeTimeToLive",
+  ],
+  /** A dashboard's existence and its widgets are one document. */
+  DASHBOARD_TTL_MS: ["cloudwatch:ListDashboards", "cloudwatch:GetDashboard"],
+  /** Seven bucket-level posture reads, all set by the same Terraform apply. */
+  S3_POSTURE_TTL_MS: [
+    "s3:GetBucketPublicAccessBlock",
+    "s3:GetBucketEncryption",
+    "s3:GetBucketVersioning",
+    "s3:GetBucketLifecycleConfiguration",
+    "s3:GetBucketPolicyStatus",
+    "s3:GetBucketTagging",
+    "s3:GetBucketCors",
+  ],
+  /** A key's state and its rotation setting are one key, described twice. */
+  KMS_KEY_TTL_MS: ["kms:DescribeKey", "kms:GetKeyRotationStatus"],
+  /** The analyzer and its findings are one evaluation, on the analyzer's clock. */
+  ACCESS_ANALYZER_TTL_MS: ["access-analyzer:ListAnalyzers", "access-analyzer:ListFindingsV2"],
+  /** Finding ids and finding bodies are one page of the same list. */
+  GUARDDUTY_FINDINGS_TTL_MS: ["guardduty:ListFindings", "guardduty:GetFindings"],
+  /** Both price reads change when AWS publishes a price change, and not before. */
+  PRICING_TTL_MS: ["pricing:ListPriceLists", "pricing:GetProducts"],
+  /** Which web ACLs exist and which one is attached: one WAF configuration. */
+  WAF_TTL_MS: ["wafv2:ListWebACLs", "wafv2:GetWebACLForResource"],
+  /** A quota list and one quota's value are the same AWS-side grant. */
+  QUOTA_TTL_MS: ["servicequotas:ListServiceQuotas", "servicequotas:GetServiceQuota"],
   /**
    * Storage that outlives its tenant: instances, their snapshots, the log
    * groups left behind, the recovery points and the object versions. All of it
@@ -263,6 +397,132 @@ describe("no two capabilities share a cadence by accident", () => {
 function switchArms(): string[] {
   return [...CLIENT_SRC.matchAll(/case\s+"([^"]+)":/g)].map((m) => m[1])
 }
+
+/* -------------------------------------------- capability → its own client -- */
+
+/**
+ * The IAM service each client variable in `client.ts` authorizes against.
+ *
+ * The mapping is not derivable from the names, and that is exactly why it is
+ * worth asserting: the SDK package is `client-cognito-identity-provider`, the
+ * client is `CognitoIdentityProviderClient`, the variable is `cognito` and the
+ * IAM prefix is `cognito-idp`. Four spellings for one service, and a policy
+ * carrying any of the other three grants nothing and denies quietly — which on
+ * a login page reads as an outage rather than as a typo.
+ *
+ * `elasticloadbalancing`, `access-analyzer`, `servicequotas` and `tag` are the
+ * same trap.
+ *
+ * The two ends this ties together are the capability's declared `iamActions`
+ * and the client its switch arm actually dispatches to. A capability keyed
+ * `ec2:DescribeVpcs` whose arm sends through the ELB client would grant the
+ * wrong action and call the wrong API, and both halves would look right in
+ * isolation.
+ */
+const CLIENT_SERVICE: Readonly<Record<string, string>> = {
+  stsClient: "sts",
+  organizations: "organizations",
+  tagging: "tag",
+  ecs: "ecs",
+  rds: "rds",
+  cloudfront: "cloudfront",
+  acm: "acm",
+  cloudwatch: "cloudwatch",
+  securityhub: "securityhub",
+  cloudtrail: "cloudtrail",
+  secretsManager: "secretsmanager",
+  ssm: "ssm",
+  configService: "config",
+  costExplorer: "ce",
+  cur: "cur",
+  logs: "logs",
+  backup: "backup",
+  kms: "kms",
+  route53: "route53",
+  s3: "s3",
+  sesv2: "ses",
+  sqs: "sqs",
+  lambda: "lambda",
+  iam: "iam",
+  budgets: "budgets",
+  awsHealth: "health",
+  eventbridge: "events",
+  cognito: "cognito-idp",
+  ec2: "ec2",
+  elbv2: "elasticloadbalancing",
+  ecr: "ecr",
+  elasticache: "elasticache",
+  dynamodb: "dynamodb",
+  servicequotas: "servicequotas",
+  accessAnalyzer: "access-analyzer",
+  guardduty: "guardduty",
+  pricing: "pricing",
+  // Two clients for one service: a CLOUDFRONT-scoped web ACL is only served
+  // from the partition's global endpoint. Same IAM prefix, different region.
+  wafv2: "wafv2",
+  wafv2Global: "wafv2",
+}
+
+/** capability → every client variable its arm calls `.send()` on. */
+function dispatchClients(): Map<Capability, string[]> {
+  const labels = [...CLIENT_SRC.matchAll(/case\s+"([^"]+)":/g)]
+  const found = new Map<Capability, string[]>()
+  labels.forEach((label, index) => {
+    const start = label.index ?? 0
+    const end = index + 1 < labels.length ? (labels[index + 1].index ?? CLIENT_SRC.length) : CLIENT_SRC.length
+    const body = CLIENT_SRC.slice(start, end)
+    // `x.send(` and `xClient().send(` both, so the STS accessor is not a
+    // special case that quietly escapes the rule.
+    const receivers = [...body.matchAll(/\b([A-Za-z0-9_]+)(?:\(\))?\.send\(/g)].map((m) => m[1])
+    found.set(label[1] as Capability, [...new Set(receivers)])
+  })
+  return found
+}
+
+/** `let name: XClient | null = null` — every client slot the module declares. */
+function declaredClientSlots(): string[] {
+  return [...CLIENT_SRC.matchAll(/^let\s+([A-Za-z0-9_]+):\s*[A-Za-z0-9_]+\s*\|\s*null\s*=\s*null$/gm)].map(
+    (m) => m[1],
+  )
+}
+
+describe("every capability dispatches to a client in its own service", () => {
+  test("the mapping this file asserts against covers every client the module holds", () => {
+    // Otherwise the cheapest way to pass the next case is to add a client and
+    // not add it here, and the rule stops covering the thing that was added.
+    const slots = declaredClientSlots()
+    expect(slots.length).toBeGreaterThan(20)
+    for (const slot of slots) {
+      const named = slot in CLIENT_SERVICE || `${slot}Client` in CLIENT_SERVICE
+      expect(named).toBe(true)
+      // And the slot is really a client, not a cache of something else.
+      expect(CLIENT_SRC).toMatch(new RegExp(`${slot}\\s*=\\s*new\\s+[A-Za-z0-9_]+Client\\(`))
+    }
+  })
+
+  test("every entry in the mapping is used by at least one arm", () => {
+    const used = new Set([...dispatchClients().values()].flat())
+    const stale = Object.keys(CLIENT_SERVICE).filter((name) => !used.has(name))
+    expect(stale).toEqual([])
+  })
+
+  test.each([...ALL_CAPABILITIES])("%s sends through its own service's client", (capability) => {
+    const receivers = dispatchClients().get(capability)
+    expect(receivers).toBeDefined()
+    expect((receivers ?? []).length).toBeGreaterThan(0)
+
+    const service = capability.slice(0, capability.indexOf(":"))
+    for (const receiver of receivers ?? []) {
+      expect(CLIENT_SERVICE[receiver]).toBeDefined()
+      expect(CLIENT_SERVICE[receiver]).toBe(service)
+    }
+    // And the actions the capability declares are in that same service, so the
+    // grant the sibling Terraform writes matches the API that is called.
+    for (const action of CAPABILITIES[capability].iamActions) {
+      expect(action.slice(0, action.indexOf(":"))).toBe(CLIENT_SERVICE[(receivers ?? [])[0]])
+    }
+  })
+})
 
 describe("call() cannot be reached with an unknown capability", () => {
   test("the switch has exactly one arm per capability, and no arm without one", () => {

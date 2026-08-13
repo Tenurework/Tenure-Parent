@@ -120,6 +120,21 @@ const THROTTLE_NAMES = new Set([
   "RequestThrottledException",
   "ProvisionedThroughputExceededException",
   "SlowDown",
+  /*
+   * Two names the estate reads can raise that the list above did not carry,
+   * and that `throttle.ts` has always treated as transient — the two modules
+   * disagreeing is itself the defect.
+   *
+   * `LimitExceededException` is what DynamoDB's CONTROL plane raises when
+   * describes arrive too fast, and what CloudWatch Logs and GuardDuty raise for
+   * the same reason. Classified as ERROR it renders a red box whose remedy is
+   * "wait a second and look again", which is precisely the THROTTLED sentence.
+   *
+   * `PriorRequestNotComplete` is Route 53's: the previous request against the
+   * zone has not finished. Same remedy, same state.
+   */
+  "LimitExceededException",
+  "PriorRequestNotComplete",
 ])
 
 /**
@@ -153,6 +168,34 @@ const SUBSCRIPTION_REMEDY: Readonly<Record<string, string>> = {
 
 export function isSubscriptionRequired(error: unknown): boolean {
   return SUBSCRIPTION_NAMES.has(errorName(error))
+}
+
+/**
+ * The call was not attempted because this engine has not been told WHERE to
+ * attempt it.
+ *
+ * Two APIs — the Price List API and WAFv2's CLOUDFRONT scope — are served from
+ * a restricted set of regions rather than from every region. `client.ts` reads
+ * that region from `AWS_GLOBAL_ENDPOINT_REGION` and refuses to invent one. When
+ * the variable is unset it throws this rather than sending the request at the
+ * resolved region, because the resulting endpoint failure surfaces as ERROR —
+ * a red box whose remedy is a paragraph of AWS documentation away — and because
+ * an empty price list is exactly the wrong thing for a cost estimate to show.
+ *
+ * It is a class rather than another entry in the error-name sets on purpose:
+ * those match on strings AWS chose, and this condition is ours. `readAws`
+ * narrows it with `instanceof` before any name-based rule can mistake it for
+ * something the SDK raised.
+ */
+export class EndpointRegionUnset extends Error {
+  /** The sentence the UNCONFIGURED panel prints, naming the variable to set. */
+  readonly why: string
+
+  constructor(why: string) {
+    super(why)
+    this.name = "EndpointRegionUnset"
+    this.why = why
+  }
 }
 
 /** Anything with "NotAuthorized" in it, whatever the service calls it this year. */
@@ -236,6 +279,11 @@ export async function readAws<T>(
       if (isEmpty(value)) return { state: "EMPTY", capability, asOf }
       return { state: "ACTUAL", capability, value, asOf, fresh: true }
     } catch (error) {
+      // Ours, and checked first: it is not an AWS error and no name-based rule
+      // below should get the chance to classify it as one.
+      if (error instanceof EndpointRegionUnset) {
+        return { state: "UNCONFIGURED", capability, why: error.why }
+      }
       if (isDenial(error)) {
         return {
           state: "DENIED",

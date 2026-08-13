@@ -292,6 +292,26 @@ export const CUSTOMER_TENANT_BINDINGS: readonly TenantBinding[] = TENANT_BINDING
 )
 
 /**
+ * Every slug a binding has already claimed — fixtures INCLUDED.
+ *
+ * The one question about the bindings whose honest answer is the unfiltered
+ * list. A fixture is not a customer, but its slug is still taken: registering a
+ * new tenant as `fixture-rtl` would collide with the binding the RTL suite
+ * resolves, and registering one as `rochester` would land on top of the live
+ * pilot. `CUSTOMER_TENANT_BINDINGS` is the wrong source for a uniqueness check
+ * precisely because it is the right source for everything an operator sees.
+ *
+ * Exported as slugs rather than bindings so the call site asks for what it
+ * needs. `apps/system-studio/src/app/tenants/actions.ts` used to map over
+ * `TENANT_BINDINGS` here, which read identically to the three places that were
+ * rendering fixtures as customers and could only be told apart by reading the
+ * comment beside it — and
+ * `tests/architecture/no-fixture-tenants-on-operator-surfaces.test.mjs`
+ * correctly refuses to make that distinction from source text.
+ */
+export const RESERVED_TENANT_SLUGS: readonly string[] = TENANT_BINDINGS.map((t) => t.slug)
+
+/**
  * Where one tenant actually sits on every axis: its blueprint's selection, with
  * its own overrides applied.
  *

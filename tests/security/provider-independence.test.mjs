@@ -48,6 +48,43 @@ const SCAN_ROOTS = ["apps", "packages", "modules", "blueprints"]
  */
 const ADAPTER_PATHS = ["packages/identity-cognito/", "apps/web/src/lib/identity/providers/"]
 
+/**
+ * The one place that reads Cognito as an AWS RESOURCE rather than as a way in.
+ *
+ * This guard's own preamble already blesses the use — "the Studio's platform
+ * page legitimately counts Cognito user pools in the AWS inventory, because
+ * that is what the inventory contains". What it did not have was somewhere for
+ * the SDK call behind that count to live. The Studio is an estate console: its
+ * whole job is to describe AWS in AWS's own terms, and a `UserPoolId` there is
+ * a resource identifier exactly like a queue URL or a DB instance identifier.
+ *
+ * It is a FILE list, not a directory prefix, and deliberately so — a directory
+ * would quietly absorb every future module somebody drops beside it. Adding a
+ * file here is a decision somebody has to make on purpose, in a diff, against
+ * the ratchet below.
+ *
+ * The exemption buys nothing for authentication. The Studio signs operators in
+ * through its own route, not through this layer, and
+ * `no module anywhere authenticates through Cognito` below forbids the auth
+ * verbs everywhere — INCLUDING in here. Reading the MFA configuration of a pool
+ * is how the console reports that MFA was left OPTIONAL; calling
+ * `AdminInitiateAuth` would be this layer becoming an identity provider, and
+ * that is what GE-041-001 exists to prevent.
+ */
+const ESTATE_READER_FILES = [
+  // Every AWS SDK client in the Studio is constructed here, and `call()`
+  // switches on a capability so there is no way to express an arbitrary
+  // command. That single-construction-site property is what makes one file
+  // sufficient.
+  "apps/system-studio/src/lib/aws/client.ts",
+  // The estate reader itself: user pools, their clients and domains, their MFA
+  // configuration and password policy, and operator account STATUS. Never a
+  // password, a token, a client secret, or a raw user attribute.
+  "apps/system-studio/src/lib/aws/cognito.ts",
+]
+
+const inEstateReader = (file) => ESTATE_READER_FILES.includes(file)
+
 function sourceFiles() {
   return execFileSync(
     "git",
@@ -92,7 +129,9 @@ const inAdapter = (file) => ADAPTER_PATHS.some((prefix) => file.startsWith(prefi
 const COGNITO_SDK = /from\s*["']@aws-sdk\/client-cognito[\w-]*["']|require\(\s*["']@aws-sdk\/client-cognito[\w-]*["']\s*\)/
 
 test("no module outside an adapter imports a Cognito SDK", () => {
-  const offenders = sourceFiles().filter((file) => !inAdapter(file) && COGNITO_SDK.test(code(file)))
+  const offenders = sourceFiles().filter(
+    (file) => !inAdapter(file) && !inEstateReader(file) && COGNITO_SDK.test(code(file)),
+  )
 
   assert.deepEqual(
     offenders,
@@ -126,6 +165,7 @@ test("no module outside an adapter speaks a provider's vocabulary", () => {
 
   for (const file of sourceFiles()) {
     if (inAdapter(file)) continue
+    if (inEstateReader(file)) continue
 
     // Use, not mention — the same distinction that has caught three guards in
     // this repository already.
@@ -195,6 +235,76 @@ test("the port is implementable without AWS", () => {
     assert.ok(!port.includes(leak), `the IdentityProvider port mentions ${leak}, so it is not provider-independent`)
   }
   assert.match(port, /export interface IdentityProvider/, "the port is gone; this guard is measuring nothing")
+})
+
+/**
+ * The countervailing half of the estate exemption above.
+ *
+ * Reading a pool's configuration and authenticating against it are different
+ * acts that share an SDK, and the exemption only bought the first. These verbs
+ * are how a module stops observing an identity provider and starts BEING one —
+ * and unlike the import rule, this one has no exemption at all: not the estate
+ * reader, not the adapter directories, nowhere. When a real Cognito adapter is
+ * written under `packages/identity-cognito/` it will need some of these, and
+ * that is the moment to reconsider this deliberately rather than to discover it
+ * has already happened somewhere nobody was looking.
+ */
+const AUTHENTICATION_VERBS = [
+  /\bAdminInitiateAuthCommand\b/,
+  /\bInitiateAuthCommand\b/,
+  /\bAdminRespondToAuthChallengeCommand\b/,
+  /\bRespondToAuthChallengeCommand\b/,
+  /\bAdminSetUserPasswordCommand\b/,
+  /\bAdminCreateUserCommand\b/,
+  /\bAdminDeleteUserCommand\b/,
+  /\bAdminAddUserToGroupCommand\b/,
+  /\bAdminUserGlobalSignOutCommand\b/,
+  /\bSignUpCommand\b/,
+  /\bForgotPasswordCommand\b/,
+  /\bChangePasswordCommand\b/,
+  /\bGetUserCommand\b/,
+]
+
+test("no module anywhere authenticates through Cognito, or writes to a user pool", () => {
+  const offenders = []
+
+  for (const file of sourceFiles()) {
+    if (/\.(test|itest)\.(ts|tsx|mjs)$/.test(file)) continue
+    const text = code(file)
+    for (const pattern of AUTHENTICATION_VERBS) {
+      if (pattern.test(text)) offenders.push(`${file} — ${pattern.source}`)
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `these modules call a Cognito authentication or user-pool WRITE command:\n  ${offenders.join("\n  ")}\n` +
+      `The estate reader observes a user pool; it does not sign anyone in and it does not ` +
+      `change one. Authentication belongs behind the IdentityProvider port in @tenure/identity.`,
+  )
+})
+
+test("the estate exemption stays inside the Studio's AWS layer, and stays small", () => {
+  // The failure mode this prevents is not somebody arguing for an exception. It
+  // is an exception being widened by one file at a time until it is a
+  // directory, which is how `ADAPTER_PATHS` would have gone if it were not
+  // pinned to two. Same mechanism, same reason.
+  for (const file of ESTATE_READER_FILES) {
+    assert.ok(
+      file.startsWith("apps/system-studio/src/lib/aws/") && file.endsWith(".ts"),
+      `${file} is exempted as an estate reader but does not live in the Studio's AWS layer`,
+    )
+    assert.ok(!file.includes("*"), `${file} must name one file — a pattern would absorb its neighbours`)
+  }
+
+  // A ratchet, exactly like RAW_WRITE_CEILING. It may FALL. Raising it is a
+  // decision, not a fix.
+  assert.ok(
+    ESTATE_READER_FILES.length <= 2,
+    `the Cognito estate exemption has grown to ${ESTATE_READER_FILES.length} files. ` +
+      `Every file added here is one more place a provider's shape can spread from.`,
+  )
 })
 
 test("the adapter directories are named, even before one exists", () => {

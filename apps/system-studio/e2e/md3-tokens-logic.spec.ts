@@ -249,6 +249,41 @@ test.describe("the token set is complete", () => {
     expect(value("light", "--md-sys-state-pressed-opacity")).toBe("0.12")
   })
 
+  /**
+   * The scrim, which `Dialog` is the first thing in this console to render.
+   *
+   * Three properties, and each of them is a defect that has shipped somewhere:
+   *
+   *   * it is TRANSLUCENT. An opaque scrim is not a scrim, it is a page, and the
+   *     dialog above it loses the context it was drawn over.
+   *   * it is not so light that it fails to separate. Below about a fifth the
+   *     panel stops reading as lifted and the content behind it stays the thing
+   *     the eye lands on.
+   *   * its colour is not pure black. `preferences.spec.ts` reads every rendered
+   *     background looking for `rgb(0, 0, 0)`, so the one token whose entire job
+   *     is to darken the page is also the one that could red that assertion —
+   *     and only while a dialog happened to be open, which is the hardest
+   *     version of that failure to reproduce.
+   */
+  test("the scrim is translucent, dark enough to separate, and is not pure black", () => {
+    for (const theme of ["light", "dark"] as const) {
+      const raw = value(theme, "--md-sys-color-scrim")
+      const parsed = parseColor(raw)
+      expect(parsed, `${theme} scrim ${raw} is not a colour this audit can measure`).not.toBeNull()
+      if (!parsed) continue
+      expect(parsed.a, `${theme} scrim is opaque`).toBeLessThan(1)
+      expect(parsed.a, `${theme} scrim is too faint to separate`).toBeGreaterThanOrEqual(0.2)
+      expect(
+        parsed.r === 0 && parsed.g === 0 && parsed.b === 0,
+        `${theme} scrim is pure black, which preferences.spec.ts fails on`,
+      ).toBe(false)
+      expect(
+        parsed.r === 255 && parsed.g === 255 && parsed.b === 255,
+        `${theme} scrim is pure white`,
+      ).toBe(false)
+    }
+  })
+
   test("motion durations stay inside the console's documented band", () => {
     const missing = MOTION_TOKENS.filter((token) => !(token in light))
     expect(missing).toEqual([])
@@ -452,6 +487,35 @@ const PAIRS: Pair[] = [
     purpose: "nonText",
     where: "the border of a selected chip against its own fill",
   },
+  /*
+   * A family's base colour drawn on that family's own container.
+   *
+   * `SeverityChip` needs this and nothing before it did. Two of Security Hub's
+   * five levels share the error family — `critical` is the filled error,
+   * `high` is the error container — and the border is what tells them apart at
+   * a glance for a reader who has not read the word. A border doing that job is
+   * a meaningful graphic, so 3:1 (WCAG 2.2 AA 1.4.11) rather than a hairline's
+   * 1.2. All three measure above 5:1 in both themes, which is comfortable; the
+   * assertion exists so that stays true when a container tone is next adjusted.
+   */
+  {
+    content: role("error"),
+    container: role("error-container"),
+    purpose: "nonText",
+    where: "the border of a HIGH severity chip, which is what distinguishes it from CRITICAL",
+  },
+  {
+    content: role("warning"),
+    container: role("warning-container"),
+    purpose: "nonText",
+    where: "the border of a MEDIUM severity chip, and of an overdue stale indicator",
+  },
+  {
+    content: role("tertiary"),
+    container: role("tertiary-container"),
+    purpose: "nonText",
+    where: "the border of a LOW severity chip — the tertiary family, not a green",
+  },
   {
     content: role("outline"),
     container: role("surface-container-highest"),
@@ -555,7 +619,7 @@ function code(file: string): string {
     .replace(/(^|[^:])\/\/.*$/gm, "$1")
 }
 
-const md3Files = fs
+const md3Entries = fs
   .readdirSync(MD3_DIR)
   // Sorted, because a directory listing is not ordered and this list reaches an
   // assertion message. `readdirSync` order differs between filesystems, which is
@@ -563,10 +627,98 @@ const md3Files = fs
   .filter((name) => /\.tsx?$/.test(name))
   .sort()
 
+/**
+ * The test files in the directory, which are not components.
+ *
+ * `aws-outcomes.test.tsx` lives beside the components it renders — jest's roots
+ * include `apps/system-studio/src`, and this app has no jest of its own. It is
+ * excluded from the scans below because a test may legitimately need to name a
+ * colour in order to prove the ban catches one, and a rule that cannot be
+ * demonstrated is a rule nobody can check.
+ *
+ * The exclusion is pinned rather than trusted: the assertion below requires it
+ * to be exactly the files whose names say `.test.`, so "excluded" cannot quietly
+ * grow to include a component somebody wanted to write a hex in.
+ */
+const md3TestFiles = md3Entries.filter((name) => /\.test\.tsx?$/.test(name))
+const md3Files = md3Entries.filter((name) => !/\.test\.tsx?$/.test(name))
+
+/**
+ * Every CSS named colour, which is the third way to write one.
+ *
+ * The hex scan and the function scan below have always been here; a component
+ * could still have said `color: "rebeccapurple"` and passed both. The list is
+ * the CSS Color Module Level 4 keyword set, written out rather than derived,
+ * because there is nowhere in this repository to derive it from and a
+ * half-remembered subset is a scan with holes exactly where the unusual names
+ * are.
+ */
+const NAMED_COLOURS = [
+  "aliceblue", "antiquewhite", "aqua", "aquamarine", "azure", "beige", "bisque", "black",
+  "blanchedalmond", "blue", "blueviolet", "brown", "burlywood", "cadetblue", "chartreuse",
+  "chocolate", "coral", "cornflowerblue", "cornsilk", "crimson", "cyan", "darkblue", "darkcyan",
+  "darkgoldenrod", "darkgray", "darkgreen", "darkgrey", "darkkhaki", "darkmagenta",
+  "darkolivegreen", "darkorange", "darkorchid", "darkred", "darksalmon", "darkseagreen",
+  "darkslateblue", "darkslategray", "darkslategrey", "darkturquoise", "darkviolet", "deeppink",
+  "deepskyblue", "dimgray", "dimgrey", "dodgerblue", "firebrick", "floralwhite", "forestgreen",
+  "fuchsia", "gainsboro", "ghostwhite", "gold", "goldenrod", "gray", "green", "greenyellow",
+  "grey", "honeydew", "hotpink", "indianred", "indigo", "ivory", "khaki", "lavender",
+  "lavenderblush", "lawngreen", "lemonchiffon", "lightblue", "lightcoral", "lightcyan",
+  "lightgoldenrodyellow", "lightgray", "lightgreen", "lightgrey", "lightpink", "lightsalmon",
+  "lightseagreen", "lightskyblue", "lightslategray", "lightslategrey", "lightsteelblue",
+  "lightyellow", "lime", "limegreen", "linen", "magenta", "maroon", "mediumaquamarine",
+  "mediumblue", "mediumorchid", "mediumpurple", "mediumseagreen", "mediumslateblue",
+  "mediumspringgreen", "mediumturquoise", "mediumvioletred", "midnightblue", "mintcream",
+  "mistyrose", "moccasin", "navajowhite", "navy", "oldlace", "olive", "olivedrab", "orange",
+  "orangered", "orchid", "palegoldenrod", "palegreen", "paleturquoise", "palevioletred",
+  "papayawhip", "peachpuff", "peru", "pink", "plum", "powderblue", "purple", "rebeccapurple",
+  "red", "rosybrown", "royalblue", "saddlebrown", "salmon", "sandybrown", "seagreen", "seashell",
+  "sienna", "silver", "skyblue", "slateblue", "slategray", "slategrey", "snow", "springgreen",
+  "steelblue", "tan", "teal", "thistle", "tomato", "turquoise", "violet", "wheat", "white",
+  "whitesmoke", "yellow", "yellowgreen",
+]
+
+/**
+ * Where a named colour is a colour, rather than an English word.
+ *
+ * Two shapes, and deliberately not "the bare word anywhere in the file":
+ * `tan`, `plum`, `linen` and `peru` are all real CSS keywords and all things a
+ * comment or an identifier can legitimately contain, and a scan that flagged
+ * `Math.tan` would be turned off within a week. So a name counts when it is
+ *
+ *   * a whole string literal — `"red"`, `'tomato'`, the form an inline style or
+ *     a class-name switch would take; or
+ *   * the value of something colour-shaped — `color: red`, `borderColor: gold`,
+ *     which is the form a style object takes.
+ *
+ * Comments are already stripped by `code()` before either runs, so the prose
+ * above a rule cannot fire the rule.
+ */
+const NAMED_COLOUR_TESTS = NAMED_COLOURS.flatMap((name) => [
+  { name, pattern: new RegExp(String.raw`(["'\`])${name}\1`, "i") },
+  {
+    name,
+    pattern: new RegExp(
+      String.raw`\b(?:color|colour|background|backgroundColor|border|borderColor|outline|outlineColor|fill|stroke|caretColor|accentColor)\s*:\s*["'\`]?${name}\b`,
+      "i",
+    ),
+  },
+])
+
 test.describe("a component may not contain a colour", () => {
   test("the directory being scanned is the real one", () => {
-    // An absence check over an empty list passes on every input.
-    expect(md3Files.length, "components/md3 has stopped being read").toBeGreaterThanOrEqual(6)
+    // An absence check over an empty list passes on every input. The floor is a
+    // count of what is actually there: eighteen primitives, and it may only
+    // rise — a component that vanishes from this directory takes its colour
+    // guarantee with it.
+    expect(md3Files.length, "components/md3 has stopped being read").toBeGreaterThanOrEqual(18)
+  })
+
+  test("the scan skips test files and nothing else", () => {
+    // The one hole in every assertion below, pinned so it cannot be widened.
+    const excluded = md3Entries.filter((name) => !md3Files.includes(name))
+    expect(excluded).toEqual(md3TestFiles)
+    expect(excluded.every((name) => /\.test\.tsx?$/.test(name))).toBe(true)
   })
 
   test("no literal colour, in any syntax", () => {
@@ -581,12 +733,28 @@ test.describe("a component may not contain a colour", () => {
       )) {
         offences.push(`${name}: ${match[1]}(`)
       }
+      // The third syntax: the 148 keywords. A component saying `color: "red"`
+      // passed both scans above until this one existed.
+      for (const { name: colour, pattern } of NAMED_COLOUR_TESTS) {
+        const match = source.match(pattern)
+        if (match) offences.push(`${name}: named colour ${colour} — ${match[0]}`)
+      }
     }
     expect(
       offences,
       "A colour in a component is a pair the contrast audit above does not know exists, in the " +
         "file it is least likely to be pointed at. Name a --md-sys-color-* role instead.",
     ).toEqual([])
+  })
+
+  test("the named-colour scan is the whole keyword set", () => {
+    // A guard whose input list has been trimmed is a guard that reads green.
+    expect(NAMED_COLOURS.length).toBe(148)
+    expect(new Set(NAMED_COLOURS).size).toBe(148)
+    // The three that most often reach a status component by hand.
+    for (const required of ["red", "green", "orange"]) {
+      expect(NAMED_COLOURS).toContain(required)
+    }
   })
 
   test("no inline style attribute, which is where a colour would hide", () => {
@@ -631,6 +799,27 @@ test.describe("the stylesheet and the components describe the same set", () => {
       "Dead component CSS. Either a component stopped emitting it, or it was written for one " +
         "that was never built.",
     ).toEqual([])
+  })
+
+  /**
+   * Every component is reachable from `components/md3`, which is the whole
+   * point of a barrel.
+   *
+   * Twelve route surfaces are adopting this layer. A primitive that exists but
+   * is not exported is one each of them either imports by deep path — twelve
+   * import lines that break when a file is renamed — or, far more likely,
+   * reimplements locally with a `<div>` and a colour. That is precisely how a
+   * design system acquires a second, unaudited palette, and the file it happens
+   * in is never the one anybody reviews.
+   */
+  test("every component in the directory is exported from the barrel", () => {
+    const barrel = fs.readFileSync(path.join(MD3_DIR, "index.ts"), "utf8")
+    const missing = md3Files
+      .filter((name) => name !== "index.ts")
+      .map((name) => name.replace(/\.tsx?$/, ""))
+      .filter((module) => !barrel.includes(`from "./${module}"`))
+      .sort()
+    expect(missing, "primitives a route cannot import from `components/md3`").toEqual([])
   })
 
   test("the type-scale exemption is exactly the fifteen roles", () => {

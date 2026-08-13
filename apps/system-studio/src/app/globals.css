@@ -2508,3 +2508,651 @@ a.md3-chip {
   gap: var(--space-2);
   margin-block-start: var(--space-2);
 }
+
+/* ── KeyValue ──────────────────────────────────────────────────────────────
+ *
+ * "Fact — value — as of T", which is the shape nearly every AWS panel in this
+ * console is.
+ *
+ * Two columns, and the KEY column is the one that gives way. `.kv` above
+ * records what happens when it is the other way round: `minmax(0, max-content)`
+ * on the term squeezes the VALUE to a clientWidth of zero at 320 CSS pixels
+ * while an ARN keeps its full width and prints outside the card. Here the term
+ * column is bounded (`minmax(0, 14rem)`) and the value column takes the rest,
+ * so the thing that must not be cut never is.
+ *
+ * Each pair is wrapped in its own `<div>` — permitted inside a `<dl>` — which is
+ * what makes ONE pair a grid item. Without it the dt and the dd are independent
+ * items and a column break can put a term at the bottom of one column and its
+ * value at the top of the next.
+ */
+.md3-kv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  min-inline-size: 0;
+}
+.md3-kv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  align-items: baseline;
+  min-inline-size: 0;
+}
+.md3-kv-term {
+  margin: 0;
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.md3-kv-value {
+  margin: 0;
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface);
+  /* An ARN, an account id and an IAM statement all land here, and none of them
+     contains a space. `anywhere` rather than `break-word` because only
+     `anywhere` also lowers the element's min-content width, which is what stops
+     one long token setting the floor for the whole grid track. */
+  overflow-wrap: anywhere;
+}
+.md3-kv-note {
+  display: block;
+  margin-block-start: var(--space-1);
+}
+/* Below ~480px the pair stops being two columns. Same threshold and the same
+   reason as `.kv`: at 320 CSS pixels a 14rem term column leaves nothing for the
+   value, and the value is the part nobody can afford to have cut. */
+@media (max-width: 480px) {
+  .md3-kv-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .md3-kv-value {
+    margin-block-end: var(--space-1);
+  }
+}
+
+/* ── StaleIndicator ────────────────────────────────────────────────────────
+ *
+ * The instant, the age and the cadence, as one quiet line — and a visibly
+ * different line once the age is past what the capability allows.
+ *
+ * `data-degraded="true"` changes the FILL rather than only the text colour,
+ * because this sits inside a `<dd>` among other quiet text and a shade of the
+ * same grey is not a difference anyone notices in peripheral vision. The word
+ * "overdue" is in the markup regardless — the tint is the second signal, never
+ * the only one (Bible §26.3.2).
+ */
+.md3-stale {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.md3-stale time {
+  font-family: var(--md-sys-type-mono);
+  overflow-wrap: anywhere;
+}
+.md3-stale-age {
+  font-variant-numeric: tabular-nums;
+}
+.md3-stale-cadence::before {
+  /* A separator that is not punctuation a screen reader will read out. */
+  content: "";
+  display: inline-block;
+  inline-size: 3px;
+  block-size: 3px;
+  margin-inline-end: var(--space-1);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: currentColor;
+  vertical-align: middle;
+}
+.md3-stale[data-degraded="true"] {
+  padding-inline: var(--space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+}
+
+/* ── UnknownState ──────────────────────────────────────────────────────────
+ *
+ * STUDIO-000-007's visual form: a read this engine could not perform, drawn so
+ * that it can never be mistaken for an empty result.
+ *
+ * The border is `outline` rather than the decorative `outline-variant`. This is
+ * a boundary that carries meaning — it is the edge of the claim "nothing is
+ * known here" — and the rule at the top of this section holds it to 3:1
+ * (WCAG 2.2 AA 1.4.11) rather than to the 1.5:1 a card hairline gets.
+ */
+.md3-unknown {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-color: var(--md-sys-color-outline);
+}
+.md3-unknown-label {
+  margin: 0;
+  padding-inline: var(--space-2);
+  min-block-size: calc(var(--tap) - var(--space-1));
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+  text-transform: uppercase;
+}
+.md3-unknown-headline {
+  margin: 0;
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+.md3-unknown-note,
+.md3-unknown-remedy {
+  margin: 0;
+  max-inline-size: 46rem;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+/*
+ * The pasteable statement.
+ *
+ * `<pre>` preserves it exactly, because an operator pastes this into a policy
+ * document and a statement re-wrapped by the layout is one they have to repair
+ * by hand. It therefore scrolls INSIDE its own box: `white-space: pre` plus
+ * `overflow-x: auto`, which is the same bargain `.md3-table-shell` strikes, and
+ * the reason the page itself never scrolls sideways at 320 CSS pixels.
+ */
+.md3-unknown-statement {
+  margin: 0;
+  align-self: stretch;
+  max-inline-size: 100%;
+  overflow-x: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-type-mono);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  white-space: pre;
+}
+.md3-unknown-statement code {
+  /* Overriding the global `overflow-wrap: anywhere` on `code`: inside this box
+     the statement must NOT be broken, because it is going to be copied. */
+  overflow-wrap: normal;
+}
+
+/* ── Tabs ──────────────────────────────────────────────────────────────────
+ *
+ * Material's primary tabs, drawn on links, because in this console the tab IS
+ * the URL. The strip scrolls inside itself rather than wrapping the page —
+ * `layout.spec.ts` treats a horizontally scrolling document as a defect at all
+ * four of its widths, and Material's own tabs scroll.
+ */
+.md3-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-1);
+  max-inline-size: 100%;
+  overflow-x: auto;
+  border-block-end: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface-container-low);
+}
+.md3-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  min-block-size: calc(var(--tap) + var(--space-4));
+  padding-inline: var(--space-4);
+  color: var(--md-sys-color-on-surface-variant);
+  text-decoration: none;
+  white-space: nowrap;
+  /* The indicator lives on the element rather than on a child, so it cannot get
+     out of step with which tab is selected. Transparent when unselected keeps
+     the two states the same height — a border that appears on selection moves
+     every other tab by 2px. */
+  border-block-end: 2px solid transparent;
+}
+.md3-tab:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: -2px;
+}
+.md3-tab[data-selected="true"] {
+  color: var(--md-sys-color-primary);
+  border-block-end-color: var(--md-sys-color-primary);
+  /* Weight as well as colour and indicator. Three signals, of which two survive
+     a reader who cannot distinguish the palette. */
+  font-weight: var(--md-sys-typescale-title-medium-weight);
+}
+.md3-tab-label {
+  min-inline-size: 0;
+}
+.md3-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--space-2);
+  min-block-size: calc(var(--tap) - var(--space-2));
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Dialog ────────────────────────────────────────────────────────────────
+ *
+ * A scrim and a panel. The component does not claim `aria-modal` and nothing
+ * here traps focus — see the note in `Dialog.tsx` — so the scrim is a visual
+ * statement about what the operator should be reading, not a security boundary.
+ *
+ * `position: fixed` with `inset: 0` and its own scroll: a confirmation taller
+ * than the viewport at 320 CSS pixels must scroll, and it must scroll ITSELF.
+ */
+.md3-dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  overflow-y: auto;
+  background: var(--md-sys-color-scrim);
+}
+.md3-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  inline-size: min(34rem, 100%);
+  /* Bounded so a long body scrolls inside the scrim rather than growing the
+     panel past the top of the screen, where its heading becomes unreachable. */
+  max-block-size: calc(100vh - var(--space-6));
+  overflow-y: auto;
+}
+.md3-dialog-headline {
+  margin: 0;
+  color: var(--md-sys-color-on-surface);
+  overflow-wrap: anywhere;
+}
+.md3-dialog-support {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.md3-dialog-body {
+  min-inline-size: 0;
+}
+.md3-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  /* `end` rather than `right`: `layout.spec.ts` re-runs every route under
+     `dir="rtl"`, where the confirming action belongs on the other side. */
+  justify-content: flex-end;
+  margin-block-start: var(--space-2);
+}
+
+/* ── Snackbar ──────────────────────────────────────────────────────────────
+ *
+ * The inverse surface, so it reads as not part of the page. It does not float
+ * over the viewport and it does not auto-dismiss; both are argued in
+ * `Snackbar.tsx`, and the short version of the second is WCAG 2.2 AA 2.2.1.
+ */
+.md3-snackbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  min-inline-size: 0;
+}
+.md3-snackbar-message {
+  margin: 0;
+  flex: 1 1 16rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.md3-snackbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+/* ── ProgressIndicator ─────────────────────────────────────────────────────
+ *
+ * Determinate is a native `<progress>`, which is what lets a component in this
+ * directory express a width without an inline style — the rule that keeps every
+ * colour in this file. Indeterminate is a `role="progressbar"` with no
+ * `aria-valuenow`, which is how ARIA spells "busy, amount unknown".
+ *
+ * Both tracks carry a 1px `outline` border. The track's own fill is
+ * `surface-container-highest`, which against a card is a difference of a few
+ * percent — fine as a fill, not enough to mark where the control IS, and a
+ * control boundary is held to 3:1 (WCAG 2.2 AA 1.4.11).
+ */
+.md3-progress-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+.md3-progress-label {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.md3-progress-value {
+  font-variant-numeric: tabular-nums;
+}
+.md3-progress {
+  appearance: none;
+  -webkit-appearance: none;
+  inline-size: 100%;
+  block-size: 10px;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  overflow: hidden;
+  /* Firefox paints the track here; the WebKit pseudo-element below repeats it
+     because in Chrome this property is the ELEMENT's background, behind the
+     bar, and leaving it out gives the two engines different tracks. */
+  background: var(--md-sys-color-surface-container-highest);
+}
+.md3-progress::-webkit-progress-bar {
+  background: var(--md-sys-color-surface-container-highest);
+}
+.md3-progress::-webkit-progress-value {
+  background: var(--md-sys-color-primary);
+  border-radius: var(--md-sys-shape-corner-full);
+}
+.md3-progress::-moz-progress-bar {
+  background: var(--md-sys-color-primary);
+  border-radius: var(--md-sys-shape-corner-full);
+}
+.md3-progress-indeterminate {
+  position: relative;
+  overflow: hidden;
+  inline-size: 100%;
+  block-size: 10px;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-highest);
+}
+.md3-progress-indeterminate::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inline-size: 40%;
+  background: var(--md-sys-color-primary);
+  animation: md3-progress-slide 1400ms var(--md-sys-motion-easing-standard) infinite;
+}
+@keyframes md3-progress-slide {
+  from {
+    inset-inline-start: -40%;
+  }
+  to {
+    inset-inline-start: 100%;
+  }
+}
+/*
+ * Reduced motion must not leave this frozen at the first keyframe.
+ *
+ * The blanket rules above set `animation-duration: 0s !important`, which stops
+ * the bar at `inset-inline-start: auto` with a 40% width — an indicator that has
+ * stopped, drawn identically to one that is broken. A full, static track is the
+ * honest still image of "busy, amount unknown", and the required label beside it
+ * says what is running. Motion is never the only carrier of the fact.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .md3-progress-indeterminate::after {
+    inset-inline-start: 0;
+    inline-size: 100%;
+  }
+}
+:root[data-motion="reduced"] .md3-progress-indeterminate::after {
+  inset-inline-start: 0;
+  inline-size: 100%;
+}
+
+/* ── Field, TextField, TextArea, Select ────────────────────────────────────
+ *
+ * One frame for every labelled control, so a field, a textarea and a select
+ * cannot describe themselves three different ways.
+ *
+ * The label sits ABOVE the box and never floats. `TextField.tsx` carries the
+ * argument; the visible consequence is that the label is legible in every state
+ * and is never drawn over the value.
+ */
+.md3-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+.md3-field-label {
+  color: var(--md-sys-color-on-surface);
+}
+.md3-field-input {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  min-block-size: calc(var(--tap) + var(--space-3));
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-sys-color-surface-container-lowest);
+  color: var(--md-sys-color-on-surface);
+  font-family: inherit;
+  transition: border-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+.md3-field-input:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 1px;
+  border-color: var(--md-sys-color-primary);
+}
+.md3-field-input::placeholder {
+  color: var(--md-sys-color-on-surface-variant);
+  /* Not italic, not lighter. A placeholder in this console is a format example
+     and it is read by people who are about to paste an ARN next to it. */
+  opacity: 1;
+}
+.md3-field-input:disabled {
+  cursor: not-allowed;
+  background: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-on-surface-variant);
+}
+.md3-field-textarea {
+  /* Vertical only: a textarea a user can widen escapes its column and pushes the
+     page sideways, which is the one defect `layout.spec.ts` measures directly. */
+  resize: vertical;
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+.md3-field-select {
+  /* The platform's own control, deliberately — see `Select.tsx`. Its own arrow
+     is left alone, so it looks like what it is on every platform. */
+  cursor: pointer;
+}
+.md3-field-support {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+.md3-field-error {
+  margin: 0;
+  color: var(--md-sys-color-error);
+  overflow-wrap: anywhere;
+}
+.md3-field-error-word {
+  text-transform: uppercase;
+  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+  font-weight: var(--md-sys-typescale-label-small-weight);
+}
+/* The invalid border, and the word "Error" above it. Never the border alone:
+   this palette has no red loud enough to be a message on its own, and it is not
+   supposed to have one. */
+.md3-field[data-invalid="true"] .md3-field-input {
+  border-color: var(--md-sys-color-error);
+}
+
+/* ── Switch ────────────────────────────────────────────────────────────────
+ *
+ * Drawn on the checkbox itself: `appearance: none` on the input makes it the
+ * track, and its `::before` is the thumb. There is no decorative span, so the
+ * visual state and the checked state cannot disagree — they are one element.
+ *
+ * The track is `--tap` tall in both densities, which is the minimum target
+ * WCAG 2.2 AA 2.5.8 asks for, and `--tap` is the one token compact does not
+ * reduce.
+ */
+.md3-switch {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  min-inline-size: 0;
+}
+.md3-switch-input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  inline-size: calc(var(--tap) * 2);
+  block-size: var(--tap);
+  margin: 0;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-highest);
+  cursor: pointer;
+  transition: background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+.md3-switch-input::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 2px;
+  inline-size: calc(var(--tap) - 8px);
+  block-size: calc(var(--tap) - 8px);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-outline);
+  transform: translateY(-50%);
+  transition: inset-inline-start var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard),
+    background-color var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-standard);
+}
+.md3-switch-input:checked {
+  background: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
+}
+.md3-switch-input:checked::before {
+  /* The thumb travels, and it also grows — Material's own on-state. Position is
+     the signal a reader glancing at a column of switches actually uses. */
+  inset-inline-start: calc(100% - var(--tap) + 4px);
+  inline-size: calc(var(--tap) - 6px);
+  block-size: calc(var(--tap) - 6px);
+  background: var(--md-sys-color-on-primary);
+}
+.md3-switch-input:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+.md3-switch-input:disabled {
+  cursor: not-allowed;
+  background: var(--md-sys-color-surface-container-highest);
+  border-color: var(--md-sys-color-outline);
+}
+.md3-switch-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  min-inline-size: 0;
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.md3-switch-state {
+  padding-inline: var(--space-2);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+  text-transform: uppercase;
+}
+.md3-switch-support {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+/* ── SeverityChip ──────────────────────────────────────────────────────────
+ *
+ * Security Hub's five levels, toned from the error, warning and tertiary
+ * families. There is no red here and no green: every value is a role the
+ * contrast audit measures in four theme/contrast combinations.
+ *
+ * `critical` and `high` share the error family — filled and container — and the
+ * border is what separates them at a glance. The WORD separates them for
+ * everyone else, and it is always drawn.
+ */
+.md3-severity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-inline-size: 100%;
+  min-block-size: var(--tap);
+  padding-inline: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--md-sys-shape-corner-small);
+  overflow-wrap: anywhere;
+}
+.md3-severity-word {
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.md3-severity-detail {
+  font-variant-numeric: tabular-nums;
+}
+.md3-severity[data-severity="critical"] {
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error);
+  border-color: var(--md-sys-color-error);
+}
+.md3-severity[data-severity="high"] {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+  /* The family's base colour on its own container: 6.4:1 in light and 6.6:1 in
+     dark, audited as a control boundary in `md3-tokens-logic.spec.ts`. It is
+     what tells `high` from `critical` without reading the word. */
+  border-color: var(--md-sys-color-error);
+}
+.md3-severity[data-severity="medium"] {
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+  border-color: var(--md-sys-color-warning);
+}
+.md3-severity[data-severity="low"] {
+  /* The tertiary family: this console's "neither good nor bad". A low finding
+     is a fact about the estate, not a warning, and it is not drawn as one. */
+  background: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+  border-color: var(--md-sys-color-tertiary);
+}
+.md3-severity[data-severity="informational"] {
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+  border-color: var(--md-sys-color-outline);
+}

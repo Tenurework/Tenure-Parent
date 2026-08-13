@@ -1,6 +1,11 @@
 import "server-only"
 
-import { TENANT_BINDINGS, archetypeFor, getBlueprint } from "@tenure/blueprints"
+import {
+  CUSTOMER_TENANT_BINDINGS,
+  archetypeFor,
+  getBlueprint,
+  getTenantBinding,
+} from "@tenure/blueprints"
 import { MODULE_CATALOG } from "@tenure/modules"
 import { modulesFor } from "@tenure/platform-config"
 import {
@@ -117,7 +122,7 @@ function coexistenceForBinding(declared: CoexistenceDeclaration | undefined): {
 }
 
 export function manifestForBinding(slug: string): TenantManifest {
-  const binding = TENANT_BINDINGS.find((b) => b.slug === slug)
+  const binding = getTenantBinding(slug)
   if (!binding) throw new NotAdoptable(`No file binding for "${slug}".`)
 
   const blueprint = getBlueprint(binding.blueprintId)
@@ -190,7 +195,7 @@ export function adoptionEvidence(
   request: AdoptionRequest,
   operatorAsserts: { institutionExists: boolean },
 ): AdoptionEvidence[] {
-  const binding = TENANT_BINDINGS.find((b) => b.slug === slug)
+  const binding = getTenantBinding(slug)
   const cell = fleet().find((c) => c.residencyZones.includes(c.region))
   const modules = binding ? resolvedModules(slug).keys : []
 
@@ -257,14 +262,24 @@ export function buildAdoption(
   return { manifest: { ...manifest, initialAdminEmail: request.primaryContactEmail }, record }
 }
 
-/** Bindings that are not yet in the registry — what the console offers to adopt. */
+/**
+ * Bindings that are not yet in the registry — what the console offers to adopt.
+ *
+ * Customer bindings only. This list is rendered as a set of organisations an
+ * operator can bring under management, and until now it drew all four: the
+ * pilot, plus `midtown-arts`, `fixture-rtl` and `fixture-external-erp`, which
+ * exist to exercise the platform and are not anybody. Adopting one would have
+ * written a registry record and a manifest for an organisation that does not
+ * exist. The fixtures stay resolvable by slug through `getTenantBinding`, which
+ * is what the suites use and what the two functions above now use.
+ */
 export function adoptableBindings(registeredSlugs: readonly string[]): readonly {
   slug: string
   displayName: string
   blueprintId: string
 }[] {
   const registered = new Set(registeredSlugs)
-  return TENANT_BINDINGS.filter((b) => !registered.has(b.slug)).map((b) => ({
+  return CUSTOMER_TENANT_BINDINGS.filter((b) => !registered.has(b.slug)).map((b) => ({
     slug: b.slug,
     displayName: b.displayName,
     blueprintId: b.blueprintId,

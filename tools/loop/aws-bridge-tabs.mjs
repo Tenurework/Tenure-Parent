@@ -75,6 +75,12 @@ HOUSE FACTS you will otherwise rediscover the expensive way:
   deliberately: it will not invent an estate. \`PLATFORM_OPERATORS\` is \`email:role\`.
 - Verify your own file compiles: \`npx tsc --noEmit -p apps/system-studio/tsconfig.json\`.
   Errors in OTHER agents' files are expected mid-flight — report only yours.
+- THE STUDIO HAS NO JEST OF ITS OWN. Its unit tests run through apps/web's jest, whose
+  \`roots\` include \`<rootDir>/../system-studio/src\` — 22 studio test files are collected
+  today, including \`.test.tsx\` files that render Studio components. That is the runner for
+  a page's extracted decision logic. From the repository root:
+      npm run test --workspace apps/web -- --ci <path-to-your-test-file>
+  Do NOT add a jest config to apps/system-studio. \`e2e/\` belongs to Playwright, not jest.
 `
 
 const RESULT_SCHEMA = {

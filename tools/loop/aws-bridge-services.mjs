@@ -73,8 +73,12 @@ HOUSE FACTS you will otherwise rediscover the expensive way:
 - New audit writes go through \`recordAuditEvent\`; every ratchet may only FALL.
 - Verify your own file compiles: \`npx tsc --noEmit -p apps/system-studio/tsconfig.json\`.
   Errors in OTHER agents' files are expected mid-flight — report only yours.
-- Run your own unit test with: \`npx jest --config apps/system-studio/jest.config.* <file>\`
-  if a studio jest config exists; otherwise report how you ran it. Do not invent a runner.
+- THE STUDIO HAS NO JEST OF ITS OWN. Its unit tests run through apps/web's jest, whose
+  \`roots\` include \`<rootDir>/../system-studio/src\` — 22 studio test files are collected
+  today. Run yours with, from the repository root:
+      npm run test --workspace apps/web -- --ci <path-to-your-test-file>
+  or, equivalently, \`cd apps/web && npx jest <path>\`. Do NOT add a jest config to
+  apps/system-studio; do not invent a runner. \`e2e/\` belongs to Playwright, not jest.
 `
 
 const RESULT_SCHEMA = {
@@ -151,7 +155,21 @@ the facts that would have made that visible — MFA configuration at the pool le
 account still in FORCE_CHANGE_PASSWORD, and the age of the temporary-password window. Never
 read, print or return a password, a secret, a token or a client secret. \`ListUsers\` returns
 attributes: return the operator's status and MFA state, and do NOT return raw attribute
-values beyond the sign-in identifier.`,
+values beyond the sign-in identifier.
+
+A GUARD APPLIES ONLY TO YOU. GE-041-001 (\`tests/security/provider-independence.test.mjs\`)
+confines the Cognito SDK to an identity adapter. It was amended for this programme with a
+TWO-FILE estate exemption — \`src/lib/aws/client.ts\` and \`src/lib/aws/cognito.ts\` — because
+the Studio reads a user pool as an AWS RESOURCE, not as a way in. Consequences you must
+respect: (a) the exemption is a ratchet asserted at length <= 2, so putting Cognito SDK
+imports or \`UserPoolId\` in a THIRD file reds the build — keep everything in cognito.ts;
+(b) the authentication and user-pool-write verbs are forbidden EVERYWHERE, including inside
+your exemption: AdminInitiateAuth, InitiateAuth, RespondToAuthChallenge,
+AdminRespondToAuthChallenge, AdminSetUserPassword, AdminCreateUser, AdminDeleteUser,
+AdminAddUserToGroup, AdminUserGlobalSignOut, SignUp, ForgotPassword, ChangePassword and
+GetUser. Reading a pool's MFA configuration is the point; signing anyone in or changing a
+user through this layer is not. Run that guard yourself before you report:
+\`node --test tests/security/provider-independence.test.mjs\`.`,
   },
   {
     key: 'network',

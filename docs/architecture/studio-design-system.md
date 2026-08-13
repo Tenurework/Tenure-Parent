@@ -3,13 +3,14 @@
 What the console's tokens are, what each group is for, and the one rule that
 keeps the accessibility guarantee true.
 
-There are two files and one test:
+There are two files and two tests:
 
 | | |
 |---|---|
 | `apps/system-studio/src/app/globals.css` | Every token, and every rule that uses one. The only place in the console a colour exists. |
-| `apps/system-studio/src/components/md3/` | The primitives. Seven components, and not a colour among them. |
+| `apps/system-studio/src/components/md3/` | The primitives. Eighteen components, and not a colour among them. |
 | `apps/system-studio/e2e/md3-tokens-logic.spec.ts` | The audit. Computes WCAG 2.2 AA for every declared pair in all four theme/contrast combinations, with and without the state layer, and fails on a colour in a component. No browser, no server. |
+| `apps/system-studio/src/components/md3/aws-outcomes.test.tsx` | The rendering proof. Drives the real `readAws` through four genuinely different AWS outcomes and asserts the four surfaces differ. Runs under jest — Playwright transforms JSX with its own component-locator pragma and therefore cannot render a React tree, which is why `apps/web/jest.config.js` lists `apps/system-studio/src` as a root. |
 
 ---
 
@@ -17,9 +18,9 @@ There are two files and one test:
 
 > **A component may not contain a literal colour.**
 >
-> Not a hex code, not `rgb(`, not a colour keyword, not a `style` attribute
-> carrying one. A component decides which **role** applies. It never decides
-> what the role's value is.
+> Not a hex code, not `rgb(` or any other colour function, not one of the 148
+> CSS colour keywords, not a `style` attribute carrying one. A component decides
+> which **role** applies. It never decides what the role's value is.
 
 It is not a style preference; the contrast guarantee depends on it. The audit
 computes ratios for the pairs it can find, and every pair it can find is a pair
@@ -28,18 +29,72 @@ not know exists, in the file nobody would think to point it at — and it will b
 a pair that is fine in light and 2.1:1 in dark, because that is the one a person
 cannot check by looking.
 
-So the spec reads every file in `components/md3/` and fails on a colour in any
-syntax, and separately fails on an inline `style={{…}}` — which is where a
-colour hides once it is a variable and the lexical scan can no longer see it.
+So the spec reads every file in `components/md3/` and fails on:
 
-**Proven, not asserted.** A literal `#8b2f35` added to `Badge.tsx` reds the
-suite (`1 failed`); removing it greens it (`21 passed`).
+- a hex code, in any length;
+- a colour function — `rgb(`, `hsl(`, `oklch(`, `color-mix(`, `light-dark(`;
+- a **named colour**, when it appears as a whole string literal (`"red"`) or as
+  the value of something colour-shaped (`color: gold`). Not the bare word
+  anywhere: `tan`, `plum`, `linen` and `peru` are all CSS keywords and all things
+  an identifier can legitimately contain, and a scan that flagged `Math.tan`
+  would be switched off within a week;
+- an inline `style={{…}}` — which is where a colour hides once it is a variable
+  and the lexical scan can no longer see it.
+
+Test files in the directory are the one exclusion, and the exclusion is pinned to
+exactly `*.test.tsx`: a test may need to name a colour in order to demonstrate
+that the ban catches one.
+
+**Proven, not asserted.** Two mutations, both run:
+
+| Mutation | Result |
+|---|---|
+| `const MUTATION_HEX = "#c0392b"` appended to `SeverityChip.tsx` | `1 failed` — `"SeverityChip.tsx: #c0392b"` |
+| `const MUTATION_NAMED = "red"` appended to `SeverityChip.tsx` | `1 failed` — `"SeverityChip.tsx: named colour red — \"red\""` |
+| both reverted | `25 passed` |
 
 ---
 
 ## Colour
 
 Two layers, which is Material's structure and is worth keeping.
+
+> **Audited against MD3 and found complete.** The full role set in both themes,
+> the fifteen type roles with all four parts each, elevation 0–5, the seven-step
+> corner ramp, the motion durations and curves, and the state-layer opacities
+> were all already declared. Nothing was added to close a gap; what was added
+> below is the audit of three **new pairs** the severity chip introduced, and
+> three assertions about the scrim that the dialog introduced.
+
+---
+
+## Density and 320 CSS pixels
+
+Two axes every primitive here has to survive, because `layout.spec.ts` runs every
+route at 1440, 1180, 900 **and** 320, and `preferences.spec.ts` runs eight
+theme × density × contrast combinations.
+
+- **Space comes from `--space-1…6`**, which is the only thing compact changes. No
+  primitive hardcodes a padding.
+- **`--tap` is identical in both densities** (WCAG 2.2 AA 2.5.8, 24×24 CSS
+  pixels). Every control's height is built out of it rather than out of a
+  padding: `Button` is `--tap` plus a space step, `Switch`'s track *is* `--tap`.
+  Compact tightens the space around a control, never the control.
+- **Anything that can be wider than its column scrolls inside itself.**
+  `DataTable`'s shell (`overflow-x: auto` with a visible border, so a table that
+  continues past the fold does not read as one that ends there), `Tabs`' strip,
+  and `UnknownState`'s `<pre>`. The page itself never scrolls sideways — that is
+  the defect `layout.spec.ts` measures directly.
+- **Long identifiers wrap**, with `overflow-wrap: anywhere` rather than
+  `break-word`: only `anywhere` also lowers an element's min-content width, which
+  is what stops one ARN setting the floor for a whole grid track. The one place
+  it is deliberately switched **off** is the pasteable IAM statement, which must
+  survive being copied.
+- **Two-column layouts collapse below 480px** — `KeyValue` included, and its key
+  column is the one that gives way. `.kv` in `globals.css` records what happens
+  when it is the other way round: the *value* was squeezed to a clientWidth of
+  zero at 320 while the ARN inside it kept its full width and printed outside the
+  card.
 
 ### `--md-ref-*` — the reference ramp
 
@@ -84,6 +139,29 @@ button drew its border in `outline-variant`, which measured 1.21:1 in light and
 1.24:1 in dark against `surface-container-highest`. Once the fill goes neutral
 that border is the only thing marking where the control is — a boundary that
 carries meaning. It is `outline` now.
+
+### A family's base colour, drawn on that family's own container
+
+`SeverityChip` needs a border that separates two levels sharing one family —
+`critical` is the filled error, `high` is the error *container* — so
+`error`-on-`error-container`, `warning`-on-`warning-container` and
+`tertiary`-on-`tertiary-container` are audited as **control boundaries** (3:1,
+WCAG 2.2 AA 1.4.11). All three measure above 5:1 in both themes. The assertion
+exists so that stays true the next time a container tone is adjusted; the word on
+the chip is what carries the meaning for everyone who cannot see the difference.
+
+### The scrim
+
+`--md-sys-color-scrim` is the page behind a `Dialog`, and the audit asserts three
+things about it in both themes: that it is **translucent** (an opaque scrim is a
+page, not a scrim), that it is at least 20% opaque (below that it stops
+separating), and that it is **neither pure black nor pure white**.
+
+The last one is not fussiness. `preferences.spec.ts` reads every rendered
+background looking for `rgb(0, 0, 0)`, so the one token whose entire job is to
+darken the page is also the one that could red that assertion — and only while a
+dialog happened to be open, which is the hardest version of that failure to
+reproduce.
 
 ### Material's disabled opacities are deliberately absent
 
@@ -227,6 +305,56 @@ curve here would make that record describe one of two curves in one stylesheet.
 | `DataTable` | The shell: a bounded scroll region, a required visible caption, and columns declared as data so a header and its cells cannot drift apart. It does not sort, page or fetch. |
 | `EmptyState` | The layout of an empty region: what is absent, why, and what would create it. `description` is required — "No results" cannot distinguish *nothing exists* from *nothing matches your filter*. |
 
+### The AWS-reading set
+
+This console's job is to report readings of somebody else's estate, and a reading
+has outcomes a consumer UI never has to think about. These three are how twelve
+surfaces get them right once instead of twelve times.
+
+| Component | Reach for it when | Do **not** reach for it when |
+|---|---|---|
+| `KeyValue` | You have facts about **one subject** — "fact: value, as of T". Every AWS panel is this shape. `asOf` is per item, because one panel routinely mixes a 15-second ECS count with an hourly certificate inventory, and a single list-level timestamp would have to lie about one of them. | You have rows of one kind of thing — that is `DataTable`. Or a value that could **not** be read: a `<dd>` reading "—" is the defect below. |
+| `UnknownState` | A reading came back `DENIED`, `THROTTLED`, `UNCONFIGURED` or `ERROR`. **This is the most load-bearing component in the system.** | Ever, for a successful read. It is not expressible: `read` is typed `UnknownRead`, the four arms of `AwsRead<T>` that carry no value. |
+| `StaleIndicator` | You are printing an `asOf`. It takes the capability's own `refreshMs` as well, and says "overdue" — in a word, not only a tint — once the age is past it. | You do not have the cadence. Four minutes is fresh for an ACM inventory and stale for an SQS depth; a timestamp without its cadence is a number nobody can judge. |
+
+**Why `UnknownState` is the important one.** STUDIO-000-007: a read this engine
+could not perform must never render as an empty list. The collector this console
+replaced turned every failure into `null` and every `null` into `[]`, so a
+refused `cloudwatch:DescribeAlarms` produced an empty alarm list which a page
+rendered as reassuring chips. Each of the four arms gets a **different** headline,
+a different fact list and a different remedy, because a surface that says
+"unavailable" for all four teaches operators to ignore it:
+
+- `DENIED` — principal, action as IAM spells it, error code, account / region /
+  partition, and the minimum statement as pasteable JSON. Remedy: grant it.
+- `THROTTLED` — the retry interval, and **no** IAM statement. Nothing is broken;
+  a policy edit that "fixes" a throttle is a permission granted for no reason.
+- `UNCONFIGURED` — what is missing. Usually an account subscription, so no
+  statement is offered here either.
+- `ERROR` — the code and `safeDetail`, already stripped of credential material.
+
+### Navigation, overlays and forms
+
+Each of these declines to do something its consumer-Material counterpart does,
+and every one declines for the same reason: **nothing in this directory has a
+`"use client"` directive**, so a primitive here does not claim a behaviour it
+cannot implement without one. The escape hatch is the same in every case — a
+route that needs the client behaviour wraps the primitive; the directory does not
+pretend.
+
+| Component | Reach for it when | What it deliberately does not do |
+|---|---|---|
+| `Tabs` | The tab **is** the URL. Bookmarkable, shareable, works with the back button — the same argument `fleet-filter.ts` makes about filters. | It is a `<nav>` of links with `aria-current="page"`, **not** an ARIA `tablist`. A `role="tab"` that loads a document breaks the arrow-key contract it just promised. |
+| `Dialog` | A confirmation or a detail panel whose openness the caller owns — normally a query parameter. `open={false}` renders **nothing**, not a hidden element. | It does not set `aria-modal`. Nothing here traps focus, and claiming modality while the page behind is still tabbable is worse than not claiming it. `dismiss` is required: a dialog with no exit and no Escape key is a trap. |
+| `Snackbar` | The outcome of something the operator just did. Inverse surface, `role="status"`. | It does not auto-dismiss. WCAG 2.2 AA 2.2.1, and in a control plane the message is often the only on-screen record that a mutation was accepted. |
+| `ProgressIndicator` | A known ratio — "4 of 11 cells". A native `<progress value max>`, which is how a component here expresses a width without an inline style. | It does not accept a value above `max`: Chrome renders that as *indeterminate*, so "12 of 11 done" would start sliding as though nothing were known. It clamps. |
+| `IndeterminateProgress` | Busy, amount unknown. `role="progressbar"` with **no** `aria-valuenow`, which is how ARIA spells exactly that. | It does not rely on motion alone: under reduced motion the stylesheet gives it a full static track, because a bar frozen at its first keyframe is drawn identically to a broken one. |
+| `TextField` / `TextArea` | Any typed value. The label is **above** the box and never floats. | No floating label: it needs JavaScript or a placeholder that duplicates it, and a placeholder is announced twice and then vanishes as typing starts. Two exports rather than a `multiline` prop, so `<TextField multiline type="number">` is not expressible. |
+| `Select` | A choice from a known list. Options are **data**, so a `<div>` cannot end up inside a `<select>`. | It is the platform's own control. A custom listbox means owning keyboard interaction, typeahead, focus restoration, portalling and the mobile picker — and the only thing it buys is styling the open menu, which holds regions and slugs here, not swatches. |
+| `Switch` | A boolean setting inside a form. An `<input type="checkbox">` with `role="switch"`, so it posts with the form and works with no JavaScript. | It does not apply on toggle. That is a phone-settings idiom; here the form's button commits, and a high-risk change goes through the confirmation in `states.tsx` first. |
+| `Field` | You are wrapping a control this directory does not provide — a date input, a file input. | Inventing a fourth way to draw a label, a hint and an error. That is what this exists to prevent. |
+| `SeverityChip` | A Security Hub finding's level. `critical` / `high` / `medium` / `low` / `informational`, in AWS's own words so no operator has to hold a translation table. | There is no red and no green in it. `critical` and `high` are the **error** family, `medium` the warning family, `low` the **tertiary** family — "neither good nor bad" — and `informational` has no status family at all. |
+
 ### `EmptyState` overlaps `components/states.tsx`, and that is recorded
 
 `states.tsx` owns fourteen **governed states** and the distinctions between them
@@ -239,11 +367,17 @@ rather than a banner inside one. The right end state is for `states.tsx`'s
 `EmptyState` to render this shell; that is a change to a file outside this
 foundation's scope and is open work, not a finished design.
 
+The same relationship holds for `md3/UnknownState` and `states.tsx`'s
+`UnknownState` / `AwsReadPanel`. `states.tsx` owns the **word** — `unknown` is one
+of its fourteen governed states — and `md3/` owns the MD3 **form** that word
+takes. Both are driven by the same `AwsRead` union, so they say the same things;
+having one render the other is the same open work.
+
 ---
 
 ## What the audit checks
 
-`npx playwright test e2e/md3-tokens-logic.spec.ts` — 21 tests, no browser, no
+`npx playwright test e2e/md3-tokens-logic.spec.ts` — 25 tests, no browser, no
 server.
 
 1. Every required colour role is declared in light **and restated in dark**.
@@ -251,18 +385,48 @@ server.
 3. The shape ramp is complete and monotonic.
 4. Elevation runs 0–5 in both themes; 0 is `none`.
 5. State opacities are Material's.
-6. Motion durations are inside the band, and reduced motion zeroes them.
-7. **Every declared pair clears its WCAG 2.2 AA threshold** — in `light`, `dark`,
+6. The scrim is translucent, dark enough to separate, and not pure black or white.
+7. Motion durations are inside the band, and reduced motion zeroes them.
+8. **Every declared pair clears its WCAG 2.2 AA threshold** — in `light`, `dark`,
    `light-contrast` and `dark-contrast`. Thresholds are per purpose: `body` 4.5:1
    (1.4.3), `nonText` 3:1 (1.4.11), and `decorative` 1.2:1 for the named
    hairlines WCAG requires nothing of — each of which is listed individually, so
    "decorative" is a claim about a specific edge rather than a category anything
    can fall into.
-8. **The same pairs with the state layer composited on**, at all three opacities.
-9. No literal colour and no inline style in any `md3/` component.
-10. The stylesheet's `.md3-*` classes and the components' class names are the
+9. **The same pairs with the state layer composited on**, at all three opacities.
+10. No literal colour — hex, function **or named keyword** — and no inline style
+    in any `md3/` component; and the keyword list is asserted to still be all 148.
+11. The stylesheet's `.md3-*` classes and the components' class names are the
     same set — no unstyled component, no dead CSS.
-11. No token is declared without either a consumer or a recorded reason.
+12. **Every component is exported from the barrel.** A primitive that exists but
+    is not exported is one twelve routes either import by deep path or, far more
+    likely, reimplement locally with a `<div>` and a colour — which is exactly how
+    a design system acquires a second, unaudited palette.
+13. No token is declared without either a consumer or a recorded reason.
+
+### And what the rendering proof checks
+
+`npx jest ../system-studio/src/components/md3` from `apps/web` — 19 tests.
+
+The stand-in for AWS distinguishes four outcomes — refused, throttled,
+successful-and-empty, successful-and-populated — and every one goes through
+`readAws`, the one function in the Studio that turns an exception into a rendered
+state. The denied and throttled cases **throw**, the way the SDK does, because
+the classification under test reads an exception's modelled `name`.
+
+The assertion that matters is that the four surfaces are **pairwise different**,
+and that a refused read contains none of the vocabulary of an absence. A fake
+returning a canned answer regardless of its input would let all four render
+identically and still pass, which is why the four behaviours are real.
+
+**Proven, not asserted.**
+
+| Mutation | Result |
+|---|---|
+| `UnknownState`'s `{read.state === "DENIED" ? …}` → `{false ? …}`, dropping the pasteable statement from a denial | `1 failed` — "the surface carries principal, action and statement" |
+| reverted | `19 passed` |
+| `UnknownRead`'s `Extract` widened to admit `"ACTUAL"` | `tsc` reds in **four** places: the two `Record` maps lose exhaustiveness, `factsOf`'s `switch` no longer returns on every path, and the `@ts-expect-error` in the test becomes `TS2578: Unused '@ts-expect-error' directive` |
+| reverted | `0` errors in `md3/` |
 
 `preferences.spec.ts` remains the other half and neither replaces the other: it
 measures the **rendered page**, which is the only way to catch a rule that

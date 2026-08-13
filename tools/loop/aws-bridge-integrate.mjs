@@ -73,6 +73,13 @@ HOUSE FACTS you will otherwise rediscover the expensive way:
 - New audit writes go through \`recordAuditEvent\`; every ratchet may only FALL.
 - Verify your own file compiles: \`npx tsc --noEmit -p apps/system-studio/tsconfig.json\`.
   Errors in OTHER agents' files are expected mid-flight — report only yours.
+- THE STUDIO HAS NO JEST OF ITS OWN. Its unit tests run through apps/web's jest, whose
+  \`roots\` include \`<rootDir>/../system-studio/src\` — 22 studio test files are collected
+  today. Run yours with, from the repository root:
+      npm run test --workspace apps/web -- --ci <path-to-your-test-file>
+  Do NOT add a jest config to apps/system-studio. \`e2e/\` belongs to Playwright, not jest.
+  \`tests/**\` at the repository root is a THIRD runner — \`npm run test:platform\` — which is
+  plain \`node --test\`, no jest, no TypeScript. A .test.mjs there must be runnable by node.
 `
 
 const RESULT_SCHEMA = {
@@ -632,9 +639,33 @@ YOU OWN, exclusively:
   apps/system-studio/src/app/platform/diagnostics/page.tsx
   tests/architecture/shell-separation.test.mjs
 
-An earlier agent restructured the navigation into groups the Bible names, with a final
-Diagnostics tab holding everything unfinished or developer-facing. Five new operator surfaces
-have since landed:
+YOU ARE DOING THE WHOLE INFORMATION ARCHITECTURE, NOT A TOUCH-UP. The agent that was to do
+it never ran (it died on an API error before its first tool call), so the navigation is still
+the flat seven-tab row the operator complained about — confirmed live at
+https://d2kj4iy5i37kfd.cloudfront.net/ : "Tenants · Systems · Platform · Cost · Audit ·
+Estate · Health · Security", no grouping, no hierarchy, finished surfaces beside half-built
+ones, and no Diagnostics tab at all.
+
+THE OPERATOR'S WORDS, verbatim: the console "is cluttered and looks like a construction site,
+all messed up and confusing … put all these mess in one last tab."
+
+\`docs/architecture/studio-information-architecture.md\` ALREADY EXISTS — an earlier agent wrote
+the PLAN and stopped before implementing it. READ IT FIRST and implement what it decided
+rather than re-deciding. Where it is silent or wrong, fix it and say what you changed and why.
+Let \`Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md\` decide the
+group names and their order — the Bible names the domains this console is FOR; group the
+navigation by those domains, in the order it presents them, naming each group the way it names
+them. Not by your taste.
+
+THE ONE HARD REQUIREMENT: every surface that is unfinished, diagnostic, or exists only to
+prove something to a developer moves behind the LAST tab, named as what it is
+("Diagnostics"). Everything before that tab is a finished, Bible-defined operator surface.
+Justify each placement in the document by citing the requirement it serves, or by saying
+plainly that it serves none yet. DO NOT DELETE A ROUTE — moving it behind the last tab is the
+whole mechanism. Build /platform/diagnostics as a real index of what moved there and WHY, each
+entry linking to the route and naming what is unfinished about it; it is not a dumping ground.
+
+Five new operator surfaces have also landed since that plan was written:
 
 ${newRoutes.length ? newRoutes.map((r) => `  - ${r}`).join('\n') : '  (the integration agents reported none — enumerate them yourself from the filesystem)'}
 
