@@ -71,7 +71,23 @@ resource "aws_ecs_task_definition" "studio" {
       secrets = [
         { name = "AUTH_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:AUTH_SECRET::" },
         { name = "COGNITO_CLIENT_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:COGNITO_CLIENT_SECRET::" },
-        { name = "PLATFORM_OPERATOR_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:PLATFORM_OPERATOR_SECRET::" },
+        # PLATFORM_OPERATOR_SECRET is deliberately NOT here.
+        #
+        # In `cognito` mode — which `STUDIO_AUTH_MODE` pins for this task — the
+        # credentials provider is never constructed and nothing at runtime reads
+        # this value. Shipping it anyway put a live estate-wide credential inside
+        # a container that has no use for it, which is a blast radius bought for
+        # nothing. It remains in Secrets Manager solely as the one-time
+        # `temporary_password` an operator presents at their first Cognito
+        # sign-in, before Cognito forces them to set one Terraform never sees.
+        #
+        # `operatorConfigProblems` no longer demands it in cognito mode either —
+        # it derives that from `studioAuthMode()`, the same single definition
+        # `auth.ts` uses to decide which provider to build. Before that fix the
+        # two disagreed, and a task without this secret would have rendered
+        # "Not configured — PLATFORM_OPERATOR_SECRET" on every page while
+        # sign-in itself worked: a refusal naming a variable the running
+        # provider cannot use.
         { name = "PLATFORM_RECONCILE_SECRET", valueFrom = "${aws_secretsmanager_secret.studio.arn}:PLATFORM_RECONCILE_SECRET::" },
       ]
 

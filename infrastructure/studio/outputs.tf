@@ -11,9 +11,21 @@ output "ecr_repository_url" {
   value = aws_ecr_repository.studio.repository_url
 }
 
-output "operator_secret_command" {
-  description = "How to read the operator secret out. Deliberately not an output value — an output lands in the state file in plaintext and in every plan anyone runs."
-  value       = "aws secretsmanager get-secret-value --secret-id ${aws_secretsmanager_secret.studio.name} --query SecretString --output text"
+output "operator_first_signin_command" {
+  description = <<-EOT
+    How to read the ONE-TIME temporary password for a first Cognito sign-in.
+
+    Deliberately a command rather than a value: an output lands in the state
+    file in plaintext and in every plan anyone runs.
+
+    This is no longer a standing credential. `aws_cognito_user.operators` seeds
+    it as `temporary_password`, so Cognito answers NEW_PASSWORD_REQUIRED on the
+    first sign-in and the operator sets a password Terraform never sees; MFA
+    enrolment happens in the same flow because the pool is `mfa_configuration =
+    "ON"`. After that first sign-in this value authenticates nobody.
+  EOT
+
+  value = "aws secretsmanager get-secret-value --secret-id ${aws_secretsmanager_secret.studio.name} --query SecretString --output text"
 }
 
 output "cognito_user_pool_id" {
