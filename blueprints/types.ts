@@ -163,6 +163,28 @@ export interface TenantBinding {
   /** Human name, for operator-facing surfaces. */
   displayName: string
   /**
+   * True when this binding exists to exercise the platform, not to serve a
+   * customer.
+   *
+   * `TENANT_BINDINGS` is the compiled list of every configured system, and the
+   * System Studio's index rendered ALL of it: an operator opening the console
+   * that runs the estate was told "4 configured" and shown three organisations
+   * that do not exist — `Midtown Arts Collective`, an RTL fixture and an
+   * external-ERP fixture — beside the one real pilot. That is not a cosmetic
+   * problem. The console is where somebody decides to advance a lifecycle or
+   * publish a configuration, and a fixture rendered as a customer is an
+   * invitation to act on one.
+   *
+   * Marked here rather than filtered at the call site, and required to be
+   * explicit rather than inferred from the slug: `fixture-rtl` happens to be
+   * named for what it is and `midtown-arts` does not, so a name-shaped guess
+   * would have kept the one that reads like a real charity. The tests that
+   * depend on these bindings reach them by slug through `getTenantBinding` and
+   * are unaffected — the flag changes what the console LISTS, never what the
+   * platform can resolve.
+   */
+  fixture?: boolean
+  /**
    * What this tenant has bought.
    *
    * Separate from the blueprint's module list on purpose: the blueprint says

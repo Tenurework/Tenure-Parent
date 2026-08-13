@@ -95,6 +95,9 @@ export const TENANT_BINDINGS: readonly TenantBinding[] = [
   },
   {
     slug: "midtown-arts",
+    // A fixture, not a customer. Exercises the nonprofit blueprint and a
+    // published relay budget; no such organisation exists.
+    fixture: true,
     blueprintId: "nonprofit-program-operations",
     displayName: "Midtown Arts Collective",
     // No finance entitlement: budgeting is in its blueprint and is refused for
@@ -143,6 +146,9 @@ export const TENANT_BINDINGS: readonly TenantBinding[] = [
     // is a statement a test can FAIL rather than one a comment asserts
     // (GE-022-004).
     slug: "fixture-rtl",
+    // A fixture, not a customer. Exercises right-to-left localisation and an
+    // archetype whose functional axis is moved.
+    fixture: true,
     blueprintId: "nonprofit-program-operations",
     displayName: "Right-to-left conventions fixture",
     entitlements: [],
@@ -194,6 +200,9 @@ export const TENANT_BINDINGS: readonly TenantBinding[] = [
     //
     // Deliberately NOT seeded into any database and not a customer.
     slug: "fixture-external-erp",
+    // A fixture, not a customer. Exercises module resolution when an external
+    // ERP owns part of the domain.
+    fixture: true,
     blueprintId: "university-student-organizations",
     displayName: "External-ERP coexistence fixture",
     // Held, and still not enough. The entitlement is what the customer bought;
@@ -261,6 +270,26 @@ const BY_SLUG = new Map(TENANT_BINDINGS.map((t) => [t.slug, t]))
 export function getTenantBinding(slug: string): TenantBinding | undefined {
   return BY_SLUG.get(slug)
 }
+
+/**
+ * The configured systems that belong to a real customer.
+ *
+ * What every OPERATOR-FACING surface should list. `TENANT_BINDINGS` is the
+ * compiled set including the fixtures that exercise the platform, and the
+ * System Studio's index rendered the lot — "4 configured", one real pilot and
+ * three organisations that do not exist, presented identically. An operator
+ * decides to advance a lifecycle or publish a configuration from that page.
+ *
+ * Deliberately a separate export rather than a filter applied inside
+ * `TENANT_BINDINGS`: the fixtures must stay resolvable by slug, because the
+ * suites that prove RTL localisation, external-ERP module resolution and the
+ * relay budget all reach them through `getTenantBinding` and would otherwise
+ * have to invent their own bindings — which is how a test stops testing the
+ * thing that ships. The list changes; what a fixture IS does not.
+ */
+export const CUSTOMER_TENANT_BINDINGS: readonly TenantBinding[] = TENANT_BINDINGS.filter(
+  (t) => !t.fixture,
+)
 
 /**
  * Where one tenant actually sits on every axis: its blueprint's selection, with
