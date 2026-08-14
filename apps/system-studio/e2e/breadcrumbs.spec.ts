@@ -251,6 +251,20 @@ test.describe("the trail on the page", () => {
     await signIn(page)
     await page.goto("/tenants/seed-deployed")
 
+    // Wait for each, THEN measure. `boundingBox()` samples once and returns
+    // null for anything not yet painted — it does not retry on visibility the
+    // way `expect().toBeVisible()` does. Measuring straight after `goto()` made
+    // this test a coin toss: it passed, then failed twice in a row locally on an
+    // unchanged tree, and failed in CI while a full local suite had gone green
+    // minutes earlier. The `<h1>` is server-rendered and always arrives; the
+    // test was simply asking before it had.
+    //
+    // The assertions below are unchanged. This only stops the measurement
+    // racing the paint.
+    await expect(shellTrail(page)).toBeVisible()
+    await expect(page.locator("h1").first()).toBeVisible()
+    await expect(page.locator("header.masthead")).toBeVisible()
+
     const trail = await shellTrail(page).boundingBox()
     const headline = await page.locator("h1").first().boundingBox()
     const masthead = await page.locator("header.masthead").boundingBox()
