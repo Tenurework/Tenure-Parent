@@ -19,7 +19,7 @@ import {
 } from "@/lib/tenant-state"
 import { fleet, primeEstate } from "@/lib/cells"
 import { observeFleet } from "@/lib/aws/health"
-import { healthOf } from "@/lib/fleet-health"
+import { OBSERVATION_SOURCES, healthOf, type HealthObservation } from "@/lib/fleet-health"
 import { compareDesiredToActual, desiredFromDeployment } from "@/lib/aws/drift"
 import { estateInventory } from "@/lib/aws/inventory"
 import type { AwsRead } from "@/lib/aws/read"
@@ -531,6 +531,38 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
   const answered = answeredOf(estateObservations)
 
   /*
+   * What the Observed table DRAWS, which is deliberately not what the verdict is
+   * computed from.
+   *
+   * `estateObservations` stays `[]` when the observation pass could not run,
+   * because `healthOf` requires it and `[]` produces `unobserved` — true, and
+   * the opposite of reassuring. Feeding it six synthetic `unknown` rows would
+   * quietly change the verdict's input, which is the one thing that must not
+   * move here.
+   *
+   * The TABLE is a different question. `observationsFor` promises "six
+   * observations, always — a source that could not be read is present and
+   * `unknown`, never absent, because an absent source is indistinguishable from
+   * a healthy one on a page", and the panel above says it renders the sources
+   * that came back unknown for exactly that reason. Gating the whole table on
+   * `observations.known` broke both promises in the one case they were written
+   * for: when the pass itself failed, the page named NOTHING it could not read.
+   * `fleet-health-logic.spec.ts` — "the tenant's own page names every source it
+   * could not read" — is what caught it.
+   *
+   * So when the pass did not answer, every source is drawn carrying the read's
+   * own reason. The reason is not lost either: it stays beneath the table.
+   */
+  const observedRows: readonly HealthObservation[] = observations.known
+    ? observations.value
+    : OBSERVATION_SOURCES.map((source) => ({
+        source,
+        status: "unknown" as const,
+        asOf: observedAt.toISOString(),
+        detail: observations.because,
+      }))
+
+  /*
    * The verdict, from the same function the fleet listing ranks by.
    *
    * `observations` is REQUIRED by `healthOf` rather than optional, precisely so
@@ -642,10 +674,22 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
         */}
         <p className="md3-body-large">
           Four questions about this tenant, in order:{" "}
-          <Link href="#state">what it is</Link>, <Link href="#aws-footprint">where it is</Link>,{" "}
-          <Link href="#history">how it got here</Link>, and{" "}
-          <Link href="#next">what can happen next</Link>. The answer an operator should act on
-          first is immediately below.
+          <Link className={styles.jump} href="#state">
+            what it is
+          </Link>
+          ,{" "}
+          <Link className={styles.jump} href="#aws-footprint">
+            where it is
+          </Link>
+          ,{" "}
+          <Link className={styles.jump} href="#history">
+            how it got here
+          </Link>
+          , and{" "}
+          <Link className={styles.jump} href="#next">
+            what can happen next
+          </Link>
+          . The answer an operator should act on first is immediately below.
         </p>
 
         <div className={styles.row}>
@@ -1104,10 +1148,13 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           observedAt,
         )}
       >
-        {observations.known ? (
+        {!observations.known && (
+          <NotKnown because={observations.because} fix={observations.fix} />
+        )}
+        {(
           <DataTable
             caption="Observation sources, and what each one said"
-            rows={estateObservations}
+            rows={observedRows}
             rowKey={(o) => o.source}
             empty={
               <EmptyState
@@ -1134,8 +1181,6 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
               },
             ]}
           />
-        ) : (
-          <NotKnown because={observations.because} fix={observations.fix} />
         )}
       </Card>
 

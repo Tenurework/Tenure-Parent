@@ -43,6 +43,23 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+  /*
+   * `min-width: auto` is a flex item's default, and it means "never shrink below
+   * my min-content width". This row is itself a flex item of `.page`, so without
+   * this it grows to fit whatever its widest child needs and takes the page with
+   * it — `layout.spec.ts` reported `/platform/estate — the page scrolls sideways`
+   * at 320px and nowhere else, because the identifiers this page carries
+   * (`config:DescribeConfigurationAggregators`,
+   * `infrastructure/terraform/dev-login-gate.tf`) are the longest in the console.
+   *
+   * `flex-wrap: wrap` is not the answer on its own: wrapping moves children to
+   * new lines, but a single child wider than the line still forces the line
+   * wider, and the row has no permission to clamp it.
+   *
+   * `platform/security/security.module.css` has carried this on its own `.row`
+   * from the start, which is why that page passes at 320 and this one did not.
+   */
+  min-inline-size: 0;
 }
 
 /*

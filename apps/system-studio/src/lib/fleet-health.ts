@@ -59,7 +59,26 @@ export const STALL_HOURS = 6
  * `tests/security/operator-plane-content.test.mjs` holds this module to — so
  * "error rates" and "database" arrive as CloudWatch metrics or not at all.
  */
-export type ObservationSource = "tls" | "alarm" | "queue-age" | "backup" | "cost-anomaly" | "drift"
+export const OBSERVATION_SOURCES = [
+  "tls",
+  "alarm",
+  "queue-age",
+  "backup",
+  "cost-anomaly",
+  "drift",
+] as const
+
+/**
+ * The type IS the array, deliberately.
+ *
+ * A surface that has to draw one row per source when it has no readings needs to
+ * enumerate them, and a hand-written second list of six strings is a list that
+ * drifts from the union the day a seventh source is added. Deriving the type from
+ * the array makes them one declaration: `observationsFor`'s promise of "six
+ * observations, always" is then checkable against something, rather than against
+ * a count somebody remembered.
+ */
+export type ObservationSource = (typeof OBSERVATION_SOURCES)[number]
 
 /**
  * What an observation found.

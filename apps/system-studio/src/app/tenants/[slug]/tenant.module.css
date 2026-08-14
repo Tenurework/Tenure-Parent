@@ -95,6 +95,30 @@
 }
 
 /*
+ * One of the four orientation links in the lede, made atomic.
+ *
+ * They are inline links inside a paragraph, and at 320px the paragraph wraps
+ * between their words — "what it" / "is". An inline element whose content spans
+ * a line break has ONE border box, and that box is the union of both line
+ * boxes: it therefore geometrically contains whatever inline siblings were
+ * drawn between the two fragments. `tenant-surface.spec.ts` reported exactly
+ * that, three times over: `"what it is" (a) over "how it got here" (a)`.
+ *
+ * `inline-block` makes each link a single rectangle at every width — it moves
+ * to the next line whole rather than being split across two — so it can no
+ * longer cover a sibling. It is the same fix the compose form's `.token` and
+ * the audit ledger's `.cellLines` carry, for the same reason.
+ *
+ * The paragraph still reads as a sentence: an inline-block sits on the text
+ * baseline and wraps between the links as before. Only the phrase itself stops
+ * breaking.
+ */
+.jump {
+  display: inline-block;
+  max-inline-size: 100%;
+}
+
+/*
  * A table cell carrying more than one fact — a move and the reason for it, a
  * chain hash and the hash it follows.
  */
