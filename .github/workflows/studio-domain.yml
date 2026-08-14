@@ -72,6 +72,32 @@ jobs:
       #
       # That last detail is why the CloudFront step calls get-distribution-CONFIG
       # rather than get-distribution: the role grants one and not the other.
+      # `Not authorized to perform sts:AssumeRoleWithWebIdentity` says only that
+      # the trust policy did not match. It never says what it received, which is
+      # the one fact needed to fix it — and this workflow's first run failed on
+      # exactly that, with nothing in the log to diff against `read_subjects`.
+      # Same step, and the same reasoning, as `aws-inventory.yml`.
+      #
+      # Both values are public: a repository, a ref, and a fixed audience. The
+      # token itself is never echoed and the signature is never decoded.
+      - name: What subject and audience is this job claiming
+        env:
+          ROLE_ARN: ${{ vars.AWS_READ_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+
+          PAYLOAD=$(echo "$TOKEN" | cut -d. -f2)
+          PAYLOAD="${PAYLOAD}$(printf '%*s' $(( (4 - ${#PAYLOAD} % 4) % 4 )) '' | tr ' ' '=')"
+          CLAIMS=$(echo "$PAYLOAD" | tr '_-' '/+' | base64 -d 2>/dev/null || true)
+
+          echo "sub = $(echo "$CLAIMS" | jq -r .sub)"
+          echo "aud = $(echo "$CLAIMS" | jq -r .aud)"
+          # Name only. The full ARN carries the account id and this log is
+          # world-readable.
+          echo "role = ${ROLE_ARN##*/}"
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
@@ -215,16 +241,29 @@ jobs:
 
       # ── Has the certificate reached CloudFront? ──────────────────────────
       - name: CloudFront distribution
-        if: always()
         run: |
           set -euo pipefail
 
           # By exact hostname, never by an assumed ID. An ID copied from
           # somewhere else is how a report describes the wrong distribution
           # convincingly.
-          MATCHES=$(aws cloudfront list-distributions \
+          #
+          # The call's own exit status is captured BEFORE counting, because a
+          # failed call and an account with no such distribution both produce
+          # zero lines. The first run of this workflow printed "0 distributions
+          # match ... — refusing to guess" when the real answer was "the
+          # credentials never loaded, so nothing was asked" — a read that did not
+          # happen reported as a read that came back empty. That is the exact
+          # confusion `AwsRead` exists to prevent everywhere else in this
+          # repository, and it should not be reintroduced in a shell script.
+          if ! LISTED=$(aws cloudfront list-distributions \
             --query "DistributionList.Items[?DomainName=='${CF_DOMAIN}'].Id" \
-            --output text | tr '\t' '\n' | grep -c . || true)
+            --output text 2>&1); then
+            echo "::error::cloudfront:ListDistributions did not answer, so how many distributions match ${CF_DOMAIN} is unknown — not zero: ${LISTED}"
+            exit 1
+          fi
+
+          MATCHES=$(echo "$LISTED" | tr '\t' '\n' | grep -c . || true)
 
           if [ "$MATCHES" -ne 1 ]; then
             echo "::error::${MATCHES} distributions match ${CF_DOMAIN} — refusing to guess"
