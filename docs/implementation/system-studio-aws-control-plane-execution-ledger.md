@@ -2733,6 +2733,11 @@ inventory, in one region — so that item is left exactly as it is.
   capabilities. The service was DARK: `infrastructure/terraform/alb.tf`
   provisions a load balancer, a target group and a listener, and nothing in the
   running product had ever issued an `elasticloadbalancing:*` call.
+  - Status: PASS
+  - Evidence: `npm run test --workspace apps/web -- --ci lib.aws.loadbalancer`
+    → 28 passed, 28 total, 1 suite. Production module
+    `apps/system-studio/src/lib/aws/loadbalancer.ts`, consumed by
+    `apps/system-studio/src/app/platform/network/page.tsx`.
 
 **Files:** `apps/system-studio/src/lib/aws/loadbalancer.ts` (production),
 `apps/system-studio/src/lib/aws/loadbalancer.test.ts` (28 cases).
@@ -3250,6 +3255,11 @@ the suite returned to 34 green and the restored file compares equal.
   managed or the AWS-owned default, point-in-time recovery, deletion protection,
   TTL and global secondary indexes — with the tenant registry's protection ranked
   first. No table CONTENTS are read.
+  - Status: PASS
+  - Evidence: `npm run test --workspace apps/web -- --ci lib.aws.dynamodb-tables` -> 48 passed,
+    48 total, 1 suite. Production module
+    `apps/system-studio/src/lib/aws/dynamodb-tables.ts`, consumed by
+    `apps/system-studio/src/app/platform/data/page.tsx`.
 
 - **Was**: `infrastructure/studio/dynamodb.tf` provisions `<prefix>-tenants` —
   the tenant registry, holding `TENANT#<slug>` manifests, lifecycle states and
@@ -3587,6 +3597,11 @@ All twelve restored; the suite returned to 44/44 green. `database.ts` contains n
   it is IN USE BY. Two derived findings are lifted out of the table: a
   certificate stuck at `PENDING_VALIDATION`, and a certificate inside the renewal
   horizon that AWS is not going to renew.
+  - Status: PASS
+  - Evidence: `npm run test --workspace apps/web -- --ci lib.aws.certificates` -> 42 passed,
+    42 total, 1 suite. Production module
+    `apps/system-studio/src/lib/aws/certificates.ts`, consumed by
+    `apps/system-studio/src/app/platform/network/page.tsx`.
 
 - **Was**: `acm:ListCertificates` was already read twice — `inventory.ts` for the
   estate list and `health.ts` for the fleet — and both get an ARN, a domain and a
@@ -4294,6 +4309,11 @@ the suite returned to 38 green and `diff` against the pristine copy is empty.
   `NON_COMPLIANT`, `NOT_APPLICABLE` and `INSUFFICIENT_DATA` as four different
   answers rendering four different sentences, with `INSUFFICIENT_DATA` treated as
   a hole and never as a pass.
+  - Status: PASS
+  - Evidence: `npm run test --workspace apps/web -- --ci lib.aws.compliance` -> 35 passed,
+    35 total, 1 suite. Production module
+    `apps/system-studio/src/lib/aws/compliance.ts`, consumed by
+    `apps/system-studio/src/app/platform/security/page.tsx`.
 
 - **Was**: the only Config read anywhere in this repository was
   `config:DescribeConfigurationAggregators`, issued once by `posture.ts` to fill
@@ -4492,6 +4512,11 @@ its pre-mutation copy.
       the read plane; the live account is `BLOCKED_EXTERNAL` on the same
       dependency as every other row in this ledger (there is no AWS Organization
       to read).
+  - Status: PASS
+  - Evidence: `npm run test --workspace apps/web -- --ci lib.aws.dashboards` ->
+    37 passed, 37 total, 1 suite. Production module
+    `apps/system-studio/src/lib/aws/dashboards.ts`, consumed by
+    `apps/system-studio/src/app/platform/health/page.tsx`.
 
 `infrastructure/terraform/cloudwatch.tf:74` provisions `${name_prefix}-ops` with
 four widgets — ECS `RunningTaskCount`, ALB `RequestCount` + `HTTPCode_Target_5XX_Count`,
@@ -4608,6 +4633,11 @@ Final state after every revert: **37 passed, 37 total.**
   message and an SQS request — as integer minor units with an explicit currency,
   so the composer's per-seat and per-organisation figures are grounded rather
   than transcribed.
+  - Status: PASS
+  - Evidence: `npm run test --workspace apps/web -- --ci lib.aws.pricing` -> 42 passed,
+    42 total, 1 suite. Production module
+    `apps/system-studio/src/lib/aws/pricing.ts`, consumed by
+    `apps/system-studio/src/app/tenants/new/page.tsx`.
 
 - **Was**: `pricing:GetProducts` and `pricing:ListPriceLists` were in
   `capabilities.ts` and dispatched in `client.ts`, and **nothing called either**.
@@ -7469,6 +7499,12 @@ The ratchet has not fallen.
   hours and LCU-hours, CloudFront requests and data transfer, S3 storage and
   requests, DynamoDB read and write request units, SES outbound messages and SQS
   requests.
+  - Status: PASS
+  - Evidence: `npm run test --workspace apps/web -- --ci packages.finops` ->
+    149 passed, 149 total, 5 suites. Production module
+    `packages/finops/src/pricing.ts`, consumed by
+    `apps/system-studio/src/app/tenants/new/page.tsx` and
+    `apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx`.
 
 - **Was**: `packages/finops/src/pricing.ts` totalled `OptionPrice.perSeatMinor`
   and `perOrgMinor` — figures typed into the catalogue by a person. The Studio's

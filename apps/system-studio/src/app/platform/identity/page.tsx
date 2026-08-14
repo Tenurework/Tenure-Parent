@@ -37,7 +37,9 @@ import {
   type OverdueSecret,
   type UnrotatedSecret,
 } from "@/lib/aws/secrets"
-import { isOperator, operatorConfigProblems } from "@/lib/operators"
+import { PermissionDeniedState } from "@/components/states"
+import { operatorConfigProblems } from "@/lib/operators"
+import { authorizeCommand } from "@/lib/authorize"
 
 import {
   administratorCount,
@@ -135,10 +137,17 @@ export default async function IdentityPage() {
   }
 
   const session = await auth()
-  if (!isOperator(session?.user?.email)) {
+  // STUDIO-020-006. A command decision, not a membership test: `isOperator` is
+  // exactly `roleOf(...) !== null`, so it carries no resource and no verb and
+  // every operator family — auditor-read-only included — decides the same.
+  // `platform.read` is what /platform itself decides with, and this is one of
+  // its surfaces.
+  const decision = authorizeCommand("platform.read", { principalId: session?.user?.email })
+  if (decision.reason === "NO_PRINCIPAL") {
     const { redirect } = await import("next/navigation")
     redirect("/signin")
   }
+  if (!decision.allowed) return <PermissionDeniedState />
 
   /*
    * Five readers, sequentially.

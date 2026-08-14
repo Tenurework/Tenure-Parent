@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**758 files · 13 domains with code · 1 declared and unbuilt · 22 shared.**
+**882 files · 13 domains with code · 1 declared and unbuilt · 22 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
@@ -16,7 +16,7 @@ defensible.
 
 | Domain | Files | Experience | What it owns |
 |---|---:|---|---|
-| `control-plane` | 162 | deployer + engine + tenant | Composing, provisioning and operating tenants. The engine, not any tenant. |
+| `control-plane` | 282 | deployer + engine + tenant | Composing, provisioning and operating tenants. The engine, not any tenant. |
 | `identity` | 72 | engine + tenant | Who someone is: providers, sessions, the sign-in surface. |
 | `authorization` | 44 | engine + tenant | What someone may do: capabilities, policy decisions, delegation. |
 | `organization` | 45 | engine + tenant | The org graph: institutions, organizations, roles, seats, the directory. |
@@ -25,10 +25,10 @@ defensible.
 | `files` | 17 | tenant | Documents and attachments: storage, retrieval, editing. |
 | `search-memory` | 9 | tenant | Retrieval across everything a principal may already see, and org memory. |
 | `notifications` | 58 | tenant | Telling someone something happened: in-app notices, calendars, messaging. |
-| `reporting` | 40 | engine + tenant | Reading the estate back: reports, dashboards, the audit trail. |
+| `reporting` | 42 | engine + tenant | Reading the estate back: reports, dashboards, the audit trail. |
 | `erp-modules` | 34 | tenant | The domain modules a tenant runs: finance, resources, and the module catalog. |
 | `integrations` | 41 | tenant | Outbound connections to anything Tenure does not run. |
-| `billing-metering` | 43 | engine + tenant | What a tenant consumes and what it is charged for. |
+| `billing-metering` | 45 | engine + tenant | What a tenant consumes and what it is charged for. |
 
 ## Experience — who the code is rendered to
 
@@ -46,9 +46,9 @@ is gone rather than reworded.
 
 | Experience | Files | What it is |
 |---|---:|---|
-| `tenant` | 399 | What a customer signs into. Everything it serves is scoped to one institution. |
-| `deployer` | 120 | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
-| `engine` | 239 | Library code with no surface of its own. It renders to nobody; it is rendered through by whichever app imports it, so it belongs to neither audience and is available to both. |
+| `tenant` | 401 | What a customer signs into. Everything it serves is scoped to one institution. |
+| `deployer` | 240 | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
+| `engine` | 241 | Library code with no surface of its own. It renders to nobody; it is rendered through by whichever app imports it, so it belongs to neither audience and is available to both. |
 
 ### Rendered to no declared audience
 

@@ -29,10 +29,10 @@ by_prefix:
   TTES: 34
   WRK: 88
 by_status:
-  BLOCKED_EXTERNAL: 13
-  FAIL: 2045
+  BLOCKED_EXTERNAL: 28
+  FAIL: 2002
   NOT_APPLICABLE: 1
-  PASS: 206
+  PASS: 234
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -43,7 +43,7 @@ requirements:
     prefix: ANL
     source_document: Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md
     section: "ANL-000 — Foundation and truth"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/analytics-reporting-execution-ledger.md"
@@ -52,7 +52,7 @@ requirements:
     prefix: ANL
     source_document: Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md
     section: "ANL-000 — Foundation and truth"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/analytics-reporting-execution-ledger.md"
@@ -61,7 +61,7 @@ requirements:
     prefix: ANL
     source_document: Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md
     section: "ANL-000 — Foundation and truth"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/analytics-reporting-execution-ledger.md"
@@ -295,7 +295,7 @@ requirements:
     prefix: CAT
     source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
     section: "CAT-000 — Catalog truth and binding"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/connection-composer-execution-ledger.md"
@@ -304,7 +304,7 @@ requirements:
     prefix: CAT
     source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
     section: "CAT-000 — Catalog truth and binding"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/connection-composer-execution-ledger.md"
@@ -313,7 +313,7 @@ requirements:
     prefix: CAT
     source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
     section: "CAT-000 — Catalog truth and binding"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/connection-composer-execution-ledger.md"
@@ -817,7 +817,7 @@ requirements:
     prefix: CFG
     source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
     section: "CFG-000 — Truth and authority"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
@@ -835,7 +835,7 @@ requirements:
     prefix: CFG
     source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
     section: "CFG-000 — Truth and authority"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
@@ -844,7 +844,7 @@ requirements:
     prefix: CFG
     source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
     section: "CFG-000 — Truth and authority"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
@@ -3202,7 +3202,7 @@ requirements:
     prefix: FIN
     source_document: Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md
     section: "FIN-000 — Foundation and invariants"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/financial-management-execution-ledger.md"
@@ -3211,7 +3211,7 @@ requirements:
     prefix: FIN
     source_document: Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md
     section: "FIN-000 — Foundation and invariants"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/financial-management-execution-ledger.md"
@@ -3220,7 +3220,7 @@ requirements:
     prefix: FIN
     source_document: Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md
     section: "FIN-000 — Foundation and invariants"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/financial-management-execution-ledger.md"
@@ -3643,28 +3643,28 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-010: Tenure-owned landing zone"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Model or reconcile Management, Security, Log Archive, Infrastructure, Tenure Parent, Nonproduction, Production Cells, Dedicated Tenants, and Quarantine OUs/accounts."
   - id: "GE-010-003"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-010: Tenure-owned landing zone"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Ensure management account has no product workload and root has governed MFA/no routine access keys, verified only through permitted metadata."
   - id: "GE-010-004"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-010: Tenure-owned landing zone"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Establish Control Tower/Account Factory or equivalent account-vending baseline with organization trail/config, delegated security admin, required contacts/tags/budgets, backup, IAM boundaries, and deployment roles."
   - id: "GE-010-005"
     prefix: GE
@@ -10537,7 +10537,7 @@ requirements:
     prefix: HCM
     source_document: Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md
     section: "HCM-000 — Foundation"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
@@ -10546,7 +10546,7 @@ requirements:
     prefix: HCM
     source_document: Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md
     section: "HCM-000 — Foundation"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
@@ -10555,7 +10555,7 @@ requirements:
     prefix: HCM
     source_document: Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md
     section: "HCM-000 — Foundation"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/people-hr-workforce-execution-ledger.md"
@@ -10834,7 +10834,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-000 — Document graph and execution truth"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -10843,7 +10843,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-000 — Document graph and execution truth"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -10852,7 +10852,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-000 — Document graph and execution truth"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -12805,7 +12805,7 @@ requirements:
     prefix: INT
     source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
     section: "INT-000 — Truth, boundary and ledger"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
@@ -12814,7 +12814,7 @@ requirements:
     prefix: INT
     source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
     section: "INT-000 — Truth, boundary and ledger"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
@@ -12823,7 +12823,7 @@ requirements:
     prefix: INT
     source_document: Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md
     section: "INT-000 — Truth, boundary and ledger"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/integration-ecosystem-execution-ledger.md"
@@ -13390,7 +13390,7 @@ requirements:
     prefix: OPS
     source_document: Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md
     section: "OPS-000 — Foundation"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/operations-cloud-execution-ledger.md"
@@ -13399,7 +13399,7 @@ requirements:
     prefix: OPS
     source_document: Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md
     section: "OPS-000 — Foundation"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/operations-cloud-execution-ledger.md"
@@ -13408,7 +13408,7 @@ requirements:
     prefix: OPS
     source_document: Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md
     section: "OPS-000 — Foundation"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/operations-cloud-execution-ledger.md"
@@ -13678,7 +13678,7 @@ requirements:
     prefix: PACK
     source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
     section: "PACK-000 — Truth and registry"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
@@ -13696,7 +13696,7 @@ requirements:
     prefix: PACK
     source_document: Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md
     section: "PACK-000 — Truth and registry"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/erp-pack-factory-execution-ledger.md"
@@ -14155,7 +14155,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "2. Non-negotiable product boundaries"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -14164,7 +14164,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "2. Non-negotiable product boundaries"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -14173,7 +14173,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "2. Non-negotiable product boundaries"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -16171,7 +16171,7 @@ requirements:
     prefix: PLN
     source_document: Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md
     section: "PLN-000 — Foundation"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/planning-epm-execution-ledger.md"
@@ -16180,7 +16180,7 @@ requirements:
     prefix: PLN
     source_document: Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md
     section: "PLN-000 — Foundation"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/planning-epm-execution-ledger.md"
@@ -16414,28 +16414,28 @@ requirements:
     prefix: SIMON
     source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
     section: "4.1 Repository inventory"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
     statement: "Record remotes, branches, tags, default branches, active PRs, dirty state, commit history, contributors, releases, environments, and deployment workflows in both repositories."
   - id: "SIMON-000-002"
     prefix: SIMON
     source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
     section: "4.1 Repository inventory"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
     statement: Generate complete file/package/application/service/module/workspace maps and dependency graphs for source and target.
   - id: "SIMON-000-003"
     prefix: SIMON
     source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
     section: "4.1 Repository inventory"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
     statement: "Identify frontend frameworks/routes/components/styles/tokens, backend handlers/services, APIs, databases/schemas/migrations, events/queues/jobs, identity, file storage, search/AI, integrations, observability, IaC, and tests."
   - id: "SIMON-000-004"
     prefix: SIMON
@@ -17892,8 +17892,8 @@ requirements:
     section: "4. Phase 0 — Establish repository, AWS, product, and deployed truth"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Build a sanitized actual resource graph from Organizations/Resource Explorer/Resource Groups Tagging API/CloudFormation/Config/service APIs. Record resource owner, stack, tags, tenant, cell, environment, dependencies, cost attribution, drift, retention, and deletion behavior."
   - id: "STUDIO-000-009"
     prefix: STUDIO
@@ -17901,8 +17901,8 @@ requirements:
     section: "4. Phase 0 — Establish repository, AWS, product, and deployed truth"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Identify all console-created/unmanaged resources, long-lived AWS keys, wildcard policies, orphan queues/topics/rules, public resources, unencrypted data, unowned costs, misleading alarms, disabled trails, and missing backups."
   - id: "STUDIO-000-010"
     prefix: STUDIO
@@ -18567,8 +18567,8 @@ requirements:
     section: "Security, operations, and cost"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Build a cross-account/region actual-resource inventory with ARN/ID, type, name, state, stack, tenant, module, dependencies, tags, security posture, health, cost, drift, last change, retention, and deletion behavior."
   - id: "STUDIO-080-002"
     prefix: STUDIO
@@ -18576,8 +18576,8 @@ requirements:
     section: "Security, operations, and cost"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Create graph edges for network flow, trust, encryption, data, event, DNS, deployment, module, backup, monitoring, and cost allocation."
   - id: "STUDIO-080-003"
     prefix: STUDIO
@@ -18603,8 +18603,8 @@ requirements:
     section: "Security, operations, and cost"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: Show unsupported/unmanaged AWS state honestly. Do not offer a generic JSON escape hatch that bypasses policy.
   - id: "STUDIO-080-006"
     prefix: STUDIO
@@ -18612,8 +18612,8 @@ requirements:
     section: "Security, operations, and cost"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Implement desired-versus-actual comparison, drift severity, ownership, safe remediation plan, ignore policy with expiry, and recurrence detection."
   - id: "STUDIO-080-007"
     prefix: STUDIO
@@ -18621,8 +18621,8 @@ requirements:
     section: "Security, operations, and cost"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Detect orphans through IaC, tags, registry, Config, service APIs, CUR, and relationship graph; assign owner and expected cost."
   - id: "STUDIO-080-008"
     prefix: STUDIO
@@ -18783,8 +18783,8 @@ requirements:
     section: "14. Tenant fleet, release, lifecycle, and verified zero cost"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Show every retained byte/control resource and real residual charge for backups, snapshots, S3 versions, logs, keys, DNS, archives, compliance, legal hold, and evidence. Hibernation is not literal $0 when these remain."
   - id: "STUDIO-100-006"
     prefix: STUDIO
@@ -18963,8 +18963,8 @@ requirements:
     section: "16. Reliability, observability, operations, DR, and FinOps"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Build tenant-aware health from real synthetics, API checks, dependencies, queue age, error rates, database, identity, domain/TLS, integrations, Relay, backups, drift, and cost anomalies."
   - id: "STUDIO-120-004"
     prefix: STUDIO
@@ -19035,8 +19035,8 @@ requirements:
     section: "16. Reliability, observability, operations, DR, and FinOps"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: Add quota/capacity admission and forecast before tenant launch; never wait for a production quota failure to discover capacity.
   - id: "STUDIO-120-012"
     prefix: STUDIO
@@ -19348,7 +19348,7 @@ requirements:
     prefix: TTES
     source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
     section: "TTES-000 — Separation and truth"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/tenant-experience-execution-ledger.md"
@@ -19357,7 +19357,7 @@ requirements:
     prefix: TTES
     source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
     section: "TTES-000 — Separation and truth"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/tenant-experience-execution-ledger.md"
@@ -19438,7 +19438,7 @@ requirements:
     prefix: TTES
     source_document: Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md
     section: "TTES-020 — Components and patterns"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/tenant-experience-execution-ledger.md"
@@ -19636,7 +19636,7 @@ requirements:
     prefix: WRK
     source_document: Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md
     section: "WRK-000 — Truth and constitutional binding"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
@@ -19654,7 +19654,7 @@ requirements:
     prefix: WRK
     source_document: Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md
     section: "WRK-000 — Truth and constitutional binding"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
@@ -19663,7 +19663,7 @@ requirements:
     prefix: WRK
     source_document: Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md
     section: "WRK-000 — Truth and constitutional binding"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/universal-work-graph-execution-ledger.md"

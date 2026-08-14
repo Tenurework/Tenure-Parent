@@ -57,10 +57,12 @@ import { usePathname } from "next/navigation"
  *
  * Four routes this console serves are not navigation destinations — `/signin`,
  * `/tenants/new` and the two dynamic tenant routes. Each is named with its
- * reason in `UNLINKED`, on `app/platform/diagnostics/page.tsx`: this file
- * carries `"use client"`, and a Server Component importing a constant out of a
- * client module receives a client reference rather than the value, so the list
- * lives once on the page that publishes it instead of twice.
+ * reason in `UNLINKED`, on `app/platform/diagnostics/register.ts`. Not in this
+ * file, because it carries `"use client"` and a Server Component importing a
+ * constant out of a client module receives a client reference rather than the
+ * value; not in the page that renders it either, because the App Router rejects
+ * a route file exporting anything outside its reserved set. A sibling module is
+ * neither, so the list lives once.
  *
  * That list is not commentary. `tests/architecture/shell-separation.test.mjs`
  * reads it, and a route that appears in neither the table above nor that list
@@ -218,19 +220,22 @@ export const GROUPS: readonly Group[] = [
  * file it is least likely to be pointed at.
  *
  * Every selector is at least `nav.tabs .x`, which outranks the single-class
- * rules in the stylesheet whichever order the two are inserted in. That matters
- * because two of the stylesheet's rules are inside `max-width` media queries and
- * this file has to win there too:
+ * rules in the stylesheet whichever order the two are inserted in. The
+ * stylesheet's narrow-width rules — `.tabs a { flex: 1 1 calc(50% - gap) }` at
+ * 640, `flex-basis: 100%` at 420, `min-inline-size: min(9rem, 100%)` — were
+ * written to wrap eight equal tabs two-up, and `flex: 0 0 auto` is what stops a
+ * link that is now a flex child of its own group inheriting that.
  *
- *   · `.tabs a { flex: 1 1 calc(50% - gap) }` at 640, and `flex-basis: 100%` at
- *     420, sized eight equal tabs to wrap two-up. A link that is now a flex
- *     child of its own group must size to its content instead.
- *   · `.tabs a { min-inline-size: min(9rem, 100%) }` at 640 was the floor that
- *     made those halves tappable. Left in place it becomes a 144px floor under
- *     every GROUP, which at 320 CSS pixels fits two groups per row and turns ten
- *     groups into five rows of mostly empty space. `auto` gives the link back
- *     its content width; the tap target is carried by `min-block-size`, which
- *     the stylesheet sets and this file does not touch.
+ * MEASURED, in Chromium at 320, 900, 1180 and 1440 with the real stylesheet:
+ * removing that override changes nothing. Making the group `flex-direction:
+ * column` moves the main axis, so `flex-basis` on a link is a HEIGHT the group
+ * has no free space to distribute, and `min(9rem, 100%)` resolves its percentage
+ * against a shrink-to-fit containing block, which is the link's own used width.
+ * The override is kept as the explicit statement of intent — the next engine or
+ * the next stylesheet edit need not share that accident — but it is not load
+ * bearing, and this paragraph says so rather than claiming a defect it prevents.
+ * A `min-inline-size: auto` was tried here for the same reason and removed when
+ * the measurement showed it moved nothing.
  *
  * Physical directions are not used anywhere below — `padding-inline`,
  * `margin-inline-start`, `border-inline-start`. `e2e/layout.spec.ts` flips `dir`
@@ -271,7 +276,6 @@ nav.tabs .nav-group[aria-current="true"] .nav-group-name {
 nav.tabs .nav-group a,
 nav.tabs .nav-group .here {
   flex: 0 0 auto;
-  min-inline-size: auto;
   white-space: nowrap;
 }
 nav.tabs .nav-group[data-tail="true"] {

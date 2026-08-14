@@ -10,7 +10,7 @@ Regenerate with `node tools/pack-surface-inventory.mjs`.
 is stale, if any row cites a path that is not there, or if a module claims a
 schema model the database does not declare.
 
-**12 modules · 80 routes (66 tenant, 14 deployer) · 52 schema models · 18 workspaces · 1 feature flag · 24 provider packs · 11 configuration layers · 16 configuration domains · 3 blueprints.**
+**12 modules · 86 routes (66 tenant, 20 deployer) · 52 schema models · 18 workspaces · 1 feature flag · 24 provider packs · 11 configuration layers · 16 configuration domains · 3 blueprints.**
 
 This is an inventory of what EXISTS, not a claim about what works. Every module
 below is `certified-limited` — Bible §6's name for a capability that runs and is
@@ -52,9 +52,15 @@ filesystem and never appear in a URL.
 | deployer | page | `/` | — | `apps/system-studio/src/app/page.tsx` |
 | deployer | page | `/platform` | — | `apps/system-studio/src/app/platform/page.tsx` |
 | deployer | page | `/platform/audit` | — | `apps/system-studio/src/app/platform/audit/page.tsx` |
+| deployer | page | `/platform/compute` | — | `apps/system-studio/src/app/platform/compute/page.tsx` |
 | deployer | page | `/platform/cost` | — | `apps/system-studio/src/app/platform/cost/page.tsx` |
+| deployer | page | `/platform/data` | — | `apps/system-studio/src/app/platform/data/page.tsx` |
+| deployer | page | `/platform/diagnostics` | — | `apps/system-studio/src/app/platform/diagnostics/page.tsx` |
 | deployer | page | `/platform/estate` | — | `apps/system-studio/src/app/platform/estate/page.tsx` |
 | deployer | page | `/platform/health` | — | `apps/system-studio/src/app/platform/health/page.tsx` |
+| deployer | page | `/platform/identity` | — | `apps/system-studio/src/app/platform/identity/page.tsx` |
+| deployer | page | `/platform/messaging` | — | `apps/system-studio/src/app/platform/messaging/page.tsx` |
+| deployer | page | `/platform/network` | — | `apps/system-studio/src/app/platform/network/page.tsx` |
 | deployer | page | `/platform/security` | — | `apps/system-studio/src/app/platform/security/page.tsx` |
 | deployer | page | `/signin` | — | `apps/system-studio/src/app/signin/page.tsx` |
 | deployer | page | `/tenants` | — | `apps/system-studio/src/app/tenants/page.tsx` |

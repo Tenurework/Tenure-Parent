@@ -172,7 +172,7 @@ Use this evidence shape:
 ### GE-010: Tenure-owned landing zone
 
 - [x] GE-010-001 — Create ADR for Tenure-owned AWS Organization/member accounts, explicitly excluding personal and unrelated customer accounts.
-- [ ] GE-010-002 — Model or reconcile Management, Security, Log Archive, Infrastructure, Tenure Parent, Nonproduction, Production Cells, Dedicated Tenants, and Quarantine OUs/accounts.
+- [x] GE-010-002 — Model or reconcile Management, Security, Log Archive, Infrastructure, Tenure Parent, Nonproduction, Production Cells, Dedicated Tenants, and Quarantine OUs/accounts.
 - [ ] GE-010-003 — Ensure management account has no product workload and root has governed MFA/no routine access keys, verified only through permitted metadata.
 - [ ] GE-010-004 — Establish Control Tower/Account Factory or equivalent account-vending baseline with organization trail/config, delegated security admin, required contacts/tags/budgets, backup, IAM boundaries, and deployment roles.
 - [ ] GE-010-005 — Define SCPs/guardrails for region restrictions, public resource prevention, disabling security services, leaving organization, root use, unapproved IAM escalation, and required evidence—tested for operational safety.

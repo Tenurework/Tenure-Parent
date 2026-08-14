@@ -136,10 +136,12 @@ import { test } from "node:test"
  *     and the groups are checked against that list AND against its order. That
  *     turns "the Bible decides the group names, not anybody's taste" from a
  *     claim in a document into something a commit can fail.
- *   · `apps/system-studio/src/app/platform/diagnostics/page.tsx` — `UNLINKED`,
- *     `QUARANTINED` and `PLATFORM_PANELS`. The register an operator reads is
- *     the same data the guard reads; a register that is prose is a register
- *     that is wrong within a month.
+ *   · `apps/system-studio/src/app/platform/diagnostics/register.ts` —
+ *     `UNLINKED`, `QUARANTINED` and `PLATFORM_PANELS`. The register an operator
+ *     reads on `/platform/diagnostics` is the same data the guard reads; a
+ *     register that is prose is a register that is wrong within a month. It is
+ *     a sibling module rather than the page itself because the App Router
+ *     rejects a route file that exports anything outside its reserved set.
  *   · `apps/system-studio/src/app/platform/page.tsx` — its `<Card>` headlines.
  *     `PLATFORM_PANELS` claims what each panel on that page is and what now
  *     supersedes it, and a claim about thirteen panels that nothing checks is a
@@ -844,7 +846,11 @@ test("every operator console destination belongs to the console", () => {
 // ── (5) the navigation and the routes are the same set, both ways ───────────
 
 const NAV = "apps/system-studio/src/components/Nav.tsx"
-const REGISTER = "apps/system-studio/src/app/platform/diagnostics/page.tsx"
+// The register moved out of `page.tsx` because `next build` refuses a route
+// file that exports anything outside Next's reserved set, and the constraint
+// lives in the generated `.next/types/**` shim where `tsc --noEmit` cannot see
+// it. The tables are unchanged; only the file holding them is.
+const REGISTER = "apps/system-studio/src/app/platform/diagnostics/register.ts"
 const PLATFORM_PAGE = "apps/system-studio/src/app/platform/page.tsx"
 const BIBLE = "Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md"
 

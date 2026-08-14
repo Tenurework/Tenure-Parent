@@ -6,14 +6,30 @@
 # duplicate upload cannot double-count the requirements it states.
 
 generated_from: tools/document-graph.mjs
-document_count: 32
+document_count: 41
 alias_count: 6
 requirement_statements: 3850
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
 authorities: 21
-references: 11
+references: 20
 documents:
+  - id: "anl-analytics-inventory"
+    title: "Analytics inventory — every dashboard, report, chart and client-side metric"
+    version: unversioned
+    canonical_path: "docs/architecture/anl-analytics-inventory.md"
+    role: reference
+    family: "anl-analytics-inventory"
+    superseded_by: null
+    supersedes: []
+    sha256: b5448480b25b49f77e0699206807989f3fe3a06cc7283e083a9c6cb248f597b8
+    bytes: 18455
+    aliases: []
+    requirement_prefixes:
+      - ANL
+      - PAY
+    states_requirements: 0
+    mentions_requirement_ids: 6
   - id: "aws-current-state"
     title: AWS current state
     version: unversioned
@@ -29,6 +45,83 @@ documents:
       - GE
     states_requirements: 0
     mentions_requirement_ids: 1
+  - id: "cat-lifecycle-classification"
+    title: Catalog lifecycle classification
+    version: unversioned
+    canonical_path: "docs/architecture/cat-lifecycle-classification.md"
+    role: reference
+    family: "cat-lifecycle-classification"
+    superseded_by: null
+    supersedes: []
+    sha256: a24110520195f41e717bab7acbbe5c7bf9baeea94cbec352068ae9fa34d64642
+    bytes: 10233
+    aliases: []
+    requirement_prefixes:
+      - CAT
+    states_requirements: 0
+    mentions_requirement_ids: 1
+  - id: "fin-finance-surface-inventory"
+    title: "Finance surface inventory — FIN-000-001"
+    version: unversioned
+    canonical_path: "docs/architecture/fin-finance-surface-inventory.md"
+    role: reference
+    family: "fin-finance-surface-inventory"
+    superseded_by: null
+    supersedes: []
+    sha256: "17113d206dc6ffbd2c14b70c322451ffaa2ed25ad735126212cb1cb0f957d945"
+    bytes: 17895
+    aliases: []
+    requirement_prefixes:
+      - FIN
+    states_requirements: 0
+    mentions_requirement_ids: 3
+  - id: "int-integration-inventory"
+    title: Integration inventory and producer/consumer map
+    version: unversioned
+    canonical_path: "docs/architecture/int-integration-inventory.md"
+    role: reference
+    family: "int-integration-inventory"
+    superseded_by: null
+    supersedes: []
+    sha256: d48919b76e28c34a363765453e35b6d26ad59a47204a63fd37d2930513064833
+    bytes: 20519
+    aliases: []
+    requirement_prefixes:
+      - INT
+    states_requirements: 0
+    mentions_requirement_ids: 2
+  - id: "ops-operations-code-inventory"
+    title: "Operations, Supply, Manufacturing and Service — code inventory"
+    version: unversioned
+    canonical_path: "docs/architecture/ops-operations-code-inventory.md"
+    role: reference
+    family: "ops-operations-code-inventory"
+    superseded_by: null
+    supersedes: []
+    sha256: "9ec792d465e45e570e08c7f13b684f71a1f9fc0bb5732efc916141a94405075a"
+    bytes: 10347
+    aliases: []
+    requirement_prefixes:
+      - GE
+      - OPS
+    states_requirements: 0
+    mentions_requirement_ids: 4
+  - id: "pack-surface-inventory"
+    title: Pack surface inventory
+    version: unversioned
+    canonical_path: "docs/architecture/pack-surface-inventory.md"
+    role: reference
+    family: "pack-surface-inventory"
+    superseded_by: null
+    supersedes: []
+    sha256: a302ac3fcf37b30cc354cb4213ce6d773a5d37bd32cd24b19e8693f15d8d17dd
+    bytes: 20701
+    aliases: []
+    requirement_prefixes:
+      - PACK
+      - WRK
+    states_requirements: 0
+    mentions_requirement_ids: 10
   - id: "studio-information-architecture"
     title: System Studio information architecture and route map
     version: unversioned
@@ -37,13 +130,13 @@ documents:
     family: "studio-information-architecture"
     superseded_by: null
     supersedes: []
-    sha256: "2b8490e2f9b62c26278921d16cf618a22564370915b8e94555822b194dc532e3"
-    bytes: 20304
+    sha256: "5295db23262ad238dc00ff4e2db6d72f85f91760aabea58dd597bacff7e11b5d"
+    bytes: 35691
     aliases: []
     requirement_prefixes:
       - STUDIO
     states_requirements: 0
-    mentions_requirement_ids: 22
+    mentions_requirement_ids: 24
   - id: "subsystem-paths"
     title: "Subsystem paths, duplicates, and contradictions"
     version: unversioned
@@ -135,6 +228,36 @@ documents:
       - GE
     states_requirements: 0
     mentions_requirement_ids: 1
+  - id: "pay-adr-0001-merchant-of-record-default-and-exception-paths"
+    title: "PAY-ADR-0001 — The tenant legal entity is the merchant of record; Tenure is not, and every exception is a named human approval"
+    version: unversioned
+    canonical_path: "docs/decisions/pay-adr-0001-merchant-of-record-default-and-exception-paths.md"
+    role: reference
+    family: "pay-adr-0001-merchant-of-record-default-and-exception-paths"
+    superseded_by: null
+    supersedes: []
+    sha256: e0c49de68b05d8a7a2f6ba90c2940ef1ac05a9714fc969511b006282e5166a2d
+    bytes: 10104
+    aliases: []
+    requirement_prefixes:
+      - PAY
+    states_requirements: 0
+    mentions_requirement_ids: 3
+  - id: "pay-adr-0002-responsibility-selection-algorithm"
+    title: "PAY-ADR-0002 — How fee payer, negative-balance, dispute and loss responsibility are selected: lowest liability that is fully answered, and absence is never an answer"
+    version: unversioned
+    canonical_path: "docs/decisions/pay-adr-0002-responsibility-selection-algorithm.md"
+    role: reference
+    family: "pay-adr-0002-responsibility-selection-algorithm"
+    superseded_by: null
+    supersedes: []
+    sha256: "1951b255469c0a1e34f8abe03cf365e9f5621769353b80ddd80e813d3d6efbf2"
+    bytes: 11171
+    aliases: []
+    requirement_prefixes:
+      - PAY
+    states_requirements: 0
+    mentions_requirement_ids: 2
   - id: "simon-sso"
     title: Simon SSO handoff package
     version: unversioned
@@ -173,7 +296,7 @@ documents:
     family: Tenure_Claude_Code_Global_Engine_Execution_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: "5d46f0667c58146c95e31159f47db0035752677f1408d38a981d02b4aded2362"
+    sha256: "51137868acb54699eef20bad955efcd1520db71565ca13667be1f12491a255d6"
     bytes: 115086
     aliases: []
     requirement_prefixes:
@@ -188,7 +311,7 @@ documents:
     family: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: d6bfde6609dfc0a71eaa7ed851d6501bdd1dc838b2ca8bcc7f6ed8c022b80724
+    sha256: "34178dba7c328492460fd65c0573c2d9acec3153c124a150fccdfe8d02e0a4ca"
     bytes: 162330
     aliases: []
     requirement_prefixes:
@@ -227,6 +350,21 @@ documents:
       - STUDIO
     states_requirements: 167
     mentions_requirement_ids: 167
+  - id: "payment-authority-and-regulatory-boundary"
+    title: Payment authority and regulatory boundary
+    version: unversioned
+    canonical_path: "docs/payments/payment-authority-and-regulatory-boundary.md"
+    role: reference
+    family: "payment-authority-and-regulatory-boundary"
+    superseded_by: null
+    supersedes: []
+    sha256: "54c6f90fb084da79717d33be7f0c2e03b3f1948a086a2a7a448a0126a4baaa57"
+    bytes: 13945
+    aliases: []
+    requirement_prefixes:
+      - PAY
+    states_requirements: 0
+    mentions_requirement_ids: 1
   - id: "tenure-behemoth-capability-completeness-audit-v1-0"
     title: Tenure Behemoth Capability Completeness Audit
     version: "1.0"

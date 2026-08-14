@@ -317,9 +317,33 @@
       "experience": "deployer",
       "app": "apps/system-studio",
       "kind": "page",
+      "url": "/platform/compute",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/compute/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
       "url": "/platform/cost",
       "methods": [],
       "source": "apps/system-studio/src/app/platform/cost/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform/data",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/data/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform/diagnostics",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/diagnostics/page.tsx"
     },
     {
       "experience": "deployer",
@@ -336,6 +360,30 @@
       "url": "/platform/health",
       "methods": [],
       "source": "apps/system-studio/src/app/platform/health/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform/identity",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/identity/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform/messaging",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/messaging/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform/network",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/network/page.tsx"
     },
     {
       "experience": "deployer",

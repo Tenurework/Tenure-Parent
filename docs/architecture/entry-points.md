@@ -8,7 +8,7 @@ Generated from the filesystem. `npm run test:platform` regenerates this and
 fails if the committed copy is stale, so it cannot quietly go out of date, and
 fails if a handler appears with no guard and no entry on the public allowlist.
 
-**28 API routes · 52 pages · 21 server-action modules exporting 73 actions.**
+**28 API routes · 58 pages · 21 server-action modules exporting 73 actions.**
 
 ## The two experiences
 
@@ -21,7 +21,7 @@ and only one of them may be reached by a customer.
 | Experience | App | Surface | What it is |
 |---|---|---:|---|
 | `tenant` | `apps/web` | 26 routes · 40 pages · 17 action modules | What a customer signs into. Everything it serves is scoped to one institution. |
-| `deployer` | `apps/system-studio` | 2 routes · 12 pages · 4 action modules | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
+| `deployer` | `apps/system-studio` | 2 routes · 18 pages · 4 action modules | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
 
 ## What a guard means here
 
@@ -117,9 +117,15 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/signin` | tenant | GET | `session` |
 | `/` | deployer | GET | `session` + `operator` |
 | `/platform/audit` | deployer | GET | `session` + `operator` |
+| `/platform/compute` | deployer | GET | `session` + `operator` |
 | `/platform/cost` | deployer | GET | `session` + `operator` |
+| `/platform/data` | deployer | GET | `session` + `operator` |
+| `/platform/diagnostics` | deployer | GET | `session` + `operator` |
 | `/platform/estate` | deployer | GET | `session` + `operator` |
 | `/platform/health` | deployer | GET | `session` + `operator` |
+| `/platform/identity` | deployer | GET | `session` + `operator` |
+| `/platform/messaging` | deployer | GET | `session` + `operator` |
+| `/platform/network` | deployer | GET | `session` + `operator` |
 | `/platform` | deployer | GET | `session` + `operator` |
 | `/platform/security` | deployer | GET | `session` + `operator` |
 | `/signin` | deployer | GET | `session` + `operator` |

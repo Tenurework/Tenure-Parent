@@ -6,7 +6,7 @@ No timestamp, no hostname and no absolute path appears here, and every count is 
 
 | Axis | Rows |
 |---|---:|
-| System Studio routes | 23 |
+| System Studio routes | 24 |
 | Authentication and authorization modules | 12 |
 | Configuration and form code | 64 |
 | Databases | 4 |
@@ -14,7 +14,7 @@ No timestamp, no hostname and no absolute path appears here, and every count is 
 | Workflows | 17 |
 | Tests over the configuration surface | 39 |
 | Deployed nonproduction behaviour | 3 |
-| **Total** | **198** |
+| **Total** | **199** |
 
 ## System Studio routes
 
@@ -28,14 +28,15 @@ Every `page.tsx`, `route.ts`, `actions.ts` and `layout.tsx` under `apps/system-s
 | `apps/system-studio/src/app/page.tsx` | page | / · authz: authorizeCommand, session |
 | `apps/system-studio/src/app/platform/audit/actions.ts` | server-actions | /platform/audit · authz: isOperator, session |
 | `apps/system-studio/src/app/platform/audit/page.tsx` | page | /platform/audit · authz: isOperator, session |
-| `apps/system-studio/src/app/platform/compute/page.tsx` | page | /platform/compute · authz: isOperator, session |
+| `apps/system-studio/src/app/platform/compute/page.tsx` | page | /platform/compute · authz: authorizeCommand, session |
 | `apps/system-studio/src/app/platform/cost/page.tsx` | page | /platform/cost · authz: authorizeCommand, session |
-| `apps/system-studio/src/app/platform/data/page.tsx` | page | /platform/data · authz: isOperator, session |
+| `apps/system-studio/src/app/platform/data/page.tsx` | page | /platform/data · authz: authorizeCommand, session |
+| `apps/system-studio/src/app/platform/diagnostics/page.tsx` | page | /platform/diagnostics · authz: authorizeCommand, session |
 | `apps/system-studio/src/app/platform/estate/page.tsx` | page | /platform/estate · authz: isOperator, session |
 | `apps/system-studio/src/app/platform/health/page.tsx` | page | /platform/health · authz: isOperator, session |
-| `apps/system-studio/src/app/platform/identity/page.tsx` | page | /platform/identity · authz: isOperator, session |
-| `apps/system-studio/src/app/platform/messaging/page.tsx` | page | /platform/messaging · authz: isOperator, session |
-| `apps/system-studio/src/app/platform/network/page.tsx` | page | /platform/network · authz: isOperator, session |
+| `apps/system-studio/src/app/platform/identity/page.tsx` | page | /platform/identity · authz: authorizeCommand, session |
+| `apps/system-studio/src/app/platform/messaging/page.tsx` | page | /platform/messaging · authz: authorizeCommand, session |
+| `apps/system-studio/src/app/platform/network/page.tsx` | page | /platform/network · authz: authorizeCommand, session |
 | `apps/system-studio/src/app/platform/page.tsx` | page | /platform · authz: authorizeCommand, session |
 | `apps/system-studio/src/app/platform/security/page.tsx` | page | /platform/security · authz: isOperator, session |
 | `apps/system-studio/src/app/signin/page.tsx` | page | /signin · authz: isOperator, session |

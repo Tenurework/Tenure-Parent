@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "8c1161d",
+  "commit": "d930a78",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 241,
-    "done": 116,
+    "total": 244,
+    "done": 117,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -123,6 +123,27 @@
             "id": "GE-010-001",
             "done": true,
             "title": "ADR for a Tenure-owned AWS Organization and member accounts.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-010-002",
+            "done": true,
+            "title": "Model or reconcile the Management, Security, Log Archive, Infrastructure, Tenure Parent, Nonproduction, Production Cells, Dedicated Tenants and Quarantine OUs/accounts.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-010-003",
+            "done": false,
+            "title": "Management account has no product workload; root has governed MFA and no routine access keys, verified only through permitted metadata.",
+            "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
+            "isGate": false
+          },
+          {
+            "id": "GE-010-004",
+            "done": false,
+            "title": "Control Tower / Account Factory or equivalent account-vending baseline, with organization trail and config, delegated security admin, contacts, tags, budgets, backup, IAM boundaries and deployment roles.",
             "phase": "Phase 1 — Secure AWS organization, accounts, and deployment identity",
             "isGate": false
           },
@@ -1742,14 +1763,14 @@
     ],
     "totalItems": 2265,
     "totalGates": 181,
-    "decided": 220,
+    "decided": 263,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
         "source": "ANL",
         "items": 5,
         "gates": 1,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "ANL · ANL-010 — Data, semantics and security",
@@ -1784,7 +1805,7 @@
         "source": "CAT",
         "items": 5,
         "gates": 1,
-        "done": 1
+        "done": 4
       },
       {
         "phase": "CAT · CAT-010 — Cardinality and dimensions",
@@ -1854,7 +1875,7 @@
         "source": "CFG",
         "items": 6,
         "gates": 1,
-        "done": 1
+        "done": 4
       },
       {
         "phase": "CFG · CFG-010 — Schema package registry",
@@ -2057,7 +2078,7 @@
         "source": "FIN",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "FIN · FIN-010 — Core ledgers and close",
@@ -2113,7 +2134,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 2
+        "done": 5
       },
       {
         "phase": "GE · GE-011: GitHub Actions OIDC",
@@ -3191,7 +3212,7 @@
         "source": "HCM",
         "items": 5,
         "gates": 1,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "HCM · HCM-010 — Lifecycle and organization",
@@ -3233,7 +3254,7 @@
         "source": "IER",
         "items": 8,
         "gates": 0,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "IER · IER-010 — Boundaries and canonical semantics",
@@ -3380,7 +3401,7 @@
         "source": "INT",
         "items": 5,
         "gates": 1,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "INT · INT-010 — Canonical runtime",
@@ -3457,7 +3478,7 @@
         "source": "OPS",
         "items": 5,
         "gates": 1,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "OPS · OPS-010 — Supply, inventory, warehouse and orders",
@@ -3499,7 +3520,7 @@
         "source": "PACK",
         "items": 5,
         "gates": 1,
-        "done": 2
+        "done": 4
       },
       {
         "phase": "PACK · PACK-010 — Product-line kernel",
@@ -3569,7 +3590,7 @@
         "source": "PAY",
         "items": 8,
         "gates": 0,
-        "done": 2
+        "done": 5
       },
       {
         "phase": "PAY · 3. Capability Completeness contract",
@@ -3765,7 +3786,7 @@
         "source": "PLN",
         "items": 5,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "PLN · PLN-010 — Cycles, workflow and UX",
@@ -3800,7 +3821,7 @@
         "source": "SIMON",
         "items": 7,
         "gates": 0,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "SIMON · 4.2 Deployed and AWS inventory",
@@ -4017,7 +4038,7 @@
         "source": "TTES",
         "items": 5,
         "gates": 1,
-        "done": 2
+        "done": 4
       },
       {
         "phase": "TTES · TTES-010 — Tokens and foundations",
@@ -4031,7 +4052,7 @@
         "source": "TTES",
         "items": 5,
         "gates": 1,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "TTES · TTES-030 — Shell and journeys",
@@ -4059,7 +4080,7 @@
         "source": "WRK",
         "items": 5,
         "gates": 1,
-        "done": 1
+        "done": 4
       },
       {
         "phase": "WRK · WRK-010 — Universal Work Graph",
@@ -4260,7 +4281,7 @@
     },
     {
       "name": "application unit",
-      "files": 90,
+      "files": 91,
       "what": "apps/web"
     },
     {
@@ -4270,7 +4291,7 @@
     },
     {
       "name": "end to end",
-      "files": 66,
+      "files": 77,
       "what": "real browser"
     }
   ]
