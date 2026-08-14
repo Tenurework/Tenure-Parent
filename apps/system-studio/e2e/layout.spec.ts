@@ -146,12 +146,59 @@ for (const width of WIDTHS) {
         await page.goto(route)
         await page.waitForLoadState("networkidle")
 
-        // Horizontal page scroll: the single clearest sign something is too
-        // wide for where it was put.
-        const overflowsPage = await page.evaluate(
-          () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-        )
-        expect(overflowsPage, "the page scrolls sideways").toBe(false)
+        /*
+         * Horizontal page scroll: the single clearest sign something is too
+         * wide for where it was put — and, until now, the least actionable
+         * thing this suite could say.
+         *
+         * `the page scrolls sideways: expected false, received true` is true and
+         * tells you nothing. Reproducing it cost a rebuilt DOM out of the trace
+         * artifact, a headless re-render at 320px, and three CSS hypotheses,
+         * because the failure named no element. The check below is unchanged —
+         * same condition, same verdict — but it now carries the offenders with
+         * it.
+         *
+         * "Offender" is defined narrowly on purpose: an element that sticks out
+         * past the viewport WHOSE PARENT DOES NOT. That is the first thing to go
+         * wide; every ancestor after it is a consequence. A box that scrolls on
+         * purpose is excluded, because a wide table inside `overflow-x: auto` is
+         * the design and not the defect — which is also why the section walk
+         * below cannot see this: it compares children to their section, never a
+         * section to the viewport.
+         */
+        const overflow = await page.evaluate(() => {
+          const doc = document.documentElement
+          const limit = doc.clientWidth
+          const scrolls = (el: Element) =>
+            ["auto", "scroll", "hidden", "clip"].includes(getComputedStyle(el).overflowX)
+
+          const offenders: string[] = []
+          for (const el of Array.from(document.querySelectorAll("*"))) {
+            const box = el.getBoundingClientRect()
+            if (box.width === 0 || box.right <= limit + 1) continue
+            const parent = el.parentElement
+            if (parent && parent.getBoundingClientRect().right > limit + 1) continue
+            if (parent && scrolls(parent)) continue
+            const name =
+              el.tagName.toLowerCase() +
+              (el.id ? `#${el.id}` : "") +
+              (el.className && typeof el.className === "string"
+                ? `.${el.className.trim().split(/\s+/).join(".")}`
+                : "")
+            offenders.push(
+              `${name} right=${Math.round(box.right)} width=${Math.round(box.width)} — ` +
+                `${(el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 70)}`,
+            )
+          }
+          return { scrolls: doc.scrollWidth > limit + 1, width: doc.scrollWidth, limit, offenders }
+        })
+
+        expect(
+          overflow.scrolls,
+          `the page scrolls sideways — ${overflow.width}px of content in a ${overflow.limit}px viewport.` +
+            ` First element wider than the viewport whose parent is not:\n  ` +
+            (overflow.offenders.slice(0, 8).join("\n  ") || "(none isolated — the width is on a scrolling ancestor)"),
+        ).toBe(false)
 
         // Content wider than its own section, unless that section scrolls on
         // purpose (wide tables are allowed to, and say so in CSS).
