@@ -1737,6 +1737,25 @@ module's curve exactly; the test asserts the recorded waits are
 `backoffMs(READ_ATTEMPTS + 1)`. Two backoff curves would be two answers to "how
 long until it tries again".
 
+#### EMPTY is not "unknown", and the first version of this module got that wrong
+
+`secretPosture` originally answered `{kind:"unknown"}` for any listing that was
+not ACTUAL or STALE — which swept EMPTY in with DENIED, THROTTLED and ERROR. But
+`readAws` produces EMPTY only after the call RESOLVED, so "there are no secrets in
+this account and region" is a fact the engine established, and answering "we do
+not know" to a question it can answer is the same collapse this whole read plane
+exists to refuse, one size down. It was caught on review rather than by a test,
+which is worth recording: the four-outcome test proved the four SURFACES differ,
+and they did — it did not prove the posture arm was right.
+
+Fixed by giving `PaginationBound` a `no-secrets` arm (separate from `complete`
+with a count of zero, because the page count is not recoverable from an EMPTY
+reading and stating a number this engine did not observe is the habit the module
+is against), an explicit EMPTY branch in `secretPosture`, and a dedicated sentence
+in `describeSecretPosture` — because "every secret that was read has rotation
+configured" is TRUE of an empty account and reads as a clean bill of health for
+one. M-S11 and M-S12 below are the two mutations that now catch it.
+
 #### Mutations applied to the production path, and what caught them
 
 | # | Mutation | Result |
@@ -1771,3 +1790,3418 @@ Each was restored immediately and the suite returned to 23 green.
   module is new. It is a shared generated artefact that every service agent in
   this batch staled; regenerating it belongs to one `npm run generate` after they
   all land, not to seven concurrent writers.
+
+## STUDIO-070-004 (KMS) — the keys, their managers, and the ones that are not rotating
+
+`kms:ListKeys` had been in the capability registry since the read plane was
+built and nothing ever called it. Even if something had, a list of key ids is
+not an answer. `apps/system-studio/src/lib/aws/keys.ts` joins the listing to
+`kms:DescribeKey` and `kms:GetKeyRotationStatus` — the two capabilities the
+foundation agent added in this batch — so a key id becomes a description, a
+state, a manager, a rotation status and a tenant.
+
+### The rule this module exists to enforce
+
+An AWS-managed key is **not** a passing check. Every account carries dozens of
+`aws/…` keys that AWS rotates on its own schedule and that no customer can
+configure. Counting them as "rotating" reports 96% compliance for an estate
+whose every controllable key is non-compliant. `KeyRotationPosture` therefore
+keeps them in `awsManagedExcluded`, which appears in no compliant total; the
+denominator `customerManagedRead` is exactly `rotating + notRotating.length`,
+and `notRotating` holds key ids rather than a count. There is no percentage
+field anywhere in the module.
+
+Four further categories are kept apart rather than folded: `notApplicable`
+(asymmetric, HMAC, imported-material and custom-key-store keys, on which
+rotation cannot be enabled and whose absence is not a finding),
+`rotationUnknown` (the read was refused, throttled or broken — never rendered
+as on and never as off), `unrecognisedManagement` (a `KeyManager` value this
+engine does not know, which is neither guessed into the denominator nor out of
+it) and `unreadable` (`DescribeKey` did not answer). `posture.complete` is
+false whenever any of those is non-empty or the listing was truncated, so a
+partial count can never be presented as a verdict.
+
+A key in `PendingDeletion` carries the deletion date and the remaining window;
+`describeLifecycle` refuses to print the state without them, because "pending
+deletion" with no date is a warning nobody can schedule around.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit suite | `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/keys.test.ts` | 27 passed, 27 total |
+| Types | `npx tsc --noEmit -p apps/system-studio/tsconfig.json` | no error in `keys.ts` or `keys.test.ts` |
+| One-owner SDK rule | `node --test tests/architecture/forbidden-clients.test.mjs` | 6/6 pass |
+| No Prisma on the operator plane | `node --test tests/security/operator-plane-content.test.mjs` | 5/5 pass (11/11 with the above) |
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | Mutation in `keys.ts` | Result |
+| --- | --- | --- |
+| M-K1 | the non-ACTUAL listing branch returns `{state:"EMPTY"}` instead of the reading | **2 red** — a refused `kms:ListKeys` rendered as "none" |
+| M-K2 | the `aws-managed` arm of `rotationStateFrom` returns `{kind:"enabled"}` | **4 red** — an AWS-managed key counted as a compliance pass |
+| M-K3 | the final `unknown` arm of `rotationStateFrom` returns `{kind:"enabled"}` | **2 red** — a refused and a throttled rotation read both claimed the key rotates |
+| M-K4 | `if (!marker) break` replaced with an unconditional `break` | **2 red** — the reader returned page one and called it the estate |
+| M-K5 | `hadMore = true` at the page bound replaced with `hadMore = false` | **1 red** — the bound was hit and the listing still reported "complete" |
+| M-K6 | `attributionFor`'s unreadable-tag-index guard returns `{kind:"unattributed"}` | **1 red** — a denied `tag:GetResources` reported every key untagged |
+| M-K7 | `lifecycleOf` maps `PendingDeletion` to `{kind:"other"}` | **1 red** — a key scheduled for deletion lost its date |
+| M-K8 | `if (false && detail.keySpec !== …)` in `rotationInapplicableReason` | **3 red** — an asymmetric key was asked for a rotation status and its `UnsupportedOperationException` became a finding |
+| M-K9 | `refreshMs.keys` pinned to a literal `60_000` | **1 red** — the cadence stopped coming from the capability registry |
+| M-K10 | `optionalBoolean(response?.KeyRotationEnabled) ?? false` with the throw disabled | **1 red** — a rotation answer AWS did not return rendered as "not rotating" |
+
+Every one was restored immediately and the suite returned to 27 green. M-K8 and
+M-K10 were deliberately written in the `if (false && …)` shape this programme
+has already shipped five times; both are gone and the guard scan for
+`false &&`, `|| true`, `MUTATION`, `TODO` and `FIXME` over both files is clean.
+
+### What is NOT closed, and is not claimed
+
+- **Aliases are not read.** A key's aliases are what make it legible —
+  `alias/tenure-prod-rds` answers "what is this key for" better than most
+  descriptions do. They come from `kms:ListAliases`, which is **not** in the
+  capability registry: the required capability key is `kms:ListAliases` and the
+  required IAM action is `kms:ListAliases`, scoped to `*` (the API enumerates
+  and has no per-alias ARN to scope to). This module does not add capabilities —
+  `client.ts` switches on the capability deliberately so there is no way to
+  express "send this arbitrary command". Every key therefore carries
+  `ALIASES_NOT_READABLE`, which names the capability and the action, and the
+  surface prints it. This is an open gap, not a passing check.
+- **No page imports this yet.** The module is the data layer; the surface that
+  renders `kmsLines` is another agent's file.
+- **Rotation is not asked for AWS-managed keys.** The call would answer `true`
+  and that answer must not be counted, so spending an API call to obtain it
+  would buy nothing. The `aws-managed` arm says exactly this rather than
+  implying a read happened.
+- **`docs/architecture/ownership.md` is stale by one file** because this module
+  is new. Regenerating it belongs to one `npm run generate` against a clean
+  tree, not to concurrent writers.
+
+## STUDIO-070-004 (ECR) — what is actually deployed, and is it known-vulnerable
+
+**No checkbox is moved by this entry.** STUDIO-070-004 is a service-adapter line
+that several adapters contribute to; this one adds ECR and claims nothing beyond
+what is proven below.
+
+- **Was**: `infrastructure/terraform/ecr.tf` and `infrastructure/studio/ecr.tf`
+  each create a repository with `scan_on_push = true` and a lifecycle policy, and
+  nothing in the running product had ever issued an ECR call. The registry
+  holding the image that serves the pilot was dark: a CRITICAL CVE that ECR found
+  on push produced exactly the same console as a repository nobody had pushed to
+  — nothing at all.
+- **Now**: `apps/system-studio/src/lib/aws/ecr.ts`. `ecrReadings()` resolves
+  identity, reads the tag index, lists every repository, and for each one reads
+  its images and its lifecycle policy independently; it then reads scan findings
+  for a budgeted set of images BY DIGEST. It returns `EcrReadings` —
+  `AwsRead<readonly RepositoryReading[]>` for the listing, an
+  `AwsRead<readonly ImageReading[]>` and an `AwsRead<LifecyclePolicy>` per
+  repository, an `AwsRead<ScanDetail>` per image, a `DeployedRiskState`, a
+  `Truncation`, the tag collisions, an explicit `asOf`, and all four
+  capabilities' own `refreshMs` read from the registry rather than retyped.
+- **Four capabilities, four readings**: `ecr:DescribeRepositories`,
+  `ecr:DescribeImages`, `ecr:DescribeImageScanFindings` and
+  `ecr:GetLifecyclePolicy` are four separate IAM actions. A refused
+  `DescribeImages` names `ecr:DescribeImages` and prints THAT minimum statement,
+  and the repository still appears saying it was refused — it does not vanish and
+  it does not render as `0 image(s)`. A refused `GetLifecyclePolicy` does not hide
+  the images, and a refused `DescribeImageScanFindings` keeps the severity counts
+  the image listing already returned. This is `retained.ts`'s
+  `backup:ListBackupVaults` lesson applied at construction time.
+- **Correlation is by digest**: both repositories are
+  `image_tag_mutability = "MUTABLE"`, which is precisely the mechanism by which a
+  tag and a digest stop agreeing. Every reading is keyed on `imageDigest`, tags
+  are a list hanging off a digest, `DescribeImageScanFindings` is called with
+  `imageDigest` and never `imageTag` (asserted by a spy on the gateway), and a tag
+  observed on more than one digest is REPORTED as a `TagCollision` rather than
+  resolved — picking one would be inventing an answer to "which one is deployed".
+- **A zero is not a clean bill**: `ImageVulnerability` has five arms — `findings`,
+  `clean`, `not-scanned`, `scan-incomplete`, `unknown` — because five different
+  facts otherwise render as "no CVE rows". `ScanOnPush` is a union whose
+  `disabled` arm carries the sentence that says the absence of findings is an
+  absence of scanning. `DeployedRiskState.clear` is reachable ONLY when every
+  repository scans on push, every image list was readable and every image
+  completed a scan with nothing in it; anything less is `unverified`, which prints
+  as a sentence rather than a zero. `ScanNotFoundException` and
+  `LifecyclePolicyNotFoundException` are caught inside their reads and returned as
+  VALUES ("this image was never scanned", "nothing expires these images"), because
+  reaching `readAws` they would classify as ERROR — a red box on the two facts an
+  operator most needs stated plainly.
+- **Pagination**: bounded and DECLARED. Unlike `sqs.ts`, which throws when it runs
+  out of pages, a registry legitimately holds more images than a server render
+  will walk, so hitting the bound is an expected state and travels as
+  `Truncation`, which every renderer prints (`— TRUNCATED: … there were more`).
+  What does not happen is a first page rendered as if it were the registry.
+  Budgets: 20 repository pages, 10 image pages per repository, 5 finding pages per
+  image, 100 repositories given a depth read, 40 images given a scan-detail read,
+  25 findings named per image. The severity COUNTS are ECR's own whole-scan counts
+  and are complete regardless of the sample cap; they are assigned per page, never
+  accumulated, because `findingSeverityCounts` is repeated on every page and
+  summing it multiplies every CVE by the page count.
+- **Residency**: region and partition come from the `repositoryArn` AWS returns
+  and, failing that, from the resolved identity. There is no region literal and no
+  `"aws"` partition fallback in the file. A GovCloud identity produces
+  `aws-us-gov` / `us-gov-west-1` throughout and the surface contains no commercial
+  region string (asserted).
+- **Attribution**: through `tags.ts` and the Resource Groups Tagging API, with a
+  fourth answer `unknown` for when the tag index itself was denied, throttled or
+  broken — "we could not look up this repository's tags" is not "this repository
+  has no tenant tag".
+- **What is NOT read, and is a value rather than a silence**: whether the registry
+  runs ENHANCED scanning is `ecr:GetRegistryScanningConfiguration`, a
+  registry-level action not in the capability registry and one this module did not
+  add. `EcrReadings.enhancedScanning` carries a single NOT_READABLE arm naming it,
+  and `ecrLines` always prints it, so a basic-scan clean bill cannot be read as
+  covering the application layer.
+
+### Proof
+
+`apps/system-studio/src/lib/aws/ecr.test.ts` — 33 tests, green, run with
+`npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/ecr.test.ts`.
+The stand-in answers six capabilities with the SDK's own response shapes and can
+fail each independently with `AccessDeniedException`, `ThrottlingException`, an
+empty-but-successful response or a populated one; the four render as four
+pairwise-distinct surface strings (asserted with a `Set` of size 4). Every account
+id in the fixture is the obviously-constructed `123456789012`.
+
+Ten mutations were applied to the PRODUCTION module, the suite run, and the module
+restored byte-for-byte (verified by comparing the restored file to the copy taken
+before the first mutation):
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M-1 | `if (repo.scanOnPush.kind !== "enabled")` becomes `if (false && …)` | **2 red** — the scan-on-push finding stopped being raised |
+| M-2 | the repository listing's `token = response?.nextToken` becomes `token = undefined` | **2 red** — a first page passed off as the registry |
+| M-3 | `counts = severityCounts(…)` accumulates across finding pages instead | **1 red** — 1 CRITICAL rendered as 3 |
+| M-4 | `mergeVulnerability` returns `{kind:"clean"}` when the detail read failed | **2 red** — a denial and a throttle both became a clean bill |
+| M-5 | `imageDigest: digest` becomes `imageTag: "latest"` in the scan read | **8 red** — the gateway spy and every scan-derived assertion |
+| M-6 | the unreadable-tag-index guard in `attributionFor` becomes `if (false && …)` | **1 red** — a denied tag index rendered as "unattributable" |
+| M-7 | `backoffMs: backoffMs(2)` becomes `backoffMs: 50` | **1 red** — the surface stopped using `throttle.ts`'s schedule |
+| M-8 | the `LifecyclePolicyNotFoundException` catch becomes `if (false && …)` | **1 red** — "no lifecycle policy" became a red ERROR box |
+| M-9 | an unparseable lifecycle policy returns `absent` instead of `unreadable` | **1 red** |
+| M-10 | a missing scan status returns `{kind:"clean"}` instead of `not-scanned` | **1 red** |
+
+Each was restored immediately and the suite returned to 33 green. No guard,
+assertion or check was left disabled.
+
+`tests/security/operator-plane-content.test.mjs` (5 pass) and
+`tests/architecture/forbidden-clients.test.mjs` (6 pass) are green with this file
+present: it imports no Prisma client and no AWS SDK package, and it contains no
+endpoint literal — the fixture assembles registry hosts from parts for exactly
+that reason.
+
+#### What is NOT closed, and is not claimed
+
+- **No page imports this yet.** The module is the data layer; the route that
+  renders it is another agent's file, and until that lands nothing in the running
+  product calls `ecrReadings`.
+- **Enhanced-scanning coverage is unknown, not absent.** See above. A repository
+  reporting zero findings under BASIC scanning has had its OS packages assessed
+  and its application dependencies not assessed, and this engine cannot tell which
+  regime is in force.
+- **Nothing here decides whether a repository is unmanaged.** Two
+  `aws_ecr_repository` resources exist in `infrastructure/`, but the expected-set
+  comparison belongs to `drift.ts`, not to a service adapter.
+- **Scan findings are read for the first `MAX_SCAN_DETAIL_READS` (40) images
+  across the whole load.** `DescribeImageScanFindings` has no bulk form. Images
+  past the budget keep the severity counts `DescribeImages` returned beside them
+  and carry an UNCONFIGURED detail read — never "no findings".
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a clean
+  tree after this batch lands, not to concurrent writers.
+- **A deliberate deviation from "mark it shared where no tag says so".**
+  `tags.ts` and `@tenure/provisioning` keep `shared` (a VALUE somebody set on
+  `tenure:tenant`) apart from `unattributed` (nobody tagged it), and folding the
+  two is how an untagged key gets billed to a tenant that did not create it. So
+  a key with no tenant tag reads `unattributable — missing tenure:tenant`, not
+  `shared`. A fourth answer, `unknown`, covers the case where the tag index
+  itself could not be read.
+
+## STUDIO-070-004 (CloudWatch Logs) — retention posture, silence, and bounded evidence
+
+`apps/system-studio/src/lib/aws/logs.ts` + `logs.test.ts`. Added 2026-08-13.
+
+CloudWatch Logs was dark. `infrastructure/terraform/ecs.tf:117` creates exactly
+one log group — `/ecs/<name_prefix>`, 30 days, no `kms_key_id`, no `tags` block
+— `cloudwatch.tf:116` builds a dashboard widget that greps it for `/ERROR/`, and
+the only `logs:` call anywhere in the product was `retained.ts`'s tenant-scoped
+`DescribeLogGroups`. The console could not say how many groups the account
+holds, which will never expire, how many bytes they bill for, whether any
+carries a customer key, or whether the one group Terraform declares is still
+receiving anything.
+
+### What it reads, and through which capability
+
+| Capability (from the registry, unchanged) | What it answers |
+| --- | --- |
+| `logs:DescribeLogGroups` | every group, paged: retention, stored bytes, KMS key, class, data-protection status, ARN |
+| `logs:DescribeMetricFilters` | per group, its own `AwsRead`: which patterns turn a line into a metric |
+| `logs:FilterLogEvents` | bounded evidence, and the opt-in silence probe |
+| `tag:GetResources` (via `tags.ts`) | tenant attribution, with `unknown` when the index itself was not read |
+| `sts:GetCallerIdentity` (via `identity.ts`) | region and partition — never a literal |
+
+No capability was added and `capabilities.ts` was not edited.
+
+### The four decisions worth reviewing
+
+- **`retentionInDays` absent is a FINDING, not an unknown.** AWS defines the
+  omission as "Never expire", so `classifyRetention` returns `never-expires`
+  with its own sentence about an unbounded bill. Rendering it as unknown would
+  hide the exact defect the module exists to surface. Below
+  `SHORTEST_USEFUL_RETENTION_DAYS` (7, named after the weekly on-call rotation)
+  it returns `too-short` — the opposite defect, and separately named.
+- **Silence is opt-in and reports a BOUND, never an exact age.** Deciding
+  whether a group is silent costs a billed `FilterLogEvents` call, so every
+  group carries `NOT_PROBED` unless a caller passes `probeSilenceWindowMs`.
+  `RECEIVING` carries `mostRecentSeenAt`, explicitly a LOWER bound (one page,
+  interleaved streams), and `ageMsUpperBound`. `SILENT` claims only "nothing in
+  the last N ms". The probe discards every message inside the module — only a
+  timestamp leaves it.
+- **The events read refuses rather than redacting.** A group whose NAME matches
+  `TENANT_DATA_MARKERS` returns no events at all unless the caller sets
+  `acknowledgeTenantData`. `no-marker` is explicitly NOT a certification and
+  says so in its own `why`; this engine reads names, not content. An empty
+  filter pattern is rejected by name, because `client.ts` sends `""` as
+  `undefined`, which matches every line in the window.
+- **The trailing `:*` trap.** `DescribeLogGroups` returns
+  `…:log-group:/ecs/tenure-prod:*`; the Resource Groups Tagging API returns the
+  same group without it. Joined raw, every log group in the estate misses the
+  tag index and renders as unattributable — a tagging failure that is not there.
+  `normalizeLogGroupArn` strips it once, on the way out of the API.
+
+### Bounds, and the signal when one is hit
+
+| Bound | Value | What is returned when it is hit |
+| --- | --- | --- |
+| `MAX_LOG_GROUP_PAGES` | 20 (about 1000 groups) | `completeness: {kind:"truncated"}`, printed by `logsLines` |
+| `MAX_METRIC_FILTER_READS` | 100 groups | that group's filters are `UNCONFIGURED`, never `EMPTY` |
+| `MAX_EVENTS_RETURNED` | 200 | `hasMore: true` + `moreWhy`; no continuation token is handed back |
+| `MAX_EVENT_PAGES` | 5 | same |
+| `MAX_EVENT_WINDOW_MS` | 7 days | query `REJECTED` as `WINDOW_TOO_WIDE` — rejected, not clamped |
+| `MAX_MESSAGE_CHARS` | 4000 | `messageTruncated: true` plus the original `messageChars` |
+
+### Evidence
+
+```
+npx tsc --noEmit -p apps/system-studio/tsconfig.json     # no error in logs.ts / logs.test.ts
+npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/logs.test.ts
+                                                          # Tests: 33 passed, 33 total
+node --test tests/security/operator-plane-content.test.mjs \
+            tests/architecture/forbidden-clients.test.mjs \
+            tests/security/studio-task-role-is-narrow.test.mjs   # 22 pass, 0 fail
+```
+
+The stand-in answers five capabilities with the shapes the SDK returns and can
+fail each independently. The empty `DescribeLogGroups` answer OMITS `logGroups`
+entirely, which is what AWS actually sends; every fixture ARN carries the
+trailing `:*`. The case named "the four render as four visibly different
+surfaces" asserts the four outcome strings are pairwise distinct, which is the
+assertion a fake returning `[]` regardless would fail.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | Mutation in `logs.ts` | Result |
+| --- | --- | --- |
+| M-L1 | `try { … } catch { return [] }` around the `DescribeLogGroups` page loop | **3 red** — the denial and the throttle both rendered as an empty estate |
+| M-L2 | absent `retentionInDays` classified as `{kind:"retained", days:0}` | **2 red** — "Never expire" printed as a setting somebody chose |
+| M-L3 | `normalizeLogGroupArn` returns the ARN unchanged | **1 red** — every tagged group rendered unattributable |
+| M-L4 | `if (false && sensitivity.kind === "tenant-data" && …)` | **1 red** — a tenant-data group returned its events unacknowledged |
+| M-L5 | `if (false && token)` at the event cap | **1 red** — 200 of 337 events returned with `hasMore: false` |
+| M-L6 | a refused freshness probe returns `SILENT` instead of `UNREADABLE` | **2 red** — a denial and a throttle both rendered as a quiet service |
+| M-L7 | `backoffMs(2)` replaced with a literal `50` | **1 red** — the surface stopped using `throttle.ts`'s schedule |
+| M-L8 | groups past the filter budget report `EMPTY` instead of `UNCONFIGURED` | **1 red** — "no metric filters" claimed for groups nobody read |
+| M-L9 | `if (false && !pattern)` — the empty-pattern guard | **1 red** — an empty filter went to AWS as no filter at all |
+| M-L10 | `if (false && page === MAX_LOG_GROUP_PAGES - 1) seen.truncated = true` | **1 red** — the first 20 pages rendered as the whole estate |
+
+Each was restored immediately; `diff` against the pre-mutation copy is empty and
+the suite returned to 33 green.
+
+### What is NOT closed, and is not claimed
+
+- **The exact age of a group's last event is not readable by this engine.**
+  `logs:DescribeLogStreams` (IAM action `logs:DescribeLogStreams`) is the call
+  that would answer it — `orderBy: LastEventTime`, descending, limit 1 — and it
+  is NOT in the capability registry. This module did not add it. What is built
+  instead is a bounded probe over `logs:FilterLogEvents`, which answers
+  "receiving, or silent for at least N" and says so on the type. Adding the
+  capability is a registry change and a `studio-task-role-is-narrow` review, not
+  a service agent's edit.
+- **`no-marker` is not a clean bill of health.** The tenant-data guard is a rule
+  about NAMES. A group carrying student identifiers under a name that says
+  nothing will not be marked, and the `no-marker` arm's own `why` states this so
+  no surface can render it as "safe".
+- **No page imports this yet.** The module is the data layer; the route that
+  renders it is a surface agent's file, and until that lands nothing in the
+  running product calls `logGroupReadings` or `filterLogEvents`.
+- **No approval, review or certification is recorded here.** Nothing in this
+  module writes an audit event, and nothing in it decides that a retention
+  setting is acceptable — it reports the setting and names the defect.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree after this batch lands, not to concurrent writers.
+
+## STUDIO-070-004 (CloudWatch metric data) — the number behind the alarm
+
+`alarms.ts` reads alarm STATE and, until this module, nothing in this engine had
+ever read a metric. An alarm's state is a step function over a number nobody here
+could look at, so a queue whose backlog went 12 → 190 → 412 in three minutes
+rendered as `OK` right up to the moment it did not. `sqs.ts` said the same thing
+from the other side: its `OLDEST_MESSAGE_NOT_READABLE` names
+`cloudwatch:GetMetricData` as the capability that would answer "how old is the
+oldest message", and that capability had no reader.
+
+`apps/system-studio/src/lib/aws/metrics.ts` is that reader, behind the capability
+the registry already declares (`cloudwatch:GetMetricData`, `resource: "*"`,
+`refreshMs: METRIC_DATA_TTL_MS`). No capability, IAM action or client command was
+added; `client.ts` already dispatches this capability and already drops the
+`Expression` field, so `SEARCH()` remains unreachable from here.
+
+### A gap is not a zero, and that is the whole point
+
+CloudWatch does not publish a datapoint for a period in which nothing happened.
+Filling that period with `0` turns "the agent stopped reporting" into "the queue
+is empty". So `MetricSummary` is a union — `datapoints` | `no-datapoints` |
+`not-read` — with **no optional mean**, which is the `AwsRead<T>` mechanism
+applied one level down: a caller cannot reach `.mean` on a series that has none.
+`Coverage` publishes `expectedDatapoints` (window ÷ period),
+`presentDatapoints`, `missingDatapoints` and `malformedDatapoints`, so sparsity
+is a number on the page rather than something a reader has to notice. A sparse
+series with three datapoints in a sixty-period window has `mean` 20, not 1: the
+mean is over what was published, and the 57 gaps are reported as gaps.
+
+### Refused per metric, not only per call
+
+`GetMetricData` answers 200 and still refuses an individual query with
+`StatusCode: "Forbidden"` when a policy condition scopes the grant. That result
+carries no values, and a reader mapping "no values" to "no data" would print "no
+datapoints in this window" about a metric it was not allowed to read. Every
+series therefore carries its own `SeriesStatus`; `Forbidden`, `InternalError` and
+"CloudWatch returned no result for this id at all" all summarise as `not-read`
+with the status code, never as an absence. `PartialData` is its own arm: the
+summary is still shown, and the sentence says it is over a prefix. The sibling
+metric in the same call is untouched — one refused detail does not collapse the
+row.
+
+### Bounded before it is expensive, refused rather than truncated
+
+`GetMetricData` is billed per metric per request. The caller MUST name an
+explicit window and it is checked (parseable, ordered, at least `MIN_WINDOW_MS`,
+at most `MAX_WINDOW_MS` = 15 days); the implied datapoint count across every
+query is capped at `MAX_TOTAL_DATAPOINTS` (100,800); at most
+`MAX_QUERIES_PER_BATCH` (500, the API's own limit) go in one request and at most
+`MAX_BATCHES` (4) requests are made. Period and statistic are validated against
+what CloudWatch accepts — `ALLOWED_STATS` is a closed set, so metric-math-adjacent
+forms such as trimmed means are refused. **A request that breaks a bound returns
+UNCONFIGURED and no AWS call is made at all**; the test asserts
+`cloudwatch:GetMetricData` and `tag:GetResources` are absent from the recorded
+call list.
+
+Pagination merges results for one id ACROSS pages (a reader that kept the last
+page would return the oldest slice and call it the series), de-duplicates the
+repeated boundary datapoint, and past `MAX_PAGES_PER_BATCH` returns
+`Truncation: "more-available"` naming the affected keys — never a first page
+rendered as the whole window.
+
+### Independent degradation, in three places
+
+One batch refused leaves the batches that answered ACTUAL, with the refused
+batch's keys and its own `describeRead` sentence in `unreadableBatches`. Only when
+NO batch produced a value does the failed reading travel to the top unchanged —
+there is no branch that turns a denial into an array. The tag index is its own
+reading, and the identity is its own reading; a denied `tag:GetResources` gives
+`attribution: unknown`, never `unattributable`, because that sentence would send
+an operator to add a tag that is already there.
+
+`RequestCost` counts only requests that ANSWERED, and says so at the field: a
+refused request is not a metric this account was charged for.
+
+### Evidence
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Unit suite | `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/metrics.test.ts` | **32 passed** |
+| Types | `npx tsc --noEmit -p apps/system-studio/tsconfig.json` | no error in `metrics.ts` / `metrics.test.ts` |
+| Client isolation | `node --test tests/architecture/forbidden-clients.test.mjs tests/security/operator-plane-content.test.mjs` | 11 pass |
+| No literal estate | `node --test tests/security/no-hardcoded-estate.test.mjs` | 3 pass |
+
+The four outcomes are asserted to render as four PAIRWISE DISTINCT strings, and
+the fake is a client rather than a stub: it reads the `MetricDataQueries` it was
+sent, answers per query, returns timestamps NEWEST FIRST (because `client.ts`
+sends `ScanBy: "TimestampDescending"`), and can fail STS, the Tagging API and
+GetMetricData independently. The account id in the fixtures is `123456789012`,
+AWS's own documentation placeholder — no real account, ARN or principal appears
+in this suite.
+
+#### Mutations applied to the production path, and what caught them
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M-M1 | `summarise`'s `not-read` guard switched off (`if (false && status.kind === "not-read")`) | **2 red** — a Forbidden metric summarised as "no datapoint" |
+| M-M2 | the all-batches-failed return replaced with `{ state: "ACTUAL", value: [] }` | **3 red** — DENIED, THROTTLED and EMPTY all rendered as an empty series |
+| M-M3 | `missingDatapoints: Math.max(0, expected - deduped.length)` became `missingDatapoints: 0` | **2 red** — 60 gaps and 57 gaps both reported as none |
+| M-M4 | `backoffMs: backoffMs(2)` became `backoffMs: 50` | **1 red** — `retryAfterMs` 200 instead of `throttle.ts`'s 800 |
+| M-M5 | `if (invalid !== null)` became `if (false && invalid !== null)` | **8 red** — every unbounded, backwards, over-budget and malformed request was sent to AWS |
+| M-M6 | page merge replaced by a fresh `RawSeries` per page (last page wins) | **1 red** — the merged series lost page one |
+| M-M7 | `const region = identityResolved ? identity.value.region : null` became `: "us-east-1"` | **1 red** — the GE-010-007 shape, caught at the assertion that an unresolved identity leaves region null |
+| M-M8 | `if (page === MAX_PAGES_PER_BATCH - 1)` became `if (false && …)` | **1 red** — a truncated series reported `complete` |
+| M-M9 | an unusable datapoint pushed as `{ value: 0 }` instead of counted malformed | **1 red** — a NaN became a zero in the mean |
+| M-M10 | `wantsTags = specs.some(…)` gained a trailing `or true` | **1 red** — the Tagging API was called for a load that could attribute nothing |
+| M-M11 | the tag-index guard in `attributionFor` switched off (`if (false && …)`) | **1 red** — a denied tag index reported the metric `unattributed` |
+
+Each was applied to `metrics.ts` (never to the test's helper), run, confirmed
+red, and restored; the file was diffed byte-for-byte against its pre-mutation
+copy afterwards and the suite returned to 32 green. No `false &&`, `|| true`,
+`// MUTATION` or stub remains in the shipped file — a grep over it for those
+strings returns nothing.
+
+#### What is NOT closed, and is not claimed
+
+- **No page imports this yet.** The module is the data layer; the surface that
+  renders it is another agent's file, and until that lands nothing in the running
+  product calls `metricReadings`. The exported renderers (`metricLines`,
+  `describeSeries`, `describeSummary`, `describeTruncation`,
+  `describeMetricAttribution`) are what a surface is expected to print, so a
+  denial cannot be worded as an absence on one surface and correctly on another.
+- **Metric-math is unreachable, deliberately.** `client.ts` drops `Expression`,
+  so only an explicit namespace/name/dimension triple can be asked for. A caller
+  that wants a ratio computes it from two series.
+- **`GetMetricStatistics` and `ListMetrics` are not read.** Discovering which
+  metrics EXIST is a different capability and this module does not invent one:
+  the caller names the metrics it wants.
+- **The cost figures are counts, not a bill.** They are the billed UNIT
+  (metrics × requests), not a price; the Price List API is another module's read.
+- **Alarm-to-metric joining is not done here.** `alarms.ts` reads alarm state and
+  does not expose the `MetricName`/`Dimensions` an alarm watches; wiring the two
+  together means changing that file, which belongs to whoever owns it.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree after this batch lands, not to concurrent writers.
+
+## STUDIO-070-004 (CloudTrail) — the trail that describes perfectly and records nothing
+
+- [x] `cloudtrail:GetTrailStatus` is read live, per trail, behind the typed capability
+- [x] `cloudtrail:LookupEvents` is read live, bounded, with retention and throttle
+      states kept distinct from "nobody changed it"
+- [x] STUDIO-000-007 — every arm of `AwsRead` is reachable on both reads and each
+      says something visibly different
+- [x] STUDIO-000-009 — region and partition resolve from the trail's own ARN and
+      the resolved identity; no literal region and no `"aws"` partition fallback
+- [x] STUDIO-070-002 — every trail is attributed through `tags.ts`, with a fourth
+      `unknown` answer for a tag index that could not be read
+- [ ] No surface imports it yet. The route that renders it is another agent's file.
+
+**File:** `apps/system-studio/src/lib/aws/trail.ts`
+**Test:** `apps/system-studio/src/lib/aws/trail.test.ts` — 38 tests, green
+(`npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/trail.test.ts`)
+
+### What was actually wrong
+
+`posture.ts` already read `cloudtrail:DescribeTrails` and asked it a
+configuration question — is there an organization trail, is it multi-region, is
+log-file validation on. Every one of those answers is byte-identical for a trail
+that is logging and a trail somebody stopped three weeks ago. `DescribeTrails`
+describes a trail's DEFINITION; it has no field saying the trail is running and
+no field saying the last delivery failed.
+
+Nothing in this repository had ever issued a `GetTrailStatus`. So `/platform`
+could render a green "organization trail, multi-region, with log-file
+validation" row over an account that had recorded nothing since a bucket policy
+changed underneath it, and the first hint would be the day somebody asked who
+deleted a database and there was no answer.
+
+`trail.test.ts` proves the closure directly: the case
+*"the SAME configuration reads healthy or stopped purely from GetTrailStatus"*
+asserts that two loads carrying identical `DescribeTrails` facts — same
+multi-region flag, same validation flag, same bucket — render as different
+surfaces, one `LOGGING —` and one `NOT LOGGING`.
+
+### Three facts, kept apart
+
+| Fact | Read | Failure it catches |
+| --- | --- | --- |
+| the trail EXISTS | `DescribeTrails` | no trail at all |
+| the trail is LOGGING | `GetTrailStatus.IsLogging` | somebody stopped it |
+| the trail is DELIVERING | `LatestDeliveryTime`, `LatestDeliveryError` | bucket policy, KMS key or bucket refusing the write while `IsLogging` stays true |
+
+The third is the quiet one, and it gets its own `LoggingState` arm —
+`logging-delivery-failing` — whose sentence is "LOGGING BUT NOT DELIVERING …
+Events are being captured and lost." A surface that printed `IsLogging` alone
+would be a green light over a silent trail.
+
+`logging-delivery-overdue` is deliberately named as a suspicion and not a
+verdict: `DELIVERY_OVERDUE_AFTER_MS` is six hours, and its `why` says out loud
+that an account with genuinely no API activity looks the same. That is a
+judgement, so it is stated rather than hidden inside a boolean.
+
+### Bounds, and the signal when one is hit
+
+`MAX_TRAIL_STATUS_READS` is 64 and status reads run 6 at a time. Trails past the
+cap carry an UNCONFIGURED status whose `why` says the engine stopped — never
+"healthy". `MAX_LOOKUP_PAGES` is 20 against the `MaxResults: 50` that
+`client.ts` pins, `DEFAULT_MAX_EVENTS` is 500 and `ABSOLUTE_MAX_EVENTS` is 1000.
+Hitting either bound produces `truncation.kind === "more-available"` with the
+continuation token — including the case where the cap cuts the LAST page short
+and there is no token at all, where `nextToken` is null and the truncation
+signal still stands, because events AWS sent were still dropped.
+
+### Three things `LookupEvents` must never be confused with
+
+1. **A throttle is not an empty history.** `LookupEvents` is throttled harder
+   than any other read here. It comes back THROTTLED with `retryAfterMs` from
+   `throttle.ts`'s curve, and the rendered text contains neither "none" nor
+   "0 management event".
+2. **A denial is not an empty history.** DENIED carries the principal,
+   `cloudtrail:LookupEvents` and the pasteable statement, and has no `value`
+   field for a caller to reach.
+3. **A window past retention is not silence.** CloudTrail's event history holds
+   90 days. A query reaching further back returns less and reads exactly like a
+   quiet period, so every result carries a `coverage` union whose
+   `partly-before-retention` arm names the earliest readable moment, computed
+   from the injected clock rather than a literal.
+
+### A deviation, stated
+
+The brief for this batch said "mark it shared where no tag says so". This module
+does not, and neither does `sqs.ts`: `tags.ts` keeps `shared` (somebody decided,
+via the shared sentinel value of `tenure:tenant`) apart from `unattributed`
+(nobody tagged it), because folding them bills an untagged resource to a tenant
+that did not create it. A fourth arm, `unknown`, covers the case the three
+cannot express — the tag index is its own AWS read and it can be denied.
+
+### What this module deliberately does NOT carry
+
+`requestParameters` and `responseElements` are dropped from the raw
+`CloudTrailEvent` blob and never surfaced. They carry the ARGUMENTS of the call,
+and this console renders into an operator plane that must not become a second
+copy of student data. `detailsFrom` is a whitelist of five fields, and the test
+*"the request payload never leaves the raw event"* asserts that a fixture blob
+containing a password and a learner email address produces a serialised result
+containing neither, while `sourceIPAddress` and the principal ARN survive.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M-T1 | `if (false && !status.isLogging)` in `loggingStateOf` | **2 failed, 36 passed** — a stopped trail rendered as logging |
+| M-T2 | the non-ACTUAL listing branch in `trailReadings` replaced with an ACTUAL `value: []` | **5 failed, 33 passed** — a denial rendered as an empty estate |
+| M-T3 | `logging-delivery-failing` pushed onto `healthy` in `deliveryHealth` | **1 failed, 37 passed** — a trail losing events read as logging |
+| M-T4 | the cap branch guarded with `&& false` | **2 failed, 36 passed** — a truncated answer claimed to be complete |
+| M-T5 | `RETRY.backoffMs` replaced with a literal `50` | **3 failed, 35 passed** — the surface stopped using `throttle.ts`'s schedule |
+| M-T6 | a denied tag index returned `{ kind: "unattributed" }` | **1 failed, 37 passed** — "we could not look" reported as "no tag" |
+| M-T7 | the retention comparison guarded with `false &&` | **1 failed, 37 passed** — a 200-day window claimed full coverage |
+| M-T8 | `GetTrailStatus` addressed by `configuration.name` instead of the ARN | **12 failed, 26 passed** — shadow trails answered `TrailNotFoundException` |
+| M-T9 | `detailsFrom` returned the whole parsed blob | **2 failed, 36 passed** — the request payload reached the render |
+| M-T10 | the missing-`IsLogging` throw guarded with `false &&` | **1 failed, 37 passed** — a status without `IsLogging` defaulted instead of erroring |
+| M-T11 | `region: callerRegion` regardless of the trail's ARN | **1 failed, 37 passed** — a us-east-1 trail reported as eu-west-2 |
+| M-T12 | the window validation guarded with `false &&` | **2 failed, 36 passed** — an inverted window sent to AWS and rendered as no events |
+
+Each was restored immediately and the suite returned to 38 green. A final grep
+for `MUTATION`, `false &&` and `&& false` across both files returns only
+legitimate `.toBe(false)` assertions in the test.
+
+### What is NOT closed, and is not claimed
+
+- **No page imports this yet.** The module is the data layer; the route that
+  renders it is another agent's file, and until that lands nothing in the
+  running product calls `trailReadings` or `lookupManagementEvents`. The
+  production path is the default `liveGateway()` branch of both exported
+  functions.
+- **Not verified against a real AWS account.** There is no AWS Organization and
+  no credentialed environment available to this agent, so every reading here is
+  proven against a stand-in that reproduces the SDK's response and error shapes.
+  Nothing in this entry claims a live call was made, and no account id, ARN or
+  region in the test names a real resource — the account is the documentation
+  placeholder `123456789012`.
+- **`DescribeTrails` is not paginated by this engine** because the API is not
+  paginated — `client.ts` sends `DescribeTrailsCommand({})` and CloudTrail
+  returns the whole `trailList`. The pagination bound lives on `LookupEvents`,
+  which is paginated.
+- **`ListTrails` is not read**, so trails that exist in regions this engine is
+  not calling from and are not multi-region replicas are not seen. That needs a
+  capability the registry does not hold; adding one is not this agent's file.
+- **Event data events are out of scope.** `LookupEvents` returns MANAGEMENT
+  events only, by the API's own definition. Reading S3 or DynamoDB data events
+  needs a Lake query or an Athena table over the bucket, neither of which is a
+  capability in the registry.
+- **`DELIVERY_OVERDUE_AFTER_MS` is a judgement, not a fact AWS states.** Six
+  hours, argued in the module header, and its rendered sentence says an idle
+  account looks the same.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree after this batch lands, not to concurrent writers.
+
+---
+
+### Secrets Manager joins the live AWS reads — STUDIO-080-001 (partial), STUDIO-000-007, STUDIO-040-005 (extended)
+
+**No checkbox is ticked by this entry.** STUDIO-080-001 asks for a
+cross-account, cross-region inventory carrying cost, drift, retention and
+deletion behaviour; what landed is one service's slice of it, in one region, and
+saying otherwise would be a sign-off nobody gave. STUDIO-040-005 stays as it is —
+it is about resolving a manifest's secret REFERENCE, which `secret-refs.ts`
+already does; this is the inventory half beside it. The items stay as they are.
+
+- Status of this slice: PASS
+- Code: `apps/system-studio/src/lib/aws/secrets.ts`
+- Tests: `apps/system-studio/src/lib/aws/secrets.test.ts` — 37 cases, all passing
+  under `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/secrets.test.ts`
+- Evidence: twelve mutations applied to the production path, twelve caught after the
+  suite was strengthened, all restored (M-S1 … M-S12 below); `md5sum` of the file
+  after the last restore is identical to the pre-mutation snapshot.
+
+**What it reads.** `secretsmanager:ListSecrets` paged by `NextToken`, and
+`secretsmanager:DescribeSecret` per secret: name, ARN, KMS key, rotation state,
+rotation schedule, rotation Lambda, last-rotated, last-changed, last-accessed,
+next-rotation, created, owning service, deleted-date, and the replication status
+that says which OTHER regions a secret's material has been copied into. Both
+capabilities were already in the registry and in `client.ts`. Only one was
+called, by `secret-refs.ts`, for one named reference at a time — so the service
+could confirm a reference it was handed and could not enumerate anything. The
+2026-08-13 audit ends with a shared secret in Secrets Manager and a sentence
+saying it "should be rotated afterwards"; this reader is how that stops being a
+note in a handoff document.
+
+**It cannot read a value, and the argument is structural rather than a
+convention.** The command that returns a secret's material is not imported here,
+not imported by `client.ts`, and absent from `capabilities.ts`; `call()` in
+`client.ts` switches on the capability so "send this arbitrary command" is not
+expressible. `secret-refs.test.ts` fails the build if that command's name appears
+in code anywhere under `apps/system-studio/src`, and `secrets.test.ts` asserts it
+over this file specifically — assembling the forbidden string from parts, because
+writing it out would make the test file the offender the guard deletes.
+
+**Three answers where a lesser reader has one number.** "Which secrets have no
+rotation", "which are past their interval" and "which are scheduled for deletion"
+are the questions an operator asks, and each is a named list carrying the
+attribution, not a count. `SecretPosture` is a union whose `unknown` arm is what a
+refused listing produces: there is no arrangement of empty arrays that can say
+"we were not allowed to look", which is why `{noRotation: []}` off a DENIED read
+is not reachable.
+
+**A cron() rotation schedule is not converted into an interval.** A cron
+expression can mean "the first Monday of every third month". `RotationSchedule`
+has a `cron` arm carrying the expression and saying the interval is not computed;
+such a secret is decided from AWS's own `NextRotationDate` or lands in
+`undetermined`, never in `overdue`. A guessed interval is how a secret is reported
+late against a cadence nobody set. Equally, a configured rotation that has NEVER
+run is `never-rotated` and lands in `undetermined` rather than in the healthy
+count — "0 days overdue" is a number where a sentence belongs.
+
+**The deletion recovery window is bounded, not stated.** `RecoveryWindowInDays`
+is an argument to `DeleteSecret` and is returned by no read this engine holds. So
+the module states what it observed — the moment deletion was requested — plus the
+fact that carries the information: the secret is still being LISTED, and a secret
+whose window has closed is permanently deleted rather than listed, so the window
+is still running as of the reading. The end of the window is given only as AWS's
+documented 7-to-30-day bound, labelled as a bound. A single date there would have
+been an invention.
+
+**Pagination is walked to completion, bounded, and says when it stopped.**
+`MAX_LIST_PAGES` is 20 at the API's 100 per page. `sqs.ts` throws on reaching its
+bound; this module takes the third option and renders what it read while SAYING
+it is partial — `PaginationBound.truncated` — and that qualifier travels onto the
+posture line, so "3 have no rotation" is never read as a fact about the account.
+
+**One denied sub-call degrades one row.** `DescribeSecret` is granted in the
+registry only on `arn:*:secretsmanager:*:*:secret:tenure/*`, so a refusal on any
+secret outside that namespace is EXPECTED, not exceptional. The row stays,
+reports its rotation posture from the listing, and carries DENIED naming
+`secretsmanager:DescribeSecret` with the scoped statement that would widen it —
+never `secretsmanager:ListSecrets`, which the operator already holds. A refused
+detail renders through `describeRead` and never as "not replicated to any other
+region".
+
+**A denied tag read does not become an untagged estate.** `attributionOf({})`
+answers `unattributed`, which MEANS "nobody tagged this". `SecretAttribution` has
+a fourth arm, `unknown`, and carries the source that decided it — because this
+reader has two: the Resource Groups Tagging API index `tags.ts` owns, used first
+as every module in this directory does, and the secret's OWN `Tags`, which
+`ListSecrets` returns from the service that owns them and which is used when the
+index does not carry the ARN or could not be read. An attribution from the owning
+service beats "unknown"; discarding it to keep a rule tidy would have been
+throwing a fact away.
+
+**Region and partition come from the ARN AWS returned and from the resolved
+identity.** No region literal and no `"aws"` fallback appears in the file;
+`tests/security/no-hardcoded-estate.test.mjs` passes over it. Where AWS returned
+no ARN the module refuses to assemble one — a secret ARN carries a
+six-character suffix AWS generates, so an assembled ARN resolves to nothing —
+and says so in `arnProvenance` rather than going quiet.
+
+**The throttle schedule is `throttle.ts`'s.** `readAws` is given
+`attempts: READ_ATTEMPTS` and `backoffMs: backoffMs(2)`; the test asserts the
+reported `retryAfterMs` is 800, which is that curve and not a literal.
+
+#### A guard of mine that could not fail, found by mutating it
+
+`projectEntry` is a whitelist: it is the layer that stops material in an API
+response reaching a reading. Mutating it to `return { ...raw }` left the whole
+suite GREEN, because no raw entry escapes `secretReadings` today — so the layer's
+removal was invisible, which is the exact shape this programme has shipped five
+times. It is now exported and asserted directly, on the grounds that it is on the
+production path for every entry of every page and is the layer that survives a
+future change which starts carrying an entry onto a row. The mutation is red at
+37 cases. Recorded here rather than quietly fixed, because the interesting fact
+is that the first version of the suite did not see it.
+
+#### Mutations applied to the production path, and what caught them
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M-S1 | `try { … } catch { return { entries: [], pagination: complete } }` around the `ListSecrets` page call | **5 red** — a denial, a throttle, an empty account and the posture all rendered identically |
+| M-S2 | `secretPosture`'s non-ACTUAL guard replaced with `secrets.state === "ACTUAL" ? secrets.value : []` | **3 red** — a refused listing reported "every secret that was read has rotation configured" |
+| M-S3 | the `truncated = true` signal replaced with a bare `break` | **1 red** — a partial listing rendered as the whole estate |
+| M-S4 | `rotationAgeOf`'s `never-rotated` arm returns `within-interval` | **1 red** — a rotation that had never run counted as healthy |
+| M-S5 | `deletionStateOf` returns `{kind:"active"}` unconditionally | **1 red** — a secret in its recovery window vanished from the posture |
+| M-S6 | `attributionFor`'s `unknown` arm replaced with `unattributed` | **3 red** — a denied tag index reported the estate as untagged |
+| M-S7 | `backoffMs(2)` replaced with a literal `50` | **1 red** — the surface stopped using `throttle.ts`'s schedule |
+| M-S8 | `describeDetail` falls through to "not replicated to any other region" | **2 red** — a refused and a throttled detail both read as a reassuring default |
+| M-S9 | the page loop `break`s unconditionally after the first page | **2 red** — three pages of secrets became one |
+| M-S10 | `projectEntry` replaced with `return { ...raw }` | **1 red** — but only after the suite was strengthened; see below |
+| M-S11 | `secretPosture`'s EMPTY arm disabled, so an empty account falls through to `unknown` | **1 red** — a read that answered "there are none" reported "we could not look" |
+| M-S12 | `describeSecretPosture`'s empty-account sentence disabled | **1 red** — an account with no secrets rendered as a clean bill of health |
+
+Each was restored immediately and the suite returned to 37 green; the file's
+`md5sum` after each restore is the pre-mutation one
+(`9faf9d28c0d8722d50c5d02a5fb70f8f`).
+
+#### What is NOT closed, and is not claimed
+
+- **No page imports this yet.** The module is the data layer; the surface that
+  renders it is another agent's file, and until that lands nothing in the running
+  product calls `secretReadings`.
+- **One region.** `ListSecrets` is regional and this engine resolves one region
+  from the identity. A secret that exists only in another region is not in this
+  reading, and the module does not pretend otherwise — `PrimaryRegion` and the
+  replication status are reported so a reader can see where material has been
+  copied, but a cross-region sweep is STUDIO-080-001's scope, not this slice's.
+- **Details are read for the first `MAX_DETAIL_READS` (200) secrets.**
+  `DescribeSecret` has no bulk form and shares an account-wide throttle. Secrets
+  past the budget carry UNCONFIGURED, never "no replicas".
+- **Nothing here decides whether a secret is UNMANAGED.** No
+  `aws_secretsmanager_secret` inventory exists in `infrastructure/` to compare
+  against, so an expected-set comparison would be a claim this repository cannot
+  support; `drift.ts` owns that question.
+- **Nothing here rotates, deletes, restores or tags anything.** The reversible
+  mutation set in `src/lib/aws/mutate.ts` is untouched, and no rotation or
+  deletion capability was added to the registry. This reader makes the 2026-08-13
+  audit's leftover VISIBLE; a human still has to rotate it.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. It is a shared generated artefact that every service agent in
+  this batch stales; regenerating it belongs to one `npm run generate` against a
+  clean tree, not to concurrent writers.
+
+---
+
+### The VPC network joins the live AWS reads — STUDIO-070-004 (NETWORK adapter)
+
+**No checkbox is ticked by this entry.** The eight EC2 describes are wired,
+typed and mutation-proven, but nothing renders them: no route, page or
+`SURFACES` entry imports `network.ts` today, so no operator can see any of it.
+Ticking STUDIO-070-004 again on that basis would be a sign-off nobody gave. The
+same is true of STUDIO-080-001 — this is one service's slice of an estate
+inventory, in one region — so that item is left exactly as it is.
+
+- **Was**: `infrastructure/terraform/vpc.tf` and `security_groups.tf` build a
+  network the console could not see. An `aws_vpc_security_group_ingress_rule`
+  with `cidr_ipv4 = "0.0.0.0/0"` on the database port rendered as nothing at
+  all, and a subnet named `…-private-b` whose route table sends `0.0.0.0/0` to
+  an internet gateway rendered as nothing at all.
+- **Now**: `apps/system-studio/src/lib/aws/network.ts`. `networkReadings()`
+  resolves identity, reads the tag index, and issues all eight EC2 describes —
+  `ec2:DescribeVpcs`, `DescribeSubnets`, `DescribeRouteTables`,
+  `DescribeInternetGateways`, `DescribeNatGateways`, `DescribeVpcEndpoints`,
+  `DescribeNetworkAcls` and `DescribeSecurityGroups` — each as its own
+  `AwsRead<PagedList<T>>`, plus an `InternetExposureState`, the drift
+  candidates, the misnamed subnets, an explicit `asOf` and all eight
+  capabilities' own `refreshMs` read from `capabilities.ts` rather than
+  retyped. No capability was added: all eight already exist in the registry and
+  all eight are already granted in `infrastructure/studio/iam.tf`.
+- **Public is decided by the ROUTE TABLE, never by the name.**
+  `subnetReachability()` finds the route table explicitly associated with the
+  subnet, falls back to the VPC's MAIN table when there is none — which is what
+  an unassociated subnet actually uses — and answers `unknown` when it finds
+  neither. A route counts only when `State === "active"`, so a blackholed route
+  to a detached gateway does not make a subnet public. `igw-` is AWS's own
+  resource-id prefix, not a label; `eigw-` is excluded because an egress-only
+  gateway accepts no inbound connection. `MapPublicIpOnLaunch` is carried as
+  evidence and is not the classifier. The subnet's name is read for exactly one
+  purpose — `contradictorySubnetNames()`, which reports a subnet named
+  "private" that the routes prove is public.
+- **0.0.0.0/0 and ::/0 on anything but 80 and 443 is the finding.**
+  `opensBeyondWeb()` requires the covered port range to be a SUBSET of {80,
+  443}, so a rule spanning 80–443 is a finding — it also opens 81 through 442 —
+  and `-1` and ICMP are findings by construction. Egress open to the world is
+  read, reported and deliberately NOT a finding: it is the AWS default and
+  flagging it would bury the ingress findings.
+- **An unused security group is not claimed, because it cannot be proven.**
+  `ec2:DescribeNetworkInterfaces` is not in the registry and is the only call
+  that answers "what is this attached to". `SecurityGroupUsage` therefore has a
+  `referenced` arm for the attachments this engine CAN see — another group's
+  rule naming it, a VPC endpoint listing it — and a `no-attachment-visible` arm
+  naming that missing capability. The renderer never prints the word "unused",
+  and a test asserts the rendered surface does not contain it.
+- **Sub-calls degrade independently.** A refused `DescribeSecurityGroups` leaves
+  the VPCs, subnets and route tables ACTUAL; a refused `DescribeVpcEndpoints`
+  makes only group USAGE `unknown` and suppresses the drift list rather than
+  reporting every group as drift; a refused `DescribeRouteTables` makes every
+  subnet's reachability `unknown` carrying the route-table denial's own
+  sentence — never `private`, which is the reassuring default the read plane
+  exists to prevent.
+- **Pagination is bounded and says so.** Every describe walks `NextToken` to
+  completion up to `MAX_PAGES` (40 pages × `MaxResults: 100`). Hitting the cap
+  sets `truncated` on the `PagedList` and the rendered line says *"TRUNCATED at
+  the 40-page cap; there were more, and this is not the whole estate"*. The
+  pages already read are KEPT rather than thrown away, because an estate larger
+  than the cap must not render as nothing at all.
+- **Residency**: region and partition come from the resolved identity, and each
+  resource's account from its own `OwnerId` when AWS returned one. There is no
+  region literal and no `"aws"` partition fallback in the file; with identity
+  unresolved no ARN is assembled and the fields are null. A GovCloud identity
+  produces `arn:aws-us-gov:ec2:us-gov-west-1:…` and the whole rendered surface
+  contains no commercial region.
+- **Attribution** goes through `tags.ts` and the Resource Groups Tagging API,
+  with the resource's own `Tags` — which every EC2 describe returns — as the
+  first source. `NetworkAttribution` therefore has no `unknown` arm, and that
+  is a deliberate difference from `sqs.ts`: `ListQueues` returns no tags, so
+  the index is its only source and "we could not look" is real; a described EC2
+  resource is one whose tags were read. `source` records which read answered.
+- **Mutation proven on the production path**, nine mutations applied to
+  `network.ts` (never to the test, the fake or a helper), each run, each red,
+  each restored:
+
+| # | mutation applied to `network.ts` | result |
+|---|---|---|
+| M-N1 | `internetExposure` returns `closed` for a non-ACTUAL security-group read | RED ×3 |
+| M-N2 | `subnetReachability` answers `private` when the route tables were not read | RED ×1 |
+| M-N3 | `subnetReachability` classifies from the route table's NAME instead of its routes | RED ×1 |
+| M-N4 | `opensBeyondWeb` drops the multi-port rule, so 0.0.0.0/0 on 80–443 passes | RED ×1 |
+| M-N5 | `pageThrough` stops at the cap silently instead of setting `truncated` | RED ×1 |
+| M-N6 | usage reports a drift candidate even when the endpoint read failed | RED ×1 |
+| M-N7 | the retry schedule retyped as a literal `50` instead of `throttle.ts`'s `backoffMs(2)` | RED ×1 |
+| M-N8 | `ec2Arn` ignores the resource's `OwnerId` and uses the caller's account | RED ×1 |
+| M-N9 | attribution consults the tag index first, so a denied index loses the tenant | RED ×2 |
+
+  All nine restored; the suite returned to 37/37 green. `network.ts` contains no
+  `false &&`, no `|| true` and no mutation stub.
+
+#### Evidence
+
+- `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/network.test.ts`
+  — **37 passed, 37 total.**
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — no error in
+  `network.ts` or `network.test.ts`. The five remaining errors are in four other
+  agents' concurrent files (`app/page.tsx`, `app/platform/page.tsx`,
+  `lib/aws/elasticache.ts`, `lib/aws/keys.test.ts`).
+- `node --test tests/security/no-hardcoded-estate.test.mjs` — 3/3 pass.
+- `node --test tests/architecture/forbidden-clients.test.mjs` — 6/6 pass.
+- `node --test tests/security/operator-plane-content.test.mjs` — 5/5 pass.
+- The four outcomes are separated by assertion, not by claim: a populated list,
+  an empty-but-successful list, `AccessDeniedException` and `ThrottlingException`
+  produce four pairwise-distinct rendered surfaces, asserted twice — once over
+  `ec2:DescribeSecurityGroups` and once over `ec2:DescribeVpcs`.
+
+#### What is NOT closed, and is not claimed
+
+- **No security group can be proven unused.** `ec2:DescribeNetworkInterfaces` is
+  not in `capabilities.ts` and not granted in `infrastructure/studio/iam.tf`.
+  Until both land, this module reports *drift candidates* and says what it did
+  not read. Adding the capability is the registry owner's file, not this one's.
+- **Managed prefix list contents are not read.**
+  `ec2:GetManagedPrefixListEntries` is not a capability this engine holds, so a
+  rule sourced from `pl-…` is shown as a named source and is neither counted as
+  world-reachable nor treated as safe.
+- **Nothing renders this yet.** `networkReadings()` reaches the real
+  `EC2Client` through `liveGateway()` → `client.ts`, and the tests drive that
+  exact function — but `SURFACES` in `lib/aws/result.ts` has no network entry
+  and no route or page imports the module. That is the surface agent's item.
+- **No EC2 read has been performed against a real AWS account.** Every case is a
+  stand-in gateway raising the answers the real client raises. The same gate
+  blocks GE-010 and STUDIO-GATE-010.
+- **Flow logs, Transit Gateway and peering are not read.** Nothing in the
+  registry covers `ec2:DescribeFlowLogs`, `ec2:DescribeTransitGateways` or
+  `ec2:DescribeVpcPeeringConnections`, so a route pointing at a `tgw-` or
+  `pcx-` target is reported as that target and is not followed.
+- **No mutating EC2 call exists in this module or reachable from it.**
+  `ec2:AuthorizeSecurityGroupIngress`, `RevokeSecurityGroupIngress` and
+  `ModifySecurityGroupRules` are absent and stay absent: seeing an open port
+  must not become the ability to change it.
+
+## STUDIO-070-004 (LOADBALANCER) — the front door, and whether anything is served
+
+- [x] **STUDIO-070-004 (load balancer adapter)** — Read every ALB/NLB, its
+  scheme, its listeners with their protocols and certificate ARNs, its target
+  groups, and `DescribeTargetHealth` for each, back through the typed
+  capabilities. The service was DARK: `infrastructure/terraform/alb.tf`
+  provisions a load balancer, a target group and a listener, and nothing in the
+  running product had ever issued an `elasticloadbalancing:*` call.
+
+**Files:** `apps/system-studio/src/lib/aws/loadbalancer.ts` (production),
+`apps/system-studio/src/lib/aws/loadbalancer.test.ts` (28 cases).
+
+### Why this one mattered
+
+`ecs:DescribeServices` reports the tasks ECS believes it started.
+`elasticloadbalancing:DescribeTargetHealth` reports how many of them the load
+balancer will actually route to. Those two numbers disagree for the whole
+duration of a failed deployment, silently — a service reads RUNNING while every
+target is `draining` or `unhealthy`, and the estate is down. That is why
+`TARGET_HEALTH_TTL_MS` is 10s where everything else in this module is 180s.
+
+An unhealthy target carries its reason CODE and its description.
+`Target.ResponseCodeMismatch` (the app answered, wrongly) and `Target.Timeout`
+(the app did not answer) send an operator to completely different places.
+`HealthReason` is a union whose `known: false` arm has NO `code` field, so a
+surface cannot print an empty string where the one deciding token belongs.
+
+### Five capabilities, five readings, degrading independently
+
+`DescribeLoadBalancers`, `DescribeListeners`, `DescribeTargetGroups`,
+`DescribeTargetHealth` and `DescribeRules` are five IAM actions and a role is
+routinely granted some and not others. Each is its own `AwsRead`, so a denied
+`DescribeTargetHealth` renders the minimum statement for the action that is
+ACTUALLY missing, does not collapse the load balancer row, does not remove it,
+and — the part that matters — does not render as "0 unhealthy targets".
+
+### The plaintext-listener finding, and the claim it refuses to make
+
+`alb.tf` line 43 is `protocol = "HTTP"` with a forwarding default action, so
+the estate's own listener IS the finding. But an HTTPS redirect can live in a
+listener RULE, and rules are a separate capability: when the default action is
+not a redirect and `DescribeRules` was refused, the posture is
+`plaintext-redirect-unknown` and a `redirect-unknown` finding — never
+`plaintext-no-redirect`. Reporting a finding this engine did not establish is
+the same class of defect as suppressing one it did.
+
+### Mutation proofs — the production path, not a helper
+
+Ten mutations applied to `loadbalancer.ts` one at a time, suite run, restored
+from a byte-identical backup. Baseline 28/28 green.
+
+| # | Mutation applied to `loadbalancer.ts` | Result |
+|---|---|---|
+| M-LB1 | `try { … } catch { return [] }` around the `DescribeLoadBalancers` page walk | **3 red** — the denial and the throttle both rendered as an empty estate |
+| M-LB2 | `servingStateOf` returns `all-serving` for every non-value health read | **1 red** — a refused target-health call read as healthy |
+| M-LB3 | `refineWithRules` promotes an unreadable rules read to `plaintext-no-redirect` | **1 red** — a finding was claimed that was never established |
+| M-LB4 | `pageThrough` returns after the first page regardless of the marker | **2 red** — 3 load balancers became 1, and the cap signal vanished |
+| M-LB5 | `parseTargetHealth` invents a reason code when AWS gave none | **1 red** — "no reason code" became a fabricated `unhealthy` code |
+| M-LB6 | `attributionFor` answers `unattributed` when the tag index was unreadable | **1 red** — a denied `tag:GetResources` claimed the tag was missing |
+| M-LB7 | `parseScheme` defaults an unstated scheme to `internal` | **3 red** (after the suite was strengthened — see below) |
+| M-LB8 | region/partition replaced with literal `"aws"` / `"us-east-1"` | **1 red** — the GE-010-007 residency shape; the GovCloud case caught it |
+| M-LB9 | `backoffMs(2)` replaced with a literal `50` | **1 red** — the surface stopped using `throttle.ts`'s schedule |
+| M-LB10 | the truncation signal pinned to `{ kind: "complete" }` | **1 red** — "there were more" disappeared |
+
+**M-LB7 SURVIVED the first pass.** No case fed a load balancer whose `Scheme`
+AWS did not state, so defaulting it to the reassuring `internal` was invisible.
+Three cases were added — absent `Scheme`, an unrecognised `Scheme`, and the
+three schemes rendering as three distinct sentences — and the mutation then took
+3 red. Recorded rather than quietly fixed: a mutation that survives is the only
+evidence a suite has a hole, and the hole was real.
+
+Every mutation was restored immediately; the file is byte-identical to its
+pre-mutation state (verified with `Buffer.compare`) and the suite returns 28
+green.
+
+### What is NOT closed, and is not claimed
+
+- **No page imports this yet.** The module is the data layer; the surface that
+  renders it is another agent's file. Nothing in the running product calls
+  `loadBalancerReadings` until that lands.
+- **Target groups not attached to a load balancer are not listed.**
+  `DescribeTargetGroups` is called with `LoadBalancerArn` per load balancer,
+  which is the scoping that makes the call bounded. An orphaned target group is
+  real and this module does not claim to see it.
+- **Classic (v1) load balancers are not read.** The registry holds the v2
+  Describes only, and this module does not get to add a capability.
+- **Access-log configuration is not read.**
+  `DescribeLoadBalancerAttributes` is not in the registry, so this module says
+  nothing about whether access logging is on. `alb.tf` sets `enabled = false`;
+  that is Terraform's claim, not a read.
+- **`isDefault` on a listener certificate is `boolean | null`.**
+  `DescribeListeners` omits the flag on the default certificate it returns, and
+  the additional SNI certificates need `ListCertificates`, which is not in the
+  registry. Null is "AWS did not say", carried rather than guessed.
+- **Nothing here was verified against a live AWS account.** Every case runs
+  against a stand-in gateway. No credentials were used, no AWS call was made,
+  and no account id, ARN or region in the tests or this entry is a real Tenure
+  resource — the account throughout is AWS's documentation placeholder
+  `123456789012`.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree after this batch lands, not to concurrent writers.
+
+## STUDIO-070-004 (ElastiCache) — the cache the product runs on, read for the first time
+
+`infrastructure/terraform/elasticache.tf` creates one `aws_elasticache_cluster`
+— `engine = "redis"`, `engine_version = "7.1"`, `num_cache_nodes = 1`, a
+`redis7` parameter group whose only declared parameter is
+`maxmemory-policy = allkeys-lru` — and `ecs.tf` hands its address to every task
+as `REDIS_URL`. No `at_rest_encryption_enabled`, no
+`transit_encryption_enabled` and no `auth_token` appear in that file, and no
+`aws_elasticache_replication_group` is declared at all. Nothing in the running
+product had ever issued an ElastiCache call, so every one of those facts was
+invisible: "the cache is fine" and "nobody has ever looked at the cache" were
+the same blank panel.
+
+`apps/system-studio/src/lib/aws/elasticache.ts` is the read. It answers the
+three questions an operator asks, and it is careful about the difference
+between an answer and a silence.
+
+**"Is the cache encrypted" has four answers and only one of them is yes.**
+`EncryptionState` keeps `enabled`, `disabled` and `unstated` apart. AWS's
+documented default for an omitted `AtRestEncryptionEnabled` is `false`, and the
+module still refuses to render the omission as the boolean: "AWS said false" is
+a finding to fix and "AWS did not say" is a question to go and answer, and
+neither may print the word *encrypted*. The estate-level `EncryptionPosture`
+therefore has a distinct `unstated` arm and reaches `encrypted` only when every
+cache stated both fields explicitly. `describeEncryptionState` is the one
+renderer, so the arms cannot be worded correctly on one surface and
+reassuringly on another.
+
+**"Is it a single node with no failover" is a state, not a `1` in a column.**
+A standalone cluster with `NumCacheNodes = 1` and no `ReplicationGroupId` gets
+the `single-node` arm of `FailoverPosture`, which renders as "SINGLE NODE, NO
+FAILOVER — when the node goes, the cache goes". A cluster that IS a
+replication-group member does not answer the question at all: its arm points at
+the group, because a member claiming "no failover" while its group has
+`AutomaticFailover = enabled` is a false alarm an operator would act on.
+
+**"Is there a version upgrade pending that will restart it" names the window.**
+`PendingModifiedValues` becomes typed `PendingChange`s, and `restarts` is set
+per field rather than per object: an `EngineVersion` or `CacheNodeType` change
+takes the nodes down, an `AuthTokenStatus` rotation does not, and reporting the
+second as an interruption is how a real one stops being read.
+`ScheduledInterruption` carries the restarting subset separately and prints the
+parsed `PreferredMaintenanceWindow` beside it — "RESTARTS at Sunday 05:00 to
+Sunday 06:00 UTC". `AutoMinorVersionUpgrade` is reported whether or not anything
+is queued, because with it on AWS may take the node through a minor upgrade in
+that window without anybody queueing a thing.
+
+**What this module cannot read is a value, not an omission.** Whether an engine
+version is behind AWS's current default needs
+`elasticache:DescribeCacheEngineVersions`, which is NOT in `capabilities.ts`,
+and a service agent does not get to add a capability. So every cluster carries a
+`VersionCurrency` whose only arm is `NOT_READABLE`, naming the capability and
+the IAM action that would answer it and ending "Unknown, not up to date". This
+is the `sqs.ts` `OldestMessageAge` pattern: a field a surface must render rather
+than one it can forget.
+
+**Pagination runs to completion, with a bound that reports itself.** Both
+listings walk `Marker` to the end, capped at `MAX_PAGES` (20 pages of
+`MaxRecords: 100` in `client.ts`). Hitting the cap is neither a silent short
+list nor an error carrying none of the rows: `Truncation` is a three-armed type
+— `complete`, `truncated` (carrying `pagesRead`, `nextMarker` and the sentence
+"is NOT the whole estate"), and `not-read` — and `elastiCacheLines` appends it
+to the listing line OUTSIDE `describeRead`, because the DENIED and THROTTLED
+arms deliberately drop `describeRead`'s subject and "was this list complete"
+must survive the states that make it matter most.
+
+**Sub-calls degrade independently.** Four reads happen per load and each fails
+on its own: the cluster listing, the replication-group listing, the tag index,
+and one `DescribeCacheParameters` per DISTINCT parameter group (deduplicated —
+two clusters sharing `tenure-prod-redis7` produce one API call, asserted). A
+denied `elasticache:DescribeReplicationGroups` leaves every cluster row intact
+and adds its own sentence to the `unreadable` list that qualifies both the
+encryption posture and the interruption state. A denied
+`DescribeCacheParameters` renders as "refused
+elasticache:DescribeCacheParameters" on that cluster's row — naming the action
+that is actually missing, not the listing's, which is the lesson `retained.ts`
+paid for with `backup:ListBackupVaults`.
+
+**Region and partition come from the resolved identity and from the ARNs AWS
+returned.** `deriveClusterArn` and `deriveReplicationGroupArn` return `null`
+rather than half an ARN when identity is unresolved, because half an ARN joins
+against the tag index, matches nothing, and reads exactly like an untagged
+cluster. There is no literal region and no `"aws"` partition fallback in the
+file; the GovCloud case asserts the whole rendered surface contains no
+`us-east-1`.
+
+**The throttle schedule is `throttle.ts`'s.** `readAws` is given
+`attempts: READ_ATTEMPTS` and `backoffMs: backoffMs(2)`; the test asserts the
+reported `retryAfterMs` is `800`, which is that curve and not a literal retyped
+here.
+
+#### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M-E1 | `gw.call("elasticache:DescribeCacheClusters", …).catch(() => ({}))` in `readClusters` | **4 red** — the denial and the throttle both rendered as an empty estate, and the four outcomes collapsed to three distinct surfaces |
+| M-E2 | `encryptionStateOf`: `if (value === true)` becomes `if (value !== false)` | **2 red** — a cluster AWS said nothing about reported "at rest: encrypted" |
+| M-E3 | `pagedRead` returns `{ items, truncation: { kind: "complete" } }` at the cap | **1 red** — 25 pages of clusters rendered as a complete 20-cluster estate |
+| M-E4 | `clusterFailover`: `nodes <= 1` becomes `nodes < 1` | **3 red** — the single-node pilot cache stopped saying "SINGLE NODE, NO FAILOVER" |
+| M-E5 | `attributionFor` returns `{ kind: "unattributed" }` when the tag index was refused | **2 red** — a denied `tag:GetResources` reported the cache as missing `tenure:tenant` |
+| M-E6 | `RETRY.backoffMs`: `backoffMs(2)` becomes `50` | **1 red** — the surface stopped using `throttle.ts`'s schedule |
+| M-E7 | `scheduledInterruption`: `restarting: changes.filter(…)` becomes `restarting: changes` | **1 red** — an online auth-token rotation was reported as a SCHEDULED INTERRUPTION |
+| M-E8 | `readParameters` capability becomes `"elasticache:DescribeCacheClusters"` | **1 red** — a refused parameter read handed the operator a policy for an action they already held |
+| M-E9 | `deriveArn` returns `arn:aws:elasticache:us-east-1:…` | **2 red** — the GE-010-007 shape; a GovCloud cache placed in the commercial partition |
+| M-E10 | `pagedRead` loop bound `page < MAX_PAGES` becomes `page < 1` | **2 red** — a three-page listing rendered as one cluster, and the cap stopped being where the truncation signal comes from |
+| M-E11 | `versionCurrencyFor`'s `why` becomes "…is on a current engine version." | **2 red** — a comparison this engine cannot make was printed as a reassurance |
+| M-E12 | `encryptionPosture` stops pushing the group listing's sentence onto `unreadable` | **1 red** — a denied `DescribeReplicationGroups` left the encryption answer reading as complete |
+
+Each was restored immediately and the suite returned to 43 green. Run with
+`npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/elasticache.test.ts`.
+
+#### What is NOT closed, and is not claimed
+
+- **No page imports this yet.** The module is the data layer; the surface that
+  renders `elastiCacheLines` is another agent's file, and until that lands
+  nothing in the running product calls `elastiCacheReadings`. Its production
+  path is real — called with no gateway it resolves `liveGateway()` and
+  `client.ts` — but it is not yet on a route.
+- **Engine-version currency is unreadable, by design of the registry.**
+  `elasticache:DescribeCacheEngineVersions` is not a capability this console
+  holds. Every cluster says so in the field where the answer would be. Adding
+  the capability is a `capabilities.ts` and `iam.tf` change, and this agent owns
+  neither.
+- **Nothing here decides whether a cache is unmanaged.** An expected-set
+  comparison against `elasticache.tf` is `drift.ts`'s question, not this
+  module's.
+- **`maxmemory-policy` is the only parameter lifted out by name.** The rest of a
+  group is counted, not carried. A surface that needs another parameter needs a
+  change here, and would get one rather than a map of four hundred engine
+  defaults.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree after every service agent in this batch lands, not to concurrent
+  writers.
+
+## STUDIO-070-004 (BUCKETS) — the S3 posture Terraform sets and nothing read back
+
+- [x] **STUDIO-070-004 (S3 bucket adapter)** — Read every bucket, its region,
+  its public-access block (all four flags), its policy status, its default
+  encryption and whether that is SSE-KMS or SSE-S3, its versioning and
+  MFA-delete, its lifecycle configuration, its CORS rules and its tags, back
+  through the typed capabilities. The service was DARK: the registry held seven
+  S3 posture capabilities and no module called any of them, so a manual console
+  change that opened a bucket would have surfaced nowhere at all.
+
+**Files:** `apps/system-studio/src/lib/aws/buckets.ts` (production),
+`apps/system-studio/src/lib/aws/buckets.test.ts` (35 cases).
+
+- **Evidence:** 35/35 green via
+  `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/buckets.test.ts`;
+  13 mutations applied to the production path, 12 caught red and 1 reported
+  NOT CAUGHT in the table below; `npx tsc --noEmit -p apps/system-studio/tsconfig.json`
+  reports no error in either file; 25/25 green on
+  `node --test tests/architecture/forbidden-clients.test.mjs tests/security/operator-plane-content.test.mjs tests/security/no-hardcoded-estate.test.mjs tests/security/studio-task-role-is-narrow.test.mjs`.
+
+### Why this one mattered
+
+`infrastructure/terraform/s3.tf` declares a four-flag public-access block on
+both buckets, `aws:kms` default encryption and versioning on `documents`,
+neither on `exports`, two lifecycle configurations, and — on `documents` —
+`allowed_origins = ["*"]` with a comment reading "Restrict to tenurework.com
+domain post-pilot". Every one of those is a claim Terraform makes about a past
+apply. None of them was ever compared against what the account holds.
+
+### Seven capabilities, seven readings per bucket, degrading independently
+
+`s3:ListAllMyBuckets` is account-wide. The other six authorize PER BUCKET, and
+three of them under an IAM name that differs from the API: `GetBucketEncryption`
+authorizes under `s3:GetEncryptionConfiguration`,
+`GetBucketLifecycleConfiguration` under `s3:GetLifecycleConfiguration`,
+`GetBucketCors` under `s3:GetBucketCORS`. Each fact on each bucket is its own
+`AwsRead`, so a denied `GetBucketPolicyStatus` renders the minimum statement for
+the action that is ACTUALLY missing, leaves that bucket's encryption, versioning,
+lifecycle and tags real, and never renders as "not public".
+
+### "There is no configuration" is an answer, not an error
+
+S3 reports six absences by raising: `NoSuchPublicAccessBlockConfiguration`,
+`ServerSideEncryptionConfigurationNotFoundError`, `NoSuchLifecycleConfiguration`,
+`NoSuchBucketPolicy`, `NoSuchTagSet`, `NoSuchCORSConfiguration`. Each is caught
+inside its own call and turned into a definite fact. Letting the first reach
+`readAws` would classify it as ERROR — a red box — and a red box beside "public
+access block" reads as "we could not check", which is the exact opposite of
+"this bucket has no public access block at all".
+
+`GetBucketVersioning` is the mirror image: it answers `{}` SUCCESSFULLY for a
+bucket that has never had versioning, so the mapping turns that into
+`never-enabled` before any emptiness test can turn a real reading into EMPTY.
+
+### The one thing this engine honestly cannot say: a bucket's region
+
+A bucket's region comes from `Bucket.BucketRegion` on the `ListBuckets` response
+and from nowhere else. S3 returns that field only when the request carries at
+least one parameter, and `client.ts:1031` sends `ContinuationToken` alone, which
+is absent on the first page. There is no `s3:GetBucketLocation` capability in
+the registry.
+
+So a bucket whose region AWS did not state carries `{ kind: "unstated" }` with
+that sentence in it, and does NOT inherit the caller's region. Filling it in
+from the resolved identity would be GE-010-007 exactly. The one-line fix is
+`client.ts`'s, not this module's: adding `MaxBuckets: 1000` to the
+`ListBucketsCommand` input would make `BucketRegion` present on every page.
+
+### A deviation from the SQS attribution rule, stated
+
+`tags.ts` and the Resource Groups Tagging API are the attribution path, as
+instructed. But that API answers for ONE region and an S3 bucket ARN carries no
+region, so "this ARN is not in the index" does not mean "untagged" the way it
+does for a queue — it means that, or it means the bucket lives elsewhere. This
+module therefore falls back to the bucket's own `GetBucketTagging` before it will
+say `unattributed`, and says `unknown` when neither source could be read. Every
+reading carries `attributionSource` naming which one decided.
+
+### Mutation proofs — the production path, not a helper
+
+Thirteen mutations applied to `buckets.ts` one at a time, suite run, restored,
+suite re-run. Baseline 35/35 green; restored 35/35 green.
+
+| # | Mutation applied to `buckets.ts` | Result |
+|---|---|---|
+| M-B1 | `try { ... } catch { return { entries: [], truncation: complete } }` around the `ListBuckets` page walk | **3 red** — the denial and the throttle both rendered as an empty estate |
+| M-B2 | the `partiallyUnread.push(bucket.name)` for an unreadable public-access block removed | **2 red** — a denied and a throttled block read both produced an unqualified "no public bucket observed" |
+| M-B3 | `if (false && isAbsentConfiguration(..., "NoSuchPublicAccessBlockConfiguration"))` | **1 red** — a bucket with no block at all became a red ERROR instead of the finding |
+| M-B4 | `blockPublicPolicy: config.BlockPublicPolicy !== false \|\| true` | **1 red** — a flag switched off in the console rendered as in force |
+| M-B5 | `isEmpty: () => false` removed from the versioning read | **0 red — NOT CAUGHT, and reported as such.** The mapping already converts `{}` into a two-field object, so the line is belt-and-braces rather than load-bearing. It is kept, and its comment now says so. |
+| M-B5' | the versioning `never-enabled` fallback replaced with `Enabled` | **1 red** — an unversioned bucket claimed a deletion was recoverable |
+| M-B6 | `REGION_UNSTATED` replaced with `{ kind: "stated", region: "us-east-1" }` | **1 red** — the GE-010-007 shape: a region nobody read, printed confidently |
+| M-B7 | the page-cap arm returns `kind: "complete"` | **1 red** — a truncated listing rendered as the whole estate |
+| M-B8 | `backoffMs: backoffMs(2)` replaced with a literal `50` | **1 red** — the surface stopped using `throttle.ts`'s schedule |
+| M-B9 | attribution returns `unattributed` when the tag index misses the ARN | **1 red** — the S3 regional-index correction gone; a tagged bucket reported as untagged |
+| M-B10 | the `unknown` attribution arm returns `unattributed` | **1 red** — a denied tag index read as "missing tenure:tenant" |
+| M-B11 | `const beyond = false && position >= MAX_POSTURE_BUCKETS` | **1 red** — buckets past the posture budget rendered as compliant |
+| M-B12 | `if (false && status.value.kind === "public")` | **1 red** — a bucket S3 itself calls PUBLIC stopped being a finding |
+| M-B13 | `isAbsentConfiguration(error, "NoSuchBucketPolicy") \|\| true` | **1 red** — a denied policy status rendered as "no bucket policy" |
+
+Every mutation was restored immediately. A final scan for `false &&`, `&& false`,
+`|| true` and `MUTATION` over `buckets.ts` returns nothing.
+
+### What is NOT closed, and is not claimed
+
+- **A bucket's region is unknown on the first listing page.** See above. Not a
+  defect in this module and not fixable from it: `client.ts` owns the
+  `ListBucketsCommand` input and is another agent's file.
+- **No page imports this yet.** The production entry point is `bucketPosture()`,
+  which resolves `liveGateway()` when called with no argument; the route that
+  renders `bucketLines()` is a surface agent's file, and until that lands nothing
+  in the running product calls it.
+- **`s3:GetBucketPolicy` is absent and stays absent.** The policy STATUS is one
+  boolean; the policy DOCUMENT names tenant principals and prefixes this console
+  has no reason to hold. `s3:GetObject` is likewise absent: these buckets hold
+  tenant documents.
+- **Object-level facts are not read.** Size, object count and storage-class
+  distribution live in CloudWatch and S3 Storage Lens; neither is in the
+  registry, and this module does not get to add one.
+- **Nothing here decides whether a bucket is unmanaged.** An expected-set
+  comparison against `s3.tf` is `drift.ts`'s question, not this module's.
+- **Nothing here was verified against a live AWS account.** Every case runs
+  against a stand-in gateway. No credentials were used, no AWS call was made, and
+  no account id, ARN, bucket name or region in the tests or this entry is a real
+  Tenure resource — the account throughout is AWS's documentation placeholder
+  `123456789012`. No approval, review, certification or verification date is
+  recorded anywhere in this work.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree after this batch lands, not to concurrent writers.
+
+## STUDIO-070-004 (Cognito) — the pool guarding this console, read back
+
+`apps/system-studio/src/lib/aws/cognito.ts` + `cognito.test.ts` (34 tests).
+
+### What was actually dark
+
+`infrastructure/studio/cognito.tf` provisions the operator user pool, its app
+client, its hosted domain and the operator accounts. Not one Cognito call had
+ever been issued by the running product, so every fact about the console's own
+front door was invisible FROM the console.
+
+On 2026-08-13 an audit found the migration to Cognito had seeded every operator
+with the shared secret as a PERMANENT password (`password`, not
+`temporary_password`) under `message_action = "SUPPRESS"` — no invitation, so no
+forced change was ever triggered — with the pool's `mfa_configuration` left at
+`OPTIONAL`. Each of those is a fact an API returns. None of them reached a
+screen. `cognitoReadings()` is the read that makes them visible:
+
+- **`MfaPosture`** is derived from `GetUserPoolMfaConfig` first and
+  `DescribeUserPool`'s MFA field second, and `optional` and `off` are their own
+  arms carrying the sentence *"a second factor nobody enrolled is the same
+  protection as none"*. `enforced` is the ONLY reassuring arm and it is
+  unreachable from a failed read: both reads refused produces `unknown`, never a
+  default. That is the mutation the panel exists to survive (M-C2 below).
+- **`FirstSignInWindow`** is arithmetic, not a status lookup. Every account in
+  FORCE_CHANGE_PASSWORD is measured against the pool's own temporary-password
+  validity, and `expired` (the credential can no longer be used; the account is
+  stranded) is a different arm and a different finding from `open` (the
+  credential is live). The fixture has one of each — twelve days and two days
+  into a seven-day window.
+- **`TemporaryPasswordWindow`** keeps "the pool declares seven days" and "the
+  pool declares nothing and AWS's default is seven days" apart, because only the
+  first is something somebody chose.
+- **`permanentPasswordSuspicion`** reports the observable shadow of the defect:
+  in an admin-create-only pool, an account that reached CONFIRMED within
+  `PERMANENT_PASSWORD_SUSPICION_WINDOW_MS` (15 minutes) of being created never
+  went through a human forced password change. It is labelled `suspected`, it
+  carries both timestamps and the measured delta, and it ships with
+  `OPERATOR_SUSPICION_CAVEAT` naming the case that would make it a false
+  positive. A claim that travels with what would disprove it.
+
+### Three facts it provably cannot read, modelled as values rather than omissions
+
+- **Last sign-in.** The roster shape carries create date, last-modified date,
+  enabled, status and the legacy SMS MFA options — and no authentication
+  timestamp, in any SDK version. `LAST_SIGN_IN_NOT_READABLE` has one arm, names
+  the capability that would answer it, and carries `notThis`: *"last-modified is
+  NOT last sign-in"*. A test asserts the surface never prints a date after
+  `last sign-in:`.
+- **Software-token enrolment.** The legacy MFA options field is SMS-only;
+  per-account MFA settings only come back from the per-account admin read, which
+  is deliberately absent from the registry and named by GE-041-001 as vocabulary
+  this layer does not speak. No SMS renders as *"NOT the same as no second
+  factor"*.
+- **Whether the invitation was suppressed.** That is a parameter of the create
+  call; Cognito stores it nowhere and no read returns it. Said out loud in the
+  module header rather than glossed.
+
+### Nothing secret escapes
+
+The app-client description returns a client secret in its body. It is read at
+exactly one expression, to answer the boolean `hasSecret` (`generate_secret =
+true` is real configuration), and the value never enters a returned object, a
+log or a rendered string. The roster read is narrowed to `email` in `client.ts`
+and narrowed AGAIN in `signInIdentifierOf`, so a future widening of that call
+cannot leak a phone number through this module — the fixture puts a phone number
+on an account and the suite asserts it never appears in the object graph or the
+text.
+
+### GE-041-001, respected on both halves
+
+The guard's two-file estate exemption (`client.ts`, `cognito.ts`) is a ratchet
+asserted at `length <= 2`, so everything lives in this one file. No exported
+field is spelled with the provider's vocabulary — a pool identifier is `poolId`,
+an app client's is `clientId` — precisely so a surface agent consuming these
+exports does not red the build by threading the SDK's names into a third file.
+Not one authentication or user-pool-write verb appears here.
+`node --test tests/security/provider-independence.test.mjs` — 7 pass, 0 fail.
+
+### The behaviours the read plane requires
+
+- **A denial is never an empty list.** A refused pool listing returns the DENIED
+  arm carrying the principal, the action and the pasteable minimum statement;
+  `"value" in pools` is `false`, so a surface cannot reach an inventory that does
+  not exist.
+- **A throttle is its own state.** `retryAfterMs` is `800`, which is
+  `throttle.ts`'s curve (`backoffMs(2)` doubled twice), not a literal.
+- **Sub-calls degrade independently.** A refused MFA read falls back to the
+  description and names the fallback in `provenance`; a refused roster leaves the
+  MFA finding standing; a refused description does not make the pool vanish and
+  does not cost it its tag join — `derivePoolArn` assembles the ARN from the
+  resolved identity so the pool still attributes, and `arnProvenance` says the
+  ARN was assembled and is not evidence of location.
+- **An EMPTY roster is an answer, not an unknown.** "This pool has no accounts"
+  produces no `roster-unknown` finding; a refused one does.
+- **Paging is bounded AND says so.** `MAX_POOL_PAGES` / `MAX_CLIENT_PAGES` /
+  `MAX_OPERATOR_PAGES` / `MAX_POOLS_DESCRIBED` / `MAX_CLIENTS_DESCRIBED`. Hitting
+  a bound returns a `truncated` `Completeness` whose `why` says the accounts not
+  shown *"have not been checked for anything below"* — it does not throw and it
+  does not report page one as the estate.
+- **Region and partition come from AWS's own ARN, else the resolved identity.**
+  No region literal, no `"aws"` fallback. A pool whose ARN names a region other
+  than the resolved one reports the ARN's region, which is what makes a
+  GE-010-007-shaped anomaly visible at all. With neither an ARN nor an identity
+  the module states no region and says why.
+- **The console's own pool is identified by TAG** (`tenure:module =
+  system-studio`), never by name. The fixture contains a decoy pool literally
+  named `tenure-prod-operators` with no tag; nothing chooses it. Two tagged pools
+  is `ambiguous`; none is `not-tagged`; an unreadable listing is `unknown`.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M-C1 | a refused pool listing returns an EMPTY inventory instead of the DENIED arm | **2 red** — the denial and the throttle both rendered as "none" |
+| M-C2 | an unreadable MFA configuration defaults to `enforced` | **1 red** — two refused reads claimed MFA was on |
+| M-C3 | `ageDays > window.days` becomes `ageDays > 365` | **1 red** — a stranded account twelve days into a seven-day window read as fine |
+| M-C4 | `permanentPasswordSuspicion` returns null unconditionally | **1 red** — the account confirmed 3s after creation stopped being reported |
+| M-C5 | the client secret is carried out in the client's `name` | **1 red** — the leak assertion caught it, proving it is not vacuous |
+| M-C6 | every roster attribute value is carried out, not just the identifier | **5 red** — the phone number surfaced and four other assertions moved |
+| M-C7 | a bounded pool listing reports itself `complete` | **1 red** — a truncated read claimed to be the estate |
+| M-C8 | `backoffMs(2)` replaced with a literal `50` | **1 red** — the surface stopped using `throttle.ts`'s schedule |
+| M-C9 | an EMPTY roster is reported as `roster-unknown` | **1 red** — "nobody can sign in" collapsed into "we were not allowed to look" |
+| M-C10 | the console pool is identified by NAME instead of by tag | **2 red** — it picked the decoy |
+
+Each was applied singly, run, and restored from a byte-identical pristine copy;
+the suite returned to 34 green and the restored file compares equal.
+
+### What is NOT closed, and is not claimed
+
+- **Last sign-in per operator is BLOCKED.** It is not in any response this
+  engine may fetch. Answering it needs a new capability in the registry for the
+  pool's authentication-events read AND the pool's advanced-security feature
+  plan — and an admin verb in this layer is the thing GE-041-001 exists to
+  prevent, so that is a decision for whoever owns the guard, not a gap to
+  quietly close.
+- **Per-operator software-token enrolment is BLOCKED** for the same reason.
+- **The heuristic is a heuristic.** `neverForcedAPasswordChange` infers from two
+  timestamps because Cognito stores neither the create call's message action nor
+  whether a seeded password was permanent. It is labelled `suspected` and ships
+  its own counter-case.
+- **No page imports this yet.** The module is the data layer; the route that
+  renders it belongs to a surface agent, and until that lands nothing in the
+  running product calls `cognitoReadings`.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree, not to concurrent writers.
+
+## STUDIO-070-004 (DynamoDB) — the tables, and the registry's own recoverability
+
+- [x] **STUDIO-070-004 (DynamoDB tables adapter)** — Read DynamoDB back through
+  the typed capabilities as a CONTROL-PLANE object: billing mode and provisioned
+  capacity, item count and size, encryption and whether the key is customer-
+  managed or the AWS-owned default, point-in-time recovery, deletion protection,
+  TTL and global secondary indexes — with the tenant registry's protection ranked
+  first. No table CONTENTS are read.
+
+- **Was**: `infrastructure/studio/dynamodb.tf` provisions `<prefix>-tenants` —
+  the tenant registry, holding `TENANT#<slug>` manifests, lifecycle states and
+  steps, plus the hash-chained `AUDIT#<subject>` trail — and declares
+  `point_in_time_recovery { enabled = true }`, `server_side_encryption { enabled
+  = true }` and `deletion_protection_enabled = true`. Whether any of that was
+  TRUE OF THE LIVE TABLE was a thing this console could not see. Terraform
+  declares an intention; a drifted table, a console click or a stack replaced by
+  hand separates the two, and the point of an AWS-authoritative control plane is
+  that the answer comes from AWS. The service was dark: nothing in the running
+  product had ever issued a DynamoDB *control-plane* call.
+- **Now**: `apps/system-studio/src/lib/aws/dynamodb-tables.ts`. `tableReadings()`
+  resolves identity, reads the tag index, lists every table in the region and
+  then reads each table's description, its continuous backups and its TTL, plus
+  one `kms:DescribeKey` per DISTINCT key. It returns `DynamoDbReadings` —
+  `AwsRead<readonly TableReading[]>` for the listing, four independent `AwsRead`s
+  per table, a `MoreTables` completeness signal, a `RegistryProtection`, an
+  explicit `asOf`, and all five capabilities' own `refreshMs` read from the
+  registry rather than retyped.
+- **Production caller**: `apps/system-studio/src/app/platform/audit/page.tsx`
+  (another agent's file, landed concurrently) calls `tableReadings()` with no
+  arguments — the live gateway — and renders
+  `describeRegistryProtection(tables.registry)` at `data-testid="registry-protection"`.
+- **The registry is ranked first, structurally**: `RegistryProtection` is a union
+  whose `no-point-in-time-recovery` arm IS the PITR fact, and `dynamodbLines()`
+  emits it as line zero, before the listing and before any table row. PITR off on
+  the tenant registry is total loss of the fleet's own record of itself — which
+  systems were provisioned, what state each is in, who approved it — and a
+  finding rendered below forty rows of table configuration is a finding nobody
+  reads. Six arms, so every way of NOT knowing has somewhere to go that is not
+  "protected": `unnamed` (TENANT_TABLE unset), `unknown` (the read failed),
+  `missing` (named, listing succeeded, not in this region — `ListTables` is
+  per-region), `no-point-in-time-recovery`, and `protected` carrying
+  `weaknesses`, so "recoverable" never quietly means "fine".
+- **Five capabilities, five readings, degrading independently**: `ListTables`,
+  `DescribeTable`, `DescribeContinuousBackups`, `DescribeTimeToLive` and
+  `kms:DescribeKey` are five IAM actions, and `infrastructure/studio/iam.tf`
+  grants the first at `Resource = "*"` in one statement and the next three at
+  `arn:*:dynamodb:*:*:table/*` in another — two statements that can drift apart
+  in one edit. A refused `DescribeContinuousBackups` names
+  `dynamodb:DescribeContinuousBackups` and prints THAT minimum statement, and the
+  row keeps its billing mode, its size and its TTL. This is `retained.ts`'s
+  `backup:ListBackupVaults` lesson applied at construction time.
+- **Configuration, never contents**: none of the five can return an item.
+  `GetItem`, `Query`, `Scan` and every write stay in `lib/registry.ts`, which has
+  its own typed reader. `registry.ts` is NOT imported here — it pulls
+  `server-only` and builds an SDK client at module scope, which would make this
+  module unloadable outside a server component. Which table is the registry comes
+  from `process.env.TENANT_TABLE`, the same variable `registry.ts` reads and
+  `ecs.tf` sets; the coupling is stated in the module header and overridable
+  through `options.registryTableName` so a test drives the ranking without
+  touching process state.
+- **Pagination with a bound AND a signal**: `ListTables` is walked to completion,
+  capped at `MAX_LIST_PAGES` (20) pages of 100. On hitting the cap the listing
+  neither throws nor pretends to be whole: `MoreTables.truncated` carries the
+  pages spent, the names read and the `resumeAfter` token, and renders as its own
+  "Completeness" line saying "NOT the estate". A denied listing makes that line
+  `unknown`, never `complete`.
+- **Nothing absent is ever a finding, and nothing stated is ever softened**: an
+  absent `ItemCount` throws inside `readAws` so the detail is ERROR naming the
+  field — `0` on the registry would be the claim that the fleet is empty. An
+  absent `DeletionProtectionEnabled` is `unstated`, not `disabled`. An absent
+  `SSEDescription` is the AWS-OWNED default key, which is a specific fact (no key
+  in this account, no policy, no revocation, no CloudTrail) and not "unknown" —
+  while an `SSEDescription` that is present and unreadable is `unstated` and is
+  deliberately NOT folded into that default. `ItemCount` and `TableSizeBytes`
+  carry a `freshness` sentence, because DynamoDB refreshes them roughly every six
+  hours and a six-hour-old number beside a live `asOf` reads as live.
+- **Customer-managed vs AWS-owned**: the AWS-owned default is determined from
+  `DescribeTable` alone. Telling a customer-managed key from `alias/aws/dynamodb`
+  needs `KeyManager`, so one `kms:DescribeKey` per DISTINCT key ARN (deduped,
+  capped at `MAX_KEY_DESCRIBE_READS`) is its own `AwsRead`: a denied fifth call
+  leaves the key ARN printed and says "whether it is customer-managed is
+  unknown", never an AWS-managed default.
+- **Residency**: region and partition come from the resolved identity and from
+  the `TableArn` AWS returns. There is no region literal and no `"aws"` partition
+  fallback in the file; with identity unresolved and the describe refused, no ARN
+  is assembled at all. A GovCloud identity produces
+  `arn:aws-us-gov:dynamodb:us-gov-west-1:…` and the whole rendered surface
+  contains no `us-east-1`.
+- **Attribution** goes through `tags.ts` and the Resource Groups Tagging API, and
+  adds the FOURTH answer the three-way contract cannot express: `unknown`, for
+  when the tag index itself was denied or throttled.
+- **Budget**: at most `MAX_TABLE_DETAIL_READS` (100) tables are described per
+  load, three calls each against a control-plane throttle shared with every
+  `terraform apply` in the account. The registry is placed in the budget FIRST
+  regardless of where it sorts — the one fact this module ranks first must not
+  depend on the alphabet. Tables past the budget carry UNCONFIGURED on all four
+  readings, whose `why` says "not the same as its being unprotected".
+
+### Mutations applied to the production path, and what caught them
+
+Fourteen mutations, each applied to `dynamodb-tables.ts` (never to the test and
+never to a helper), each run, each red, each restored immediately.
+
+| # | mutation applied to `dynamodb-tables.ts` | result |
+|---|---|---|
+| M1 | the refused/throttled listing passthrough replaced with `{state:"ACTUAL", value: []}` | **RED x4** — the denial, the throttle, the empty case and the registry-unknown case all collapsed |
+| M2 | an unreadable registry `DescribeContinuousBackups` returned `{kind:"protected"}` | **RED x1** — a refused read reported the registry as recoverable |
+| M3 | `deriveTableArn` uses `arn:aws:dynamodb:us-east-1:...` instead of the resolved partition and region | **RED x1** — the GovCloud estate rendered in the commercial partition |
+| M4 | `requiredCount` returns `0` for a non-number instead of throwing | **RED x1** — an unread `ItemCount` rendered as "0 item(s)" |
+| M5 | `parseDeletionProtection` maps anything not `true` to `disabled` | **RED x2** — a field AWS did not return became a finding on the registry |
+| M6 | an unreadable `SSEDescription` folded into `aws-owned-default` | **RED x1** — "we could not read the key" became "AWS's default key" |
+| M7 | the truncation branch disabled (`if (false && token)`) | **RED x1** — 20 walked pages rendered as "every table in this region" |
+| M8 | `readBackups` reports under the `dynamodb:ListTables` capability | **RED x2** — the pasteable statement named an action the role already holds |
+| M9 | the registry no longer placed into the describe budget first | **RED x1** — a registry sorting past position 100 reported as "not read" |
+| M10 | an unreadable tag index reported as `unattributed` | **RED x2** — a denied and a throttled tag index became "missing tenure:tenant" |
+| M11 | the retry schedule retyped as `attempts: 3, backoffMs: 50` | **RED x1** — the surface stopped using `throttle.ts`'s curve (`retryAfterMs` 800) |
+| M12 | the registry line moved below the listing and completeness lines | **RED x6** — the fleet's own recoverability stopped being what the surface says first |
+| M13 | a denied `kms:DescribeKey` rendered as "an AWS-managed key ... state Enabled" | **RED x1** — an unread key management reported as a reassuring default |
+| M14 | `isoOf` reads epoch seconds as milliseconds | **RED x1** — a 2025 table rendered as created in 1970 |
+
+All fourteen restored; the suite is 48/48 green, and `dynamodb-tables.ts`
+contains no `false &&`, no `|| true` and no mutation stub. M5's first run went red
+on the parser case only; the surface-level assertion ("deletion protection AWS did
+not state is 'unknown' on the registry, never 'OFF'") was added and M5 re-applied,
+which is the **RED x2** recorded above.
+
+### Evidence
+
+- `npm run test --workspace apps/web -- --ci ../system-studio/src/lib/aws/dynamodb-tables.test.ts`
+  — **48 passed, 48 total.**
+- `npx jest --ci --testPathPattern "system-studio"` — **47 suites, 1600 tests,
+  1594 passing.** The 6 failures are in `src/lib/aws/secrets.test.ts` and
+  `src/app/tenants/[slug]/tenant-answers.test.ts`, two concurrent agents' files;
+  neither imports this module and nothing this module touches is in their path.
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — **8 errors, none in
+  `dynamodb-tables.ts` or `dynamodb-tables.test.ts`.** They are in
+  `app/platform/audit/entries.ts`, `app/platform/audit/page.tsx`,
+  `app/platform/cost/cost-decisions.test.ts` and siblings — other agents' files,
+  mid-flight.
+- `node --test tests/architecture/forbidden-clients.test.mjs` — **6/6 pass.** No
+  SDK package is imported here; every call goes through the `AwsGateway` seam.
+- `node --test tests/security/operator-plane-content.test.mjs` — **5/5 pass.** No
+  Prisma client is imported.
+
+### The fake, and why it proves something
+
+`fakeAws` answers seven capabilities with the shapes the real SDK returns —
+`{TableNames, LastEvaluatedTableName}`, `{Table:{...}}`,
+`{ContinuousBackupsDescription:{...}}`, `{TimeToLiveDescription:{...}}`,
+`{KeyMetadata:{...}}`, `{ResourceTagMappingList:[...]}`, `{Account, Arn}` — and
+each is independently failable with `AccessDeniedException`,
+`ThrottlingException`, an empty-but-successful list or a populated one, per
+capability AND per table. The `empty` case returns `{}` with no `TableNames` key,
+because that is what AWS actually sends. Dates are `Date` objects on the backups
+path and epoch SECONDS on `CreationDateTime`, which is what the wire carries. One
+test asserts the four listing outcomes render as four PAIRWISE DISTINCT strings,
+which is the assertion a stand-in returning `[]` regardless would fail.
+
+No account id, ARN, region or key id in this suite is real: `123456789012` is
+AWS's documentation placeholder and the key UUIDs are obviously constructed. The
+`registryTableNameFromEnv` case saves and restores exactly the `TENANT_TABLE`
+value it found — set or unset — and touches nothing else in `process.env`.
+
+### What is NOT closed, and is not claimed
+
+- **Nothing was read from a real AWS account.** Every assertion here is against a
+  stand-in client. Whether the LIVE `<prefix>-tenants` table has PITR on is
+  exactly the question this module exists to answer, and it has not been asked of
+  a real account, because there is no AWS Organization to ask. That is
+  `BLOCKED_EXTERNAL` on the same dependency as the rest of this ledger.
+- **Global tables, on-demand backups, streams and contributor insights are not
+  read.** `dynamodb:ListBackups`, `DescribeGlobalTable`,
+  `DescribeKinesisStreamingDestination` and `DescribeContributorInsights` are not
+  in `capabilities.ts` and this file does not get to add them. A table's replicas
+  and its on-demand backup history are therefore NOT part of the recoverability
+  answer, and `RegistryProtection` says PITR because PITR is what was read.
+- **Whether a table is unmanaged is not decided here.** An expected-set
+  comparison against `infrastructure/` is `drift.ts`'s question.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. It is a shared generated artefact that every service agent in
+  this batch staled; regenerating it belongs to one `npm run generate` against a
+  clean tree, not to concurrent writers.
+
+## STUDIO-070-004 (DATABASE) — the RDS facts that decide whether the product is about to be taken offline
+
+`apps/system-studio/src/lib/aws/database.ts` + `database.test.ts`. The Global
+Deployment Engine's database service was dark: `infrastructure/terraform/rds.tf`
+provisions it, `inventory.ts` kept four fields off `rds:DescribeDBInstances` (ARN,
+identifier, status, subnet group) because it is an inventory, and `retained.ts`
+kept the snapshots tagged for a stopped tenant because it is a bill. Neither
+answers a question anybody asks at 02:00.
+
+### The four questions, and where each is answered from
+
+- **"Is a maintenance action pending, and when does it stop being optional."**
+  `rds:DescribePendingMaintenanceActions`, read account-wide in one paged call.
+  `OutageSchedule` has four arms read most-binding-first: `forced` wins whenever
+  AWS returned a `ForcedApplyDate`, because on that date the action is applied
+  outside the maintenance window and without an opt-in. `auto-applied-after` is
+  the softer `AutoAppliedAfterDate`; `scheduled` is `CurrentApplyDate`, which
+  moves when somebody opts in; `unscheduled` is an action with no date at all.
+  Collapsing these into one "pending" badge is how a forced engine upgrade reads
+  the same as housekeeping.
+- **"Did this instance restart, and why."** `rds:DescribeEvents`, one call per
+  instance over a 1440-minute window, classified on AWS's own `EventCategories`
+  (`failover`, `availability`, `low storage`, `read replica`, `failure`) and not
+  on message text — the same rule `read.ts` uses for error names, for the same
+  reason. The message is carried alongside because it is the only place the
+  reason is written down.
+- **"Is storage autoscaling on, and how close is it to the ceiling."**
+  `MaxAllocatedStorage` is the ceiling and its ABSENCE is how AWS says
+  autoscaling is off, so the absent case is the `fixed` arm and never a ceiling
+  of zero (which would render as 100% of the ceiling on every instance that
+  simply does not autoscale). Every arm's `why` states that this is headroom to
+  the AUTOSCALING CEILING and **not** free disk space — that is a CloudWatch
+  `FreeStorageSpace` metric this read does not carry.
+- **"Is `rds.force_ssl` actually set."** **It is not readable from here, and the
+  module says so on every instance, every load.** See the honest gap below.
+
+Backup retention and the latest restorable time travel with the snapshots:
+`BackupRetentionPeriod = 0` is the `disabled` arm, which states there is no
+point-in-time recovery at all; `LatestRestorableTime` becomes a `RecoveryPoint`
+carrying its age, flagged `stale` past 30 minutes because RDS advances it about
+every five.
+
+### The behaviours the read plane requires
+
+- Every reading is `AwsRead<T>` from `read.ts`. A denied call is DENIED with the
+  principal, the action and a pasteable minimum statement, and there is no arm
+  carrying an optional `T` — asserted by `expect("value" in read).toBe(false)`.
+- A throttle is THROTTLED with `retryAfterMs`, and the schedule is `throttle.ts`'s
+  `backoffMs(2)`, never a literal (proved by M-D8).
+- Region and partition resolve from the resolved identity and from the ARN RDS
+  returns. A GovCloud principal produces `aws-us-gov` / `us-gov-west-1` and the
+  whole rendered surface contains no `us-east-1`.
+- Marker pagination is walked to completion or to `MAX_PAGES = 20` and then
+  reported as `Truncation.truncated` carrying the marker AWS was still handing
+  back. A truncated listing is never EMPTY. Event reads are capped at
+  `MAX_EVENT_INSTANCE_READS = 25` instances per load; instances past it carry an
+  UNCONFIGURED event read whose `why` says the engine stopped.
+- Attribution is the Resource Groups Tagging API path in `tags.ts`, with a fourth
+  arm — `unknown` — for a tag index that could not be read, kept apart from
+  `shared` and `unattributed`.
+- Every row carries an explicit `asOf` and its capability's own `refreshMs`, read
+  from `CAPABILITIES` rather than retyped.
+- **Six sub-calls degrade independently.** A denied
+  `rds:DescribePendingMaintenanceActions` leaves each row's `pendingMaintenance`
+  as `not-read` naming that action — never `none`, and the estate-level
+  `ScheduledOutage` goes `unknown`, never "nothing scheduled". A denied
+  `rds:DescribeEvents` for one instance is DENIED for that instance only, with
+  every other fact about it standing. Denied parameter-group and snapshot
+  listings behave the same way.
+
+### The one thing it honestly cannot say
+
+**Whether `rds.force_ssl` is set is NOT readable by this engine.** A parameter
+VALUE needs `rds:DescribeDBParameters`, which is not a key in `capabilities.ts`
+and not granted in `infrastructure/studio/iam.tf` (that file grants exactly
+`rds:DescribeDBInstances`, `DescribeDBSnapshots`, `DescribeDBParameterGroups`,
+`DescribeEvents`, `DescribePendingMaintenanceActions`). This module does not add
+one. So `SslEnforcement` is a one-armed `NOT_READABLE` type naming the capability
+and the IAM action, and its rendered sentence never contains the word "enforced".
+
+What it CAN say, and does: which groups are attached, their apply status, and
+whether they are AWS's unmodifiable `default.<family>` groups — an instance on
+one is provably at engine defaults for every parameter including the SSL one,
+which is a real fact without being a claim about the value. An instance on a
+custom group is provably not provable from here, and says that instead.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Twelve mutations applied to `database.ts` — never to the test, the fake or a
+helper. Each applied, run, confirmed red, restored:
+
+| # | mutation applied to `database.ts` | result | test that caught it |
+|---|---|---|---|
+| M-D1 | `if (!maintenanceAnswered)` to `if (false && !maintenanceAnswered)` | 2 failed, 42 passed | a refused maintenance read leaves every other database fact standing |
+| M-D2 | `scheduledOutage`'s `maintenanceRead.state !== "ACTUAL" &&` to `false &&` | 2 failed, 42 passed | a throttled maintenance read is THROTTLED, and is not an empty schedule |
+| M-D3 | `outageScheduleOf` reads `CurrentApplyDate` before `ForcedApplyDate` | 2 failed, 42 passed | a forced action reports the FORCED date, not the softer current one |
+| M-D4 | `if (ceiling === null)` to `if (ceiling === null && false)` | 1 failed, 43 passed | an absent MaxAllocatedStorage is autoscaling OFF, never a ceiling of zero |
+| M-D5 | `pagedRead` reports `kind: "complete"` at the cap instead of `"truncated"` | 2 failed, 42 passed | more pages than MAX_PAGES is TRUNCATED, with the marker AWS was still handing back |
+| M-D6 | `sslEnforcementFor` claims `groupsAreEngineDefault: true` when the group listing was never read | 1 failed, 43 passed | a refused parameter-group listing makes the groups unknown, not engine-default |
+| M-D7 | `if (!snapshotsAnswered)` to `if (false && !snapshotsAnswered)` | 1 failed, 43 passed | a refused snapshot read is 'unknown', never 'no snapshot' |
+| M-D8 | the retry schedule retyped as a literal `50` instead of `throttle.ts`'s `backoffMs(2)` | 1 failed, 43 passed | a throttle is THROTTLED — its own state, not a failure and not an empty list |
+| M-D9 | attribution consults the tag index first, so a denied index reads as unattributable | 1 failed, 43 passed | a refused tag index is 'attribution unknown' — not unattributable and not shared |
+| M-D10 | `significanceOf` stops classifying AWS's `availability` category as a restart | 2 failed, 42 passed | classification is keyed on AWS's categories, not on the message wording |
+| M-D11 | `recoveryPointOf`'s `ageMs > RECOVERY_POINT_STALE_MS` to `false` | 2 failed, 42 passed | a recovery point two hours behind is STALE, and one five minutes behind is not |
+| M-D12 | `pendingChangesOf` starts carrying the queued `MasterUserPassword` | 1 failed, 43 passed | the whole rendered surface never contains the queued MasterUserPassword |
+
+All twelve restored; the suite returned to 44/44 green. `database.ts` contains no
+`false &&`, no `|| true` and no mutation stub.
+
+### Evidence
+
+- `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/database.test.ts`
+  — **44 passed, 44 total.**
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — no error in
+  `database.ts` or `database.test.ts`. The four remaining errors are another
+  agent's concurrent file (`app/platform/cost/cost-decisions.test.ts`).
+- `node --test tests/security/operator-plane-content.test.mjs` — 5/5 pass. No
+  Prisma client is imported.
+- `node --test tests/architecture/forbidden-clients.test.mjs` — 6/6 pass. No SDK
+  import in this module; every call goes through `AwsGateway`.
+- The four outcomes are separated by assertion, not by claim, THREE times over:
+  a populated list, an empty-but-successful list, `AccessDeniedException` and
+  `ThrottlingException` produce four pairwise-distinct rendered surfaces for
+  `rds:DescribeDBInstances`, again for `rds:DescribePendingMaintenanceActions`,
+  and again for `rds:DescribeEvents`.
+
+### What is NOT closed, and is not claimed
+
+- **`rds.force_ssl`'s VALUE is unread.** Unblocking it needs two edits neither of
+  which is this module's: a `"rds:DescribeDBParameters"` entry in
+  `capabilities.ts` with a `DescribeDBParametersCommand` case in `client.ts`, and
+  `"rds:DescribeDBParameters"` added to the read statement in
+  `infrastructure/studio/iam.tf`.
+- **Free disk space is not read.** `FreeStorageSpace` is a CloudWatch metric, not
+  an RDS field. `StorageHeadroom` measures distance to the autoscaling ceiling
+  and says so in every arm.
+- **Aurora clusters are not read.** `rds:DescribeDBClusters` is not a capability
+  this engine holds, so a cluster's writer/reader topology and its own pending
+  maintenance are invisible; only the instances that make it up are listed.
+- **Nothing renders this yet.** `databaseReadings()` reaches the real `RDSClient`
+  through `liveGateway()` and `client.ts`, and the tests drive that exact
+  function — but no route or page imports the module. That is the surface
+  agent's item.
+- **No RDS read has been performed against a real AWS account.** Every case is a
+  stand-in gateway raising the answers the real client raises. Nothing in this
+  work names a real account, ARN, region or resource: the fixtures use AWS's
+  documentation account `123456789012`.
+- **No mutating RDS call exists in this module or is reachable from it.**
+  `rds:ModifyDBInstance` and `rds:DeleteDBInstance` are on the `NeverWrite` Deny
+  in `iam.tf` and stay there: seeing a forced upgrade must not become the ability
+  to apply one.
+
+## STUDIO-070-004 (ACM) — the certificates, and the two states the listing cannot show
+
+- [x] **STUDIO-070-004 (ACM certificates adapter)** — Read ACM back through the
+  typed capabilities in detail: every certificate's domain and subject
+  alternative names, its validation status and method, the exact CNAME record a
+  pending DNS validation is waiting for, its `NotAfter` with a signed number of
+  days remaining, its renewal eligibility and renewal status, and the resources
+  it is IN USE BY. Two derived findings are lifted out of the table: a
+  certificate stuck at `PENDING_VALIDATION`, and a certificate inside the renewal
+  horizon that AWS is not going to renew.
+
+- **Was**: `acm:ListCertificates` was already read twice — `inventory.ts` for the
+  estate list and `health.ts` for the fleet — and both get an ARN, a domain and a
+  one-word `Status`. That is all this platform could see about TLS. It is not
+  enough to diagnose either failure that actually happens. A certificate sits at
+  `PENDING_VALIDATION` forever when its validation CNAME was never created, which
+  is the single most common cause of a tenant provisioning run that never
+  finishes, and the record that would end it is only in `DescribeCertificate`. A
+  certificate that AWS will never renew — `RenewalEligibility: INELIGIBLE`, or an
+  `IMPORTED` type — reads `ISSUED` right up until it expires, and neither the
+  expiry date nor the eligibility is in the listing. `acm:DescribeCertificate`
+  was in `capabilities.ts` and granted in `infrastructure/studio/iam.tf` on
+  `arn:*:acm:*:*:certificate/*`, and nothing called it.
+- **Now**: `apps/system-studio/src/lib/aws/certificates.ts`.
+  `certificateReadings()` resolves identity, reads the tag index, pages
+  `acm:ListCertificates` to completion under a bound and then reads each
+  certificate's `acm:DescribeCertificate` under a second bound. It returns
+  `CertificateReadings` — `AwsRead<readonly CertificateReading[]>` for the
+  listing, an independent `AwsRead<CertificateDetail>` per certificate, an
+  explicit `PageBound`, a `StuckValidationState`, a `RenewalRiskState`, an
+  explicit `asOf`, and both capabilities' own `refreshMs` read from the registry
+  rather than retyped. `certificateLines()` is the one renderer a surface prints.
+
+### Two capabilities, two readings, degrading independently
+
+`acm:ListCertificates` and `acm:DescribeCertificate` are separate IAM actions and
+separately scoped in this estate — `*` for the first, a certificate ARN pattern
+for the second. Folding the detail into the listing would make a refused
+`DescribeCertificate` render as "refused acm:ListCertificates", so an operator
+would paste a statement granting an action they already hold and be refused
+identically. A certificate whose detail was refused still appears, saying it was
+refused, and its validation does not render as validated, its expiry does not
+render as a number of days, and its renewal does not render as managed.
+
+### The two states that were invisible
+
+- **`StuckValidationState`** — `stuck` carries, per certificate, the domain, how
+  many days it has been pending (from `CreatedAt` against the injected clock),
+  the tenant it attributes to, and the CNAME verbatim: name, type and value, so
+  the remedy is pasteable without leaving the page. `none` carries the
+  certificates it could NOT read, so "nothing is waiting" never quietly means
+  "nothing as far as we bothered to look", and a `ValidationState` of `unknown`
+  counts as unreadable rather than as fine. `unknown` is returned when the
+  listing failed or when no certificate answered at all.
+- **`RenewalRiskState`** — a certificate inside `RENEWAL_HORIZON_DAYS` (60, which
+  is when ACM's own managed renewal starts) whose renewal is `ineligible`,
+  `imported`, `unknown`, or a managed renewal reporting `FAILED`. `managed` with
+  any other status and `eligible` are deliberately not risks: a list that flags
+  what AWS is already handling is a list an operator learns to ignore.
+
+`daysRemaining` is a signed number, not a sentence, so a surface can rank by it.
+It goes negative past `NotAfter` so an expired certificate sorts ahead of one
+with a day left. The `unknown` arm of `ExpiryState` carries no `daysRemaining`
+field at all, so a certificate whose expiry was never read cannot be sorted into
+the safe end of a table — it is named in `unreadable` instead.
+
+### Bounds, and the signal when one is hit
+
+`MAX_CERTIFICATE_PAGES` is 20 and `MAX_CERTIFICATE_DETAIL_READS` is 200. Hitting
+the page cap does not throw and does not hide: `PageBound` becomes `truncated`,
+naming the pages and certificates read and saying "this is not the whole estate",
+and `certificateLines` prints it. Certificates past the detail cap carry an
+UNCONFIGURED detail whose `why` says the engine stopped — a different sentence
+from "this certificate is fine". A denied listing has no pages at all and reports
+`not-read` rather than `complete`.
+
+### Region and partition
+
+Read per certificate from the certificate's OWN ARN, falling back to the resolved
+identity, never to a literal. This matters more for ACM than for most services: a
+CloudFront certificate must live in us-east-1 while the load balancer's lives in
+the estate's region, so one account routinely holds certificates in two regions
+and a single resolved region would be wrong for one of them. GE-010-007 was
+exactly this defect. A test asserts a GovCloud estate renders GovCloud placement
+with no `us-east-1` anywhere in the surface text.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Every mutation was made in `certificates.ts`, not in the test's stand-in, and the
+suite was run at each step. Command in every case, from the repository root:
+`npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/certificates.test.ts`.
+
+1. `isEmpty: (value) => (value as Listing).summaries.length === 0` →
+   `isEmpty: () => false` in `listCertificates`. **1 failed, 41 passed** —
+   "an empty-but-successful list is EMPTY and says none, not refused". Restored:
+   42 passed.
+2. `if (tagged.state !== "ACTUAL" && …)` → `if (false && tagged.state !== "ACTUAL" && …)`
+   in `attributionFor` — the disabled-guard shape this programme was burnt by.
+   **2 failed, 40 passed** — a denied and a throttled tag index both rendered as
+   "unattributable — missing tenure:tenant". Restored: 42 passed.
+3. The missing-`NotAfter` arm of `expiryStateOf` → `{ kind: "expires", notAfter: "", daysRemaining: 3650 }`,
+   the reassuring default. **3 failed, 39 passed**. Restored: 42 passed.
+4. `truncated = true` → `truncated = false` at the page cap in `listCertificates`.
+   **1 failed, 41 passed** — "hitting the page cap returns an explicit 'there
+   were more' signal". Restored: 42 passed.
+5. `record: validationRecordOf(option)` → a canned `{ kind: "absent" }` in the
+   `pending-dns` arm of `validationStateOf`. **2 failed, 40 passed** — the CNAME
+   no longer reached the surface. Restored: 42 passed.
+6. The `expiry.kind === "unknown"` arm of `renewalRiskState` stopped pushing to
+   `unreadable` and only `continue`d. **2 failed, 40 passed** — a certificate
+   with no `NotAfter` silently read as cleared. Restored: 42 passed.
+
+A final scan for `false &&`, `&& false`, `|| true` and `MUTATION` over both files
+returns nothing.
+
+### Evidence
+
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — no diagnostic in
+  `certificates.ts` or `certificates.test.ts`. Errors in other agents' files were
+  present mid-flight and are not this entry's to claim or to fix.
+- `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/certificates.test.ts`
+  — **42 passed, 42 total**.
+- `node --test tests/architecture/forbidden-clients.test.mjs` — 6 passed. No SDK
+  import in this module; it takes an `AwsGateway`.
+- `node --test tests/security/operator-plane-content.test.mjs` — 11 passed. No
+  Prisma client is imported.
+
+### What is NOT closed, and is not claimed
+
+- **No page imports this yet.** The production entry point is
+  `certificateReadings()`, which resolves `liveGateway()` when called with no
+  argument; the route that renders `certificateLines()` is a surface agent's
+  file, and until that lands nothing in the running product calls it.
+- **Nothing here was verified against a live AWS account.** Every case runs
+  against a stand-in gateway. No credentials were used, no AWS call was made, and
+  no account id, ARN, domain or region in the tests or in this entry is a real
+  Tenure resource — the account throughout is AWS's documentation placeholder
+  `123456789012` and every domain is under the RFC 2606 reserved `example.com` /
+  `example.net`. No approval, review, certification or verification date is
+  recorded anywhere in this work.
+- **The validation CNAME is surfaced, never created.** There is no Route 53 write
+  capability here, no `RequestCertificate`, no `ResendValidationEmail` and no
+  path from this module into `mutate.ts`. The record is for a human to create.
+- **`acm:ListCertificates` is called with only a `NextToken`.** `client.ts` owns
+  that command's input and is another agent's file, so this module cannot pass
+  `Includes` or `MaxItems`; the API's default key-type filter therefore applies,
+  and a certificate outside it would not be listed. That is a bound on the
+  listing, not a claim by this module.
+- **A certificate's private key algorithm strength, its CT logging preference and
+  its issuer chain are not read.** `KeyAlgorithm` is carried; nothing interprets
+  it, because "is RSA_2048 enough" is a policy question this module does not own.
+- **Whether a certificate is unmanaged is not decided here.** An expected-set
+  comparison against `infrastructure/` is `drift.ts`'s question.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. It is a shared generated artefact; regenerating it belongs to
+  one `npm run generate` against a clean tree, not to concurrent writers.
+
+## STUDIO-070-004 (ANALYZER) — IAM Access Analyzer, and the question the console could not ask
+
+`apps/system-studio/src/lib/aws/analyzer.ts` (new)
+`apps/system-studio/src/lib/aws/analyzer.test.ts` (new, 29 cases, green)
+
+Status: **PASS** for the analyzers, their coverage and their findings.
+**FAIL** for the external principal and the exposed action — see "What is NOT
+closed" below; it names the exact capability key that would close it.
+
+### What was actually dark
+
+`capabilities.ts` has carried `access-analyzer:ListAnalyzers` and
+`access-analyzer:ListFindingsV2` and `client.ts` has carried the two commands,
+and no module in the app had ever called either. Terraform can provision an
+analyzer and the console could not see it. Worse, `posture.ts` already listed
+`analyzer::exists` as an UNREAD control, so the page told an operator that the
+question existed and could not answer it.
+
+The question is the one that spans this whole estate at once: IAM Access Analyzer
+evaluates S3 buckets, KMS keys, IAM roles, SQS queues, Secrets Manager secrets and
+ECR repositories, and `infrastructure/terraform` provisions all six.
+
+### The distinction this module exists for
+
+`ListAnalyzers` returning nothing is a legitimate, successful, EMPTY read. But the
+operator's question is not "how many analyzers are there", it is "is anything
+shared outside this account" — and for THAT question an account with no analyzer
+has produced no evidence at all. Rendering the EMPTY list as "no external-access
+findings" would be the `AwsRead` failure mode wearing a disguise: a technically
+correct empty list read as a reassuring answer to a different question.
+
+So the listing keeps its honest EMPTY and `ExternalAccessState` turns it into
+`no-analyzer`, whose sentence begins "unknown — NO ANALYZER EXISTS" and carries
+the remedy (`access-analyzer:CreateAnalyzer`, in the console or in Terraform).
+There is no path in the file from an empty analyzer list to any arm that claims an
+absence of exposure. The same applies one level in: an account whose only analyzer
+is `ACCOUNT_UNUSED_ACCESS`, or whose analyzer is `CREATING` or `FAILED`, becomes
+`not-answering`, again with the remedy, again never "none found".
+
+Six states, six visibly different sentences, and exactly one of them says nothing
+is shared.
+
+### Two capabilities, two readings, degrading independently
+
+`ListAnalyzers` (resource `*`) and `ListFindingsV2`
+(resource `arn:*:access-analyzer:*:*:analyzer/*`) are separate IAM actions on
+separate resources. Every analyzer carries its OWN `AwsRead` for its findings, so
+a refused `ListFindingsV2` prints a minimum statement naming `ListFindingsV2` —
+not `ListAnalyzers`, which an operator would grant, redeploy, and be refused
+identically. One analyzer refused and one answered renders as `none-found`
+QUALIFIED by name ("1 analyzer(s) could not be read (...), so this is not a
+complete answer"); all refused renders as `findings-unreadable`, which is UNKNOWN.
+
+### Bounds, and the explicit "there were more"
+
+`MAX_ANALYZER_PAGES = 10`, `MAX_FINDING_PAGES = 20` per analyzer,
+`MAX_ANALYZERS_QUERIED = 20`, `FINDINGS_CONCURRENCY = 4`. Unlike `sqs.ts`, which
+throws at its cap, truncation here is a VALUE: `truncated: true` plus a
+pre-composed `truncationNote`, and `analyzerLines` prints it. A thousand findings
+that were read are worth showing; the surface is told, in words, that the count is
+a floor. Analyzers past the query cap carry an UNCONFIGURED findings read whose
+`why` says the engine stopped — not "clear".
+
+### Region and partition
+
+From the resolved identity and from the ARNs AWS returned. No literal region, no
+`"aws"` fallback. A global resource — `arn:aws:iam::…:role/…` has an EMPTY region
+segment — KEEPS its null region rather than borrowing the caller's, because "this
+IAM role is in eu-west-2" is the GE-010-007 shape of false residency claim.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Nine, all in `analyzer.ts`, none in the test helper. Baseline both before and
+after: `Tests: 29 passed, 29 total`.
+
+1. `externalAccessState`, EMPTY arm → `return { kind: "none-found", analyzersRead: [], unreadable: [], truncated: false }`
+   → `1 failed, 28 passed` ("an empty-but-successful list is EMPTY — and renders as UNKNOWN with the remedy, never as 'no external access'").
+2. `listFindings` page loop → unconditional `break` after the first page
+   → `2 failed, 27 passed` (pagination completes; truncation signal).
+3. `externalAccessState` → a non-readable findings state pushed to `readable` instead of `unreadable`
+   → `4 failed, 25 passed` (denied/throttled findings; partial-verdict qualification; all-refused UNKNOWN).
+4. exposure `region:` → the literal `"us-east-1"`
+   → `1 failed, 28 passed` ("a global resource keeps its empty region rather than borrowing the caller's").
+5. `typeAnswersExternalAccess` → `return analyzerType !== ""`
+   → `3 failed, 26 passed` (an unused-access analyzer counted as coverage; its findings then queried; `roleOf`).
+6. finding `status` default → `"RESOLVED"` instead of `"UNKNOWN"`
+   → `1 failed, 28 passed` ("a status AWS did not return is treated as live, never assumed resolved").
+7. `describeExposure` → principal and action printed as an em dash instead of their `why`
+   → `1 failed, 28 passed` (the NOT_READABLE sentence must be printed, not merely carried).
+8. `listAnalyzers` cap → `truncated = false` at the cap
+   → `1 failed, 28 passed` ("hitting the analyzer cap sets truncated and prints a coverage floor").
+9. `attributionFor` → `if (false && tagged.state !== …)` — the disabled-guard shape this programme has already shipped five of
+   → `1 failed, 28 passed` ("a denied tagging read makes attribution UNKNOWN, never 'missing tenure:tenant'").
+
+Every mutation was reverted and the suite re-run green. A grep over `analyzer.ts`
+for `false &&`, `|| true`, `us-east-1` and `// MUTATION` returns nothing.
+
+### The fake, and why it proves something
+
+`fakeAws` answers four capabilities with the SDK's real response shapes —
+Access Analyzer is lower-camel (`{analyzers, nextToken}`, `{findings, nextToken}`)
+where SQS is upper-camel, and the fake keeps that difference. Timestamps are
+`Date` objects, because that is what the SDK deserialises to. It PAGES: the
+fixtures are sliced by a `page:<n>` token, so the bound and the truncation signal
+are exercised against a client that really has more pages rather than against a
+flag. Each capability fails independently with `AccessDeniedException`,
+`ThrottlingException`, an empty-but-successful list, or a populated one.
+
+No real identifiers. `123456789012` is AWS's documentation placeholder; every
+ARN, analyzer name and finding id is constructed for the file. No approval,
+review or certification is recorded anywhere in this work.
+
+### What is NOT closed, and is not claimed
+
+- **The external principal and the exposed action are NOT read. This is a FAIL,
+  not a BLOCKED_EXTERNAL.** They are not fields of `FindingSummaryV2`, which is
+  what `ListFindingsV2` returns; that shape carries the finding id, resource,
+  resource type, owning account, finding type, status and four timestamps and
+  nothing else (verified against
+  `node_modules/@aws-sdk/client-accessanalyzer/dist-types/models/models_0.d.ts:3363`).
+  They live on `GetFindingV2`. The capability key that would close it is
+  **`access-analyzer:GetFindingV2`**, IAM action **`access-analyzer:GetFindingV2`**,
+  resource `arn:*:access-analyzer:*:*:analyzer/*`, cadence
+  `ACCESS_ANALYZER_TTL_MS`; it also needs a `case` in `client.ts` and a line in
+  `iam.tf`. This module did not add it — the registry, the client and the
+  Terraform are owned elsewhere. Until then every exposure carries
+  `EXTERNAL_PRINCIPAL_NOT_READABLE` and `EXPOSED_ACTION_NOT_READABLE`, whose only
+  arm is NOT_READABLE, which `describeExposure` PRINTS. A null would have let a
+  surface render a blank cell an operator reads as "shared with nobody".
+- **Nothing was read from a real AWS account.** Every assertion is against a
+  stand-in client. Whether the live account has an analyzer at all is exactly the
+  question this module exists to answer, and it has not been asked of a real
+  account, because there is no AWS Organization to ask. `BLOCKED_EXTERNAL` on the
+  same dependency as the rest of this ledger.
+- **Nothing renders this yet.** No page or route imports `analyzer.ts`; the
+  production entry point is `analyzerReadings()` with no argument, which resolves
+  `liveGateway()` → `client.ts`. A surface agent consumes `analyzerLines`.
+- **Archive rules are not read.** A finding archived by an archive rule is
+  invisible to `ListFindingsV2`'s ACTIVE set, and `access-analyzer:ListArchiveRules`
+  is not in the registry — so an over-broad archive rule can hide a real exposure
+  and this module cannot say so.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a clean
+  tree, not to concurrent writers.
+
+## STUDIO-070-004 (CDN / CloudFront) — the edge joins the live AWS reads
+
+**No checkbox is moved by this entry.** STUDIO-070-004 is a service-adapter line
+that is already ticked; this records one more service brought behind the typed
+capabilities, with its evidence, so a reader can tell what the tick covers.
+
+Status: **PASS** for the reader; the surface that renders it is not in this
+slice and is named below as an open gap.
+
+### What was dark
+
+`infrastructure/terraform/cloudfront.tf` and `infrastructure/studio/cloudfront.tf`
+each create a distribution, and the only CloudFront call this engine ever made
+was `cloudfront:ListDistributions` inside `inventory.ts` — which returns an id, a
+status and an origin domain name. None of those is where a defect lives. The
+configuration is where they live, and in this repository the configuration says:
+
+- `origin_protocol_policy = "http-only"` on **both** distributions
+  (`cloudfront.tf:18`, `studio/cloudfront.tf:19`) — every byte between the edge
+  and the ALB crosses the network in plaintext.
+- `# web_acl_id = aws_wafv2_web_acl.main.arn` (`cloudfront.tf:132`) — commented
+  out. Neither distribution has a web ACL.
+- `minimum_protocol_version = "TLSv1"` on the Studio's own distribution
+  (`studio/cloudfront.tf:50`), against `TLSv1.2_2021` on the pilot's
+  (`cloudfront.tf:124`).
+- no `logging_config` on either, so there is no access log to read after an
+  incident.
+
+None of that was visible from the console, and `ListInvalidations` — the read
+that answers "the deploy went out, why do I not see my change" — was never made
+at all.
+
+### What was built
+
+`apps/system-studio/src/lib/aws/cdn.ts`, reading three capabilities that were
+already in the registry: `cloudfront:ListDistributions`,
+`cloudfront:GetDistributionConfig` and `cloudfront:ListInvalidations`. No
+capability was added and `client.ts`, `capabilities.ts`, `read.ts`,
+`throttle.ts` and `iam.tf` are untouched.
+
+`cdnReadings(gateway?, { now? })` is the entry point; `cdnLines(readings)` is
+the string list a surface renders.
+
+**Every reading is `AwsRead<T>`.** A denied `ListDistributions` is `DENIED`
+carrying the principal, `cloudfront:ListDistributions` and the pasteable minimum
+statement — never `[]`. A throttle is `THROTTLED` with the schedule from
+`throttle.ts` (`retryAfterMs` 800, asserted, not a literal in this module).
+
+**Sub-calls degrade independently.** Every distribution carries its OWN
+`AwsRead` for its config and another for its invalidations, because they are two
+IAM actions scoped to `arn:*:cloudfront::*:distribution/*` while the listing is
+`Resource: "*"`, and a role is routinely granted one without the others. A
+refused `GetDistributionConfig` names `cloudfront:GetDistributionConfig` in its
+minimum statement — not the listing's action, which an operator would grant and
+then be refused identically. A refused config does NOT render "NO WAF": a
+finding invented on a distribution nobody read is worse than a missing one, and
+the headline drops to `unverified` rather than `clear`.
+
+**Pagination is bounded and the bound is reported.** `MAX_DISTRIBUTION_PAGES`
+(20) and `MAX_INVALIDATION_PAGES` (5); hitting either produces a `truncated`
+value carrying the page count and the reason, which every renderer prints.
+
+**Region and partition come from AWS's answer.** CloudFront is partition-global,
+so `region` is `null` and every row carries `whyNoRegion` saying so rather than
+leaving a blank an operator fills in with a guess. `partition` is the ARN's
+second segment, falling back to the RESOLVED IDENTITY — asserted for
+`aws-us-gov` in both directions. There is no literal region and no `"aws"`
+default in the file.
+
+**Attribution is `tags.ts`** with a fourth `unknown` answer for when the tag
+index itself was denied — "we could not look up this distribution's tags" is not
+"this distribution has no tenant tag".
+
+### What it will not claim
+
+- **A managed cache policy's TTLs are not read.** The Studio's distribution uses
+  `cache_policy_id = "4135ea2d-…"` rather than the legacy TTL fields, and those
+  TTLs are behind `cloudfront:GetCachePolicy`, which is **not** in the capability
+  registry. The required capability key is `cloudfront:GetCachePolicy` and the
+  required IAM action is `cloudfront:GetCachePolicy` scoped to
+  `arn:*:cloudfront::*:cache-policy/*`. This module does not add capabilities.
+  The `managed-policy` arm names the policy id and states the TTLs were not read
+  — not "cached", and not "bypass". Recognising `4135ea2d-…` as AWS's
+  `CachingDisabled` would be asserting an AWS implementation detail as a fact
+  about this estate. This is an open gap, not a passing check.
+- **A web ACL being attached is not a claim that it protects anything.** The
+  rules are `wafv2:GetWebACL`. The `associated` arm says so in as many words.
+- **A security policy this engine does not model is reported verbatim**, ranked
+  neither modern nor deprecated, because ranking an unknown policy would be a
+  guess in whichever direction happened to be reassuring.
+
+### Mutations applied to the production path, and what caught them
+
+Each mutation was written into `cdn.ts` itself — not into a helper — the suite
+was run, and the file was restored and re-hashed. Baseline
+`md5(cdn.ts) = b7be4c0ceab873aa763eb2aa2091ceb4`; the hash after every restore is
+that one, and the suite returns to 33 green.
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M-C1 | `listDistributions`: `if (!marker) break` replaced with an unconditional `break` | **RED** — 3 failed, 30 passed |
+| M-C2 | `listDistributions`: the `truncated` signal at the page bound replaced with `COMPLETE` | **RED** — 1 failed, 32 passed |
+| M-C3 | `cdnReadings`: the non-ACTUAL listing arm replaced with an ACTUAL empty array | **RED** — 4 failed, 29 passed |
+| M-C4 | `originProtocolOf`: the `http-only` arm returns `{ kind: "tls" }` | **RED** — 2 failed, 31 passed |
+| M-C5 | `tlsFloorOf`: the `deprecated` arm returns `modern` | **RED** — 2 failed, 31 passed |
+| M-C6 | `webAclOf`: the `none` arm returns `associated` | **RED** — 2 failed, 31 passed |
+| M-C7 | `attributionFor`: the `unknown` arm returns `unattributed` | **RED** — 1 failed, 32 passed |
+| M-C8 | `invalidationBacklogOf`: the `unknown` arm returns `settled` | **RED** — 2 failed, 31 passed |
+| M-C9 | `accessLoggingOf`: the `disabled` arm returns `enabled` | **RED** — 1 failed, 32 passed |
+| M-C10 | `RETRY`: `backoffMs(2)` replaced with a literal `50` | **RED** — 1 failed, 32 passed |
+| M-C11 | `cacheDispositionOf`: the `managed-policy` arm returns `cached` with invented TTLs | **RED** — 1 failed, 32 passed |
+| M-C12 | `edgeExposure`: the `unverified` arm replaced with `clear` | **RED** — 2 failed, 31 passed |
+| M-C13 | `readDistributionConfig`: the missing-`DistributionConfig` guard disarmed with `if (false && !config)` and the row built from `{}` | **RED** — 1 failed, 32 passed |
+
+M-C13 is deliberately the shape this programme has shipped five times — a guard
+that cannot fail. It was applied by an automated harness whose `finally` restores
+the file and throws if the hash does not match, and `grep -n "false &&" cdn.ts`
+returns nothing in the delivered file.
+
+### Evidence
+
+```
+npx tsc --noEmit -p apps/system-studio/tsconfig.json   # no error in cdn.ts / cdn.test.ts
+cd apps/web && npx jest ../system-studio/src/lib/aws/cdn.test.ts --ci
+  Tests:       33 passed, 33 total
+node --test tests/architecture/forbidden-clients.test.mjs \
+  tests/security/operator-plane-content.test.mjs \
+  tests/security/no-hardcoded-estate.test.mjs \
+  tests/security/studio-task-role-is-narrow.test.mjs
+  # tests 25 / # pass 25 / # fail 0
+```
+
+### What is NOT closed, and is not claimed
+
+- **No page imports this yet.** The module is the data layer; the surface that
+  renders `cdnLines` is another agent's file, and until that lands nothing in the
+  running product calls `cdnReadings`.
+- **`cloudfront:GetCachePolicy` is not held**, so cache-policy TTLs are unknown
+  (above).
+- **`wafv2:GetWebACL` is not read here**, so "associated" is not "protected".
+- **Nothing here mutates anything.** No invalidation is created, no distribution
+  updated, no capability added; `src/lib/aws/mutate.ts` is untouched.
+- **No approval, review or certification is recorded by this entry.** It records
+  a reader and its tests. Whether the plaintext origins and the missing WAF are
+  accepted risks is a decision a human takes, not one this module or this ledger
+  row takes for them.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree, not to concurrent writers.
+
+## STUDIO-070-011 — Service Quotas: the ceilings tenant creation runs into
+
+**Status: PASS for what it reads. The AWS DEFAULT value is BLOCKED_EXTERNAL and
+is not claimed anywhere.**
+
+`apps/system-studio/src/lib/aws/quotas.ts` reads the applied quota values for the
+twelve quotas that bound tenant provisioning in this estate — VPCs per Region,
+VPC security groups per Region, inbound/outbound rules per security group, ECS
+services per cluster, Application Load Balancers per Region, Target Groups per
+Region, RDS DB instances, CloudFront distributions per account, ACM certificates,
+Cognito user pools per account, Lambda concurrent executions and the SES daily
+sending quota — across nine service codes.
+
+Capabilities used, both already in the registry: `servicequotas:ListServiceQuotas`
+(the batched primary read, one call per service code) and
+`servicequotas:GetServiceQuota` (the fallback for a target a successful listing
+did not carry). No capability was added and none was edited.
+
+Evidence: `npm run test --workspace apps/web -- --ci
+apps/system-studio/src/lib/aws/quotas.test.ts` — **38 pass, 0 fail**.
+`npx tsc --noEmit -p apps/system-studio/tsconfig.json` reports nothing in either
+file.
+
+### The behaviours the read plane requires
+
+- **A denial is never an empty list.** A refused `ListServiceQuotas` returns the
+  DENIED arm carrying the principal, `servicequotas:ListServiceQuotas`, the
+  account, region and partition, and the pasteable minimum statement;
+  `"value" in reading.quota` is `false`, so a surface cannot reach a ceiling that
+  was never read.
+- **A throttle is its own state.** `retryAfterMs` is `800`, which is
+  `throttle.ts`'s curve (`backoffMs(2)` doubled twice), not a literal.
+- **Services degrade independently.** A denied `vpc` listing leaves the ECS, RDS
+  and SES quotas ACTUAL on the same surface. A refused tag index costs the
+  quotas their usage estimate and their attribution and nothing else — and the
+  usage degrades to "not known", never to zero.
+- **Paging is bounded AND says so.** `MAX_QUOTA_PAGES` = 20 per service. Hitting
+  it produces a `truncated` `Completeness` carried onto the SERVICE row and onto
+  every one of that service's target rows, because a target's absence from a
+  truncated listing rules nothing out. It does not throw and does not report page
+  one as the service.
+- **The individual fallback is bounded too.** `MAX_INDIVIDUAL_QUOTA_READS` = 24.
+  Past it a target reads UNCONFIGURED saying its applied value "was not read —
+  which is not the same as its being unlimited".
+- **Region and partition come from the quota's own `QuotaArn`, else the resolved
+  identity.** No region literal, no `"aws"` partition fallback. A global quota
+  reports no region rather than being given one, and an `aws-us-gov` identity
+  travels through unchanged.
+- **A quota AWS answered without a numeric `Value` is an ERROR, not a zero.** A
+  defaulted 0 would render as an estate that can create nothing; a defaulted
+  Infinity as one that never runs out. Both are claims, neither was read.
+- **An absent `Adjustable` is read as NOT adjustable**, which is what AWS means
+  by omitting it, and is the reading that sends an operator to re-architect
+  rather than to a support ticket that would be refused.
+
+### Usage, and the direction of the bound
+
+Exact usage is passed in by a sibling reader through `options.usage` and renders
+as `used of applied`, attributed to the reader that counted. Absent that, usage
+is counted from the Resource Groups Tagging API — which returns only resources
+carrying at least one tag, so it is a LOWER bound on usage and is reported as
+one (`usedAtLeast`). The headroom derived from it is therefore an UPPER bound
+(`remainingAtMost`), which is the only direction that cannot read as reassuring.
+Three targets have nothing countable at all (security-group rules, Lambda
+concurrency, SES volume) and say "usage not known", naming the CloudWatch metric
+AWS itself returned and the `cloudwatch:GetMetricData` capability this engine
+does not hold. "Unknown, not zero."
+
+`quotaPressure` keeps `no-usage-known` strictly apart from `clear`: an estate
+where nothing was compared is not an estate with headroom.
+
+### What is NOT closed, and is not claimed — BLOCKED_EXTERNAL
+
+**Whether an applied quota has been RAISED from the AWS default cannot be
+answered by this engine.** `ListServiceQuotas` and `GetServiceQuota` both return
+the applied `Value` and no default. The default lives behind
+`servicequotas:GetAWSDefaultServiceQuota` (or `ListAWSDefaultServiceQuotas`),
+neither of which is in `capabilities.ts`, and this module does not get to add
+one. Every reading therefore carries a `defaultValue` whose only arm is
+NOT_READABLE and which names the capability and the IAM action verbatim. The
+surface prints it; nothing in the module ever says "at the default" or "raised".
+
+To unblock, three files that belong to other owners have to change: add a
+`servicequotas:GetAWSDefaultServiceQuota` entry to `CAPABILITIES` in
+`apps/system-studio/src/lib/aws/capabilities.ts` (resource `*`, `refreshMs:
+QUOTA_TTL_MS`, surface `health`), wire the matching `case` in `client.ts`, and
+grant the `servicequotas:GetAWSDefaultServiceQuota` action in `iam.tf`.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M-Q1 | a refused / throttled / empty service listing is reported as EMPTY instead of travelling unchanged | **4 red** — the denial, the throttle, the independent-degradation case and the partition case all rendered as "none" |
+| M-Q2 | `headroomOf` turns a LOWER-bound usage into an exact `known` headroom | **3 red** — a partial count started printing an exact remainder |
+| M-Q3 | an unreadable tag index yields a usage of zero instead of "not known" | **1 red** — a refused tag read claimed the estate was using nothing |
+| M-Q4 | "no quota has a usage number" is reported as `clear` | **1 red** — an estate where nothing was compared claimed headroom |
+| M-Q5 | the retry schedule becomes a literal `50` instead of `backoffMs(2)` | **1 red** — the surface stopped using `throttle.ts`'s schedule |
+| M-Q6 | the region falls back to a literal `us-east-1` | **1 red** — the GE-010-007 shape of defect, caught |
+| M-Q7 | hitting the page cap reports the listing as `complete` | **1 red** — a truncated listing claimed to be the service |
+| M-Q8 | an absent `Adjustable` is read as "an increase can be requested" | **1 red** — an unraisable quota offered a support ticket |
+| M-Q9 | a target the batched listing omitted is never asked for individually | **4 red** — the whole fallback path went dark |
+| M-Q10 | `resolveFromListing` loses its exact-name fallback | **2 red** — a drifted quota code silently lost the row |
+| M-Q11 | a quota answered without a numeric `Value` defaults to `0` | **1 red** — *this mutation SURVIVED the first suite; the guard was untested. Two cases were added and the mutation then went red.* |
+| M-Q12 | the individual-read cap is removed | **1 red** — an unbounded number of `GetServiceQuota` calls |
+
+Each was applied singly, run, and restored from a byte-identical pristine copy;
+the suite returned to 38 green and `diff` against the pristine copy is empty.
+
+### Not done here, deliberately
+
+- **Nothing is rendered.** This module is the data layer; the route and the page
+  belong to a surface agent, so nothing in the running product calls
+  `quotaReadings` yet.
+- **No existing type was widened**, so there is no consumer to re-check: every
+  type in this work is new and lives in `quotas.ts`.
+- **No capability, client case, IAM statement or page was touched.**
+
+## STUDIO-070-004 (GuardDuty) — "0 findings" from a detector nobody checked was running
+
+- **Was**: `guardduty:ListDetectors`, `guardduty:ListFindings` and
+  `guardduty:GetFindings` were in `capabilities.ts` and wired in `client.ts`,
+  and NOTHING called them. `src/app/platform/security/posture.ts` declared the
+  service as an UNWIRED control (`guardduty::detectors`) whose remedy was "open
+  the AWS console and look", which is an honest placeholder and not an answer.
+  The service was dark: Terraform can provision a detector and this console
+  could not see one.
+- **Now**: `apps/system-studio/src/lib/aws/guardduty.ts`. `guardDutyReadings()`
+  resolves identity, reads the tag index, lists every detector, lists and
+  hydrates each detector's findings, and returns `GuardDutyReadings` —
+  `AwsRead<readonly DetectorReading[]>` for the listing, a `PageBound` for it,
+  an `AwsRead<readonly string[]>` and an `AwsRead<readonly GuardDutyFinding[]>`
+  per detector, a `GuardDutyPosture` top-line answer, an explicit `asOf`, and
+  all three capabilities' own `refreshMs` read from the registry rather than
+  retyped.
+- **The confusion this module exists to end**: a detector that does not exist, a
+  detector that is SUSPENDED, and a refused `ListFindings` all produce `0`
+  findings. Two of those three are the opposite of clean. `GuardDutyPosture` is
+  a union whose `not-enabled` arm is a FINDING carrying the remedy
+  (`aws_guardduty_detector` / `guardduty:CreateDetector`) and the cost
+  implication, never a zero; and `describeDetector`'s EMPTY arm prints "This is
+  NOT a clean bill of health" in the same sentence as the absence.
+- **What is NOT readable, said out loud rather than defaulted**:
+  `guardduty:GetDetector` is **not in `capabilities.ts`**, and this file does not
+  get to add it. So detector STATUS (ENABLED vs SUSPENDED), the finding
+  publishing frequency, and the five protection plans (S3, EKS, Malware, RDS
+  login events, Lambda network activity) are unreadable. Every detector carries
+  `DetectorConfiguration`, whose ONLY arm is `NOT_READABLE`, naming the
+  capability and listing each unknown fact individually. `guardDutyCoverage`
+  therefore cannot reach `CHECKING` — `PARTIAL` is the honest ceiling — and a
+  test asserts that. See the gap recorded below.
+- **Two capabilities behind one list, kept apart**: `guardduty:ListFindings` and
+  `guardduty:GetFindings` are separate IAM actions. A refused `GetFindings`
+  names `guardduty:GetFindings` and prints THAT minimum statement, and the
+  detector still appears; a refused `ListFindings` names `ListFindings`, and the
+  findings read is `UNCONFIGURED` saying the ids were never read rather than
+  DENIED on a call that was never made. This is `retained.ts`'s
+  `backup:ListBackupVaults` lesson applied at construction time.
+- **Ranked by severity, type verbatim**: `GuardDutyFinding.type` is AWS's own
+  string — `UnauthorizedAccess:EC2/SSHBruteForce` — and `describeFinding` prints
+  it unaltered, because that is what an operator pastes into a search. Bands are
+  AWS's published ones (1.0-3.9 Low, 4.0-6.9 Medium, 7.0-8.9 High, 9.0-10.0
+  Critical). A finding whose `Severity` was absent or out of range is `UNRANKED`
+  and sorts ABOVE critical: sorting an unreadable severity to the bottom is a
+  guess that it is unimportant.
+- **Bounded, and honest at the bound**: `MAX_DETECTOR_PAGES`,
+  `MAX_FINDING_PAGES`, `MAX_FINDINGS_PER_DETECTOR` and
+  `MAX_DETECTOR_FINDING_READS`, each with a `PageBound` whose `capped` arm says
+  "THERE WERE MORE". `GetFindings` is batched at 50 ids, which is AWS's limit —
+  the stand-in raises `BadRequestException` on 51, so a batching bug is red.
+  Ids that `ListFindings` reported and `GetFindings` did not return are carried
+  as `unhydrated` and named in the render rather than dropped.
+- **Residency**: region and partition come from the resolved identity and from
+  the `Region`, `Partition` and `AccountId` AWS puts on each finding. There is
+  no region literal and no `"aws"` fallback in the file; with identity
+  unresolved no detector ARN is assembled at all. A GovCloud identity produces
+  `arn:aws-us-gov:guardduty:us-gov-west-1:...` and the detector line contains no
+  `us-east-1`.
+- **Attribution** goes through `tags.ts` and the Resource Groups Tagging API,
+  keeps `tags.ts`'s `shared` / `unattributed` split, and adds the fourth answer
+  neither can express: `unknown`, for a refused tag index or a finding that
+  names no ARN (an access key is a credential, not a tagged resource). An EC2
+  instance ARN is assembled from the finding's OWN `Partition`, `Region` and
+  `AccountId` — GuardDuty returns no instance ARN — and the provenance string
+  says so; if any of the three is missing the ARN is null rather than half-built.
+- **Mutation proven on the production path**, thirteen mutations applied to
+  `guardduty.ts` (never to the test, never to a helper), each run, each red,
+  each restored:
+
+| # | mutation applied to `guardduty.ts` | result |
+|---|---|---|
+| M1 | the refused/throttled detector listing passthrough replaced with an ACTUAL empty array | RED x5 |
+| M2 | an account with NO detector reported as unknown instead of as the finding | RED x2 |
+| M3 | an absent severity read as LOW instead of UNRANKED | RED x3 |
+| M4 | UNRANKED sorted to the bottom instead of above critical | RED x2 |
+| M5 | the findings hydration reported under `guardduty:ListFindings` instead of `GetFindings` | RED x1 |
+| M6 | an unreadable tag index reported as `unattributable - missing tenure:tenant` | RED x1 |
+| M7 | the detector ARN assembled with a `us-east-1` literal instead of the resolved region | RED x1 |
+| M8 | a truncated finding-id listing reported as complete - the silent first page | RED x1 |
+| M9 | zero findings rendered as a clean bill of health, without the status caveat | RED x1 |
+| M10 | ids that `GetFindings` never returned dropped silently instead of named | RED x1 |
+| M11 | `GetFindings` sent every id in one request instead of batches of 50 | RED x1 |
+| M12 | coverage reports `CHECKING` for a detector whose status was never verified | RED x1 |
+| M13 | the detector listing page cap reported as complete | RED x1 |
+
+  All thirteen restored, the file on disk verified byte-identical to the
+  original, and the suite re-run green afterwards. `guardduty.ts` and
+  `guardduty.test.ts` contain no `false &&`, no `|| true`, no `MUTATION` stub,
+  no `.only` and no `.skip`.
+
+### Evidence
+
+- `npm run test --workspace apps/web -- --ci ../system-studio/src/lib/aws/guardduty.test.ts`
+  — **27 passed, 27 total.**
+- `npx jest --ci ../system-studio/src` (whole Studio suite, run from `apps/web`)
+  — **59 suites, 2052 tests, 2040 passing**; `guardduty.test.ts` PASSes. The 5
+  failing suites are `containers`, `dashboards`, `dns`, `keys` and `metrics` —
+  concurrent service agents' files, not this work.
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — **no error in
+  `guardduty.ts` or `guardduty.test.ts`.** The 4 remaining errors are in
+  `src/app/platform/cost/cost-decisions.test.ts`, another agent's file.
+- `node --test tests/architecture/forbidden-clients.test.mjs` — **6/6 pass.**
+  The module imports no SDK package; every API shape is declared locally.
+- `node --test tests/security/operator-plane-content.test.mjs` — **5/5 pass.**
+  No Prisma client is imported.
+
+### What is NOT closed, and is not claimed
+
+- **`guardduty:GetDetector` is missing from the capability registry.** It is the
+  IAM action `guardduty:GetDetector` on `arn:*:guardduty:*:*:detector/*`, and
+  without it this engine cannot read whether a detector is ENABLED or SUSPENDED,
+  its finding publishing frequency, or which data sources and protection plans
+  are on. This module names the gap in a type (`DetectorConfiguration`) rather
+  than defaulting the answer, and the security page's coverage row is therefore
+  capped at `PARTIAL`. Adding the capability belongs to whoever owns
+  `capabilities.ts`, `client.ts` and `iam.tf`; a service agent editing the
+  registry to widen its own surface is the failure mode the registry exists to
+  prevent.
+- **Nothing was read from a real AWS account.** Every assertion is against a
+  stand-in client. Whether a detector exists in the live account, and what it
+  has found, is exactly the question this module exists to answer, and it has
+  not been asked of a real account. `BLOCKED_EXTERNAL` on the same dependency as
+  the rest of this ledger.
+- **No surface renders this yet.** `guardduty.ts` exports the readings and the
+  rendered strings; the consumer is `src/app/platform/security/posture.ts`,
+  which already declares the placeholder key `guardduty::detectors` and merges
+  live rows over it by key, and `src/app/platform/security/page.tsx`. Wiring
+  that row is a surface agent's edit, not this one's — this agent owns
+  `guardduty.ts` and its test only. Until that edit lands, this module has no
+  production caller, and it is not claimed to have one.
+- **No account id, ARN, region, detector id or finding id in this suite is
+  real.** `123456789012` is AWS's documentation placeholder; the detector ids
+  are `0123456789abcdef...` and `fedcba9876543210...`, obviously constructed.
+- **No price appears anywhere in the module.** `GUARDDUTY_COST_NOTE` states the
+  billing model and says explicitly that this engine states no figure, because
+  the rate is per-region, changes, and `pricing:GetProducts` — the capability
+  that would read the current one — is not held here.
+
+## STUDIO-070-006 (COMPLIANCE / AWS Config) — is anything actually being evaluated
+
+- [x] **STUDIO-070-006 (AWS Config compliance adapter)** — Read the Config rules
+  that exist, each one's `DescribeComplianceByConfigRule` verdict, and whether
+  configuration state is aggregated centrally. Keep `COMPLIANT`,
+  `NON_COMPLIANT`, `NOT_APPLICABLE` and `INSUFFICIENT_DATA` as four different
+  answers rendering four different sentences, with `INSUFFICIENT_DATA` treated as
+  a hole and never as a pass.
+
+- **Was**: the only Config read anywhere in this repository was
+  `config:DescribeConfigurationAggregators`, issued once by `posture.ts` to fill
+  a single "Config aggregation" row on the estate page. An aggregator is a pipe.
+  It says configuration state is collected somewhere central; it says nothing
+  about whether a rule exists, whether any rule has run, or whether anything
+  failed. An account holding a perfectly organization-wide aggregator over zero
+  rules rendered CENTRALIZED. Both `config:DescribeConfigRules` and
+  `config:DescribeComplianceByConfigRule` were already in `capabilities.ts` and
+  already dispatched in `client.ts`, and nothing called either.
+- **Now**: `apps/system-studio/src/lib/aws/compliance.ts`. `complianceReadings()`
+  resolves identity, reads the tag index, pages `config:DescribeConfigRules` to
+  completion under two bounds, batches `config:DescribeComplianceByConfigRule` at
+  the API's 25-name limit, and reads `config:DescribeConfigurationAggregators`
+  alongside. It returns `ComplianceReadings` — `AwsRead<readonly
+  ConfigRuleReading[]>` for the listing, an independent `AwsRead<RuleCompliance>`
+  per rule, a `ConfigEnablement`, a `ComplianceHealth`, an
+  `AwsRead<AggregationReading>`, an explicit `ComplianceTruncation`, an explicit
+  `asOf`, and all three capabilities' own `refreshMs` read from the registry
+  rather than retyped. `complianceLines()` is the one renderer a surface prints.
+
+### The four AWS verdicts, and why folding any two is the defect
+
+`INSUFFICIENT_DATA` is the dangerous one. It is what Config returns for a rule
+whose scope matched no resource, whose Lambda has never been invoked, or whose
+recorder is not recording the type it watches — and every one of those reads as
+"not `NON_COMPLIANT`" to anything that looks for failures by matching that
+string. `NOT_APPLICABLE` is different again: the rule ran and correctly had
+nothing to say, which is also not a pass. `ruleHealthOf` gives each its own arm,
+`describeVerdict` gives each its own sentence, and a test asserts that the five
+sentences are five distinct strings and that none of the four non-passes contains
+the pass's words. A fifth arm, `verdict-unstated`, exists for a compliance object
+carrying no `ComplianceType` this engine recognises: defaulting that to
+`COMPLIANT` is the reassuring default and defaulting it to `NON_COMPLIANT` is an
+invented failure, so neither is done.
+
+A rule in `DELETING` keeps answering with its last verdict until it is gone, so
+the rule's state takes precedence over the verdict: it reports `inactive`, not
+passing.
+
+### The recorder is NOT readable from this registry, and the module says so
+
+The question "is configuration recording actually ON, and is it recording all
+resource types or a subset" is answered by
+`config:DescribeConfigurationRecorders` and
+`config:DescribeConfigurationRecorderStatus`. **Neither is in `capabilities.ts`
+and neither has an arm in `client.ts`'s `call()` switch.** This module did not
+add them — the registry is the review boundary — so the honest result is
+`RecorderReading`, a union with one arm today (`not-readable`) carrying the exact
+capability keys and IAM actions that would make it answerable, exported as
+`RECORDER_CAPABILITY_GAP`. A single-arm union is deliberate: it is a type a
+surface must handle, it renders "RECORDER UNKNOWN", it cannot be mistaken for
+"the recorder is on", and when the registry grows those keys every consumer's
+switch fails to compile until it handles the new arms. A test asserts that no
+call whose name contains `Recorder` is ever issued.
+
+`ruleScope` is the readable neighbour and is NOT a substitute: a rule's
+`Scope.ComplianceResourceTypes` says which types one RULE watches, not which
+types the RECORDER records. Both are printed and the second is printed as
+unknown.
+
+### Zero rules is a finding, not an empty table
+
+`DescribeConfigRules` against an account where Config was never set up succeeds
+and returns `ConfigRules: []`. That is EMPTY — the read worked — but the finding
+is `enablement.kind === "not-evaluating"` with a named remedy (enable Config in
+this region, switch the recorder on for all supported types, attach a delivery
+channel, deploy at least one rule) and `health.kind === "no-rules"`. A refused
+listing is `unknown` at both, and its sentence says `NOT "no rules"` in as many
+words.
+
+### Sub-calls degrade independently
+
+`DescribeConfigRules` and `DescribeComplianceByConfigRule` are separate IAM
+actions and a role is routinely granted the first without the second. Every rule
+carries its own `AwsRead` for its verdict, so a refused verdict names
+`config:DescribeComplianceByConfigRule` in the pasteable minimum statement rather
+than the listing action — an operator granting the action the denial names is
+then no longer refused. The same holds across batches: one throttled batch of 25
+does not collapse the other three. A denied tag index yields a fourth attribution
+arm, `unknown`, so a rule whose tags were never read does not render as
+"unattributable — missing tenure:tenant". A denied aggregator read touches
+neither the rules nor the verdicts.
+
+### Bounds, and the explicit "there were more"
+
+`MAX_RULE_PAGES` (20), `MAX_RULES` (500), `MAX_COMPLIANCE_RULES` (250),
+`MAX_COMPLIANCE_PAGES` (10) and `COMPLIANCE_BATCH_SIZE` (25, the API's own
+limit). Hitting a listing bound produces `truncation.kind === "more-available"`
+with the continuation token, or `nextToken: null` and the sentence "the rules
+past the cap on the last page were dropped" when the cap cut a page short and AWS
+gave no further token. Rules past the verdict cap carry an UNCONFIGURED verdict
+saying the engine stopped — which is not the same as their passing.
+
+### Region and partition
+
+From the rule's own `ConfigRuleArn` where AWS returned one, else the resolved
+identity, else null. No literal region and no `"aws"` partition fallback: a test
+asserts that an unresolved identity with no ARN leaves both null and that the
+whole rendered surface contains no `us-east-1`, and another asserts an
+`aws-us-gov` ARN reads back as `aws-us-gov` / `us-gov-west-1`.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Every mutation was made in `compliance.ts`, never in the test's stand-in, applied
+from a pristine copy, run, and restored byte-for-byte (verified by comparing the
+restored file against that copy after each run). Command in every case, from
+`apps/web`: `npx jest ../system-studio/src/lib/aws/compliance.test.ts --ci`.
+Baseline before and after: **35 passed, 35 total**.
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| C-1 | `verdictOf`'s fallback `: "UNSTATED"` became `: "COMPLIANT"` | **1 red** — a compliance object with no `ComplianceType` rendered as a pass |
+| C-2 | `ruleHealthOf`'s `unreadable` arm replaced with `return { kind: "passing" }` | **3 red** — a DENIED, a THROTTLED and an over-cap verdict all rendered as compliant |
+| C-3 | the `INSUFFICIENT_DATA` arm replaced with `return { kind: "passing" }` | **3 red** — a rule that has evaluated nothing rendered as a pass, and the estate read `compliant` |
+| C-4 | the `ruleState === "DELETING"` precedence check was switched off with `false &&` | **1 red** — a rule being torn down reported its stale COMPLIANT |
+| C-5 | `complianceHealth`'s EMPTY arm returned `{ kind: "compliant", passing: [], … }` | **3 red** — an account with no rules at all rendered compliant |
+| C-6 | the non-ACTUAL listing branch replaced with `{ state: "ACTUAL", value: [], … }` | **4 red** — DENIED, THROTTLED and EMPTY all became an empty rule list |
+| C-7 | `: identityResolved ? identity.value.region : null` became `: "us-east-1"` | **1 red** — the GE-010-007 residency shape |
+| C-8 | `if (page === MAX_RULE_PAGES - 1)` became `if (false && …)` | **1 red** — a truncated listing reported `complete` |
+| C-9 | `COMPLIANCE_BATCH_SIZE = 25` became `= 100` | **1 red** — batches of 100 names, which the real API rejects |
+| C-10 | a failed batch's per-rule propagation replaced with a synthesised `COMPLIANT` reading | **2 red** — a refused verdict read rendered as a pass for every rule in the batch |
+| C-11 | the tag-index guard in `attributionFor` became `if (false && …)` | **1 red** — a denied tag index reported every rule `unattributed` |
+| C-12 | `enablementOf`'s `if (rules.state === "EMPTY")` became `if (false && …)` | **3 red** — "nothing is being evaluated" degraded to a generic unknown, losing the remedy |
+| C-13 | `position < MAX_COMPLIANCE_RULES` became `position < Number.MAX_SAFE_INTEGER` | **1 red** — rules past the verdict cap stopped saying their verdict was not read |
+| C-14 | `describeVerdict("NOT_APPLICABLE")` returned the COMPLIANT sentence | **1 red** — two verdicts rendered identically |
+| C-15 | the `MAX_RULES` guard inside the page loop became `if (false && …)` | **1 red** — an over-cap page returned everything and reported `complete` |
+
+Two of these — **C-9** and **C-14** — were GREEN on the first pass and are
+recorded here because that is the finding. C-9 was green because the assertion
+computed its expectation from the module's own `COMPLIANCE_BATCH_SIZE`, so
+raising the constant raised the expectation with it; the fake's own limit check
+had the same flaw. Both now compare against the literal 25, which is the API's
+documented limit and not this module's to choose. C-14 was green because
+`describeVerdict` is exported for a surface to call and three of its five arms
+were only ever reached through `describeRuleHealth`, which prints the health
+arm's `why` instead. A test now asserts all five sentences directly. Neither
+mutation was reported as caught while it was not.
+
+A final scan of both files for `false &&`, `&& false`, `|| true`, `MUTATION` and
+`MAX_SAFE_INTEGER` returns nothing, and the production file is byte-identical to
+its pre-mutation copy.
+
+### Evidence
+
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — no diagnostic in
+  `compliance.ts` or `compliance.test.ts`. Four errors in another agent's
+  `apps/system-studio/src/app/platform/cost/cost-decisions.test.ts` were present
+  mid-flight and are not this entry's to claim or to fix.
+- `npx jest ../system-studio/src/lib/aws/compliance.test.ts --ci` from `apps/web`
+  — **Test Suites: 1 passed, Tests: 35 passed, 35 total**.
+- The stand-in answers five capabilities in the shapes the SDK returns and fails
+  each of them independently with `AccessDeniedException`, `ThrottlingException`,
+  an empty-but-successful answer or a populated one. The four listing outcomes
+  are asserted to render four DIFFERENT whole surfaces (`new Set(...).size === 4`),
+  and so are the four verdict-read outcomes. Every identifier is the
+  documentation placeholder account `123456789012`; nothing opens a socket.
+
+### What is NOT closed, and is not claimed
+
+- **The configuration recorder is not read.** `config:DescribeConfigurationRecorders`
+  and `config:DescribeConfigurationRecorderStatus` are absent from
+  `capabilities.ts` and from `client.ts`'s switch. Adding them is a registry
+  change plus an `iam.tf` grant plus a `client.ts` arm, all of which are other
+  agents' files. Until then the recorder renders UNKNOWN with those exact keys
+  named. This is the one part of the requirement this entry does not deliver, and
+  it is reported as an honest gap rather than inferred from the rule list.
+- **No page imports this yet.** The module is the data layer; the surface that
+  renders it is another agent's file. The exported renderers are what a surface
+  is expected to print, so a denial cannot be worded as an absence on one surface
+  and correctly on another.
+- **Aggregators are read first-page-only.** `client.ts` constructs
+  `DescribeConfigurationAggregatorsCommand({})` with no input, so there is no
+  token to send. `AggregationReading` carries `firstPageOnly: true` and a `why`
+  saying the count is a floor, rather than implying a total.
+- **`GetComplianceDetailsByConfigRule` is not read.** WHICH resources are failing
+  a rule is a different capability and this module does not invent one; the
+  contributor count AWS returns with the verdict is what is shown, marked as a
+  floor when `CapExceeded` is set.
+- **Conformance packs are not read.** `DescribeConformancePackCompliance` is not
+  in the registry. A pack's rules still appear individually in
+  `DescribeConfigRules`, so nothing is hidden — the grouping is.
+- **No existing type was widened**, so there is no consumer to re-check: every
+  type in this work is new and lives in `compliance.ts`.
+- **No capability, client case, IAM statement or page was touched.**
+- **No approval, certification or sign-off is written anywhere.** This module
+  reads verdicts AWS computed and renders them; it does not record that anybody
+  reviewed anything.
+
+## STUDIO-070-004 (CloudWatch dashboards) — the dashboard Terraform writes and nothing reads back
+
+- [x] **STUDIO-070-004 — CloudWatch dashboards are read live, parsed, and turned
+      into a coverage set.** `apps/system-studio/src/lib/aws/dashboards.ts`,
+      through the `cloudwatch:ListDashboards` and `cloudwatch:GetDashboard`
+      capabilities that already existed in `capabilities.ts`. Status: `PASS` for
+      the read plane; the live account is `BLOCKED_EXTERNAL` on the same
+      dependency as every other row in this ledger (there is no AWS Organization
+      to read).
+
+`infrastructure/terraform/cloudwatch.tf:74` provisions `${name_prefix}-ops` with
+four widgets — ECS `RunningTaskCount`, ALB `RequestCount` + `HTTPCode_Target_5XX_Count`,
+RDS `CPUUtilization`, and a Logs Insights query over the app log group — and
+until now nothing in the engine opened it. Two questions were therefore
+unanswerable: whether the dashboard still points at services that exist, and
+which of the estate's services are on NO dashboard. The second is a set
+difference, so the body is parsed down to the metric namespaces, alarm names and
+log groups each widget references and returned as data.
+
+### The decisions worth reviewing
+
+- **A malformed body is a state, not a crash.** `DashboardBody` is JSON in a
+  string and nothing validates it after `PutDashboard` accepts it.
+  `DashboardContent` has four arms — `watching`, `watching-nothing`, `malformed`,
+  `not-read` — and the reference sets live ONLY on the `watching` arm, so a
+  caller cannot read `[]` namespaces off a dashboard whose body was refused.
+- **Each `GetDashboard` is its own read.** A policy that grants the list and
+  scopes the get leaves every other row intact; the refused row keeps its name,
+  ARN and last-modified and says in words that its coverage is unknown. The load
+  stays `ACTUAL`.
+- **`coverage` refuses to be a set when it is not one.** `complete` / `partial` /
+  `not-read`. A set difference against an incomplete set reports a service as
+  unwatched when it is merely on a dashboard nobody could open, so
+  `unwatchedNamespaces` returns `undecidable` and names its shortlist
+  differently from a finding.
+- **Metric math is resolved only where it is unambiguous.** An expression over
+  ids declared in the same widget names no new namespace (`arithmetic`); a
+  `SEARCH('{AWS/ECS,…}', …)` names its namespace in the query literal
+  (`search`); anything else — a dynamically built SEARCH, an `explorer` widget
+  naming resource types, a `custom` widget rendered by a Lambda — is
+  `unresolved` and drops coverage to `partial`.
+- **The console's `.` and `...` shorthand is resolved against the previous
+  entry.** A literal reader reports a metric in the namespace `"."`, which is not
+  a namespace; with nothing to stand for, the entry becomes a named problem
+  rather than an invented namespace.
+- **Bounds:** `MAX_LIST_PAGES` 20, `MAX_DASHBOARDS_READ` 100 bodies,
+  `MAX_WIDGETS_PER_DASHBOARD` 500 (CloudWatch's own documented maximum),
+  `MAX_BODY_CHARS` 500,000. Every one of them produces an explicit
+  `more-available` / `unresolved` signal rather than a silent prefix.
+- **Region and partition come from the resolved identity.** No literal region in
+  the file. Widgets carry their OWN region when they name one, so a
+  cross-region widget is visible instead of being read as local.
+- **Attribution deviates from "shared where no tag says so", deliberately.** As
+  in `metrics.ts`, a dashboard whose tag index could not be read is `unknown`,
+  not `shared` — folding an unread index into `shared` renders a denial as a
+  decision. `shared` remains reserved for the tag value somebody set.
+
+### Evidence
+
+`npm run test --workspace apps/web -- --ci src/lib/aws/dashboards.test.ts` —
+**37 passed, 37 total**, 1 suite. `npx tsc --noEmit -p apps/system-studio/tsconfig.json`
+reports no error in either file.
+
+The stand-in answers four capabilities with the SDK's real shapes
+(`{DashboardEntries:[{DashboardName, DashboardArn, LastModified, Size}], NextToken}`,
+`{DashboardName, DashboardArn, DashboardBody}` where the body is a STRING,
+`{ResourceTagMappingList:[…]}`, `{Account, Arn}`) and fails each independently
+with `AccessDeniedException`, `ThrottlingException`, an empty-but-successful
+list, or a populated one — including failing `GetDashboard` for ONE named
+dashboard while answering for another. One test asserts the four listing
+outcomes render as four PAIRWISE DISTINCT strings, which a stand-in returning
+`[]` regardless would fail. The dashboard-body fixture is the body
+`cloudwatch.tf` actually renders. No account id, ARN or principal in the suite is
+real: `123456789012` is AWS's documentation placeholder.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Nine, each applied to `dashboards.ts` (never to the fake), run, confirmed red,
+reverted, confirmed green.
+
+| # | Mutation | Result |
+|---|---|---|
+| 1 | denied `GetDashboard` row → `kind: "watching-nothing"` | 3 failed, 34 passed |
+| 2 | `if (!token) break` → unconditional `break` in the listing loop | 2 failed, 35 passed |
+| 3 | `if (reasons.length === 0)` → `>= 0` in `coverageOf` (coverage always complete) | 6 failed, 31 passed |
+| 4 | unresolved identity region → `"us-east-1"` | 1 failed, 36 passed |
+| 5 | `"."` shorthand pushes the literal token instead of the previous value | 1 failed, 36 passed |
+| 6 | `JSON.parse` catch returns `watching-nothing` instead of `malformed` | 1 failed, 36 passed |
+| 7 | `parseAlarmArn` invents `parts[parts.length - 1]` as the name | 1 failed, 36 passed |
+| 8 | `inBudget = position < MAX_DASHBOARDS_READ \|\| true` (bound removed) | 1 failed, 36 passed |
+| 9 | unread tag index attributes `shared` instead of `unknown` | 1 failed, 36 passed |
+
+Final state after every revert: **37 passed, 37 total.**
+
+### What is NOT closed, and is not claimed
+
+- **Nothing was read from a real AWS account.** Whether the live
+  `<prefix>-ops` dashboard still points at the ECS service that exists is exactly
+  the question this module was built to answer, and it has not been asked of a
+  real account. `BLOCKED_EXTERNAL` on the AWS Organization.
+- **No page renders this yet.** The production entry point is
+  `dashboardReadings()`, which resolves `liveGateway()` → `client.ts` → the SDK
+  when called with no gateway. A surface agent owns the rendering; this file may
+  not edit a page and does not claim one.
+- **The intersection itself is not computed here.** `unwatchedNamespaces` answers
+  the dashboard half; joining it to alarms and to the inventory belongs to a
+  surface that holds all three. The alarm side is `alarms.ts`, which returns
+  alarm NAMES and no namespace, so "in no alarm" is a name join, not a namespace
+  join.
+- **`explorer` and `custom` widgets are not decoded.** An explorer widget names
+  resource TYPES and a custom widget is rendered by a Lambda; both are reported
+  `unresolved` and reduce coverage rather than being guessed at.
+- **No capability, client case, IAM statement or page was touched**, and no
+  approval, review or sign-off is written anywhere.
+
+## STUDIO-070-004 (PRICING) — the priced catalogue stops being a transcribed table
+
+- [x] **STUDIO-070-004 (AWS Price List adapter)** — Read the on-demand list price
+  of the resource shapes this estate provisions — Fargate vCPU- and GB-hours, an
+  RDS instance-hour for a stated class and engine, ElastiCache node-hours, ALB
+  hours and LCUs, CloudFront request and data-transfer tiers, S3 storage and
+  request tiers, DynamoDB on-demand read and write request units, an SES outbound
+  message and an SQS request — as integer minor units with an explicit currency,
+  so the composer's per-seat and per-organisation figures are grounded rather
+  than transcribed.
+
+- **Was**: `pricing:GetProducts` and `pricing:ListPriceLists` were in
+  `capabilities.ts` and dispatched in `client.ts`, and **nothing called either**.
+  The only prices in the product were `@tenure/finops`'s `pricing.ts`, a
+  hand-maintained catalogue of `perSeatMinor` / `perOrgMinor` figures — right on
+  the day it was typed and wrong from the next AWS price change onwards, with
+  nothing in the product able to tell which day it was. `ce:GetCostAndUsage
+  WithResources` cannot answer this question: Cost Explorer reports what was
+  SPENT, and a composer needs what a change WOULD cost.
+- **Now**: `apps/system-studio/src/lib/aws/pricing.ts`. `pricingReadings()`
+  resolves identity, builds each shape's query from a closed `SHAPES` catalogue,
+  pages `pricing:GetProducts` under a bound, parses each `PriceList` JSON
+  document, and returns a `ShapeReading` per shape carrying its own
+  `AwsRead<readonly PricedProduct[]>`, its own `ShapeRate`, its own `truncated`
+  flag, the registry's own `refreshMs` and an explicit `asOf`.
+  `priceListPublications()` is the second capability, read separately.
+  `pricingLines()` is the one renderer a surface prints.
+
+### Money is integer minor units. There is no float on this path.
+
+The Price List publishes `pricePerUnit` as a decimal STRING, and
+`Number("0.0000166667")` is the bug. `parseRate` shifts the decimal point with
+BigInt digit arithmetic and hands `@tenure/finops`'s `money()` an integer; the
+currency is read off the response and never defaulted to USD, because the China
+partition publishes CNY and a quote that adds dollars to yuan is wrong in a way
+that looks right.
+
+It deliberately does **not** use `@tenure/finops`'s `fromDecimal`, which is
+documented to TRUNCATE below its scale. That is correct for an
+already-authoritative CUR line and catastrophic for a unit price: DynamoDB's
+on-demand write unit is `0.000000125` USD, which is finer than `Money` holds
+exactly, and truncating it renders a real price as free. `parseRate` scales the
+QUANTITY instead — `0.00000125 per 10 WriteRequestUnits`, exact, with
+`perQuantity` a required field on `Rate` so a caller that ignores it is wrong by
+a power of ten rather than silently. A price finer than the engine will scale is
+reported unknown, never rounded. `extendRate` exists so no surface writes
+`price * hours` in doubles: `0.009 * 730` is `6.569999999999999`, and the test
+asserts that trap verbatim.
+
+### A price this engine could not fetch has no amount, at the type level
+
+`ShapeRate` has four arms and only `flat` and `tiered` carry money. `unknown`
+and `ambiguous` have no amount field at all, so a surface cannot substitute
+zero for a denied, throttled, truncated, unmatched or ambiguous read — the same
+mechanism `AwsRead` uses one level up, for the same reason. `Rate.free` is a
+separate boolean that is true only when AWS itself published zero, so "AWS gives
+this away" and "we could not read it" are never the same rendering.
+
+### Two failures that are NOT the same, kept apart
+
+A denied `pricing:GetProducts` is DENIED with the principal, the action and a
+pasteable minimum statement. A filter that matched nothing is EMPTY. A page cap
+hit is `truncated` with the rate withheld, because a rate chosen out of a partial
+list is a coin flip between SKUs. An unset `AWS_GLOBAL_ENDPOINT_REGION` is
+UNCONFIGURED — the Price List API is not served from every region, and
+`client.ts` throws `EndpointRegionUnset` rather than guessing one.
+
+### The region is resolved, and the two kinds of shape degrade apart
+
+`regionCode` is a real Price List filter field, so a region-scoped shape is
+priced at the region `sts:GetCallerIdentity` resolved and never at a literal —
+there is no region string in this module at all. When identity is unresolved a
+region-scoped shape is UNCONFIGURED and the call is not made, while CloudFront,
+which prices by edge geography rather than by region, still answers in the same
+load. One denied detail does not collapse the row.
+
+### Attribution: stated deviation
+
+Prices are NOT read through the Resource Groups Tagging API. A published list
+price is not a provisioned resource — no ARN, no `tenure:tenant` tag, and
+`tag:GetResources` would never return one — and it is the same figure for every
+tenant. Every reading is attributed `shared` using `tags.ts`'s own `Attribution`
+vocabulary, with the reason exported as `PRICE_ATTRIBUTION_WHY`. What is
+per-tenant is CONSUMPTION, which is `cost-report.ts`'s reading.
+
+### Quoting only
+
+The only import from `@tenure/finops` is its money arithmetic. Nothing here
+imports or re-exports settlement, a payments gateway or a ledger write, and no
+capability in this module's path can create, update, put, send or invoke
+anything.
+
+### What is NOT closed, and is not claimed
+
+- **Nothing was read from a real AWS account.** Every assertion is against a
+  stand-in client. `BLOCKED_EXTERNAL` on the same dependency as the rest of this
+  ledger.
+- **The service codes, product families and usage-type fragments in `SHAPES`
+  are unvalidated against a live price list.** They are the Price List API's
+  published vocabulary and any one of them may be wrong. The design makes that
+  survivable rather than dangerous: a wrong filter returns EMPTY and the rate is
+  `unknown`, naming both the fragments searched and the usage types actually
+  seen, so the correction is visible from the page. No path produces a wrong
+  NUMBER from a wrong filter.
+- **Reserved and Savings Plan terms are never read.** Only the `OnDemand` term is
+  parsed. A committed rate is a purchase this estate has not made, and quoting
+  one would be a price nobody can buy today. A fixture publishes a reserved rate
+  and a test asserts it is not the one quoted.
+- **No approval, certification, sign-off or effective date is invented.** The
+  `effectiveDate` and `publicationDate` on every reading are AWS's own, carried
+  through, and are kept distinct from this engine's `asOf` for the read.
+- **`docs/architecture/ownership.md` is stale by exactly one file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree, not to concurrent writers.
+
+## STUDIO-070-004 (CONTAINERS) — ECS at task granularity, and why `runningCount` is 1 when `desiredCount` is 2
+
+- [x] `apps/system-studio/src/lib/aws/containers.ts` — the ECS reader that starts
+      where `inventory.ts` stops.
+- [x] `apps/system-studio/src/lib/aws/containers.test.ts` — 59 cases, four
+      outcomes per capability, eight mutation proofs on the production path.
+
+### Why this one mattered
+
+`inventory.ts` reads `ecs:ListClusters` → `ecs:ListServices` →
+`ecs:DescribeServices` and stops. That produces one string per service —
+`ACTIVE 1/2` — and every ECS incident in this estate has so far come to die in
+it. It states that a task is missing; it cannot state why, and "why" is the whole
+of the incident:
+
+- `OutOfMemoryError: Container killed due to memory usage` — the revision asks
+  for less memory than the process needs. Until somebody ships a new one the
+  replacement task dies too.
+- `Task failed ELB health checks in (target-group …)` — the container came up and
+  the load balancer refused it. The remedy is the health-check path, the grace
+  period or the application, and emphatically not more memory.
+- `Scaling activity initiated by (deployment ecs-svc/…)` — nothing is wrong.
+
+Three different nights, one string. `stoppedReason` is now read, classified into
+ten causes, and grouped into incidents that explain a service's gap.
+
+### What it reads, and through which capability
+
+| Capability | What it answers |
+| --- | --- |
+| `ecs:ListClusters` | which clusters exist. ONE page — see the deviation below |
+| `ecs:DescribeClusters` | capacity providers, registered container instances, running/pending totals, statistics, settings |
+| `ecs:ListServices` | the service ARNs in a cluster |
+| `ecs:DescribeServices` | desired/running/pending counts, launch type, target groups, deployments and their `rolloutState` |
+| `ecs:ListTasks` | task ARNs, RUNNING and STOPPED read separately |
+| `ecs:DescribeTasks` | `lastStatus`, `healthStatus`, `stopCode`, `stoppedReason`, per-container `exitCode` and `imageDigest` |
+| `ecs:DescribeTaskDefinition` | the revision each service actually runs: image, cpu, memory, network mode, log configuration, `secrets` vs plain-text `environment` |
+
+Every capability was already in the registry when this work started. Nothing here
+added one, and no IAM action was requested.
+
+### Seven capabilities, seven readings, degrading independently
+
+A cluster ROW is built from the ARN that `ListClusters` already returned, and
+everything below it is its own `AwsRead`: `detail`, `services`, `runningTasks`,
+`stoppedTasks`, and per service a `taskDefinition`. The listing and the describe
+are separate readings for services and for tasks as well, so a refused
+`ecs:ListServices` renders a minimum statement naming `ecs:ListServices` — not
+`ecs:DescribeServices`, which was never reached. `retained.ts` paid for that
+lesson once with `backup:ListBackupVaults`; this module does not repeat it.
+
+A cluster whose capacity providers were refused still shows its services. A
+service whose revision was refused still shows its counts and the reason a task
+stopped. None of them renders as a reassuring default.
+
+### The gap, and the three things it is not
+
+`CountGap` has four arms and they are not interchangeable:
+
+- `none` — running is at or above desired.
+- `explained` — missing tasks, and stopped tasks in the window grouped by cause.
+- `unexplained` — missing tasks and NOTHING stopped. That is a real and alarming
+  answer: the scheduler is not placing them, which is capacity or a subnet, not a
+  crash.
+- `unknown` — the task read did not happen. No claim either way.
+
+Collapsing `unknown` into `unexplained` would send an operator to look at subnets
+because of an IAM denial. A test asserts the two render as different text, and
+mutation M2 proves the test catches it.
+
+### An environment variable's NAME is a finding. Its VALUE is never read.
+
+The value is not redacted — there is no property anywhere in this module's types
+that can hold one, so no surface, serialiser or future edit can print it. Same
+mechanism as `AwsRead`'s missing `value` on DENIED: the discipline is in the type.
+
+The name test is a substring match on KEY, SECRET, TOKEN, PASSWORD, PASSWD and
+CREDENTIAL, and it over-reports on purpose — `MONKEY_MODE` contains "KEY" and is
+listed. A name wrongly listed discloses nothing; a credential wrongly missed is
+the defect. A test asserts the over-report is deliberate rather than accidental.
+
+`logConfiguration.options` values are carried only for an allowlist of
+`awslogs-*` keys. The `splunk` driver's `splunk-token` contributes its NAME and
+nothing else, and a test asserts the token value appears nowhere in the reading.
+
+### A deviation, stated: `ecs:ListClusters` reads exactly one page
+
+`client.ts` builds `ListClustersCommand({})` with no `nextToken` passthrough, and
+`client.ts` is another agent's file. A second page cannot be requested from here.
+When the first page returns a `nextToken` the reading is marked `truncated` with
+a `why` naming the reason, and `containerLines` prints it. What does NOT happen
+is a first page passed off as the estate. Fixing this properly needs one line in
+`client.ts`'s `ecs:ListClusters` case; it is not claimed as done.
+
+### Bounds, and the signal when one is hit
+
+`MAX_SERVICE_PAGES` 10, `MAX_TASK_PAGES` 10, `MAX_CLUSTER_DEPTH_READS` 20,
+`MAX_TASK_DEFINITION_READS` 40, `DESCRIBE_SERVICES_BATCH` 10 (the API's ceiling —
+eleven is a validation error), `DESCRIBE_TASKS_BATCH` 100, `DESCRIBE_CLUSTERS_BATCH`
+100. Every bound that is hit travels as a `Truncation` value or as an
+UNCONFIGURED reading whose `why` says the engine stopped — never as an empty
+list. Clusters past the depth cap keep their row and say they were not read.
+
+### Evidence
+
+```
+$ npx tsc --noEmit -p apps/system-studio/tsconfig.json   # filtered to this module
+(no errors in aws/containers.ts or aws/containers.test.ts)
+
+$ cd apps/web && npx jest ../system-studio/src/lib/aws/containers.test.ts
+Test Suites: 1 passed, 1 total
+Tests:       59 passed, 59 total
+
+$ node tests/security/operator-plane-content.test.mjs
+# pass 5  # fail 0
+```
+
+The whole `src/lib/aws` suite was also run: 29 of 32 suites pass; `dns.test.ts`,
+`logs.test.ts` and `waf.test.ts` fail, and those three are other agents' files
+mid-flight, not this module's. `containers.test.ts` passes inside that run.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | Mutation | Mutated | Restored |
+| --- | --- | --- | --- |
+| M1 | deleted the out-of-memory rule from the ordered stop-reason classifier | `Tests: 4 failed, 55 passed` | `Tests: 59 passed` |
+| M2 | reported a REFUSED stopped-task read as `unexplained` instead of `unknown` | `Tests: 1 failed, 58 passed` | `Tests: 59 passed` |
+| M3 | dropped the `ListClusters` truncation signal, returning the first page as the estate | `Tests: 1 failed, 58 passed` | `Tests: 59 passed` |
+| M4 | stopped flagging credential-shaped plain-text environment names | `Tests: 1 failed, 58 passed` | `Tests: 59 passed` |
+| M5 | collapsed a refused `ecs:DescribeClusters` into a reassuring zero-capacity default | `Tests: 1 failed, 58 passed` | `Tests: 59 passed` |
+| M6 | turned a DENIED `ecs:ListClusters` into an empty cluster list | `Tests: 4 failed, 55 passed` | `Tests: 59 passed` |
+| M7 | attributed a resource as `unattributed` when the tag index itself was refused | `Tests: 1 failed, 58 passed` | `Tests: 59 passed` |
+| M8 | let the fleet report `steady` even when sub-reads did not answer | `Tests: 1 failed, 58 passed` | `Tests: 59 passed` |
+
+Every mutation was restored immediately and the restored run was re-executed and
+re-recorded, not assumed. A `diff` against the pre-mutation baseline reports the
+file identical. A final scan for `false &&`, `&& false`, `|| true`, `MUTATION`,
+`TODO`, `FIXME` and `placeholder` over both files returns nothing. No check was
+left disabled.
+
+### What is NOT closed, and is not claimed
+
+- **`ecs:ListClusters` reads one page.** See the deviation above. Not fixable
+  from this module: `client.ts` owns the command input and is another agent's
+  file.
+- **No page imports this yet.** The production entry point is
+  `containerReadings()`, which resolves `liveGateway()` when called with no
+  argument; the route that renders `containerLines()` is a surface agent's file,
+  and until that lands nothing in the running product calls it.
+- **`stoppedReason` only sees ECS's retention window,** approximately one hour.
+  `ECS_STOPPED_WINDOW` travels on every cluster so a surface cannot print "no
+  stopped tasks" as a statement about yesterday. The long-horizon answer is
+  CloudTrail and the service event stream, neither of which this reader holds.
+- **Service EVENTS are not read.** `DescribeServices` returns an `events` array
+  whose messages are often the clearest statement of a placement failure. It is
+  not carried yet; the deployments and their `rolloutStateReason` are.
+- **Container Insights metrics are not read.** Per-task CPU and memory
+  utilisation live in CloudWatch and belong to `metrics.ts`, not here. The module
+  reports that a container was killed for memory; it does not report how close to
+  its limit a living container is running.
+- **Nothing here decides whether a service is unmanaged or has drifted from
+  Terraform.** That is `drift.ts`'s question.
+- **Nothing here was verified against a live AWS account.** Every case runs
+  against a stand-in gateway. No credentials were used, no AWS call was made, and
+  no account id, ARN, cluster, service or region in the tests or this entry is a
+  real Tenure resource — the account throughout is the obviously-constructed
+  `123456789012`. No approval, review, certification or verification date is
+  recorded anywhere in this work.
+- **`docs/architecture/ownership.md` is stale by exactly two files** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree after this batch lands, not to concurrent writers.
+
+## STUDIO-070-004 (WAFv2) — is anything actually in front of the front door
+
+- [x] **STUDIO-070-004 (WAFv2 adapter)** — Read the web ACLs in both WAFv2
+  scopes, and read per RESOURCE rather than per account: which load balancer and
+  which distribution has a web ACL in front of it, and which is taking requests
+  directly. `apps/system-studio/src/lib/aws/waf.ts`.
+
+- **Was**: `wafv2:ListWebACLs` and `wafv2:GetWebACLForResource` were in
+  `capabilities.ts`, dispatched in `client.ts` with two clients (one regional,
+  one at the partition's global endpoint for the CLOUDFRONT scope), and
+  **nothing called either**. The console could not distinguish "a web ACL is
+  attached", "no web ACL exists in this account" and "this role may not call
+  `wafv2:ListWebACLs`". All three rendered as nothing at all.
+- **Now**: `wafReadings()` resolves identity, reads the tag index, reads BOTH
+  scopes as two independent `AwsRead<WebAclListing>`, enumerates the load
+  balancers and distributions, and returns one `ResourceProtection` row per
+  resource, each carrying its own `AwsRead<Association>`. `wafCoverage()` is the
+  headline verdict and `wafLines()` is the one renderer a surface prints.
+- Status: **PASS** for both scopes, the per-resource association, the coverage
+  verdict and the rendering. The rules of a web ACL that is attached to nothing
+  are **FAIL**, recorded as its own entry below.
+- Evidence: `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/waf.test.ts`
+  — **29 passed, 29 total**; 7 mutations applied to the production path, each
+  red, each restored (table below); `npx tsc --noEmit -p apps/system-studio/tsconfig.json`
+  reports no error in `apps/system-studio/src/lib/aws/waf.ts` or `waf.test.ts`.
+
+### The expected answer in this estate is "there is no web ACL", and it is a finding
+
+`ListWebACLs` against an account with no WAF SUCCEEDS and returns an empty list.
+That is `EMPTY`, not `DENIED`, and the two are different arms of `AwsRead<T>` —
+the denied arm has no `value` field to read an empty list out of. But an empty
+grid would read as "nothing is wrong" while describing an estate with no web
+application firewall, so `WafCoverage` lifts the successful-empty into
+`no-web-acl-exists`, which names every internet-reachable resource that is
+therefore unprotected and carries `WAF_REMEDY` — the `aws_wafv2_web_acl`,
+`aws_wafv2_web_acl_association` and CloudFront `web_acl_id` that would change
+it. It is a statement of what is missing. It is not an approval, a sign-off or a
+claim that anybody reviewed anything.
+
+### Two scopes, and neither is allowed to answer for the other
+
+`REGIONAL` is served from the estate's own region and `CLOUDFRONT` only from the
+partition's global endpoint. Asking the regional client for the edge catalogue
+returns an EMPTY list, which is the worst possible failure here because it reads
+as "the CDN has no WAF". Both scopes are asked for by name (a test records the
+`Scope` of every call and asserts both were sent), each carries its own state,
+and `no-web-acl-exists` is unreachable unless BOTH answered successfully. A
+denied CLOUDFRONT scope, or an unset `AWS_GLOBAL_ENDPOINT_REGION` — which
+`client.ts` raises as `EndpointRegionUnset` and `readAws` maps to UNCONFIGURED —
+makes the verdict `unknown`, with the scope named in the sentence.
+
+### Per resource, and one denial does not collapse a neighbour
+
+Every application load balancer gets its own `wafv2:GetWebACLForResource`, so a
+refusal on one ALB renders as a refusal on that row with its own pasteable
+minimum statement, and the ALB beside it still reads. A distribution's
+protection comes from the `WebACLId` that `cloudfront:ListDistributions` already
+returns, because `GetWebACLForResource` does not accept a distribution ARN — its
+protected-resource types are load balancers, API Gateway stages, AppSync APIs,
+Cognito user pools, App Runner services and Verified Access instances. A network
+or gateway load balancer is UNCONFIGURED with the reason and is never called:
+"WAF cannot attach to this" is not "WAF is not attached to this".
+
+### Three things this module refuses to confuse
+
+- **WAF Classic is not WAFv2.** A distribution whose `WebACLId` is a
+  36-character Classic id is `waf-classic`, not unprotected — Classic is read
+  through `waf:` and `waf-regional:` actions this engine holds no capability for.
+- **Count mode is not protection.** Every rule carries `blocking`, false for
+  `Count`, for a rule group overridden to `Count`, and for an action this engine
+  could not parse. An estate whose every attached ACL blocks nothing is
+  `monitoring-only`, not `protected`.
+- **"Attached" is not "blocking".** The `protected` arm carries
+  `blockingConfirmed` and `detailUnread` separately, so a distribution whose ACL
+  was named but never read is not counted as a rule set somebody checked.
+
+### Bounds, and the explicit "there were more"
+
+`MAX_WEB_ACL_PAGES` (20 pages of 100), `MAX_TARGET_PAGES` (20) and
+`MAX_ASSOCIATION_READS` (100, batched 8 at a time). A capped web-ACL listing
+returns `truncation.kind === "capped"` INSIDE the value — so a caller cannot
+render the list without holding the truncation — and is never EMPTY, even when
+it read nothing: a bound hit on page one is not evidence that a scope is empty,
+and `listingComplete()` gates the `no-web-acl-exists` verdict on it. The load
+balancer and distribution listings throw instead, because a truncated list of
+front doors would silently omit an unprotected one. Resources past the
+association cap carry an UNCONFIGURED association saying the engine stopped
+looking.
+
+### Region, partition and attribution
+
+Region and partition come from the resolved identity and from the ARNs AWS
+returned — the edge scope's region is read off the ACL ARNs themselves, which is
+where those ACLs demonstrably are. There is no literal region and no `"aws"`
+partition fallback in the file; a test builds an `aws-us-gov` ACL ARN and asserts
+it reads back as `aws-us-gov`. Attribution is the Resource Groups Tagging API
+through `tags.ts`, with the same fourth arm `sqs.ts` documents: a tag index that
+was DENIED renders "attribution unknown", never "unattributable — missing
+tenure:tenant", which would send an operator to add a tag that is probably
+already there.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Every mutation was made in `waf.ts`, never in the test's stand-in, and restored
+before the next one. Command in every case, from the repository root:
+`npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/waf.test.ts`.
+Baseline before and after: **29 passed, 29 total**.
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| W-1 | `listWebAcls`'s `isEmpty` lost its `&& listing.truncation.kind === "complete"` clause | **1 red** — a capped listing that read nothing rendered as "this scope is empty" |
+| W-2 | `wafCoverage`'s unread-scope guard became `if (false && (...))` | **2 red** — a DENIED and an UNCONFIGURED CLOUDFRONT scope both produced a confident account-wide verdict |
+| W-3 | the not-applicable check became `if (false && target.kind !== "application-load-balancer")` | **1 red** — a network load balancer was called, answered empty, and rendered as unprotected |
+| W-4 | `actionBlocks`'s `case "count"` moved from the `return false` group to `return true` | **2 red** — a web ACL entirely in Count mode reported as protection |
+| W-5 | `arnPartition` replaced with `return arn.length > 0 ? "aws" : null` | **1 red** — an `aws-us-gov` web ACL reported as commercial; the GE-010-007 shape |
+| W-6 | `RETRY.attempts` became `1` | **1 red** — `retryAfterMs` 200 instead of throttle.ts's 800; the schedule was no longer the shared one |
+| W-7 | `describeProtection`'s EMPTY branch widened to also catch `DENIED` | **1 red** — a refused association rendered as "NO WEB ACL ... requests reach it unfiltered" |
+
+Two of the three failures on the first full run were real defects in the
+production path, fixed rather than asserted around: a denied scope rendered
+without saying WHICH scope (both scopes are the same capability, and
+`describeRead` renders a denial from the capability alone), and a capped listing
+with nothing read reached the `no-web-acl-exists` verdict. No guard was left
+disabled: a sweep for `false &&`, `|| true` and `attempts: 1` in `waf.ts` after
+the last restore returns nothing.
+
+### What is NOT closed, and is not claimed
+
+- [ ] **STUDIO-070-004 (WAFv2 rules of an unattached web ACL)** — the default
+  action, rules and rule-group references of a web ACL that is not associated
+  with a readable resource.
+- Status: **FAIL**. `wafv2:ListWebACLs` returns summaries only — `Name`, `Id`,
+  `Description`, `ARN`, `LockToken`. The full `WebACL` object comes from
+  `wafv2:GetWebACL`, and that capability is not in `capabilities.ts`; a service
+  agent does not add one. The exact key needed is `"wafv2:GetWebACL"` with IAM
+  action `wafv2:GetWebACL` on resource `*` (it authorises on the web ACL and on
+  every rule group it references), dispatched in `client.ts` with the same
+  two-client REGIONAL/CLOUDFRONT split `wafv2:ListWebACLs` already has, taking
+  `Name`, `Id` and `Scope`. Until then `WebAclDetail` is the `not-readable` arm
+  naming that action — a value a surface must render, not a field it can forget.
+  Rules ARE read wherever `GetWebACLForResource` supplies them, which is every
+  ACL actually associated with a load balancer.
+- **Nothing was read from a real AWS account.** Every assertion is against a
+  stand-in client. Whether this estate's ALB has a web ACL in front of it is
+  exactly the question this module exists to answer and it has not been asked of
+  a real account, on the same dependency as the rest of this ledger. No account
+  id, ARN, region, distribution id or web ACL id in the suite is real:
+  `123456789012` is AWS's documentation placeholder and every other identifier
+  is obviously constructed.
+- **Logging, sampled requests and rate-based counters are not read.**
+  `wafv2:GetLoggingConfiguration`, `GetSampledRequests` and
+  `GetRateBasedStatementManagedKeys` are not in the registry. Whether a web
+  ACL's requests are being logged is therefore NOT part of this answer, and no
+  arm of `WafCoverage` implies it is.
+- **`ListResourcesForWebACL` is not held either**, so "this ACL exists and
+  protects nothing" is derived from the per-resource reads this console could
+  make, not from the ACL's own association list.
+- **The surface is not rendered.** `wafLines()` is the contract a surface agent
+  consumes; no page in this repository calls it yet.
+- **`docs/architecture/ownership.md` is stale by two more files** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree after this batch lands, not to concurrent writers.
+
+
+## STUDIO-080-002 (DNS) — where a tenant host resolves, and whether the thing it resolves to still exists
+
+**Status: PASS for its stated scope** — the data layer. No page imports it yet;
+the surface is another agent's file.
+
+`apps/system-studio/src/lib/aws/dns.ts` + `dns.test.ts`. Nothing in the running
+product had ever issued a Route 53 call: Terraform provisions the zone and the
+console could not answer "does this tenant's hostname point at our distribution",
+which for a path-based estate is one apex record away from every tenant at once.
+
+### What it reads, through which capability
+
+| Capability (already in the registry) | What it answers |
+| --- | --- |
+| `route53:ListHostedZones` | which zones exist, public or private, and their record counts |
+| `route53:ListResourceRecordSets` | per zone: name, type, TTL, values, alias target and set identifier |
+| `cloudfront:ListDistributions` | the ownership index an alias target is matched against |
+| `elasticloadbalancing:DescribeLoadBalancers` | the second ownership index, for ELB alias targets |
+| `tag:GetResources` (via `tags.ts`) | which tenant a zone is tagged to |
+| `sts:GetCallerIdentity` (via `identity.ts`) | the partition every zone ARN is built from |
+
+No capability was added and none was needed. The module calls exactly those six
+and a test asserts the set.
+
+### The three facts it refuses to fold together
+
+1. **owned** — the alias or CNAME target is a distribution domain or load
+   balancer DNS name this account returned.
+2. **dangling** — the index ANSWERED and the target is not in it. That is a
+   subdomain takeover: the name is re-registrable and the record keeps sending
+   this estate's users at it.
+3. **unverifiable** — the index was refused, throttled, broken or incomplete, or
+   no capability this engine holds can enumerate that kind of target (S3 website
+   endpoints, API Gateway).
+
+`dangling` is reachable only from an index whose state was ACTUAL, STALE or
+EMPTY **and** whose pagination was `complete`. A denial rendered as `dangling` is
+a false alarm that costs an afternoon; a denial rendered as `owned` is how a
+subdomain gets taken. Both are unreachable by construction, and M-D1 / M-D13
+below prove the guards are live.
+
+### Pagination this engine cannot complete, stated rather than hidden
+
+`ListResourceRecordSets` pages on `StartRecordName`, `StartRecordType` and
+`StartRecordIdentifier`. `client.ts` forwards only the first, and `client.ts` is
+not this agent's file. So records are deduplicated on name + type + set
+identifier, and a page that adds nothing new is reported as `Pagination.stalled`
+naming the parameter that would move it. `truncated` is the separate page-cap
+arm. Nothing may claim an absence from either: `hostVerdict` returns `unknown`
+rather than `no-record`, and `takeoverState` names the zone in `unverified`
+rather than counting it clear.
+
+Bounds: `MAX_ZONE_PAGES` 20, `MAX_RECORD_PAGES` 20 per zone,
+`MAX_ZONE_RECORD_READS` 50 zones per load (zones past it carry UNCONFIGURED, not
+"no records"), `ZONE_CONCURRENCY` 4.
+
+### The registrar, said plainly
+
+The apex NS set is Route 53's own delegation set and is reported. Whether the
+REGISTRAR delegates to it is **outside this account's visibility**:
+`route53domains:GetDomainDetail` is not in the registry, and even with it AWS
+answers only for domains registered through Route 53 Domains in this same
+account. `REGISTRAR_NOT_READABLE` is a value a surface must render, not a field
+it can forget. No approval, verification or sign-off is asserted anywhere in this
+module.
+
+### Evidence
+
+```
+npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/dns.test.ts
+Tests: 33 passed, 33 total
+npx tsc --noEmit -p apps/system-studio/tsconfig.json   # no error in dns.ts or dns.test.ts
+node --test tests/architecture/forbidden-clients.test.mjs   # 6 pass
+node --test tests/security/operator-plane-content.test.mjs  # 5 pass
+```
+
+Four outcomes are proven distinct against a stand-in that pages for real:
+AccessDenied → DENIED carrying `route53:ListHostedZones`, the principal, the
+account, the region, the partition and a pasteable statement, with no `value`
+field at all; ThrottlingException → THROTTLED with `retryAfterMs` 800, which is
+`throttle.ts`'s schedule and not a number retyped here; an empty-but-successful
+list → EMPTY rendering "none"; a populated list → ACTUAL. The four render as four
+byte-different surfaces and a test asserts the set has four members.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Each was applied to `dns.ts` from a byte-identical pristine copy, run, then
+restored and the restore verified by md5 (`4af1e55efbc708f3f5f80ba7f2d5ac7c`).
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M-D1 | `if (false && !answered(indexes.distributions))` — the CloudFront-index guard switched off | RED, 2 failed |
+| M-D2 | `isConclusive` returns `true || …` | RED, 4 failed |
+| M-D3 | the record page loop breaks after page one whatever `IsTruncated` says | RED, 4 failed |
+| M-D4 | an unreadable tag index attributes as `unattributed` instead of `unknown` | RED, 1 failed |
+| M-D5 | `normaliseDnsName` stops decoding Route 53 octal escapes | RED, 1 failed |
+| M-D6 | `deriveZoneArn` hardcodes the `aws` partition | RED, 1 failed |
+| M-D7 | `takeoverState` reports `clear` when the zone listing was not read | RED, 1 failed |
+| M-D8 | an alias record reports TTL `0` instead of "no TTL" | RED, 1 failed |
+| M-D9 | the `MAX_ZONE_RECORD_READS` budget branch is skipped | RED, 1 failed |
+| M-D10 | the ELB `dualstack.` suffix match is dropped | RED, 3 failed |
+| M-D11 | `takeoverState` stops naming an incomplete zone in `unverified` | RED, 1 failed |
+| M-D12 | the stalled-cursor detection is removed | RED, 2 failed |
+| M-D13 | `if (false && !answered(indexes.loadBalancers))` | RED, 1 failed |
+| M-D14 | `hostVerdict` answers `no-record` from a read that did not complete | RED, 1 failed |
+
+After the last restore the suite is 33/33 and the file's md5 is the pre-mutation
+one.
+
+#### A gap of mine, found by a mutation that survived
+
+M-D11's first run was **GREEN**. The anchor matched `takeoverState`'s
+`isConclusive` check rather than `hostVerdict`'s — and nothing asserted that an
+incomplete zone is named in `unverified`, so switching it off changed nothing an
+operator could see. That is the "clear as far as we bothered to look" defect in
+miniature. A test was added ("a stalled zone is named in the takeover verdict's
+unverified list"), the two sites were split into M-D11 and M-D14, and both are
+now red. It is recorded here rather than quietly fixed because a mutation harness
+whose misses are not reported is the same lie as a guard that cannot fail.
+
+#### The file was tampered with mid-session, and that is recorded too
+
+Between the first write of `dns.ts` and the first mutation run, the file on disk
+acquired `if (false && !answered(indexes.distributions))`, a
+`return true || pagination.kind === "complete"`, a `{ kind: "clear" }` takeover
+arm, a `ttlSeconds: … : 0`, and two NUL bytes in place of the dedupe key's
+separators — none of which this agent wrote. The proximate cause was a shared
+scratchpad: another agent overwrote `scratchpad/mutate.mjs`, so the two
+harnesses collided over the same filename. Every injection was found by a
+verbatim guard-needle scan, repaired, and the repaired file re-proved by the
+14-mutation table above. Working files were renamed `dns-*` and a
+`dns-integrity.mjs` check runs before and after every suite run.
+
+#### What is NOT closed, and is not claimed
+
+- **No page imports this yet.** The module is the data layer; the surface that
+  renders it is another agent's file, and until that lands nothing in the running
+  product calls `dnsReadings`.
+- **Record pagination cannot be completed for a name whose record sets exceed one
+  page.** `client.ts` forwards only `StartRecordName`. Reported as `stalled`;
+  fixing it is a change to `client.ts`, which this agent does not own.
+- **S3 website and API Gateway alias targets are UNVERIFIED, not fine.** No
+  `s3:GetBucketWebsite` and no `apigateway:GET` in the registry. An S3 website
+  alias to a deleted bucket is a real takeover vector and is deliberately left
+  unverified rather than shown as clear.
+- **The registrar is not read.** See above; no capability was added for it.
+- **Nothing here writes, changes or deletes a record.** No Route 53 mutation
+  capability exists in the registry and `src/lib/aws/mutate.ts` is untouched.
+  This reader makes a dangling alias VISIBLE; a human still has to repoint it.
+- **No approval, review or verification date is asserted anywhere.** Every
+  identifier in the tests is constructed — account `123456789012` is AWS's
+  documentation account, the domains are RFC 2606 reserved names, and the
+  distribution ids and load balancer names correspond to no real resource.
+- **`docs/architecture/ownership.md` is stale by one more file** because this
+  module is new. Regenerating it belongs to one `npm run generate` against a
+  clean tree after this batch lands, not to concurrent writers.

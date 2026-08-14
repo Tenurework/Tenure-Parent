@@ -46,7 +46,7 @@
  * error as rendering a denied read as an empty list.
  */
 
-import type { AlarmRow, AlarmVerdict } from "../../../lib/aws/alarms"
+import { ALARM_VERDICTS, type AlarmRow, type AlarmVerdict } from "../../../lib/aws/alarms"
 import type { HealthEventRow, HealthVerdict } from "../../../lib/aws/aws-health"
 import type { AwsRead } from "../../../lib/aws/read"
 
@@ -116,15 +116,13 @@ function rankOf(verdict: AlarmVerdict): number {
 
 /** How many rows carry each verdict. Every verdict is present, including zeroes. */
 export function countByVerdict(rows: readonly AlarmRow[]): Readonly<Record<AlarmVerdict, number>> {
-  const counts = {
-    OK: 0,
-    ALARM: 0,
-    INSUFFICIENT_DATA: 0,
-    DISABLED: 0,
-    STALE: 0,
-    MISSING: 0,
-    UNAUTHORIZED: 0,
-  }
+  // Seeded FROM `ALARM_VERDICTS` rather than written out. The literal that used
+  // to be here had to be edited every time the vocabulary grew, and forgetting
+  // was a compile error only because the return type is a `Record` — which is
+  // the right kind of failure, but a failure nobody needs to have. Deriving it
+  // means a new verdict arrives here counted at zero, which is what "every
+  // verdict is present, including zeroes" was always meant to say.
+  const counts = Object.fromEntries(ALARM_VERDICTS.map((v) => [v, 0])) as Record<AlarmVerdict, number>
   for (const row of rows) counts[row.verdict] += 1
   return counts
 }

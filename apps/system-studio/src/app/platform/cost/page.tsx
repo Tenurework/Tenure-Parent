@@ -1,45 +1,46 @@
 import Link from "next/link"
 
-import {
-  EXECUTIVE_THRESHOLD_MINOR,
-  PEER_THRESHOLD_MINOR,
-  TWO_PERSON_THRESHOLD_MINOR,
-  approvalFor,
-  money,
-  type ApprovalLevel,
-} from "@tenure/finops"
-
-import {
-  Badge,
-  Card,
-  Chip,
-  DataTable,
-  EmptyState as EmptyRegion,
-  type DataColumn,
-} from "@/components/md3"
+import { Badge, Card, Chip, DataTable, EmptyState as EmptyRegion, type DataColumn } from "@/components/md3"
 import { EmptyState, ErrorState, PermissionDeniedState } from "@/components/states"
-import { costSource, type CostSource } from "@/lib/cost-source"
 import { auth } from "@/lib/auth"
 import { authorizeCommand } from "@/lib/authorize"
+import { budgetReadings } from "@/lib/aws/budgets"
+import { denialContextFrom, resolveIdentity } from "@/lib/aws/identity"
+import { taggedResources } from "@/lib/aws/tags"
+import { costSource, type CostSource } from "@/lib/cost-source"
+
 import { CostAnswer, type CostFigure } from "./CostAnswer"
-import { CostReportView, formatAmount } from "./CostReportView"
+import { CostAttribution } from "./CostAttribution"
+import { CostBudgets } from "./CostBudgets"
+import { CostReportView } from "./CostReportView"
+import { formatAmount, thresholdRows, type ThresholdRow } from "./cost-decisions"
 import styles from "./cost.module.css"
 
 /**
  * The FinOps Center — STUDIO-120-008/009/010.
  *
- * What the fleet costs, who it costs it for, and how much approval a new
- * commitment needs.
+ * ## The question, and the order of the answers
  *
- * ── What changed, and why the shape matters more than the styling ───────────
+ *   > What is this fleet costing, who is it costing it for, and is anything
+ *   > running away?
  *
- * This page used to open with a paragraph about allocation methodology and then
- * put a status badge on a bordered `<section>`. An operator arriving here wants
- * one number and then, immediately, whether it is trustworthy. So the page now
- * leads with `CostAnswer` — three tiles, in both states — and everything that
- * explains HOW the number is produced moved underneath the number it explains.
+ * Three questions, three panels, in that order, each leading with its answer in
+ * a sentence before any table. The page used to answer only the first, and only
+ * when a Cost and Usage Report existed — which is never, today — so an operator
+ * arriving here read a paragraph about allocation methodology and left knowing
+ * nothing. The second and third questions have real answers right now:
  *
- * Three properties are load-bearing and each is asserted in `e2e/cost.spec.ts`:
+ *   * **Who for** comes from the `tenure:tenant` resource tag, read live through
+ *     the Resource Groups Tagging API. Attribution is a property of the ESTATE,
+ *     not of the bill; the CUR merely carries the tag through. So the shape of
+ *     what a bill would be charged to is knowable before the first bill, which
+ *     is the only time the gaps are still cheap to close.
+ *   * **Running away** comes from AWS Budgets — AWS's own forecast against a
+ *     limit somebody set, read live. And from the thing every console gets
+ *     wrong: a budget whose alert thresholds have no subscriber breaches in
+ *     silence, and renders identically to a budget that is fine.
+ *
+ * ## Three properties are load-bearing, and each is asserted in `e2e/cost.spec.ts`
  *
  *   1. **No figure is invented.** There is deliberately no arm showing sample
  *      data: the bible's prohibited-shortcut list names "fake cost", and this is
@@ -47,24 +48,29 @@ import styles from "./cost.module.css"
  *      obviously empty; `$4,182.55` is actionable and wrong. Unknown renders as
  *      the word `Unknown`, never as a zero.
  *   2. **Every panel says what it is AS OF.** The answer says when the bill was
- *      last read, or that it never has been. The connection panel says when the
- *      configuration was checked. The thresholds say they are constants in this
- *      build and therefore cannot be stale — and equally cannot reflect a
- *      threshold change nobody deployed.
+ *      last read, or that it never has been. The two AWS panels carry a
+ *      `StaleIndicator` over their capability's own refresh cadence. The
+ *      thresholds say they are constants in this build and therefore cannot be
+ *      stale — and equally cannot reflect a threshold change nobody deployed.
  *   3. **The console keeps booting.** `costSource()` throws by design when a CUR
  *      is configured but the reader for it does not exist yet, and an uncaught
  *      throw in a server component is a 500 on the whole route. A page that
  *      500s is not an acceptable refusal, so the read is wrapped and the failure
  *      is rendered as the governed `ErrorState` with the engine's own message.
- *      No AWS call happens on this route at all, so an absent credential cannot
- *      take it down either.
+ *      The two AWS reads cannot take the route down either: every failure inside
+ *      `readAws` becomes an arm of `AwsRead`, and this page renders the four
+ *      valueless arms through the shared `UnknownState` — with the principal,
+ *      the action and a pasteable minimum IAM statement — rather than as an
+ *      empty list. Verified by rendering this route with no credentials set.
+ *
+ * ## Money
+ *
+ * Integer minor units with an explicit currency, everywhere, through
+ * `@tenure/finops`. Every figure on this page carries its own minor-unit integer
+ * in its `title`, so `$120.00` and `12000 minor units of USD` are the same
+ * assertion and there is no float between them.
  */
 export const dynamic = "force-dynamic"
-
-// The approval thresholds are USD policy constants, so they are formatted as
-// USD. Everything that renders a BILLED figure goes through formatAmount with
-// the currency the Money is carrying — see CostReportView.
-const usd = (units: number) => formatAmount(money(units, "USD"))
 
 /**
  * The read failed. A third arm, and not a third *presentation* of the data.
@@ -89,77 +95,6 @@ async function readCostSource(): Promise<CostRead> {
      */
     return { state: "UNREADABLE", detail: error instanceof Error ? error.message : String(error) }
   }
-}
-
-/** What each verdict is called, once. `approvalFor` decides which one applies. */
-const APPROVAL_LABEL: Record<ApprovalLevel, string> = {
-  NONE: "none",
-  PEER: "one reviewer",
-  TWO_PERSON: "two people",
-  EXECUTIVE: "executive",
-}
-
-/**
- * Why each verdict is what it is, in the voice of a policy table.
- *
- * Written here rather than taken from `approvalFor`'s own `detail`, which is
- * deliberately phrased about a PARTICULAR change — "…adds a material recurring
- * cost. Two people must agree, and neither may be the requester." Rendering that
- * in a policy table repeats the verdict inside its own justification, and it
- * repeats it in the cell beside the cell that already says it: `e2e/cost.spec.ts`
- * resolves `getByRole("cell", { name: "two people" })` to exactly one element,
- * and a justification containing the words "Two people" makes that two.
- */
-const APPROVAL_WHY: Record<ApprovalLevel, string> = {
-  NONE: "Recorded but not gated, so the pattern is visible even when each instance is not.",
-  PEER: "Small but recurring. One reviewer, so that it is at least seen.",
-  TWO_PERSON: "Material. Neither approver may be the requester.",
-  EXECUTIVE: "A budget decision, not an engineering one.",
-}
-
-interface ThresholdRow {
-  band: string
-  approval: string
-  why: string
-}
-
-/**
- * The thresholds table, DERIVED rather than transcribed.
- *
- * The previous version wrote the four rows out by hand and interpolated the
- * three constants into them. That is a table which agrees with the policy on the
- * day it is written: raising `TWO_PERSON_THRESHOLD_MINOR` moved the number in
- * the cell and left the verdict beside it — "two people" — sitting on whatever
- * row it had always been on, with nothing to notice. Here the boundary amount is
- * fed to `approvalFor`, the same function `previewPlanCost` uses to gate a real
- * plan, and the verdict and its justification are its answer. The page cannot
- * disagree with the policy, because it is reading it.
- */
-function thresholdRows(): readonly ThresholdRow[] {
-  const bands = [
-    { at: 0, band: `under ${usd(PEER_THRESHOLD_MINOR)}` },
-    {
-      at: PEER_THRESHOLD_MINOR,
-      band: `${usd(PEER_THRESHOLD_MINOR)} to under ${usd(TWO_PERSON_THRESHOLD_MINOR)}`,
-    },
-    {
-      at: TWO_PERSON_THRESHOLD_MINOR,
-      band: `${usd(TWO_PERSON_THRESHOLD_MINOR)} to under ${usd(EXECUTIVE_THRESHOLD_MINOR)}`,
-    },
-    { at: EXECUTIVE_THRESHOLD_MINOR, band: `${usd(EXECUTIVE_THRESHOLD_MINOR)} and above` },
-  ]
-
-  return bands.map(({ at, band }) => {
-    const decision = approvalFor({
-      change: "A commitment in this band",
-      estimated: money(at, "USD"),
-    })
-    return {
-      band,
-      approval: APPROVAL_LABEL[decision.level],
-      why: APPROVAL_WHY[decision.level],
-    }
-  })
 }
 
 const THRESHOLD_COLUMNS: readonly DataColumn<ThresholdRow>[] = [
@@ -188,12 +123,12 @@ function figuresFor(read: CostRead): readonly CostFigure[] {
       {
         label: "Reached no tenant",
         value: null,
-        note: "Not known until a bill is read. Untagged spend is reported unallocated when it is — never spread across tenants.",
+        note: "Not known until a bill is read. Untagged spend is reported unallocated when it is — never spread across tenants. Which resources are untagged today is answered below.",
       },
       {
         label: "Tenants with attributed spend",
         value: null,
-        note: "Not known until a bill is read. Attribution comes from the tenure:tenant resource tag.",
+        note: "Not known until a bill is read. Attribution comes from the tenure:tenant resource tag, and which tenants that tag names today is answered below.",
       },
     ]
   }
@@ -252,6 +187,20 @@ export default async function CostPage() {
   const read = await readCostSource()
 
   /*
+   * The estate, read once and shared.
+   *
+   * `budgetReadings` resolves identity and the tag inventory itself when it is
+   * not given them, so calling it after `taggedResources` without threading
+   * these through would make the same two calls twice on one page load — and
+   * would let the attribution panel and the budgets panel disagree about the
+   * account they are describing. Neither call can throw: every failure inside
+   * `readAws` becomes an arm of the union.
+   */
+  const identity = await resolveIdentity()
+  const tagged = await taggedResources(undefined, { denial: denialContextFrom(identity) })
+  const budgets = await budgetReadings(undefined, { identity, tagged })
+
+  /*
    * The build this console is running. Present when the image was stamped (the
    * Dockerfile bakes `DEPLOYMENT_ID` in, because `next.config.ts` needs the same
    * value at build and at run time); absent locally. Absent is SAID, not hidden
@@ -263,12 +212,18 @@ export default async function CostPage() {
     <div className={styles.page}>
       <header className={styles.pageHead}>
         <h1 className="md3-headline-medium">Cost</h1>
+        <p className="md3-body-large">
+          What is this fleet costing, who is it costing it for, and is anything running away?
+        </p>
         <p className="md3-body-medium">
-          What the fleet costs, and which tenant it costs it for.
+          Three answers follow, in that order. Every figure is money in integer minor units with its
+          currency named, taken from a system this engine read — the bill, the resource tags, or AWS
+          Budgets. Where a figure is not known, this page says so and names what would make it
+          knowable; it never stands a zero in its place.
         </p>
       </header>
 
-      {/* ── The answer, first ──────────────────────────────────────────── */}
+      {/* ── 1. What is it costing ──────────────────────────────────────── */}
       <CostAnswer
         asOf={read.state === "CONNECTED" ? read.report.summary.freshness.asOf : null}
         supportingText={
@@ -335,8 +290,14 @@ export default async function CostPage() {
 
       {read.state === "CONNECTED" ? <CostReportView report={read.report} /> : null}
 
-      {/* ── Approval thresholds ──────────────────────────────────────────
-          Shown whatever the read returned, because they govern what a plan may
+      {/* ── 2. Who is it costing it for ────────────────────────────────── */}
+      <CostAttribution read={tagged} />
+
+      {/* ── 3. Is anything running away ────────────────────────────────── */}
+      <CostBudgets readings={budgets} />
+
+      {/* ── What a new commitment needs ──────────────────────────────────
+          Shown whatever the reads returned, because they govern what a plan may
           commit to and that is true before the first bill arrives.
           STUDIO-120-010. */}
       <Card

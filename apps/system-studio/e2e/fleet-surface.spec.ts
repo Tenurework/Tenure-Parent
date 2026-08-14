@@ -66,7 +66,19 @@ test.describe("the fleet table", () => {
     await expect(healthy).not.toContainText(/never.deployed/i)
   })
 
-  test("the sixteen columns are all present and all have a source", async ({ page }) => {
+  /**
+   * Seventeen, not sixteen — and the seventeenth is the point of the change.
+   *
+   * `State last read` was added deliberately and this list is updated rather
+   * than loosened: it still pins every header, in order, exactly. Nine of the
+   * other columns are registry facts and two (`Health / SLO`, and the blockers
+   * derived from it) can be readings of the live estate, and a row that printed
+   * both with no attribution made `ACTIVE` and `dependency failing` look like
+   * one verdict from one source — when in fact one is a DynamoDB row somebody
+   * last wrote in March and the other is a certificate that expired this
+   * morning. The assertions below are strictly more than they were.
+   */
+  test("the seventeen columns are all present and all have a source", async ({ page }) => {
     await signIn(page)
     await page.goto("/tenants")
     await page.waitForLoadState("networkidle")
@@ -82,6 +94,7 @@ test.describe("the fleet table", () => {
       "Release / config / schema",
       "Health / SLO",
       "Last activity",
+      "State last read",
       "Data volume",
       "Resources",
       "Actual / forecast",
@@ -101,6 +114,62 @@ test.describe("the fleet table", () => {
     await expect(row).toContainText("not measured")
     await expect(row).toContainText("not inventoried")
     await expect(row).toContainText("no bill connected")
+  })
+
+  test("the fleet is listed worst first, not in the Scan's order", async ({ page }) => {
+    /*
+     * The question this page answers ends "…and which need me right now?", and
+     * an inventory in DynamoDB's partition order answers it by accident at
+     * best. `seed-nodeploy` is ACTIVE with no DEPLOYMENT row — `never-deployed`,
+     * which outranks everything the other two carry — and `seed-deployed` sits
+     * in PURGE_PENDING with a deployment, which is somewhere somebody put it on
+     * purpose and needs nobody.
+     *
+     * Asserted on ROW POSITION rather than on a class or an attribute, because
+     * position is the whole of what an operator gets from ranking: the tenant
+     * that needs them is on the first screen or it is not.
+     */
+    await signIn(page)
+    await page.goto("/tenants")
+    await page.waitForLoadState("networkidle")
+
+    const slugs = await fleetTable(page).locator("tbody tr td:first-child a").allTextContents()
+    const needsAnOperator = slugs.indexOf("seed-nodeploy")
+    const needsNobody = slugs.indexOf("seed-deployed")
+
+    expect(needsAnOperator, "seed-nodeploy is not in the inventory").toBeGreaterThanOrEqual(0)
+    expect(needsNobody, "seed-deployed is not in the inventory").toBeGreaterThanOrEqual(0)
+    expect(
+      needsAnOperator,
+      "the tenant with a never-deployed signal must be listed above the one that needs nobody",
+    ).toBeLessThan(needsNobody)
+  })
+
+  test("every row says when its state was read, and from which of the two sources", async ({
+    page,
+  }) => {
+    /*
+     * The registry and the live estate are different sources with different
+     * clocks, and a row that silently mixes them is unreadable. Both are named
+     * on every row, and neither is allowed to render as a blank — a blank in
+     * this column reads as "fine", which is precisely what an unobserved tenant
+     * is not known to be.
+     */
+    await signIn(page)
+    await page.goto("/tenants")
+    await page.waitForLoadState("networkidle")
+
+    const row = page.locator("tr", { has: page.getByRole("link", { name: "seed-deployed" }) })
+    const cell = row.locator("td").nth(9)
+
+    await expect(cell).toContainText("registry")
+    await expect(cell).toContainText("live estate")
+    // An ISO instant, not a localised one: two operators comparing the same
+    // screenshot have to be able to agree about when this was read.
+    await expect(cell).toContainText(/read \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
+    // The estate half is either an instant or the explicit admission that no
+    // reading was taken. It is never empty.
+    await expect(cell).toContainText(/observed \d{4}-\d{2}-\d{2}T|not observed/)
   })
 
   test("the count says how much of the fleet is on screen", async ({ page }) => {

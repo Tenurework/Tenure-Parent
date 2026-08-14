@@ -81,31 +81,15 @@
 }
 
 /*
- * The identity facts, as a description list.
+ * `.facts` used to live here: a hand-rolled two-column description list for the
+ * identity band, with its own breakpoint and its own reflow rule for a
+ * 130-character principal ARN.
  *
- * One column until there is room for two. A fixed two-column grid puts
- * "Account / region / partition" and a 130-character principal ARN side by side
- * at 320 CSS pixels, where neither fits — `layout.spec.ts` measures exactly
- * that as text wider than its box. `minmax(0, …)` on both tracks rather than a
- * bare width, because a grid track's default `min-width: auto` refuses to
- * shrink below its longest unbreakable token, which is what an ARN is.
+ * It is gone because `components/md3/KeyValue` is that component, and it
+ * already solves the same two problems better — `.md3-kv-value` carries
+ * `overflow-wrap: anywhere`, and each pair is wrapped in a `<div>` so a term
+ * and its value cannot be split across a column break at 320 CSS pixels. A
+ * second implementation of a shared primitive inside a product module is a
+ * second thing to keep passing `e2e/layout.spec.ts`, and the one that is not
+ * maintained is the one that fails.
  */
-.facts {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-1);
-  margin: 0;
-}
-.facts > dt {
-  margin: 0;
-}
-.facts > dd {
-  margin: 0;
-}
-
-@media (min-width: 40rem) {
-  .facts {
-    grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
-    gap: var(--space-2) var(--space-4);
-  }
-}

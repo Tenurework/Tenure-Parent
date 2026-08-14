@@ -1,225 +1,305 @@
-import { toDecimal, type Money } from "@tenure/finops"
-
-// Relative rather than the "@/" alias so this component can be rendered by a
-// test runner that does not carry the Studio's path mapping — see
-// cost-citation.test.tsx beside it.
+// Relative rather than the "@/" alias throughout this file, so it can be
+// rendered by a test runner that does not carry the Studio's path mapping — see
+// cost-citation.test.tsx beside it. apps/web's jest maps "@/" to apps/web's own
+// src, so an aliased import here would resolve to the wrong app.
 import type { CostReport } from "../../../lib/cost-report"
+// Per-file rather than through the `components/md3` barrel, for the same reason
+// the imports above are relative: the barrel re-exports `Button` and `Tabs`,
+// which import `next/link`, and this component is rendered by a plain
+// `renderToStaticMarkup` in `cost-citation.test.tsx`. Nothing below reaches the
+// Next runtime. `components/md3/aws-outcomes.test.tsx` imports the same way.
+import { Badge } from "../../../components/md3/Badge"
+import { Card } from "../../../components/md3/Card"
+import { Chip } from "../../../components/md3/Chip"
+import { DataTable, type DataColumn } from "../../../components/md3/DataTable"
+import { EmptyState } from "../../../components/md3/EmptyState"
+import { KeyValue } from "../../../components/md3/KeyValue"
+
+import { citation, formatAmount, minorUnits } from "./cost-decisions"
+import styles from "./cost.module.css"
 
 /**
- * The connected arm of the FinOps Center.
+ * The connected arm of the FinOps Center: what a real bill says, once one is
+ * being read.
  *
  * Its own module rather than a function inside `page.tsx` for one reason: the
  * page imports `@/lib/auth` and `next/link`, so nothing can render it outside a
  * Next request, and a citation nobody can render is a citation nobody has
  * checked. Everything here is pure — a report in, markup out — and
- * `e2e/cost-citation.spec.tsx` renders it against a report built by the real
+ * `cost-citation.test.tsx` renders it against a report built by the real
  * `buildCostReport`, which is the only place a figure's provenance is set.
- */
-
-/**
- * An amount, at its OWN currency's precision.
  *
- * `toDecimal` used to default to two minor digits regardless of what currency
- * was travelling in the `Money`, so a JPY-billed account rendered a hundredfold
- * high. It now reads the currency's exponent, and the rounding mode is stated
- * rather than defaulted: `half-even` for display, because it is the only mode
- * whose bias over a page of figures is zero and because a debit and the credit
- * that reverses it must render with the same magnitude.
- */
-export function formatAmount(amount: Money): string {
-  const rendered = toDecimal(amount, "half-even")
-  return amount.currency === "USD" ? `$${rendered}` : `${rendered} ${amount.currency}`
-}
-
-/**
- * Where a number came from, in one line.
+ * ## What changed when this page was brought onto the primitives
  *
- * PAY-180-003. `as of` says when the DATA is current; this says which system
- * produced it and when this engine last read that system — the question an
- * operator asks before acting on a figure, because "the bill says so" and "we
- * estimated it" are different claims that otherwise render identically.
+ * The four regions here were `<section className="system">` with `<table
+ * className="grid">` inside and `<span className="badge warn">` on top: class
+ * strings this route had accumulated, whose meaning lived in a global
+ * stylesheet nothing on this page referenced. They are now `Card` and
+ * `DataTable`, which means the tables scroll inside their own bounded region
+ * (`layout.spec.ts` runs this route at 320 CSS pixels and treats a sideways
+ * page scroll as a defect), the captions are rendered rather than implied, and
+ * the reconciliation verdict is a `Badge` tone rather than `className="ok"` /
+ * `className="error"` — the one place this file carried meaning in a colour
+ * whose contrast nothing measured.
  */
-export function citation(source: { system: string; reference: string; retrievedAt: string }): string {
-  return `source: ${source.system} · ${source.reference} · read ${source.retrievedAt}`
-}
 
 export function CostReportView({ report }: { report: CostReport }) {
   const { summary, reconciliation, tenants, unallocated, splits } = report
 
   return (
     <>
-      <section className="system">
-        <header>
-          <h2>This month</h2>
-          <span className={`badge ${summary.freshness.stale ? "warn" : "quiet"}`}>
-            as of {summary.freshness.asOf}
-          </span>
-          {/* The citation, beside the as-of and not instead of it. Two different
-              facts: when the data is current as of, and which system said so. */}
-          <span className="badge quiet" data-testid="figure-source">
-            {citation(summary.actual.source)}
-          </span>
-        </header>
-
-        {summary.freshness.stale && (
-          <p className="hint">
-            This data is {Math.round(summary.freshness.ageHours)} hours old. AWS billing settles over
-            days, so recent spend may be missing entirely rather than merely late.
-          </p>
-        )}
-
-        <table className="grid">
-          <tbody>
-            <tr>
-              <td>Actual, month to date</td>
-              <td className="num">{formatAmount(summary.actual.amount)}</td>
-              <td>{Math.round(summary.actual.periodCompleteness * 100)}% through the period</td>
-            </tr>
-            <tr>
-              <td>Amortized</td>
-              <td className="num">{formatAmount(summary.amortized.amount)}</td>
-              <td>What this month&rsquo;s usage cost, with commitments spread over their term.</td>
-            </tr>
-            <tr>
-              <td>Forecast</td>
-              <td className="num">
-                {summary.forecast ? formatAmount(summary.forecast.amount) : "—"}
-              </td>
-              <td>
-                {summary.forecast
-                  ? // The forecast carries its own citation, marked derived, so nothing
-                    // can present a projection as a billed line.
-                    summary.forecast.source.reference
-                  : "Too early in the period to project without inventing a number."}
-              </td>
-            </tr>
-            <tr>
-              <td>Unallocated</td>
-              <td className="num">{formatAmount(summary.unallocated)}</td>
-              <td>
-                {(summary.unallocatedShare * 100).toFixed(1)}% of spend reached no tenant. Reported, not
-                spread.
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <Card
+        headline="This month, from the bill"
+        headerAside={
+          <>
+            <Badge tone={summary.freshness.stale ? "warn" : "neutral"}>
+              {summary.freshness.stale ? "stale" : "fresh"}
+            </Badge>
+            <Chip>as of {summary.freshness.asOf}</Chip>
+            {/* The citation, BESIDE the as-of and not instead of it. Two
+                different facts: when the data is current as of, and which system
+                said so. PAY-180-003. */}
+            <Chip data-testid="figure-source">{citation(summary.actual.source)}</Chip>
+          </>
+        }
+        supportingText={
+          summary.freshness.stale
+            ? `This data is ${Math.round(summary.freshness.ageHours)} hours old. AWS billing settles over days, so recent spend may be missing entirely rather than merely late.`
+            : "Every figure below traces to a billed line in the connected Cost and Usage Report."
+        }
+      >
+        <KeyValue
+          ariaLabel="This month's totals"
+          items={[
+            {
+              key: "actual",
+              term: "Actual, month to date",
+              value: (
+                <>
+                  <span title={minorUnits(summary.actual.amount)}>
+                    {formatAmount(summary.actual.amount)}
+                  </span>{" "}
+                  — {Math.round(summary.actual.periodCompleteness * 100)}% through the period
+                </>
+              ),
+            },
+            {
+              key: "amortized",
+              term: "Amortized",
+              value: (
+                <>
+                  <span title={minorUnits(summary.amortized.amount)}>
+                    {formatAmount(summary.amortized.amount)}
+                  </span>{" "}
+                  — what this month&rsquo;s usage cost, with commitments spread over their term.
+                </>
+              ),
+            },
+            {
+              key: "forecast",
+              term: "Forecast",
+              value: summary.forecast ? (
+                <>
+                  <span title={minorUnits(summary.forecast.amount)}>
+                    {formatAmount(summary.forecast.amount)}
+                  </span>{" "}
+                  {/* The forecast carries its own citation, marked derived, so
+                      nothing can present a projection as a billed line. */}
+                  — {summary.forecast.source.reference}
+                </>
+              ) : (
+                "Unknown — too early in the period to project without inventing a number."
+              ),
+            },
+            {
+              key: "unallocated",
+              term: "Reached no tenant",
+              value: (
+                <>
+                  <span title={minorUnits(summary.unallocated)}>
+                    {formatAmount(summary.unallocated)}
+                  </span>{" "}
+                  — {(summary.unallocatedShare * 100).toFixed(1)}% of spend reached no tenant.
+                  Reported, not spread.
+                </>
+              ),
+            },
+          ]}
+        />
 
         {/* The property that makes the rest worth reading. Shown, not assumed. */}
-        <p className={reconciliation.reconciles ? "ok" : "error"}>
+        <p className={`${styles.caveat} md3-body-medium`}>
+          <Badge tone={reconciliation.reconciles ? "ok" : "bad"}>
+            {reconciliation.reconciles ? "reconciles" : "does not reconcile"}
+          </Badge>{" "}
           {reconciliation.reconciles
-            ? `Reconciled: tenant costs plus unallocated equal the ${summary.lineCount} ingested lines exactly.`
-            : `Does not reconcile — ${formatAmount(reconciliation.discrepancy)} unaccounted for across ${summary.lineCount} lines. ` +
+            ? `Tenant costs plus unallocated equal the ${summary.lineCount} ingested lines exactly.`
+            : `${formatAmount(reconciliation.discrepancy)} is unaccounted for across ${summary.lineCount} lines. ` +
               `This is shown rather than absorbed into the largest tenant.`}
         </p>
-      </section>
+      </Card>
 
-      <section className="system">
-        <header>
-          <h2>By tenant</h2>
-        </header>
-        <table className="grid">
-          <thead>
-            <tr>
-              <th>Tenant</th>
-              <th className="num">Direct</th>
-              <th className="num">Allocated share</th>
-              <th className="num">Total</th>
-              <th>Driver</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tenants.map((tenant) => (
-              <tr key={tenant.tenantId}>
-                <td>{tenant.tenantId}</td>
-                <td className="num">{formatAmount(tenant.direct)}</td>
-                <td className="num">{formatAmount(tenant.allocated)}</td>
-                <td className="num">{formatAmount(tenant.total)}</td>
-                <td>
-                  {/* The justification travels with the number. "Why is this
-                      tenant paying $412 of the NAT gateway" has an answer here
-                      rather than in a code comment. */}
-                  {tenant.attributions.length === 0
-                    ? "—"
-                    : tenant.attributions
-                        .map((a) => `${a.measure} (${a.weight}/${a.totalWeight})`)
-                        .join("; ")}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <Card
+        headline="By tenant"
+        headerAside={<Chip>as of {summary.freshness.asOf}</Chip>}
+        supportingText="Direct spend is what the tenant's own tagged resources cost. An allocated share is its part of a shared cost, and the driver that decided the share travels with it."
+      >
+        <div className={styles.wide}>
+          <DataTable
+            caption="What each tenant's spend was this period, and how any shared part of it was decided"
+            columns={TENANT_COLUMNS}
+            rows={tenants}
+            rowKey={(tenant) => tenant.tenantId}
+            empty={
+              <EmptyState
+                headline="No tenant carried any of this bill"
+                description="Every ingested line reached no tenant. That is a tagging gap, not an empty bill — the total above is unchanged."
+              />
+            }
+          />
+        </div>
+      </Card>
 
       {splits.length > 0 && (
-        <section className="system">
-          <header>
-            <h2>Shared-cost splits</h2>
-            <span className="badge quiet">reversal replays, never re-derives</span>
-          </header>
-          <p>
-            Every shared cost a driver covered, per recipient, with what reversing the split returns
-            them. The reversal is the recorded amount negated — not the rule run again. Re-deriving a
-            largest-remainder split on the way back moves the leftover units between recipients, and
-            the total still nets to zero while two tenants are permanently a unit out, in opposite
-            directions.
-          </p>
-          <table className="grid">
-            <thead>
-              <tr>
-                <th>Split</th>
-                <th>Recipient</th>
-                <th className="num">Received</th>
-                <th className="num">Reversal returns</th>
-              </tr>
-            </thead>
-            <tbody>
-              {splits.flatMap(({ split, reversal }) =>
-                split.parts.map((part, index) => (
-                  <tr key={`${split.splitId}-${part.recipientId}`}>
-                    <td>{index === 0 ? split.splitId : ""}</td>
-                    <td>{part.recipientId}</td>
-                    <td className="num">{formatAmount(part.amount)}</td>
-                    <td className="num">{formatAmount(reversal[index].amount)}</td>
-                  </tr>
-                )),
+        <Card
+          headline="Shared-cost splits"
+          headerAside={
+            <>
+              <Badge title="A reversal returns the recorded amount negated, rather than running the split rule again.">
+                reversal replays, never re-derives
+              </Badge>
+              <Chip>as of {summary.freshness.asOf}</Chip>
+            </>
+          }
+          supportingText="Every shared cost a driver covered, per recipient, with what reversing the split returns them. The reversal is the recorded amount negated — not the rule run again. Re-deriving a largest-remainder split on the way back moves the leftover units between recipients, and the total still nets to zero while two tenants are permanently a unit out, in opposite directions."
+        >
+          <div className={styles.wide}>
+            <DataTable
+              caption="Each recorded split, per recipient, with its reversal"
+              columns={SPLIT_COLUMNS}
+              rows={splits.flatMap(({ split, reversal }) =>
+                split.parts.map((part, index) => ({
+                  key: `${split.splitId}-${part.recipientId}`,
+                  splitId: index === 0 ? split.splitId : "",
+                  recipientId: part.recipientId,
+                  received: part.amount,
+                  returns: reversal[index].amount,
+                })),
               )}
-            </tbody>
-          </table>
-        </section>
+              rowKey={(row) => row.key}
+              empty={
+                <EmptyState
+                  headline="No shared cost was split this period"
+                  description="Nothing in this bill was covered by an allocation driver."
+                />
+              }
+            />
+          </div>
+        </Card>
       )}
 
       {unallocated.length > 0 && (
-        <section className="system">
-          <header>
-            <h2>Unallocated</h2>
-            <span className="badge warn">{formatAmount(summary.unallocated)}</span>
-          </header>
-          <p>
-            Spend that reached no tenant, with the reason. It is not distributed: a split nobody chose
-            produces a page whose total reconciles and whose every row is wrong.
-          </p>
-          <table className="grid">
-            <thead>
-              <tr>
-                <th>Service</th>
-                <th className="num">Amount</th>
-                <th>Why</th>
-                <th className="num">Lines</th>
-              </tr>
-            </thead>
-            <tbody>
-              {unallocated.map((entry) => (
-                <tr key={`${entry.service}-${entry.lineIds[0]}`}>
-                  <td>{entry.service}</td>
-                  <td className="num">{formatAmount(entry.amount)}</td>
-                  <td>{entry.reason}</td>
-                  <td className="num">{entry.lineIds.length}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        <Card
+          headline="Unallocated — the remainder no tenant owns"
+          headerAside={
+            <>
+              <Badge tone="warn" title={minorUnits(summary.unallocated)}>
+                {formatAmount(summary.unallocated)}
+              </Badge>
+              <Chip>as of {summary.freshness.asOf}</Chip>
+            </>
+          }
+          supportingText="Spend that reached no tenant, with the reason. It is not distributed: a split nobody chose produces a page whose total reconciles and whose every row is wrong."
+        >
+          <div className={styles.wide}>
+            <DataTable
+              caption="Every service whose spend reached no tenant, and why"
+              columns={UNALLOCATED_COLUMNS}
+              rows={unallocated}
+              rowKey={(entry) => `${entry.service}-${entry.lineIds[0]}`}
+              empty={
+                <EmptyState
+                  headline="Every ingested line reached a tenant"
+                  description="Nothing in this bill is unallocated."
+                />
+              }
+            />
+          </div>
+        </Card>
       )}
     </>
   )
 }
+
+type TenantRow = CostReport["tenants"][number]
+
+const TENANT_COLUMNS: readonly DataColumn<TenantRow>[] = [
+  { key: "tenant", header: "Tenant", cell: (row) => <code>{row.tenantId}</code> },
+  {
+    key: "direct",
+    header: "Direct",
+    align: "end",
+    cell: (row) => <span title={minorUnits(row.direct)}>{formatAmount(row.direct)}</span>,
+  },
+  {
+    key: "allocated",
+    header: "Allocated share",
+    align: "end",
+    cell: (row) => <span title={minorUnits(row.allocated)}>{formatAmount(row.allocated)}</span>,
+  },
+  {
+    key: "total",
+    header: "Total",
+    align: "end",
+    cell: (row) => <span title={minorUnits(row.total)}>{formatAmount(row.total)}</span>,
+  },
+  {
+    key: "driver",
+    header: "Driver",
+    // The justification travels with the number. "Why is this tenant paying
+    // $412 of the NAT gateway" has an answer here rather than in a comment.
+    cell: (row) =>
+      row.attributions.length === 0
+        ? "none — this is all direct spend"
+        : row.attributions.map((a) => `${a.measure} (${a.weight}/${a.totalWeight})`).join("; "),
+  },
+]
+
+interface SplitRow {
+  key: string
+  splitId: string
+  recipientId: string
+  received: Parameters<typeof formatAmount>[0]
+  returns: Parameters<typeof formatAmount>[0]
+}
+
+const SPLIT_COLUMNS: readonly DataColumn<SplitRow>[] = [
+  { key: "split", header: "Split", cell: (row) => row.splitId },
+  { key: "recipient", header: "Recipient", cell: (row) => <code>{row.recipientId}</code> },
+  {
+    key: "received",
+    header: "Received",
+    align: "end",
+    cell: (row) => <span title={minorUnits(row.received)}>{formatAmount(row.received)}</span>,
+  },
+  {
+    key: "returns",
+    header: "Reversal returns",
+    align: "end",
+    cell: (row) => <span title={minorUnits(row.returns)}>{formatAmount(row.returns)}</span>,
+  },
+]
+
+type UnallocatedRow = CostReport["unallocated"][number]
+
+const UNALLOCATED_COLUMNS: readonly DataColumn<UnallocatedRow>[] = [
+  { key: "service", header: "Service", cell: (row) => row.service },
+  {
+    key: "amount",
+    header: "Amount",
+    align: "end",
+    cell: (row) => <span title={minorUnits(row.amount)}>{formatAmount(row.amount)}</span>,
+  },
+  { key: "why", header: "Why", cell: (row) => row.reason },
+  { key: "lines", header: "Lines", align: "end", cell: (row) => row.lineIds.length },
+]

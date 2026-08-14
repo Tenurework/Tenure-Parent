@@ -67,3 +67,61 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/*
+ * The question the page answers, above every panel.
+ *
+ * Geometry only: the size and the colour are the `md3-title-medium` class it
+ * carries beside this one. The margin is what stops it sitting on the `<h1>`
+ * above it and on the answer below it, which is a property of this page's
+ * column rather than of the type scale.
+ */
+.question {
+  margin: 0;
+}
+
+/*
+ * The summary chips, on one wrapping row.
+ *
+ * Replaces the global `.chips`, which is the console's older layer and carries
+ * its own `.chip` colours. `Chip` from `components/md3` brings its own; a page
+ * that supplied both would have two answers to the same question.
+ */
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/*
+ * The filter row.
+ *
+ * `auto-fit` with a `minmax` floor rather than fixed columns: at 1440 the three
+ * fields and the buttons sit on one line, and at 320 each takes the full width
+ * and the row becomes a column — with no media query, and therefore with no
+ * breakpoint that can disagree with the four widths `layout.spec.ts` measures.
+ * `minmax(0, 1fr)` rather than `minmax(12rem, 1fr)` on the second half of the
+ * track is what lets a field shrink below its content: without the zero floor a
+ * long placeholder sets the column's minimum and the row overflows its card.
+ */
+.filter {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  align-items: end;
+  gap: var(--space-3);
+  margin-block-end: var(--space-3);
+}
+
+/*
+ * One source's reading, in the `State last read` column.
+ *
+ * `overflow-wrap: anywhere` because the value is an ISO instant next to a slug
+ * next to a count, with no space long enough to break at — exactly the token
+ * that sets a 400px column width and pushes the table past 320 CSS pixels if it
+ * is allowed to.
+ */
+.provenance {
+  display: block;
+  overflow-wrap: anywhere;
+}

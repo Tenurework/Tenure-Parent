@@ -1,4 +1,7 @@
 import { test, expect, type Page } from "@playwright/test"
+
+import { CONFIG_DOMAINS } from "@tenure/configuration"
+
 import { operatorFor } from "./operator-identity"
 
 /**
@@ -17,6 +20,13 @@ import { operatorFor } from "./operator-identity"
  *      tenant slug that spec has no way to know. The same three measurements
  *      are made here, against a seeded slug, so the route is not simply
  *      unmeasured.
+ *   5. it asks its question in words before any apparatus, and answers all
+ *      three parts of it — including the third, *what would changing it cost*,
+ *      which is a DELTA against what this tenant is paying today rather than a
+ *      list price;
+ *   6. an option gated by a capability nobody here holds is on the page,
+ *      uneditable, with the reason — not hidden, and not left enabled to be
+ *      refused after the operator has typed into it.
  *
  * Skipped without a registry, and skipped loudly: a structure spec that quietly
  * passes when there is no tenant to render is worse than none.
@@ -225,5 +235,133 @@ test.describe("the configuration surface is structured, not a wall of rows", () 
       })
       expect(spills, `content spills outside its section at ${width}px`).toEqual([])
     }
+  })
+})
+
+test.describe("the configuration surface answers all three parts of its question", () => {
+  test.skip(!configured, "TENANT_TABLE is not set — no registry to read a tenant from.")
+  test.skip(!OPERATOR || !SECRET, "PLATFORM_OPERATORS / PLATFORM_OPERATOR_SECRET are not set.")
+
+  test("asks the question in words, above every card", async ({ page }) => {
+    await signIn(page)
+    await page.goto(`/tenants/${SLUG}/configuration?seats=250`, { waitUntil: "domcontentloaded" })
+
+    const question = page.getByTestId("configuration-question")
+    await expect(question).toBeVisible(VISIBLE)
+    await expect(question).toHaveText(
+      "What is this tenant configured to do, what does that cost, and what would changing it cost?",
+    )
+
+    // Above the apparatus, geometrically. A question printed below the thing it
+    // is meant to frame is decoration.
+    const [questionBox, costBox] = await Promise.all([
+      question.boundingBox(),
+      page.locator("#running-total").boundingBox(),
+    ])
+    expect(questionBox!.y).toBeLessThan(costBox!.y)
+  })
+
+  test("answers it in the lead, from what was actually read", async ({ page }) => {
+    await signIn(page)
+    await page.goto(`/tenants/${SLUG}/configuration?seats=250`, { waitUntil: "domcontentloaded" })
+
+    const answer = page.getByTestId("configuration-answer")
+    await expect(answer).toBeVisible(VISIBLE)
+    // All three parts. The seat count is the one the operator stated, and the
+    // figure is the resolver's — 250 x $4.00 for the assistant.
+    await expect(answer).toContainText("1000.00 USD a month at 250 seats")
+    await expect(answer).toContainText(/Revision \d+, published |Nothing has ever been published/)
+    await expect(answer).toContainText(/would add |No option on this page moves the bill/)
+  })
+
+  test("prices a change as a DELTA against what this tenant pays today", async ({ page }) => {
+    await signIn(page)
+    await page.goto(`/tenants/${SLUG}/configuration?seats=250`, { waitUntil: "domcontentloaded" })
+
+    const change = page.locator("#change-cost")
+    await expect(change).toBeVisible(VISIBLE)
+
+    // Between the answer and the apparatus: what it costs, then what a change
+    // would cost, then the form that makes one.
+    const [costBox, changeBox, editorBox] = await Promise.all([
+      page.locator("#running-total").boundingBox(),
+      change.boundingBox(),
+      page.locator("#configuration").boundingBox(),
+    ])
+    expect(costBox!.y).toBeLessThan(changeBox!.y)
+    expect(changeBox!.y).toBeLessThan(editorBox!.y)
+
+    // The delta against today, stated as a difference and not as a list price.
+    await expect(change).toContainText("The monthly bill today")
+    await expect(change).toContainText("Without this tenant's published revision")
+    await expect(change).toContainText("What the published revision accounts for")
+
+    // And every option carries a direction WORD, not only a sign — meaning
+    // carried by a glyph alone is meaning nobody has to read.
+    await expect(
+      change.getByText(/^(adds \+|removes -|no change to the bill)/).first(),
+    ).toBeVisible(VISIBLE)
+
+    // As-of, like every other panel, and naming which clock it means.
+    await expect(change.locator(".md3-card-support")).toContainText(
+      /compiled into this deployment; what each option is SET to was read from the registry at \d{4}-\d{2}-\d{2}T/,
+    )
+  })
+
+  test("groups the priced options by the domain that governs them", async ({ page }) => {
+    await signIn(page)
+    await page.goto(`/tenants/${SLUG}/configuration?seats=250`, { waitUntil: "domcontentloaded" })
+
+    const headings = page.locator("#change-cost h3")
+    const count = await headings.count()
+    expect(count, "the change-cost card has no domain groups at all").toBeGreaterThan(0)
+
+    // Every group is a domain the registry NAMES. A heading reading "strings"
+    // or "booleans" would be grouping by the shape of the form instead.
+    const known = new Set(CONFIG_DOMAINS.map((domain) => domain.id))
+    for (let i = 0; i < count; i++) {
+      const text = (await headings.nth(i).textContent())?.trim() ?? ""
+      expect(known.has(text), `"${text}" is not a domain the configuration registry declares`).toBe(
+        true,
+      )
+    }
+
+    // The running total is grouped the same way, so the two tables talk about
+    // configuration in one vocabulary.
+    await expect(page.locator("#running-total table caption")).toContainText(
+      "grouped by the domain that governs it",
+    )
+  })
+
+  test("shows a capability-gated option, uneditable, with the reason", async ({ page }) => {
+    await signIn(page)
+    await page.goto(`/tenants/${SLUG}/configuration`, { waitUntil: "domcontentloaded" })
+    await expect(page.locator("#configuration")).toBeVisible(VISIBLE)
+
+    // This build has at least one — `platform.relay.modelTokenBudgetPerMonth`
+    // declares `requiresCapability`, and `change-cost.test.ts` pins that fact so
+    // this assertion cannot become vacuously true by the key disappearing.
+    const locked = page.locator("[data-locked]")
+    const count = await locked.count()
+    expect(count, "no capability-gated field is rendered at all").toBeGreaterThan(0)
+
+    for (let i = 0; i < count; i++) {
+      const control = locked.nth(i)
+      // Visible — not hidden, which is the failure this exists against.
+      await expect(control).toBeVisible(VISIBLE)
+      // Uneditable, and announced as such.
+      expect(await control.evaluate((el: HTMLInputElement) => el.readOnly)).toBe(true)
+      await expect(control).toHaveAttribute("aria-disabled", "true")
+
+      // With the reason, naming the capability.
+      const key = await control.getAttribute("data-locked")
+      const reason = page.locator(`[data-locked-reason="${key}"]`)
+      await expect(reason).toBeVisible(VISIBLE)
+      await expect(reason).toContainText("Requires the capability")
+    }
+
+    // And the same key is named in the change-cost table, so the two panels do
+    // not disagree about who may change it.
+    await expect(page.locator("#change-cost")).toContainText("Requires the capability")
   })
 })

@@ -99,14 +99,6 @@ export const SEVERITY_RANK: readonly Severity[] = [
   "INFORMATIONAL",
 ]
 
-function rankOf(severity: Severity): number {
-  const at = SEVERITY_RANK.indexOf(severity)
-  // A severity added to the union and forgotten here sorts LAST rather than
-  // first. Sorting an unclassified severity to the top would put a row nobody
-  // has ranked above an open CRITICAL.
-  return at === -1 ? SEVERITY_RANK.length : at
-}
-
 /* ──────────────────────────────────────────────────────────── counting ──── */
 
 /** How many findings carry each severity. Every severity is present, including zeroes. */
@@ -138,27 +130,19 @@ export function answeredSources(
   return sources.filter((source) => source.state === "AGGREGATED" || source.state === "DIRECT")
 }
 
-/**
- * Worst first, then oldest, then by key.
+/*
+ * There is no `sortFindings` here any more, and that is deliberate.
  *
- * The last tiebreak is what makes two loads of an unchanged estate draw the
- * same page. It compares with `<` and `>` rather than `localeCompare`, which is
- * locale-dependent and would order the same two findings differently on two
- * machines.
+ * The page no longer draws a Security-Hub-only table. It draws ONE ranked list
+ * across every source — Security Hub's findings, the IAM wildcards this console
+ * swept for, and the access keys it aged — because an operator triaging by
+ * severity should not have to read two tables to find the worst thing that is
+ * true. `rankExposures` in `./posture.ts` is that ranking, and it carries the
+ * same ladder this function did (worst severity, then past its allowance, then
+ * oldest, then by key, compared with `<` and `>` rather than `localeCompare`,
+ * which is locale-dependent) plus the cross-source cases this one could not
+ * have. Keeping both would have left a second comparator that nothing renders.
  */
-export function sortFindings(
-  findings: readonly SecurityFinding[],
-): readonly SecurityFinding[] {
-  return findings.slice().sort((a, b) => {
-    const bySeverity = rankOf(a.severity) - rankOf(b.severity)
-    if (bySeverity !== 0) return bySeverity
-    // Past its SLA first inside a severity band: same severity, but one of them
-    // has already broken the promise this console makes about it.
-    if (a.pastSla !== b.pastSla) return a.pastSla ? -1 : 1
-    if (a.ageHours !== b.ageHours) return b.ageHours - a.ageHours
-    return a.key < b.key ? -1 : a.key > b.key ? 1 : 0
-  })
-}
 
 /* ────────────────────────────────────────────────────────── the answer ──── */
 

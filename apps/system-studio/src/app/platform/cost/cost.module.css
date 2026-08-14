@@ -114,6 +114,68 @@
 }
 
 /*
+ * A sentence inside a card that is not the card's supporting text.
+ *
+ * The caveat above the budget table and the reconciliation verdict below the
+ * totals. `.md3-card` is a flex column with its own `gap`, so a `<p>` here needs
+ * its margin zeroed or the base `p` rule adds a second, uneven space — and only
+ * between the `<p>`s. `overflow-wrap` because these sentences carry budget names
+ * and ARNs, which have no break opportunity of their own.
+ */
+.caveat {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A wide table's own minimum width, for the same reason `.thresholds` has one.
+ *
+ * `.md3-table` is `inline-size: 100%` inside a shell that scrolls, which is
+ * right for a table of identifiers and wrong for one carrying sentences: at 320
+ * CSS pixels seven columns squeeze until every cell wraps to a column of single
+ * characters and each row is three hundred pixels of mostly-empty height. A
+ * minimum makes the shell do the job it exists for — scroll inside its own
+ * border — instead of the row growing downward.
+ *
+ * `:global` because the class belongs to the primitive while the MEASUREMENT
+ * belongs to this page: `DataTable` cannot know how many columns this table has,
+ * and a `minWidth` prop on the shared shell would be one page's answer imposed
+ * on every other.
+ */
+.wide :global(.md3-table) {
+  min-inline-size: 40rem;
+}
+.budgets :global(.md3-table) {
+  min-inline-size: 48rem;
+}
+
+/*
+ * The two halves of the remainder — shared by decision, and reaching no tenant
+ * at all — side by side at width and stacked at 320 CSS pixels.
+ *
+ * `auto-fit` with a `minmax` floor rather than a media query, and
+ * `min-inline-size: 0` on the pairs because a grid item's automatic minimum size
+ * is its content: one long tag name would otherwise set the track width and push
+ * the row past the card.
+ */
+.remainder {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+.remainder > div {
+  min-inline-size: 0;
+}
+.remainder dt {
+  margin: 0;
+}
+.remainder dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/*
  * The remediation list.
  *
  * `padding-inline-start` is logical, so the numbers stay on the reading side

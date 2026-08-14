@@ -14,7 +14,6 @@ import {
   scopeOf,
   scopeSentence,
   slaRows,
-  sortFindings,
   statedAsOf,
   SEVERITY_RANK,
   SEVERITY_TONE,
@@ -250,42 +249,20 @@ test.describe("counting and ordering", () => {
     expect(countPastSla([finding({ pastSla: true }), finding({ key: "b" })])).toBe(1)
   })
 
-  test("worst severity first", () => {
-    const ordered = sortFindings([
-      finding({ key: "low", severity: "LOW" }),
-      finding({ key: "crit", severity: "CRITICAL" }),
-      finding({ key: "med", severity: "MEDIUM" }),
-    ])
-    expect(ordered.map((f) => f.severity)).toEqual(["CRITICAL", "MEDIUM", "LOW"])
-  })
-
-  test("inside one severity, past its allowance comes first", () => {
-    const ordered = sortFindings([
-      finding({ key: "inside", severity: "HIGH", ageHours: 10, pastSla: false }),
-      finding({ key: "past", severity: "HIGH", ageHours: 9, pastSla: true }),
-    ])
-    expect(ordered.map((f) => f.key)).toEqual(["past", "inside"])
-  })
-
-  test("then oldest, then by key — the same input draws the same page twice", () => {
-    const input = [
-      finding({ key: "b", severity: "HIGH", ageHours: 5 }),
-      finding({ key: "a", severity: "HIGH", ageHours: 5 }),
-      finding({ key: "c", severity: "HIGH", ageHours: 9 }),
-    ]
-    const once = sortFindings(input).map((f) => f.key)
-    const twice = sortFindings(input.slice().reverse()).map((f) => f.key)
-    expect(once).toEqual(["c", "a", "b"])
-    // Reversing the input must not reorder the output. A comparator that fell
-    // through to insertion order would pass the first assertion and fail this.
-    expect(twice).toEqual(once)
-  })
-
-  test("sorting does not mutate what it was given", () => {
-    const input = [finding({ key: "b", severity: "LOW" }), finding({ key: "a", severity: "CRITICAL" })]
-    sortFindings(input)
-    expect(input.map((f) => f.key)).toEqual(["b", "a"])
-  })
+  /*
+   * The four ordering cases that used to sit here — worst severity first, past
+   * its allowance first inside a band, then oldest, then by key, and not
+   * mutating the input — moved to
+   * `src/app/platform/security/posture.test.ts`, against `rankExposures`.
+   *
+   * They moved because the thing they described moved. The page no longer draws
+   * a Security-Hub-only table: it draws ONE ranked list across Security Hub's
+   * findings, the IAM wildcards this console sweeps for and the access keys it
+   * ages, so `sortFindings` had no renderer left and `rankExposures` is the
+   * comparator an operator actually sees. Every assertion is carried over
+   * verbatim in behaviour, over the merged row type, with the cross-source
+   * cases this file could not have expressed added beside them.
+   */
 
   test("every severity has a tone, and none of them is the accent", () => {
     for (const severity of SEVERITY_RANK) {
@@ -498,6 +475,60 @@ test.describe("the page consumes the design system rather than forking it", () =
     const table = page.indexOf("<DataTable")
     expect(guarded, "the findings table is no longer behind the answered check").toBeGreaterThan(-1)
     expect(table).toBeGreaterThan(guarded)
+  })
+
+  test("the question is asked in words, at the top, before any apparatus", () => {
+    // The one sentence this route exists to answer. It is asserted on because a
+    // restyle is exactly the kind of change that turns a question into a noun.
+    const page = routeFile("page.tsx")
+    const question = page.indexOf(
+      "What in this estate is exposed, unencrypted, unrotated or unwatched?",
+    )
+    expect(question, "the page no longer asks its question in words").toBeGreaterThan(-1)
+    expect(page.indexOf("<Card")).toBeGreaterThan(question)
+  })
+
+  test("what is NOT being checked is drawn above what was found", () => {
+    // The ordering IS the argument of this page. A disabled control's silence
+    // read as a pass is the defect; putting the coverage card below the findings
+    // table is how a page quietly reintroduces it.
+    const page = routeFile("page.tsx")
+    const notChecking = page.indexOf('headline="Not being checked"')
+    const found = page.indexOf('headline="What this console found"')
+    expect(notChecking, "the coverage card is gone").toBeGreaterThan(-1)
+    expect(found).toBeGreaterThan(notChecking)
+  })
+
+  test("a refused read renders through the shared UnknownState, never as a blank", () => {
+    const page = routeFile("page.tsx")
+    // Both reads, and both through the same primitive: the panel carries the
+    // principal, the action, the error code and a pasteable minimum statement.
+    expect(page).toContain("<UnknownState")
+    expect(page).toContain('what="the Security Hub findings"')
+    expect(page).toContain('what="this account\'s IAM policies and access keys"')
+  })
+
+  test("both readers are called, and neither is stubbed", () => {
+    const page = routeFile("page.tsx")
+    expect(page).toContain("await securityFindings()")
+    // STUDIO-110-006's second half. `lib/aws/iam.ts` had no production caller at
+    // all before this page: the wildcard sweep answers "exposed" and access-key
+    // age answers "unrotated", and both report their own coverage.
+    expect(page).toContain("await iamPosture()")
+  })
+
+  test("the coverage module is pure enough to drive at the node level", () => {
+    // Same rule as `answer.ts`, one module along. `capabilities.ts` is a data
+    // registry with no imports of its own, so a VALUE import of it is safe; a
+    // value import of anything else in `lib/aws/` would drag `server-only`, the
+    // SDK clients and a live gateway in behind it and `posture.test.ts` would
+    // stop being runnable without an estate.
+    const posture = routeFile("posture.ts")
+    const valueImports = posture
+      .split("\n")
+      .filter((line) => line.startsWith("import ") && !line.startsWith("import type"))
+    expect(valueImports).toHaveLength(1)
+    expect(valueImports[0]).toContain("capabilities")
   })
 
   test("the decision module pulls no runtime dependency into the node-level tests", () => {

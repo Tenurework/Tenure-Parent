@@ -10,74 +10,123 @@ import {
 import { ErrorState } from "@/components/states"
 import {
   Badge,
+  Button,
+  ButtonLink,
   Card,
   Chip,
   DataTable,
   EmptyState,
+  Select,
+  UnknownState,
   type BadgeTone,
   type DataColumn,
 } from "@/components/md3"
 import { auth } from "@/lib/auth"
 import { isOperator } from "@/lib/operators"
 import { listFleet, registryConfigured } from "@/lib/registry"
-import { PLATFORM_PARTITION, holdsFor, readRecordsFor, retentionDays } from "@/lib/audit-ledger"
+import {
+  PLATFORM_PARTITION,
+  holdsFor,
+  readRecordsFor,
+  retentionDays,
+  safeErrorOf,
+} from "@/lib/audit-ledger"
+import { describeRegistryProtection, tableReadings } from "@/lib/aws/dynamodb-tables"
+import type { DynamoDbReadings } from "@/lib/aws/dynamodb-tables"
+import {
+  describeDeliveryHealth,
+  describeLoggingState,
+  loggingStateOf,
+  trailReadings,
+  type TrailReading,
+  type TrailReadings,
+} from "@/lib/aws/trail"
 import { HoldControls } from "./HoldControls"
+import {
+  asOfLabel,
+  chainVerdict,
+  distinct,
+  exclusionSentence,
+  filterEntries,
+  mergeChains,
+  optionsFor,
+  parseEntryFilter,
+  projectChain,
+  shortDigest,
+  type EntryFilter,
+  type FilteredEntries,
+  type LedgerEntry,
+} from "./entries"
 import styles from "./audit.module.css"
 
 /**
- * STUDIO-110-005 — is the audit trail intact, and what would retention destroy?
+ * STUDIO-110-005 — the append-only audit ledger.
  *
- * ## Why a page and not a script
+ * # Who did what, when, and can I prove the record has not been altered?
  *
- * `verifyChain` and `applyRetention` existed as code with no caller: nothing in
- * `apps/` reached either, so "verification tooling" and "a retention schedule"
- * were declarations. A hash chain nobody verifies is a hash chain that proves
- * nothing — the tamper it would detect goes undetected for exactly as long as
- * nobody runs the check, and a check that has to be remembered is a check that
- * is not run.
+ * That question is the page, in that order, and the order is the design.
  *
- * So the verification runs on every page load, over the rows read back out of
- * DynamoDB, and reports the break by SEQUENCE — which is what an operator needs
- * to know: not "something is wrong" but "record 41 of rochester's chain no
- * longer hashes to what it says, and 42 does not link to it".
+ * ## The verification comes first, because a list is not a ledger
+ *
+ * The point of a hash chain is that it can be CHECKED. A page that renders
+ * entries without verifying them has shown an operator a table they must simply
+ * believe — which is exactly what a tampered table looks like. So `verifyChain`
+ * runs on every load, over the rows read back out of DynamoDB, and its verdict
+ * is the first thing on the page in a sentence that answers the question with a
+ * word: yes, no, or not fully.
+ *
+ * `verifyChain` and `applyRetention` had no caller anywhere in `apps/` before
+ * this route existed. A check nobody runs detects a tamper for exactly as long
+ * as somebody remembers to run it, which is zero.
+ *
+ * ## Then the entries, newest first
+ *
+ * Four facts per row, and they are the four the question asks for: the actor as
+ * the ledger recorded them (a principal, never a display name), the action, the
+ * target, and how it ended. Newest first, because an operator opens an audit
+ * trail to ask what just happened.
+ *
+ * `OPEN` is the third outcome and the one that matters most: an INTENT row is
+ * written BEFORE a mutating call and an OUTCOME row after, so a process that
+ * dies mid-flight leaves a durable "somebody started this and we cannot say how
+ * it ended". An outcome-only trail leaves silence there, and silence is
+ * indistinguishable from nothing having been attempted.
+ *
+ * ## The filter cannot hide a break
+ *
+ * A ledger with a filter is a ledger where the most important row on the page is
+ * one query away from invisible. `filterEntries` in `./entries.ts` therefore
+ * carries a broken entry through EVERY exclusion — the filter and the page cap
+ * both — marks it as kept against the filter, and reports `hiddenBroken`, which
+ * is computed against the finished output rather than derived from the logic
+ * that built it. The page renders that number if it is ever not zero. The
+ * invariant has a mutation-proven test; the JSX below only draws it.
  *
  * ## Read once, checked twice
  *
- * Each chain is read ONCE and the same array is handed to both `verifyChain` and
- * `applyRetention`. Reading twice would let this page report a chain as intact
- * and a deletion plan as safe over two different reads of the table.
+ * Each chain is read ONCE and the same array is handed to `verifyChain`, to the
+ * entry projection and to `applyRetention`. Reading twice would let this page
+ * report a chain as intact, an entry as verified and a deletion plan as safe
+ * over three different reads of the table.
  *
  * ## The plan is never performed
  *
  * `applyRetention` returns a partition of the records and deletes nothing, and
  * nothing on this page deletes anything. Deletion of audit evidence is not a
- * button; it is an operator act with an anchor to keep, and the anchors are
- * rendered so that the surviving chain can still be shown to continue the one
- * that was cut.
+ * button.
  *
- * ## The shape of the page, and why it is this shape
+ * ## Three things that used to be wrong here, and are worth naming
  *
- * An operator opens this route to learn ONE thing: whether the evidence is
- * still evidence. That answer is the first card, in a sentence, with the
- * instant it was computed for — everything below it is the working. Before,
- * the page opened with a paragraph about hash chains and a six-column table,
- * and the verdict was a pill at the end of a header row.
- *
- * Three things follow from that ordering and are worth stating, because each
- * one used to be wrong here:
- *
- *   * **A chain nobody could read is not an intact chain.** The verdict used to
- *     be computed over `!verification.ok`, which is `true` for a chain whose
- *     read threw — so a table that could not be reached read as "intact". It
- *     now has its own word, `unreadable`, and its own card naming the chain,
- *     what the read said, and what would fix it.
+ *   * **A chain nobody could read is not an intact chain.** The verdict was once
+ *     computed over `!verification.ok`, which is `false` for a chain whose read
+ *     threw — so an unreachable table read as "intact". `chainVerdict` now has
+ *     `proven`, and it is false whenever anything is broken OR anything could
+ *     not be read.
  *   * **The console has to boot without AWS.** `listFleet()` and
- *     `retentionDays()` were both awaited/called bare, so an unreachable table
- *     or a mistyped `AUDIT_RETENTION_DAYS` turned the whole route into a 500 —
- *     including the chain verification, which needs neither of them. A page
- *     that cannot render is a page that cannot report a tamper. Both are now
- *     caught, and the part that cannot be computed says so in the console's own
- *     word for not knowing rather than being guessed at.
+ *     `retentionDays()` were both called bare, so an unreachable table or a
+ *     mistyped `AUDIT_RETENTION_DAYS` turned the whole route into a 500 —
+ *     including the chain verification, which needs neither. A page that cannot
+ *     render is a page that cannot report a tamper.
  *   * **Every panel says what it is AS OF.** One instant is computed at the top
  *     and every card carries it, because a retention plan and a chain verdict
  *     read off two different clocks are two answers about two different tables.
@@ -93,21 +142,22 @@ export const dynamic = "force-dynamic"
 const UNKNOWN = "UNKNOWN"
 
 /**
- * A timestamp a reader can compare against a clock, from the ISO string.
+ * How many entries the table draws before it starts accounting for what it left
+ * out.
  *
- * Sliced rather than formatted through `Intl`: a locale-dependent rendering is
- * a different string on a different machine, and this stamp is the thing an
- * operator quotes in an incident channel. UTC because the estate is.
+ * A chain has no upper bound, and a page that renders every record of a
+ * years-old ledger is a page that does not render. The cap is disclosed in the
+ * same sentence as the filter, and `filterEntries` seats every broken entry
+ * before the cap applies — so a break from three years ago is above the fold of
+ * a page of two hundred.
  */
-function asOfLabel(iso: string): string {
-  return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`
-}
+const ENTRY_LIMIT = 200
 
 /**
  * What one chain came back as.
  *
- * `plan` is nullable and `unreadable` is a string, and both are load-bearing:
- * a chain that could not be read has no verification worth showing, and a
+ * `plan` is nullable and `unreadable` is a string, and both are load-bearing: a
+ * chain that could not be read has no verification worth showing, and a
  * retention window that could not be parsed has no plan worth showing — and in
  * both cases the honest render is a named absence rather than a zero.
  *
@@ -197,15 +247,168 @@ interface UnreadableRow {
 }
 
 /**
+ * One CloudTrail trail, as this page needs it.
+ *
+ * `logging` and `digests` are strings rather than booleans because both can be
+ * three things — on, off, and not known — and a boolean would force the third
+ * into one of the first two. `loggingStateOf` in `lib/aws/trail.ts` owns the
+ * vocabulary; this page prints it rather than deciding it.
+ */
+interface TrailRow {
+  name: string
+  logging: string
+  validation: string
+  digests: string
+}
+
+/**
  * A sequence position, or the honest word for a record that has none.
  *
- * Not a dash. `verifyChain` still hash-checks an unchained record's content,
- * but nothing proves a neighbour of it was not deleted — so "unchained" is a
+ * Not a dash. `verifyChain` still hash-checks an unchained record's content, but
+ * nothing proves a neighbour of it was not deleted — so "unchained" is a
  * different fact from "position unknown", and an em dash says neither.
  */
 function positionOf(sequence: number | null): string {
   return sequence === null ? "unchained" : String(sequence)
 }
+
+/* ── The entries, which are the answer to "who did what, when" ───────────── */
+
+/**
+ * The badge tone for how an attempt ended.
+ *
+ * `OPEN` is `warn` rather than `neutral` on purpose: an act that was begun and
+ * never closed is not a neutral fact about the estate, it is a process that
+ * disappeared. It is the row an incident review looks for and the one an
+ * outcome-only trail does not contain.
+ */
+/**
+ * The part of an entry's test id that identifies WHICH entry.
+ *
+ * The chain plus the sequence, because that is how an operator and every other
+ * assertion on this page name a record — `break-PLATFORM-41`, `verdict-…`. An
+ * unchained record has no sequence and cannot borrow the word "unchained",
+ * because two of them in one chain would then share an id and a strict locator
+ * would match both; it falls back to the head of its own digest, which is unique
+ * by construction.
+ */
+function entryTag(entry: LedgerEntry): string {
+  if (entry.sequence !== null) return `${entry.chain}-${entry.sequence}`
+  const body = entry.digest.startsWith("sha256:") ? entry.digest.slice(7) : entry.digest
+  return `${entry.chain}-unchained-${body.slice(0, 12)}`
+}
+
+const OUTCOME_TONE: Readonly<Record<LedgerEntry["outcomeKind"], BadgeTone>> = {
+  ALLOW: "ok",
+  DENY: "bad",
+  OPEN: "warn",
+  BEGUN: "neutral",
+}
+
+const OUTCOME_MEANING: Readonly<Record<LedgerEntry["outcomeKind"], string>> = {
+  ALLOW: "The act was permitted and an outcome was recorded.",
+  DENY: "The act was refused or it failed, and the refusal is on the record.",
+  OPEN: "An intent was recorded and no outcome ever was. The act was begun; how it ended is not known.",
+  BEGUN:
+    "The intent recorded before the act ran. It was closed, and the row that closed it says how it ended.",
+}
+
+/**
+ * What the outcome badge says when a reader hovers or hears it.
+ *
+ * The pairing is named, not implied. An INTENT row and the OUTCOME row that
+ * closes it are two positions in the chain, and an operator reading a row of
+ * either kind needs to be able to find the other one — otherwise "begun" is a
+ * dead end and "APPLIED" is a success with no record of what was attempted.
+ */
+function outcomeTitle(entry: LedgerEntry): string {
+  const meaning = OUTCOME_MEANING[entry.outcomeKind]
+  if (entry.closedBy !== null) {
+    return `${meaning} Closed by the record at sequence ${entry.closedBy}.`
+  }
+  if (entry.resolves !== null) {
+    return `${meaning} This closes the intent at sequence ${entry.resolves}.`
+  }
+  return meaning
+}
+
+const ENTRY_COLUMNS: readonly DataColumn<LedgerEntry>[] = [
+  {
+    key: "when",
+    header: "When (UTC)",
+    cell: (r) => (
+      <time dateTime={r.at} data-testid={`entry-${entryTag(r)}-at`}>
+        {asOfLabel(r.at)}
+      </time>
+    ),
+  },
+  {
+    key: "actor",
+    header: "Who",
+    /*
+     * The principal the ledger recorded, verbatim. Never resolved to a display
+     * name: a name is a join against a table that can change, and an audit row
+     * that renders "Alex" for a principal that was deleted and re-created under
+     * a different person is a row that names the wrong human.
+     */
+    cell: (r) => <code>{r.actor}</code>,
+  },
+  { key: "action", header: "Did what", cell: (r) => <code>{r.action}</code> },
+  {
+    key: "target",
+    header: "To what",
+    cell: (r) => (
+      <>
+        <code>{r.target}</code> <span className="md3-label-small">{r.targetType}</span>
+      </>
+    ),
+  },
+  {
+    key: "outcome",
+    header: "How it ended",
+    cell: (r) => (
+      <span data-testid={`entry-${entryTag(r)}-outcome`}>
+        <Badge tone={OUTCOME_TONE[r.outcomeKind]} title={outcomeTitle(r)}>
+          {r.outcome}
+        </Badge>
+      </span>
+    ),
+  },
+  { key: "chain", header: "Chain", cell: (r) => <code>{r.chain}</code> },
+  { key: "seq", header: "Seq", align: "end", cell: (r) => positionOf(r.sequence) },
+  {
+    key: "digest",
+    header: "Digest ← previous",
+    /*
+     * Both halves of the link, on the row, in the operator's reading order —
+     * because the list is newest first and the record this one links to is
+     * therefore BELOW it, not above. Relying on adjacency to make the chain
+     * checkable would only work in the order nobody reads.
+     */
+    cell: (r) => (
+      <>
+        <code>{shortDigest(r.digest)}</code>{" ← "}
+        <code>{shortDigest(r.previousDigest)}</code>
+      </>
+    ),
+  },
+  {
+    key: "verified",
+    header: "Verified",
+    cell: (r) =>
+      r.broken === null ? (
+        <Badge tone="ok" title="This record hashes to what it says and links to the one before it.">
+          verified
+        </Badge>
+      ) : (
+        <span data-testid={`entry-broken-${entryTag(r)}`}>
+          <Badge tone="bad" title="This record did not verify. It is listed whatever the filter says.">
+            {r.broken}
+          </Badge>
+        </span>
+      ),
+  },
+]
 
 const CHAIN_COLUMNS: readonly DataColumn<ChainRow>[] = [
   { key: "chain", header: "Chain", cell: (r) => <code>{r.partition}</code> },
@@ -262,9 +465,9 @@ const BREAK_COLUMNS: readonly DataColumn<BreakRow>[] = [
     header: "Reason",
     /*
      * The test id and the machine-readable reason live on this cell rather than
-     * on the row, because `DataTable` owns the `<tr>` and a primitive that let
-     * a caller decorate its rows would be a primitive with a hole in it. The
-     * pair is on the cell the attribute is ABOUT, so a reader of the DOM finds
+     * on the row, because `DataTable` owns the `<tr>` and a primitive that let a
+     * caller decorate its rows would be a primitive with a hole in it. The pair
+     * is on the cell the attribute is ABOUT, so a reader of the DOM finds
      * `data-break-reason` beside the word it duplicates.
      */
     cell: (r) => (
@@ -347,7 +550,172 @@ const UNREADABLE_COLUMNS: readonly DataColumn<UnreadableRow>[] = [
   { key: "detail", header: "What the read said", cell: (r) => <code>{r.detail}</code> },
 ]
 
-export default async function AuditPage() {
+const TRAIL_COLUMNS: readonly DataColumn<TrailRow>[] = [
+  { key: "name", header: "Trail", cell: (r) => <code>{r.name}</code> },
+  { key: "logging", header: "Recording", cell: (r) => r.logging },
+  {
+    key: "validation",
+    header: "Log-file validation",
+    /*
+     * The CloudTrail half of this page's question. Digest files are what make a
+     * delivered log file tamper-EVIDENT; without them the bucket holds a record
+     * that can be rewritten by anyone who can write to the bucket, which is the
+     * same defect the chain on this page exists to close on the console's side.
+     */
+    cell: (r) => r.validation,
+  },
+  { key: "digests", header: "Last digest", cell: (r) => r.digests },
+]
+
+/**
+ * One trail's row, with every unknown said out loud.
+ *
+ * `GetTrailStatus` is a separate call from `DescribeTrails` and is separately
+ * refusable, so a trail can be fully described and completely opaque. That is
+ * rendered as this console's word for not knowing, with the arm AWS's reader
+ * returned — never as "not logging", which is a different and much worse claim.
+ */
+function trailRowOf(reading: TrailReading, now: Date): TrailRow {
+  const status = reading.status
+  const known = status.state === "ACTUAL" || status.state === "STALE"
+
+  return {
+    name: reading.configuration.name,
+    logging: known
+      ? describeLoggingState(loggingStateOf(status.value, now))
+      : `${UNKNOWN} — cloudtrail:GetTrailStatus came back ${status.state} for this trail, so whether it is recording is not known. It is not a report that it is stopped.`,
+    validation: reading.configuration.logFileValidationEnabled
+      ? "ON — digest files are written, so a rewritten log file is detectable"
+      : "OFF — delivered log files carry no digest, so a rewrite of one is not detectable",
+    digests: known
+      ? (status.value.latestDigestDeliveryAt ??
+        "never — no digest file has been delivered, so there is nothing to validate against")
+      : UNKNOWN,
+  }
+}
+
+/**
+ * The filter, as a plain GET form.
+ *
+ * No `"use client"` anywhere near it. A native form submitting to this same
+ * route puts the filter in the URL, which means an operator can paste the exact
+ * view they are looking at into an incident channel and the person who opens it
+ * sees the same rows. A client-side filter is a view nobody else can be shown.
+ *
+ * The blank option carries a real meaning here — "do not constrain this field" —
+ * rather than the "nothing chosen yet" the `Select` primitive reserves its
+ * `placeholder` for. Nothing on this form is `required`, so a blank value cannot
+ * pass a validation it was meant to fail; it is an answer, and the one the page
+ * defaults to.
+ */
+function EntryFilterForm({
+  filter,
+  chains,
+  actors,
+  actions,
+}: {
+  filter: EntryFilter
+  chains: readonly string[]
+  actors: readonly string[]
+  actions: readonly string[]
+}) {
+  return (
+    <form method="get" className={styles.filter} data-testid="entry-filter">
+      <div className={styles.filterField}>
+        <Select
+          id="filter-chain"
+          name="chain"
+          label="Chain"
+          defaultValue={filter.chain ?? ""}
+          options={[
+            { value: "", label: "Any chain" },
+            ...chains.map((c) => ({ value: c, label: c })),
+          ]}
+        />
+      </div>
+      <div className={styles.filterField}>
+        <Select
+          id="filter-actor"
+          name="actor"
+          label="Who"
+          defaultValue={filter.actor ?? ""}
+          options={[
+            { value: "", label: "Anyone" },
+            ...actors.map((a) => ({ value: a, label: a })),
+          ]}
+        />
+      </div>
+      <div className={styles.filterField}>
+        <Select
+          id="filter-action"
+          name="action"
+          label="Did what"
+          defaultValue={filter.action ?? ""}
+          options={[
+            { value: "", label: "Any action" },
+            ...actions.map((a) => ({ value: a, label: a })),
+          ]}
+        />
+      </div>
+      <div className={styles.filterField}>
+        <Select
+          id="filter-outcome"
+          name="outcome"
+          label="How it ended"
+          defaultValue={filter.outcome ?? ""}
+          options={[
+            { value: "", label: "Any outcome" },
+            { value: "ALLOW", label: "ALLOW — permitted" },
+            { value: "DENY", label: "DENY — refused or failed" },
+            { value: "OPEN", label: "OPEN — begun, never closed" },
+            { value: "BEGUN", label: "begun — the intent of a closed act" },
+          ]}
+        />
+      </div>
+      <div className={styles.filterActions}>
+        <Button type="submit" variant="filled">
+          Apply
+        </Button>
+        <ButtonLink href="/platform/audit" variant="outlined">
+          Clear
+        </ButtonLink>
+      </div>
+    </form>
+  )
+}
+
+/**
+ * The sentence that says what the filter left out, and the alarm if it left out
+ * something it must not have.
+ *
+ * `hiddenBroken` is rendered rather than asserted. An invariant that only exists
+ * in a test is one an operator has no way of checking on the screen in front of
+ * them, and this page's entire subject is not having to take the software's word
+ * for it.
+ */
+function Exclusions({ result }: { result: FilteredEntries }) {
+  return (
+    <>
+      <p className="md3-body-medium" data-testid="entry-exclusions">
+        {exclusionSentence(result)}
+      </p>
+      {result.hiddenBroken > 0 && (
+        <p className="md3-title-medium" data-testid="hidden-broken-alarm" role="alert">
+          {result.hiddenBroken} records that failed verification are NOT listed above. This is a
+          defect in this page, not a fact about the ledger: a filter must never be able to hide a
+          break. Clear the filter to see every entry, and treat the counts on this card as{" "}
+          {UNKNOWN} until it is fixed.
+        </p>
+      )}
+    </>
+  )
+}
+
+export default async function AuditPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const session = await auth()
   if (!isOperator(session?.user?.email)) {
     const { redirect } = await import("next/navigation")
@@ -355,11 +723,16 @@ export default async function AuditPage() {
   }
 
   const asOf = new Date().toISOString()
+  const filter = parseEntryFilter(await searchParams)
 
   if (!registryConfigured()) {
     return (
       <>
         <h1 className="md3-headline-large">Audit</h1>
+        <p className={`${styles.lede} md3-body-large`}>
+          Who did what, when — and can this console prove the record has not been altered?
+        </p>
+
         <div className={styles.stack}>
           <Card
             id="verdict"
@@ -415,13 +788,13 @@ export default async function AuditPage() {
   /**
    * One chain per tenant, plus the platform's own.
    *
-   * Enumerated from the fleet rather than by scanning for `AUDIT#` partitions:
-   * a chain exists for exactly the subjects that can be acted on, and a scan
-   * would read every audit row in the table to answer "which chains are there".
+   * Enumerated from the fleet rather than by scanning for `AUDIT#` partitions: a
+   * chain exists for exactly the subjects that can be acted on, and a scan would
+   * read every audit row in the table to answer "which chains are there".
    *
    * Caught, because the scan is a live DynamoDB call and this page must still
-   * render the platform chain when it fails. A fleet that could not be listed
-   * is not a fleet of zero tenants, and the difference is said out loud below.
+   * render the platform chain when it fails. A fleet that could not be listed is
+   * not a fleet of zero tenants, and the difference is said out loud below.
    */
   let fleetSlugs: string[] = []
   let fleetProblem: string | null = null
@@ -431,6 +804,34 @@ export default async function AuditPage() {
     fleetProblem = err instanceof Error ? err.message : String(err)
   }
   const partitions = [PLATFORM_PARTITION, ...fleetSlugs]
+
+  /*
+   * The two facts about this chain's durability that the chain itself cannot
+   * carry, read from AWS rather than asserted.
+   *
+   * A hash chain proves nobody EDITED a record. It proves nothing about the
+   * table the records live in — `DeleteTable` takes the whole ledger and leaves
+   * a chain of length zero, which verifies perfectly — and nothing about acts
+   * taken against the account outside this console. `registryProtection` and
+   * CloudTrail's delivery health are the other two halves of "can I prove it",
+   * and both come from readers that were written for this estate rather than
+   * from anything this page invented.
+   *
+   * Caught, because the console must keep booting with no AWS credentials at
+   * all. Both readers already return `AwsRead` arms for a refused or throttled
+   * call — those render through `UnknownState` below with the principal, the
+   * action and a pasteable IAM statement — so this catch is for the case where
+   * the call could not even be made, and it renders as a named absence rather
+   * than taking the chain verification down with it.
+   */
+  let tables: DynamoDbReadings | null = null
+  let trails: TrailReadings | null = null
+  let awsProblem: string | null = null
+  try {
+    ;[tables, trails] = await Promise.all([tableReadings(), trailReadings()])
+  } catch (err) {
+    awsProblem = safeErrorOf(err)
+  }
 
   const reports: ChainReport[] = await Promise.all(
     partitions.map(async (partition): Promise<ChainReport> => {
@@ -473,6 +874,14 @@ export default async function AuditPage() {
     (n, r) => n + r.holds.filter((h) => h.releasedAt == null).length,
     0,
   )
+
+  /* ── The entries ───────────────────────────────────────────────────────── */
+
+  // The same arrays that were verified above. Not a second read.
+  const entries = mergeChains(
+    readable.map((r) => projectChain(r.partition, r.records, r.verification)),
+  )
+  const filtered = filterEntries(entries, filter, ENTRY_LIMIT)
 
   /* ── The rows ──────────────────────────────────────────────────────────── */
 
@@ -559,28 +968,25 @@ export default async function AuditPage() {
 
   /* ── The answer ────────────────────────────────────────────────────────── */
 
-  const verdictWord =
-    broken.length > 0
-      ? `${broken.length} broken`
-      : unreadable.length > 0
-        ? `${unreadable.length} unreadable`
-        : "intact"
-
-  const verdictTone: BadgeTone =
-    broken.length > 0 ? "bad" : unreadable.length > 0 ? "warn" : "ok"
-
-  const verdictHeadline =
-    broken.length > 0
-      ? `${broken.length} of ${written.length} chains no longer verify`
-      : unreadable.length > 0
-        ? `Every chain that could be read is intact — ${unreadable.length} could not be read`
-        : written.length === 0
-          ? "Nothing has been recorded through this console yet"
-          : `All ${written.length} chains are intact — ${totalRecords} records, none altered and none missing`
+  const verdict = chainVerdict({
+    attempted: reports.length,
+    readable: readable.length,
+    written: written.length,
+    broken: broken.length,
+    records: totalRecords,
+  })
 
   return (
     <>
       <h1 className="md3-headline-large">Audit</h1>
+      <p className={`${styles.lede} md3-body-large`}>
+        Who did what, when — and can this console prove the record has not been altered? Every act
+        this console attempts is written to a per-subject hash chain before it runs and again when
+        it ends. Each record hashes over its own content and over the hash of the record before it,
+        so a rewritten row and a removed row are both detectable — which
+        &ldquo;append-only&rdquo; as a table permission is not. The chains are re-verified below on
+        every load of this page.
+      </p>
 
       <div className={styles.stack}>
         {/* ── 1. The answer, before the apparatus that produced it ───────── */}
@@ -588,11 +994,11 @@ export default async function AuditPage() {
           id="verdict"
           container="high"
           level={1}
-          headline={verdictHeadline}
+          headline={verdict.headline}
           headerAside={
             <span data-testid="chain-verdict">
               <Badge
-                tone={verdictTone}
+                tone={verdict.tone}
                 title={
                   broken.length > 0
                     ? "At least one record was altered after it was written, or one is missing."
@@ -601,18 +1007,17 @@ export default async function AuditPage() {
                       : "Every record hashes to what it says and links to the one before it."
                 }
               >
-                {verdictWord}
+                {verdict.word}
               </Badge>
             </span>
           }
           supportingText={
             <>
               Re-verified from the ledger on this page load, as of{" "}
-              <time dateTime={asOf}>{asOfLabel(asOf)}</time>. Every act this console attempts is
-              written to a per-subject hash chain before it runs and again when it ends; each
-              record hashes over its own content and over the hash of the record before it, so a
-              rewritten row and a removed row are both detectable — which
-              &ldquo;append-only&rdquo; as a table permission is not.
+              <time dateTime={asOf}>{asOfLabel(asOf)}</time>.{" "}
+              {verdict.proven
+                ? "Every record read hashes to what it says and links to the one before it, so the trail below is the trail that was written."
+                : "This console cannot currently prove the trail below is the trail that was written. What is unproven, and why, is named in the cards that follow."}
             </>
           }
         >
@@ -645,15 +1050,16 @@ export default async function AuditPage() {
         {broken.length > 0 && (
           <Card
             id="breaks"
+            container="high"
+            level={1}
             headline={`Where it broke — ${breakRows.length} records by sequence`}
             headerAside={<Badge tone="bad">{breakRows.length} records</Badge>}
             supportingText={
               <>
-                As of <time dateTime={asOf}>{asOfLabel(asOf)}</time>.{" "}
-                <b>CONTENT_ALTERED</b> means a record no longer hashes to its own recorded hash —
-                it was edited after it was written. <b>BROKEN_LINK</b> means the record does not
-                follow the one before it: either that one changed, or something between them was
-                removed.
+                As of <time dateTime={asOf}>{asOfLabel(asOf)}</time>. <b>CONTENT_ALTERED</b> means a
+                record no longer hashes to its own recorded hash — it was edited after it was
+                written. <b>BROKEN_LINK</b> means the record does not follow the one before it:
+                either that one changed, or something between them was removed.
               </>
             }
           >
@@ -663,12 +1069,7 @@ export default async function AuditPage() {
                 columns={BREAK_COLUMNS}
                 rows={breakRows}
                 rowKey={(r) => r.key}
-                empty={
-                  <EmptyState
-                    headline="No broken record"
-                    description="Nothing to show here."
-                  />
-                }
+                empty={<EmptyState headline="No broken record" description="Nothing to show here." />}
               />
             </div>
 
@@ -726,9 +1127,9 @@ export default async function AuditPage() {
             headerAside={<Badge tone="warn">{UNKNOWN}</Badge>}
             supportingText={
               <>
-                As of <time dateTime={asOf}>{asOfLabel(asOf)}</time>. Everything below is a
-                question this page could not answer, listed rather than rendered as a zero — an
-                unread chain is not an intact chain, and an unlisted fleet is not an empty one.
+                As of <time dateTime={asOf}>{asOfLabel(asOf)}</time>. Everything below is a question
+                this page could not answer, listed rather than rendered as a zero — an unread chain
+                is not an intact chain, and an unlisted fleet is not an empty one.
               </>
             }
           >
@@ -738,9 +1139,9 @@ export default async function AuditPage() {
                 <p className="md3-body-medium">
                   The fleet could not be listed, so the only chain enumerated here is the
                   platform&rsquo;s own. Every tenant chain is {UNKNOWN} — not absent. The read is a
-                  DynamoDB <code>Scan</code> of <code>TENANT_TABLE</code>; grant this
-                  engine&rsquo;s task role <code>dynamodb:Scan</code> on that table, or make the
-                  table reachable, and the chains reappear on the next load.
+                  DynamoDB <code>Scan</code> of <code>TENANT_TABLE</code>; grant this engine&rsquo;s
+                  task role <code>dynamodb:Scan</code> on that table, or make the table reachable,
+                  and the chains reappear on the next load.
                 </p>
                 <ErrorState what="the fleet" detail={fleetProblem} />
               </>
@@ -751,9 +1152,9 @@ export default async function AuditPage() {
                 <h3 className="md3-label-large">How long a record must be kept</h3>
                 <p className="md3-body-medium">
                   <code>AUDIT_RETENTION_DAYS</code> could not be read as a whole number of days, so
-                  no retention plan was computed and none is shown below. Chain verification does
-                  not depend on it and ran anyway. Set the variable to a whole number of days — or
-                  unset it to fall back to the seven-year default — and the plan returns.
+                  no retention plan was computed and none is shown below. Chain verification does not
+                  depend on it and ran anyway. Set the variable to a whole number of days — or unset
+                  it to fall back to the seven-year default — and the plan returns.
                 </p>
                 <ErrorState what="the retention window" detail={retentionProblem} />
               </>
@@ -765,7 +1166,8 @@ export default async function AuditPage() {
                 <p className="md3-body-medium">
                   Nothing is known about these {unreadableRows.length} chains: not whether they are
                   intact, not how many records they hold, not what retention would cover. They are
-                  excluded from every count above rather than counted as zero.
+                  excluded from every count above rather than counted as zero, and their entries are
+                  absent from the trail below for the same reason.
                 </p>
                 <div data-testid="unreadable-table">
                   <DataTable
@@ -786,7 +1188,61 @@ export default async function AuditPage() {
           </Card>
         )}
 
-        {/* ── 4. Chain by chain ──────────────────────────────────────────── */}
+        {/* ── 4. Who did what, when ──────────────────────────────────────── */}
+        <div data-testid="ledger-entries">
+          <Card
+            id="entries"
+            headline="Who did what, when"
+            headerAside={
+              <Badge tone={filtered.hiddenBroken > 0 ? "bad" : "neutral"}>
+                {filtered.shown.length} of {filtered.total} entries
+              </Badge>
+            }
+            supportingText={
+              <>
+                Every act recorded on every chain this page could read, newest first, as of{" "}
+                <time dateTime={asOf}>{asOfLabel(asOf)}</time>. An <b>OPEN</b> row is an act that
+                was begun and never closed — an intent with no outcome — which is what a process
+                that died mid-flight leaves behind. The digest and the digest it links to are on
+                every row, so the chain is checkable from the page and not only from the verdict
+                above.
+              </>
+            }
+          >
+            <EntryFilterForm
+              filter={filter}
+              chains={optionsFor(partitions, filter.chain)}
+              actors={optionsFor(distinct(entries, (e) => e.actor), filter.actor)}
+              actions={optionsFor(distinct(entries, (e) => e.action), filter.action)}
+            />
+
+            <Exclusions result={filtered} />
+
+            <div data-testid="entries-table">
+              <DataTable
+                caption={`Ledger entries — ${filtered.shown.length} of ${filtered.total}, newest first, as of ${asOfLabel(asOf)}`}
+                columns={ENTRY_COLUMNS}
+                rows={filtered.shown}
+                rowKey={(r) => r.key}
+                empty={
+                  filtered.total === 0 ? (
+                    <EmptyState
+                      headline="No act has been recorded"
+                      description="Nothing has been attempted through this console since the ledger existed. This is a real absence: the chains were read and they are empty, not refused."
+                    />
+                  ) : (
+                    <EmptyState
+                      headline="No entry matches this filter"
+                      description="Every entry the filter excluded is counted in the sentence above, and none of them failed verification — a break would be listed here whatever the filter said. Clear the filter to see the whole trail."
+                    />
+                  )
+                }
+              />
+            </div>
+          </Card>
+        </div>
+
+        {/* ── 5. Chain by chain ──────────────────────────────────────────── */}
         <div data-testid="chain-summary">
           <Card
             id="chains"
@@ -800,8 +1256,8 @@ export default async function AuditPage() {
               <>
                 One chain per tenant, plus the platform&rsquo;s own, as of{" "}
                 <time dateTime={asOf}>{asOfLabel(asOf)}</time>. A first sequence above 0 means the
-                chain has been cut — legitimately by retention, or otherwise; the array alone
-                cannot tell which, so it is reported rather than judged.
+                chain has been cut — legitimately by retention, or otherwise; the array alone cannot
+                tell which, so it is reported rather than judged.
               </>
             }
           >
@@ -820,7 +1276,82 @@ export default async function AuditPage() {
           </Card>
         </div>
 
-        {/* ── 5. Retention, planned and never performed ──────────────────── */}
+        {/* ── 6. What the chain itself cannot prove ──────────────────────── */}
+        <div data-testid="beyond-the-chain">
+          <Card
+            id="durability"
+            headline="What the chain itself cannot prove"
+            headerAside={<Badge tone="neutral">read from AWS</Badge>}
+            supportingText={
+              <>
+                As of <time dateTime={asOf}>{asOfLabel(asOf)}</time>. A hash chain proves nobody
+                edited a record. It proves nothing about the table the records live in — a single{" "}
+                <code>DeleteTable</code> takes the whole ledger and leaves a chain of length zero,
+                which verifies perfectly — and nothing about acts taken against this account
+                outside this console. These are the other two halves of the question at the top of
+                the page, and they are read from AWS rather than asserted here.
+              </>
+            }
+          >
+            {awsProblem !== null && (
+              <>
+                <h3 className="md3-label-large">Neither read could be made</h3>
+                <p className="md3-body-medium">
+                  The AWS readers did not run at all, so both facts below are {UNKNOWN}. Chain
+                  verification does not depend on either and ran anyway — everything above this
+                  card stands.
+                </p>
+                <ErrorState what="the AWS-side durability of this ledger" detail={awsProblem} />
+              </>
+            )}
+
+            {tables !== null && (
+              <>
+                <h3 className="md3-label-large">The table the chain lives in</h3>
+                <p className="md3-body-medium" data-testid="registry-protection">
+                  {describeRegistryProtection(tables.registry)}
+                </p>
+              </>
+            )}
+
+            {trails !== null && (
+              <>
+                <h3 className="md3-label-large">The account&rsquo;s own record</h3>
+                <p className="md3-body-medium" data-testid="trail-delivery">
+                  {describeDeliveryHealth(trails.delivery)}
+                </p>
+
+                {trails.trails.state === "ACTUAL" || trails.trails.state === "STALE" ? (
+                  <DataTable
+                    caption={`CloudTrail trails — ${trails.trails.value.length}, as of ${asOfLabel(asOf)}`}
+                    columns={TRAIL_COLUMNS}
+                    rows={trails.trails.value.map((t) => trailRowOf(t, new Date(asOf)))}
+                    rowKey={(r) => r.name}
+                    empty={
+                      <EmptyState
+                        headline="No trail was returned"
+                        description="The listing succeeded and named no trail."
+                      />
+                    }
+                  />
+                ) : trails.trails.state === "EMPTY" ? (
+                  <EmptyState
+                    headline="No trail exists in this account"
+                    description="cloudtrail:DescribeTrails succeeded and returned nothing. This is a real absence: no act taken against this account outside this console is being recorded anywhere, and none can be reconstructed later."
+                  />
+                ) : (
+                  <UnknownState
+                    what="the estate's CloudTrail trails"
+                    read={trails.trails}
+                    id="trail-unknown"
+                  />
+                )}
+              </>
+            )}
+          </Card>
+        </div>
+
+        {/* ── 7. Retention, planned and never performed ──────────────────── */}
         <div data-testid="retention-plan">
           <Card
             id="retention"
@@ -838,8 +1369,8 @@ export default async function AuditPage() {
                   What expiry <b>would</b> cover if it ran at{" "}
                   <time dateTime={asOf}>{asOfLabel(asOf)}</time>, against a {retain}-day window.
                   This page performs no deletion and offers no button that does: a hole cut in a
-                  hash chain is indistinguishable from someone removing the record that mattered,
-                  so expiry stops at the first record that must be kept and everything after it is{" "}
+                  hash chain is indistinguishable from someone removing the record that mattered, so
+                  expiry stops at the first record that must be kept and everything after it is{" "}
                   <b>chain-blocked</b> — eligible on age, retained because destroying it would
                   destroy the proof that the rest is intact.
                 </>
@@ -898,12 +1429,14 @@ export default async function AuditPage() {
           </Card>
         </div>
 
-        {/* ── 6. Legal holds ─────────────────────────────────────────────── */}
+        {/* ── 8. Legal holds ─────────────────────────────────────────────── */}
         <div data-testid="legal-holds">
           <Card
             id="holds"
             headline="Legal holds"
-            headerAside={<Badge tone={activeHolds > 0 ? "info" : "neutral"}>{activeHolds} in force</Badge>}
+            headerAside={
+              <Badge tone={activeHolds > 0 ? "info" : "neutral"}>{activeHolds} in force</Badge>
+            }
             supportingText={
               <>
                 Preservation orders on record as of{" "}

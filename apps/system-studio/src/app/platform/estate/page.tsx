@@ -1,5 +1,4 @@
 import { auth } from "@/lib/auth"
-import { AwsReadPanel, UnknownState } from "@/components/states"
 import { TagCompliancePanel } from "@/components/TagCompliancePanel"
 import {
   Badge,
@@ -8,18 +7,24 @@ import {
   Chip,
   DataTable,
   EmptyState,
+  KeyValue,
+  StaleIndicator,
+  UnknownState,
   type DataColumn,
+  type KeyValueItem,
 } from "@/components/md3"
+import { CAPABILITIES } from "@/lib/aws/capabilities"
 import { consoleCaveat, consoleLink, linkablePartitions } from "@/lib/aws/console-link"
 import { irreversibleEntries, resourceChangeDiff } from "@/lib/aws/drift"
 import { identityHeadline } from "@/lib/aws/identity"
 import { estateInventory, estateLines, type EstateResource } from "@/lib/aws/inventory"
-import { renderComparison } from "@/lib/revisions"
 import { centralizationPosture, type PostureRow } from "@/lib/aws/posture"
 import { reconcileTopology, type TopologyVerdict } from "@/lib/aws/topology"
 import { describeAttribution } from "@/lib/aws/tags"
+import { renderComparison } from "@/lib/revisions"
 import { isOperator, mayAct, operatorConfigProblems, roleOf } from "@/lib/operators"
 
+import { declaredEstate } from "./declared-estate"
 import {
   asOfSentence,
   clauseTone,
@@ -29,46 +34,67 @@ import {
   reconcileAnswer,
   resourcesRead,
   surfaceRows,
-  surfaceTone,
   topologyAccount,
   topologySummary,
   topologyTone,
   unknownSurfaces,
 } from "./estate-answer"
+import {
+  coverageAnswer,
+  coverageRows,
+  coverageTally,
+  coverageTone,
+  declarationAnswer,
+  declarationRows,
+  declarationTone,
+  declaredWord,
+  groupByService,
+  readerWord,
+  unmappedSentence,
+  verdictWord,
+  type CoverageRow,
+  type DeclarationRow,
+} from "./estate-coverage"
 import styles from "./estate.module.css"
 
 export const dynamic = "force-dynamic"
 
 /**
- * STUDIO-080-001 / STUDIO-000-006 / STUDIO-010-002 — the estate, read from AWS
- * at the moment this page is rendered.
+ * STUDIO-080-001 / STUDIO-000-006 / STUDIO-000-007 / STUDIO-010-002 — the live
+ * estate, read from AWS at the moment this page is rendered.
  *
- * Every number here comes from a call this process just made. `/platform`'s
- * estate section is a snapshot compiled at a commit; this is the live one, and
- * the two are deliberately separate pages rather than one page that sometimes
- * lies about which it is showing.
+ * ── The question, and why the page is shaped the way it is ─────────────────
  *
- * ── Structure ──────────────────────────────────────────────────────────────
+ * **What is actually running in this AWS account, and does it match what we
+ * declared?** Both clauses, in that order, and the page says them in words
+ * before it shows a single control.
  *
- * The lead paragraph is the point of the whole surface, and it comes before any
- * apparatus. An operator opening this route arrives with two questions — which
- * account is this, and what is running in it — and both have to be answerable
- * without scrolling and without reading a table. `estateAnswer` composes them
- * into one sentence with an arm for every combination of known and not known,
- * so a page that cannot answer says so in the same place a page that can does.
+ * The first clause is an inventory, and an inventory is only worth reading if
+ * you can tell how much of the account it covers. So the second thing on the
+ * page after the answer is COVERAGE: every AWS service this build names or this
+ * platform declares, and whether anything here can see it. A service with no
+ * reader appears as a row saying so, next to the services that answered —
+ * because the alternative is that it appears nowhere, and an estate holding
+ * buckets, queues and a cache renders as "8 resources, every surface answered".
+ * Invisible here is not the same fact as absent there, and only one of them is
+ * about the account.
  *
- * Everything after it is a Card with a real heading, and every Card states what
- * it is AS OF. Four of the seven `AwsRead` arms carry no `asOf` at all, because
- * the call never completed, and `asOfSentence` prints that rather than dating
- * the panel to the moment its read failed.
+ * The second clause is drift, and it runs in BOTH directions. Terraform
+ * declaring something the estate does not have is a deployment that did not
+ * finish. The estate holding something Terraform never declared is worse:
+ * nothing will ever update it, nothing will ever remove it, and no review has
+ * ever seen it. `declarationRows` puts that direction at the top of its table
+ * for that reason, and `resourceChangeDiff` names the individual resources.
  *
  * ── This page must render with no AWS credentials ──────────────────────────
  *
  * It is the page an operator opens to find out WHY the estate cannot be read,
  * so a 500 from an unreachable STS is not an acceptable refusal. Every read
- * arrives as an `AwsRead` union; the failing arms render `AwsReadPanel`, which
- * names the principal, the action and the minimum IAM statement that would fix
- * it. Verified by rendering this route with no credentials in the environment.
+ * arrives as an `AwsRead` union whose failing arms carry no `value` at all, so
+ * reaching for data that is not there does not compile; those arms render the
+ * shared `UnknownState`, which names the principal, the action, the error code
+ * and the minimum IAM statement that would fix it. Nothing on this page renders
+ * a denial as an empty list, a zero, or a reassuring default.
  */
 export default async function EstatePage() {
   if (operatorConfigProblems().length > 0) {
@@ -105,6 +131,21 @@ export default async function EstatePage() {
    * know whether they are looking at something current.
    */
   const requestedAt = new Date().toISOString()
+  const now = Date.now()
+
+  /* -------------------------------------------------- coverage and drift -- */
+
+  // What this platform DECLARES, parsed from the Terraform that declares it
+  // rather than from a list typed here. `known: false` — the normal case in the
+  // deployed image, which ships the app and not the infrastructure — renders as
+  // "cannot be compared here" and never as "nothing is declared", which would
+  // report the whole estate as undeclared drift.
+  const declared = declaredEstate()
+  const coverage = coverageRows({ lines, declared })
+  const tally = coverageTally(coverage)
+  const drift = declarationRows({ lines, declared })
+  const unmapped = unmappedSentence(declared)
+  const services = groupByService(lines)
 
   // STUDIO-060-003 — the AWS-resource arm of the change diff, over exactly the
   // resources that were actually read. A surface that came back DENIED
@@ -116,6 +157,7 @@ export default async function EstatePage() {
     reference: "estate reconciliation",
   })
   const refused = irreversibleEntries(reconcile.diff)
+
   const posture = await centralizationPosture()
   const { identity, organization, management } = posture
 
@@ -141,115 +183,154 @@ export default async function EstatePage() {
       ? consoleLink({ partition, region, service: "resource-groups" })
       : null
 
+  const identityFacts: readonly KeyValueItem[] = identityOk
+    ? [
+        { key: "account", term: "Account", value: <code>{identity.value.accountId}</code> },
+        { key: "region", term: "Region", value: <code>{identity.value.region}</code> },
+        { key: "partition", term: "Partition", value: <code>{identity.value.partition}</code> },
+        {
+          key: "arn",
+          term: "Read as",
+          value: <code>{identity.value.arn}</code>,
+          // The cadence comes from the capability registry, so the freshness
+          // this panel claims and the interval the reader actually honours are
+          // one number rather than two that drift apart.
+          asOf: { at: identity.asOf, cadenceMs: CAPABILITIES[identity.capability].refreshMs, now },
+        },
+      ]
+    : []
+
   /* ------------------------------------------------------------ columns -- */
 
   /**
-   * Every surface, and what it answered. The table an operator reads first
-   * inside the inventory card, because it is the one that distinguishes an
-   * empty estate from an estate nobody was allowed to look at.
+   * COVERAGE. The table this page exists to be able to draw.
+   *
+   * Ordered gaps-first by `coverageRows`, so the services nobody can see are
+   * the first thing under the heading rather than the last row of a long list.
    */
-  const surfaceColumns: readonly DataColumn<(typeof rows)[number]>[] = [
-    { key: "surface", header: "Surface", cell: (row) => row.surface },
+  const coverageColumns: readonly DataColumn<CoverageRow>[] = [
     {
-      key: "answer",
-      header: "What AWS said",
+      key: "service",
+      header: "AWS service",
+      cell: (row) => <span className={styles.identifier}>{row.service}</span>,
+    },
+    {
+      key: "reader",
+      header: "Can this engine see it?",
       cell: (row) => (
         <div className={styles.cell}>
           <Badge
-            tone={surfaceTone(row.answer)}
-            title={`The ${row.surface} read came back ${row.answer}`}
+            tone={coverageTone(row.reader)}
+            title={`Whether this build reads ${row.service} at all`}
           >
-            {row.answer === "UNREAD" ? "not read" : row.answer.toLowerCase()}
+            {readerWord(row.reader)}
           </Badge>
-          {/*
-            `estateLines`'s own sentence, and the ONLY place it is printed.
-            It used to appear three times per surface — here, again as a
-            paragraph below, and a third time inside the state panel — which is
-            how four failed reads filled a screen with twelve copies of one
-            error. The testid stays on the text so an assertion still addresses
-            the production render path rather than a helper.
-          */}
-          <span className="md3-body-small" data-testid={`line-${row.surface}`}>
-            {row.said}
-          </span>
+          {row.because ? (
+            <span className="md3-body-small" data-testid={`coverage-${row.service}`}>
+              {row.because}
+            </span>
+          ) : null}
         </div>
       ),
     },
     {
       key: "count",
-      header: "Resources",
+      header: "Read",
       align: "end",
-      // Never a zero for a surface nobody could read. That substitution is the
-      // whole defect STUDIO-000-007 exists to end, and a right-aligned numeric
-      // column is where it hides best.
+      // Never a zero for a service nobody read. That substitution is the whole
+      // defect STUDIO-000-007 exists to end, and a right-aligned numeric column
+      // is where it hides best.
       cell: (row) => (row.count === null ? "not known" : row.count),
+    },
+    {
+      key: "declared",
+      header: "Declared",
+      align: "end",
+      cell: (row) => declaredWord(row.declared),
     },
     {
       key: "asOf",
       header: "As of",
       cell: (row) => (
-        <span className={styles.identifier}>{row.asOf ?? "no as-of — the call did not complete"}</span>
+        <span className={styles.identifier}>
+          {row.asOf ?? "no as-of — nothing was read"}
+        </span>
       ),
     },
   ]
 
-  /**
-   * The resources themselves, from every surface that answered, in one table.
-   *
-   * One table rather than one per surface: four headings over four tables of
-   * two rows each is the flat wall this page had, and the surface is a COLUMN —
-   * a fact about the row, not a reason to start a new region.
-   */
-  interface InventoryRow {
-    surface: string
-    resource: EstateResource
-  }
-  const inventory: readonly InventoryRow[] = lines.flatMap((line) =>
-    line.resources.map((resource) => ({ surface: line.surface, resource })),
-  )
+  /** Declared against actual, both directions, dangerous direction first. */
+  const driftColumns: readonly DataColumn<DeclarationRow>[] = [
+    {
+      key: "type",
+      header: "Resource type",
+      cell: (row) => <span className={styles.identifier}>{row.resourceType}</span>,
+    },
+    {
+      key: "verdict",
+      header: "Verdict",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <Badge tone={declarationTone(row.verdict)} title="Declared against actual">
+            {verdictWord(row.verdict)}
+          </Badge>
+          <span className="md3-body-small" data-testid={`drift-${row.resourceType}`}>
+            {row.detail}
+          </span>
+        </div>
+      ),
+    },
+    { key: "declared", header: "Declared", align: "end", cell: (row) => declaredWord(row.declared) },
+    {
+      key: "present",
+      header: "Running",
+      align: "end",
+      cell: (row) => (row.present === null ? "not known" : row.present),
+    },
+  ]
 
-  const inventoryColumns: readonly DataColumn<InventoryRow>[] = [
+  /**
+   * The resources of one service.
+   *
+   * Built per group rather than once for the whole estate: the brief for this
+   * surface is to group by service, and a `surface` column on a flat table is
+   * the same information with the grouping thrown away — the reader has to
+   * reconstruct it by eye, and the per-service as-of has nowhere to live.
+   */
+  const resourceColumns: readonly DataColumn<EstateResource>[] = [
     {
       key: "name",
       header: "Resource",
-      cell: (row) => (
+      cell: (resource) => (
         <div className={styles.cell}>
-          <span className={styles.identifier}>{row.resource.name}</span>
-          <span className="md3-body-small">{row.surface}</span>
+          <span className={styles.identifier}>{resource.name}</span>
+          <span className="md3-body-small">{resource.resourceType}</span>
         </div>
       ),
     },
-    { key: "state", header: "State", cell: (row) => row.resource.state },
-    {
-      key: "placement",
-      header: "Account / region",
-      cell: (row) => (
-        <span className={styles.identifier}>
-          {row.resource.accountId || "unknown"} / {row.resource.region || "global"}
-        </span>
-      ),
-    },
+    { key: "state", header: "State", cell: (resource) => resource.state },
     {
       key: "attribution",
-      header: "Attribution",
-      cell: (row) => describeAttribution(row.resource.attribution),
+      header: "Tenant",
+      // `describeAttribution` has three arms and always will. A resource tagged
+      // `tenure:tenant = SHARED` reads as shared because somebody DECIDED it is
+      // platform overhead; a resource with no tag at all reads as
+      // unattributable, naming the missing key. Folding the second into the
+      // first — which any `tenant ?? "shared"` does — is how an untagged NAT
+      // gateway silently becomes every customer's overhead.
+      cell: (resource) => describeAttribution(resource.attribution),
     },
     {
-      key: "dependsOn",
-      header: "Depends on",
-      cell: (row) => (
-        <div className={styles.cell}>
-          {row.resource.dependsOn.length === 0 ? (
-            <span>nothing it names itself</span>
-          ) : (
-            row.resource.dependsOn.map((edge) => (
-              <span key={edge} className={styles.identifier}>
-                {edge}
-              </span>
-            ))
-          )}
-        </div>
+      key: "region",
+      header: "Region",
+      cell: (resource) => (
+        <span className={styles.identifier}>{resource.region || "global"}</span>
       ),
+    },
+    {
+      key: "asOf",
+      header: "As of",
+      cell: (resource) => <span className={styles.identifier}>{resource.asOf}</span>,
     },
   ]
 
@@ -258,7 +339,9 @@ export default async function EstatePage() {
     {
       key: "verdict",
       header: "Verdict",
-      cell: (row) => <Badge tone={clauseTone(row.verdict)}>{row.verdict.toLowerCase().replace(/_/g, " ")}</Badge>,
+      cell: (row) => (
+        <Badge tone={clauseTone(row.verdict)}>{row.verdict.toLowerCase().replace(/_/g, " ")}</Badge>
+      ),
     },
     {
       key: "detail",
@@ -273,7 +356,11 @@ export default async function EstatePage() {
   ]
 
   const topologyColumns: readonly DataColumn<TopologyVerdict>[] = [
-    { key: "role", header: "Role", cell: (row) => <span className={styles.identifier}>{row.role.key}</span> },
+    {
+      key: "role",
+      header: "Role",
+      cell: (row) => <span className={styles.identifier}>{row.role.key}</span>,
+    },
     {
       key: "verdict",
       header: "Verdict",
@@ -297,7 +384,11 @@ export default async function EstatePage() {
   ]
 
   const refusedColumns: readonly DataColumn<(typeof refused)[number]>[] = [
-    { key: "path", header: "Resource", cell: (entry) => <span className={styles.identifier}>{entry.path}</span> },
+    {
+      key: "path",
+      header: "Resource",
+      cell: (entry) => <span className={styles.identifier}>{entry.path}</span>,
+    },
     { key: "was", header: "What it is", cell: (entry) => String(entry.before ?? "unknown") },
   ]
 
@@ -305,13 +396,22 @@ export default async function EstatePage() {
     <div className={styles.page}>
       <h1 className="md3-headline-large">AWS estate</h1>
 
-      {/* ── The answer, before any apparatus ───────────────────────────── */}
+      {/* ── The question, then the answer, before any apparatus ─────────── */}
+      <p className="md3-title-medium" data-testid="estate-question">
+        What is actually running in this AWS account, and does it match what we declared?
+      </p>
       <p className="md3-body-large" data-testid="estate-answer">
         {estateAnswer({ accountId, region, rows })}
       </p>
+      <p className="md3-body-large" data-testid="coverage-answer">
+        {coverageAnswer(coverage)}
+      </p>
+      <p className="md3-body-large" data-testid="drift-answer">
+        {declarationAnswer({ rows: drift, declared })}
+      </p>
       <p className="md3-body-small">
         Every figure on this page comes from a call this process issued at {requestedAt}. Nothing is
-        held from an earlier render, and nothing is compiled into the build — <code>/platform</code>
+        held from an earlier render and nothing is compiled into the build — <code>/platform</code>
         &rsquo;s estate section is the snapshot taken at a commit, and it is deliberately a different
         page.
       </p>
@@ -328,25 +428,29 @@ export default async function EstatePage() {
         supportingText={asOfSentence("Resolved from sts:GetCallerIdentity", readAsOf(identity))}
       >
         <div className={styles.stack}>
-          <p className="md3-body-medium" data-testid="identity-headline">{identityHeadline(identity)}</p>
+          <p className="md3-body-medium" data-testid="identity-headline">
+            {identityHeadline(identity)}
+          </p>
 
-          {identityOk ? (
-            <dl className={`${styles.facts} md3-body-medium`}>
-              <dt>Account</dt>
-              <dd className={styles.identifier}>{identity.value.accountId}</dd>
-              <dt>Region</dt>
-              <dd className={styles.identifier}>{identity.value.region}</dd>
-              <dt>Partition</dt>
-              <dd className={styles.identifier}>{identity.value.partition}</dd>
-              <dt>Read as</dt>
-              <dd className={styles.identifier}>{identity.value.arn}</dd>
-            </dl>
+          {/*
+            Narrowed by the discriminant rather than asserted. The last arm is
+            exactly the four valueless states, which is what `UnknownState`
+            accepts — so an arm added to `AwsRead` that carries no value stops
+            this compiling instead of rendering as a blank panel. A cast here
+            would have thrown that guarantee away for two fewer lines.
+          */}
+          {identity.state === "ACTUAL" || identity.state === "STALE" ? (
+            <KeyValue items={identityFacts} ariaLabel="The account this engine is running in" />
+          ) : identity.state === "EMPTY" ? (
+            <EmptyState
+              headline="sts:GetCallerIdentity answered with nothing"
+              description="The call completed and returned no identity. Nothing below is attributed to an account."
+            />
           ) : (
             <UnknownState
-              principal="not resolved"
-              action="sts:GetCallerIdentity"
-              minimumStatement={'{"Effect":"Allow","Action":["sts:GetCallerIdentity"],"Resource":"*"}'}
               what="the account this engine is running in"
+              read={identity}
+              now={now}
             />
           )}
 
@@ -383,14 +487,66 @@ export default async function EstatePage() {
         </div>
       </Card>
 
-      {/* ── What is running ───────────────────────────────────────────── */}
+      {/* ── What this engine can see at all ─────────────────────────────
+          The coverage card comes BEFORE the inventory deliberately. An
+          inventory read first is an inventory believed complete, and the one
+          thing this page must never let a reader believe is that the services
+          it happens to read are the services the account holds. */}
+      <Card
+        headline="What this engine can see"
+        id="coverage"
+        headerAside={
+          <Badge
+            tone={tally.noReader === 0 && tally.unreadable === 0 ? "ok" : "warn"}
+            title="How many AWS services on this page were actually read"
+          >
+            {tally.read} of {tally.total} services read
+          </Badge>
+        }
+        supportingText={
+          <>
+            Every AWS service this build names a capability for, plus every service this platform&rsquo;s
+            Terraform declares. A service with no reader is a row here saying so — never an absence
+            from the list, which would read as an account that does not hold any.
+          </>
+        }
+      >
+        <div className={styles.stack}>
+          <div className={styles.row}>
+            <Chip>
+              <b>{tally.read}</b> service(s) read
+            </Chip>
+            <Chip>
+              <b>{tally.unreadable}</b> read, but the call failed
+            </Chip>
+            <Chip data-testid="coverage-gap">
+              <b>{tally.noReader}</b> with no reader in this build
+            </Chip>
+          </div>
+
+          <DataTable
+            caption="Every AWS service this page has anything to say about, and whether it can say it"
+            columns={coverageColumns}
+            rows={coverage}
+            rowKey={(row) => row.service}
+            empty={
+              <EmptyState
+                headline="This build names no AWS service for the estate"
+                description="No capability declares the estate surface and no Terraform was readable, so there is nothing here to be right or wrong about. That is a property of the build, not of the account."
+              />
+            }
+          />
+        </div>
+      </Card>
+
+      {/* ── What is running, by service ────────────────────────────────── */}
       <Card
         headline="What is running"
         id="resources"
         headerAside={
           <Badge
             tone={unknown.length === 0 ? "ok" : "warn"}
-            title="How many of the surfaces this console inventories answered"
+            title="How many of the wired surfaces answered"
           >
             {rows.length - unknown.length} of {rows.length} surfaces answered
           </Badge>
@@ -398,8 +554,9 @@ export default async function EstatePage() {
         supportingText={
           <>
             Read live through the Resource Groups Tagging API and each service&rsquo;s own describe
-            call, issued at {requestedAt}. A surface this engine&rsquo;s role cannot read says it was
-            not read and names the action it was refused — never an empty list, and never a zero.
+            call, issued at {requestedAt}. Grouped by service, with each resource&rsquo;s tenant, its
+            region and the instant it was read. A surface this engine&rsquo;s role cannot read says it
+            was not read and names the action it was refused — never an empty list, and never a zero.
           </>
         }
       >
@@ -431,50 +588,165 @@ export default async function EstatePage() {
                   : `The tag index could not be read (${readings.tagged.state}), so no resource below carries an attribution this console is confident in.`}
           </p>
 
+          {services.length === 0 ? (
+            <EmptyState
+              headline="No service reader is wired into this page"
+              description="Nothing here inventories an AWS service, so this is a property of the build rather than of the account. The coverage table above lists what a reader would have to be written for."
+            />
+          ) : null}
+
+          {services.map((group) => (
+            <Card
+              key={group.service}
+              headline={group.service}
+              headlineAs="h3"
+              container="high"
+              id={`service-${group.service}`}
+              headerAside={
+                <Badge tone={group.resources.length > 0 ? "ok" : "info"} title={`What ${group.service} answered`}>
+                  {group.resources.length} read
+                </Badge>
+              }
+              supportingText={asOfSentence(
+                `Read through ${group.surfaces.join(", ")}`,
+                group.asOf,
+              )}
+            >
+              <div className={styles.stack}>
+                {/*
+                  The table only when there is a row for it.
+
+                  `estateLines` produces resources only from the ACTUAL arm, and
+                  `readAws` never returns ACTUAL for an empty list — so an empty
+                  group means every reading behind the service was EMPTY, STALE
+                  or a failure, and each of those already renders its own panel
+                  below saying which. A `DataTable` with an `empty` slot here
+                  would print a second, vaguer version of the same fact directly
+                  above the precise one, which is the duplication this page has
+                  been trimmed of twice.
+                */}
+                {group.resources.length > 0 ? (
+                  <DataTable
+                    caption={`Every ${group.service} resource this engine read, with its tenant, region and as-of`}
+                    columns={resourceColumns}
+                    rows={group.resources}
+                    rowKey={(resource) => resource.arn}
+                    empty={null}
+                  />
+                ) : null}
+
+                {/*
+                  The governed state block, per surface of this service that did
+                  not answer with a current list. Nothing renders for a healthy
+                  read, so this is silent on a working estate and is the only
+                  thing here on a console with no credentials — which is the case
+                  it exists for.
+
+                  `data-surface-line` and the per-surface testid are kept: they
+                  are how an e2e assertion and the AI introspection hooks address
+                  one surface.
+                */}
+                {lines
+                  .filter(
+                    (line) =>
+                      line.read.capability.startsWith(`${group.service}:`) &&
+                      line.read.state !== "ACTUAL",
+                  )
+                  .map((line) => (
+                    <div key={line.surface} data-surface-line={line.surface}>
+                      <span className="md3-body-small" data-testid={`line-${line.surface}`}>
+                        {line.text}
+                      </span>
+                      {line.read.state === "ACTUAL" ? null : line.read.state === "EMPTY" ? (
+                        <EmptyState
+                          headline={`${line.surface} — AWS answered and returned nothing`}
+                          description={`The call completed as of ${line.read.asOf}. This is a real absence, not a refusal.`}
+                        />
+                      ) : line.read.state === "STALE" ? (
+                        <StaleIndicator
+                          asOf={line.read.asOf}
+                          cadenceMs={CAPABILITIES[line.read.capability].refreshMs}
+                          now={now}
+                          label={`${line.surface} was not re-read`}
+                        />
+                      ) : (
+                        // The remaining four arms carry no value at all, which
+                        // is `UnknownState`'s whole parameter type. The `ACTUAL`
+                        // arm above is unreachable through the filter and is
+                        // written out anyway, because it is what makes this
+                        // narrow without a cast.
+                        <UnknownState what={line.surface} read={line.read} now={now} />
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </Card>
+          ))}
+        </div>
+      </Card>
+
+      {/* ── Does it match what we declared? ───────────────────────────── */}
+      <Card
+        headline="Declared against actual"
+        id="declared"
+        headerAside={
+          <Badge
+            tone={
+              !declared.known
+                ? "warn"
+                : drift.some(
+                      (row) =>
+                        row.verdict === "PRESENT_NOT_DECLARED" ||
+                        row.verdict === "DECLARED_NOT_PRESENT",
+                    )
+                  ? "bad"
+                  : "ok"
+            }
+            title="Whether what is running matches what this platform declares"
+          >
+            {declared.known ? `${declared.files.length} Terraform file(s) read` : "no declaration readable"}
+          </Badge>
+        }
+        supportingText={
+          <>
+            Drift runs in two directions and the second is the dangerous one. A resource Terraform
+            declares that the estate does not have is a deployment that did not finish; a resource the
+            estate has that Terraform never declared is one nothing will ever update, nothing will ever
+            remove, and no review has ever seen. Only resource types with BOTH a declaration and a
+            reader appear here — a declared type nobody reads is a coverage gap, not a missing
+            resource, and it is listed as one above.
+          </>
+        }
+      >
+        <div className={styles.stack}>
           <DataTable
-            caption="Every AWS surface this console inventories, and what it answered"
-            columns={surfaceColumns}
-            rows={rows}
-            rowKey={(row) => row.surface}
+            caption="Every resource type with a declaration, a reader, or both"
+            columns={driftColumns}
+            rows={drift}
+            rowKey={(row) => row.resourceType}
             empty={
               <EmptyState
-                headline="This build inventories no AWS surface"
-                description="No service read is wired into this page, so there is nothing here to be right or wrong about. That is a property of the build, not of the account."
+                headline="Nothing to compare"
+                description={
+                  declared.known
+                    ? "No resource type has both a Terraform declaration and a reader in this build, so neither direction of drift is computable."
+                    : declared.because
+                }
               />
             }
           />
 
-          {inventory.length > 0 ? (
-            <DataTable
-              caption={`The ${inventory.length} resource(s) the surfaces above returned`}
-              columns={inventoryColumns}
-              rows={inventory}
-              rowKey={(row) => row.resource.arn}
-              empty={
-                <EmptyState
-                  headline="No resource was returned"
-                  description="Every surface that answered returned an empty list."
-                />
-              }
-            />
+          {unmapped ? (
+            <p className="md3-body-small" data-testid="declared-unmapped">
+              {unmapped}
+            </p>
           ) : null}
 
-          {/*
-            The governed state block, per surface that did not answer with a
-            current list. `AwsReadPanel` renders nothing for ACTUAL, so this is
-            silent on a healthy estate and is the only thing here on a console
-            with no credentials — which is the case it exists for.
-
-            `data-surface-line` and the per-surface testid are kept: they are how
-            an e2e assertion and the AI introspection hooks address one surface.
-          */}
-          {lines
-            .filter((line) => line.read.state !== "ACTUAL")
-            .map((line) => (
-              <div key={line.surface} data-surface-line={line.surface}>
-                <AwsReadPanel read={line.read} what={line.surface} />
-              </div>
-            ))}
+          {declared.known ? (
+            <p className="md3-body-small" data-testid="declared-sources">
+              Read from {declared.files.join(", ")}.
+            </p>
+          ) : null}
         </div>
       </Card>
 
@@ -488,7 +760,7 @@ export default async function EstatePage() {
         <TagCompliancePanel resources={readings.tagged.value} />
       )}
 
-      {/* ── What reconciling would do ─────────────────────────────────── */}
+      {/* ── The individual undeclared resources ────────────────────────── */}
       <Card
         headline="What reconciling this estate would do"
         id="reconcile"
@@ -503,10 +775,11 @@ export default async function EstatePage() {
         }
         supportingText={
           <>
-            Every resource the read plane found that carries no <code>tenure:managed-by</code> tag,
-            and what removing it would cost or save each month. The estimate is a list price for a
-            change that has not happened — never a billed figure; the FinOps Center is the only
-            surface that shows what was actually charged.
+            The table above counts undeclared resources by type. This names them: every resource the
+            read plane found that carries no <code>tenure:managed-by</code> tag, and what removing it
+            would cost or save each month. The estimate is a list price for a change that has not
+            happened — never a billed figure; the FinOps Center is the only surface that shows what
+            was actually charged.
           </>
         }
       >
@@ -567,12 +840,18 @@ export default async function EstatePage() {
           ) : null}
 
           {/*
-            DIAGNOSTIC. This disclosure is the raw ChangeDiff document, and it is
-            here for a developer checking that the rendering above matches the
-            contract — no operator decision is taken from it. It is named in the
-            hand-off so the information-architecture owner can move it behind the
-            Diagnostics tab; it is not moved here, because moving a route's
-            content is that owner's change and not this one.
+            DIAGNOSTIC — named in this change's hand-off for the navigation
+            owner to move behind the Diagnostics tab, and deliberately NOT moved
+            here: relocating a route's content is that owner's change and not
+            this one, and deleting it would destroy the only rendering of the
+            document the contract admitted.
+
+            It is the raw `ChangeDiff`, for a developer checking that everything
+            above matches the contract. No operator decision is taken from it.
+
+            `details:not([open]) > *:not(summary)` in `globals.css` keeps the
+            closed disclosure from reporting a bounding rect that overlaps what
+            follows it — see `e2e/layout.spec.ts`.
           */}
           <details>
             <summary className="md3-label-large">
@@ -590,7 +869,10 @@ export default async function EstatePage() {
         headline="Where authority and evidence live"
         id="posture"
         headerAside={
-          <Badge tone={managementTone(management.verdict)} title="Whether this workload runs in the Organizations management account">
+          <Badge
+            tone={managementTone(management.verdict)}
+            title="Whether this workload runs in the Organizations management account"
+          >
             {management.verdict.toLowerCase().replace(/_/g, " ")}
           </Badge>
         }
@@ -600,7 +882,9 @@ export default async function EstatePage() {
         )}
       >
         <div className={styles.stack}>
-          <p className="md3-body-medium" data-testid="management-verdict">{management.detail}</p>
+          <p className="md3-body-medium" data-testid="management-verdict">
+            {management.detail}
+          </p>
           <DataTable
             caption="Centralization clauses, each read live"
             columns={postureColumns}
@@ -638,7 +922,9 @@ export default async function EstatePage() {
         }
       >
         <div className={styles.stack}>
-          <p className="md3-body-medium" data-testid="topology-summary">{topologyRollup.headline}</p>
+          <p className="md3-body-medium" data-testid="topology-summary">
+            {topologyRollup.headline}
+          </p>
           <DataTable
             caption="Declared account roles and what fills each one"
             columns={topologyColumns}

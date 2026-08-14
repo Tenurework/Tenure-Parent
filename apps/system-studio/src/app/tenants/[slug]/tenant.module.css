@@ -107,49 +107,41 @@
 }
 
 /*
- * The two-column answer list: what the fact is, and what it says.
+ * A reading this console could not make, said where the fact would have been.
  *
- * `minmax(0, max-content)` sizes the term column to the longest term that is
- * actually present rather than to a guess, and the `minmax(0, …)` on both
- * tracks is what lets a long value shrink instead of printing outside the card.
+ * The MD3 `UnknownState` is the shape for a refused AWS call — it prints the
+ * principal, the action and a pasteable IAM statement, all of which exist
+ * because an SDK call was made. This is its counterpart for the three readings
+ * on this page that are NOT SDK calls: the cell registry, the audit ledger and
+ * the configuration store. Same visual weight, because "we could not look" is
+ * the same fact whichever module could not look; different component, because
+ * inventing a capability name to satisfy the other one's type would be this
+ * console fabricating the evidence for its own refusal.
+ *
+ * Geometry only. `Surface` supplies the container colour, the hairline and the
+ * radius from the token layer, and this adds the column and its padding.
+ *
+ * There was previously a `.facts` grid here, replaced by `components/md3`'s
+ * `KeyValue`: it declared its own two-column geometry and its own 480px reflow
+ * of the same shape the primitive already implements, which is a second answer
+ * to a question the design system had already answered.
  */
-.facts {
-  display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
-  gap: var(--space-1) var(--space-5);
-  align-items: baseline;
-  margin: 0;
-  min-inline-size: 0;
-}
-
-.facts dt {
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-
-.facts dd {
-  margin: 0;
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
   min-inline-size: 0;
   overflow-wrap: anywhere;
 }
 
 /*
- * Below ~480px the two columns stop being two columns.
+ * The badge inside it sits on its own line rather than beside the sentence.
  *
- * `minmax(0, max-content)` shrinks the term column only after the value column
- * has been squeezed to nothing first, so at 320px the value measured a
- * clientWidth of ZERO while its text — an ARN, an AWS error code — kept its
- * full width and printed outside the card. Narrowing the term column instead
- * would make both unreadable; the pairs stack, which is what a description list
- * does on a narrow screen. WCAG 2.2 AA 1.4.10, and the same rule `globals.css`
- * applies to `.kv` for the same measured reason.
+ * `align-items: start` on a flex column is what stops a one-word pill
+ * stretching to the panel's full width, which reads as a banner rather than as
+ * a label.
  */
-@media (max-width: 30rem) {
-  .facts {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .facts dd {
-    margin-block-end: var(--space-2);
-  }
+.notice > :first-child {
+  align-self: start;
 }

@@ -16,20 +16,42 @@ import {
 } from "@/lib/revisions"
 import { MODULES } from "@tenure/modules"
 import {
+  CONFIG_DOMAINS,
+  domainOf,
+  isChargeable,
   resolveConfig,
   type ConfigLayer,
   type ConfigRecord,
   type OptionPrice,
 } from "@tenure/configuration"
 import { REGISTRY, layersFor } from "@tenure/platform-config"
-import { toDecimal, type Money } from "@tenure/finops"
+import { toDecimal, type Money, type RunningTotal } from "@tenure/finops"
 import {
   EmptyState as GovernedEmptyState,
   PartialDataState,
   PermissionDeniedState,
   UnknownState,
 } from "@/components/states"
-import { Badge, Button, ButtonLink, Card, Chip, DataTable, EmptyState } from "@/components/md3"
+import {
+  Badge,
+  Button,
+  ButtonLink,
+  Card,
+  Chip,
+  DataTable,
+  EmptyState,
+  KeyValue,
+  TextField,
+} from "@/components/md3"
+import {
+  billDelta,
+  changeCostsByDomain,
+  changeSpread,
+  signedAmount,
+  type ChangeSpread,
+  type ConfigurableOption,
+  type DomainChangeCosts,
+} from "./change-cost"
 import { RollbackControls } from "./RollbackControls"
 import { ConfigurationEditor } from "./ConfigurationEditor"
 
@@ -44,22 +66,38 @@ export const dynamic = "force-dynamic"
  * reason, because an administrator who cannot find where to change something
  * deserves to be told it is not theirs to change rather than left searching.
  *
- * ── Structure, and why it is in this order ─────────────────────────────────
+ * ── The question this page answers ─────────────────────────────────────────
  *
- * The operator arrives with one question — *what is this tenant configured as
- * right now, and what does that cost* — and the page used to answer it sixth,
- * under a form. Six flat `section.system` blocks, each a wall of rows, is the
- * shape an operator called "a construction site".
+ *   *What is this tenant configured to do, what does that cost, and what would
+ *   changing it cost?*
  *
- * So the answer leads: the running total, the live revision, and when it was
- * published, in the first card. The apparatus that CHANGES it comes second, the
- * record of what changed comes third, and the two panels about settings that
- * are not editable here are one card rather than two, because they answer one
- * question ("why can I not find X?") and splitting them made the gap read as
- * two gaps.
+ * It is written at the top in words, and then answered in that order:
  *
- * Every card states what it is AS OF, and there are three different clocks on
- * this page rather than one:
+ *   1. **What it is configured to do** — the live revision, when it was
+ *      published, and how many keys it overrides.
+ *   2. **What that costs** — the running total, per seat and per organisation,
+ *      the resolver's figure and not a sum of the rows below it.
+ *   3. **What changing it would cost** — the DELTA, per option, against what
+ *      this tenant is paying today. An edit to a live tenant is a change to a
+ *      bill, and a form that prices each option but never says which way the
+ *      bill moves makes the operator do that arithmetic themselves, in their
+ *      head, immediately before pressing Publish.
+ *
+ * The apparatus that CHANGES the configuration comes after all three, because
+ * an editor is apparatus. Six flat `section.system` blocks, each a wall of
+ * rows, is the shape an operator called "a construction site".
+ *
+ * ── Grouped by domain, not by schema shape ─────────────────────────────────
+ *
+ * Options are grouped by the domain that GOVERNS them — `organization`,
+ * `modules`, `relay` — which is the vocabulary the bible names and the same
+ * vocabulary the withheld list, the diff and the authority checks use. Grouping
+ * by input type (three text boxes, then two numbers) would be grouping by an
+ * implementation detail of the form.
+ *
+ * ── Three clocks, not one ──────────────────────────────────────────────────
+ *
+ * Every card states what it is AS OF, and they genuinely differ:
  *
  *   * the REGISTRY read — a DynamoDB Query made when this request was served;
  *   * the published REVISION — a fact frozen at `publishedAt`, which is what
@@ -111,6 +149,17 @@ const PAGE_CSS = `
   min-inline-size: 0;
   overflow-wrap: anywhere;
 }
+.config-question {
+  margin: 0;
+  max-inline-size: 52rem;
+  overflow-wrap: anywhere;
+}
+.config-answer {
+  margin: var(--space-2) 0 0;
+  max-inline-size: 52rem;
+  color: var(--md-sys-color-on-surface-variant);
+  overflow-wrap: anywhere;
+}
 .config-figure {
   margin: 0;
   overflow-wrap: anywhere;
@@ -133,7 +182,7 @@ const PAGE_CSS = `
   gap: var(--space-3);
   margin-block: var(--space-3);
 }
-.config-quote > .field {
+.config-quote > .md3-field {
   margin: 0;
   min-inline-size: 0;
   flex: 0 1 14rem;
@@ -160,6 +209,9 @@ const PAGE_CSS = `
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+.config-domain-group {
+  margin-block-start: var(--space-4);
 }
 .config-diagnostic > summary {
   cursor: pointer;
@@ -189,6 +241,29 @@ function priceLabel(price: OptionPrice): string {
   const org = `${(price.perOrgMinor / 100).toFixed(2)} ${price.currency} for the organisation`
   return `${seat} · ${org}, per month`
 }
+
+/**
+ * The capabilities this console publishes configuration WITH.
+ *
+ * Empty, and empty as a statement of fact rather than as a placeholder:
+ * `review` and `publish` in `./actions.ts` call `planPublication` without
+ * `publisherCapabilities`, and that parameter's documented default is the empty
+ * set — "a definition declaring `requiresCapability` is unpublishable until a
+ * caller says who is publishing and what they hold". Nothing in
+ * `apps/system-studio` maps an operator role to a configuration capability
+ * today; `PLATFORM_OPERATORS` carries `email:role`, and a role is not a
+ * capability.
+ *
+ * So the honest thing for this page to render is that every capability-gated
+ * option is locked, with the capability named. Inventing a set here — mapping
+ * `platform-super-admin` to "holds everything", say — would make the page
+ * disagree with the engine that actually refuses the publication, and the page
+ * would be the optimistic one.
+ *
+ * The day the publish path passes real capabilities, this constant is where
+ * they are read from, and the lock disappears on its own.
+ */
+const HELD_CAPABILITIES: readonly string[] = []
 
 /**
  * How many seats the running total is quoted for.
@@ -235,6 +310,74 @@ function minimumRegistryStatement(): string {
 function reasonOf(error: unknown): string {
   if (error instanceof Error) return `${error.name}: ${error.message}`
   return String(error)
+}
+
+/**
+ * Where a key's domain sits in the registry's order.
+ *
+ * The order the bible declares, so the priced rows below come out grouped the
+ * way the rest of this page talks about configuration. A key governed by no
+ * domain sorts last rather than first — it is a defect in the build, and a
+ * defect at the top of a cost table reads as the most important line in it.
+ */
+function domainRank(key: string): number {
+  const domain = domainOf(key)
+  if (!domain) return CONFIG_DOMAINS.length
+  const index = CONFIG_DOMAINS.findIndex((candidate) => candidate.id === domain.id)
+  return index === -1 ? CONFIG_DOMAINS.length : index
+}
+
+/** The domain that governs a key, in the operator's language. */
+function domainLabel(key: string): string {
+  return domainOf(key)?.id ?? "governed by no domain — a defect in this build"
+}
+
+/** The delta column, as a sentence rather than as a sign. */
+function effectSentence(direction: "adds" | "removes" | "unchanged", delta: Money): string {
+  if (direction === "unchanged") return "no change to the bill"
+  return `${direction} ${signedAmount(delta)}`
+}
+
+/**
+ * The lead answer, assembled from what was actually read.
+ *
+ * Every clause is guarded on the fact behind it existing. A sentence that says
+ * "it costs nothing" because a read failed is the defect this whole console is
+ * built against, so an unknown says unknown.
+ */
+function leadAnswer(input: {
+  historyError: string | null
+  revision: number | null
+  publishedAt: string | null
+  publishedBy: string | null
+  overriddenKeys: number
+  total: Money | null
+  seats: number
+  seatsStated: boolean
+  spread: ChangeSpread | null
+}): string {
+  const configured = input.historyError
+    ? "What this tenant is configured to do is NOT KNOWN — the registry refused the read that would say."
+    : input.revision === null
+      ? "Nothing has ever been published for this tenant, so it runs on the platform defaults exactly."
+      : `Revision ${input.revision}, published ${input.publishedAt} by ${input.publishedBy}, overriding ` +
+        `${input.overriddenKeys} key${input.overriddenKeys === 1 ? "" : "s"}.`
+
+  const costs = input.total
+    ? `It costs ${amount(input.total)} a month at ${input.seats} seat${input.seats === 1 ? "" : "s"}` +
+      `${input.seatsStated ? "" : ", a seat count nobody has stated"}.`
+    : "What it costs is not known — the configuration below does not resolve, so there is no total to quote."
+
+  const changing = !input.spread
+    ? "What changing it would cost cannot be quoted until the configuration resolves."
+    : input.spread.largestAddition
+      ? `The most expensive single change available here would add ${amount(input.spread.largestAddition.amount)} ` +
+        `a month; ${input.spread.locked} of ${input.spread.priced} option${input.spread.priced === 1 ? "" : "s"} ` +
+        `are not this console's to change.`
+      : `No option on this page moves the bill in either direction; ${input.spread.locked} of ` +
+        `${input.spread.priced} are not this console's to change in any case.`
+
+  return `${configured} ${costs} ${changing}`
 }
 
 export default async function ConfigurationPage({
@@ -315,6 +458,14 @@ export default async function ConfigurationPage({
             ← Back to the tenant
           </ButtonLink>
         </header>
+        <p className="config-question md3-title-medium">
+          What is this tenant configured to do, what does that cost, and what would changing it
+          cost?
+        </p>
+        <p className="config-answer md3-body-large">
+          None of the three is known. The tenant registry could not be read at {readAt}, and a
+          refused read is not an empty configuration.
+        </p>
         <Card
           headline="Configuration"
           headerAside={<Badge tone="warn">unknown</Badge>}
@@ -369,7 +520,8 @@ export default async function ConfigurationPage({
     : []
 
   /* ------------------------------------------------------------- §7 pricing --
-   * What this tenant's configuration costs, per seat and for the organisation.
+   * What this tenant's configuration costs, per seat and for the organisation,
+   * and what each available change would do to that.
    *
    * The number comes from the RESOLVER, not from summing the fields rendered
    * below. Two places that both compute a total are two totals, and the one on
@@ -380,41 +532,122 @@ export default async function ConfigurationPage({
    * validates must still see a page: the problems are already surfaced by the
    * editor, and a 500 here would take the whole configuration screen out over a
    * pricing panel.
+   *
+   * The whole block is guarded. `layersFor` throws on a binding that names a
+   * blueprint this build does not have, and `runningTotal` throws on a price in
+   * a currency it refuses — both are defects in the DEPLOYMENT rather than facts
+   * about this tenant, and neither is a reason for an operator to get a blank
+   * page instead of a configuration screen.
    */
-  const fileLayers = layersFor(slug)
-  const layers: ConfigLayer[] = [
-    ...fileLayers,
-    ...(latest
-      ? [
-          {
-            scope: "tenant" as const,
-            id: slug,
-            label: `revision ${latest.revision}`,
-            values: latest.values,
-          },
-        ]
-      : []),
-  ]
-  const { config: resolved } = resolveConfig(REGISTRY, layers, { collectProblems: true, seats })
-  const runningCost = resolved?.runningCost ?? null
+  let runningCost: RunningTotal | null = null
+  let baselineTotal: Money | null = null
+  let changeGroups: readonly DomainChangeCosts[] = []
+  let spread: ChangeSpread | null = null
+  let overriddenKeys = 0
+  /** Monthly bill per published revision, at the stated seat count. */
+  const revisionTotals = new Map<number, Money>()
+  /** Keys the editor offers that the registry has no definition for. */
+  const undefinedKeys: string[] = []
+  let pricingError: string | null = null
+
+  try {
+    const fileLayers: ConfigLayer[] = layersFor(slug)
+    const layers: ConfigLayer[] = [
+      ...fileLayers,
+      ...(latest
+        ? [
+            {
+              scope: "tenant" as const,
+              id: slug,
+              label: `revision ${latest.revision}`,
+              values: latest.values,
+            },
+          ]
+        : []),
+    ]
+    const { config: resolved } = resolveConfig(REGISTRY, layers, { collectProblems: true, seats })
+    runningCost = resolved?.runningCost ?? null
+    overriddenKeys = latest ? Object.keys(latest.values).length : 0
+
+    // What this tenant would be billed WITHOUT its own published revision —
+    // the same file layers, the same seat count, the resolver's own figure. The
+    // difference between the two is what this tenant's published choices cost,
+    // which is a delta an operator can act on and cannot get anywhere else.
+    baselineTotal = resolveConfig(REGISTRY, fileLayers, { collectProblems: true, seats }).config
+      ?.runningCost.total ?? null
+
+    // Every published revision, priced. A rollback IS an edit to a live tenant,
+    // so it is a change to a bill, and the amount belongs beside the button that
+    // performs it rather than on next month's invoice.
+    for (const record of history) {
+      const at = resolveConfig(
+        REGISTRY,
+        [
+          ...fileLayers,
+          { scope: "tenant" as const, id: slug, label: `revision ${record.revision}`, values: record.values },
+        ],
+        { collectProblems: true, seats },
+      ).config
+      if (at) revisionTotals.set(record.revision, at.runningCost.total)
+    }
+
+    if (resolved) {
+      const options: ConfigurableOption[] = []
+      for (const entry of domains) {
+        for (const field of entry.fields) {
+          const definition = REGISTRY.get(field.key)
+          if (!definition) {
+            // The editor offers a key the registry does not define. It cannot be
+            // priced and it cannot be published; it is named rather than dropped.
+            undefinedKeys.push(field.key)
+            continue
+          }
+          options.push({
+            key: field.key,
+            description: field.description,
+            domainId: entry.domain.id,
+            domainGoverns: entry.domain.governs,
+            price: field.price,
+            // The ENGINE's rule for what is being charged, applied to the value
+            // that actually resolved. A second copy of it here would be a second
+            // answer to "why am I being billed for this".
+            chargedToday: isChargeable(definition, resolved.values[field.key]),
+            requiresCapability: definition.requiresCapability ?? null,
+            input: field.input,
+          })
+        }
+      }
+      changeGroups = changeCostsByDomain(options, seats, HELD_CAPABILITIES)
+      spread = changeSpread(changeGroups)
+    }
+  } catch (error) {
+    pricingError = reasonOf(error)
+  }
+
+  /** What today's bill would move by if this tenant's revision were withdrawn. */
+  const revisionBillDelta =
+    baselineTotal && runningCost ? billDelta(baselineTotal, runningCost.total) : null
 
   /**
    * What the money on this page is priced FROM, in one sentence.
    *
-   * Three cases and they are genuinely different: a refused history read means
-   * the tenant's own overlay is unknown and the total below is the platform
-   * default rather than this tenant's; no revision means the total is correct
-   * AND the tenant has never published; a revision means the total is frozen at
-   * that publication.
+   * Four cases and they are genuinely different: a pricing failure means no
+   * figure is quoted at all; a refused history read means the tenant's own
+   * overlay is unknown and the total below is the platform default rather than
+   * this tenant's; no revision means the total is correct AND the tenant has
+   * never published; a revision means the total is frozen at that publication.
    */
-  const pricedAsOf = historyError
-    ? "Priced from the platform defaults ALONE — this tenant's published revision could not be read, " +
-      "so anything it changes is missing from the figure below."
-    : latest
-      ? `Priced from revision ${latest.revision}, published ${latest.publishedAt} by ${latest.publishedBy}. ` +
-        "Option prices are compiled into this deployment and change only when it is replaced."
-      : "Priced from the platform defaults. Nothing has ever been published for this tenant, which is a " +
-        "real absence rather than a failed read."
+  const pricedAsOf = pricingError
+    ? "Priced from NOTHING — the configuration for this tenant could not be resolved, so no figure " +
+      "below is quoted. The reason is stated in the panel."
+    : historyError
+      ? "Priced from the platform defaults ALONE — this tenant's published revision could not be read, " +
+        "so anything it changes is missing from the figure below."
+      : latest
+        ? `Priced from revision ${latest.revision}, published ${latest.publishedAt} by ${latest.publishedBy}. ` +
+          "Option prices are compiled into this deployment and change only when it is replaced."
+        : "Priced from the platform defaults. Nothing has ever been published for this tenant, which is a " +
+          "real absence rather than a failed read."
 
   return (
     <div className="configuration-page">
@@ -432,6 +665,24 @@ export default async function ConfigurationPage({
           ← Back to the tenant
         </ButtonLink>
       </header>
+
+      {/* ── The question, then the answer, before any apparatus ──────────── */}
+      <p className="config-question md3-title-medium" data-testid="configuration-question">
+        What is this tenant configured to do, what does that cost, and what would changing it cost?
+      </p>
+      <p className="config-answer md3-body-large" data-testid="configuration-answer">
+        {leadAnswer({
+          historyError,
+          revision: latest?.revision ?? null,
+          publishedAt: latest?.publishedAt ?? null,
+          publishedBy: latest?.publishedBy ?? null,
+          overriddenKeys,
+          total: runningCost?.total ?? null,
+          seats,
+          seatsStated,
+          spread,
+        })}
+      </p>
 
       {/* ── The answer, first ──────────────────────────────────────────────
           What an operator opens this page to learn: what this tenant is
@@ -457,7 +708,9 @@ export default async function ConfigurationPage({
           <PartialDataState
             what="The running total"
             missing={[
-              "a configuration that resolves — the published revision has problems, listed by the editor below",
+              pricingError
+                ? `the configuration did not resolve — ${pricingError}`
+                : "a configuration that resolves — the published revision has problems, listed by the editor below",
             ]}
           />
         ) : (
@@ -481,17 +734,15 @@ export default async function ConfigurationPage({
             </div>
 
             <form method="get" className="config-quote">
-              <div className="field">
-                <label htmlFor="seats">Seats</label>
-                <input
-                  id="seats"
-                  name="seats"
-                  type="number"
-                  min="1"
-                  max="1000000"
-                  defaultValue={runningCost.seats}
-                />
-              </div>
+              <TextField
+                id="seats"
+                name="seats"
+                label="Seats"
+                type="number"
+                min="1"
+                max="1000000"
+                defaultValue={runningCost.seats}
+              />
               <Button type="submit" variant="tonal">
                 Re-quote
               </Button>
@@ -503,12 +754,16 @@ export default async function ConfigurationPage({
             </form>
 
             <DataTable
-              caption={`Every option that carries a charge, priced at ${runningCost.seats} seat${
-                runningCost.seats === 1 ? "" : "s"
-              }`}
-              rows={runningCost.lines}
+              caption={`Every option that carries a charge, grouped by the domain that governs it, priced at ${
+                runningCost.seats
+              } seat${runningCost.seats === 1 ? "" : "s"}`}
+              rows={[...runningCost.lines].sort(
+                (left, right) =>
+                  domainRank(left.key) - domainRank(right.key) || (left.key < right.key ? -1 : 1),
+              )}
               rowKey={(line) => line.key}
               columns={[
+                { key: "domain", header: "Domain", cell: (line) => domainLabel(line.key) },
                 { key: "option", header: "Option", cell: (line) => line.key },
                 {
                   key: "perSeat",
@@ -542,6 +797,140 @@ export default async function ConfigurationPage({
               }
             />
           </>
+        )}
+      </Card>
+
+      {/* ── What changing it would cost ─────────────────────────────────────
+          The third question, and the one that was missing. Every figure here is
+          a DELTA against the total above, because an edit to a live tenant is a
+          change to a bill. */}
+      <Card
+        id="change-cost"
+        headline="What changing it would cost"
+        headerAside={
+          spread ? (
+            <Badge tone={spread.locked > 0 ? "warn" : "neutral"}>
+              {spread.priced} priced · {spread.locked} locked
+            </Badge>
+          ) : (
+            <Badge tone="warn">unknown</Badge>
+          )
+        }
+        supportingText={
+          `Each figure is the difference against the ${
+            runningCost ? amount(runningCost.total) : "current"
+          } above, at ${seats} seat${seats === 1 ? "" : "s"} — not the option's list price. ` +
+          "Option prices are compiled into this deployment; what each option is SET to was read from " +
+          `the registry at ${readAt}.`
+        }
+      >
+        {pricingError ? (
+          <PartialDataState
+            what="What a change would cost"
+            missing={[`the configuration did not resolve — ${pricingError}`]}
+          />
+        ) : changeGroups.length === 0 ? (
+          <GovernedEmptyState
+            what="options this console can price a change for"
+            because="No domain a tenant administrator may write has a key in this build. That is a property of the deployment, not a failed read — the reserved domains below name the item that fills each one."
+          />
+        ) : (
+          <div className="config-stack">
+            <KeyValue
+              ariaLabel="Today's bill, and what this tenant's own published choices account for"
+              items={[
+                {
+                  key: "today",
+                  term: "The monthly bill today",
+                  value: runningCost
+                    ? `${amount(runningCost.total)} at ${runningCost.seats} seat${
+                        runningCost.seats === 1 ? "" : "s"
+                      }`
+                    : "not known — the configuration does not resolve",
+                },
+                {
+                  key: "baseline",
+                  term: "Without this tenant's published revision",
+                  value: baselineTotal
+                    ? `${amount(baselineTotal)} — the same blueprint and archetype layers, with nothing this tenant published`
+                    : "not known — the platform layers for this tenant did not resolve",
+                },
+                {
+                  key: "delta",
+                  term: "What the published revision accounts for",
+                  value: revisionBillDelta
+                    ? `${effectSentence(revisionBillDelta.direction, revisionBillDelta.delta)} a month`
+                    : baselineTotal && runningCost
+                      ? "not known — the two figures are in different currencies, and the difference between them is not a number"
+                      : "not known — one of the two figures above is missing",
+                },
+              ]}
+            />
+
+            {undefinedKeys.length > 0 && (
+              <PartialDataState
+                what="The priced options"
+                missing={undefinedKeys.map(
+                  (key) => `${key} — the editor offers it and the registry defines no such key`,
+                )}
+              />
+            )}
+
+            {changeGroups.map((group) => (
+              <div className="config-domain-group" key={group.domainId}>
+                <h3 className="config-subhead md3-title-medium">{group.domainId}</h3>
+                <p className="config-note md3-body-medium">
+                  {group.governs}
+                  {group.locked > 0
+                    ? ` ${group.locked} of these ${
+                        group.locked === 1 ? "is" : "are"
+                      } shown and locked below, with the capability that governs ${
+                        group.locked === 1 ? "it" : "them"
+                      }.`
+                    : ""}
+                </p>
+                <DataTable
+                  caption={`Every option ${group.domainId} governs, and what changing it would do to the monthly bill`}
+                  rows={group.options}
+                  rowKey={(option) => option.key}
+                  columns={[
+                    { key: "option", header: "Option", cell: (option) => option.key },
+                    {
+                      key: "now",
+                      header: "Now",
+                      cell: (option) =>
+                        option.chargedToday ? "charged" : option.includedBecause ? "included" : "not charged",
+                    },
+                    { key: "change", header: "A change here means", cell: (option) => option.change },
+                    {
+                      key: "effect",
+                      header: "Effect on the monthly bill",
+                      align: "end",
+                      cell: (option) => effectSentence(option.direction, option.delta),
+                    },
+                    {
+                      key: "who",
+                      header: "Who may change it",
+                      cell: (option) =>
+                        option.lockedReason ?? "Any operator holding configuration.publish for this tenant.",
+                    },
+                  ]}
+                  empty={
+                    <EmptyState
+                      headline="No options"
+                      description="This domain is listed because the registry governs it, and it has no keys in this build."
+                    />
+                  }
+                />
+              </div>
+            ))}
+
+            <p className="config-note md3-body-medium">
+              A locked option is shown rather than hidden. The capability named beside it is checked
+              when the publication is planned, so a change to it is a request to whoever holds that
+              capability — not a setting that does not exist.
+            </p>
+          </div>
         )}
       </Card>
 
@@ -600,6 +989,15 @@ export default async function ConfigurationPage({
                 // it is being chosen rather than on a summary somebody has to go
                 // and find.
                 price: priceLabel(f.price),
+                // GE-032-002. A key gated by a capability nobody here holds is
+                // rendered and made uneditable WITH the reason, rather than
+                // hidden or left enabled to be refused at publish time. The
+                // reason is the one the change-cost card above states, from the
+                // same computation, so the two cannot disagree.
+                lockedReason:
+                  changeGroups
+                    .flatMap((group) => group.options)
+                    .find((option) => option.key === f.key)?.lockedReason ?? null,
               })),
             }))}
           />
@@ -646,7 +1044,9 @@ export default async function ConfigurationPage({
         ) : (
           <div className="config-stack">
             <DataTable
-              caption={`Every publication, newest first, as read at ${readAt}`}
+              caption={`Every publication, newest first, as read at ${readAt} — and what returning to each would do to the monthly bill at ${seats} seat${
+                seats === 1 ? "" : "s"
+              }`}
               rows={[...revisions].reverse()}
               rowKey={(r) => String(r.revision)}
               columns={[
@@ -654,6 +1054,27 @@ export default async function ConfigurationPage({
                 { key: "publishedAt", header: "Published", cell: (r) => r.publishedAt },
                 { key: "publishedBy", header: "By", cell: (r) => r.publishedBy },
                 { key: "changed", header: "Keys touched", align: "end", cell: (r) => r.changed },
+                {
+                  key: "bill",
+                  header: "Monthly bill",
+                  align: "end",
+                  cell: (r) => {
+                    const total = revisionTotals.get(r.revision)
+                    return total ? amount(total) : "not known — that revision does not resolve"
+                  },
+                },
+                {
+                  key: "billDelta",
+                  header: "If restored",
+                  align: "end",
+                  cell: (r) => {
+                    if (latest && r.revision === latest.revision) return "live now"
+                    const total = revisionTotals.get(r.revision)
+                    if (!total || !runningCost) return "not known"
+                    const delta = billDelta(runningCost.total, total)
+                    return delta ? effectSentence(delta.direction, delta.delta) : "not comparable"
+                  },
+                },
                 {
                   key: "rollbackTo",
                   header: "Rolls back to",

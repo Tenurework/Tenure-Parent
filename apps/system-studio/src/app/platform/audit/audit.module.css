@@ -10,11 +10,14 @@
  * this page share edges and read as one undivided wall, which is the specific
  * complaint this work exists to answer.
  *
- * So this file holds a stack and nothing more. It declares no colour, no font
- * size, no border, no radius and no shadow: every one of those is a
- * `--md-sys-*` role that `globals.css` owns and that a route-local stylesheet
- * must never restate. If a rule here ever needs a colour, the rule belongs in
- * the token layer instead.
+ * So this file holds a stack, the lede's measure and the filter row's
+ * arrangement, and nothing more. It declares no colour, no font size, no
+ * border, no radius and no shadow: every one of those is a `--md-sys-*` role
+ * that `globals.css` owns and that a route-local stylesheet must never restate.
+ * If a rule here ever needs a colour, the rule belongs in the token layer
+ * instead — which is why the muted second line inside a table cell is a
+ * `md3-label-small` from the type scale rather than a class here that would have
+ * had to name a colour to be muted at all.
  *
  * The `--space-*` steps are read, not redefined — the same scale every
  * primitive already uses, so this stack tightens with the compact density
@@ -40,4 +43,75 @@
  */
 .stack > * {
   min-inline-size: 0;
+}
+
+/*
+ * The question this page answers, in words, above everything else.
+ *
+ * `max-inline-size` in `ch` because it is a paragraph rather than a table: a
+ * sentence set across 1440 CSS pixels is a sentence whose next line the eye
+ * cannot find. The measure is capped at 100% so the rule does nothing at 320,
+ * where the viewport is already narrower than the cap.
+ */
+.lede {
+  margin-block: var(--space-2) var(--space-4);
+  max-inline-size: min(72ch, 100%);
+}
+
+/*
+ * The entry filter — four selects and two buttons that wrap onto as many rows as
+ * the viewport needs.
+ *
+ * `align-items: end` so the controls sit on one baseline while their labels
+ * stack above them at different heights; `flex-wrap` rather than a fixed grid
+ * because at 320 CSS pixels every field takes a row of its own and a
+ * `repeat(4, 1fr)` would not let it.
+ */
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  margin-block-end: var(--space-2);
+}
+
+/*
+ * `1 1 12rem` — grow to share the row, shrink when the row is full, and give up
+ * at 12rem rather than at the width of the longest option. A `<select>`'s
+ * automatic minimum size is its widest option, so a principal id or a long
+ * action name in the list would otherwise set this field's floor and push the
+ * form past the viewport.
+ */
+.filterField {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+.filterActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/*
+ * The two hold forms, side by side where there is room and stacked where there
+ * is not. `min(24rem, 100%)` is the same bargain the filter fields strike: never
+ * narrower than readable, never wider than the viewport.
+ */
+.holdForms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr));
+  gap: var(--space-4);
+  margin-block-start: var(--space-3);
+}
+
+.holdForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+.holdForm > p {
+  margin: 0;
 }

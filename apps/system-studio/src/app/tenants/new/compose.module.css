@@ -1,0 +1,148 @@
+/*
+ * Layout for the tenant composer. Scoped to this route.
+ *
+ * ── What this file may contain, and what it may not ────────────────────────
+ *
+ * Only geometry: flow, gap, wrapping, stickiness, and the wrapping rules a
+ * column of module keys and AWS-shaped identifiers needs. Every value is a token
+ * declared in `globals.css`.
+ *
+ * It may NOT contain a colour, a font size, a weight, a radius or a shadow.
+ * Those are the token layer's answers and `components/md3/` is how a surface
+ * asks for them. A page that sets its own is a page the contrast audit in
+ * `e2e/md3-tokens-logic.spec.ts` cannot see, which is the exact failure that
+ * rule exists to prevent. The classes this route previously used — `.field`,
+ * `.hint`, `.checks`, `.check`, `.slug`, `.version`, `.kv` — are the console's
+ * pre-Material-3 vocabulary and every one of them hand-sets a `font-size`.
+ *
+ * It exists at all because the primitives are self-contained by design: a
+ * `.md3-card` sets its own padding and carries no outer margin, so nine cards in
+ * a column touch. The gap between sibling regions is a property of the page, and
+ * this is the page.
+ */
+
+/* The form's own column. One gap, so no card has to know what follows it. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* A flex item's default `min-width: auto` is what lets one long module key set
+     a floor wider than the viewport, which is the 320px reflow failure
+     `layout.spec.ts` measures directly. */
+  min-inline-size: 0;
+}
+
+/*
+ * The answer, pinned.
+ *
+ * The price of a composition has to be legible WHILE the composition is being
+ * made — discovering it after the last stage is the defect this whole surface
+ * was rebuilt to end. Sticky rather than fixed so it participates in the column
+ * above and never covers the masthead.
+ */
+.summary {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  min-inline-size: 0;
+}
+
+/*
+ * A group of choices: a fieldset with a real legend.
+ *
+ * `min-inline-size: 0` is load-bearing and not cosmetic. A `<fieldset>` has a
+ * UA-imposed automatic minimum size in every engine — it refuses to shrink below
+ * its content's min-content width — so a fieldset holding twelve module keys
+ * pushed the form past 320 CSS pixels and scrolled the page sideways. The border
+ * and padding are removed because the card the group sits in already draws the
+ * region; a second box inside it is a second region a reader has to account for.
+ */
+.group {
+  min-inline-size: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/*
+ * Two columns of options where there is room for two.
+ *
+ * `min(19rem, 100%)` rather than a bare `19rem`: a bare track is a 304px FLOOR,
+ * so in a 300px container every option label overflows by the difference. The
+ * `min()` lets the track fall back to the container's own width.
+ */
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr));
+  gap: var(--space-1) var(--space-5);
+  min-inline-size: 0;
+}
+
+/* One option: its control, and everything the option says about itself. */
+.choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-2);
+  border-radius: var(--md-sys-shape-corner-small);
+  cursor: pointer;
+  min-inline-size: 0;
+}
+
+/* The state layer, so hover and focus read the same here as on every other
+   pressable thing in the console. The colour is the token layer's. */
+.choice:hover {
+  background: var(--md-sys-state-hover);
+}
+
+.choiceMark {
+  margin-block-start: var(--space-1);
+}
+
+/* The stack of sentences beside the control: name, price, description. */
+.choiceBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The name line — key, version chip, lifecycle chip — wrapping rather than
+   widening its column. */
+.choiceName {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A list of stated problems: one per line, never a run-on paragraph, because
+   each line names a different option. */
+.problems {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A panel of prose inside a card: the refusal blocks, which are several
+   paragraphs rather than one. */
+.prose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+

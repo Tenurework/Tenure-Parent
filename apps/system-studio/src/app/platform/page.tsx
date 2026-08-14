@@ -9,22 +9,66 @@ import { authorizeCommand } from "@/lib/authorize"
 import { FleetMisconfigured, fleet, primeEstate } from "@/lib/cells"
 import { operatorConfigProblems } from "@/lib/operators"
 import truth from "@/generated/platform-truth.json"
-import { Badge, ButtonLink, Card, Chip, DataTable, EmptyState } from "@/components/md3"
+import { ALL_CAPABILITIES, IDENTITY_REFRESH_MS, minimumStatementText } from "@/lib/aws/capabilities"
+import { identityHeadline, resolveIdentity } from "@/lib/aws/identity"
+import {
+  Badge,
+  ButtonLink,
+  Card,
+  Chip,
+  DataTable,
+  EmptyState,
+  KeyValue,
+  ProgressIndicator,
+  UnknownState as AwsUnknownState,
+  formatAge,
+  type BadgeTone,
+} from "@/components/md3"
 import {
   DegradedState,
   ErrorState,
   PermissionDeniedState,
-  StaleState,
-  UnknownState,
+  UnknownState as FleetUnknownState,
   degradationOf,
 } from "@/components/states"
 
+import {
+  VERDICT_WORD,
+  buildProvenance,
+  customerTenantsOnly,
+  declaredActionCount,
+  declaredBySurface,
+  engineAnswer,
+  maskAccountId,
+  maskArn,
+  refusedReads,
+  type EngineVerdict,
+} from "./engine-answer"
 import styles from "./platform.module.css"
 
 export const dynamic = "force-dynamic"
 
 /**
- * What the engine currently knows about itself.
+ * Is the engine itself healthy, and what does it currently know?
+ *
+ * That is the question this page answers, it is the first thing on the page in
+ * those words, and the order of the cards below is the order of the answer:
+ *
+ *   1. the verdict, in a sentence, with every condition that is true right now;
+ *   2. the build — which commit is serving this, and whether the figures
+ *      compiled into it describe that commit;
+ *   3. the identity — which account, region, partition and principal this
+ *      process resolved for ITSELF, read live from STS on this render;
+ *   4. what it may read, and what it was refused, with the IAM statement that
+ *      would grant each refusal. This is the most valuable panel here: it is the
+ *      console naming precisely what it cannot see;
+ *   5. the ledger's real progress, which is the engine's own build-out.
+ *
+ * Everything after that is apparatus. It is still on the page, it is still
+ * dated, and `docs/architecture/studio-information-architecture.md` is the
+ * authority on where it eventually lives.
+ *
+ * ── What the engine currently knows about itself ───────────────────────────
  *
  * Most of this page comes from `apps/system-studio/src/generated/platform-truth.json`,
  * which `tools/platform-truth.mjs` compiles from the execution ledger, the
@@ -66,13 +110,33 @@ export const dynamic = "force-dynamic"
  * text runs out of it.
  */
 export default async function PlatformPage() {
+  /*
+   * Before authentication, and it names what is missing.
+   *
+   * This used to render two sentences and throw the problems away, so the one
+   * screen an operator meets when the console will not serve told them nothing
+   * they could act on. `operatorConfigProblems()` returns the variable and the
+   * detail for each; `src/app/page.tsx` has printed them since it was written,
+   * and this is the same shape rather than a second one.
+   */
   const misconfigured = operatorConfigProblems()
   if (misconfigured.length > 0) {
     return (
-      <div className="misconfigured">
-        <h1>Not configured</h1>
-        <p>The Studio refuses to serve until its access control is set up.</p>
-      </div>
+      <Card
+        headline="Not configured"
+        headerAside={<Badge tone="bad">refusing</Badge>}
+        supportingText="The Studio refuses to serve until its access control is set up. Each variable below is read from this process's environment; none of them has a default, because a default here decides who may read every tenant's configuration."
+        container="high"
+        level={1}
+      >
+        <ul className="md3-body-medium">
+          {misconfigured.map((problem) => (
+            <li key={problem.variable}>
+              <code className={styles.identifier}>{problem.variable}</code> — {problem.detail}
+            </li>
+          ))}
+        </ul>
+      </Card>
     )
   }
 
@@ -100,7 +164,20 @@ export default async function PlatformPage() {
    * those tenants have — in particular it does not list a tenant whose blueprint
    * asks for a module its entitlement refuses.
    */
-  const adoption = moduleAdoption()
+  /*
+   * And filtered to the tenants that exist.
+   *
+   * `moduleAdoption()` folds over `TENANT_BINDINGS`, which is the compiled set
+   * INCLUDING the three fixtures that exercise the platform. This panel listed
+   * them beside the one real pilot, presented identically, on a page an
+   * operator decides a module's lifecycle from. `customerTenantsOnly` is the
+   * same rule `CUSTOMER_TENANT_BINDINGS` states, applied at the surface —
+   * see the note on it for why not at the source.
+   */
+  const adoption = moduleAdoption().map((module) => ({
+    ...module,
+    tenants: customerTenantsOnly(module.tenants),
+  }))
 
   /**
    * And whether the cell holding each tenant can honour its configuration.
@@ -138,9 +215,12 @@ export default async function PlatformPage() {
     if (!(error instanceof FleetMisconfigured)) throw error
     fleetProblems = error.problems
   }
+  // Filtered for the same reason `adoption` is: `fleetCompatibility` folds over
+  // the unfiltered bindings, and a fixture organisation's configuration
+  // compared against a real cell's release is a verdict about nothing.
   const compatibility = (cells ?? []).map((cell) => ({
     cell,
-    tenants: fleetCompatibility(cell.release),
+    tenants: customerTenantsOnly(fleetCompatibility(cell.release)),
   }))
 
   // The inventory records denials as {call, reason}; a count alone would lose
@@ -185,7 +265,6 @@ export default async function PlatformPage() {
   // Set by the deploy workflow. Unset locally, which correctly means "cannot
   // tell" — an unknown build must claim neither freshness nor staleness.
   const buildCommit = process.env.BUILD_COMMIT
-  const snapshot = `commit ${truth.commit}`
   const inventoryDate = new Date(estate.generatedAt).toISOString().slice(0, 10)
 
   /*
@@ -208,40 +287,405 @@ export default async function PlatformPage() {
 
   const alarmsUnavailable = "alarmsUnavailable" in estate && Boolean(estate.alarmsUnavailable)
 
+  /*
+   * ── The engine describing itself ─────────────────────────────────────────
+   *
+   * One live AWS call, and it is the right one: `sts:GetCallerIdentity` is the
+   * only read that answers "who am I" rather than "what is out there". Every
+   * other figure on this page is a statement ABOUT an account, and until this
+   * answers, none of them is attributed to one.
+   *
+   * It is awaited without a try/catch on purpose — `resolveIdentity` returns an
+   * `AwsRead`, never throws, and its failing arms are rendered rather than
+   * crashed on. That is what keeps this console booting with no AWS credentials
+   * at all: the panel says UNKNOWN and names the principal, the action and the
+   * statement, and the other nine cards still render.
+   */
+  const identity = await resolveIdentity()
+
+  const provenance = buildProvenance({
+    runningCommit: buildCommit,
+    snapshotCommit: truth.commit,
+  })
+  const refusals = refusedReads(denied)
+  const surfaces = declaredBySurface(refusals)
+  const answer = engineAnswer({
+    identityState: identity.state,
+    build: provenance.verdict,
+    refusedReads: refusals.length,
+    answeredReads: answeredReads.length,
+  })
+
   return (
     <div className={styles.page}>
+      {/*
+        The question, in words, before any apparatus — and then the answer to
+        it. An operator who reads only the first two paragraphs of this page has
+        been told whether to keep reading.
+      */}
       <header>
         <h1 className="md3-headline-large">Platform</h1>
-        <p className={`${styles.line} md3-body-medium`}>
-          The engine&rsquo;s own state. Every figure is traceable to a file in this repository, and
-          every panel below says what it is as of and what it does not know.
+        <p className={`${styles.line} md3-title-medium`}>
+          Is the engine itself healthy, and what does it currently know?
         </p>
+        <p className={`${styles.line} md3-body-medium`}>{answer.headline}</p>
       </header>
 
-      {/*
-        GE-022-006. Every figure from the snapshot was compiled at a commit.
-        When the running build knows its own commit and it differs, this page is
-        describing an older repository — which is worse than showing nothing,
-        because the numbers still look authoritative.
+      {/* ── The answer ────────────────────────────────────────────────────
+        Every condition that is true right now, not just the worst one. The
+        verdict and this list cannot disagree: `engineAnswer` defines the
+        reassuring arm as the one in which this list is empty, and
+        `engine-answer.test.ts` asserts that equivalence over every combination
+        of identity state, build verdict and refusal count.
+      */}
+      <Card
+        headline="What this page found"
+        headerAside={
+          <Badge tone={VERDICT_TONE[answer.verdict]} title="The verdict this page reached, in a word">
+            {VERDICT_WORD[answer.verdict]}
+          </Badge>
+        }
+        supportingText="Three things are checked here and nothing else is: whether this engine can name the account it is running as, whether the build serving this page is the commit its figures were compiled at, and whether every read behind those figures answered."
+      >
+        <div className={styles.stack}>
+          {answer.findings.length === 0 ? (
+            <p className={`${styles.line} md3-body-medium`}>
+              Nothing was found by those three checks. That is a narrow statement and it is meant to
+              be: it says the checks on this page passed, not that the platform is well.
+            </p>
+          ) : (
+            <ul className="md3-body-medium">
+              {answer.findings.map((finding) => (
+                <li key={finding}>{finding}</li>
+              ))}
+            </ul>
+          )}
+          <Provenance
+            asOf={
+              <>
+                this render. The identity check is a live <code className={styles.identifier}>sts:GetCallerIdentity</code>;
+                the build and refusal checks are this build&rsquo;s environment against the snapshot
+                compiled at <Commit sha={truth.commit} />.
+              </>
+            }
+            unknown={
+              <>
+                everything these three checks do not look at. This is not a health verdict on the
+                fleet — <Link href="/platform/health">Health</Link> reads CloudWatch live for that —
+                and it is not a security verdict; <Link href="/platform/security">Findings</Link> is.
+              </>
+            }
+          />
+        </div>
+      </Card>
+
+      {/* ── The build ─────────────────────────────────────────────────────
+        GE-022-006. Every figure compiled into the snapshot was taken at a
+        commit, and when the running build knows its own commit and it differs,
+        this page is describing an older repository — which is worse than
+        showing nothing, because the numbers still look authoritative.
 
         Keyed on a commit mismatch rather than an age threshold: a page whose
         output changes with the clock cannot be tested deterministically, and a
         staleness warning that appears on a timer is one people learn to ignore.
-      */}
-      {buildCommit && buildCommit !== truth.commit && (
-        <StaleState
-          asOf={snapshot}
-          why={
-            `This console is running commit ${buildCommit}. Run "npm run generate" and redeploy; ` +
-            `until then every figure compiled from the snapshot describes an older repository.`
-          }
-        />
-      )}
 
-      {/* ── The answer ────────────────────────────────────────────────────
-        First, and deliberately: the number an operator opens this page for is
-        how much of the programme is settled. Everything below it is the working
-        that produced it.
+        The third state is the one this page used to be missing. An unstamped
+        build cannot show drift AND cannot show freshness, and folding it into
+        "no warning" published a freshness claim out of an absence of evidence
+        on every machine whose pipeline had not set the variable.
+      */}
+      <Card
+        headline="This build, and the figures compiled into it"
+        headerAside={
+          <Badge tone={BUILD_TONE[provenance.verdict]} title="Whether the compiled figures describe the running code">
+            {provenance.verdict === "MATCHED"
+              ? "snapshot matches this build"
+              : provenance.verdict === "DRIFTED"
+                ? "snapshot is from another commit"
+                : "build not stamped"}
+          </Badge>
+        }
+        supportingText="Nothing on this page is typed in. Every compiled figure comes from one generated artifact, and this card is the check that the artifact describes the code serving it."
+      >
+        <div className={styles.stack}>
+          <KeyValue
+            ariaLabel="This build and the artifact it reports"
+            items={[
+              {
+                key: "running",
+                term: "Commit this console is running",
+                value: buildCommit ? (
+                  <code className={styles.identifier}>{buildCommit}</code>
+                ) : (
+                  // Never a dash and never "unknown" alone. The variable that
+                  // would supply it is named, because that is the whole remedy.
+                  <>
+                    not stamped — <code className={styles.identifier}>BUILD_COMMIT</code> is unset in
+                    this process&rsquo;s environment
+                  </>
+                ),
+              },
+              {
+                key: "snapshot",
+                term: "Commit the snapshot was compiled at",
+                value: <code className={styles.identifier}>{truth.commit}</code>,
+              },
+              {
+                key: "generator",
+                term: "Compiled by",
+                value: <code className={styles.identifier}>{truth.generatedBy}</code>,
+              },
+              {
+                key: "inventory",
+                term: "Read-only AWS inventory taken",
+                value: inventoryDate,
+              },
+              { key: "verdict", term: "Verdict", value: provenance.sentence },
+            ]}
+          />
+          {provenance.fix ? (
+            <p className={`${styles.line} md3-body-medium`}>{provenance.fix}</p>
+          ) : null}
+          <Provenance
+            asOf={
+              <>
+                the artifact at <Commit sha={truth.commit} /> and this process&rsquo;s environment,
+                read on this render.
+              </>
+            }
+            unknown={
+              <>
+                {provenance.verdict === "UNSTAMPED"
+                  ? "whether the snapshot describes the code serving this page. Without a build stamp there is no evidence either way, and this card claims neither."
+                  : "how old the artifact is in wall-clock time. The check here is a commit comparison, which is exact and deterministic; an hours-old threshold would change this page's output with the clock."}
+              </>
+            }
+          />
+        </div>
+      </Card>
+
+      {/* ── Identity ──────────────────────────────────────────────────────
+        STUDIO-000-006. The one live AWS read on this page, and the only one
+        that answers "who am I" rather than "what is out there".
+
+        The account id is masked here for the same reason the inventory writer
+        masks it: `e2e/platform.spec.ts` asserts that no twelve consecutive
+        digits appear anywhere in this page's text, and a live read returns the
+        real thing. Masking one card and not the other would not be masking.
+      */}
+      <Card
+        headline="The identity this engine is running as"
+        headerAside={
+          <Badge
+            tone={identity.state === "ACTUAL" || identity.state === "STALE" ? "ok" : "bad"}
+            title="Whether sts:GetCallerIdentity answered on this render"
+          >
+            {identity.state}
+          </Badge>
+        }
+        supportingText="Resolved from AWS on this render, never from a compiled-in literal. Every account-scoped statement elsewhere on this console is a statement about whatever this says."
+      >
+        <div className={styles.stack}>
+          {identity.state === "ACTUAL" || identity.state === "STALE" ? (
+            <KeyValue
+              ariaLabel="The account, region, partition and principal this engine resolved for itself"
+              items={[
+                {
+                  key: "account",
+                  term: "Account",
+                  value: (
+                    <code className={styles.identifier}>{maskAccountId(identity.value.accountId)}</code>
+                  ),
+                  asOf: { at: identity.asOf, cadenceMs: IDENTITY_REFRESH_MS },
+                },
+                {
+                  key: "region",
+                  term: "Region",
+                  value: <code className={styles.identifier}>{identity.value.region}</code>,
+                },
+                {
+                  key: "partition",
+                  term: "Partition",
+                  value: <code className={styles.identifier}>{identity.value.partition}</code>,
+                },
+                {
+                  key: "principal",
+                  term: "Principal",
+                  value: (
+                    <code className={styles.identifier}>
+                      {maskArn(identity.value.arn, identity.value.accountId)}
+                    </code>
+                  ),
+                },
+              ]}
+            />
+          ) : identity.state === "EMPTY" ? (
+            // Not reachable through `resolveIdentity`, which passes
+            // `isEmpty: () => false` — but the union has the arm, so this file
+            // says what it would mean rather than falling through to a blank.
+            <p className={`${styles.line} md3-body-medium`}>{identityHeadline(identity)}</p>
+          ) : (
+            <AwsUnknownState what="the identity this engine is running as" read={identity} />
+          )}
+          <Provenance
+            asOf={
+              <>
+                this render.{" "}
+                {identity.state === "ACTUAL" || identity.state === "STALE"
+                  ? `The reading is re-resolved at most every ${formatAge(IDENTITY_REFRESH_MS)}, and cleared on any denial so a role rotated underneath a running container is picked up on the next read.`
+                  : "There is no reading — the arm above says why, and nothing here is held over from an earlier one."}
+              </>
+            }
+            unknown={
+              <>
+                what this principal is actually PERMITTED to do. An ARN says who the call was made
+                as, not what the policy attached to it allows; the card below reports only the reads
+                that were attempted and refused, which is the only direct evidence this page has.
+              </>
+            }
+          />
+        </div>
+      </Card>
+
+      {/* ── Capabilities ──────────────────────────────────────────────────
+        STUDIO-000-007 / STUDIO-070-004. The panel the operator came for.
+
+        Two halves, and the order is deliberate: what was REFUSED first, with
+        the statement that grants it, then what the engine declares it is able
+        to ask for at all. A refusal rendered without its remedy is a refusal
+        that stays, and a refusal rendered as an empty list is the defect the
+        whole `AwsRead` union exists to prevent.
+      */}
+      <Card
+        headline="What this engine may read, and what it was refused"
+        headerAside={
+          <Badge
+            tone={refusals.length === 0 ? "ok" : "warn"}
+            title="Reads the committed inventory recorded as refused"
+          >
+            {refusals.length} refused
+          </Badge>
+        }
+        supportingText={`${ALL_CAPABILITIES.length} reads are declared in this engine's capability registry, needing ${declaredActionCount()} distinct IAM actions across ${surfaces.length} surfaces. The registry is a closed list compiled into this build — there is no endpoint that takes a service and an action, so what this console is able to ask AWS for is exactly what is counted here.`}
+      >
+        <div className={styles.stack}>
+          <DataTable
+            caption="Every read that was refused, and the statement that would grant it"
+            columns={[
+              {
+                key: "call",
+                header: "Call",
+                cell: (row) => <span className={styles.identifier}>{row.call}</span>,
+              },
+              { key: "reason", header: "What was recorded", cell: (row) => row.reason },
+              {
+                key: "capability",
+                header: "Capability",
+                cell: (row) =>
+                  row.capability ? (
+                    <span className={styles.identifier}>{row.capability}</span>
+                  ) : (
+                    // The honest arm. The collector makes this call and the
+                    // engine declares no capability for it, so no statement is
+                    // derived — a plausible one that grants nothing is worse
+                    // than none.
+                    "not declared by this engine"
+                  ),
+              },
+              {
+                key: "statement",
+                header: "Minimum IAM statement",
+                cell: (row) =>
+                  row.minimumStatement ? (
+                    <div className={styles.cell}>
+                      {/*
+                        `<pre>` because an operator pastes this into a policy
+                        document, and a statement re-wrapped by the layout is one
+                        they have to repair by hand. `.md3-unknown-statement`
+                        scrolls inside itself at 320 CSS pixels.
+                      */}
+                      <pre className="md3-unknown-statement">
+                        <code>{row.minimumStatement}</code>
+                      </pre>
+                      <span>
+                        {row.statementSource === "recorded"
+                          ? "as the collector recorded it at the moment of the refusal"
+                          : "derived from this engine's capability registry"}
+                      </span>
+                    </div>
+                  ) : (
+                    "none — this engine declares no capability for that call, so it derives no statement"
+                  ),
+              },
+            ]}
+            rows={refusals}
+            rowKey={(row) => row.key}
+            empty={
+              <EmptyState
+                headline="No read was recorded as refused"
+                description="A real absence, and a narrow one: the inventory recorded no refusal for the calls it made. It says nothing about the reads it did not attempt — those are counted in the table below and are not evidence of a grant."
+              />
+            }
+          />
+
+          <DataTable
+            caption="What this engine declares it can ask for, by the surface it feeds"
+            columns={[
+              {
+                key: "surface",
+                header: "Surface",
+                cell: (row) => <span className={styles.identifier}>{row.surface}</span>,
+              },
+              { key: "reads", header: "Reads", align: "end", cell: (row) => row.capabilities },
+              { key: "actions", header: "IAM actions", align: "end", cell: (row) => row.actions },
+              {
+                key: "cadence",
+                header: "Fastest refresh",
+                align: "end",
+                // Rendered with the same formatter every "as of" line on this
+                // console uses, so two panels cannot print one window two ways.
+                cell: (row) => formatAge(row.fastestRefreshMs),
+              },
+              {
+                key: "refused",
+                header: "Refused",
+                align: "end",
+                cell: (row) => (row.refused === 0 ? "none recorded" : row.refused),
+              },
+            ]}
+            rows={surfaces}
+            rowKey={(row) => row.surface}
+            empty={
+              <EmptyState
+                headline="The capability registry is empty in this build"
+                description="Not an engine that may read nothing — a build in which src/lib/aws/capabilities.ts resolved to no entries at all. Nothing on this console can read AWS until it loads."
+              />
+            }
+          />
+
+          <Provenance
+            asOf={
+              <>
+                the capability registry compiled into THIS build, and the refusals recorded by the
+                read-only inventory of {inventoryDate}, compiled at <Commit sha={truth.commit} />.
+              </>
+            }
+            unknown={
+              <>
+                whether the {ALL_CAPABILITIES.length - refusals.length} reads with no refusal
+                recorded against them are actually granted. Nothing here probed them — a read that
+                was never attempted is not evidence of a permission, and this table deliberately
+                does not count it as one. The direct evidence this page holds is the identity read
+                above and the {refusals.length} refusals below it.
+              </>
+            }
+          />
+        </div>
+      </Card>
+
+      {/* ── The programme ─────────────────────────────────────────────────
+        The engine's own build-out, and the last of the five panels that answer
+        the question at the top. Everything after this card is apparatus.
       */}
       <Card
         headline="Where the programme stands"
@@ -262,16 +706,29 @@ export default async function PlatformPage() {
         }
       >
         <div className={styles.stack}>
-          <div
-            aria-label={`Programme settled ${percent}%`}
-            aria-valuemax={100}
-            aria-valuemin={0}
-            aria-valuenow={percentValue}
-            className="progress-meter"
-            role="meter"
-          >
-            <span style={{ inlineSize: `${percent}%` }} />
-          </div>
+          {/*
+            The MD3 primitive, which is a real `<progress>` element.
+
+            This was a `<div role="meter">` whose fill was an inline
+            `style={{ inlineSize }}`. Both halves of that were defects: an
+            inline style in a product module is the hole the first literal
+            colour arrives through, and `role="meter"` is the wrong role — a
+            meter is a static gauge within a known range, and this is progress
+            toward completion, which is `progressbar`. `<progress value max>`
+            brings the role, `aria-valuenow` and a text fallback with no style
+            attribute anywhere. `e2e/platform.spec.ts` was updated to match, and
+            asserts the same two numbers it always did.
+          */}
+          <ProgressIndicator
+            label="Programme settled"
+            value={percentValue}
+            valueText={`${percent}%`}
+          />
+          {/*
+            `percentValue` is the number the bar carries and `percent` is the
+            string beside it; both come from the same division, so the bar and
+            the label cannot disagree.
+          */}
 
           <p className={`${styles.line} md3-body-medium`}>
             {/*
@@ -641,7 +1098,7 @@ export default async function PlatformPage() {
             {adoption.filter((m) => m.tenants.length > 0).length} of {adoption.length} adopted
           </Badge>
         }
-        supportingText="The blast radius of a lifecycle change, before it is made. Each row is a module in the catalog and the tenants that actually run it — resolved the same way each tenant resolves it, so a module a blueprint asks for and an entitlement refuses does not appear here. A row with no tenants is the one that can be retired for nothing."
+        supportingText="The blast radius of a lifecycle change, before it is made. Each row is a module in the catalog and the tenants that actually run it — resolved the same way each tenant resolves it, so a module a blueprint asks for and an entitlement refuses does not appear here. Only real customers are listed; the fixture organisations that exercise the platform are excluded, because a row an operator counts as adoption must be an organisation that exists. A row with no tenants is the one that can be retired for nothing."
       >
         <div className={styles.stack}>
           <p className={`${styles.line} md3-body-medium`}>
@@ -732,7 +1189,7 @@ export default async function PlatformPage() {
       {/* ── Release compatibility ─────────────────────────────────────────── */}
       <Card
         headline="Release compatibility"
-        supportingText="Each tenant's published configuration against the engine version its cell reports. A cell older than the configuration it is asked to serve refuses rather than half-applying it: ignoring an unknown key would leave a setting the Studio shows as published quietly doing nothing, and applying one whose meaning has moved is worse."
+        supportingText="Each real customer's published configuration against the engine version its cell reports — the fixture organisations are excluded here too. A cell older than the configuration it is asked to serve refuses rather than half-applying it: ignoring an unknown key would leave a setting the Studio shows as published quietly doing nothing, and applying one whose meaning has moved is worse."
       >
         <div className={styles.stack}>
           {fleetProblems.length > 0 ? (
@@ -743,13 +1200,24 @@ export default async function PlatformPage() {
                 an account, and a 500 turns that correct refusal into a console
                 nobody can open.
               */}
-              <UnknownState
+              <FleetUnknownState
                 what="the fleet this engine runs in"
-                principal="not known — sts:GetCallerIdentity did not answer"
-                action="sts:GetCallerIdentity"
-                minimumStatement={
-                  '{"Effect":"Allow","Action":["sts:GetCallerIdentity"],"Resource":"*"}'
+                // The principal from the identity read taken at the top of this
+                // render, not a sentence written here. When identity DID answer,
+                // the fleet is unresolved for the other reason — the environment
+                // — and saying "STS did not answer" would have sent an operator
+                // to fix a read that is working.
+                principal={
+                  identity.state === "ACTUAL" || identity.state === "STALE"
+                    ? maskArn(identity.value.arn, identity.value.accountId)
+                    : identityHeadline(identity)
                 }
+                action="sts:GetCallerIdentity"
+                // From the capability registry, not typed here. A statement
+                // written into a page is one more copy to keep in step with the
+                // grant and the guard, and the copy that drifts is the one an
+                // operator pastes.
+                minimumStatement={minimumStatementText("sts:GetCallerIdentity")}
               />
               <p className={`${styles.line} md3-body-medium`}>
                 Set these in the console&rsquo;s environment, or grant the statement above to its
@@ -959,6 +1427,37 @@ export default async function PlatformPage() {
       </Card>
     </div>
   )
+}
+
+/**
+ * The tone each verdict wears, in one place.
+ *
+ * A `Record` over the closed union rather than a chain of ternaries, so a
+ * verdict added to `engine-answer.ts` fails to compile here until somebody
+ * decides what it looks like — which is the only way a new failure state does
+ * not silently inherit the reassuring default. The WORD is what carries the
+ * meaning either way (`VERDICT_WORD`); the tone only tints the pill, because
+ * meaning conveyed by colour alone is forbidden on this console.
+ */
+const VERDICT_TONE: Readonly<Record<EngineVerdict, BadgeTone>> = {
+  BLIND: "bad",
+  STALE_BUILD: "bad",
+  UNVERIFIED_BUILD: "warn",
+  PARTIAL: "warn",
+  HEALTHY: "ok",
+}
+
+/**
+ * And the build's, on the same principle.
+ *
+ * `UNSTAMPED` is `warn`, not `neutral`. A build that cannot say what it is is
+ * not a neutral fact about the deployment — it is the reason nothing on this
+ * page can be dated — and a grey pill beside it would read as "fine".
+ */
+const BUILD_TONE: Readonly<Record<ReturnType<typeof buildProvenance>["verdict"], BadgeTone>> = {
+  MATCHED: "ok",
+  DRIFTED: "bad",
+  UNSTAMPED: "warn",
 }
 
 /**

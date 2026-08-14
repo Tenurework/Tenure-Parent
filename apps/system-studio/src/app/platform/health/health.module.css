@@ -102,51 +102,17 @@
 }
 
 /*
- * The two-column answer list: what the fact is, and what it says.
+ * There is no two-column fact list here any more.
  *
- * `minmax(0, max-content)` sizes the term column to the longest term that is
- * actually present rather than to a guess, and the `minmax(0, …)` on both
- * tracks is what lets a long value shrink instead of printing outside the card.
+ * This file used to carry a `.facts` grid — a `<dl>` with `minmax(0, max-content)`
+ * on the term track and a 30rem media query stacking the pairs, because at 320
+ * CSS pixels the value column is squeezed to a clientWidth of zero while its
+ * text keeps its full width and prints outside the card. All of that is
+ * `components/md3/KeyValue.tsx` and `.md3-kv` in `globals.css`, which solved the
+ * same measured problem in the place every AWS panel in this console can reach
+ * it. The route now uses the primitive, so the fork is deleted rather than kept
+ * in step by hand.
  */
-.facts {
-  display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
-  gap: var(--space-1) var(--space-5);
-  align-items: baseline;
-  margin: 0;
-  min-inline-size: 0;
-}
-
-.facts dt {
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-
-.facts dd {
-  margin: 0;
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-
-/*
- * Below ~480px the two columns stop being two columns.
- *
- * `minmax(0, max-content)` shrinks the term column only after the value column
- * has been squeezed to nothing first, so at 320px the value measures a
- * clientWidth of ZERO while its text keeps its full width and prints outside the
- * card. The pairs stack instead, which is what a description list does on a
- * narrow screen. WCAG 2.2 AA 1.4.10, and the same rule `globals.css` applies to
- * `.kv` for the same measured reason.
- */
-@media (max-width: 30rem) {
-  .facts {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .facts dd {
-    margin-block-end: var(--space-2);
-  }
-}
 
 /*
  * A disclosure inside a card: the long list of quiet alarms, and the legend.

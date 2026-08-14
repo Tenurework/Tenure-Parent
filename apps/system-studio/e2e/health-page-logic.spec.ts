@@ -294,10 +294,47 @@ test.describe("the surface consumes the design system rather than forking it", (
     expect(page).toContain("expectedAlarmNames()")
   })
 
+  /**
+   * The half of the page's question that CloudWatch cannot answer.
+   *
+   * "Is it us or is it AWS" is answered from `health:DescribeEvents` and from
+   * nothing else, and the failure this guards is silent: drop the call and the
+   * page still renders, every layout check stays green, and the AWS card
+   * quietly becomes an unreadable-forever panel — or disappears — while an
+   * operator reads a firing alarm as this estate's fault during somebody
+   * else's outage.
+   *
+   * The identity hand-over is asserted for a second reason: `resolveIdentity`
+   * caches only an ACTUAL answer, so an estate where STS is unreachable — the
+   * estate this console must keep booting in — pays for two failing STS calls
+   * per load without it, and the two surfaces can name different accounts.
+   */
+  test("the page asks AWS about itself, on the identity the alarm read already resolved", () => {
+    const page = readHealth("page.tsx")
+    expect(page).toContain("await awsHealthSurface(")
+    expect(page).toContain("identity: surface.identity")
+    // The question itself, in the operator's words, above the apparatus.
+    expect(page).toContain("Is anything broken right now, and is it us or is it AWS?")
+  })
+
   test("the page imports the MD3 primitives and hand-rolls none of them", () => {
     const page = readHealth("page.tsx")
     expect(page).toContain('from "@/components/md3"')
-    for (const primitive of ["Card", "Badge", "DataTable", "EmptyState", "Chip"]) {
+    for (const primitive of [
+      "Card",
+      "Badge",
+      "DataTable",
+      "EmptyState",
+      "Chip",
+      // The shared AWS-reading set. `KeyValue` replaced this route's own
+      // two-column `<dl>` and the media query that stacked it at 320 CSS
+      // pixels; `UnknownState` replaced the older `AwsReadPanel` markup, so a
+      // refused read on this page prints the same principal, action, error code
+      // and pasteable statement as every other AWS-backed surface.
+      "KeyValue",
+      "StaleIndicator",
+      "UnknownState",
+    ]) {
       expect(page, `${primitive} is not used`).toContain(primitive)
     }
     // The ad-hoc class strings this page carried before.

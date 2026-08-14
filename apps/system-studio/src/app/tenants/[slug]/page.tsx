@@ -4,14 +4,7 @@ import { notFound, redirect } from "next/navigation"
 import { getTenantBinding } from "@tenure/blueprints"
 import { buildSystem, compatibilityFor, planPromotion } from "@tenure/platform-config"
 import type { CellRecord } from "@tenure/provisioning"
-import {
-  REQUIRES_OWNER,
-  classify,
-  needsApproval,
-  nextStates,
-  planFor,
-  requirementsFor,
-} from "@tenure/provisioning"
+import { classify, getPlan, planFor, requirementsFor } from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
 import { authorizeCommand, controlPlaneIdentity } from "@/lib/authorize"
@@ -29,16 +22,32 @@ import { observeFleet } from "@/lib/aws/health"
 import { healthOf } from "@/lib/fleet-health"
 import { compareDesiredToActual, desiredFromDeployment } from "@/lib/aws/drift"
 import { estateInventory } from "@/lib/aws/inventory"
+import type { AwsRead } from "@/lib/aws/read"
 import { retainedObservation, retainedReadingsForTenant } from "@/lib/aws/retained"
+import { INVENTORY_REFRESH_MS } from "@/lib/aws/tags"
 import { getTenant, registryConfigured } from "@/lib/registry"
 import { DynamoConfigStore } from "@/lib/config-store"
 import { readLedger, type AuditRow } from "@/lib/audit-ledger"
 import { DeploymentPanel } from "@/components/DeploymentPanel"
 import { EvidencePanel } from "@/components/EvidencePanel"
 import { REFUSED_OPERATIONS } from "@/lib/command-handlers"
-import { Badge, ButtonLink, Card, Chip, DataTable, EmptyState } from "@/components/md3"
+import {
+  Badge,
+  ButtonLink,
+  Card,
+  Chip,
+  DataTable,
+  EmptyState,
+  KeyValue,
+  Surface,
+  UnknownState,
+  type KeyValueItem,
+  type UnknownRead,
+} from "@/components/md3"
 import { AdvanceControls } from "./AdvanceControls"
 import styles from "./tenant.module.css"
+import { describeFootprint, footprintOf } from "./footprint"
+import { WEIGHT_WORD, permittedMoves, whatMovingDoes, type PermittedMove } from "./next-moves"
 import {
   answeredOf,
   leadAnswer,
@@ -64,19 +73,64 @@ function hostOf(baseUrl: string | undefined): string | null {
 }
 
 /**
+ * The four arms of a reading that carry no value, or null when it has one.
+ *
+ * A narrowing helper rather than `isUnknown` from `lib/aws/read.ts`, which
+ * returns a plain boolean and therefore does not let `UnknownState`'s parameter
+ * type be satisfied. Three other routes have written this same six-line function
+ * — `console-index/placement.ts`, `tenants/fleet-view.ts` and
+ * `platform/cost/cost-decisions.ts` — which says it belongs beside
+ * `UnknownState` rather than in a fourth route. Named in the hand-off; not moved
+ * here, because `components/md3/` is not this route's to change.
+ */
+function unknownArm<T>(read: AwsRead<T>): UnknownRead | null {
+  switch (read.state) {
+    case "DENIED":
+    case "THROTTLED":
+    case "UNCONFIGURED":
+    case "ERROR":
+      return read
+    default:
+      return null
+  }
+}
+
+/** The value a reading carries, or null when it carries none. */
+function valueOf<T>(read: AwsRead<T>): T | null {
+  return read.state === "ACTUAL" || read.state === "STALE" ? read.value : null
+}
+
+/** When a reading was taken, for the panels that state it. */
+function asOfOf(read: AwsRead<unknown>): string | null {
+  return "asOf" in read ? read.asOf : null
+}
+
+/**
  * A reading this console could not make, said where the fact would have been.
  *
  * Two sentences, always: what could not be read, and the thing to do about it.
- * There is no tone class and no colour — the words are the carrier (Bible
- * §26.3.2), and `Badge` beside it names the state in one word for a reader
+ * The words are the carrier and `Badge` names the state in one word for a reader
  * scanning rather than reading.
+ *
+ * This is NOT `UnknownState`, and the difference is a type rather than a
+ * preference. `UnknownState` takes the four valueless arms of `AwsRead`, which
+ * carry a capability, a principal, an error code and a pasteable IAM statement —
+ * facts that exist because an AWS SDK call was made. The three readings this
+ * page makes that are not AWS SDK calls (the cell registry, the audit ledger and
+ * the configuration store) have none of them, and inventing a capability name or
+ * a minimum statement to satisfy the type would be this console fabricating the
+ * evidence for its own refusal. So they render here, with the reason and the fix
+ * they actually have.
  */
 function NotKnown({ because, fix }: { because: string; fix: string }) {
   return (
-    <div className={styles.tight}>
+    <Surface as="div" container="lowest" level={0} shape="medium" outlined className={styles.notice}>
+      <Badge tone="warn" title="This console did not get an answer, and is not reporting an absence">
+        not known
+      </Badge>
       <p className="md3-body-medium">{because}</p>
       <p className="md3-body-small">{fix}</p>
-    </div>
+    </Surface>
   )
 }
 
@@ -169,24 +223,35 @@ function releaseReadiness(slug: string, cells: readonly CellRecord[], cellId: st
 
 /**
  * One tenant: what it is, where it is, how it got there, and what can happen
- * next — in that order, and with the answer first.
+ * next — in that order, and with the answer above all four.
  *
  * ── The order is the design ────────────────────────────────────────────────
  *
- * An operator opens this page holding a question, and until this change the
- * first thing it answered was "what does the registry row say", which is the
- * question nobody has. So the page now leads with `leadAnswer` — the same
- * `healthOf` verdict `/tenants` ranks the fleet by, so the badge on the listing
- * and the sentence at the top of this page cannot disagree — and everything
- * that follows is grouped under a heading that says what kind of fact it is.
+ * An operator opens this page holding a question, and the page now says which
+ * four questions it answers before it answers any of them. Then it leads with
+ * `leadAnswer` — the same `healthOf` verdict `/tenants` ranks the fleet by, so
+ * the badge on the listing and the sentence at the top of this page cannot
+ * disagree — and everything after it is grouped under a heading naming what KIND
+ * of fact it holds:
+ *
+ *   * what it is — the lifecycle state, the blueprint, the modules, the plan and
+ *     its seat quota, and what the state claims to retain;
+ *   * where it is — the registry's placement, and then the live AWS resources
+ *     carrying this tenant's tag, by service;
+ *   * how it got here — the lifecycle steps that HAPPENED, then every attempt
+ *     including the ones that were refused;
+ *   * what can happen next — the transitions the engine permits, each with the
+ *     approval it demands, and the controls for an operator entitled to use them.
  *
  * ── Every panel says when it was true, and admits what it does not know ────
  *
  * Each card's supporting line ends in an as-of stamp, and each reading that
- * could fail is a `Reading<T>` rather than a `T | null`: the reason and the fix
- * travel with the absence. A console holding credentials for a live estate must
- * never render "we were not allowed to look" as "there is nothing there", and
- * the surfaces that can be refused are exactly the surfaces that matter.
+ * could fail is a `Reading<T>` or an `AwsRead<T>` rather than a `T | null`: the
+ * reason and the fix travel with the absence. A console holding credentials for
+ * a live estate must never render "we were not allowed to look" as "there is
+ * nothing there", and the surfaces that can be refused are exactly the surfaces
+ * that matter. AWS refusals render through the shared `UnknownState`, which
+ * prints the principal, the action and a pasteable minimum IAM statement.
  *
  * ── It boots without AWS ───────────────────────────────────────────────────
  *
@@ -199,8 +264,11 @@ function releaseReadiness(slug: string, cells: readonly CellRecord[], cellId: st
  *
  * ── "What can happen next" is read from the engine ─────────────────────────
  *
- * The buttons an operator sees are exactly the transitions the engine will
- * accept. A hardcoded set would drift and produce buttons that always fail.
+ * `permittedMoves` is `nextStates` and the change-class policy, and nothing
+ * else. A destination the graph forbids has no row and no button; a destination
+ * it permits but gates is separated from a routine one and says what it demands
+ * before the click. A hardcoded set would drift and produce buttons that always
+ * fail.
  */
 export default async function TenantPage({ params }: { params: Promise<{ slug: string }> }) {
   // STUDIO-000-006. `fleet()` used to default the account, region and partition
@@ -242,8 +310,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
   /** When the registry answered. Every panel fed by it states this. */
   const registryReadAt = new Date()
 
-  const plan = planFor(tenant.manifest)
-  const moves = nextStates(tenant.state)
+  const provisioning = planFor(tenant.manifest)
   /**
    * WRK-120-005 — what this tenant is holding, from facts the registry owns.
    *
@@ -329,6 +396,33 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
         { now: registryReadAt, slug: tenant.slug },
       )
     : null
+
+  /*
+   * STUDIO-070-002 — "where it is", from the tag and from nothing else.
+   *
+   * The same `tagged` reading the drift comparison above was already given, so
+   * the Tagging API is called ONCE per render and the two panels cannot report
+   * different estates. `footprintOf` groups it by the ARN's service field;
+   * `unknownArm` is what keeps a refused `tag:GetResources` from rendering as a
+   * tenant that holds nothing.
+   */
+  const taggedRead = inventory.known ? inventory.value.tagged : null
+  const taggedUnknown = taggedRead === null ? null : unknownArm(taggedRead)
+  /*
+   * `taggedUnknown !== null` is checked HERE as well as at the render, so the
+   * guarantee is structural rather than a property of which branch happens to
+   * be written first: a refused, throttled, unconfigured or failed read
+   * produces no footprint at all, and there is no value for a later edit to
+   * render as "this tenant holds nothing".
+   *
+   * The `?? []` is therefore reached only by `EMPTY`, which is the one arm
+   * where an empty array is the truth — the Tagging API answered and returned
+   * nothing.
+   */
+  const taggedValue =
+    taggedRead === null || taggedUnknown !== null ? null : (valueOf(taggedRead) ?? [])
+  const footprint = taggedValue === null ? null : footprintOf(taggedValue, tenant.slug)
+  const footprintAsOf = taggedRead === null ? null : asOfOf(taggedRead)
 
   /*
    * STUDIO-140-006. Every attempt, not only every move that succeeded.
@@ -464,6 +558,27 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
     ? releaseReadiness(tenant.slug, cells.value, tenant.registry?.placement.cellId)
     : null
 
+  /*
+   * What the engine permits out of this state, with the weight of each.
+   *
+   * Computed once and used twice — for the table an operator READS and for the
+   * controls they PRESS — so the two cannot describe the same move differently.
+   * Before this, the table did not exist and the weights were assembled inline
+   * in the props of `AdvanceControls`, where nothing could reach them.
+   */
+  const moves = permittedMoves(tenant.state, tenant.slug)
+
+  /**
+   * What this tenant is sold as, and how many seats that plan allows.
+   *
+   * `getPlan` reads the real catalog rather than a number typed onto this page.
+   * `undefined` for a plan the catalog does not hold is said in those words: a
+   * registry naming a plan that no longer exists is a finding, and rendering a
+   * blank cell is how it stays one for a year.
+   */
+  const commercialPlan = tenant.registry ? getPlan(tenant.registry.plan) : undefined
+  const seatQuota = commercialPlan?.quotas.find((q) => q.dimension === "seats") ?? null
+
   const advance = authorizeCommand("tenant.lifecycle.advance", {
     principalId,
     tenantId: tenant.slug,
@@ -493,6 +608,9 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
       ? `${placement.cellId} · ${placement.region} — this console holds no record of that cell`
       : null
 
+  /** The identifier styling, applied once rather than at fifteen call sites. */
+  const mono = (text: string) => <span className={styles.identifier}>{text}</span>
+
   return (
     <div className={styles.page}>
       {/* The section nav names Tenants; this says which one, and how to get
@@ -509,6 +627,27 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
       <header className={styles.lead}>
         <h1 className="md3-headline-large">{tenant.manifest.displayName}</h1>
         <p className="md3-body-medium">{tenant.manifest.legalName}</p>
+
+        {/*
+          The question this page answers, in words, above every panel that
+          answers part of it.
+
+          It is here rather than in a card because it is not a reading: nothing
+          on this line was fetched, nothing about it can be stale, and giving it
+          an as-of stamp would be this page claiming a timestamp for a sentence.
+          The four phrases are links to the sections that answer them, so the
+          orientation and the navigation are the same object — a reader who has
+          understood the shape of the page has also learned how to move around
+          it.
+        */}
+        <p className="md3-body-large">
+          Four questions about this tenant, in order:{" "}
+          <Link href="#state">what it is</Link>, <Link href="#aws-footprint">where it is</Link>,{" "}
+          <Link href="#history">how it got here</Link>, and{" "}
+          <Link href="#next">what can happen next</Link>. The answer an operator should act on
+          first is immediately below.
+        </p>
+
         <div className={styles.row}>
           <Chip title="The slug this tenant is addressed by">
             <span className={styles.identifier}>/{tenant.slug}</span>
@@ -540,88 +679,97 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           "What an operator should act on first, from the registry and from what was observed of the running system — never from anything inside the tenant",
           observedAt,
         )}
+        actions={
+          <>
+            <ButtonLink href="#next" variant="tonal">
+              What can happen next
+            </ButtonLink>
+            <ButtonLink href={`/tenants/${tenant.slug}/configuration`} variant="text">
+              Configuration
+            </ButtonLink>
+          </>
+        }
       >
         <div className={styles.stack}>
           <p className="md3-body-large">{answer.headline}</p>
           {answer.because ? <p className="md3-body-medium">{answer.because}</p> : null}
 
-          <dl className={styles.facts}>
-            <dt>Lifecycle</dt>
-            <dd>
-              <span className={styles.identifier}>{tenant.state}</span>
-            </dd>
-
-            <dt>Serving</dt>
-            <dd>
-              {serving
-                ? "Yes — a published artifact says so, which is what makes a cell answer for it."
-                : tenant.deployment
-                  ? "No — an artifact is published and its routing switch is off."
-                  : "No — no artifact has been published, so no cell routes at it."}
-            </dd>
-
-            <dt>Placement</dt>
-            <dd>
-              {placementLine ? (
-                <span className={styles.identifier}>{placementLine}</span>
-              ) : cells.known ? (
-                "Not placed. The registry holds no placement for this tenant."
-              ) : (
-                <NotKnown because={cells.because} fix={cells.fix} />
-              )}
-            </dd>
-
-            <dt>Last moved</dt>
-            <dd>
-              <span className={styles.identifier}>{tenant.updatedAt}</span>
-              {health.hoursSinceChange === null
-                ? " — the timestamp could not be parsed, so how long it has sat here is unknown"
-                : ` — ${health.hoursSinceChange.toFixed(0)} hours ago`}
-            </dd>
-
-            <dt>Sources answered</dt>
-            <dd>
-              {!observations.known ? (
-                <NotKnown because={observations.because} fix={observations.fix} />
-              ) : answered.total === 0 ? (
-                "None. There is nothing observable about a tenant with no cell to observe it against."
-              ) : (
-                `${answered.answered} of ${answered.total}.${
-                  answered.unobserved.length > 0
-                    ? ` Nothing definite came back from ${answered.unobserved.join(", ")}.`
-                    : ""
-                }`
-              )}
-            </dd>
-
-            <dt>Configuration</dt>
-            <dd>
-              {storeRevision.known ? (
-                `registry ${tenant.registry?.configRevision ?? "—"} · store ${
-                  storeRevision.value ?? "nothing published"
-                }`
-              ) : (
-                <NotKnown because={storeRevision.because} fix={storeRevision.fix} />
-              )}
-            </dd>
-          </dl>
-
-          <div className={styles.row}>
-            <ButtonLink href={`/tenants/${tenant.slug}/configuration`} variant="tonal">
-              Configuration
-            </ButtonLink>
-          </div>
+          <KeyValue
+            ariaLabel="What is true of this tenant right now"
+            items={[
+              { key: "lifecycle", term: "Lifecycle", value: mono(tenant.state) },
+              {
+                key: "serving",
+                term: "Serving",
+                value: serving
+                  ? "Yes — a published artifact says so, which is what makes a cell answer for it."
+                  : tenant.deployment
+                    ? "No — an artifact is published and its routing switch is off."
+                    : "No — no artifact has been published, so no cell routes at it.",
+              },
+              {
+                key: "placement",
+                term: "Placement",
+                value: placementLine ? (
+                  mono(placementLine)
+                ) : cells.known ? (
+                  "Not placed. The registry holds no placement for this tenant."
+                ) : (
+                  <NotKnown because={cells.because} fix={cells.fix} />
+                ),
+              },
+              {
+                key: "moved",
+                term: "Last moved",
+                value: (
+                  <>
+                    {mono(tenant.updatedAt)}
+                    {health.hoursSinceChange === null
+                      ? " — the timestamp could not be parsed, so how long it has sat here is unknown"
+                      : ` — ${health.hoursSinceChange.toFixed(0)} hours ago`}
+                  </>
+                ),
+              },
+              {
+                key: "sources",
+                term: "Sources answered",
+                value: !observations.known ? (
+                  <NotKnown because={observations.because} fix={observations.fix} />
+                ) : answered.total === 0 ? (
+                  "None. There is nothing observable about a tenant with no cell to observe it against."
+                ) : (
+                  `${answered.answered} of ${answered.total}.${
+                    answered.unobserved.length > 0
+                      ? ` Nothing definite came back from ${answered.unobserved.join(", ")}.`
+                      : ""
+                  }`
+                ),
+              },
+              {
+                key: "configuration",
+                term: "Configuration",
+                value: storeRevision.known ? (
+                  `registry ${tenant.registry?.configRevision ?? "—"} · store ${
+                    storeRevision.value ?? "nothing published"
+                  }`
+                ) : (
+                  <NotKnown because={storeRevision.because} fix={storeRevision.fix} />
+                ),
+              },
+            ]}
+          />
         </div>
       </Card>
 
-      {/* ── Lifecycle ──────────────────────────────────────────────────────
-          Where it is, and the only moves the engine will accept out of it. */}
+      {/* ── 1. What it is ──────────────────────────────────────────────────
+          The lifecycle state, the shape that was asked for, and what this state
+          claims to keep costing. */}
       <Card
         id="state"
         headline="State"
         headerAside={<Badge tone="warn" title="The lifecycle state the registry holds">{tenant.state}</Badge>}
         supportingText={statedAsOf(
-          "Where this tenant is in the lifecycle graph, and what the engine will accept next",
+          "What this tenant IS: where it sits in the lifecycle graph, the blueprint and modules it was composed from, the plan it is sold on, and what this state claims to retain",
           registryReadAt,
         )}
       >
@@ -649,6 +797,57 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
               }
             />
           )}
+
+          <KeyValue
+            ariaLabel="What this tenant was composed from"
+            items={[
+              { key: "blueprint", term: "Blueprint", value: mono(tenant.manifest.blueprintId) },
+              { key: "modules", term: "Modules", value: tenant.manifest.modules.join(", ") },
+              {
+                key: "entitlements",
+                term: "Entitlements",
+                value:
+                  tenant.manifest.entitlements.length > 0
+                    ? tenant.manifest.entitlements.join(", ")
+                    : "None beyond the blueprint's own modules.",
+              },
+              {
+                key: "plan",
+                term: "Plan",
+                value: !tenant.registry
+                  ? "No registry record, so nothing says what this tenant is sold as."
+                  : commercialPlan
+                    ? `${commercialPlan.displayName} (${commercialPlan.planId}), ${commercialPlan.supportTier} support`
+                    : `${tenant.registry.plan} — the plan catalog holds no plan by that id, so its quotas and entitlements cannot be resolved.`,
+              },
+              {
+                key: "seats",
+                term: "Seats",
+                value: !seatQuota
+                  ? commercialPlan
+                    ? `${commercialPlan.displayName} declares no seat quota, so no seat limit is enforced for this tenant.`
+                    : "Unknown until the plan resolves. Seats are a property of the plan, not of the manifest."
+                  : seatQuota.limit === null
+                    ? "Explicitly unlimited on this plan."
+                    : `${seatQuota.limit.toLocaleString("en-US")} on this plan, enforced ${seatQuota.enforcement}.${
+                        seatQuota.enforcement === "soft"
+                          ? " Soft on purpose: seats grow between renewals and refusing one mid-term breaks a working institution."
+                          : ""
+                      }`,
+              },
+              {
+                key: "isolation",
+                term: "Isolation",
+                value: `${tenant.manifest.isolation} · ${tenant.manifest.region}`,
+              },
+              {
+                key: "admin",
+                term: "First administrator",
+                value: tenant.manifest.initialAdminEmail,
+              },
+              { key: "registered", term: "Registered", value: mono(tenant.createdAt) },
+            ]}
+          />
 
           {/* WRK-120-005. The note, and what it is wrong about. Rendering the
               sentence alone is what made the claim unfalsifiable: it says what
@@ -694,84 +893,10 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
               )}
             </div>
           )}
-
-          <dl className={styles.facts}>
-            <dt>Blueprint</dt>
-            <dd>
-              <span className={styles.identifier}>{tenant.manifest.blueprintId}</span>
-            </dd>
-            <dt>Modules</dt>
-            <dd>{tenant.manifest.modules.join(", ")}</dd>
-            <dt>Isolation</dt>
-            <dd>
-              {tenant.manifest.isolation} · {tenant.manifest.region}
-            </dd>
-            <dt>First administrator</dt>
-            <dd>{tenant.manifest.initialAdminEmail}</dd>
-            <dt>Registered</dt>
-            <dd>
-              <span className={styles.identifier}>{tenant.createdAt}</span>
-            </dd>
-          </dl>
-
-          {/*
-            Absent, not disabled. An Auditor/Read Only operator holds
-            `tenant.lifecycle:read` and nothing else, so the controls that move a
-            tenant's lifecycle are not rendered into their page at all — and the
-            server action re-decides the same command, so a hand-crafted POST is
-            refused too. The sentence below says the refusal happened rather than
-            leaving a reader wondering where the buttons went; it names no
-            destination, because listing what somebody may not do is a map of the
-            surface for whoever is looking for one.
-          */}
-          {advance.allowed ? (
-            <AdvanceControls
-              slug={tenant.slug}
-              // STUDIO-060-002. What this page was looking at when it rendered.
-              // `gate` compares both against the registry at submission time, so
-              // a move decided against a page somebody left open is refused
-              // rather than applied to a tenant that has since moved. The two are
-              // exactly what the action's `current()` reads back.
-              expectedVersion={tenant.history.length}
-              expectedDigest={tenant.digest}
-              moves={moves.map((to) => ({
-                to,
-                needsApproval: needsApproval(tenant.state, to),
-                // WRK-120-005. The destinations that cannot be entered with
-                // nobody named as responsible afterwards. Read from the engine,
-                // like `needsApproval`, so the field an operator is shown is
-                // exactly the field the engine will refuse without.
-                needsOwner: REQUIRES_OWNER.has(to),
-                // Computed here, on the server, from the transition graph itself.
-                // Reversibility especially: a hand-written label saying "this can
-                // be undone" is a claim, and the graph is the fact.
-                //
-                // `NO_RETAINED_AWS_OBSERVATION` and NOT the live `retained`
-                // reading above, deliberately. `highRiskVerdict` in
-                // `lib/tenant-state.ts` recomputes this risk server-side with the
-                // same constant and compares the digest; feeding the live reading
-                // here would produce a digest the gate cannot reproduce, and
-                // every high-risk move would refuse with "the consequence
-                // changed" for a consequence that had not.
-                risk: riskOf(tenant.slug, tenant.state, to, NO_RETAINED_AWS_OBSERVATION, observed),
-                // STUDIO-060-007. The token the gate in `runAdvance` will compare,
-                // produced by the same function that compares it. Null for a class
-                // that needs none, which is what hides the field.
-                typedConfirmation: requirementsFor(
-                  classify({ surface: "tenant-lifecycle", action: to, target: tenant.slug }),
-                  tenant.slug,
-                ).typedConfirmation,
-              }))}
-            />
-          ) : (
-            <p className="md3-body-medium" data-testid="lifecycle-read-only">
-              Read only. Moving this tenant&rsquo;s lifecycle is not yours to do.
-            </p>
-          )}
         </div>
       </Card>
 
-      {/* ── What the registry holds ────────────────────────────────────────── */}
+      {/* ── 2. Where it is — what the registry holds ────────────────────────── */}
       {tenant.registry && (
         <Card
           id="registry"
@@ -794,35 +919,167 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
               </p>
             )}
 
-            <dl className={styles.facts}>
-              <dt>Tenant id</dt>
-              <dd>
-                <span className={styles.identifier}>{tenant.registry.tenantId}</span>
-              </dd>
-              <dt>Lifecycle</dt>
-              <dd>{tenant.registry.lifecycle}</dd>
-              <dt>Cell</dt>
-              <dd>
-                <span className={styles.identifier}>
-                  {tenant.registry.placement.cellId} · {tenant.registry.placement.region}
-                </span>
-              </dd>
-              <dt>Permitted regions</dt>
-              <dd>{tenant.registry.residency.join(", ")}</dd>
-              <dt>Plan</dt>
-              <dd>{tenant.registry.plan}</dd>
-              <dt>Release</dt>
-              <dd>
-                <span className={styles.identifier}>{tenant.registry.release}</span>
-              </dd>
-              <dt>Config revision</dt>
-              <dd>{tenant.registry.configRevision}</dd>
-              <dt>Administrator</dt>
-              <dd>{tenant.registry.primaryContactEmail}</dd>
-            </dl>
+            <KeyValue
+              ariaLabel="What the registry records about this tenant"
+              items={[
+                { key: "id", term: "Tenant id", value: mono(tenant.registry.tenantId) },
+                { key: "lifecycle", term: "Lifecycle", value: tenant.registry.lifecycle },
+                {
+                  key: "cell",
+                  term: "Cell",
+                  value: mono(
+                    `${tenant.registry.placement.cellId} · ${tenant.registry.placement.region}`,
+                  ),
+                },
+                {
+                  key: "residency",
+                  term: "Permitted regions",
+                  value: tenant.registry.residency.join(", "),
+                },
+                { key: "plan", term: "Plan", value: tenant.registry.plan },
+                { key: "release", term: "Release", value: mono(tenant.registry.release) },
+                {
+                  key: "config",
+                  term: "Config revision",
+                  value: String(tenant.registry.configRevision),
+                },
+                {
+                  key: "contact",
+                  term: "Administrator",
+                  value: tenant.registry.primaryContactEmail,
+                },
+              ]}
+            />
           </div>
         </Card>
       )}
+
+      {/* ── 2. Where it is — the live resources, by service ───────────────────
+          STUDIO-070-002. Attribution is by TAG. A resource is this tenant's
+          because `tenure:tenant` says so, never because its name starts with the
+          slug — which is how `acme-staging` gets billed to `acme`.
+
+          The reading is the same `tag:GetResources` call the drift comparison
+          above was given, so the Tagging API is asked once and the two panels
+          cannot disagree about what is out there. */}
+      <Card
+        id="aws-footprint"
+        headline="Where it is in AWS"
+        headerAside={
+          <Badge
+            tone={taggedUnknown !== null ? "warn" : footprint && footprint.total > 0 ? "info" : "neutral"}
+            title="Live AWS resources carrying this tenant's tag"
+          >
+            {taggedUnknown !== null
+              ? "not read"
+              : footprint === null
+                ? "not read"
+                : `${footprint.total} tagged`}
+          </Badge>
+        }
+        supportingText={statedAsOf(
+          "Every live AWS resource whose tenure:tenant tag names this tenant, grouped by the service in its ARN. Attribution comes from the tag and from nothing else — a resource is not this tenant's because it is NAMED after it. Read once per render and shared with the drift comparison below",
+          footprintAsOf ?? registryReadAt,
+        )}
+      >
+        {taggedUnknown !== null ? (
+          <UnknownState what="the resources tagged for this tenant" read={taggedUnknown} />
+        ) : footprint === null ? (
+          <NotKnown
+            because={inventory.known ? "The estate was not read." : inventory.because}
+            fix={inventory.known ? "Reload this page." : inventory.fix}
+          />
+        ) : (
+          <div className={styles.stack}>
+            <p className="md3-body-medium">{describeFootprint(footprint, tenant.slug)}</p>
+
+            {/* The reading's own age, against the cadence the Tagging API
+                capability declares. `INVENTORY_REFRESH_MS` rather than a number
+                chosen here: a page that supplies its own refresh window is
+                describing a cadence nothing implements. */}
+            {footprintAsOf !== null && (
+              <KeyValue
+                ariaLabel="When the tag inventory was read"
+                items={[
+                  {
+                    key: "read",
+                    term: "Tag inventory read",
+                    value: mono("tag:GetResources"),
+                    asOf: { at: footprintAsOf, cadenceMs: INVENTORY_REFRESH_MS },
+                  },
+                ]}
+              />
+            )}
+
+            <DataTable
+              caption="AWS services this tenant holds resources in, biggest first"
+              rows={footprint.services}
+              rowKey={(service) => service.service}
+              empty={
+                <EmptyState
+                  headline="Nothing carries this tenant's tag"
+                  description="The Tagging API answered and returned no resource tagged for this tenant. That is a real absence — a refused read is reported separately, above, and never as an empty list."
+                />
+              }
+              columns={[
+                {
+                  key: "service",
+                  header: "Service",
+                  cell: (service) => mono(service.service),
+                },
+                {
+                  key: "count",
+                  header: "Resources",
+                  align: "end",
+                  cell: (service) => service.count,
+                },
+                {
+                  key: "regions",
+                  header: "Regions",
+                  cell: (service) => service.regions.join(", "),
+                },
+                {
+                  key: "arns",
+                  header: "Identifiers",
+                  cell: (service) => (
+                    <span className={styles.cell}>
+                      {/* Bounded, and the bound is stated. A tenant with two
+                          hundred log groups would otherwise push this page past
+                          its DOM budget, and "showing 6 of 214" is the honest
+                          half of a truncation. */}
+                      {service.arns.slice(0, 6).map((arn) => (
+                        <span className={styles.identifier} key={arn}>
+                          {arn}
+                        </span>
+                      ))}
+                      {service.arns.length > 6 && (
+                        <span className="md3-body-small">
+                          Showing 6 of {service.arns.length}. The rest are in the AWS console, by
+                          the same tag.
+                        </span>
+                      )}
+                    </span>
+                  ),
+                },
+              ]}
+            />
+
+            {footprint.unreadableArns.length > 0 && (
+              <div className={styles.tight}>
+                <p className="md3-body-medium">
+                  ARNs this console could not parse, counted in the total above because they are
+                  still resources this tenant holds and still cost money:
+                </p>
+                {footprint.unreadableArns.map((arn) => (
+                  <span className={styles.identifier} key={arn}>
+                    {arn}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
 
       {/* ── What was seen, including what could not be ─────────────────────── */}
       <Card
@@ -862,7 +1119,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
               {
                 key: "source",
                 header: "Source",
-                cell: (o) => <span className={styles.identifier}>{o.source}</span>,
+                cell: (o) => mono(o.source),
               },
               {
                 key: "status",
@@ -873,7 +1130,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
               {
                 key: "asOf",
                 header: "As of",
-                cell: (o) => <span className={styles.identifier}>{o.asOf}</span>,
+                cell: (o) => mono(o.asOf),
               },
             ]}
           />
@@ -935,7 +1192,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
                 {
                   key: "resource",
                   header: "Resource",
-                  cell: (item) => <span className={styles.identifier}>{item.resourceKey}</span>,
+                  cell: (item) => mono(item.resourceKey),
                 },
                 { key: "severity", header: "Severity", cell: (item) => item.severity },
                 { key: "owner", header: "Owner", cell: (item) => item.owner },
@@ -984,37 +1241,41 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
             registryReadAt,
           )}
         >
-          <dl className={styles.facts}>
-            <dt>Account</dt>
-            <dd>
-              <span className={styles.identifier}>
-                {placedCell?.awsAccountId ?? identity.accountId ?? "unknown — set AWS_ACCOUNT_ID"}
-              </span>
-            </dd>
-            <dt>Region</dt>
-            <dd>
-              <span className={styles.identifier}>{consoleRegion}</span>
-            </dd>
-            <dt>Services</dt>
-            <dd>
-              <span className={styles.row}>
-                <Link
-                  href={`https://${consoleRegion}.console.aws.amazon.com/ecs/v2/clusters?region=${consoleRegion}`}
-                  rel="noreferrer noopener"
-                  target="_blank"
-                >
-                  ECS clusters
-                </Link>
-                <Link
-                  href={`https://${consoleRegion}.console.aws.amazon.com/cloudwatch/home?region=${consoleRegion}#logsV2:log-groups`}
-                  rel="noreferrer noopener"
-                  target="_blank"
-                >
-                  CloudWatch log groups
-                </Link>
-              </span>
-            </dd>
-          </dl>
+          <KeyValue
+            ariaLabel="Where this tenant's account is, and how to open it"
+            items={[
+              {
+                key: "account",
+                term: "Account",
+                value: mono(
+                  placedCell?.awsAccountId ?? identity.accountId ?? "unknown — set AWS_ACCOUNT_ID",
+                ),
+              },
+              { key: "region", term: "Region", value: mono(consoleRegion) },
+              {
+                key: "services",
+                term: "Services",
+                value: (
+                  <span className={styles.row}>
+                    <Link
+                      href={`https://${consoleRegion}.console.aws.amazon.com/ecs/v2/clusters?region=${consoleRegion}`}
+                      rel="noreferrer noopener"
+                      target="_blank"
+                    >
+                      ECS clusters
+                    </Link>
+                    <Link
+                      href={`https://${consoleRegion}.console.aws.amazon.com/cloudwatch/home?region=${consoleRegion}#logsV2:log-groups`}
+                      rel="noreferrer noopener"
+                      target="_blank"
+                    >
+                      CloudWatch log groups
+                    </Link>
+                  </span>
+                ),
+              },
+            ]}
+          />
         </Card>
       )}
 
@@ -1024,16 +1285,16 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
         headline="Provisioning plan"
         headerAside={
           <Badge tone="neutral" title="What this shape of tenant costs beyond the pooled baseline">
-            {marginalCost(plan.estimatedMonthlyCostCents)}
+            {marginalCost(provisioning.estimatedMonthlyCostCents)}
           </Badge>
         }
         supportingText={statedAsOf(
-          `What provisioning this tenant does, step by step, derived from its manifest. ${plan.costBasis}`,
+          `What provisioning this tenant does, step by step, derived from its manifest. Nothing on this page runs any of it: the lifecycle RECORDS that a step happened and the cell performs it by reconciling toward the published artifact. ${provisioning.costBasis}`,
           registryReadAt,
         )}
       >
         <div className={styles.stack}>
-          {plan.warnings.map((w) => (
+          {provisioning.warnings.map((w) => (
             <p className="md3-body-medium" key={w}>
               {w}
             </p>
@@ -1041,7 +1302,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
 
           <DataTable
             caption="Provisioning steps, in the order the lifecycle runs them"
-            rows={plan.steps}
+            rows={provisioning.steps}
             rowKey={(s) => s.what}
             empty={
               <EmptyState
@@ -1053,7 +1314,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
               {
                 key: "during",
                 header: "During",
-                cell: (s) => <span className={styles.identifier}>{s.during}</span>,
+                cell: (s) => mono(s.during),
               },
               {
                 key: "what",
@@ -1091,34 +1352,49 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           )}
         >
           <div className={styles.stack}>
-            <dl className={styles.facts}>
-              <dt>Candidate</dt>
-              <dd>
-                <span className={styles.identifier}>
-                  {readiness.assembled.candidate?.releaseId ?? "— did not validate"}
-                </span>
-              </dd>
-              <dt>Signature</dt>
-              <dd>
-                {readiness.assembled.candidate?.signature
-                  ? `${readiness.assembled.candidate.signature.algorithm} by ${readiness.assembled.candidate.signature.keyId}`
-                  : "Unsigned. Set RELEASE_SIGNING_KEY_ID and RELEASE_SIGNING_SECRET — an unsigned release cannot be approved."}
-              </dd>
-              <dt>Schema</dt>
-              <dd>
-                <span className={styles.identifier}>{readiness.assembled.schemaVersion}</span>
-                {readiness.assembled.schemaVersion === readiness.cell.schemaVersion
-                  ? ""
-                  : ` · ${readiness.cell.cellId} is at ${readiness.cell.schemaVersion}`}
-              </dd>
-              <dt>Engine</dt>
-              <dd>
-                <span className={styles.identifier}>{readiness.engineVersion}</span> on{" "}
-                <span className={styles.identifier}>{readiness.cell.cellId}</span>
-              </dd>
-              <dt>Modules</dt>
-              <dd>{readiness.assembled.moduleKeys.join(", ")}</dd>
-            </dl>
+            <KeyValue
+              ariaLabel="The release candidate assembled for this tenant"
+              items={[
+                {
+                  key: "candidate",
+                  term: "Candidate",
+                  value: mono(readiness.assembled.candidate?.releaseId ?? "— did not validate"),
+                },
+                {
+                  key: "signature",
+                  term: "Signature",
+                  value: readiness.assembled.candidate?.signature
+                    ? `${readiness.assembled.candidate.signature.algorithm} by ${readiness.assembled.candidate.signature.keyId}`
+                    : "Unsigned. Set RELEASE_SIGNING_KEY_ID and RELEASE_SIGNING_SECRET — an unsigned release cannot be approved.",
+                },
+                {
+                  key: "schema",
+                  term: "Schema",
+                  value: (
+                    <>
+                      {mono(readiness.assembled.schemaVersion)}
+                      {readiness.assembled.schemaVersion === readiness.cell.schemaVersion
+                        ? ""
+                        : ` · ${readiness.cell.cellId} is at ${readiness.cell.schemaVersion}`}
+                    </>
+                  ),
+                },
+                {
+                  key: "engine",
+                  term: "Engine",
+                  value: (
+                    <>
+                      {mono(readiness.engineVersion)} on {mono(readiness.cell.cellId)}
+                    </>
+                  ),
+                },
+                {
+                  key: "modules",
+                  term: "Modules",
+                  value: readiness.assembled.moduleKeys.join(", "),
+                },
+              ]}
+            />
 
             {readiness.assembled.validation.problems.length > 0 && (
               <div className={styles.tight}>
@@ -1150,7 +1426,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
                     {
                       key: "key",
                       header: "Key",
-                      cell: (p) => <span className={styles.identifier}>{p.key}</span>,
+                      cell: (p) => mono(p.key),
                     },
                     { key: "needs", header: "Needs", cell: (p) => p.requires },
                     { key: "running", header: "Running", cell: (p) => p.running },
@@ -1174,8 +1450,8 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
                 columns={[
                   {
                     key: "to",
-                    header: "State",
-                    cell: (s) => <span className={styles.identifier}>{s.to}</span>,
+                    header: "Release state",
+                    cell: (s) => mono(s.to),
                   },
                   {
                     key: "reached",
@@ -1209,7 +1485,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
                   {
                     key: "field",
                     header: "Field",
-                    cell: (d) => <span className={styles.identifier}>{d.field}</span>,
+                    cell: (d) => mono(d.field),
                   },
                   {
                     key: "change",
@@ -1248,17 +1524,17 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           an empty list. */}
       {tenant.evidence.length > 0 && <EvidencePanel evidence={tenant.evidence} />}
 
-      {/* ── How it got here ────────────────────────────────────────────────── */}
+      {/* ── 3. How it got here ─────────────────────────────────────────────── */}
       <Card
         id="history"
-        headline="History"
+        headline="How it got here"
         headerAside={
           <Badge tone="neutral" title="Lifecycle moves this tenant has actually made">
             {tenant.history.length} moves
           </Badge>
         }
         supportingText={statedAsOf(
-          "Every lifecycle move that HAPPENED, oldest first. The moves that were attempted and refused are on the audit ledger below, not here",
+          "Every lifecycle move that HAPPENED, oldest first, with who caused it and who approved it. The moves that were attempted and refused are on the audit ledger below, not here",
           registryReadAt,
         )}
       >
@@ -1276,7 +1552,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
             {
               key: "when",
               header: "When",
-              cell: (s) => <span className={styles.identifier}>{s.at}</span>,
+              cell: (s) => mono(s.at),
             },
             {
               key: "move",
@@ -1291,7 +1567,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
                 </span>
               ),
             },
-            { key: "actor", header: "Actor", cell: (s) => s.actor },
+            { key: "actor", header: "Caused by", cell: (s) => s.actor },
             { key: "approved", header: "Approved by", cell: (s) => s.approvedBy ?? "—" },
           ]}
         />
@@ -1341,7 +1617,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
                 {
                   key: "when",
                   header: "When",
-                  cell: (row) => <span className={styles.identifier}>{row.at}</span>,
+                  cell: (row) => mono(row.at),
                 },
                 {
                   key: "what",
@@ -1397,6 +1673,150 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
         )}
       </Card>
 
+      {/* ── 4. What can happen next ────────────────────────────────────────
+          The transitions the engine will accept out of this state, each with
+          the approval it demands, then the controls for whoever may use them.
+
+          The table is rendered for EVERY operator, including one who may not
+          move anything: "what could happen to this tenant" is a fact an auditor
+          needs and a control is not. `permittedMoves` is `nextStates` plus the
+          change-class policy, so a destination the graph forbids has no row —
+          and the same rows are handed to `AdvanceControls`, so the table and the
+          buttons cannot describe one move two ways. */}
+      <Card
+        id="next"
+        headline="What can happen next"
+        headerAside={
+          <Badge
+            tone={moves.length === 0 ? "neutral" : "info"}
+            title="Transitions the lifecycle engine will accept out of this state"
+          >
+            {moves.length === 0
+              ? "terminal"
+              : `${moves.length} permitted`}
+          </Badge>
+        }
+        supportingText={statedAsOf(
+          "The transitions the state machine actually permits out of this state, with the approval each one demands. A move RECORDS that something happened — it writes a lifecycle step, an audit row and its evidence. It does not provision, delete or reconfigure anything in AWS; the cell does that by reconciling toward the published artifact",
+          registryReadAt,
+        )}
+      >
+        <div className={styles.stack}>
+          <p className="md3-body-medium">{whatMovingDoes(moves)}</p>
+
+          <DataTable
+            caption="Permitted transitions, lightest first"
+            rows={moves}
+            rowKey={(move) => move.to}
+            empty={
+              <EmptyState
+                headline="There is no move out of this state"
+                description="The transition graph has no edge leaving it, so nothing is offered and nothing is hidden. This is the end of the lifecycle, not a control an operator is missing."
+              />
+            }
+            columns={[
+              {
+                key: "to",
+                header: "Destination",
+                cell: (move) => mono(move.to),
+              },
+              {
+                key: "weight",
+                header: "Weight",
+                cell: (move: PermittedMove) => (
+                  <span className={styles.cell}>
+                    <Badge
+                      tone={
+                        move.weight === "routine"
+                          ? "neutral"
+                          : move.weight === "gated"
+                            ? "warn"
+                            : "bad"
+                      }
+                      title={`Change class ${move.changeClass}`}
+                    >
+                      {WEIGHT_WORD[move.weight]}
+                    </Badge>
+                    <span className="md3-body-small">
+                      {move.reversible
+                        ? "A serving state is reachable again from here."
+                        : "No path back to a serving state exists from here."}
+                    </span>
+                  </span>
+                ),
+              },
+              {
+                key: "demands",
+                header: "What it demands",
+                cell: (move: PermittedMove) => (
+                  <span className={styles.cell}>
+                    <span>{move.demands}</span>
+                    {move.insteadRunYourself && (
+                      <code className={styles.identifier}>{move.insteadRunYourself}</code>
+                    )}
+                  </span>
+                ),
+              },
+            ]}
+          />
+
+          {/*
+            Absent, not disabled. An Auditor/Read Only operator holds
+            `tenant.lifecycle:read` and nothing else, so the controls that move a
+            tenant's lifecycle are not rendered into their page at all — and the
+            server action re-decides the same command, so a hand-crafted POST is
+            refused too. The sentence below says the refusal happened rather than
+            leaving a reader wondering where the buttons went; it names no
+            destination, because listing what somebody may not do is a map of the
+            surface for whoever is looking for one.
+          */}
+          {advance.allowed ? (
+            <AdvanceControls
+              slug={tenant.slug}
+              // STUDIO-060-002. What this page was looking at when it rendered.
+              // `gate` compares both against the registry at submission time, so
+              // a move decided against a page somebody left open is refused
+              // rather than applied to a tenant that has since moved. The two are
+              // exactly what the action's `current()` reads back.
+              expectedVersion={tenant.history.length}
+              expectedDigest={tenant.digest}
+              moves={moves.map((move) => ({
+                to: move.to,
+                needsApproval: move.needsApproval,
+                needsOwner: move.needsOwner,
+                // Computed here, on the server, from the transition graph itself.
+                // Reversibility especially: a hand-written label saying "this can
+                // be undone" is a claim, and the graph is the fact.
+                //
+                // `NO_RETAINED_AWS_OBSERVATION` and NOT the live `retained`
+                // reading above, deliberately. `highRiskVerdict` in
+                // `lib/tenant-state.ts` recomputes this risk server-side with the
+                // same constant and compares the digest; feeding the live reading
+                // here would produce a digest the gate cannot reproduce, and
+                // every high-risk move would refuse with "the consequence
+                // changed" for a consequence that had not.
+                risk: riskOf(
+                  tenant.slug,
+                  tenant.state,
+                  move.to,
+                  NO_RETAINED_AWS_OBSERVATION,
+                  observed,
+                ),
+                // STUDIO-060-007. The token the gate in `runAdvance` will compare,
+                // produced by the same function that compares it. Null for a class
+                // that needs none, which is what hides the field.
+                typedConfirmation: move.typedConfirmation,
+              }))}
+            />
+          ) : (
+            <p className="md3-body-medium" data-testid="lifecycle-read-only">
+              Read only. Moving this tenant&rsquo;s lifecycle is not yours to do. The table above is
+              what the engine would accept from somebody who may.
+            </p>
+          )}
+        </div>
+      </Card>
+
       {/* STUDIO-060-007. NEXT-SESSION §0.3's refusal list, rendered rather than
           discovered by being refused. Each entry is an operation `classify`
           puts in a class `requirementsFor` marks non-automatable, so this list
@@ -1406,8 +1826,8 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           this table is identical on every tenant's page. It is a policy
           reference rather than a fact about this tenant, and it is named in the
           hand-off notes as belonging behind the Diagnostics tab. Left in place
-          rather than moved, because moving it is the IA agent's change to
-          make. */}
+          rather than moved, because moving it is the navigation agent's change
+          to make. */}
       <Card
         id="refusals"
         headline="What this console will not do"
@@ -1435,11 +1855,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
             {
               key: "operation",
               header: "Operation",
-              cell: (operation) => (
-                <span className={styles.identifier}>
-                  {operation.surface}:{operation.action}
-                </span>
-              ),
+              cell: (operation) => mono(`${operation.surface}:${operation.action}`),
             },
             {
               key: "class",

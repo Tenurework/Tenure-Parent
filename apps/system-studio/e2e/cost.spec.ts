@@ -211,3 +211,126 @@ test.describe("the FinOps Center leads with the answer", () => {
     ])
   })
 })
+
+/**
+ * The other two thirds of the question.
+ *
+ * The page's heading asks three things — what is this fleet costing, who is it
+ * costing it for, and is anything running away — and until this route consumed
+ * the tag and budget readers it answered only the first, and only in the arm
+ * where a Cost and Usage Report exists, which is no arm at all today. These
+ * assertions are about the two answers that ARE available before a bill: the
+ * `tenure:tenant` attribution of the estate, and AWS's own budget forecasts.
+ *
+ * They are written to hold in EVERY arm of both reads. In this job the AWS
+ * credentials are DynamoDB-Local shaped, so both reads come back refused and
+ * both panels render the shared `UnknownState` — but a spec that assumed that
+ * would red the day the job is given a real read-only role, which is a change
+ * that should make this page better rather than break its tests. So each check
+ * asserts the property that must hold whatever came back: the panel says what it
+ * is as of, it renders one of the three legitimate shapes, and a read that could
+ * not be performed is never worded as good news.
+ */
+test.describe("the FinOps Center answers all three parts of its question", () => {
+  test("asks the question at the top, in words, before any apparatus", async ({ page }) => {
+    await signIn(page)
+    await page.goto("/platform/cost")
+
+    await expect(
+      page.getByText(
+        "What is this fleet costing, who is it costing it for, and is anything running away?",
+      ),
+    ).toBeVisible()
+  })
+
+  test("answers the three parts in the order the question asks them", async ({ page }) => {
+    await signIn(page)
+    await page.goto("/platform/cost")
+
+    const headings = await page.getByRole("heading", { level: 2 }).allTextContents()
+    const at = (text: string) => headings.findIndex((heading) => heading.includes(text))
+
+    // The cost answer is still first — an operator arriving here wants a number
+    // before they want any of the machinery that produced it.
+    expect(at("What the fleet costs this month")).toBe(0)
+    expect(at("Who it is costing it for")).toBeGreaterThan(at("What the fleet costs this month"))
+    expect(at("Is anything running away")).toBeGreaterThan(at("Who it is costing it for"))
+    // And what a new commitment needs to be approved comes last, because it is
+    // policy rather than a reading.
+    expect(at("Approval thresholds")).toBeGreaterThan(at("Is anything running away"))
+  })
+
+  test("both AWS panels say what they are as of, in every arm", async ({ page }) => {
+    await signIn(page)
+    await page.goto("/platform/cost")
+
+    for (const panel of ["Who it is costing it for", "Is anything running away"]) {
+      const section = page.locator("section", { hasText: panel })
+      await expect(section, `${panel} does not say what it is as of`).toContainText(/as of/i)
+    }
+  })
+
+  test("neither AWS panel can render as an empty region", async ({ page }) => {
+    // STUDIO-000-007. A read this engine could not perform must never render as
+    // an empty list. Each panel shows exactly one of three legitimate shapes —
+    // the UnknownState, a table of what was read, or a stated emptiness — and
+    // "nothing at all" is not among them.
+    await signIn(page)
+    await page.goto("/platform/cost")
+
+    for (const panel of ["Who it is costing it for", "Is anything running away"]) {
+      const section = page.locator("section", { hasText: panel })
+      const shapes = section.locator("[data-reason], table.md3-table, .md3-empty")
+      expect(await shapes.count(), `${panel} rendered nothing at all`).toBeGreaterThan(0)
+    }
+  })
+
+  test("a refused read is never worded as good news", async ({ page }) => {
+    await signIn(page)
+    await page.goto("/platform/cost")
+
+    const budgets = page.locator("section", { hasText: "Is anything running away" })
+    if ((await budgets.locator("[data-reason]").count()) > 0) {
+      // The engine could not read the budgets. It may not say anything is within
+      // its limit, and it must say the word.
+      await expect(budgets).not.toContainText(/within limits/i)
+      await expect(budgets).toContainText(/UNKNOWN/i)
+      // And the refusal carries its own remedy rather than a support link.
+      await expect(budgets).toContainText(/capability/i)
+    }
+
+    const attribution = page.locator("section", { hasText: "Who it is costing it for" })
+    if ((await attribution.locator("table.md3-table").count()) > 0) {
+      // Shared is a decision somebody made; untagged is a gap. Two facts, and
+      // the page states them separately or not at all.
+      await expect(attribution).toContainText("Shared, by decision")
+      await expect(attribution).toContainText("Reaching no tenant at all")
+    }
+  })
+
+  test("a budget that cannot be shown to notify anybody is not reported as fine", async ({
+    page,
+  }) => {
+    /*
+     * The defect this page exists to stop. A budget alert threshold with an
+     * empty subscriber list fires into nothing: AWS evaluates the notification,
+     * it is breached, and no human is told — and on every console that has ever
+     * shipped that renders as the same quiet row as a budget that is fine.
+     *
+     * This engine cannot read subscriber lists yet, so when it CAN see budgets,
+     * every one of them must carry the unknown in its own row.
+     */
+    await signIn(page)
+    await page.goto("/platform/cost")
+
+    const budgets = page.locator("section", { hasText: "Is anything running away" })
+    const rows = budgets.locator("table.md3-table tbody tr")
+    const count = await rows.count()
+    if (count > 0 && (await budgets.locator(".md3-empty").count()) === 0) {
+      await expect(budgets).toContainText(/notif/i)
+      for (let index = 0; index < count; index += 1) {
+        await expect(rows.nth(index)).not.toHaveText("")
+      }
+    }
+  })
+})

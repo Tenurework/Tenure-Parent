@@ -54,6 +54,35 @@ interface Field {
    * nobody validated.
    */
   price: string
+  /**
+   * Why this operator may not change this key, or null/absent when they may.
+   *
+   * GE-032-002. Some definitions declare `requiresCapability`, and
+   * `planPublication` refuses a layer that sets one the publisher does not hold.
+   * Before this the editor rendered those keys as ordinary, editable boxes: the
+   * operator typed a new model budget, pressed Review, and got a blocker naming
+   * a capability nothing on the page had mentioned.
+   *
+   * So the field is rendered, and rendered UNEDITABLE, with the reason beside
+   * it. Visible rather than hidden, because an option that silently disappears
+   * is an option somebody spends twenty minutes looking for.
+   *
+   * ## Why `readOnly` and not `disabled`
+   *
+   * A disabled control is not submitted. `layerFrom` in `./actions.ts` builds
+   * the published layer from exactly what the form sends, so disabling a locked
+   * field would DROP a value this tenant has already published — and the next
+   * unrelated publication would silently revert their model-spend ceiling to the
+   * platform default. `readOnly` keeps the value in the submission, so the
+   * layer is unchanged and the engine's capability check still fires on it. The
+   * control is uneditable to a pointer, to a keyboard and to assistive
+   * technology (`aria-disabled`), and nothing about the published configuration
+   * moves because a field was locked.
+   *
+   * Optional so that a caller that has no lock to report may omit it; the only
+   * construction site is `page.tsx`, which supplies it for every field.
+   */
+  lockedReason?: string | null
 }
 
 export function ConfigurationEditor({
@@ -121,7 +150,25 @@ export function ConfigurationEditor({
               {domain.fields.map((field) => (
                 <div className="field config-field" key={field.key}>
                   <label htmlFor={field.key}>{field.key}</label>
-                  {field.input === "boolean" ? (
+                  {field.lockedReason ? (
+                    /*
+                     * A locked key, whatever its type. One control rather than a
+                     * locked variant of each: a `<select>` has no read-only form
+                     * at all, and the value has to keep being submitted — see the
+                     * note on `lockedReason` above.
+                     */
+                    <input
+                      id={field.key}
+                      name={field.key}
+                      type="text"
+                      value={values[field.key] ?? ""}
+                      onChange={set(field.key)}
+                      readOnly
+                      aria-disabled="true"
+                      data-locked={field.key}
+                      placeholder={`default: ${field.defaultValue}`}
+                    />
+                  ) : field.input === "boolean" ? (
                     <select id={field.key} name={field.key} value={values[field.key] ?? ""} onChange={set(field.key)}>
                       {/* Empty means "do not set", which is not the same as false. */}
                       <option value="">unset — the default applies</option>
@@ -144,6 +191,13 @@ export function ConfigurationEditor({
                     {field.input === "unsupported" &&
                       " — lists and objects are read-only until there is an editor for them."}
                   </p>
+                  {/* The reason, beside the control it explains. A locked field
+                      with no reason is indistinguishable from a broken one. */}
+                  {field.lockedReason && (
+                    <p className="hint" data-locked-reason={field.key}>
+                      Locked. {field.lockedReason}
+                    </p>
+                  )}
                   {/* The price, beside the choice rather than on a summary the
                       operator has to go and find. §7: cost is never a surprise at
                       the end because it was never only at the end. */}

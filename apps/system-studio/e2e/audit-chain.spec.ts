@@ -64,8 +64,8 @@ async function signIn(page: Page) {
   await page.waitForLoadState("networkidle")
 }
 
-async function openAudit(page: Page) {
-  await page.goto("/platform/audit")
+async function openAudit(page: Page, query = "") {
+  await page.goto(`/platform/audit${query}`)
   await expect(page.getByRole("heading", { name: "Audit", level: 1 })).toBeVisible({
     timeout: 20_000,
   })
@@ -144,6 +144,19 @@ test.describe("the audit chain, written and verified against a real DynamoDB", (
     await expect(page.getByTestId(`retention-${PARTITION}`)).toBeVisible()
     await expect(page.getByTestId("retention-plan")).toContainText("nothing is deleted")
 
+    // ── Who did what, when ──────────────────────────────────────────────
+    //
+    // A chain summary counts records; it does not say who acted. The acts just
+    // performed have to be READABLE as entries — the actor as the ledger
+    // recorded them, the action, the target and how it ended — or this page is
+    // an integrity report rather than an audit trail.
+    const entries = page.getByTestId("entries-table")
+    await expect(entries).toContainText(OPERATOR)
+    await expect(entries).toContainText("audit.hold.place")
+    await expect(entries).toContainText(`chain-c-${RUN}`)
+    await expect(entries).toContainText("APPLIED")
+    await expect(page.getByTestId("entry-exclusions")).toContainText("No filter is applied")
+
     // ── The concurrency condition ───────────────────────────────────────
     //
     // A second writer claiming a position that is already written must be
@@ -177,6 +190,29 @@ test.describe("the audit chain, written and verified against a real DynamoDB", (
       const break_ = page.getByTestId(`break-${PARTITION}-${middle}`)
       await expect(break_).toBeVisible()
       await expect(break_).toHaveAttribute("data-break-reason", "CONTENT_ALTERED")
+
+      // The broken record is also an ENTRY, marked as one that did not verify.
+      await expect(page.getByTestId(`entry-broken-${PARTITION}-${middle}`)).toBeVisible()
+
+      // ── A filter must not be able to hide a break ─────────────────────
+      //
+      // The most important row on this page is one query away from invisible
+      // unless the page refuses to let it be. This filter matches NOTHING —
+      // no act on any chain was performed by that principal — so every
+      // verified entry is excluded and the broken one is carried through
+      // anyway, marked, with a sentence saying it was kept against the filter.
+      await openAudit(page, `?actor=${encodeURIComponent("nobody@example.invalid")}`)
+      await expect(page.getByTestId(`entry-broken-${PARTITION}-${middle}`)).toBeVisible()
+      await expect(page.getByTestId("entry-exclusions")).toContainText(
+        "regardless of the filter",
+      )
+      await expect(page.getByTestId("entry-exclusions")).toContainText("excluded by the filter")
+      // The page's own alarm for the invariant having failed. Its absence is
+      // the assertion: `hiddenBroken` is counted against the finished output,
+      // so a break that got away would draw this and red the test.
+      await expect(page.getByTestId("hidden-broken-alarm")).toHaveCount(0)
+
+      await openAudit(page)
 
       // Nothing was deleted by any of this. The count is unchanged, which is
       // what distinguishes an edit from a removal on this page.

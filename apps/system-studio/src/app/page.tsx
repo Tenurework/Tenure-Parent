@@ -15,7 +15,11 @@ import { auth } from "@/lib/auth"
 import { authorizeCommand } from "@/lib/authorize"
 import { FleetMisconfigured, fleet, primeEstate } from "@/lib/cells"
 import { operatorConfigProblems } from "@/lib/operators"
-import { ErrorState, PermissionDeniedState } from "@/components/states"
+import { compareDesiredToActual, desiredFromDeployment } from "@/lib/aws/drift"
+import { estateInventory, type EstateReadings } from "@/lib/aws/inventory"
+import { readWithBackoff, type ReadOutcome } from "@/lib/aws/throttle"
+import { listFleet, registryConfigured, type FleetRow } from "@/lib/registry"
+import { ErrorState, PermissionDeniedState, RetryingState } from "@/components/states"
 import {
   Badge,
   ButtonLink,
@@ -23,6 +27,7 @@ import {
   Chip,
   DataTable,
   EmptyState,
+  UnknownState,
   type DataColumn,
 } from "@/components/md3"
 import {
@@ -31,6 +36,19 @@ import {
   modulesFor,
   type ModulePaymentCapability,
 } from "@tenure/platform-config"
+
+import {
+  UNKNOWN,
+  VERDICT_TONE,
+  VERDICT_WORD,
+  fleetAnswer,
+  placementOf,
+  unknownSurfaces,
+  type FootprintAnswer,
+  type NamedRead,
+  type RegistryAnswer,
+  type SystemPlacement,
+} from "./console-index/answer"
 
 export const dynamic = "force-dynamic"
 
@@ -56,16 +74,16 @@ export const dynamic = "force-dynamic"
 const CATALOG_REFUSALS_SHOWN = 6
 const CATALOG_CAPABILITIES_SHOWN = 8
 
-/**
- * The word this console uses when it does not know, and the only one.
+/*
+ * `UNKNOWN` — the word this console uses when it does not know, and the only
+ * one — is imported from `./console-index/answer` rather than declared here.
  *
  * Never an empty cell, never a dash, never a plausible default. STUDIO-000-007
  * is about exactly one confusion — a refused or unresolved read rendered as an
  * absence — and the same rule holds for facts this page reads out of its own
- * environment rather than out of AWS. Every use below is paired with the
- * sentence that says what would make it known.
+ * environment rather than out of AWS. It lives beside the decision that
+ * produces it so the page and the function cannot spell it two ways.
  */
-const UNKNOWN = "UNKNOWN"
 
 /**
  * A timestamp a reader can compare against a clock, from the ISO string.
@@ -281,8 +299,191 @@ export default async function StudioPage({
     return { binding, blueprint, config, configProblems, modules, topologyOk, error: null }
   })
 
-  // The three verdicts, counted once, so the headline and the badges cannot
-  // disagree with the cards underneath them.
+  /* ── Is each one where it should be? ──────────────────────────────────────
+   *
+   * Three records, read from three places, and the page's whole question is
+   * whether they agree:
+   *
+   *   * the BINDING, above — compiled into this build;
+   *   * the REGISTRY — the DynamoDB record this control plane owns, which is
+   *     the only thing that knows a system's lifecycle state and whether a
+   *     deployment artifact was ever published for it;
+   *   * the ESTATE — what AWS actually holds, read live.
+   *
+   * The registry is read once for the whole fleet rather than once per system:
+   * `listFleet` is a single paginated Scan, so this page costs the same whether
+   * it lists one system or fifty.
+   *
+   * A registry that cannot be read must say so, not 500 — and not render as an
+   * empty fleet either, which would report every configured system as
+   * unregistered. `readWithBackoff` tells a throttle apart from a fault, and
+   * both arrive here as `known: false` carrying the sentence and the fix that
+   * `placementOf` will put on the system's own row.
+   */
+  const registryOutcome: ReadOutcome<readonly FleetRow[]> = registryConfigured()
+    ? await readWithBackoff(() => listFleet())
+    : {
+        state: "failed",
+        why: "TENANT_TABLE is not set in this process, so the registry was never asked. No default is applied: a console that guessed a table name would report another deployment's fleet as this one's.",
+      }
+
+  const rowsBySlug = new Map<string, FleetRow>()
+  if (registryOutcome.state === "ok") {
+    for (const row of registryOutcome.value) rowsBySlug.set(row.slug, row)
+  }
+
+  /**
+   * The registry's answer for ONE system.
+   *
+   * Three outcomes, kept apart all the way to the row: the read failed, the
+   * read succeeded and holds nothing for this slug, or the read succeeded and
+   * holds a record. The middle one is the finding a console usually loses —
+   * "compiled into this build and never registered" is actionable, and it is
+   * indistinguishable from a failed read unless the two are different values.
+   */
+  const registryFor = (slug: string): RegistryAnswer => {
+    if (registryOutcome.state !== "ok") {
+      return {
+        known: false,
+        because:
+          registryOutcome.state === "retrying"
+            ? `The registry was still rate-limited after ${registryOutcome.of} attempts: ${registryOutcome.why}`
+            : `The registry did not answer: ${registryOutcome.why}`,
+        fix:
+          registryOutcome.state === "retrying"
+            ? `Nothing needs changing and no policy is wrong; the next attempt would run at ${registryOutcome.nextAttemptAt}.`
+            : "Set TENANT_TABLE, and check that the table exists in this region and that this engine's task role may Scan it.",
+      }
+    }
+    const row = rowsBySlug.get(slug)
+    if (!row) return { known: true, record: null }
+    return {
+      known: true,
+      record: {
+        state: row.state,
+        isolation: row.isolation,
+        hasDeployment: row.hasDeployment,
+        serving: row.serving,
+        cellId: row.cellId,
+        region: row.region,
+      },
+    }
+  }
+
+  /*
+   * The estate is read only when something declares what should be in it.
+   *
+   * `desiredFromDeployment` derives the expectation from the published
+   * artifact, so a system with no artifact expects nothing and a comparison
+   * against AWS could only produce noise. Issuing four describes to learn that
+   * is not caution, it is latency — and this route carries an LCP budget.
+   *
+   * The short-circuit is stated on the page rather than hidden: every system in
+   * that position renders "Not compared", with the reason, and never "agrees".
+   */
+  const comparableSlugs = CUSTOMER_TENANT_BINDINGS.filter((binding) => {
+    const answer = registryFor(binding.slug)
+    return answer.known && answer.record?.hasDeployment === true
+  }).map((binding) => binding.slug)
+
+  let estate: EstateReadings | null = null
+  let estateFailure: string | null = null
+  if (comparableSlugs.length > 0) {
+    /*
+     * The SAME function `/platform/estate` calls, so the two surfaces cannot
+     * disagree about what AWS said. The four readings stay in the `AwsRead`
+     * union all the way into `compareDesiredToActual`: flattening them to arrays
+     * would turn a refused surface into "no resources", and every desired
+     * resource would then be reported missing with a plan to recreate it.
+     *
+     * Wrapped because the inventory CONSTRUCTS clients — a missing region or an
+     * unresolvable endpoint throws before any read is attempted, which is a
+     * configuration fault rather than a denial and must not 500 this page.
+     */
+    try {
+      estate = await estateInventory()
+    } catch (error) {
+      estateFailure = error instanceof Error ? error.message : String(error)
+    }
+  }
+
+  const footprintFor = (slug: string, row: FleetRow | undefined): FootprintAnswer => {
+    if (!row) {
+      return {
+        compared: false,
+        because: "Not compared — the registry declares nothing for this system.",
+      }
+    }
+    if (estate === null) {
+      return {
+        compared: false,
+        because:
+          estateFailure === null
+            ? "Not compared — no configured system has a published deployment, so AWS was not asked."
+            : `The AWS estate could not be read, so whether this system's footprint matches is ${UNKNOWN}: ${estateFailure}`,
+      }
+    }
+    return {
+      compared: true,
+      report: compareDesiredToActual(
+        desiredFromDeployment({
+          slug,
+          serving: row.serving,
+          isolation: row.isolation,
+          // The seat, from the isolation tier rather than a person's name — a
+          // role can answer for a resource after somebody leaves.
+          ownerSeat: row.isolation === "pooled" ? "platform" : `tenant-lead:${slug}`,
+        }),
+        [estate.ecsServices, estate.databases, estate.distributions, estate.certificates],
+        { now: new Date(now), slug },
+      ),
+    }
+  }
+
+  const placements: readonly SystemPlacement[] = systems.map((s) =>
+    placementOf({
+      slug: s.binding.slug,
+      displayName: s.binding.displayName,
+      blueprint: s.error ? null : { id: s.blueprint!.id, version: s.blueprint!.version },
+      // The address this system is served at, from the cell that would route to
+      // it. Never a literal — a hard-coded host here is a link that sends an
+      // operator to another deployment during an incident.
+      baseUrl: cells[0]?.routing.baseUrl ?? null,
+      registry: registryFor(s.binding.slug),
+      footprint: footprintFor(s.binding.slug, rowsBySlug.get(s.binding.slug)),
+    }),
+  )
+  const placementBySlug = new Map(placements.map((p) => [p.slug, p]))
+  const answer = fleetAnswer(placements)
+
+  /*
+   * The AWS reads that did not answer, grouped by WHY, and rendered through the
+   * shared `UnknownState` rather than as an absence anywhere on this page.
+   *
+   * Grouped because a task role with no credentials fails all four surfaces
+   * with one error, and four identical panels carrying one pasteable IAM
+   * statement is four times the height and none of the extra information. Every
+   * surface is still named inside its group.
+   *
+   * The registry is NOT shaped into this union. It is not an `AwsRead` and
+   * inventing a capability for it would put a made-up IAM action on screen
+   * beside real ones; it renders through the governed `ErrorState` /
+   * `RetryingState` vocabulary instead, which is what those words are for.
+   */
+  const namedReads: NamedRead[] = estate
+    ? [
+        { what: "ECS services", read: estate.ecsServices },
+        { what: "databases", read: estate.databases },
+        { what: "edge distributions", read: estate.distributions },
+        { what: "certificates", read: estate.certificates },
+      ]
+    : []
+  const unreadable = unknownSurfaces(namedReads)
+
+  // The three CONFIGURATION verdicts, counted once, so the headline and the
+  // badges cannot disagree with the cards underneath them. A distinct axis from
+  // the placement verdicts above: a system can resolve its configuration
+  // perfectly and still be nowhere near where the registry says it should be.
   const broken = systems.filter((s) => s.error !== null).length
   const withProblems = systems.filter(
     (s) => s.error === null && (s.configProblems!.length > 0 || !s.topologyOk),
@@ -303,7 +504,10 @@ export default async function StudioPage({
 
       {/* ── The answer ─────────────────────────────────────────────────────
           What an operator came for, above everything this page had to read to
-          work it out. The counts are the same three the badges below use. */}
+          work it out. Exactly one `.md3-badge` lives in this card: the header's
+          configuration verdict. The placement answer is a SENTENCE, because a
+          six-way verdict compressed into one coloured word is the shape that
+          made "unknown" look like "fine". */}
       <Card
         id="summary"
         headline={
@@ -316,9 +520,8 @@ export default async function StudioPage({
         level={1}
         supportingText={
           <>
-            Every system this control plane configures, with the blueprint that produced it, the
-            modules it runs and where each configuration value came from. Resolved from the layers
-            compiled into this build at <time dateTime={now}>{asOf(now)}</time>.
+            Read from the bindings compiled into this build, the tenant registry and the live AWS
+            estate at <time dateTime={now}>{asOf(now)}</time>.
           </>
         }
       >
@@ -328,14 +531,95 @@ export default async function StudioPage({
             description="Nothing is bound in this build. That is not a filtered view — there are no customer bindings at all, so no configuration was resolved. A system appears here once it is bound in blueprints/."
           />
         ) : (
-          <div className="chips">
-            <Chip>{valid} resolved cleanly</Chip>
-            <Chip>{withProblems} with configuration problems</Chip>
-            <Chip>{broken} broken</Chip>
-            <Chip>Read-only</Chip>
-          </div>
+          <>
+            {/* The state of the fleet, in one line, before any apparatus. Every
+                configured system is in exactly one bucket and every non-empty
+                bucket is named, so the sentence's numbers add up to the count
+                in the headline by construction. */}
+            <p className="md3-title-medium" data-testid="fleet-answer">
+              {answer.sentence}
+            </p>
+
+            <div className="chips">
+              <Chip title="The registry and the live AWS estate agree about this many systems.">
+                {answer.counts.agrees} where they should be
+              </Chip>
+              <Chip title="A resource the published deployment declares was not found in AWS.">
+                {answer.counts.drifted} not where they should be
+              </Chip>
+              <Chip title="Registered, with no signed deployment artifact yet.">
+                {answer.counts["awaiting-deployment"]} not deployed
+              </Chip>
+              <Chip title="Compiled into this build; the registry holds no record.">
+                {answer.counts.unregistered} not registered
+              </Chip>
+              <Chip title="A read did not answer. Counted, never assumed well.">
+                {answer.counts.unknown} {UNKNOWN}
+              </Chip>
+            </div>
+
+            {/* A second axis, and labelled as one. Configuration resolving
+                cleanly says nothing about where the system is; the two were
+                being read as one verdict when this page showed only these. */}
+            <h3 className="md3-label-large">Configuration, resolved from the compiled layers</h3>
+            <div className="chips">
+              <Chip>{valid} resolved cleanly</Chip>
+              <Chip>{withProblems} with configuration problems</Chip>
+              <Chip>{broken} broken</Chip>
+              <Chip>Read-only</Chip>
+            </div>
+          </>
         )}
       </Card>
+
+      {/* ── What could not be read ──────────────────────────────────────────
+          Never an empty list, never a zero, never a reassuring default. This
+          card exists only when something did not answer; when everything did,
+          there is nothing here to scroll past. */}
+      {registryOutcome.state !== "ok" && (
+        <Card
+          id="unreadable-registry"
+          headline="The tenant registry did not answer"
+          headerAside={<Badge tone="warn">{UNKNOWN}</Badge>}
+          supportingText={
+            <>
+              Every system below therefore shows {UNKNOWN} for its lifecycle state, and none of
+              them was compared against AWS — there was nothing to compare against. Attempted at{" "}
+              <time dateTime={now}>{asOf(now)}</time>.
+            </>
+          }
+        >
+          {registryOutcome.state === "retrying" ? (
+            <RetryingState
+              attempt={registryOutcome.attempt}
+              of={registryOutcome.of}
+              nextAttemptAt={registryOutcome.nextAttemptAt}
+              why={registryOutcome.why}
+            />
+          ) : (
+            <ErrorState what="the tenant registry" detail={registryOutcome.why} />
+          )}
+        </Card>
+      )}
+
+      {unreadable.length > 0 && (
+        <Card
+          id="unreadable-estate"
+          headline="Part of the AWS estate could not be read"
+          headerAside={<Badge tone="warn">{UNKNOWN}</Badge>}
+          supportingText={
+            <>
+              A resource this engine was not allowed to look for is not a resource that is missing.
+              Nothing below was counted as agreement. Attempted at{" "}
+              <time dateTime={now}>{asOf(now)}</time>.
+            </>
+          }
+        >
+          {unreadable.map((group) => (
+            <UnknownState key={group.what} what={group.what} read={group.read} />
+          ))}
+        </Card>
+      )}
 
       {/* ── One card per system ────────────────────────────────────────── */}
       {systems.map((s) => {
@@ -355,15 +639,25 @@ export default async function StudioPage({
           ? []
           : Array.from(new Set(s.modules.advisories.map((a) => a.kind))).sort()
 
+        // Never `undefined` in practice — `placements` is built from the same
+        // array — but read through the map rather than by index so a future
+        // filter on one of the two lists cannot silently pair a card with
+        // another system's verdict.
+        const placement = placementBySlug.get(s.binding.slug)!
+
         if (s.error) {
           return (
             <Card
               key={s.binding.slug}
               headline={s.binding.displayName}
-              headerAside={<Badge tone="bad">broken</Badge>}
+              headerAside={
+                <Badge tone={VERDICT_TONE[placement.verdict]}>
+                  {VERDICT_WORD[placement.verdict]}
+                </Badge>
+              }
               supportingText={
                 <>
-                  <code>/{s.binding.slug}</code> — read at{" "}
+                  <code>/{s.binding.slug}</code> — {placement.because} Read at{" "}
                   <time dateTime={now}>{asOf(now)}</time>.
                 </>
               }
@@ -376,11 +670,46 @@ export default async function StudioPage({
           )
         }
 
+        /*
+         * The four facts this page exists to state, in the order the question
+         * asks for them, above the four that describe how the system was built.
+         *
+         * Each of the first four is either a fact or the word UNKNOWN followed
+         * by the sentence that says what would make it known. There is no arm
+         * that renders a blank cell, and none that renders a dash.
+         */
         const definition: Fact[] = [
+          {
+            key: "lifecycle",
+            label: "Lifecycle state",
+            value: placement.lifecycleBecause ? (
+              <>
+                {placement.lifecycle} — {placement.lifecycleBecause}
+              </>
+            ) : (
+              placement.lifecycle
+            ),
+          },
           {
             key: "blueprint",
             label: "Blueprint",
             value: `${s.blueprint!.id} v${s.blueprint!.version}`,
+          },
+          {
+            key: "url",
+            label: "Served at",
+            value: placement.urlBecause ? (
+              <>
+                {placement.url} — {placement.urlBecause}
+              </>
+            ) : (
+              <code>{placement.url}</code>
+            ),
+          },
+          {
+            key: "footprint",
+            label: "Live AWS footprint",
+            value: placement.footprint,
           },
           {
             key: "topology",
@@ -417,14 +746,17 @@ export default async function StudioPage({
             key={s.binding.slug}
             headline={s.binding.displayName}
             headerAside={
-              <Badge tone={s.configProblems!.length > 0 || !s.topologyOk ? "warn" : "ok"}>
-                {s.configProblems!.length > 0 || !s.topologyOk ? "problems" : "valid"}
+              <Badge
+                tone={VERDICT_TONE[placement.verdict]}
+                title="Whether the registry, the published deployment and the live AWS estate agree about this system."
+              >
+                {VERDICT_WORD[placement.verdict]}
               </Badge>
             }
             supportingText={
               <>
-                <code>/{s.binding.slug}</code> — {s.modules.keys.length} modules enabled, {values}{" "}
-                configuration values, {payments} payments capabilities.
+                <code>/{s.binding.slug}</code> — {placement.because} Read at{" "}
+                <time dateTime={now}>{asOf(now)}</time>.
               </>
             }
             actions={
@@ -442,7 +774,11 @@ export default async function StudioPage({
             <DataTable
               caption={
                 <>
-                  Definition — resolved at <time dateTime={now}>{asOf(now)}</time>
+                  Where this system is, and what it was built from — configuration{" "}
+                  {s.configProblems!.length > 0 || !s.topologyOk
+                    ? `has ${s.configProblems!.length} problem${s.configProblems!.length === 1 ? "" : "s"}`
+                    : "resolved cleanly"}
+                  , read at <time dateTime={now}>{asOf(now)}</time>
                 </>
               }
               columns={FACT_COLUMNS}
@@ -455,6 +791,33 @@ export default async function StudioPage({
                 />
               }
             />
+
+            {/* The resources the published deployment declares and AWS does not
+                hold. Rendered only when the comparison was actually made and
+                found something: an empty list here would be indistinguishable
+                from a comparison nobody was allowed to perform, which is the one
+                confusion this whole page is built around not making. */}
+            {placement.disagreements.length > 0 && (
+              <>
+                <h3 className="md3-label-large">
+                  Declared and not found in AWS — {placement.disagreements.length}
+                </h3>
+                <ul className="md3-body-medium">
+                  {placement.disagreements.map((d) => (
+                    <li key={d.resourceKey}>
+                      <code>{d.resourceKey}</code> <Badge tone="bad">{d.severity}</Badge> {d.detail}{" "}
+                      Answered for by <code>{d.owner}</code>.
+                    </li>
+                  ))}
+                </ul>
+                {placement.partial && (
+                  <p className="md3-body-medium">
+                    This list is partial. At least one estate surface did not answer, so there may
+                    be more — the count above is what was checked, not what exists.
+                  </p>
+                )}
+              </>
+            )}
 
             <h3 className="md3-label-large">Modules — {s.modules.keys.length} enabled</h3>
             <div className="chips">

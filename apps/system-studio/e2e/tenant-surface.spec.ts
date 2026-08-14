@@ -396,6 +396,135 @@ test.describe("one tenant, read by an operator", () => {
     for (const link of links) expect(link.hash).not.toBe("")
   })
 
+  /* ── The four questions, named and then answered in that order ─────────── */
+
+  test("the page names the four questions it answers before it answers any of them", async ({
+    page,
+  }) => {
+    await signIn(page)
+    await open(page, "seed-deployed")
+
+    // In the header, not in a card: nothing on that line was fetched, so it has
+    // no as-of and must not be presented as a reading.
+    const orientation = page.locator("main header p", { hasText: "Four questions" })
+    await expect(orientation).toBeVisible()
+    await expect(orientation).toContainText("what it is")
+    await expect(orientation).toContainText("where it is")
+    await expect(orientation).toContainText("how it got here")
+    await expect(orientation).toContainText("what can happen next")
+
+    // Above the answer, which is above everything that explains it.
+    const lead = await orientation.boundingBox()
+    const answer = await page.locator("#right-now").boundingBox()
+    expect(lead).not.toBeNull()
+    expect(answer).not.toBeNull()
+    expect(lead!.y).toBeLessThan(answer!.y)
+  })
+
+  test("the four answers are laid out in the order the question was asked", async ({ page }) => {
+    await signIn(page)
+    await open(page, "seed-deployed")
+
+    // What it is, where it is, how it got here, what can happen next. Measured
+    // rather than read off the DOM: "in order" is a property of the paint.
+    const ids = ["#state", "#aws-footprint", "#history", "#next"]
+    const tops: number[] = []
+    for (const id of ids) {
+      const box = await page.locator(id).boundingBox()
+      expect(box, `${id} is not on the page`).not.toBeNull()
+      tops.push(box!.y)
+    }
+    expect(tops, `the four answers are out of order: ${ids.join(", ")}`).toEqual(
+      [...tops].sort((a, b) => a - b),
+    )
+  })
+
+  /* ── Where it is: attributed by tag, and never empty because it was refused ─ */
+
+  test("the AWS footprint reports a read it could not make, rather than a tenant that holds nothing", async ({
+    page,
+  }) => {
+    await signIn(page)
+    await open(page, "seed-deployed")
+
+    const card = page.locator("#aws-footprint")
+    await expect(card).toBeVisible()
+    // Attribution is by tag, said on the page rather than only in the code.
+    await expect(card).toContainText("tenure:tenant")
+
+    const refused = await card.locator(".md3-unknown, [data-reason]").count()
+    const notKnown = await card.getByText("not known").count()
+    const emptyRows = await card.locator("tbody .md3-empty, tbody tr.md3-table-empty").count()
+
+    if (refused === 0 && notKnown === 0 && emptyRows > 0) {
+      // An empty table is only allowed to mean "the Tagging API answered and
+      // returned nothing". If it does, it has to say so in those words — an
+      // empty list that could also be a denial is the one defect this whole
+      // console is built around not shipping.
+      await expect(card).toContainText(/answered and returned no resource/i)
+    }
+    if (refused > 0) {
+      // A refusal renders through the shared primitive, which carries the
+      // principal, the action and a pasteable IAM statement.
+      await expect(card.locator(".md3-unknown").first()).toContainText(/Unknown/i)
+    }
+  })
+
+  /* ── What can happen next ──────────────────────────────────────────────── */
+
+  test("the transitions offered are exactly the ones the controls will submit", async ({ page }) => {
+    await signIn(page)
+    await open(page, "seed-deployed")
+
+    const next = page.locator("#next")
+    await expect(next).toBeVisible()
+
+    // The lifecycle records; it does not perform. Said on the page, because it
+    // is the thing an operator most often assumes the other way round.
+    await expect(next).toContainText(/RECORDS/)
+    await expect(next).toContainText(/does not provision, delete or reconfigure/i)
+
+    const listed = await next
+      .locator("tbody tr:not(.md3-table-empty) td:first-child")
+      .evaluateAll((cells) => cells.map((c) => (c.textContent ?? "").trim()))
+
+    const controls = page.locator(".advance")
+    if ((await controls.count()) === 0) {
+      // A read-only operator sees the table and no controls, and is told which.
+      await expect(page.getByTestId("lifecycle-read-only")).toBeVisible()
+      return
+    }
+
+    const chips = await controls
+      .locator(".chip")
+      .evaluateAll((els) => els.map((el) => (el.textContent ?? "").trim().split(" ")[0]))
+
+    // Same set, both directions. A table listing a move the controls do not
+    // offer is a promise the page cannot keep; a control for a move the table
+    // does not list is an action nobody was told about.
+    expect([...listed].sort()).toEqual([...chips].sort())
+    expect(listed.length).toBeGreaterThan(0)
+  })
+
+  test("a gated move does not look like a routine one", async ({ page }) => {
+    await signIn(page)
+    await open(page, "seed-deployed")
+
+    const weights = await page
+      .locator("#next tbody tr:not(.md3-table-empty) td:nth-child(2) .md3-badge")
+      .evaluateAll((els) => els.map((el) => (el.textContent ?? "").trim().toLowerCase()))
+
+    // `seed-deployed` is seeded into a state with successors of more than one
+    // weight. If they were all the same word the separation would be a claim
+    // rather than a rendering, and this test would be measuring nothing.
+    expect(weights.length).toBeGreaterThan(1)
+    expect(new Set(weights).size, `every move rendered as "${weights[0]}"`).toBeGreaterThan(1)
+
+    // And the heaviest is last, which is the same separation `AdvanceControls`
+    // makes spatially.
+    expect(weights.at(-1)).not.toBe("routine")
+  })
+
   /* ── The diagnostic panel is still here, and is still tenant-independent ── */
 
   test("the refusal list is identical on two different tenants, which is why it belongs elsewhere", async ({

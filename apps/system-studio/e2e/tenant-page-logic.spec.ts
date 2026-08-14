@@ -402,7 +402,20 @@ test("free is said as free, not as a formatted zero", () => {
  */
 test.describe("this route declares no colour of its own", () => {
   const ROUTE_DIR = path.join(__dirname, "..", "src", "app", "tenants", "[slug]")
-  const OWNED = ["page.tsx", "tenant.module.css", "summary.ts"]
+  /*
+   * Every file this route owns, and the list is the point: a rule that covers
+   * three of five files is a rule with two files' worth of holes in it.
+   * `footprint.ts` and `next-moves.ts` are the two decisions extracted out of
+   * `page.tsx` — "where it is" and "what can happen next" — and they are as
+   * capable of carrying a literal as the page was.
+   */
+  const OWNED = [
+    "page.tsx",
+    "tenant.module.css",
+    "summary.ts",
+    "footprint.ts",
+    "next-moves.ts",
+  ]
 
   const COLOUR = [
     /#[0-9a-fA-F]{3,8}\b/,

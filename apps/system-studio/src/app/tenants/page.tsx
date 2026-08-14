@@ -2,7 +2,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 
 import { CUSTOMER_TENANT_BINDINGS } from "@tenure/blueprints"
-import { PLAN_CATALOG, RESIDUAL_COST, SERVING, nextStates } from "@tenure/provisioning"
+import { PLAN_CATALOG, RESIDUAL_COST, nextStates } from "@tenure/provisioning"
 
 import { auth } from "@/lib/auth"
 import { authorizeCommand, controlPlaneIdentity } from "@/lib/authorize"
@@ -27,7 +27,12 @@ import {
   RetryingState,
 } from "@/components/states"
 import { readWithBackoff, type ReadOutcome } from "@/lib/aws/throttle"
-import { HEALTH_REFRESH_MS, observeFleet, type ObservationTarget } from "@/lib/aws/health"
+import {
+  HEALTH_REFRESH_MS,
+  fleetReadings,
+  observeFleet,
+  type ObservationTarget,
+} from "@/lib/aws/health"
 import { byUrgency, explainAttention, healthOf, summariseFleet, type TenantHealth } from "@/lib/fleet-health"
 import {
   Badge,
@@ -37,49 +42,27 @@ import {
   Chip,
   DataTable,
   EmptyState,
+  Select,
+  StaleIndicator,
+  TextField,
+  UnknownState,
   type DataColumn,
 } from "@/components/md3"
+import {
+  THE_QUESTION,
+  attentionTone,
+  describeSignals,
+  leadAnswer,
+  lifecycleTone,
+  observedCount,
+  provenanceOf,
+  rankFleetRows,
+  unknownReadings,
+} from "./fleet-view"
 
 import styles from "./fleet.module.css"
 
 export const dynamic = "force-dynamic"
-
-/**
- * What an operator came here to find out, in one sentence.
- *
- * It sits above every panel because the panels are apparatus: a filter, a
- * sixteen-column inventory and a list of file-bound systems are all things you
- * reach for AFTER you know whether anything is wrong. Before this existed the
- * first thing on the page was the word "Tenants" and the second was a table.
- *
- * Every arm names its own uncertainty rather than falling through to a count.
- * "0 need attention" computed from a registry read that failed is the specific
- * false green this console must never print, and the three failure arms below
- * are what stop the sentence being said at all in that case.
- */
-function leadAnswer(input: {
-  throttled: boolean
-  failure: boolean
-  configured: boolean
-  registered: number
-  needingAttention: number
-}): string {
-  if (input.throttled) {
-    return "The tenant registry asked this console to back off, so the fleet is not known right now. Nothing below is a claim that it is healthy."
-  }
-  if (input.failure) {
-    return "The tenant registry could not be read, so this page does not know what the fleet is. The systems bound by file, further down, are still true."
-  }
-  if (!input.configured) {
-    return "No tenant registry is configured for this console, so it knows only the systems bound by file. That is a missing connection, not an empty fleet."
-  }
-  if (input.registered === 0) {
-    return "No tenant has been composed through this console yet."
-  }
-  return input.needingAttention === 0
-    ? `${input.registered} tenants are registered and none of them need an operator.`
-    : `${input.registered} tenants are registered and ${input.needingAttention} need an operator. They are listed first.`
-}
 
 /**
  * STUDIO-120-003 — what each tenant's observations are taken against, and the
@@ -293,6 +276,21 @@ export default async function TenantsPage({
   const observedAt = new Date()
   const scope = observationScope(registeredSlugs)
   const observed = await observeFleet(scope.targets, { now: observedAt })
+  /*
+   * The same two readings `observeFleet` just took, as readings rather than as
+   * per-tenant observations.
+   *
+   * NOT a second pair of AWS calls: `fleetReadings` holds its result for
+   * `HEALTH_REFRESH_MS` and `observeFleet` has just populated that hold with
+   * this exact `now`, so this returns the identical object. It is asked for
+   * because a refused `acm:ListCertificates` reaches the table below as twenty
+   * identical `unobserved` cells and nothing that says the remedy is one IAM
+   * statement. `unknownReadings` picks out the arms that carry no value, and
+   * `UnknownState` renders each with the principal, the action and a pasteable
+   * minimum statement — never as an empty list, never as a zero.
+   */
+  const readings = await fleetReadings({ now: observedAt })
+  const unreadable = unknownReadings(readings)
 
   /*
    * Health, computed once and used three times — by the lead sentence, by the
@@ -332,13 +330,26 @@ export default async function TenantsPage({
   const summary = summariseFleet(health)
   const needing = health.filter((h) => h.attention !== null)
 
-  // STUDIO-100-002 / STUDIO-030-011. Filter first, then page — paging a
-  // filtered list is the only order that lets "showing 25 of 61 matching
-  // \"acme\"" be a true sentence.
+  // STUDIO-100-002 / STUDIO-030-011. Filter first, then RANK, then page.
+  //
+  // The order matters and each step is wrong in any other position. Filtering
+  // after paging would page a list nobody asked for; ranking after paging would
+  // sort twenty-five arbitrary rows and leave the stalled tenant on page three.
+  // Paging a filtered, ranked list is the only order that lets "showing 25 of 61
+  // matching \"acme\"" be a true sentence AND puts the tenant that needs an
+  // operator on the first screen.
+  //
+  // `byUrgency` is the one ranking of urgency in this console; the attention
+  // list above and the inventory below are both ordered by it, so they cannot
+  // disagree about which tenant is worst.
   const matching = tenants.filter((t) => matchesFilter(t, filter, healthBySlug.get(t.slug)))
-  const pageCount = Math.max(1, Math.ceil(matching.length / INVENTORY_PAGE_ROWS))
+  const ranked = rankFleetRows(
+    matching,
+    health.map((h) => h.slug),
+  )
+  const pageCount = Math.max(1, Math.ceil(ranked.length / INVENTORY_PAGE_ROWS))
   const page = Math.min(pageNumber, pageCount)
-  const rows = matching.slice((page - 1) * INVENTORY_PAGE_ROWS, page * INVENTORY_PAGE_ROWS)
+  const rows = ranked.slice((page - 1) * INVENTORY_PAGE_ROWS, page * INVENTORY_PAGE_ROWS)
   /*
    * STUDIO-100-002. Cost per tenant is deliberately NOT charted.
    *
@@ -424,7 +435,15 @@ export default async function TenantsPage({
         const why = explainAttention(h)
         return (
           <div className={styles.cell}>
-            <Badge tone="warn">{h.attention?.replace(/-/g, " ")}</Badge>
+            {/* The tone is the signal's, not a blanket "warn": a FAILED tenant
+                and a certificate that has already expired are the estate's two
+                worst facts and they are drawn differently from a stall that may
+                still resolve. The word is always beside the tone. */}
+            <Badge tone={attentionTone(h.attention)}>{h.attention?.replace(/-/g, " ")}</Badge>
+            {/* Which of the two sources said so. An operator reading
+                "dependency failing" needs to know it came from AWS and not from
+                a DynamoDB row before they decide where to look. */}
+            <span className="md3-body-small">{describeSignals(h.signals)}</span>
             {why ? <span className="md3-body-small">{why}</span> : null}
           </div>
         )
@@ -439,15 +458,24 @@ export default async function TenantsPage({
   ]
 
   /*
-   * STUDIO-100-001 — sixteen columns, every one of them from the registry rather
-   * than from a tenant's own database. Three are deliberately probe states
-   * rather than blanks: data volume, resource count and cost are not facts this
-   * control plane holds yet, and a blank cell reads as zero.
+   * STUDIO-100-001 — seventeen columns, every one of them from the registry or
+   * from a read of the estate, and never from a tenant's own database. Three are
+   * deliberately probe states rather than blanks: data volume, resource count
+   * and cost are not facts this control plane holds yet, and a blank cell reads
+   * as zero.
    *
-   * `DataTable` puts them in a bounded scroller, because sixteen columns fit at
-   * none of the widths `layout.spec.ts` measures and the page itself must never
-   * be the thing that scrolls sideways.
+   * The seventeenth is `State last read`, and it is the one that stops the other
+   * sixteen being unreadable. Nine of them are registry facts and two are
+   * readings of the live estate; a row that prints both with no attribution is a
+   * row whose `ACTIVE` and whose `dependency failing` look like one verdict from
+   * one place, when in fact one is a DynamoDB row somebody last wrote in March
+   * and the other is a certificate that expired this morning.
+   *
+   * `DataTable` puts them in a bounded scroller, because seventeen columns fit
+   * at none of the widths `layout.spec.ts` measures and the page itself must
+   * never be the thing that scrolls sideways.
    */
+  const registryReadAt = readAt.toISOString()
   const fleetColumns: readonly DataColumn<FleetRow>[] = [
     {
       key: "tenant",
@@ -478,7 +506,13 @@ export default async function TenantsPage({
       header: "Lifecycle",
       cell: (t) => (
         <div className={styles.cell}>
-          <Badge tone={SERVING.has(t.state) ? "ok" : "warn"}>{t.state}</Badge>
+          {/* The tone comes from the lifecycle's own sets — SERVING, TERMINAL
+              and the transitional list — rather than from a serving/not-serving
+              boolean that painted DRAFT, READY and LEGAL_HOLD in the same
+              warning tone as FAILED. See `lifecycleTone`. */}
+          <Badge tone={lifecycleTone(t.state)} title={`Lifecycle state: ${t.state}`}>
+            {t.state}
+          </Badge>
           {t.lifecycle ? <span className="md3-body-small">{t.lifecycle}</span> : null}
         </div>
       ),
@@ -515,18 +549,50 @@ export default async function TenantsPage({
       header: "Health / SLO",
       cell: (t) => {
         const h = healthBySlug.get(t.slug)
-        if (!h) return "unobserved"
+        // Not "unobserved", which is a health signal with a meaning of its own.
+        // This arm is the health pass having no record for the row at all.
+        if (!h) return "no health record for this row"
         return (
           <div className={styles.cell}>
-            <Badge tone={h.attention === null ? "ok" : "warn"}>
-              {h.attention ?? "nothing to do"}
-            </Badge>
-            <span className="md3-body-small">{h.signals.join(", ")}</span>
+            <Badge tone={attentionTone(h.attention)}>{h.attention ?? "nothing to do"}</Badge>
+            {/* Grouped under the source that produced each signal, rather than
+                one comma-separated list mixing a DynamoDB row with a CloudWatch
+                alarm. */}
+            <span className="md3-body-small">{describeSignals(h.signals)}</span>
           </div>
         )
       },
     },
     { key: "activity", header: "Last activity", cell: (t) => t.updatedAt || "never recorded" },
+    {
+      key: "read",
+      header: "State last read",
+      cell: (t) => {
+        const provenance = provenanceOf({
+          registryReadAt,
+          movedAt: t.updatedAt,
+          observations: healthBySlug.get(t.slug)?.observations ?? [],
+        })
+        return (
+          <div className={styles.cell}>
+            {/*
+              Two lines, each naming its own source. The registry is a DynamoDB
+              row this console writes; the live estate is AWS, read from outside
+              the tenant. They have different clocks and they disagree
+              routinely — the row says ACTIVE for as long as nobody moves it,
+              while the certificate in front of the tenant expires — so a single
+              undifferentiated timestamp here would be worse than none.
+            */}
+            <span className={`${styles.provenance} md3-body-small`}>
+              <b>registry</b> — {provenance.registry}
+            </span>
+            <span className={`${styles.provenance} md3-body-small`}>
+              <b>live estate</b> — {provenance.estate}
+            </span>
+          </div>
+        )
+      },
+    },
     /* STUDIO-000-007 probe states. Not blanks: a blank column in a cost table
        reads as zero, and this console has never measured either of these. */
     { key: "volume", header: "Data volume", align: "end", cell: () => "not measured" },
@@ -620,12 +686,26 @@ export default async function TenantsPage({
     <div className={styles.page}>
       <h1 className="md3-headline-large">Tenants</h1>
 
+      {/*
+        The question, then the answer, then the apparatus — in that order and
+        before anything else on the page.
+
+        A `<p>` rather than a second heading, deliberately: an accessible name is
+        matched by case-insensitive substring, so a heading containing the word
+        "tenants" would make this page's own `<h1>` ambiguous to
+        `getByRole("heading", { name: "Tenants" })` and to anything else reading
+        the page by name — including a person using a screen reader's heading
+        list.
+      */}
+      <p className={`${styles.question} md3-title-medium`}>{THE_QUESTION}</p>
+
       <p className="md3-body-large">
         {leadAnswer({
           throttled: throttled !== null,
           failure: failure !== null,
           configured,
           registered: tenants.length,
+          serving: summary.serving,
           needingAttention: summary.needingAttention,
         })}
       </p>
@@ -657,11 +737,20 @@ export default async function TenantsPage({
               Observed {observedAt.toISOString()}, re-read every{" "}
               {Math.round(HEALTH_REFRESH_MS / 1000)}s. {scope.against} Certificate expiry and alarm
               state come from AWS; a source that could not be read is reported as unobserved rather
-              than counted healthy.
+              than counted healthy.{" "}
+              <StaleIndicator
+                asOf={observedAt.toISOString()}
+                /* The reader's own refresh window, not a number chosen here: a
+                   page that supplied its own would be describing a cadence
+                   nothing implements. */
+                cadenceMs={HEALTH_REFRESH_MS}
+                now={observedAt.getTime()}
+                label="the fleet observation"
+              />
             </>
           }
         >
-          <div className="chips">
+          <div className={styles.chipRow}>
             <Chip>
               <b>{summary.serving}</b> serving
             </Chip>
@@ -672,7 +761,33 @@ export default async function TenantsPage({
                   <b>{count}</b> {signal.replace(/-/g, " ")}
                 </Chip>
               ))}
+            {/*
+              How much of the fleet the chips beside this are actually a
+              measurement of. `12 serving` over a fleet nobody could observe is
+              twelve DynamoDB rows wearing the clothes of a health check, and
+              this is the number that says so.
+            */}
+            <Chip>
+              <b>{observedCount(health)}</b> of {summary.total} observed
+            </Chip>
           </div>
+
+          {/*
+            STUDIO-000-007. A read that could not be taken, named once — not
+            twenty times as an `unobserved` cell whose remedy nobody can guess.
+            `unknownReadings` returns only the arms of `AwsRead` that carry no
+            value, so a reading that worked cannot reach this and produce a
+            spurious denial; a denial that did happen renders the principal, the
+            action, the account and the minimum IAM statement as pasteable JSON.
+          */}
+          {unreadable.map((reading) => (
+            <UnknownState
+              key={reading.key}
+              what={reading.what}
+              read={reading.read}
+              now={observedAt.getTime()}
+            />
+          ))}
 
           {needing.length > 0 ? (
             <DataTable
@@ -751,8 +866,12 @@ export default async function TenantsPage({
           headerAside={<Badge tone="info">{tenants.length}</Badge>}
           supportingText={
             <>
-              Read from the tenant registry at {readAt.toISOString()}. Every column comes from a
-              registry row; none of it is read from a tenant&rsquo;s own database. Data volume,
+              As of {registryReadAt} — this request read the registry table directly, so nothing
+              here is held from an earlier one. Listed worst first: the ranking is the same one the
+              attention list above uses, so a tenant stuck mid-provision is on the first page rather
+              than wherever its partition happened to hash to. Every column comes from a registry
+              row or from a read of the estate, and the <b>State last read</b> column says which for
+              each tenant; none of it is read from a tenant&rsquo;s own database. Data volume,
               resource count and spend are not facts this control plane holds, and those three
               columns say so rather than showing a zero.
             </>
@@ -771,40 +890,68 @@ export default async function TenantsPage({
             and makes every filter shareable — the thing an operator actually
             wants from a "saved filter" during an incident.
           */}
-          <form className="fleet-filter" method="get" action="/tenants">
-            <div className="field">
-              <label htmlFor="q">Search</label>
-              <input
-                id="q"
-                name="q"
-                type="search"
-                defaultValue={filter.q}
-                placeholder="slug, name, owner, plan or cell"
-              />
+          <form className={styles.filter} method="get" action="/tenants">
+            {/*
+              `TextField` and `Select`, not the console's older `.field` markup.
+              The primitives carry the label placement, the focus ring and the
+              state layer that `e2e/preferences.spec.ts` measures the contrast of
+              in four theme and contrast combinations; a hand-rolled
+              `<div class="field"><label><input>` is a control the audit cannot
+              see, in the file it is least likely to be pointed at.
+            */}
+            {/*
+              All three fields carry a supporting line, so all three are the
+              same height and the row bottom-aligns cleanly against the buttons.
+              One field taller than its neighbours pushes its own input out of
+              line with theirs, which at 900 CSS pixels reads as a rendering
+              fault rather than as a hint.
+            */}
+            <TextField
+              id="q"
+              name="q"
+              type="search"
+              label="Search"
+              defaultValue={filter.q}
+              supportingText="Matches slug, name, owner, plan and cell."
+            />
+            <Select
+              id="signal"
+              name="signal"
+              label="Signal"
+              supportingText="The signals counted above, from either source."
+              defaultValue={filter.signal ?? ""}
+              /*
+               * The empty option is a real choice, not a placeholder. "Any
+               * signal" is what an unset `?signal=` means, and a reader who has
+               * narrowed to `stalled` must be able to choose it again — which a
+               * disabled placeholder option would not let them do.
+               */
+              options={[
+                { value: "", label: "any signal" },
+                ...Object.keys(summary.bySignal).map((s) => ({
+                  value: s,
+                  label: s.replace(/-/g, " "),
+                })),
+              ]}
+            />
+            <TextField
+              id="state"
+              name="state"
+              label="State"
+              defaultValue={filter.state ?? ""}
+              placeholder="ACTIVE"
+              supportingText="One of the 25 lifecycle states, as the registry spells it."
+            />
+            <div className={styles.controls}>
+              <Button variant="tonal" type="submit">
+                Apply
+              </Button>
+              {isFiltered(filter) ? (
+                <ButtonLink variant="text" href="/tenants">
+                  Clear
+                </ButtonLink>
+              ) : null}
             </div>
-            <div className="field">
-              <label htmlFor="signal">Signal</label>
-              <select id="signal" name="signal" defaultValue={filter.signal ?? ""}>
-                <option value="">any</option>
-                {Object.keys(summary.bySignal).map((s) => (
-                  <option key={s} value={s}>
-                    {s.replace(/-/g, " ")}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="state">State</label>
-              <input id="state" name="state" defaultValue={filter.state ?? ""} placeholder="ACTIVE" />
-            </div>
-            <Button variant="tonal" type="submit">
-              Apply
-            </Button>
-            {isFiltered(filter) ? (
-              <ButtonLink variant="text" href="/tenants">
-                Clear
-              </ButtonLink>
-            ) : null}
           </form>
 
           {tenants.length === 0 ? (

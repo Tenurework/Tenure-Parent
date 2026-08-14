@@ -1,8 +1,8 @@
 "use client"
 
-import { useActionState, useMemo, useState } from "react"
+import { useActionState, useMemo, useState, type ReactNode } from "react"
 
-import { activationPreview, fromMinorUnits, toDecimal, type OptionPrice } from "@tenure/finops"
+import type { OptionPrice } from "@tenure/finops"
 
 /*
  * Relative, not `@/components/md3`, and it is the toolchain that decides this.
@@ -16,29 +16,40 @@ import { activationPreview, fromMinorUnits, toDecimal, type OptionPrice } from "
  * rather than fail on a price. The alias is right in the app and wrong under
  * the test; the relative path is right under both.
  */
-import { Badge, Button, Card, DataTable, EmptyState } from "../../../components/md3"
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  DataTable,
+  EmptyState,
+  KeyValue,
+  Select,
+  TextArea,
+  TextField,
+  type KeyValueItem,
+} from "../../../components/md3"
 
 import { composeTenant, type ComposeResult } from "../actions"
+import { Choice, ChoiceGroup } from "./ChoiceGroup"
 import {
   canPlace,
   placementRefusal,
   placementSummary,
   type PlacementOffer,
 } from "./placement"
+import {
+  REFUSAL_HEADLINE,
+  REFUSAL_REMEDY,
+  optionPriceStatement,
+  parseSeats,
+  priceLabel,
+  quoteSelection,
+  type QuoteProblem,
+  type SelectionQuote,
+} from "./quote"
 
-/**
- * PAY-160-002 — a price in whole minor units, rendered at its currency's own
- * precision.
- *
- * Through `@tenure/finops` rather than `(minor / 100).toFixed(2)`: the divisor is
- * not 100 for every currency, and `toDecimal` reads the exponent off the `Money`
- * it is given. `half-even` because it is a display rounding with no bias, stated
- * rather than defaulted.
- */
-function priceLabel(minor: number, currency: string): string {
-  const rendered = toDecimal(fromMinorUnits(minor, currency), "half-even")
-  return currency === "USD" ? `$${rendered}` : `${rendered} ${currency}`
-}
+import styles from "./compose.module.css"
 
 /**
  * What ticking a coexistence domain does to the quote.
@@ -59,27 +70,37 @@ const DOMAIN_PRICE_NOTE =
  * rules live in `@tenure/provisioning` and run on the server. A second copy in
  * the browser is a second copy that will disagree.
  *
- * ## The shape of the page, and why it changed
+ * ## The shape of the page
  *
- * It was one flat wall of rows under one heading per stage, led by the
- * apparatus: the first thing an operator met was a seat-count box. The
- * operator's summary of this console was that it "looks like a construction
- * site", and this surface was a fair example.
+ * It leads with the ANSWER — what is about to be created, what it would cost if
+ * it were activated today, what is still undecided before it could be, and where
+ * it would run — and every stage below is a Material 3 `Card` with a real
+ * heading, a sentence saying what the card is, and a line saying WHERE ITS FACTS
+ * CAME FROM AND AS OF WHEN. That last part is not decoration: most of these
+ * cards are populated from catalogs compiled into this build and one is read live
+ * from the fleet at request time, and until a card said so an operator had no way
+ * to tell which of the two they were looking at.
  *
- * It now leads with the ANSWER — what registering does, what the configuration
- * would cost if it were activated today, what is still undecided before it
- * could be, and where it would run — and every stage below is a Material 3
- * `Card` with a real heading, a sentence saying what the card is, and a line
- * saying WHERE ITS FACTS CAME FROM AND AS OF WHEN. That last part is not
- * decoration: three of these cards are populated from catalogs compiled into
- * this build and one is read live from the fleet at request time, and until a
- * card said so an operator had no way to tell which of the two they were
- * looking at.
+ * ## Every control here is a `components/md3` primitive
  *
- * The colours, type sizes, elevations and shapes are the token layer's — via
- * `components/md3`. There is no hand-set size and no literal colour in this
- * file, which is the rule `docs/architecture/studio-design-system.md` states and
- * `e2e/md3-tokens-logic.spec.ts` enforces on the primitives it depends on.
+ * `TextField`, `TextArea` and `Select` — never a bare `<input>` in an ad-hoc
+ * `.field` wrapper. The console's pre-Material-3 form classes (`.field`,
+ * `.hint`, `.checks`, `.check`, `.slug`, `.version`, `.kv`) each hand-set a
+ * `font-size` and several set a colour, which is precisely what the contrast
+ * audit in `e2e/md3-tokens-logic.spec.ts` cannot see. There is no hand-set size,
+ * no literal colour and no elevation in this file: the type scale is
+ * `md3-*` classes, the surfaces are `Card`, and the only geometry this route
+ * owns is in `compose.module.css`.
+ *
+ * The one thing the directory does not provide is a fieldset-and-legend group
+ * for a question answered by many checkboxes; `ChoiceGroup.tsx` beside this file
+ * composes the token layer for it rather than forking `Field`, and says so.
+ *
+ * ## The money
+ *
+ * Every figure comes from `quoteSelection` in `./quote`, which returns a quote or
+ * an itemised refusal and never a zero standing in for one. Nothing in this file
+ * does arithmetic on a price.
  */
 export interface ComposeAxis {
   id: string
@@ -108,47 +129,16 @@ export interface ComposeModule {
    * Required, not optional. An option whose price the form never received
    * renders as a blank beside a checkbox, and a blank price on a composer with a
    * running total is indistinguishable from free.
+   *
+   * Required on the TYPE and still checked at runtime: `quoteSelection` accepts
+   * `OptionPrice | undefined` and reports what it finds, because `tsc`
+   * guarantees the shape of a value and not its presence — a projection that
+   * drops one field still compiles here and arrives as `undefined` there.
    */
   price: OptionPrice
 }
 
 type ComposeProblem = ComposeResult["problems"][number]
-
-/**
- * A labelled control, its hint, and the server's complaints about it.
- *
- * At module scope, deliberately. It used to be declared inside `ComposeForm`,
- * which gave it a new component identity on every render — so React unmounted
- * and remounted every field whenever any state changed, and the operator
- * ticking module checkboxes lost keyboard focus on each tick. Hoisting it is
- * the fix; the props are the state it used to close over.
- */
-function Field({
-  name,
-  label,
-  hint,
-  problems,
-  children,
-}: {
-  name: string
-  label: string
-  hint?: string
-  problems: readonly ComposeProblem[]
-  children: React.ReactNode
-}) {
-  return (
-    <div className="field">
-      <label htmlFor={name}>{label}</label>
-      {children}
-      {hint && <p className="hint">{hint}</p>}
-      {problems.map((p) => (
-        <p className="error" key={p.reason}>
-          {p.detail}
-        </p>
-      ))}
-    </div>
-  )
-}
 
 /** One row of the ledger preview: a priced line, or the total under them. */
 interface LedgerRow {
@@ -158,6 +148,44 @@ interface LedgerRow {
   perOrg: string
   extended: string
   total: boolean
+}
+
+/**
+ * The block that replaces a figure when there is no figure.
+ *
+ * Not an `EmptyState` and not a zero. `EmptyState` is the shape of "we looked and
+ * there is nothing"; this is the shape of "this cannot be totalled, and that is
+ * not the same as it being free". The headline, the remedy and the itemised
+ * problems all come from `./quote` so the four refusals say four different
+ * things — a refusal that reads the same however it failed is one nobody can act
+ * on.
+ *
+ * `role="status"` is deliberately NOT set: this is rendered with the card, not
+ * announced on a change, and `components/states.tsx` reserves the live region for
+ * the governed state block.
+ */
+function Unpriceable({
+  quote,
+  what,
+}: {
+  quote: Extract<SelectionQuote, { state: "UNPRICEABLE" }>
+  what: string
+}) {
+  return (
+    <div className={styles.prose} data-testid="unpriceable" data-reason={quote.reason}>
+      <p className="md3-title-small">{REFUSAL_HEADLINE[quote.reason]}</p>
+      <p className="md3-body-medium">
+        {what} is not shown as zero and not shown as a blank. Nothing here is free because this
+        could not be computed.
+      </p>
+      <ul className={`${styles.problems} md3-body-small`}>
+        {quote.problems.map((problem: QuoteProblem, index) => (
+          <li key={`${problem.optionKey ?? "selection"}-${index}`}>{problem.detail}</li>
+        ))}
+      </ul>
+      <p className="md3-body-medium">{REFUSAL_REMEDY[quote.reason]}</p>
+    </div>
+  )
 }
 
 export function ComposeForm({
@@ -170,6 +198,7 @@ export function ComposeForm({
   alwaysOnModules,
   suiteModules,
   coexistenceProfiles,
+  isolationClasses,
   businessDomains,
   engineVersion,
   fleetReadAt,
@@ -224,6 +253,14 @@ export function ComposeForm({
    * client component.
    */
   coexistenceProfiles: Array<{ id: string; meaning: string }>
+  /**
+   * The isolation classes, from `ISOLATION_CLASSES`, each with what it means.
+   *
+   * From the closed vocabulary rather than four `<option>` literals, for the
+   * same reason as the profiles above: a literal list is one the server can
+   * start refusing without the form noticing.
+   */
+  isolationClasses: Array<{ id: string; meaning: string }>
   /** The closed business-domain vocabulary, from `BUSINESS_DOMAINS`. */
   businessDomains: readonly string[]
   /**
@@ -254,7 +291,7 @@ export function ComposeForm({
    * The preset, and the operator's edit over it.
    *
    * The module checkboxes used to render with no `defaultChecked` and no
-   * relationship to the blueprint <select> above them, so the preset
+   * relationship to the blueprint select above them, so the preset
    * contributed nothing to a composition and nothing recorded that the
    * operator's selection diverged from it. They now START at what the selected
    * axes compile to, and what is submitted is the DIFF — `moduleAdd` and
@@ -272,6 +309,22 @@ export function ComposeForm({
   const [operatingModel, setOperatingModel] = useState(blueprint?.axes.operatingModel ?? "")
   const [suites, setSuites] = useState<string[]>([...(blueprint?.axes.functional ?? [])])
 
+  /*
+   * Plan, region and isolation are controlled too.
+   *
+   * Not for validation — the server decides all three — but because the summary
+   * at the top has to be able to say WHAT IS ABOUT TO BE CREATED, and a panel
+   * that reads the blueprint out of state while reading the plan out of nowhere
+   * answers half the question. An uncontrolled select is a decision the summary
+   * cannot see.
+   */
+  const [planId, setPlanId] = useState(defaultPlanId)
+  const [region, setRegion] = useState(
+    placement.state === "OFFERED" ? placement.regions[0] : "",
+  )
+  const [isolation, setIsolation] = useState(isolationClasses[0]?.id ?? "")
+  const [coexistence, setCoexistence] = useState(coexistenceProfiles[0]?.id ?? "")
+
   /** What the current axis selection compiles to, by the server's own table. */
   const preset = useMemo(() => {
     const keys = new Set(alwaysOnModules)
@@ -287,7 +340,8 @@ export function ComposeForm({
 
   const enableable = new Map(modules.map((m) => [m.key, m.enableable]))
   const checked = (key: string) =>
-    enableable.get(key) !== false && (added.includes(key) || (preset.has(key) && !removed.includes(key)))
+    enableable.get(key) !== false &&
+    (added.includes(key) || (preset.has(key) && !removed.includes(key)))
 
   const toggle = (key: string) => {
     const inPreset = preset.has(key)
@@ -316,138 +370,218 @@ export function ComposeForm({
   /* --------------------------------------------------------- PAY-160-002 --
    * The quote, and what has to be settled before activation.
    *
-   * Five stages and, before this, no price anywhere in any of them. Somebody
-   * ticking twelve module checkboxes was assembling a commercial arrangement
-   * with no idea what any of it cost, and an option with no price beside it does
-   * not read as unpriced on a form — it reads as free.
+   * The seat count is an INPUT rather than an assumption, and it is held as the
+   * string the operator typed rather than as a coerced number: `Number("")` is
+   * `0` and `Number("abc")` is `NaN`, so coercing quoted the whole configuration
+   * at zero seats — a real figure answering a question nobody had answered — or
+   * at `NaN`, which propagates silently all the way to a rendered total.
+   * `parseSeats` returns the number or the reason there isn't one.
    *
-   * The seat count is an input rather than an assumption. Per-seat and per-org
-   * are different prices and both matter: quote only the first and a
-   * two-hundred-officer faculty is charged like a two-person club; quote only
-   * the second and the reverse. The running total is computed by
-   * `quoteConfiguration` inside `activationPreview` from the SAME manifest
-   * prices the catalog validates, through integer `Money` arithmetic, so a
-   * mixed-currency catalog throws rather than adding dollars to euros.
+   * Per-seat and per-organization are different prices and both matter: quote
+   * only the first and a two-hundred-officer faculty is charged like a
+   * two-person club; quote only the second and the reverse.
    */
-  const [seats, setSeats] = useState(25)
+  const [seatsText, setSeatsText] = useState("25")
+  const parsedSeats = parseSeats(seatsText)
+  const seats = parsedSeats.ok ? parsedSeats.seats : null
 
-  const preview = useMemo(
+  const selected = modules.filter((m) => checked(m.key))
+
+  /*
+   * The quote, or the itemised reason there is none.
+   *
+   * Through `quoteSelection` rather than `activationPreview` directly. The
+   * pricing engine REFUSES — a mixed-currency selection throws
+   * `CurrencyMismatchError`, an unusable price throws `PriceError` — and both
+   * were previously thrown during the render of this component, with no
+   * boundary under them. The composer did not show a wrong price; it showed
+   * nothing at all, on the surface whose job is to state a price before a
+   * decision is taken.
+   */
+  const quote: SelectionQuote = useMemo(
     () =>
-      activationPreview(
-        modules
-          .filter((m) => checked(m.key))
-          .map((m) => ({ optionKey: m.key, price: m.price })),
-        Number.isFinite(seats) && seats >= 0 ? Math.trunc(seats) : 0,
+      quoteSelection(
+        selected.map((m) => ({ optionKey: m.key, price: m.price })),
+        // `-1` rather than `0` when the seat count is not a whole number of
+        // people: zero is a seat count somebody could have meant, and this must
+        // not be mistaken for one. `quoteSelection` refuses it and names why.
+        seats ?? -1,
       ),
     // `checked` closes over added/removed/preset, which is what makes the total
     // move when a checkbox does.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [modules, seats, added, removed, preset],
   )
-  const quote = preview.quote
-  const extendedFor = (key: string) => quote.lines.find((l) => l.optionKey === key)?.extendedMinor ?? 0
+
+  const extendedFor = (key: string) =>
+    quote.state === "QUOTED"
+      ? quote.preview.quote.lines.find((l) => l.optionKey === key)?.extendedMinor ?? null
+      : null
 
   const problemsFor = (field: string) => (result?.problems ?? []).filter((p) => p.field === field)
+  /**
+   * The server's complaints about one field, as the one `errorText` a
+   * `components/md3` control takes.
+   *
+   * Joined rather than listed, because the frame renders a single line and the
+   * details are sentences. `undefined` rather than `""` when there are none: the
+   * presence of the message is what marks the control invalid, so an empty
+   * string would outline a valid field in the error colour.
+   */
+  const errorFor = (field: string): string | undefined => {
+    const problems = problemsFor(field)
+    return problems.length ? problems.map((p: ComposeProblem) => p.detail).join(" ") : undefined
+  }
 
   const enableableCount = modules.filter((m) => m.enableable).length
   const refusal = placementRefusal(placement)
   const placeable = canPlace(placement)
 
-  const ledgerRows: LedgerRow[] = [
-    ...quote.lines.map((line) => ({
-      key: line.optionKey,
-      option: line.optionKey,
-      perSeat: priceLabel(line.perSeatMinor, quote.currency),
-      perOrg: priceLabel(line.perOrgMinor, quote.currency),
-      extended: priceLabel(line.extendedMinor, quote.currency),
-      total: false,
-    })),
+  const ledgerRows: LedgerRow[] =
+    quote.state === "QUOTED"
+      ? [
+          ...quote.preview.quote.lines.map((line) => ({
+            key: line.optionKey,
+            option: line.optionKey,
+            perSeat: priceLabel(line.perSeatMinor, quote.preview.quote.currency),
+            perOrg: priceLabel(line.perOrgMinor, quote.preview.quote.currency),
+            extended: priceLabel(line.extendedMinor, quote.preview.quote.currency),
+            total: false,
+          })),
+          {
+            key: "__total",
+            option: "Total, per month",
+            perSeat: "",
+            perOrg: "",
+            extended: priceLabel(
+              quote.preview.quote.runningTotalMinor,
+              quote.preview.quote.currency,
+            ),
+            total: true,
+          },
+        ]
+      : []
+
+  /* ── The answer, in words, before the apparatus ─────────────────────────
+   *
+   * Four facts, in the order the question asks them: what this is, what it
+   * costs, what is not settled, and where it would run. Through `KeyValue`
+   * rather than a hand-built `<dl>`, so a long region name or module key wraps
+   * inside its column instead of setting the column's minimum width and pushing
+   * the panel past the viewport at 320 CSS pixels.
+   */
+  const totalText: ReactNode =
+    quote.state === "QUOTED"
+      ? priceLabel(quote.preview.quote.runningTotalMinor, quote.preview.quote.currency)
+      : "Cannot be totalled"
+
+  const summary: KeyValueItem[] = [
     {
-      key: "__total",
-      option: "Total, per month",
-      perSeat: "",
-      perOrg: "",
-      extended: priceLabel(quote.runningTotalMinor, quote.currency),
-      total: true,
+      key: "what",
+      term: "What this will be",
+      value: (
+        <>
+          One tenant system on the <b>{blueprintId || "unnamed"}</b> blueprint, operating as{" "}
+          <b>{operatingModel || "unstated"}</b> for a <b>{organization || "unstated"}</b>{" "}
+          organisation, running <b>{selected.length}</b> of {modules.length} catalog module(s)
+          across {suites.length} functional suite(s), contracted on <b>{planId || "no plan"}</b>,
+          isolated as <b>{isolation || "unstated"}</b>.
+        </>
+      ),
+    },
+    {
+      key: "cost",
+      term: "List price if activated today",
+      value: (
+        <>
+          <b data-testid="running-total-amount">{totalText}</b>{" "}
+          {quote.state === "QUOTED" ? (
+            <>
+              per month — {quote.preview.quote.lines.length} option(s) at{" "}
+              {quote.preview.quote.seatCount} seat(s), per-organization plus per-seat. List price
+              for the configuration below, not a contracted price.
+            </>
+          ) : (
+            <>
+              — {REFUSAL_HEADLINE[quote.reason]}. It is not zero. The Ledger preview at the end of
+              this form names every option at fault.
+            </>
+          )}
+        </>
+      ),
+    },
+    {
+      key: "open",
+      term: "Before it could be activated",
+      value:
+        quote.state !== "QUOTED"
+          ? "Unknown, because the disclosures are computed from the quote and there is no quote. Nothing here says the configuration is ready."
+          : quote.preview.readyToActivate
+            ? "Nothing is open. Each of the seven disclosures below carries where it was decided."
+            : `${quote.preview.openTopics.length} of ${quote.preview.disclosures.length} disclosures are open, and none of them is defaulted. They are listed at the end of this form with what would record each one.`,
+    },
+    {
+      key: "where",
+      term: "Where it would run",
+      value:
+        placement.state === "OFFERED" && region
+          ? `${region} — ${placementSummary(placement)}`
+          : placementSummary(placement),
+    },
+    {
+      key: "asof",
+      term: "As of",
+      value: (
+        <>
+          Blueprint, module, plan, isolation and coexistence catalogs as compiled into this build,
+          engine <code>{engineVersion}</code>. Fleet read at <code>{fleetReadAt}</code>. The quote
+          is recomputed on this device as the form changes.
+        </>
+      ),
     },
   ]
 
   return (
-    <form action={action}>
-      {/* ── The answer, before the apparatus ────────────────────────────────
-          PAY-160-002. What registering does, what it would cost, what is not
-          settled yet, and where it would run — the four things an operator came
-          to this page to find out, above the form that decides them.
-
-          Sticky rather than a footer: the price of a composition has to be
+    <form action={action} className={styles.form}>
+      {/* Sticky rather than a footer: the price of a composition has to be
           visible WHILE the composition is being made, not discovered after the
-          last stage. The inline style carries position only; every colour,
-          radius and shadow on the card below is a token, through `Surface`. */}
-      <div
-        data-testid="running-total"
-        style={{ position: "sticky", insetBlockStart: 0, zIndex: 2 }}
-      >
+          last stage. */}
+      <div data-testid="running-total" className={styles.summary}>
         <Card
           headline="This composition"
           headerAside={
             <Badge
-              tone={preview.readyToActivate ? "ok" : "warn"}
+              tone={quote.state === "QUOTED" && quote.preview.readyToActivate ? "ok" : "warn"}
               title="Whether every pre-activation disclosure has been settled. Registering in DRAFT does not require it; activating does."
             >
-              {preview.readyToActivate
-                ? "every disclosure settled"
-                : `${preview.openTopics.length} undecided`}
+              {quote.state !== "QUOTED"
+                ? "not quoted"
+                : quote.preview.readyToActivate
+                  ? "every disclosure settled"
+                  : `${quote.preview.openTopics.length} undecided`}
             </Badge>
           }
           supportingText="Registering puts this tenant in DRAFT. Nothing is built, nothing is billed and no routing changes — provisioning is a separate, approved step taken from the tenant's own page once its plan has been read."
           container="high"
           level={1}
         >
-          <dl className="kv">
-            <dt>List price if activated today</dt>
-            <dd>
-              <b data-testid="running-total-amount">
-                {priceLabel(quote.runningTotalMinor, quote.currency)}
-              </b>{" "}
-              per month — {quote.lines.length} option(s) at {quote.seatCount} seat(s),
-              per-organization plus per-seat. List price for the configuration below, not a
-              contracted price.
-            </dd>
+          <KeyValue items={summary} ariaLabel="What this composition is and what it would cost" />
 
-            <dt>Before it could be activated</dt>
-            <dd>
-              {preview.readyToActivate
-                ? "Nothing is open. Each of the seven disclosures below carries where it was decided."
-                : `${preview.openTopics.length} of ${preview.disclosures.length} disclosures are open, and none of them is defaulted. They are listed at the end of this form with what would record each one.`}
-            </dd>
-
-            <dt>Where it would run</dt>
-            <dd>{placementSummary(placement)}</dd>
-
-            <dt>As of</dt>
-            <dd>
-              Blueprint, module and plan catalogs as compiled into this build, engine{" "}
-              <code>{engineVersion}</code>. Fleet read at <code>{fleetReadAt}</code>.
-            </dd>
-          </dl>
-
-          <div className="field">
-            <label htmlFor="seatCount">Seats</label>
-            <input
-              id="seatCount"
-              name="seatCount"
-              type="number"
-              min={0}
-              step={1}
-              value={seats}
-              onChange={(e) => setSeats(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))}
-            />
-            <p className="hint">
-              How many people hold a seat. Per-seat and whole-organization charges are quoted
-              separately below because they behave differently: a ledger costs the same for ten
-              officers and two hundred, and messaging does not.
-            </p>
-          </div>
+          {/* Full width, like every other control here. `TextField` omits
+              `className` from its props on purpose — a caller that can restyle
+              the input is a caller that can put a colour on it — and bounding
+              the frame instead would squeeze this field's supporting sentence
+              into a twelve-rem column. */}
+          <TextField
+            id="seatCount"
+            name="seatCount"
+            label="Seats"
+            inputMode="numeric"
+            value={seatsText}
+            onChange={(e) => setSeatsText(e.target.value)}
+            supportingText="How many people hold a seat. Per-seat and whole-organization charges are quoted separately below because they behave differently: a ledger costs the same for ten officers and two hundred, and messaging does not. This figure prices the composition; it is not part of the registered manifest, which records no seat count."
+            errorText={parsedSeats.ok ? undefined : parsedSeats.detail}
+          />
         </Card>
       </div>
 
@@ -455,128 +589,107 @@ export function ComposeForm({
         headline="Identity"
         supportingText="What this tenant is called, in the URL, in the contract and on screen."
       >
-        <p className="hint">
+        <p className="md3-body-small">
           As of now: nothing here is read from anywhere. These are the values you are supplying,
           and the slug is the only one that is expensive to change afterwards.
         </p>
 
-        <Field
+        <TextField
+          id="slug"
           name="slug"
           label="Slug"
-          hint="Becomes platform.tenurework.com/<slug> and part of resource names. Changing it later is a migration."
-          problems={problemsFor("slug")}
-        >
-          <input id="slug" name="slug" required placeholder="midtown-arts" autoComplete="off" />
-        </Field>
+          required
+          autoComplete="off"
+          placeholder="midtown-arts"
+          supportingText="Becomes platform.tenurework.com/<slug> and part of resource names. Changing it later is a migration."
+          errorText={errorFor("slug")}
+        />
 
-        <Field
+        <TextField
+          id="legalName"
           name="legalName"
           label="Legal name"
-          hint="The entity this system belongs to."
-          problems={problemsFor("legalName")}
-        >
-          <input id="legalName" name="legalName" required placeholder="Midtown Arts Collective" />
-        </Field>
+          required
+          placeholder="Midtown Arts Collective"
+          supportingText="The entity this system belongs to."
+          errorText={errorFor("legalName")}
+        />
 
-        <Field
+        <TextField
+          id="displayName"
           name="displayName"
           label="Display name"
-          hint="What its users see."
-          problems={problemsFor("displayName")}
-        >
-          <input id="displayName" name="displayName" required placeholder="Midtown Arts" />
-        </Field>
+          required
+          placeholder="Midtown Arts"
+          supportingText="What its users see."
+          errorText={errorFor("displayName")}
+        />
       </Card>
 
       <Card
         headline="Blueprint and archetype"
         supportingText="The preset, and the point on each axis the engine will compile the system from."
       >
-        <p className="hint">
+        <p className="md3-body-small">
           As of engine <code>{engineVersion}</code>: {blueprints.length} blueprint(s) and{" "}
           {axes.length} axes, read from the catalog compiled into this build. A blueprint supplies
           the starting position on every axis; one axis moved is a genuinely different system rather
           than a fourth blueprint (PACK-020-001, PACK-GATE-020).
         </p>
 
-        <Field
+        <Select
+          id="blueprintId"
           name="blueprintId"
           label="Blueprint"
-          hint="The preset. It supplies the starting position on every axis below and the modules that follow from them — all of which you can then change."
-          problems={problemsFor("blueprintId")}
-        >
-          <select
-            id="blueprintId"
-            name="blueprintId"
-            required
-            value={blueprintId}
-            onChange={(e) => onBlueprint(e.target.value)}
-          >
-            {blueprints.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.id}
-              </option>
-            ))}
-          </select>
-        </Field>
+          required
+          value={blueprintId}
+          onChange={(e) => onBlueprint(e.target.value)}
+          options={blueprints.map((b) => ({ value: b.id, label: b.id }))}
+          supportingText="The preset. It supplies the starting position on every axis below and the modules that follow from them — all of which you can then change."
+          errorText={errorFor("blueprintId")}
+        />
 
         {axes.map((axis) =>
           axis.cardinality === "one" ? (
-            <Field
+            <Select
               key={axis.id}
+              id={`archetype.${axis.id}`}
               name={`archetype.${axis.id}`}
               label={axis.label}
-              hint={axis.effect}
-              problems={problemsFor(`archetype.${axis.id}`)}
-            >
-              <select
-                id={`archetype.${axis.id}`}
-                name={`archetype.${axis.id}`}
-                required
-                value={axis.id === "organization" ? organization : operatingModel}
-                onChange={(e) =>
-                  axis.id === "organization"
-                    ? setOrganization(e.target.value)
-                    : setOperatingModel(e.target.value)
-                }
-              >
-                {axis.values.map((v) => (
-                  <option key={v.id} value={v.id} title={v.description}>
-                    {v.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
+              required
+              value={axis.id === "organization" ? organization : operatingModel}
+              onChange={(e) =>
+                axis.id === "organization"
+                  ? setOrganization(e.target.value)
+                  : setOperatingModel(e.target.value)
+              }
+              options={axis.values.map((v) => ({ value: v.id, label: `${v.label} — ${v.description}` }))}
+              supportingText={axis.effect}
+              errorText={errorFor(`archetype.${axis.id}`)}
+            />
           ) : (
-            <Field
+            <ChoiceGroup
               key={axis.id}
-              name={`archetype.${axis.id}`}
-              label={axis.label}
-              hint={axis.effect}
-              problems={problemsFor(`archetype.${axis.id}`)}
+              id={`archetype.${axis.id}`}
+              legend={axis.label}
+              supportingText={axis.effect}
+              errorText={errorFor(`archetype.${axis.id}`)}
             >
-              <div className="checks">
-                {axis.values.map((v) => (
-                  <label key={v.id} className="check" title={v.description}>
-                    <input
-                      type="checkbox"
-                      name={`archetype.${axis.id}`}
-                      value={v.id}
-                      checked={suites.includes(v.id)}
-                      onChange={() =>
-                        setSuites((s) =>
-                          s.includes(v.id) ? s.filter((x) => x !== v.id) : [...s, v.id],
-                        )
-                      }
-                    />
-                    <span>
-                      <b>{v.label}</b>
-                      <span className="slug">{v.description}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </Field>
+              {axis.values.map((v) => (
+                <Choice
+                  key={v.id}
+                  name={`archetype.${axis.id}`}
+                  value={v.id}
+                  checked={suites.includes(v.id)}
+                  onChange={() =>
+                    setSuites((s) => (s.includes(v.id) ? s.filter((x) => x !== v.id) : [...s, v.id]))
+                  }
+                >
+                  <span className="md3-label-large">{v.label}</span>
+                  <span className="md3-body-small">{v.description}</span>
+                </Choice>
+              ))}
+            </ChoiceGroup>
           ),
         )}
       </Card>
@@ -598,7 +711,7 @@ export function ComposeForm({
         }
         supportingText="What the system can do. Starts at what the axes above compile to; every tick or untick is recorded as an edit against that preset."
       >
-        <p className="hint">
+        <p className="md3-body-small">
           As of engine <code>{engineVersion}</code>: the module catalog compiled into this build,
           with each manifest&rsquo;s own list price and lifecycle carried through. A module the
           resolver would refuse is shown with the lifecycle that refuses it rather than being
@@ -606,74 +719,74 @@ export function ComposeForm({
           exist.
         </p>
 
-        <Field
-          name="modules"
-          label="Modules"
-          hint="Ticking or unticking one records a per-module edit against the preset, which is what a suite cannot express."
-          problems={problemsFor("modules")}
+        <ChoiceGroup
+          id="modules"
+          legend="Modules"
+          supportingText="Ticking or unticking one records a per-module edit against the preset, which is what a suite cannot express."
+          errorText={errorFor("modules")}
         >
-          <div className="checks">
-            {modules.map((m) => (
-              <label
+          {modules.map((m) => {
+            /* PAY-160-002 — per SEAT and per ORG, beside every option, always
+               both. An option whose price cannot be resolved says so here; it
+               is never blank and never zero. */
+            const statement = optionPriceStatement(m.key, m.price, seats, extendedFor(m.key))
+            return (
+              <Choice
                 key={m.key}
-                className="check"
-                title={m.enableable ? m.description : `${m.description} — lifecycle "${m.lifecycle}"`}
+                checked={checked(m.key)}
+                disabled={!m.enableable}
+                onChange={() => toggle(m.key)}
               >
-                <input
-                  type="checkbox"
-                  value={m.key}
-                  checked={checked(m.key)}
-                  disabled={!m.enableable}
-                  onChange={() => toggle(m.key)}
-                />
-                <span>
-                  <b>{m.key}</b>{" "}
-                  <span className="version">v{m.version}</span>{" "}
-                  <span className="version">{m.lifecycle}</span>
-                  {!m.enableable && (
-                    <span className="slug">
-                      Cannot be enabled: lifecycle is &ldquo;{m.lifecycle}&rdquo;.
-                    </span>
-                  )}
-                  {m.enableable && preset.has(m.key) && !checked(m.key) && (
-                    <span className="slug">Removed from the preset.</span>
-                  )}
-                  {m.enableable && !preset.has(m.key) && checked(m.key) && (
-                    <span className="slug">Added to the preset.</span>
-                  )}
-                  {/* PAY-160-002 — per SEAT and per ORG, beside every option.
-                      Both, always: quoting one of them is how a two-person club
-                      gets charged like a faculty or the other way round. A
-                      module included at no charge says why, because zero is a
-                      commercial statement and a blank is not. */}
-                  <span className="slug" data-testid={`price-${m.key}`}>
-                    {m.price.perSeatMinor === 0 && m.price.perOrgMinor === 0
-                      ? `Included at no charge — ${m.price.includedBecause ?? "no reason stated"}`
-                      : `${priceLabel(m.price.perSeatMinor, m.price.currency)} per seat · ` +
-                        `${priceLabel(m.price.perOrgMinor, m.price.currency)} per organization · ` +
-                        `${priceLabel(
-                          checked(m.key) ? extendedFor(m.key) : m.price.perOrgMinor + m.price.perSeatMinor * seats,
-                          m.price.currency,
-                        )} at ${seats} seat(s)`}
-                  </span>
-                  <span className="slug">{m.description}</span>
+                <span className={`${styles.choiceName} md3-label-large`}>
+                  {m.key}
+                  <Chip title="The manifest version compiled into this build">v{m.version}</Chip>
+                  <Chip
+                    selected={m.enableable}
+                    title={
+                      m.enableable
+                        ? "The resolver accepts this lifecycle."
+                        : "The resolver refuses this lifecycle."
+                    }
+                  >
+                    {m.lifecycle}
+                  </Chip>
                 </span>
-              </label>
-            ))}
-          </div>
-          {/* The diff, not the absolute set. The server recompiles the preset
-              from the axes above and replays these onto it. */}
-          {added
-            .filter((key) => enableable.get(key) !== false)
-            .map((key) => (
-              <input key={`add-${key}`} type="hidden" name="moduleAdd" value={key} />
-            ))}
-          {removed
-            .filter((key) => preset.has(key))
-            .map((key) => (
-              <input key={`remove-${key}`} type="hidden" name="moduleRemove" value={key} />
-            ))}
-        </Field>
+                {!m.enableable && (
+                  <span className="md3-body-small">
+                    Cannot be enabled: lifecycle is &ldquo;{m.lifecycle}&rdquo;.
+                  </span>
+                )}
+                {m.enableable && preset.has(m.key) && !checked(m.key) && (
+                  <span className="md3-body-small">Removed from the preset.</span>
+                )}
+                {m.enableable && !preset.has(m.key) && checked(m.key) && (
+                  <span className="md3-body-small">Added to the preset.</span>
+                )}
+                <span
+                  className="md3-body-small"
+                  data-testid={`price-${m.key}`}
+                  data-price-state={statement.state}
+                >
+                  {statement.text}
+                </span>
+                <span className="md3-body-small">{m.description}</span>
+              </Choice>
+            )
+          })}
+        </ChoiceGroup>
+
+        {/* The diff, not the absolute set. The server recompiles the preset
+            from the axes above and replays these onto it. */}
+        {added
+          .filter((key) => enableable.get(key) !== false)
+          .map((key) => (
+            <input key={`add-${key}`} type="hidden" name="moduleAdd" value={key} />
+          ))}
+        {removed
+          .filter((key) => preset.has(key))
+          .map((key) => (
+            <input key={`remove-${key}`} type="hidden" name="moduleRemove" value={key} />
+          ))}
       </Card>
 
       {/* Entitlements are a consequence of the contracted plan, not free
@@ -684,27 +797,23 @@ export function ComposeForm({
         headline="Plan"
         supportingText="What was contracted. Entitlements and quotas follow from it, and a module the plan does not grant is refused rather than quietly dropped."
       >
-        <p className="hint">
+        <p className="md3-body-small">
           As of engine <code>{engineVersion}</code>: {plans.length} plan(s) from the catalog
           compiled into this build. The plan this opens on is not a literal — it is the first one
           whose entitlements let the default preset resolve, decided on the server by the same
-          `resolveModules` the action refuses with.
+          resolver the action refuses with.
         </p>
 
-        <Field
+        <Select
+          id="planId"
           name="planId"
           label="Plan"
-          hint="What was contracted. Entitlements and quotas follow from it."
-          problems={problemsFor("planId")}
-        >
-          <select id="planId" name="planId" defaultValue={defaultPlanId}>
-            {plans.map((p) => (
-              <option key={p.planId} value={p.planId}>
-                {p.displayName} — {p.grants}
-              </option>
-            ))}
-          </select>
-        </Field>
+          value={planId}
+          onChange={(e) => setPlanId(e.target.value)}
+          options={plans.map((p) => ({ value: p.planId, label: `${p.displayName} — ${p.grants}` }))}
+          supportingText="What was contracted. Entitlements and quotas follow from it."
+          errorText={errorFor("planId")}
+        />
       </Card>
 
       <Card
@@ -719,7 +828,7 @@ export function ComposeForm({
         }
         supportingText="Which cell this system runs in, and how much of it the tenant has to itself."
       >
-        <p className="hint">
+        <p className="md3-body-small">
           As of <code>{fleetReadAt}</code>: read from the cell registry on the server, for this
           request. Not a hard-coded list — a hard-coded list lets an operator pick a region no cell
           serves, and placement then refuses with &ldquo;no cell in your residency&rdquo;, which is
@@ -727,15 +836,15 @@ export function ComposeForm({
         </p>
 
         {placement.state === "OFFERED" ? (
-          <Field name="region" label="Region" problems={problemsFor("region")}>
-            <select id="region" name="region" defaultValue={placement.regions[0]}>
-              {placement.regions.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <Select
+            id="region"
+            name="region"
+            label="Region"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            options={placement.regions.map((r) => ({ value: r, label: r }))}
+            errorText={errorFor("region")}
+          />
         ) : (
           /*
            * STUDIO-000-007. Unknown is not empty, and neither is a refusal.
@@ -745,41 +854,44 @@ export function ComposeForm({
            * credentials served a 500 here. It now renders WHICH of the three
            * things happened, and what would fix it, and it does not offer a
            * region control there is no fleet behind.
+           *
+           * Not `role="status"`. `components/states.tsx` reserves the live
+           * region for the governed state block; this panel is rendered with the
+           * page, and announcing a static refusal every time the page settles is
+           * how a screen reader is trained to ignore one.
            */
-          <div>
-            {/* Not `role="status"`. `components/states.tsx` reserves the live
-                region for the governed state block; this panel is rendered with
-                the page, and announcing a static refusal every time the page
-                settles is how a screen reader is trained to ignore one. */}
+          <div className={styles.prose} data-testid="placement-refusal">
             <p className="md3-title-small">{refusal?.headline}</p>
             <p className="md3-body-medium">{refusal?.detail}</p>
             <p className="md3-body-medium">{refusal?.remedy}</p>
             {placement.state === "UNKNOWN" && (
-              <dl className="kv">
-                {placement.problems.map((p) => (
-                  <div key={p.field} style={{ display: "contents" }}>
-                    <dt>{p.field}</dt>
-                    <dd>{p.detail}</dd>
-                  </div>
-                ))}
-              </dl>
+              <KeyValue
+                /* Arm-neutral. This list renders for BOTH `UNKNOWN` reasons, so
+                   a label naming one of them — "could not be described" — put
+                   the misconfigured arm's own words into the unreadable arm's
+                   markup, which is exactly the "four states, one answer" defect
+                   `placement.test.tsx` measures. */
+                ariaLabel="What the cell registry read reported"
+                items={placement.problems.map((p) => ({
+                  key: p.field,
+                  term: p.field,
+                  value: p.detail,
+                }))}
+              />
             )}
           </div>
         )}
 
-        <Field
+        <Select
+          id="isolation"
           name="isolation"
           label="Isolation"
-          hint="Pooled shares the cell's database and cluster; isolation is the application's tenant scope. A dedicated account needs an AWS Organization, which does not exist yet."
-          problems={problemsFor("isolation")}
-        >
-          <select id="isolation" name="isolation" defaultValue="pooled">
-            <option value="pooled">pooled — shares the cell</option>
-            <option value="bridge">bridge — shared cluster, own schema</option>
-            <option value="silo">silo — dedicated resources in the cell</option>
-            <option value="dedicated-account">dedicated-account — unavailable, needs GE-010</option>
-          </select>
-        </Field>
+          value={isolation}
+          onChange={(e) => setIsolation(e.target.value)}
+          options={isolationClasses.map((i) => ({ value: i.id, label: `${i.id} — ${i.meaning}` }))}
+          supportingText="Pooled shares the cell's database and cluster; isolation is the application's tenant scope. Each class carries what it means, from the same closed vocabulary the server validates against."
+          errorText={errorFor("isolation")}
+        />
       </Card>
 
       {/* PACK-020-004. Separate from Placement on purpose: placement is where
@@ -789,7 +901,7 @@ export function ComposeForm({
         headline="Coexistence"
         supportingText="How this system sits beside whatever the customer already runs, and which side writes what."
       >
-        <p className="hint">
+        <p className="md3-body-small">
           As of engine <code>{engineVersion}</code>: {coexistenceProfiles.length} profile(s) and{" "}
           {businessDomains.length} business domain(s), from the closed vocabularies the server
           validates against — so this form cannot offer a profile or a domain the server refuses.
@@ -797,48 +909,39 @@ export function ComposeForm({
           targets.
         </p>
 
-        <Field
+        <Select
+          id="coexistence"
           name="coexistence"
           label="Profile"
-          hint="How this system sits beside whatever the customer already runs."
-          problems={problemsFor("coexistence")}
-        >
-          <select id="coexistence" name="coexistence" defaultValue="TENURE_CLOUD_PRIMARY">
-            {coexistenceProfiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.id} — {p.meaning}
-              </option>
-            ))}
-          </select>
-        </Field>
+          value={coexistence}
+          onChange={(e) => setCoexistence(e.target.value)}
+          options={coexistenceProfiles.map((p) => ({ value: p.id, label: `${p.id} — ${p.meaning}` }))}
+          supportingText="How this system sits beside whatever the customer already runs."
+          errorText={errorFor("coexistence")}
+        />
 
-        <Field
-          name="systemOfRecord"
-          label="Domains an external system owns"
-          hint="Exactly one system writes a domain's facts. A module that writes a domain ticked here is refused — dual write is prohibited, and buying the entitlement would not change that."
-          problems={problemsFor("systemOfRecord")}
+        <ChoiceGroup
+          id="systemOfRecord"
+          legend="Domains an external system owns"
+          supportingText="Exactly one system writes a domain's facts. A module that writes a domain ticked here is refused — dual write is prohibited, and buying the entitlement would not change that."
+          errorText={errorFor("systemOfRecord")}
         >
-          <div className="checks">
-            {businessDomains.map((domain) => (
-              <label key={domain} className="check">
-                <input type="checkbox" name="externalDomains" value={domain} />
-                <span>
-                  <b>{domain}</b>
-                  <span className="slug">
-                    unticked means Tenure is authoritative for {domain}
-                  </span>
-                  {/* Every option on every stage carries a price statement, and
-                      for these the true one is that they carry no charge. A
-                      blank here would read as an unpriced option; the sentence
-                      says which side of the quote it is on. */}
-                  <span className="slug" data-testid={`price-domain-${domain}`}>
-                    {DOMAIN_PRICE_NOTE}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </Field>
+          {businessDomains.map((domain) => (
+            <Choice key={domain} name="externalDomains" value={domain}>
+              <span className="md3-label-large">{domain}</span>
+              <span className="md3-body-small">
+                unticked means Tenure is authoritative for {domain}
+              </span>
+              {/* Every option on every stage carries a price statement, and for
+                  these the true one is that they carry no charge. A blank here
+                  would read as an unpriced option; the sentence says which side
+                  of the quote it is on. */}
+              <span className="md3-body-small" data-testid={`price-domain-${domain}`}>
+                {DOMAIN_PRICE_NOTE}
+              </span>
+            </Choice>
+          ))}
+        </ChoiceGroup>
 
         {/* WRK-020-004. The grain below the domain. A domain map answers who
             writes finance; it cannot answer which side writes an invoice's
@@ -846,43 +949,45 @@ export function ComposeForm({
             cannot state which side may write which field at all. Free text
             rather than a widget because an object is a record name and a field
             is one of its columns — neither is a list this console can hold. */}
-        <Field
+        <TextArea
+          id="objectAuthority"
           name="objectAuthority"
           label="Object and field authority (optional)"
-          hint="One per line. `finance.Invoice external INBOUND` says the customer's system writes it and Tenure receives a copy. `finance.Invoice.internalNote tenure` says that one field is ours. An object may not disagree with its domain above, and BIDIRECTIONAL is refused outside COEXISTENCE_TRANSITION and HYBRID_PROCESS_SPLIT."
-          problems={problemsFor("objectAuthority")}
-        >
-          <textarea
-            id="objectAuthority"
-            name="objectAuthority"
-            rows={4}
-            spellCheck={false}
-            placeholder={"finance.Invoice external INBOUND\nfinance.Invoice.internalNote tenure"}
-          />
-        </Field>
+          rows={4}
+          spellCheck={false}
+          placeholder={"finance.Invoice external INBOUND\nfinance.Invoice.internalNote tenure"}
+          supportingText="One per line. `finance.Invoice external INBOUND` says the customer's system writes it and Tenure receives a copy. `finance.Invoice.internalNote tenure` says that one field is ours. An object may not disagree with its domain above, and BIDIRECTIONAL is refused outside COEXISTENCE_TRANSITION and HYBRID_PROCESS_SPLIT."
+          errorText={errorFor("objectAuthority")}
+        />
       </Card>
 
       <Card
         headline="First administrator"
         supportingText="Who can sign in once it is provisioned. A system nobody can sign into is not deployed."
       >
-        <p className="hint">
+        <p className="md3-body-small">
           As of now: nothing here is read from anywhere. Provisioning creates exactly one
           invitation, to the address below.
         </p>
 
-        <Field
+        <TextField
+          id="initialAdminEmail"
           name="initialAdminEmail"
+          type="email"
           label="Email"
-          hint="Provisioning creates exactly one invitation."
-          problems={problemsFor("initialAdminEmail")}
-        >
-          <input id="initialAdminEmail" name="initialAdminEmail" type="email" required />
-        </Field>
+          required
+          supportingText="Provisioning creates exactly one invitation."
+          errorText={errorFor("initialAdminEmail")}
+        />
 
-        <Field name="notes" label="Notes" hint="Shown on the plan." problems={problemsFor("notes")}>
-          <textarea id="notes" name="notes" rows={3} />
-        </Field>
+        <TextArea
+          id="notes"
+          name="notes"
+          label="Notes"
+          rows={3}
+          supportingText="Shown on the plan."
+          errorText={errorFor("notes")}
+        />
       </Card>
 
       {/* ── Before activation ────────────────────────────────────────────
@@ -895,66 +1000,74 @@ export function ComposeForm({
           the platform's behalf, and six of these seven are decisions no code
           can make. What IS decided is the ledger preview: it is the quote
           above, which is exactly what would be posted if this configuration
-          were activated today. */}
+          were activated today — so when there is no quote, there are no
+          disclosures either, and this says so rather than showing six
+          reassuring rows. */}
       <div data-testid="pre-activation">
         <Card
           headline="Before activation"
           headerAside={
-            <Badge tone={preview.readyToActivate ? "ok" : "warn"}>
-              {preview.readyToActivate
-                ? "every disclosure settled"
-                : `${preview.openTopics.length} undecided`}
+            <Badge tone={quote.state === "QUOTED" && quote.preview.readyToActivate ? "ok" : "warn"}>
+              {quote.state !== "QUOTED"
+                ? "not computed"
+                : quote.preview.readyToActivate
+                  ? "every disclosure settled"
+                  : `${quote.preview.openTopics.length} undecided`}
             </Badge>
           }
           supportingText="Registering in DRAFT commits to none of this. Provisioning is a separate, approved step, and it must not be taken while anything below is open — a system that takes money before its merchant of record, funds flow and loss responsibility are settled is one nobody can say who is liable for."
         >
-          <p className="hint">
+          <p className="md3-body-small">
             As of this composition, recomputed as it changes. Six of the seven are decisions no code
             can make, so each open one names the artefact that would record it rather than showing a
             default.
           </p>
 
-          <DataTable
-            caption="Pre-activation disclosures"
-            rows={preview.disclosures}
-            rowKey={(d) => d.topic}
-            columns={[
-              {
-                key: "disclosure",
-                header: "Disclosure",
-                cell: (d) => <span data-testid={`disclosure-${d.topic}`}>{d.label}</span>,
-              },
-              {
-                key: "state",
-                header: "State",
-                cell: (d) => (
-                  <Badge tone={d.state === "DECIDED" ? "ok" : "warn"}>
-                    {d.state === "DECIDED" ? "decided" : "undecided"}
-                  </Badge>
-                ),
-              },
-              {
-                key: "statement",
-                header: "What it says today",
-                cell: (d) => (
-                  <>
-                    {d.statement}{" "}
-                    <span className="slug">
-                      {d.state === "DECIDED"
-                        ? `Recorded in ${d.recordedIn}.`
-                        : `Would be recorded by ${d.wouldRecordIt}.`}
-                    </span>
-                  </>
-                ),
-              },
-            ]}
-            empty={
-              <EmptyState
-                headline="No disclosure applies"
-                description="activationPreview returned no topics at all, which it is not expected to do — seven are unconditional. Treat this as a defect in the preview rather than as a settled configuration."
-              />
-            }
-          />
+          {quote.state !== "QUOTED" ? (
+            <Unpriceable quote={quote} what="The pre-activation disclosure set" />
+          ) : (
+            <DataTable
+              caption="Pre-activation disclosures"
+              rows={quote.preview.disclosures}
+              rowKey={(d) => d.topic}
+              columns={[
+                {
+                  key: "disclosure",
+                  header: "Disclosure",
+                  cell: (d) => <span data-testid={`disclosure-${d.topic}`}>{d.label}</span>,
+                },
+                {
+                  key: "state",
+                  header: "State",
+                  cell: (d) => (
+                    <Badge tone={d.state === "DECIDED" ? "ok" : "warn"}>
+                      {d.state === "DECIDED" ? "decided" : "undecided"}
+                    </Badge>
+                  ),
+                },
+                {
+                  key: "statement",
+                  header: "What it says today",
+                  cell: (d) => (
+                    <>
+                      {d.statement}{" "}
+                      <span className="md3-body-small">
+                        {d.state === "DECIDED"
+                          ? `Recorded in ${d.recordedIn}.`
+                          : `Would be recorded by ${d.wouldRecordIt}.`}
+                      </span>
+                    </>
+                  ),
+                },
+              ]}
+              empty={
+                <EmptyState
+                  headline="No disclosure applies"
+                  description="activationPreview returned no topics at all, which it is not expected to do — seven are unconditional. Treat this as a defect in the preview rather than as a settled configuration."
+                />
+              }
+            />
+          )}
         </Card>
       </div>
 
@@ -962,60 +1075,72 @@ export function ComposeForm({
         headline="Ledger preview"
         supportingText="Exactly what would be posted, per month, if this configuration were activated today."
       >
-        <p className="hint">
-          As of this composition, at {quote.seatCount} seat(s), in {quote.currency}. Every line is
-          the manifest&rsquo;s own list price in whole minor units with no proration applied.
-        </p>
+        {quote.state !== "QUOTED" ? (
+          <Unpriceable quote={quote} what="The monthly charge" />
+        ) : (
+          <>
+            <p className="md3-body-small">
+              As of this composition, at {quote.preview.quote.seatCount} seat(s), in{" "}
+              {quote.preview.quote.currency}. Every line is the manifest&rsquo;s own list price in
+              whole minor units with no proration applied.
+            </p>
 
-        <DataTable
-          caption={`Monthly charge lines at ${quote.seatCount} seat(s)`}
-          rows={ledgerRows}
-          rowKey={(row) => row.key}
-          columns={[
-            {
-              key: "option",
-              header: "Option",
-              cell: (row) => (row.total ? <b>{row.option}</b> : row.option),
-            },
-            { key: "perSeat", header: "Per seat", align: "end", cell: (row) => row.perSeat },
-            {
-              key: "perOrg",
-              header: "Per organization",
-              align: "end",
-              cell: (row) => row.perOrg,
-            },
-            {
-              key: "extended",
-              header: `At ${quote.seatCount} seats`,
-              align: "end",
-              cell: (row) =>
-                row.total ? (
-                  <b data-testid="ledger-preview-total">{row.extended}</b>
-                ) : (
-                  row.extended
-                ),
-            },
-          ]}
-          empty={
-            <EmptyState
-              headline="No option carries a charge yet"
-              description="Nothing selected above has a per-seat or per-organization price, so there is no line to post. That is a statement about the selection, not a discount."
+            <DataTable
+              caption={`Monthly charge lines at ${quote.preview.quote.seatCount} seat(s)`}
+              rows={ledgerRows}
+              rowKey={(row) => row.key}
+              columns={[
+                {
+                  key: "option",
+                  header: "Option",
+                  cell: (row) => (row.total ? <b>{row.option}</b> : row.option),
+                },
+                { key: "perSeat", header: "Per seat", align: "end", cell: (row) => row.perSeat },
+                {
+                  key: "perOrg",
+                  header: "Per organization",
+                  align: "end",
+                  cell: (row) => row.perOrg,
+                },
+                {
+                  key: "extended",
+                  header: `At ${quote.preview.quote.seatCount} seats`,
+                  align: "end",
+                  cell: (row) =>
+                    row.total ? <b data-testid="ledger-preview-total">{row.extended}</b> : row.extended,
+                },
+              ]}
+              empty={
+                <EmptyState
+                  headline="No option carries a charge yet"
+                  description="Nothing selected above has a per-seat or per-organization price, so there is no line to post. That is a statement about the selection, not a discount."
+                />
+              }
             />
-          }
-        />
+          </>
+        )}
       </Card>
 
       {(result?.problems.length ?? 0) > 0 && (
-        <p className="error">
-          {result!.problems.length} problem{result!.problems.length === 1 ? "" : "s"} — nothing was
-          registered.
+        <p className="md3-field-error md3-body-medium">
+          <span className="md3-field-error-word">Error</span> {result!.problems.length} problem
+          {result!.problems.length === 1 ? "" : "s"} — nothing was registered.
         </p>
       )}
 
       {!placeable && (
-        <p className="error">
-          Composing is disabled: {placementSummary(placement)} A manifest with no region is refused
-          by the server, so this form will not submit one.
+        <p className="md3-field-error md3-body-medium">
+          <span className="md3-field-error-word">Error</span> Composing is disabled:{" "}
+          {placementSummary(placement)} A manifest with no region is refused by the server, so this
+          form will not submit one.
+        </p>
+      )}
+
+      {quote.state !== "QUOTED" && placeable && (
+        <p className="md3-body-medium">
+          Registering is still allowed: a DRAFT tenant is billed for nothing, so a configuration
+          that cannot be quoted can still be recorded. It must not be ACTIVATED until the problems
+          named above are resolved — nothing on this page knows what it would cost.
         </p>
       )}
 

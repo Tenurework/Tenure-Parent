@@ -82,6 +82,10 @@ function renderComposer(): string {
       alwaysOnModules={[...ALWAYS_ON_MODULES]}
       suiteModules={suiteModules}
       coexistenceProfiles={[{ id: "TENURE_CLOUD_PRIMARY", meaning: "Tenure is authoritative" }]}
+      // From `ISOLATION_CLASSES` on the page. One class is enough here: this
+      // render is about the prices, and isolation carries none — every figure
+      // asserted below comes from the module catalog.
+      isolationClasses={[{ id: "pooled", meaning: "shares the cell" }]}
       businessDomains={["finance", "hr"]}
       axes={ARCHETYPE_AXES.map((axis) => ({
         id: axis.id,

@@ -117,6 +117,107 @@ test("the summary states the count, the verdict and nothing it has not checked",
 })
 
 /* ─────────────────────────────────────────────────────────────────────────────
+ * 1b. The page's actual question: is each system WHERE IT SHOULD BE?
+ *
+ * The four assertions below are the ones the route was missing entirely. The
+ * page listed what was configured and said nothing about whether any of it was
+ * anywhere — no lifecycle state, no address, and no comparison against the live
+ * AWS estate. An operator could read the whole thing and still not know whether
+ * the pilot was running.
+ */
+
+test("the answer is a sentence at the top, before any apparatus", async ({ page }) => {
+  await signIn(page)
+
+  const answer = page.getByTestId("fleet-answer")
+  await expect(answer, "the page does not lead with the state of the fleet").toHaveCount(1)
+
+  const text = (await answer.innerText()).trim()
+  // A sentence, not a status word. Six verdicts compressed into one coloured
+  // token is the shape that made "unknown" look like "fine".
+  expect(text.split(/\s+/).length, `"${text}" is not a sentence`).toBeGreaterThan(6)
+  expect(text).toMatch(/configured system/)
+
+  // Above the first system card, and above the catalog.
+  const answerBox = await answer.boundingBox()
+  const system = await page.getByRole("heading", { name: /Ainslie OSE/ }).boundingBox()
+  expect(answerBox!.y).toBeLessThan(system!.y)
+})
+
+test("every configured system is in exactly one bucket, and the buckets add up", async ({
+  page,
+}) => {
+  await signIn(page)
+  const summary = page.locator("#summary")
+
+  // The placement chips are the first `.chips` row in the summary; the
+  // configuration chips are the second and count a different axis.
+  const chips = await summary.locator(".chips").first().locator(".md3-chip").allInnerTexts()
+  expect(chips.length, "the summary carries no placement counts").toBeGreaterThanOrEqual(5)
+
+  const summed = chips.reduce((total, chip) => {
+    const n = Number(chip.trim().split(/\s+/)[0])
+    expect(Number.isFinite(n), `"${chip}" does not start with a count`).toBe(true)
+    return total + n
+  }, 0)
+
+  const headline = await summary.locator(".md3-card-headline").first().innerText()
+  const configured = Number(headline.match(/(\d+) organization system/)![1])
+
+  expect(
+    summed,
+    "the placement buckets do not add up to the number of configured systems. A system whose " +
+      "state could not be read has been dropped from the count rather than counted as UNKNOWN.",
+  ).toBe(configured)
+})
+
+test("each system states its lifecycle, its blueprint, its address and its AWS footprint", async ({
+  page,
+}) => {
+  await signIn(page)
+
+  const card = page.locator("main .md3-card").filter({ hasText: "Ainslie OSE" }).first()
+  await expect(card).toHaveCount(1)
+
+  for (const label of ["Lifecycle state", "Blueprint", "Served at", "Live AWS footprint"]) {
+    const row = card.locator("tr").filter({ hasText: label }).first()
+    expect(
+      await card.locator("tr").filter({ hasText: label }).count(),
+      `"${label}" is not on the system's card — the page cannot answer whether the system is ` +
+        `where it should be without it`,
+    ).toBeGreaterThan(0)
+
+    const value = (await row.locator("td").last().innerText()).trim()
+    expect(value, `"${label}" rendered blank`).not.toBe("")
+    // A dash is a character an operator has to interpret, and its two readings
+    // — nothing was recorded, and nothing is required — are different facts.
+    expect(value, `"${label}" rendered as a dash`).not.toMatch(/^[—–-]$/)
+
+    // An UNKNOWN with no remedy is a dead end. Every one on this page is paired
+    // with the sentence that says what would make it known.
+    if (value.includes("UNKNOWN")) {
+      expect(
+        value.split(/\s+/).length,
+        `"${label}" says UNKNOWN and stops. Say what would make it known.`,
+      ).toBeGreaterThan(6)
+    }
+  }
+})
+
+test("a system's verdict is a word an operator can act on, never a colour alone", async ({
+  page,
+}) => {
+  await signIn(page)
+
+  const card = page.locator("main .md3-card").filter({ hasText: "Ainslie OSE" }).first()
+  const badge = card.locator(".md3-badge").first()
+
+  await expect(badge).toHaveText(
+    /where it should be|not where it should be|not deployed|not registered|UNKNOWN|broken/,
+  )
+})
+
+/* ─────────────────────────────────────────────────────────────────────────────
  * 2. No fixture tenant is rendered as a customer.
  */
 

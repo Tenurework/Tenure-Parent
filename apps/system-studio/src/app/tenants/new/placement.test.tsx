@@ -92,6 +92,10 @@ function render(placement: PlacementOffer): string {
       alwaysOnModules={[...ALWAYS_ON_MODULES]}
       suiteModules={suiteModules}
       coexistenceProfiles={[{ id: "TENURE_CLOUD_PRIMARY", meaning: "Tenure is authoritative" }]}
+      // From `ISOLATION_CLASSES` on the page. One class is enough here: this
+      // render is about the placement arms, and the isolation vocabulary is
+      // exercised where it is projected.
+      isolationClasses={[{ id: "pooled", meaning: "shares the cell" }]}
       businessDomains={["finance", "hr"]}
       axes={ARCHETYPE_AXES.map((axis) => ({
         id: axis.id,
@@ -104,9 +108,20 @@ function render(placement: PlacementOffer): string {
   )
 }
 
-/** The `<select id="region">` control, or null when the form did not offer one. */
+/**
+ * The region `<select>`, or null when the form did not offer one.
+ *
+ * `[^>]*\bid="region"` rather than `<select id="region"`. Deliberately the same
+ * strength — it still requires a `<select>` element carrying exactly that id, and
+ * still returns the element's whole markup so `toContain("eu-west-2")` reads the
+ * option list rather than the page. What changed is that the control is now
+ * rendered by `components/md3/Select`, which spreads the caller's props before
+ * writing its own `id`, so the id is no longer the first attribute. Pinning
+ * attribute ORDER pins an implementation detail of a shared primitive this route
+ * does not own; pinning the element and the id pins what the assertion is about.
+ */
 function regionControl(html: string): string | null {
-  return /<select id="region"[^>]*>[\s\S]*?<\/select>/.exec(html)?.[0] ?? null
+  return /<select[^>]*\bid="region"[^>]*>[\s\S]*?<\/select>/.exec(html)?.[0] ?? null
 }
 
 /** Whether the submit button carries `disabled`. */
@@ -257,19 +272,32 @@ describe("the four states are four answers", () => {
     // computed four strings and printed one of them would pass the test above
     // and fail this one. Each marker must appear in its own render and in
     // NEITHER of the other three — four distinct panels, not four labels on one.
-    const markers = [
-      '<select id="region"',
-      "No cell can take a tenant",
-      "cell registry could not be described",
-      "reading the cell registry failed",
+    //
+    // Predicates rather than substrings, for the first one only: the region
+    // control is drawn by `components/md3/Select`, which writes its own
+    // attribute order, so `'<select id="region"'` was pinning a shared
+    // primitive's internals rather than this route's behaviour. `regionControl`
+    // is the same assertion made order-agnostically, and the other three are
+    // unchanged prose this route owns.
+    const markers: Array<{ name: string; present: (html: string) => boolean }> = [
+      { name: "a region control", present: (html) => regionControl(html) !== null },
+      { name: "no cell", present: (html) => html.includes("No cell can take a tenant") },
+      {
+        name: "misconfigured",
+        present: (html) => html.includes("cell registry could not be described"),
+      },
+      {
+        name: "unreadable",
+        present: (html) => html.includes("reading the cell registry failed"),
+      },
     ]
     const rendered = offers.map(render)
 
     for (let mine = 0; mine < markers.length; mine++) {
-      expect(rendered[mine]).toContain(markers[mine])
+      expect(markers[mine].present(rendered[mine])).toBe(true)
       for (let other = 0; other < markers.length; other++) {
         if (other === mine) continue
-        expect(rendered[other]).not.toContain(markers[mine])
+        expect(markers[mine].present(rendered[other])).toBe(false)
       }
     }
   })

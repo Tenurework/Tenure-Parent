@@ -16,8 +16,10 @@ import { ENGINE_VERSION } from "@tenure/configuration"
 import {
   BUSINESS_DOMAINS,
   COEXISTENCE_PROFILES,
+  ISOLATION_CLASSES,
   PLAN_CATALOG,
   type CoexistenceProfile,
+  type IsolationClass,
 } from "@tenure/provisioning"
 
 /**
@@ -36,6 +38,29 @@ const COEXISTENCE_MEANING: Record<CoexistenceProfile, string> = {
   COEXISTENCE_TRANSITION: "temporary controlled coexistence during a transformation",
   MIGRATION_IN_PROGRESS: "Tenure becomes authoritative after reconciliation and cutover",
   ARCHIVE_AND_MEMORY: "legacy records retained and searchable, read-only",
+}
+
+/**
+ * What each isolation class means, in an operator's words — bible §5.
+ *
+ * Beside the constant for the same reason `COEXISTENCE_MEANING` is: the closed
+ * list is the vocabulary the validator checks against, and prose belongs on the
+ * surface that renders it. Typed as a total record, so adding a class does not
+ * compile until somebody writes what it means.
+ *
+ * This replaced four `<option>` literals in the form, one of which asserted
+ * "unavailable, needs GE-010" — a claim about the estate written into markup, a
+ * second copy of a rule that already lives in `validateManifest`. The sentence
+ * below names the same ADR the server's own refusal names, and the operator who
+ * chooses it still meets that refusal itemised rather than being quietly
+ * prevented from asking.
+ */
+const ISOLATION_MEANING: Record<IsolationClass, string> = {
+  pooled: "shares the cell's database and cluster; separation is the application's tenant scope",
+  bridge: "shares the cluster, with the tenant's own schema",
+  silo: "dedicated resources inside the shared cell",
+  "dedicated-account":
+    "a Tenure-owned AWS account of its own, which needs an Organization to vend it; ADR-0007 / GE-010 records that none exists, so composeTenant refuses this today",
 }
 
 import { placeableRegions } from "@/lib/cells"
@@ -199,10 +224,36 @@ export default async function NewTenantPage() {
       </p>
 
       <h1>Compose a tenant</h1>
+
+      {/*
+        The answer, in words, before any apparatus.
+
+        The question this page exists to answer is "what am I about to create,
+        and what will it cost". It used to open on a description of the FORM —
+        which panel says what — and then on a seat-count box. That is the
+        apparatus, and an operator who has to read the apparatus to find the
+        answer has been handed a construction site.
+
+        Two paragraphs, both of them the answer: what a composition IS and what
+        registering one does, then where the money comes from and when it is
+        known. Every figure they promise is computed below from the module
+        catalog's own list prices, never estimated here.
+      */}
+      <p className="md3-body-large">
+        You are about to create <b>one tenant system</b>: an organisation, the modules it runs, the
+        plan it is contracted on, the cell it runs in and the one administrator who can sign into
+        it. Registering it puts it in <b>DRAFT</b> — nothing is built, nothing is billed, no
+        routing changes, and no AWS resource is created. Provisioning is a separate, approved step
+        taken later from the tenant&rsquo;s own page.
+      </p>
       <p className="md3-body-medium">
-        Everything below describes one system. The panel at the top says what registering it will
-        and will not do, what it would cost if it were activated today, and what is still open —
-        each stage after it states where its own facts came from.
+        <b>What it would cost is known before you decide, not after.</b> Every option below carries
+        its list price per seat and for the whole organisation, and the running total at the top of
+        the form moves as you configure — quoted in whole minor units of one stated currency from
+        each module manifest&rsquo;s own price, the same prices the catalog validated. If any
+        selected option&rsquo;s price cannot be resolved, no total is shown at all and the options
+        at fault are named — the figure is never computed without them and never counted as zero,
+        because a zero on this page would read as free.
       </p>
 
       <ComposeForm
@@ -221,6 +272,9 @@ export default async function NewTenantPage() {
           id,
           meaning: COEXISTENCE_MEANING[id],
         }))}
+        // From `ISOLATION_CLASSES`, so the form cannot offer a class the server
+        // has never heard of — and cannot fail to offer one it has.
+        isolationClasses={ISOLATION_CLASSES.map((id) => ({ id, meaning: ISOLATION_MEANING[id] }))}
         businessDomains={BUSINESS_DOMAINS}
         axes={ARCHETYPE_AXES.map((axis) => ({
           id: axis.id,
