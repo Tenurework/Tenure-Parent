@@ -83,6 +83,15 @@ test("the systems come before the catalog they are assembled from", async ({ pag
 
   // Document order, measured as vertical position, so a restyle that moves the
   // catalog back to the top with the markup unchanged still fails.
+  // Wait, then measure. `boundingBox()` samples once and returns null for
+  // anything not yet painted, unlike `toBeVisible()` which retries — so
+  // measuring straight after `signIn` makes this a coin toss rather than a
+  // check. `breadcrumbs.spec.ts` failed in CI on exactly this pattern while a
+  // full local suite had passed minutes before.
+  await expect(page.locator("#summary")).toBeVisible()
+  await expect(page.getByRole("heading", { name: /Ainslie OSE/ })).toBeVisible()
+  await expect(page.locator("#catalog")).toBeVisible()
+
   const summary = await page.locator("#summary").boundingBox()
   const system = await page.getByRole("heading", { name: /Ainslie OSE/ }).boundingBox()
   const catalog = await page.locator("#catalog").boundingBox()

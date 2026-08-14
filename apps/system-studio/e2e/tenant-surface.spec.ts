@@ -451,6 +451,12 @@ test.describe("one tenant, read by an operator", () => {
     const ids = ["#state", "#aws-footprint", "#history", "#next"]
     const tops: number[] = []
     for (const id of ids) {
+      // Wait, then measure. `boundingBox()` samples once and returns null for
+      // anything not yet painted — it does not retry the way `toBeVisible()`
+      // does — so measuring straight after navigation makes the test a coin
+      // toss. `breadcrumbs.spec.ts` failed in CI on exactly this while a full
+      // local run had passed minutes earlier.
+      await expect(page.locator(id)).toBeVisible()
       const box = await page.locator(id).boundingBox()
       expect(box, `${id} is not on the page`).not.toBeNull()
       tops.push(box!.y)

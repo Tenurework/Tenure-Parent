@@ -235,6 +235,14 @@ test.describe("the network surface", () => {
     // Rendered order, measured. A record aliasing a name somebody else can
     // register outranks everything on this page, and putting it under the
     // inventory is how that argument is quietly lost.
+    // Wait, then measure. `boundingBox()` samples once and returns null for
+    // anything not yet painted, unlike `toBeVisible()` which retries.
+    // `breadcrumbs.spec.ts` failed in CI on exactly this pattern while a full
+    // local suite had passed minutes before.
+    await expect(takeover).toBeVisible()
+    await expect(chain).toBeVisible()
+    await expect(zones).toBeVisible()
+
     const takeoverBox = await takeover.boundingBox()
     const chainBox = await chain.boundingBox()
     const zonesBox = await zones.boundingBox()
