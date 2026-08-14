@@ -203,7 +203,7 @@ Counted from the `resource`/`data` blocks in each file rather than from a plan, 
 | `.github/workflows/custom-domain.yml` | production-disarmed | triggers: workflow_dispatch |
 | `.github/workflows/db-recovery.yml` | production-disarmed | triggers: workflow_dispatch |
 | `.github/workflows/debug-logs.yml` | no-aws-job-or-not-disarmed | triggers: workflow_dispatch |
-| `.github/workflows/deploy-studio.yml` | no-aws-job-or-not-disarmed | triggers: push, workflow_dispatch |
+| `.github/workflows/deploy-studio.yml` | no-aws-job-or-not-disarmed | triggers: workflow_dispatch, workflow_run |
 | `.github/workflows/deploy.yml` | production-disarmed | triggers: workflow_dispatch |
 | `.github/workflows/force-redeploy.yml` | production-disarmed | triggers: (none parsed) |
 | `.github/workflows/ops-status.yml` | production-disarmed | triggers: workflow_dispatch |

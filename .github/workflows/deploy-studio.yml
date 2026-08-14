@@ -15,16 +15,38 @@ name: Deploy Studio
 # against one state file means whichever runs second destroys the other's
 # resources — which would take the live pilot down.
 
+# Deploys only what CI has passed.
+#
+# This used to trigger on `push` to main, independently of CI, and the two ran
+# side by side. The consequence is visible in the run history and is not
+# theoretical: `Deploy Studio success` sits beside `CI failure` on commit after
+# commit — 8c1161d, 4e3d1cf, 5561de0, a957b39 — so the engine an operator uses
+# was rolled from builds whose own test suite was red. On 5561de0 the red was a
+# Studio Playwright job reporting text drawn on top of other text at four
+# breakpoints, and it shipped.
+#
+# `workflow_run` is what fixes it: this fires when CI COMPLETES, and the job
+# below refuses to run unless it concluded `success`.
+#
+# Two consequences worth stating, because both were deliberate trades:
+#
+#   · The `paths:` filter is gone — `workflow_run` does not support one. So a
+#     commit touching only documentation now also reaches this workflow. It is
+#     not a wasted deploy in any meaningful sense: the image tag is the commit
+#     sha, Terraform is idempotent, and an apply with nothing to change is a
+#     no-op that costs a few minutes. Paying that to stop shipping red is the
+#     right side of the trade.
+#   · `github.sha` is NOT the commit CI tested. Under `workflow_run` it is the
+#     default branch's head when the event fired, which drifts the moment two
+#     pushes land close together. Every step below therefore uses
+#     `github.event.workflow_run.head_sha`, so what deploys is exactly what
+#     passed. Getting this wrong would deploy an untested commit while reporting
+#     a green one, which is worse than the problem being fixed.
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
-    paths:
-      - "apps/system-studio/**"
-      - "packages/**"
-      - "blueprints/**"
-      - "modules/**"
-      - "infrastructure/studio/**"
-      - ".github/workflows/deploy-studio.yml"
   workflow_dispatch:
 
 concurrency:
@@ -36,18 +58,58 @@ jobs:
     name: Build, apply, and report the URL
     runs-on: ubuntu-latest
 
-    # Armed for the repository that OWNS the engine. Inert anywhere else, so a
-    # fork or a mirror cannot deploy it.
-    if: github.repository == 'Tenurework/Tenure-Parent'
+    # Armed for the repository that OWNS the engine, and only for a build that
+    # PASSED.
+    #
+    # Both clauses are load-bearing and they guard different things. The
+    # repository check makes this inert in a fork or a mirror. The conclusion
+    # check is the one this workflow was missing: without it, a red CI and a
+    # successful deploy ran side by side, which is how the console was rolled
+    # from builds their own suite had failed.
+    #
+    # `workflow_dispatch` stays deployable — a manual run has no `workflow_run`
+    # payload, and an operator invoking this by hand is making the decision the
+    # gate exists to make automatically. A green CI is the default path; a human
+    # override is a human's to own.
+    if: >-
+      github.repository == 'Tenurework/Tenure-Parent' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.workflow_run.conclusion == 'success')
 
     env:
       AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
       TF_DIR: infrastructure/studio
-      IMAGE_TAG: sha-${{ github.sha }}
+      # The commit CI VERIFIED, not the branch head at trigger time. Under
+      # `workflow_run` those differ whenever two pushes land close together, and
+      # tagging the image with the wrong one would deploy an untested commit
+      # while the run reported a green one. `workflow_dispatch` has no
+      # `workflow_run` payload, so it falls back to the ref it was invoked on.
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      IMAGE_TAG: sha-${{ github.event.workflow_run.head_sha || github.sha }}
 
     steps:
+      # Pinned to the verified commit. `actions/checkout` defaults to the branch
+      # head, and under `workflow_run` that is not necessarily what CI ran
+      # against — so the default would build a tree nobody tested and tag it
+      # with the sha of one that was.
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - name: Say what is being deployed, and what passed it
+        run: |
+          echo "deploying    ${DEPLOY_SHA}"
+          echo "checked out  $(git rev-parse HEAD)"
+          echo "trigger      ${{ github.event_name }}"
+          echo "CI verdict   ${{ github.event.workflow_run.conclusion || 'n/a (manual dispatch)' }}"
+          # The whole point of the gate is that these two agree. If they ever do
+          # not, the deploy is of an untested tree and must stop here rather
+          # than roll and be discovered afterwards.
+          if [ "$(git rev-parse HEAD)" != "${DEPLOY_SHA}" ]; then
+            echo "::error::checked out $(git rev-parse HEAD) but this run is for ${DEPLOY_SHA}"
+            exit 1
+          fi
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
