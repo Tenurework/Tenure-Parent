@@ -40,6 +40,7 @@ export const ALARM_VERDICTS = [
   "STALE",
   "MISSING",
   "UNAUTHORIZED",
+  "UNREADABLE",
 ] as const
 
 export type AlarmVerdict = (typeof ALARM_VERDICTS)[number]
@@ -53,6 +54,7 @@ export const ALARM_WORDS: Readonly<Record<AlarmVerdict, string>> = {
   STALE: "Not moved",
   MISSING: "Not created",
   UNAUTHORIZED: "Unknown",
+  UNREADABLE: "Unknown",
 }
 
 export interface AlarmRow {
@@ -220,7 +222,48 @@ export async function alarmSurface(
     }
   }
 
-  const rows = read.state === "ACTUAL" || read.state === "STALE" ? read.value : []
+  /**
+   * A non-answer gets a ROW, not an empty list.
+   *
+   * Denial already did — the early return above synthesises an UNAUTHORIZED
+   * row, and its comment on `AlarmSurface.headline` says why: "one funnel, so
+   * denial cannot read as absence". Three states were left out of that funnel.
+   * A throttle, an unconfigured account and a failed call each produced
+   * `rows: []`, and an empty array is the same value `EMPTY` produces — so a
+   * caller iterating `rows`, or counting them, rendered "no alarms" for an
+   * estate that had not been looked at.
+   *
+   * The headline was already correct for all three. That is exactly what made
+   * it dangerous: the sentence said "throttled" while the table beside it drew
+   * nothing, and a table drawing nothing is how an operator concludes there is
+   * nothing wrong.
+   *
+   * `EMPTY` keeps its empty list, because there the emptiness is the answer.
+   * This read passes `isEmpty: () => false`, so that arm is unreachable from
+   * here today — it is written out rather than folded into the default because
+   * the distinction is the entire subject of this function, and a reader who
+   * finds `EMPTY` missing from the list has to go and work out whether that was
+   * a decision or an omission.
+   */
+  const unreadable = (detail: string): readonly AlarmRow[] => [
+    { name: "every alarm in this account", verdict: "UNREADABLE", detail, type: "surface" },
+  ]
+
+  const rows: readonly AlarmRow[] =
+    read.state === "ACTUAL" || read.state === "STALE"
+      ? read.value
+      : read.state === "EMPTY"
+        ? []
+        : read.state === "THROTTLED"
+          ? unreadable(
+              `AWS rate-limited cloudwatch:DescribeAlarms, so no alarm was read. ` +
+                `Retrying in ${read.retryAfterMs}ms.`,
+            )
+          : read.state === "UNCONFIGURED"
+            ? unreadable(`alarms were not read because this account is not configured for it: ${read.why}`)
+            : unreadable(
+                `cloudwatch:DescribeAlarms failed, so no alarm was read — ${read.code}: ${read.safeDetail}`,
+              )
   const counts = ALARM_VERDICTS.map((v) => [v, rows.filter((r) => r.verdict === v).length] as const).filter(
     ([, n]) => n > 0,
   )

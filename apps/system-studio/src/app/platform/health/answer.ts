@@ -29,9 +29,26 @@
  * on a young estate: `DescribeAlarms` returning an empty list is a SUCCESSFUL
  * read, and a page that renders it as "nothing wrong" has told an operator that
  * an unmonitored account is a healthy one.
+ *
+ * ── The second half of the question ─────────────────────────────────────────
+ *
+ * The page asks "is anything broken right now, AND is it us or is it AWS". The
+ * ordering above answers the first half out of CloudWatch alarms, which are this
+ * estate's own symptoms and cannot distinguish a bad deploy from an AWS-side
+ * impairment. `awsSide` and `fleetVerdict` answer the second half out of AWS
+ * Health, and they are here rather than in the render for the same reason: a
+ * firing alarm during an open account-specific AWS event and a firing alarm with
+ * AWS reporting nothing are the same pixels and completely different mornings.
+ *
+ * `fleetVerdict` never turns an unreadable AWS Health call into "it is us". A
+ * refused `health:DescribeEvents` means the question has NOT been answered, and
+ * attributing an incident to our own estate on that basis is the same class of
+ * error as rendering a denied read as an empty list.
  */
 
 import type { AlarmRow, AlarmVerdict } from "../../../lib/aws/alarms"
+import type { HealthEventRow, HealthVerdict } from "../../../lib/aws/aws-health"
+import type { AwsRead } from "../../../lib/aws/read"
 
 /* ─────────────────────────────────────────────────────────────── tone ──── */
 
@@ -58,6 +75,10 @@ export const VERDICT_TONE: Readonly<Record<AlarmVerdict, VerdictTone>> = {
   STALE: "warn",
   MISSING: "bad",
   UNAUTHORIZED: "warn",
+  // Same reasoning as UNAUTHORIZED, different remedy. Nothing is known to be
+  // broken; the call was throttled, unconfigured or failed, so the next move is
+  // to retry or to configure rather than to open an incident.
+  UNREADABLE: "warn",
 }
 
 /**
@@ -74,6 +95,10 @@ export const VERDICT_RANK: readonly AlarmVerdict[] = [
   "MISSING",
   "DISABLED",
   "UNAUTHORIZED",
+  // Above STALE for the same reason UNAUTHORIZED is: an alarm this console
+  // could not read is not evidence of health, and burying it under a stale
+  // alarm would put a known fact above the absence of one.
+  "UNREADABLE",
   "STALE",
   "INSUFFICIENT_DATA",
   "OK",
@@ -351,6 +376,16 @@ export function provenanceOf(input: {
   readState: string
   refreshMs: number
   asOf: string | null
+  /**
+   * The AWS Health read's arm, when this page made that call.
+   *
+   * Optional, and absent means "this page did not ask" rather than "it came
+   * back empty" — the two rows below are only added when there is a real
+   * reading to describe. A default of `"EMPTY"` here would print a provenance
+   * line about a call that was never made.
+   */
+  healthReadState?: string
+  healthRefreshMs?: number
 }): readonly Provenance[] {
   const orUnknown = (value: string | null | undefined, why: string) =>
     value && value.trim() !== "" ? value : `Not known — ${why}`
@@ -360,14 +395,369 @@ export function provenanceOf(input: {
       ? "the identity read answered but did not carry it"
       : `sts:GetCallerIdentity came back ${input.identityState}, so this console has no estate to name`
 
-  return [
+  const facts: Provenance[] = [
     { label: "Read", value: "cloudwatch:DescribeAlarms, every page, live" },
     { label: "Answer", value: input.readState },
+  ]
+
+  if (input.healthReadState !== undefined) {
+    facts.push({ label: "Also read", value: "health:DescribeEvents, every page, live" })
+    facts.push({ label: "AWS Health answered", value: input.healthReadState })
+  }
+
+  facts.push(
     { label: "Account", value: orUnknown(input.accountId, identityWhy) },
     { label: "Region", value: orUnknown(input.region, identityWhy) },
     { label: "Partition", value: orUnknown(input.partition, identityWhy) },
     { label: "As", value: orUnknown(input.principal, identityWhy) },
     { label: "Refreshed", value: `every ${Math.round(input.refreshMs / 1000)}s` },
-    { label: "This reading", value: asOf(input.asOf) },
-  ]
+  )
+
+  if (input.healthRefreshMs !== undefined) {
+    facts.push({
+      label: "AWS Health refreshed",
+      value: `every ${Math.round(input.healthRefreshMs / 1000)}s`,
+    })
+  }
+
+  facts.push({ label: "This reading", value: asOf(input.asOf) })
+  return facts
+}
+
+/* ══════════════════════════════════════════════ is it us, or is it AWS ══ */
+
+/**
+ * The arms of a reading that carry no value.
+ *
+ * `Extract` over the real union rather than a list of four object types, so a
+ * fifth valueless arm added to `read.ts` lands here by construction. It is the
+ * same type `components/md3/UnknownState.tsx` accepts, which is what lets a
+ * refused read on this page render through the shared panel rather than through
+ * a sentence this route wrote for itself.
+ */
+export type UnknownArm = Extract<
+  AwsRead<unknown>,
+  { state: "DENIED" | "THROTTLED" | "UNCONFIGURED" | "ERROR" }
+>
+
+/**
+ * The unknown arm of a reading, or null when the reading answered.
+ *
+ * A `switch` rather than `isUnknown(read) ? read : null`: the boolean helper in
+ * `read.ts` does not narrow, so the cast a caller would need is exactly the
+ * cast that would let an `ACTUAL` read reach a panel that says "refused".
+ */
+export function unknownArm<T>(read: AwsRead<T>): UnknownArm | null {
+  switch (read.state) {
+    case "DENIED":
+    case "THROTTLED":
+    case "UNCONFIGURED":
+    case "ERROR":
+      return read
+    default:
+      return null
+  }
+}
+
+/** A tone per AWS Health verdict. The WORD is `HEALTH_WORDS`; this is loudness. */
+export const HEALTH_TONE: Readonly<Record<HealthVerdict, VerdictTone>> = {
+  AFFECTING_US: "bad",
+  UPCOMING: "warn",
+  NOTIFICATION: "info",
+  OPEN_IN_OUR_REGION: "warn",
+  OPEN_ELSEWHERE: "neutral",
+  OPEN_REGION_UNKNOWN: "warn",
+  UNAUTHORIZED: "warn",
+}
+
+/**
+ * What AWS is saying about itself, counted.
+ *
+ * `known` is the load-bearing field and it is deliberately not derivable from
+ * the counts: every count is zero both when AWS answered "no events" and when
+ * AWS Health was refused, and those are opposite facts. The first rules AWS out;
+ * the second rules nothing out at all.
+ */
+export interface AwsSide {
+  /** Whether `health:DescribeEvents` answered. Never inferred from a count. */
+  known: boolean
+  /** The read's arm, kept so the page can decide how loudly to place the card. */
+  state: string
+  /** Open, and AWS named resources in THIS account. The loudest thing here. */
+  affectingUs: number
+  /** Open, public, in the region STS resolved for this process. */
+  inOurRegion: number
+  /** Open, and this console could not resolve its own region to compare. */
+  regionUnknown: number
+  /** Open, in a region this account did not resolve to. Informational. */
+  elsewhere: number
+  /** Scheduled and not started — a retirement, a mandatory upgrade window. */
+  upcoming: number
+  /** AWS telling us something. Not an impairment. */
+  notices: number
+  /** Everything open that is not ruled out for this estate. */
+  open: number
+  /** Every row the surface produced, refusal rows included. */
+  total: number
+  /** Whether this belongs above the alarms rather than below them. */
+  hoist: boolean
+  /** One sentence, in the operator's language. Never "AWS is fine" on a refusal. */
+  sentence: string
+}
+
+/**
+ * AWS's side of the question.
+ *
+ * `because` is the AWS Health surface's own headline, which already words each
+ * unreadable arm honestly — this does not re-word it, because a second wording
+ * is a second chance to soften a refusal.
+ */
+export function awsSide(input: {
+  state: string
+  rows: readonly HealthEventRow[]
+  because: string
+}): AwsSide {
+  const count = (verdict: HealthVerdict) => input.rows.filter((r) => r.verdict === verdict).length
+  const known = readAnswered(input.state)
+
+  const affectingUs = count("AFFECTING_US")
+  const inOurRegion = count("OPEN_IN_OUR_REGION")
+  const regionUnknown = count("OPEN_REGION_UNKNOWN")
+  const elsewhere = count("OPEN_ELSEWHERE")
+  const upcoming = count("UPCOMING")
+  const notices = count("NOTIFICATION")
+  const open = affectingUs + inOurRegion + regionUnknown
+
+  if (!known) {
+    return {
+      known: false,
+      state: input.state,
+      affectingUs: 0,
+      inOurRegion: 0,
+      regionUnknown: 0,
+      elsewhere: 0,
+      upcoming: 0,
+      notices: 0,
+      open: 0,
+      total: input.rows.length,
+      /*
+       * A read that can be fixed is hoisted; one that never can is not.
+       *
+       * UNCONFIGURED here is almost always an AWS Support plan below Business,
+       * which no IAM statement and no operator action during an incident will
+       * change. Holding it at the top of every load would put a permanent
+       * grey panel above the alarms and train people to scroll past the place
+       * a real AWS event will appear.
+       */
+      hoist: input.state !== "UNCONFIGURED",
+      sentence: `Whether AWS is having an event of its own is NOT known — ${input.because}`,
+    }
+  }
+
+  const side = {
+    known: true,
+    state: input.state,
+    affectingUs,
+    inOurRegion,
+    regionUnknown,
+    elsewhere,
+    upcoming,
+    notices,
+    open,
+    total: input.rows.length,
+    hoist: open > 0,
+  }
+
+  if (affectingUs > 0) {
+    return {
+      ...side,
+      sentence:
+        `AWS has ${affectingUs} open event(s) raised against resources in THIS account. ` +
+        `Whatever else is on this page, some of it is AWS's rather than ours.`,
+    }
+  }
+
+  if (open > 0) {
+    const parts: string[] = []
+    if (inOurRegion > 0) parts.push(`${inOurRegion} in this estate's own region`)
+    if (regionUnknown > 0) {
+      parts.push(
+        `${regionUnknown} whose region cannot be compared, because sts:GetCallerIdentity has not answered`,
+      )
+    }
+    return {
+      ...side,
+      sentence:
+        `AWS reports no event against this account's own resources, and ${open} open event(s) ` +
+        `that are not ruled out for this estate — ${parts.join(", and ")}.`,
+    }
+  }
+
+  const aside: string[] = []
+  if (upcoming > 0) aside.push(`${upcoming} scheduled change(s) ahead`)
+  if (notices > 0) aside.push(`${notices} account notification(s)`)
+  if (elsewhere > 0) aside.push(`${elsewhere} open event(s) in other regions`)
+
+  return {
+    ...side,
+    sentence:
+      `AWS reports nothing open against this account or its region` +
+      `${aside.length > 0 ? ` — ${aside.join(", ")}` : ""}. ` +
+      `That is AWS's own answer, not a permission this console is missing.`,
+  }
+}
+
+/* ───────────────────────────────────────────────────────── the verdict ──── */
+
+/** Whose problem this is, once both sides have been read. */
+export type Whose = "US" | "AWS" | "BOTH" | "NEITHER" | "UNKNOWN"
+
+/** The word beside the verdict. Never colour alone, and never an abbreviation. */
+export const WHOSE_WORD: Readonly<Record<Whose, string>> = {
+  US: "Ours",
+  AWS: "AWS",
+  BOTH: "Ours and AWS",
+  NEITHER: "Neither",
+  UNKNOWN: "Not established",
+}
+
+export interface FleetVerdict {
+  /** The alarm-side verdict, unchanged. What is broken. */
+  verdict: string
+  tone: VerdictTone
+  /** The one sentence about whether anything is broken. */
+  headline: string
+  /** The second sentence: us, AWS, both, neither, or not established. */
+  attribution: string
+  whose: Whose
+  /** The tone of the attribution badge, which is not the tone of the verdict. */
+  whoseTone: VerdictTone
+}
+
+/**
+ * Both halves of the page's question, decided together.
+ *
+ * `alarmsAnswered` is passed rather than sniffed out of `answer.verdict`,
+ * because a verdict is a sentence for a human and keying control flow on its
+ * text is how a copy edit becomes an outage. The rule set, in order:
+ *
+ *   * neither side answered            → nothing is established, and it says so
+ *   * ours firing AND AWS on our estate → BOTH, and they are probably one thing
+ *   * AWS on our estate                → AWS, even when our own alarms are calm
+ *   * ours in trouble, AWS answered    → US: AWS was asked and said nothing
+ *   * ours in trouble, AWS did not     → UNKNOWN, never US
+ *   * either side unread               → UNKNOWN
+ *   * otherwise                        → NEITHER
+ *
+ * The fifth rule is the one worth defending. Attributing an incident to our own
+ * estate because the AWS Health call was refused is a claim built out of a
+ * missing permission, and it is the sentence that sends an on-call engineer to
+ * re-read deploys for twenty minutes during somebody else's outage.
+ */
+export function fleetVerdict(
+  answer: LeadAnswer,
+  aws: AwsSide,
+  alarmsAnswered: boolean,
+): FleetVerdict {
+  const ourTrouble = alarmsAnswered && answer.verdict !== "Healthy"
+  const awsTrouble = aws.known && aws.open > 0
+
+  const base = { verdict: answer.verdict, tone: answer.tone, headline: answer.headline }
+
+  if (!alarmsAnswered && !aws.known) {
+    return {
+      ...base,
+      whose: "UNKNOWN",
+      whoseTone: "warn",
+      attribution:
+        "Neither side answered: this console could read neither its own alarms nor AWS Health, so " +
+        "nothing here rules anything out. Both panels below name the action that was refused.",
+    }
+  }
+
+  if (ourTrouble && awsTrouble) {
+    return {
+      ...base,
+      whose: "BOTH",
+      whoseTone: "bad",
+      attribution: `${aws.sentence} Our own alarms are not quiet either, so treat these as one incident until something separates them.`,
+    }
+  }
+
+  if (awsTrouble) {
+    return {
+      ...base,
+      whose: "AWS",
+      whoseTone: "bad",
+      attribution: `${aws.sentence} Nothing of ours has crossed a threshold because of it yet, which is not the same as being unaffected.`,
+    }
+  }
+
+  if (ourTrouble && aws.known) {
+    return {
+      ...base,
+      whose: "US",
+      whoseTone: "bad",
+      attribution: `${aws.sentence} So what this page is showing is this estate's, not an AWS-side event.`,
+    }
+  }
+
+  if (ourTrouble) {
+    return {
+      ...base,
+      whose: "UNKNOWN",
+      whoseTone: "warn",
+      attribution: `${aws.sentence} Until it does, "it is us" is not established — it is only the half of the question that could be read.`,
+    }
+  }
+
+  if (!alarmsAnswered || !aws.known) {
+    return {
+      ...base,
+      whose: "UNKNOWN",
+      whoseTone: "warn",
+      attribution: alarmsAnswered
+        ? `${aws.sentence} So AWS cannot be ruled out, whatever this estate's own alarms say.`
+        : "This estate's own alarms could not be read, so nothing is established about our side of it.",
+    }
+  }
+
+  return {
+    ...base,
+    whose: "NEITHER",
+    whoseTone: "ok",
+    attribution: `${aws.sentence} Both halves of the question were asked and both came back.`,
+  }
+}
+
+/* ──────────────────────────────────────────────────── where each card goes */
+
+export const SECTIONS = [
+  "right-now",
+  "aws-health",
+  "needs-attention",
+  "watching-quietly",
+  "coverage",
+  "provenance",
+] as const
+
+export type SectionId = (typeof SECTIONS)[number]
+
+/**
+ * The order the cards are drawn in.
+ *
+ * AWS Health sits directly under the answer when there is an open event or when
+ * the read is refused, throttled or broken — during an incident "is it us or is
+ * it AWS" is the second thing read and it cannot be below a table of forty
+ * alarms. With nothing open it drops below the alarms, where a negative answer
+ * is still worth having and is not worth the top of the page.
+ *
+ * Every id in `SECTIONS` appears exactly once in both arrangements; the test
+ * asserts that, because a card dropped from one arrangement is a card that
+ * disappears in precisely the state it was written for.
+ */
+export function sectionOrder(aws: AwsSide): readonly SectionId[] {
+  return aws.hoist
+    ? ["right-now", "aws-health", "needs-attention", "watching-quietly", "coverage", "provenance"]
+    : ["right-now", "needs-attention", "watching-quietly", "aws-health", "coverage", "provenance"]
 }
