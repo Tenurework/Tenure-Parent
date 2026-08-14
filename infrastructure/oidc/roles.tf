@@ -176,6 +176,16 @@ resource "aws_iam_role_policy" "read_extra" {
           "iam:ListUsers",
           "cloudfront:ListDistributions",
           "cloudfront:GetDistributionConfig",
+          # `acm:ListCertificates` IS in ViewOnlyAccess and `DescribeCertificate`
+          # is not, which is a genuinely awkward pair: a caller can learn that a
+          # certificate exists and nothing about it — not its status, and not the
+          # DNS record it is waiting for. Proven, not assumed: with only
+          # ViewOnlyAccess, `studio-domain.yml` listed the certificate and then
+          # failed with AccessDeniedException on DescribeCertificate.
+          #
+          # Reading a certificate's status discloses no private key and no secret
+          # material; the validation record it returns is a public DNS record.
+          "acm:DescribeCertificate",
           "wafv2:ListWebACLs",
           "backup:ListBackupVaults",
           "cognito-idp:ListUserPools",
