@@ -201,7 +201,7 @@ export function routes() {
       out.push({ experience, app, kind, url: urlOf(file, appRoot), methods, source: file })
     }
   }
-  return sortedBy(out, (r) => `${r.experience} ${r.kind} ${r.url} ${r.source}`)
+  return sortedBy(out, (r) => `${r.experience}\u0000${r.kind}\u0000${r.url}\u0000${r.source}`)
 }
 
 // ── 3. schema ───────────────────────────────────────────────────────────────

@@ -1136,9 +1136,10 @@ export default async function IdentityPage() {
                 in the reader, so there is nothing else here to print.
               </li>
               <li className="md3-body-medium">
-                Software-token (TOTP) enrolment per account. It lives in UserMFASettingList, which
-                only cognito-idp:AdminGetUser returns, and that capability is deliberately not held.
-                Every operator row says so rather than rendering a blank cell that reads as "no MFA".
+                Software-token (TOTP) enrolment per account. It is returned only by a per-user
+                administrative read this console deliberately does not hold — reading one account's
+                security settings is a step towards acting on it, and this surface observes. Every
+                operator row says so rather than rendering a blank cell that reads as "no MFA".
               </li>
               <li className="md3-body-medium">
                 When an operator last signed in. Cognito's roster read returns no authentication

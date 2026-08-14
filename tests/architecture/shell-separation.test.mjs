@@ -49,6 +49,17 @@ import { test } from "node:test"
  *   4. No first-party workspace outside `apps/` defines a component, and no
  *      shell file — layout included — reaches one. This is the one that stops
  *      the two navigations converging on a single file.
+ *   5. The console's navigation and the routes it serves are the same set, in
+ *      both directions. (3) only ever read one way — every destination must be
+ *      a route — which is the half that catches a dead link and misses the
+ *      opposite and more expensive defect: a route in the tree that appears in
+ *      no navigation at all. Five operator surfaces landed in one programme
+ *      (`/platform/network`, `/platform/compute`, `/platform/data`,
+ *      `/platform/messaging`, `/platform/identity`) and every guard here stayed
+ *      green while none of them was reachable. So the second direction is
+ *      asserted too: every route the console serves is either a navigation
+ *      destination or is named, with a reason, in the `UNLINKED` table on
+ *      `/platform/diagnostics`. See "The information architecture" below.
  *
  * ## Why (4) exists, when (2) was written to do that job
  *
@@ -110,6 +121,34 @@ import { test } from "node:test"
  * not the committed one. So this reads the file rather than importing it, and
  * the floor below is what stops a reader that has stopped reading from reporting
  * every menu entry as fine.
+ *
+ * ## The information architecture, and why three files have to agree
+ *
+ * (5) needs three declarations, and none of them can be imported: `Nav.tsx`
+ * carries `"use client"` and this runner is plain `node --test` with no
+ * TypeScript at all. All three are therefore read as source, with a
+ * string-aware scanner rather than a naive brace match — one of the declared
+ * routes is literally `/tenants/[slug]`, and a bracket counter that does not
+ * know it is inside a string ends the table there.
+ *
+ *   · `apps/system-studio/src/components/Nav.tsx` — `GROUPS`. Group names are
+ *     the Bible section 7.2 left-navigation domains, so the Bible is parsed too
+ *     and the groups are checked against that list AND against its order. That
+ *     turns "the Bible decides the group names, not anybody's taste" from a
+ *     claim in a document into something a commit can fail.
+ *   · `apps/system-studio/src/app/platform/diagnostics/page.tsx` — `UNLINKED`,
+ *     `QUARANTINED` and `PLATFORM_PANELS`. The register an operator reads is
+ *     the same data the guard reads; a register that is prose is a register
+ *     that is wrong within a month.
+ *   · `apps/system-studio/src/app/platform/page.tsx` — its `<Card>` headlines.
+ *     `PLATFORM_PANELS` claims what each panel on that page is and what now
+ *     supersedes it, and a claim about thirteen panels that nothing checks is a
+ *     claim that survives the panels being renamed.
+ *
+ * The direction of each check matters and both directions are asserted, because
+ * each one alone fails open: a register that lists nothing satisfies "everything
+ * listed exists", and a navigation that links everything twice satisfies
+ * "everything reachable is listed".
  */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -799,5 +838,379 @@ test("every operator console destination belongs to the console", () => {
       `The console and the tenant product are separate origins as well as separate shells (PD-007). ` +
       `A console menu entry pointing into the customer application is a link nobody can follow and ` +
       `a pattern that invites merging the two.`,
+  )
+})
+
+// ── (5) the navigation and the routes are the same set, both ways ───────────
+
+const NAV = "apps/system-studio/src/components/Nav.tsx"
+const REGISTER = "apps/system-studio/src/app/platform/diagnostics/page.tsx"
+const PLATFORM_PAGE = "apps/system-studio/src/app/platform/page.tsx"
+const BIBLE = "Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md"
+
+/**
+ * Walk `source` from `from`, skipping over string literals.
+ *
+ * Every scanner below counts brackets or braces, and every one of them is
+ * looking at a file that declares the route `/tenants/[slug]`. A counter that
+ * does not know it is inside a string closes the table on that row and reports
+ * a register with one entry in it — which is a register that passes every
+ * "everything listed exists" check by listing almost nothing.
+ */
+function scan(source, from, onChar) {
+  for (let i = from; i < source.length; i += 1) {
+    const ch = source[i]
+    if (ch === '"' || ch === "'" || ch === "`") {
+      i += 1
+      while (i < source.length && source[i] !== ch) {
+        if (source[i] === "\\") i += 1
+        i += 1
+      }
+      continue
+    }
+    const stop = onChar(ch, i)
+    if (stop !== undefined) return stop
+  }
+  return null
+}
+
+/**
+ * The `[ ... ]` body of `export const NAME`, as source text, or `null`.
+ *
+ * The opening bracket is taken after the `=`, not after the name. Every one of
+ * these tables is declared `export const NAME: readonly Row[] = [`, and the
+ * first `[` in that line belongs to the TYPE — a scanner that takes it reads a
+ * balanced, empty pair and reports a table with no rows, which passes "every
+ * row you listed exists" by listing nothing. That is the failure this comment
+ * exists because it actually happened.
+ */
+function tableSource(repoPath, name) {
+  const text = code(repoPath)
+  const declared = text.indexOf(`export const ${name}`)
+  if (declared < 0) return null
+  const assigned = text.indexOf("=", declared)
+  if (assigned < 0) return null
+  const open = text.indexOf("[", assigned)
+  if (open < 0) return null
+
+  let depth = 0
+  return scan(text, open, (ch, i) => {
+    if (ch === "[") depth += 1
+    else if (ch === "]") {
+      depth -= 1
+      if (depth === 0) return text.slice(open + 1, i)
+    }
+    return undefined
+  })
+}
+
+/** The top-level `{ ... }` object literals in a region of source. */
+function objectLiterals(source) {
+  const out = []
+  let depth = 0
+  let start = -1
+  scan(source, 0, (ch, i) => {
+    if (ch === "{") {
+      if (depth === 0) start = i
+      depth += 1
+    } else if (ch === "}") {
+      depth -= 1
+      if (depth === 0 && start >= 0) out.push(source.slice(start + 1, i))
+    }
+    return undefined
+  })
+  return out
+}
+
+const field = (body, key) => new RegExp(`\\b${key}:\\s*"((?:[^"\\\\]|\\\\.)*)"`).exec(body)?.[1] ?? null
+
+function stringList(body, key) {
+  const match = new RegExp(`\\b${key}:\\s*\\[([^\\]]*)\\]`).exec(body)
+  if (!match) return null
+  return [...match[1].matchAll(/"([^"]*)"/g)].map((m) => m[1])
+}
+
+/**
+ * The navigation, as `{ domain, tail, entries: [{ href, label }] }`.
+ *
+ * Read out of the source rather than imported: `Nav.tsx` is a client component
+ * written in TypeScript, and this runner is `node --test` with neither a React
+ * nor a TypeScript loader.
+ */
+function navigation() {
+  const table = tableSource(NAV, "GROUPS")
+  if (!table) return []
+  return objectLiterals(table).map((groupBody) => ({
+    domain: field(groupBody, "domain"),
+    tail: /\btail:\s*true\b/.test(groupBody),
+    entries: objectLiterals(groupBody)
+      .filter((entryBody) => /\bhref:\s*"/.test(entryBody))
+      .map((entryBody) => ({ href: field(entryBody, "href"), label: field(entryBody, "label") })),
+  }))
+}
+
+const NAV_GROUPS = navigation()
+const NAV_ENTRIES = NAV_GROUPS.flatMap((group) => group.entries)
+
+/** The Bible's own left-navigation domain list, in the Bible's own order. */
+function bibleDomains() {
+  const line = /^-\s*Left navigation:\s*(.+)$/m.exec(fs.readFileSync(abs(BIBLE), "utf8"))
+  if (!line) return []
+  return line[1]
+    .replace(/\.\s*$/, "")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean)
+}
+
+const BIBLE_DOMAINS = bibleDomains()
+
+/** A table on the Diagnostics register, as plain objects. */
+function register(name, keys) {
+  const table = tableSource(REGISTER, name)
+  if (!table) return []
+  return objectLiterals(table).map((body) => {
+    const row = {}
+    for (const key of keys) row[key] = key === "covered" ? stringList(body, key) : field(body, key)
+    return row
+  })
+}
+
+const QUARANTINED = register("QUARANTINED", ["route", "what", "unfinished", "covered"])
+const UNLINKED = register("UNLINKED", ["route", "reason"])
+const PLATFORM_PANELS = register("PLATFORM_PANELS", ["headline", "what", "covered"])
+
+/**
+ * The headline of every `<Card>` on `/platform`, in order.
+ *
+ * Anchored on the element rather than on indentation, because a reformat is not
+ * a defect and a guard that reds on one gets deleted. The first `headline="…"`
+ * after a `<Card` is that card's own: the `<EmptyState headline="…">` a card
+ * renders when it has no rows comes later in the source than the card's opening
+ * tag, so it is never the first match.
+ */
+function cardHeadlines(repoPath) {
+  const text = code(repoPath)
+  const out = []
+  for (const match of text.matchAll(/<Card\b/g)) {
+    const headline = /headline=\{?"([^"]*)"/.exec(text.slice(match.index))
+    if (headline) out.push(headline[1])
+  }
+  return out
+}
+
+/**
+ * The refusal branch, which is a state and not a panel.
+ *
+ * `/platform` returns a single "Not configured" card instead of the page when
+ * `operatorConfigProblems()` is non-empty. Excluded by name rather than by
+ * position so that the exclusion is one line somebody can argue with.
+ */
+const NOT_A_PANEL = new Set(["Not configured"])
+
+test("the information-architecture readers reach every declaration they check", () => {
+  assert.ok(
+    NAV_GROUPS.length >= 8,
+    `parsed ${NAV_GROUPS.length} navigation group(s) out of ${NAV}, expected at least 8 — the ` +
+      `reader has stopped reading, and an empty navigation satisfies every check below by default`,
+  )
+  assert.ok(
+    NAV_ENTRIES.length >= 12,
+    `parsed ${NAV_ENTRIES.length} navigation entr(ies) out of ${NAV}, expected at least 12`,
+  )
+  for (const group of NAV_GROUPS) {
+    assert.ok(group.domain, `a navigation group parsed with no domain name out of ${NAV}`)
+    assert.ok(group.entries.length >= 1, `the ${group.domain} group parsed with no entries`)
+    for (const entry of group.entries) {
+      assert.ok(entry.href && entry.label, `an entry in the ${group.domain} group is missing its href or label`)
+    }
+  }
+
+  assert.ok(
+    BIBLE_DOMAINS.length >= 15,
+    `parsed ${BIBLE_DOMAINS.length} domain(s) out of the Bible's section 7.2 left-navigation line, ` +
+      `expected at least 15 — without it the order check below compares against nothing`,
+  )
+  for (const expected of ["Fleet", "AWS", "Marketplace"]) {
+    assert.ok(BIBLE_DOMAINS.includes(expected), `${expected} is not among the parsed Bible domains`)
+  }
+
+  assert.ok(QUARANTINED.length >= 1, `parsed ${QUARANTINED.length} quarantined route(s) out of ${REGISTER}`)
+  assert.ok(UNLINKED.length >= 1, `parsed ${UNLINKED.length} unlinked route(s) out of ${REGISTER}`)
+  assert.ok(
+    PLATFORM_PANELS.length >= 10,
+    `parsed ${PLATFORM_PANELS.length} panel(s) out of ${REGISTER}, expected at least 10`,
+  )
+  assert.ok(
+    UNLINKED.some((row) => row.route === "/tenants/[slug]"),
+    `/tenants/[slug] did not survive the parse of ${REGISTER}. It is the row that proves the scanner ` +
+      `is string-aware: a bracket counter that reads it as markup truncates the table there.`,
+  )
+  for (const row of [...QUARANTINED, ...UNLINKED]) {
+    assert.ok(row.route, `a register row parsed with no route out of ${REGISTER}`)
+  }
+  for (const row of UNLINKED) {
+    assert.ok(
+      (row.reason ?? "").length >= 40,
+      `${row.route} is declared unlinked with a ${(row.reason ?? "").length}-character reason. ` +
+        `"n/a" is how this table becomes a way to hide a route rather than a way to declare one.`,
+    )
+  }
+  for (const row of QUARANTINED) {
+    assert.ok(
+      (row.unfinished ?? "").length >= 40 && Array.isArray(row.covered),
+      `${row.route} is quarantined without saying what is unfinished about it, or without a covered list`,
+    )
+  }
+  for (const row of PLATFORM_PANELS) {
+    assert.ok(row.headline && (row.what ?? "").length >= 20, `a panel row is missing its headline or its description`)
+    assert.ok(Array.isArray(row.covered), `panel "${row.headline}" has no covered list`)
+  }
+
+  const headlines = cardHeadlines(PLATFORM_PAGE)
+  assert.ok(
+    headlines.length >= 10,
+    `read ${headlines.length} card headline(s) out of ${PLATFORM_PAGE}, expected at least 10 — ` +
+      `nothing read is nothing to disagree with`,
+  )
+  assert.ok(
+    headlines.some((headline) => NOT_A_PANEL.has(headline)),
+    `the refusal card is no longer among ${PLATFORM_PAGE}'s headlines, so the exclusion below is ` +
+      `hiding something else now`,
+  )
+})
+
+test("the console's navigation groups are the Bible's domains, in the Bible's order", () => {
+  const tails = NAV_GROUPS.filter((group) => group.tail)
+  assert.equal(
+    tails.length,
+    1,
+    `${tails.length} navigation group(s) are marked as the tail (${tails.map((g) => g.domain).join(", ")}). ` +
+      `Exactly one group is the quarantine, and it is the whole mechanism: everything before it is a ` +
+      `finished operator surface.`,
+  )
+  assert.equal(
+    NAV_GROUPS[NAV_GROUPS.length - 1].domain,
+    tails[0].domain,
+    `the quarantine group "${tails[0].domain}" is not last in the navigation. "Behind the LAST tab" is ` +
+      `the requirement; a quarantine in the middle of the row is the construction site again.`,
+  )
+  assert.ok(
+    !BIBLE_DOMAINS.includes(tails[0].domain),
+    `"${tails[0].domain}" is one of the Bible's operator domains, so it must not be the quarantine — ` +
+      `the last group is named for what it holds, not for a domain this console serves.`,
+  )
+
+  const operatorGroups = NAV_GROUPS.filter((group) => !group.tail).map((group) => group.domain)
+  const foreign = operatorGroups.filter((domain) => !BIBLE_DOMAINS.includes(domain))
+  assert.deepEqual(
+    foreign,
+    [],
+    `navigation group(s) named nothing in the Bible: ${foreign.join(", ")}\n\n` +
+      `Section 7.2 names the domains this console is for — ${BIBLE_DOMAINS.join(", ")}. A group named ` +
+      `anything else is a taste argument, which is exactly what the flat eight-tab row was.`,
+  )
+
+  const positions = operatorGroups.map((domain) => BIBLE_DOMAINS.indexOf(domain))
+  const sorted = [...positions].sort((left, right) => left - right)
+  assert.deepEqual(
+    positions,
+    sorted,
+    `the navigation's groups are not in the Bible's order.\n  navigation: ${operatorGroups.join(", ")}\n` +
+      `  Bible 7.2:  ${BIBLE_DOMAINS.join(", ")}\n\n` +
+      `The order is the Bible's, so that the same list read twice is the same list.`,
+  )
+})
+
+test("every route the console serves is a navigation entry or a declared unlinked route", () => {
+  const served = ROUTES.get(OPERATOR)
+  const linked = new Set(NAV_ENTRIES.map((entry) => entry.href))
+  const unlinked = new Set(UNLINKED.map((row) => row.route))
+
+  assert.ok(served.size >= 12, `${served.size} console routes found, expected at least 12`)
+  assert.ok(linked.size >= 12, `${linked.size} navigation destination(s), expected at least 12`)
+
+  const unreachable = [...served].filter((route) => !linked.has(route) && !unlinked.has(route)).sort()
+  assert.deepEqual(
+    unreachable,
+    [],
+    `these routes are served by the console and appear in no navigation:\n  ${unreachable.join("\n  ")}\n\n` +
+      `A surface no operator can find is a surface that was not shipped. Either add it to GROUPS in ` +
+      `${NAV}, in its Bible domain and in the Bible's order, or declare it in UNLINKED on ` +
+      `${REGISTER} with the reason it is reached from somewhere else.`,
+  )
+
+  const stale = [...unlinked].filter((route) => !served.has(route)).sort()
+  assert.deepEqual(
+    stale,
+    [],
+    `these routes are declared "intentionally unlinked" and the console does not serve them:\n  ` +
+      `${stale.join("\n  ")}\n\nA stale row is how the table above stops being a declaration and ` +
+      `becomes a wildcard: a route deleted and left declared excuses the next route with the same path.`,
+  )
+
+  const both = [...unlinked].filter((route) => linked.has(route)).sort()
+  assert.deepEqual(
+    both,
+    [],
+    `these routes are both a navigation entry and declared unlinked:\n  ${both.join("\n  ")}\n\n` +
+      `The register says an operator reaches them from somewhere else and the navigation says it links ` +
+      `them. One of the two is wrong, and a reader cannot tell which.`,
+  )
+})
+
+test("the Diagnostics register is exactly what the last navigation group holds", () => {
+  const tail = NAV_GROUPS.find((group) => group.tail)
+  assert.ok(tail, "no navigation group is marked as the tail")
+
+  const quarantined = [...tail.entries.map((entry) => entry.href)].sort()
+  const registered = [...QUARANTINED.map((row) => row.route)].sort()
+
+  assert.deepEqual(
+    registered,
+    quarantined,
+    `the Diagnostics register and the Diagnostics group disagree.\n  navigation: ${quarantined.join(", ")}\n` +
+      `  register:   ${registered.join(", ")}\n\n` +
+      `The whole mechanism is that unfinished work moves behind the last group. A quarantine that does ` +
+      `not say what it is holding is a drawer, and a register naming something the navigation does not ` +
+      `quarantine is a page about a console that does not exist.`,
+  )
+
+  const served = ROUTES.get(OPERATOR)
+  const missing = registered.filter((route) => !served.has(route))
+  assert.deepEqual(missing, [], `the register names route(s) the console does not serve: ${missing.join(", ")}`)
+
+  const claims = [...QUARANTINED, ...PLATFORM_PANELS].flatMap((row) =>
+    (row.covered ?? []).map((route) => ({ row: row.route ?? row.headline, route })),
+  )
+  assert.ok(claims.length >= 5, `${claims.length} supersession claim(s) parsed, expected at least 5`)
+  const dangling = claims.filter((claim) => !served.has(claim.route)).map((c) => `${c.row} -> ${c.route}`)
+  assert.deepEqual(
+    dangling,
+    [],
+    `the register says these are now answered somewhere the console does not serve:\n  ${dangling.join("\n  ")}`,
+  )
+})
+
+test("the Diagnostics register describes the panels /platform actually renders", () => {
+  const rendered = cardHeadlines(PLATFORM_PAGE).filter((headline) => !NOT_A_PANEL.has(headline))
+  const described = PLATFORM_PANELS.map((row) => row.headline)
+
+  const undescribed = rendered.filter((headline) => !described.includes(headline)).sort()
+  assert.deepEqual(
+    undescribed,
+    [],
+    `these panels are on ${PLATFORM_PAGE} and the register does not say what they are:\n  ` +
+      `${undescribed.join("\n  ")}\n\nThe register is what justifies keeping the page behind the last ` +
+      `group, panel by panel. A panel nobody classified is a panel nobody decided was diagnostic.`,
+  )
+
+  const phantom = described.filter((headline) => !rendered.includes(headline)).sort()
+  assert.deepEqual(
+    phantom,
+    [],
+    `the register describes panels ${PLATFORM_PAGE} does not render:\n  ${phantom.join("\n  ")}\n\n` +
+      `Renamed or removed. Either way an operator reading the register is reading about a page that is ` +
+      `not there — which is how a document that was true once becomes a document nobody trusts.`,
   )
 })

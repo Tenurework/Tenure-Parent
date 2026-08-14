@@ -12,7 +12,7 @@ import { usePathname } from "next/navigation"
  * the active entry is derived from the path rather than passed in and
  * occasionally wrong.
  *
- * ## Why there are groups now, and where the group names come from
+ * ## Why there are groups, and where the group names come from
  *
  * The console was eight equal tabs in a flat row, ordered by an argument about
  * an operator's workflow. Nothing in that row said which of them were finished
@@ -30,6 +30,15 @@ import { usePathname } from "next/navigation"
  * docs/architecture/studio-information-architecture.md, and this table is that
  * document compiled. Change one and change the other.
  *
+ * ## A group holds a LIST, because a domain can have more than one surface
+ *
+ * It held exactly one entry when it was written, which made "group" and "entry"
+ * the same row. Then `/platform/network`, `/platform/compute` and
+ * `/platform/messaging` landed — three surfaces over Bible section 12's service
+ * families, all of them the AWS domain. Flattening them back into peers of
+ * Fleet and FinOps is how the flat row got built the first time: one page at a
+ * time, each addition defensible on its own.
+ *
  * ## The last group is a quarantine, and it is the whole mechanism
  *
  * Everything before Diagnostics is a finished, Bible-defined operator surface.
@@ -40,73 +49,160 @@ import { usePathname } from "next/navigation"
  * construction site. `tail` is what draws the rule, so the line is visible
  * rather than implied by ordering that nobody reads as ordering.
  *
+ * The group's first entry is `/platform/diagnostics`, which is the register of
+ * what is behind the line and what is unfinished about each of them. A tab that
+ * quarantines things and then does not say what it is holding is a drawer.
+ *
  * ## What is deliberately NOT here
  *
- * Composing a tenant. It is a permission-gated action, not a section: an
- * Auditor holds no `tenant:write`, and `e2e/operator-roles.spec.ts` asserts the
- * string does not appear in an Auditor's markup at all — "not disabled: absent".
- * A global nav entry renders for every role on every route and would put it
- * there. It stays the primary action on Fleet, where the page can decide.
+ * Four routes this console serves are not navigation destinations — `/signin`,
+ * `/tenants/new` and the two dynamic tenant routes. Each is named with its
+ * reason in `UNLINKED`, on `app/platform/diagnostics/page.tsx`: this file
+ * carries `"use client"`, and a Server Component importing a constant out of a
+ * client module receives a client reference rather than the value, so the list
+ * lives once on the page that publishes it instead of twice.
+ *
+ * That list is not commentary. `tests/architecture/shell-separation.test.mjs`
+ * reads it, and a route that appears in neither the table above nor that list
+ * fails the build. A route nobody can reach is the defect this file exists to
+ * make impossible.
  */
 interface Entry {
-  /** The Bible's own name for the domain this surface serves. */
-  domain: string
   href: string
+  /** The page's own name. The domain is already printed above it. */
   label: string
   hint: string
+}
+
+interface Group {
+  /** The Bible's own name for the domain these surfaces serve. */
+  domain: string
+  entries: readonly Entry[]
   /** Set on the quarantine group so the rule before it is drawn from data. */
   tail?: true
 }
 
-const ENTRIES: readonly Entry[] = [
+export const GROUPS: readonly Group[] = [
   {
     domain: "Fleet",
-    href: "/tenants",
-    label: "Tenants",
-    hint: "every tenant, its lifecycle state, health, drift and cost — and the way in to composing one",
+    entries: [
+      {
+        href: "/tenants",
+        label: "Tenants",
+        hint: "every tenant, its lifecycle state, health, drift and cost — and the way in to composing one",
+      },
+    ],
   },
   {
     domain: "Blueprints",
-    href: "/",
-    label: "Systems",
-    hint: "what each configured system is made of, and which layer every effective value came from",
+    entries: [
+      {
+        href: "/",
+        label: "Systems",
+        hint: "what each configured system is made of, and which layer every effective value came from",
+      },
+    ],
   },
   {
     domain: "AWS",
-    href: "/platform/estate",
-    label: "Estate",
-    hint: "what is actually running in AWS right now, read live, with refused reads shown as unknown",
+    entries: [
+      {
+        href: "/platform/estate",
+        label: "Estate",
+        hint: "what is actually running in AWS right now, read live, with refused reads shown as unknown",
+      },
+      {
+        href: "/platform/network",
+        label: "Network",
+        hint: "what can reach this estate from the internet, and whether traffic is getting to the services",
+      },
+      {
+        href: "/platform/compute",
+        label: "Compute",
+        hint: "what is running, what image it is running, and why anything stopped",
+      },
+      {
+        href: "/platform/messaging",
+        label: "Messaging",
+        hint: "whether the platform can reach people, and whether anything is queued that nobody is processing",
+      },
+    ],
+  },
+  {
+    domain: "Identity",
+    entries: [
+      {
+        href: "/platform/identity",
+        label: "Identity",
+        hint: "who can get into this control plane and this account, and what is protecting those doors",
+      },
+    ],
+  },
+  {
+    domain: "Data",
+    entries: [
+      {
+        href: "/platform/data",
+        label: "Data",
+        hint: "where this platform keeps state, whether it is protected, and what is about to interrupt it",
+      },
+    ],
   },
   {
     domain: "Security",
-    href: "/platform/security",
-    label: "Findings",
-    hint: "open findings, their severity and SLA, and which of the six products answered",
+    entries: [
+      {
+        href: "/platform/security",
+        label: "Findings",
+        hint: "open findings, their severity and SLA, and which of the six products answered",
+      },
+    ],
   },
   {
     domain: "Operations",
-    href: "/platform/health",
-    label: "Health",
-    hint: "every alarm, and whether it would actually tell anybody",
+    entries: [
+      {
+        href: "/platform/health",
+        label: "Health",
+        hint: "every alarm, and whether it would actually tell anybody",
+      },
+    ],
   },
   {
     domain: "FinOps",
-    href: "/platform/cost",
-    label: "Cost",
-    hint: "what the fleet costs, who it costs it for, and how much approval a new commitment needs",
+    entries: [
+      {
+        href: "/platform/cost",
+        label: "Cost",
+        hint: "what the fleet costs, who it costs it for, and how much approval a new commitment needs",
+      },
+    ],
   },
   {
     domain: "Evidence",
-    href: "/platform/audit",
-    label: "Audit",
-    hint: "whether the trail of what this console did is intact, and what retention would destroy",
+    entries: [
+      {
+        href: "/platform/audit",
+        label: "Audit",
+        hint: "whether the trail of what this console did is intact, and what retention would destroy",
+      },
+    ],
   },
   {
     domain: "Diagnostics",
-    href: "/platform",
-    label: "Platform",
-    hint: "not an operator surface: the programme's own progress, its test suites, and a snapshot compiled at a commit",
     tail: true,
+    entries: [
+      {
+        href: "/platform/diagnostics",
+        label: "Diagnostics",
+        hint: "what sits behind this line, what is unfinished about each of them, and what now covers it",
+      },
+      {
+        href: "/platform",
+        label: "Platform",
+        hint: "not an operator surface: the engine's own build report, compiled at a commit",
+      },
+    ],
   },
 ] as const
 
@@ -115,14 +211,26 @@ const ENTRIES: readonly Entry[] = [
  *
  * `app/globals.css` already styles `.tabs`, `.tabs a` and `.tabs .here`, and
  * those rules are kept — a pill still looks like a pill and the current one is
- * still the filled one. Only what grouping adds is declared here.
+ * still the filled one. Only what grouping adds is declared here. Every value is
+ * an MD3 alias token (`--space-*`, `--muted`, `--text`, `--accent`, `--border`),
+ * each of which resolves to a `--md-sys-*` role in globals.css: a literal here
+ * is a colour pair `e2e/md3-tokens-logic.spec.ts` does not know exists, in the
+ * file it is least likely to be pointed at.
  *
  * Every selector is at least `nav.tabs .x`, which outranks the single-class
  * rules in the stylesheet whichever order the two are inserted in. That matters
- * because one of the stylesheet's rules is inside a `max-width: 640px` media
- * query and this file has to win there too: `.tabs a` is given
- * `flex: 1 1 calc(50% - gap)` so that eight equal tabs wrap two-up, and a link
- * that is now a flex child of its own group must size to its content instead.
+ * because two of the stylesheet's rules are inside `max-width` media queries and
+ * this file has to win there too:
+ *
+ *   · `.tabs a { flex: 1 1 calc(50% - gap) }` at 640, and `flex-basis: 100%` at
+ *     420, sized eight equal tabs to wrap two-up. A link that is now a flex
+ *     child of its own group must size to its content instead.
+ *   · `.tabs a { min-inline-size: min(9rem, 100%) }` at 640 was the floor that
+ *     made those halves tappable. Left in place it becomes a 144px floor under
+ *     every GROUP, which at 320 CSS pixels fits two groups per row and turns ten
+ *     groups into five rows of mostly empty space. `auto` gives the link back
+ *     its content width; the tap target is carried by `min-block-size`, which
+ *     the stylesheet sets and this file does not touch.
  *
  * Physical directions are not used anywhere below — `padding-inline`,
  * `margin-inline-start`, `border-inline-start`. `e2e/layout.spec.ts` flips `dir`
@@ -163,6 +271,7 @@ nav.tabs .nav-group[aria-current="true"] .nav-group-name {
 nav.tabs .nav-group a,
 nav.tabs .nav-group .here {
   flex: 0 0 auto;
+  min-inline-size: auto;
   white-space: nowrap;
 }
 nav.tabs .nav-group[data-tail="true"] {
@@ -182,14 +291,13 @@ export function Nav() {
 
   // The most specific match wins, and only it. Subtree matching alone lit both
   // "Platform" and "Cost" on /platform/cost — two current pages, which tells a
-  // reader nothing about where they are. This became reachable the moment an
-  // entry sat underneath another one, so it is fixed here rather than by
-  // flattening the nav around the problem.
-  const active = ENTRIES.map((entry) => entry.href)
+  // reader nothing about where they are. Six more routes now sit under
+  // `/platform`, so this is load-bearing rather than a corner: on
+  // /platform/network both `/platform` and `/platform/network` match and only
+  // the longer one may light.
+  const active = GROUPS.flatMap((group) => group.entries.map((entry) => entry.href))
     .filter(matches)
     .sort((left, right) => right.length - left.length)[0]
-
-  const isActive = (href: string) => href === active
 
   // The sign-in page has no sections to navigate between.
   if (pathname.startsWith("/signin")) return null
@@ -206,12 +314,12 @@ export function Nav() {
         {NAV_CSS}
       </style>
 
-      {ENTRIES.map((e) => {
-        const here = isActive(e.href)
-        const labelId = `nav-domain-${e.domain.toLowerCase()}`
+      {GROUPS.map((group) => {
+        const here = group.entries.some((entry) => entry.href === active)
+        const labelId = `nav-domain-${group.domain.toLowerCase()}`
         return (
           <div
-            key={e.href}
+            key={group.domain}
             className="nav-group"
             role="group"
             aria-labelledby={labelId}
@@ -224,19 +332,21 @@ export function Nav() {
               `true` is the token that says so without joining that count.
             */
             {...(here ? { "aria-current": true as const } : {})}
-            {...(e.tail ? { "data-tail": "true" } : {})}
+            {...(group.tail ? { "data-tail": "true" } : {})}
           >
             <span className="nav-group-name" id={labelId}>
-              {e.domain}
+              {group.domain}
             </span>
-            {here ? (
-              <span className="here" aria-current="page" title={e.hint}>
-                {e.label}
-              </span>
-            ) : (
-              <Link href={e.href} title={e.hint}>
-                {e.label}
-              </Link>
+            {group.entries.map((entry) =>
+              entry.href === active ? (
+                <span key={entry.href} className="here" aria-current="page" title={entry.hint}>
+                  {entry.label}
+                </span>
+              ) : (
+                <Link key={entry.href} href={entry.href} title={entry.hint}>
+                  {entry.label}
+                </Link>
+              ),
             )}
           </div>
         )

@@ -1,0 +1,40 @@
+/*
+ * Layout for the Diagnostics register. Scoped to this route, and deliberately
+ * tiny — the same three classes, for the same measured reasons, as
+ * `../data/data.module.css` and `../health/health.module.css`.
+ *
+ * ── What this file may contain, and what it may not ────────────────────────
+ *
+ * Only geometry: flow direction, gap, wrapping. Every value is a token declared
+ * in `globals.css`.
+ *
+ * It may NOT contain a colour, a font size, a weight, a radius or a shadow.
+ * Those are the token layer's answers and `components/md3/` is how a surface
+ * asks for them. A page that sets its own colour is a page the contrast audit
+ * in `e2e/md3-tokens-logic.spec.ts` cannot see, which is the exact failure that
+ * rule exists to prevent.
+ */
+
+/* The page's own column. One gap, so no card has to know what follows it. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* The title and the sentences under it. */
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* A list of route links inside one table cell, wrapping rather than truncating. */
+.routes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
