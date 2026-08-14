@@ -109,6 +109,17 @@ jobs:
           CERT=$(aws acm describe-certificate --region "$ACM_REGION" --certificate-arn "$ARN")
           STATUS=$(echo "$CERT" | jq -r '.Certificate.Status')
 
+          # To stdout as well as the summary, deliberately. A step summary is
+          # readable in the browser and nowhere else: it is not in the job log
+          # and no API returns it, so anything reading this run programmatically
+          # — `gh run view --log`, or a person on a terminal — sees nothing at
+          # all. The summary is the nicely-formatted copy; this is the one that
+          # can be read back. The values are public DNS records either way.
+          echo "STUDIO_CERT_STATUS=$STATUS"
+          echo "STUDIO_CERT_ARN=$ARN"
+          echo "$CERT" | jq -r '.Certificate.DomainValidationOptions[]
+            | "STUDIO_CERT_VALIDATION=\(.ValidationStatus) \(.DomainName) \(.ResourceRecord.Name // "no-record-yet") -> \(.ResourceRecord.Value // "-")"'
+
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"
           echo "arn=$ARN" >> "$GITHUB_OUTPUT"
           echo "$CERT" | jq -r '.Certificate.DomainValidationOptions[]
