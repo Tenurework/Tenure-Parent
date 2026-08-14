@@ -19,17 +19,149 @@ undecided and returns the item to the queue every tick, forever. An unfinished
 requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — naming
 the commands or the ADR that would unblock it — if it cannot.
 
-- [ ] **INT-000-001** — Inventory current internal events, APIs, queues, jobs, webhooks, files, credentials references, provider SDKs and connector claims.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **INT-000-001** — Inventory current internal events, APIs, queues, jobs, webhooks, files, credentials references, provider SDKs and connector claims.
+  - Status: PASS
+  - Code: `tools/int-integration-inventory.mjs` derives the inventory from the working
+    tree and writes `docs/architecture/int-integration-inventory.md`. Nine sections, one
+    per noun the requirement names: HTTP surfaces (every `route.ts` in `apps/web` and
+    `apps/system-studio`, with the verbs it exports and a direction derived from the
+    path), internal events, SQS queues, scheduled rules, alarms, S3 buckets and
+    file-exchange modules, credential references, provider SDKs, connector claims.
+    Deterministic on purpose: files come from `git ls-files --cached --others`
+    (POSIX paths, stable order) rather than `readdirSync`, every list is sorted on an
+    explicit string key, every file is CRLF-normalised before matching, and the document
+    is joined with `\n` under the repository's `* text=auto eol=lf`. The on-disk output
+    contains zero CR bytes.
+  - What it says now, every number re-derived by hand against the tree before this row
+    was written: 28 route handlers (1 inbound from a provider —
+    `apps/web/src/app/api/payments/provider-events/route.ts`; 3 inbound from the
+    scheduler under `/api/jobs/`), 2 internal event types, 5 SQS queues
+    (`infrastructure/terraform/sqs.tf` declares `default_dlq`, `email_dlq`, `default`,
+    `email`, `notifications` — counted independently with
+    `grep -rn '^resource "aws_sqs_queue"' infrastructure/`), 0 of them with a producer
+    in the tree, 1 scheduled rule, 4 CloudWatch alarms
+    (`infrastructure/terraform/cloudwatch.tf`: `ecs_running_tasks`, `alb_5xx`, `rds_cpu`,
+    `dlq_messages`), 2 S3 buckets (`infrastructure/terraform/s3.tf`: `documents`,
+    `exports`), 3 file-exchange modules, 25 credential references by NAME only, 44
+    provider SDK dependencies out of 88 direct dependencies scanned, and 24 connector
+    claims — `grep -c '^  pack({$' packages/provisioning/src/provider-packs.ts` returns
+    24.
+  - Defect found and fixed while verifying: the generated document opened
+    `**INT-000-001** — inventory of current internal events…`, which
+    `tools/document-graph.mjs` reads as this document STATING the requirement. Because
+    the file trips the graph's authority markers by discussing the Bible, and
+    `classify()` sorts with `localeCompare` (which puts `docs/architecture/…` ahead of
+    `Tenure_…`), the generated ANSWER had taken ownership of INT-000-001 and INT-000-002
+    away from the Bible: `node tools/loop/next-batch.mjs` printed
+    "inventory of current internal events, APIs, queues, jobs," — a truncated line of
+    this document's own prose — as the requirement, with phase
+    `docs/architecture/int-integration-inventory.md`. The header now cites the ids
+    inline, ownership is back with the Bible, and the queue prints the Bible's sentence.
+  - Tests: `tests/architecture/int-integration-inventory.test.mjs`, 15 tests, run with
+    bare `node --test` at the repository root (this is `npm run test:platform`'s runner —
+    no TypeScript, no jest globals). 15/15 green. It re-runs the generator with `--check`
+    and compares bytes, opens every path the document cites, floors every section against
+    a structure a reader can count independently, re-derives the queue-producer verdict,
+    the connector count and the route count from the tree with code that shares nothing
+    with the generator, refuses token-shaped literals, and — added here — refuses any
+    line of the generated document that opens `ID — text`. The detectors are themselves
+    proven against assembled fixtures, so none of them can pass by matching nothing.
+  - Mutations, 2 applied, 2 caught, both restored, 15/15 green again after each:
+    (1) deleted the real `| email_dlq | …` queue row from
+    `docs/architecture/int-integration-inventory.md` — tests 1 and 6 failed (13 pass /
+    2 fail); regenerated, 15/15.
+    (2) in the generator, `if (/\bSendMessage(?:Batch)?Command\b/.test(text))
+    senders.push(file)` → `if (/\bsendMessage\(/.test(text)) senders.push(file)` and
+    regenerated, which made the document say "0 of 5 SQS queues are orphans" — a wrong
+    but perfectly self-consistent inventory that `--check` blesses. Test 7, the
+    independent re-derivation, failed (14/1); restored, 15/15. That mutation is the one
+    that matters: it proves the guard catches a document that is current and false, not
+    only one that is stale.
 
 - [ ] **INT-000-002** — Map producer/consumer and actual traffic for every integration resource; identify orphan/producerless queues and false green alarms.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+  - Status: BLOCKED_EXTERNAL
+  - Three clauses. Two are done and guarded; the third cannot be done from this
+    repository, and the row is blocked rather than passed because a mapping that
+    silently drops "actual traffic" is exactly the false-complete this programme keeps
+    producing.
+  - Done — producer/consumer, in `docs/architecture/int-integration-inventory.md`
+    §2–§5, generated by `tools/int-integration-inventory.mjs`: every internal event with
+    its declared emitters, declared consumers, the files that actually call
+    `outboxEventRow` and the file that actually registers a consumer, read three
+    independent ways and kept apart; every SQS queue with a per-queue verdict; every
+    scheduled rule with its target; every alarm with its namespace, metric and
+    `treat_missing_data`.
+  - Done — orphans and false green alarms, §10: **5 of 5 SQS queues are orphans**
+    (nothing in `apps/**`, `packages/**` or `modules/**` constructs an
+    `SendMessageCommand` or a `ReceiveMessageCommand`; the only holder of
+    `@aws-sdk/client-sqs` is System Studio's read-only observability path), and
+    **1 of 4 alarms cannot fire** — `dlq_messages`, `infrastructure/terraform/cloudwatch.tf:56`,
+    namespace `AWS/SQS`, metric `ApproximateNumberOfMessagesVisible`,
+    `treat_missing_data = "notBreaching"` over `aws_sqs_queue.default_dlq`, which nothing
+    enqueues to. It is green because nothing has ever arrived, not because delivery is
+    healthy. One further finding: `ApprovalRequested` is produced by
+    `apps/web/src/app/(app)/approvals/actions.ts` and registered by no consumer in
+    `apps/web/src/lib/outbox/consumers.ts`.
+  - Blocked — actual traffic. Every statement above is a proof about the repository.
+    "Nothing in the tree enqueues" is not "no messages flowed", and writing the two as
+    one sentence is the failure the inventory's own preamble refuses. Measuring traffic
+    needs read-only credentials for the AWS account that owns the estate, which this
+    workspace does not have and must not acquire on its own. The exact commands, once a
+    human grants a read-only role and names the account and region:
+    `aws cloudwatch get-metric-statistics --namespace AWS/SQS --metric-name NumberOfMessagesSent --dimensions Name=QueueName,Value=<project>-<environment>-default --start-time <T-30d> --end-time <now> --period 86400 --statistics Sum`,
+    repeated for `-default-dlq`, `-email`, `-email-dlq` and `-notifications` (the five
+    names `infrastructure/terraform/sqs.tf` builds from `local.name_prefix`, defined at
+    `infrastructure/terraform/main.tf:70` as `"${var.project}-${var.environment}"`), plus
+    `aws cloudwatch describe-alarm-history --alarm-name <project>-<environment>-dlq-messages`
+    for the alarm's real transition history and
+    `aws logs filter-log-events --log-group-name <group> --filter-pattern '"/api/jobs/"'`
+    for the scheduler-invoked routes. `<project>`, `<environment>`, the account and the
+    region are deliberately left as placeholders: this row invents no account id, no ARN
+    and no region.
+  - Not done here, and named so it is not mistaken for done: no traffic figure appears
+    in the inventory, and `tests/architecture/int-integration-inventory.test.mjs` asserts
+    the document keeps saying "Actual traffic is not measured" rather than letting the
+    gap close itself by omission.
+  - Reason: the remaining clause requires authenticated read-only AWS access that no
+    command available in this repository can grant.
 
-- [ ] **INT-000-003** — Import every `INT-*` requirement into the canonical ledger.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **INT-000-003** — Import every `INT-*` requirement into the canonical ledger.
+  - Status: PASS
+  - What is true: this ledger carries 65 `INT-*` rows —
+    `grep -c '^- \[[ x]\] \*\*INT-' docs/implementation/integration-ecosystem-execution-ledger.md`
+    returns 65 — and `requirementsIn()` in `tools/document-graph.mjs`, the parser the work
+    queue itself uses, reads exactly 65 `INT-*` ids out of
+    `Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md`,
+    54 numbered and 11 `INT-GATE-*`. Every one is in the queue at
+    `node tools/loop/next-batch.mjs`, which is the production caller: it reads status
+    from this file through `ledgerStatuses()`.
+  - Tests: `tests/architecture/int-requirements-are-imported.test.mjs`, 6 tests, bare
+    `node --test` at the repository root, 6/6 green. It compares the two sets in BOTH
+    directions (nothing stated without a row, nothing rowed that the Bible does not
+    state), pins the count at 65 so a Bible edit and a ledger edit cannot delete the same
+    ten and agree with each other, refuses a repeated id (two rows are two statuses and
+    the loop reads whichever the parser saw last), refuses an `INT-*` row filed in another
+    domain's ledger — `importedIds()` is a union, so a misfiled row reads as imported
+    while the owning domain has nothing to work — and asserts every INT row in the
+    generated registry resolves back to the Bible at its canonical path.
+  - Defect found and fixed: that last assertion was RED.
+    `docs/architecture/int-integration-inventory.md`, the generated answer to INT-000-001
+    and INT-000-002, opened with `**INT-000-001** — …`, which `tools/document-graph.mjs`
+    reads as that document STATING the requirement; it trips the graph's authority
+    markers by discussing the Bible, and `classify()` sorts with `localeCompare`, which
+    puts `docs/architecture/…` ahead of `Tenure_…`. So the answer owned the requirement
+    and the Bible did not. Fixed in `tools/int-integration-inventory.mjs` by citing the
+    ids inline instead of restating them; the document was regenerated, not hand-edited.
+  - Mutations, 2 applied, 2 caught, both restored, green again after each:
+    (1) deleted the `- [ ] **INT-050-003**` row from this ledger — test 2, "every INT
+    requirement the Bible states has a row in the integration ledger", failed (5 pass /
+    1 fail); restored, 6/6.
+    (2) re-applied the pre-fix header to the generator and regenerated — test 5, "the
+    generated registry owns exactly the INT requirements the Bible states", failed, and
+    the repository-wide `tests/architecture/document-graph.test.mjs` "a requirement stated
+    twice is stated identically" additionally listed `INT-000-001` and `INT-000-002`
+    alongside the pre-existing `WRK-000-001`; restored, and only `WRK-000-001` remains
+    (another domain's document, same shape, not touched here).
 
 - [ ] **INT-000-004** — Establish domain ownership and prohibit direct connector table writes.
   - Status: FAIL

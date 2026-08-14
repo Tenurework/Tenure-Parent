@@ -26,6 +26,7 @@ import { SeeAllSection } from "@/components/ui/SeeAllSection"
 import { Avatar } from "@/components/ui/Avatar"
 import { carriesFinanceAuthority } from "@/lib/rbac"
 import { formatCents } from "@/lib/finance"
+import { OPEN_APPROVAL_STATUSES } from "@/lib/analytics/metrics"
 
 export const metadata: Metadata = { title: "Dashboard" }
 export const dynamic = "force-dynamic"
@@ -120,7 +121,9 @@ export default async function DashboardPage() {
         db.approvalRequest.count({
           where: {
             organizationId: { in: orgIds },
-            status: { in: ["PENDING_PRESIDENT", "PENDING_OSE"] },
+            // ANL-000-002. The set is `lib/analytics/metrics.ts`, not a literal
+            // here: this tile and the one on /reports name the same metric.
+            status: { in: [...OPEN_APPROVAL_STATUSES] },
           },
         }),
         db.event.count({

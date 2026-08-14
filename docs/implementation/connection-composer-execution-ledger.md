@@ -30,17 +30,44 @@ the commands or the ADR that would unblock it — if it cannot.
   - Tests: `node --test tests/architecture/document-graph.test.mjs`
   - Honest limit: This proves import and document-graph wiring only. It does not implement catalog inventory, provider lifecycle classification, UI configuration, connector runtime, certification, cost, or deployment behavior for the remaining `CAT-*` requirements.
 
-- [ ] **CAT-000-002** — Inventory every integration/app/system currently named, displayed, configured, coded, deployed, marketed, or used by a tenant.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-000-002** — Inventory every integration/app/system currently named, displayed, configured, coded, deployed, marketed, or used by a tenant.
+  - Status: PASS
+  - Code: `tools/cat-integration-inventory.mjs` derives the inventory from the tree; `docs/architecture/cat-integration-inventory.md` is its committed output.
+  - Evidence:
+    - 58 catalog rows, each naming the `file:line` that declares it — 24 connector packs (`packages/provisioning/src/provider-packs.ts`), 1 `ConnectorEntry` (`packages/provisioning/src/catalogs.ts:1083`), 2 model rows (`packages/platform-config/src/model-policy.ts`), 31 Stripe capability leaves (`packages/payments/src/capability-registry.ts`).
+    - 47 hosts named in tracked non-test `.ts`/`.tsx` source, each marked `url` / `egress declaration` / `prose only`. 7 have no catalog row at all — `docs.aws.amazon.com`, `evil-tenure.app`, `null.console.aws.amazon.com`, `platform.tenurework.com`, `tenure.app`, `tenure.dev`, `www.googleapis.com` — which is the gap an inventory exists to surface.
+    - 38 `@aws-sdk/client-*` packages, with the areas that import them.
+    - Nothing is hand-listed: the file list comes from `git ls-files` (tracked only, POSIX paths, byte-sorted, `\r?\n` splitting), so the document is byte-identical on Linux and Windows.
+    - Mutation 1 — deleted the `` `slack.workspace` `` row from the committed markdown: `node --test tests/architecture/cat-integration-inventory.test.mjs` went 10 pass / 0 fail → 9 pass / 1 fail ("the committed inventory is what the tree produces today"); restored → 10 pass / 0 fail.
+    - Mutation 2 — deleted the entire `atlassian.jira` `pack({ … })` block from `packages/provisioning/src/provider-packs.ts`: 10/0 → 8 pass / 2 fail (inventory and classification freshness); restored → 10/0, bytes identical to the original.
+    - Mutation 3 — added `https://telemetry.acme-vendor.io/v1` to `apps/web/src/lib/ai.ts`: 10/0 → 9 pass / 1 fail; restored → 10/0. An integration added to the code and not to the catalog cannot land silently.
+  - Tests: `node --test tests/architecture/cat-integration-inventory.test.mjs` (10 tests; also runs under `npm run test:platform`)
+  - Honest limit: the host scan covers tracked non-test `.ts`/`.tsx` under `apps/`, `packages/` and `modules/`; the AWS scan adds `tools/`. Neither reads Terraform, workflow YAML, or anything a tenant reaches that is named nowhere in source, and `marketed` is covered only insofar as marketing copy lives in those files. Reserved names (RFC 2606 / RFC 6761) and single-label placeholders are excluded by design.
 
-- [ ] **CAT-000-003** — Classify each provider/product/capability/direction/region/version with the exact catalog lifecycle.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-000-003** — Classify each provider/product/capability/direction/region/version with the exact catalog lifecycle.
+  - Status: PASS
+  - Code: `RULES` and `classify()` in `tools/cat-integration-inventory.mjs`; `docs/architecture/cat-lifecycle-classification.md` is the committed output.
+  - Evidence:
+    - The sixteen §6 states are PARSED from the Bible's own fenced block (`bibleLifecycles()`), not transcribed, so "the exact catalog lifecycle" is a fact about §6 rather than a constant.
+    - All 58 rows classified, 0 unclassified, each with provider / product / capability / direction / region / version and the rule id that produced its state: `PLANNED` 48, `IN_DEVELOPMENT` 3, `UNSUPPORTED` 7.
+    - Region is what each row actually declares — `partition:aws` for `tenure.relay-anthropic`, `*` for the two model rows, `not declared` for the packs. Version is the declared engine range (`>=2026.1.0`) or the pinned provider API version (`api 2026-03-31`).
+    - No rule can emit a state above `IN_DEVELOPMENT` except R4, which is gated on a submitted provider review; `RELAY_ANTHROPIC_REVIEW.state` is `NOT_SUBMITTED` (`packages/platform-config/src/provider-review.ts:207`), so nothing in this tree reaches `SANDBOX_VALIDATED`, `TENURE_CERTIFIED` or `TENANT_ELIGIBLE`. A test asserts that ceiling directly.
+    - Mutation 4 — removed `SANDBOX_VALIDATED` from the Bible's §6 block: 10 pass / 0 fail → 8 pass / 2 fail ("the classification vocabulary is the Bible's, read from the Bible" and the classification freshness test); restored → 10/0, bytes identical.
+    - Mutation 2 above also reds this document, because a pack removed from the source removes a classified row.
+  - Tests: `node --test tests/architecture/cat-integration-inventory.test.mjs`
+  - Honest limit: the classification is derived from what each row DECLARES, not from an independent audit of the connector. It records that no row can be evidenced past `IN_DEVELOPMENT`; it does not prove the three `IN_DEVELOPMENT` rows work.
 
-- [ ] **CAT-000-004** — Bind Catalog requirements to Configurator, Pack Factory, Integration Plane, Work Graph, Payments, core domains, System Studio, Tenant UX, and release evidence.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-000-004** — Bind Catalog requirements to Configurator, Pack Factory, Integration Plane, Work Graph, Payments, core domains, System Studio, Tenant UX, and release evidence.
+  - Status: PASS
+  - Code: `tools/cat-requirement-bindings.mjs`; `docs/architecture/cat-requirement-bindings.md` is the committed output.
+  - Evidence:
+    - The 9 surfaces are parsed out of CAT-000-004's own sentence in the Bible (`surfaceNames()`), and the test asserts set equality with the binding table in BOTH directions — a table that drops one or invents a tenth reds.
+    - All 59 `CAT-*` requirements in this ledger are bound, via their phase (10 phases; each gate resolves to the phase it closes). Each phase names the surfaces it needs and why.
+    - Every binding target is a path the test opens: 13 governing Bibles, 9 ledgers, 20 source anchors — 42 paths, all present.
+    - Mutation 5 — repointed the Work Graph surface's ledger to `docs/implementation/universal-work-graph-execution-ledgerX.md`: `node --test tests/architecture/cat-requirement-bindings.test.mjs` went 7 pass / 0 fail → 5 pass / 2 fail ("every target the bindings name exists", plus freshness); restored → 7/0.
+    - Mutation 6 — removed the `CAT-060` entry from `PHASE_BINDINGS`: 7/0 → 5 pass / 2 fail ("every CAT requirement in the ledger is bound to a phase" naming `CAT-060-001`…`CAT-GATE-060`, plus freshness); restored → 7/0.
+  - Tests: `node --test tests/architecture/cat-requirement-bindings.test.mjs` (7 tests)
+  - Honest limit: the binding is at PHASE granularity — five requirements in a phase share its surfaces — and it is stated as such in the document. It records where each requirement's work is jointly owned; it does not implement any of it. Every `CAT-*` requirement outside `CAT-000` remains `FAIL`.
 
 - [ ] **CAT-010-001** — Implement all cardinality modes and count dimensions.
   - Status: FAIL

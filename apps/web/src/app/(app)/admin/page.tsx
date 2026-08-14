@@ -20,6 +20,7 @@ import { StatGrid, StatTile, BentoGrid, BentoTile } from "@/components/ui/Bento"
 import { Badge } from "@/components/ui/Badge"
 import { DonutChart, slotColor, STATUS, REFERENCE } from "@/components/charts"
 import { bucketByWeek } from "@/components/charts/timeseries"
+import { OPEN_APPROVAL_STATUSES } from "@/lib/analytics/metrics"
 
 export const metadata: Metadata = { title: "Admin" }
 export const dynamic = "force-dynamic"
@@ -78,7 +79,9 @@ export default async function AdminOverviewPage() {
           },
         }),
         db.approvalRequest.count({
-          where: { institutionId, status: { in: ["PENDING_PRESIDENT", "PENDING_OSE"] } },
+          // ANL-000-002. One definition of "awaiting decision", in
+          // `lib/analytics/metrics.ts`, shared with /reports and the pulse endpoint.
+          where: { institutionId, status: { in: [...OPEN_APPROVAL_STATUSES] } },
         }),
         db.approvalRequest.findMany({
           where: { institutionId, createdAt: { gte: trendSince } },

@@ -1,0 +1,309 @@
+# Simon absorption — repository, package and module maps
+
+**Generated** by `node tools/simon-absorption-inventory.mjs` from
+`docs/architecture/simon-absorption-inventory.json`. Do not edit by hand — `tests/simon-absorption-inventory.test.mjs`
+re-renders this file from the snapshot and reds on any difference.
+
+Closes **SIMON-000-002**. Source repository read from `refs/remotes/live/main` only: the pilot is
+never cloned, checked out or pushed to from here.
+
+The complete file list for both sides lives in the snapshot JSON under
+`source.files` and `target.files`; this document is the rolled-up view.
+Every number here is a count of real tracked paths, and the guard test
+checks the roll-ups add up to the file lists they came from.
+
+## Module / area map
+
+### Source
+
+| Area | Tracked files |
+| --- | ---: |
+| `(repository root)` | 8 |
+| `.github/workflows` | 12 |
+| `Tier1` | 11 |
+| `Tier1/extracted` | 11 |
+| `apps/web` | 286 |
+| `docs` | 2 |
+| `docs/architecture` | 1 |
+| `docs/decisions` | 5 |
+| `infrastructure/terraform` | 20 |
+| `packages` | 1 |
+| **total** | **357** |
+
+### Target
+
+| Area | Tracked files |
+| --- | ---: |
+| `(repository root)` | 37 |
+| `.github/workflows` | 17 |
+| `Tier1` | 13 |
+| `Tier1/extracted` | 11 |
+| `apps/system-studio` | 268 |
+| `apps/web` | 492 |
+| `blueprints` | 5 |
+| `blueprints/corporate-divisions` | 1 |
+| `blueprints/nonprofit-program-operations` | 1 |
+| `blueprints/university-student-organizations` | 1 |
+| `docs` | 2 |
+| `docs/architecture` | 20 |
+| `docs/contracts` | 7 |
+| `docs/decisions` | 12 |
+| `docs/handoff` | 1 |
+| `docs/implementation` | 23 |
+| `docs/migrations` | 4 |
+| `docs/runbooks` | 1 |
+| `infrastructure/oidc` | 5 |
+| `infrastructure/studio` | 11 |
+| `infrastructure/terraform` | 20 |
+| `modules` | 2 |
+| `packages` | 1 |
+| `packages/audit` | 7 |
+| `packages/authorization` | 20 |
+| `packages/configuration` | 28 |
+| `packages/contracts` | 3 |
+| `packages/finops` | 13 |
+| `packages/identity` | 57 |
+| `packages/metadata` | 5 |
+| `packages/module-runtime` | 8 |
+| `packages/organization-model` | 15 |
+| `packages/payments` | 27 |
+| `packages/platform-config` | 30 |
+| `packages/provisioning` | 30 |
+| `packages/releases` | 5 |
+| `packages/workflow` | 5 |
+| `tests/architecture` | 32 |
+| `tests/security` | 35 |
+| `tools` | 18 |
+| `tools/dev` | 4 |
+| `tools/loop` | 46 |
+| **total** | **1343** |
+
+## Workspace and package map
+
+### Source
+
+| Manifest | Package | Private | Scripts | Depends on workspaces | External deps |
+| --- | --- | ---: | ---: | --- | ---: |
+| `apps/web/package.json` | `tenure` | yes | 9 | — | 32 |
+| `package.json` | `tenure-parent` | yes | 10 | — | 0 |
+
+### Target
+
+| Manifest | Package | Private | Scripts | Depends on workspaces | External deps |
+| --- | --- | ---: | ---: | --- | ---: |
+| `apps/system-studio/package.json` | `@tenure/system-studio` | yes | 6 | `@tenure/audit` `@tenure/contracts` `@tenure/finops` `@tenure/provisioning` | 49 |
+| `apps/web/package.json` | `tenure` | yes | 9 | `@tenure/contracts` | 30 |
+| `blueprints/package.json` | `@tenure/blueprints` | yes | 0 | — | 0 |
+| `modules/package.json` | `@tenure/modules` | yes | 0 | — | 0 |
+| `package.json` | `tenure-parent` | yes | 18 | — | 1 |
+| `packages/audit/package.json` | `@tenure/audit` | yes | 0 | — | 0 |
+| `packages/authorization/package.json` | `@tenure/authorization` | yes | 0 | — | 0 |
+| `packages/configuration/package.json` | `@tenure/configuration` | yes | 0 | `@tenure/audit` `@tenure/finops` | 1 |
+| `packages/contracts/package.json` | `@tenure/contracts` | yes | 0 | — | 0 |
+| `packages/finops/package.json` | `@tenure/finops` | yes | 0 | — | 0 |
+| `packages/identity/package.json` | `@tenure/identity` | yes | 0 | — | 0 |
+| `packages/metadata/package.json` | `@tenure/metadata` | yes | 0 | — | 0 |
+| `packages/module-runtime/package.json` | `@tenure/module-runtime` | yes | 0 | — | 0 |
+| `packages/organization-model/package.json` | `@tenure/organization-model` | yes | 0 | — | 0 |
+| `packages/payments/package.json` | `@tenure/payments` | yes | 0 | — | 0 |
+| `packages/platform-config/package.json` | `@tenure/platform-config` | yes | 0 | — | 0 |
+| `packages/provisioning/package.json` | `@tenure/provisioning` | yes | 0 | `@tenure/platform-config` | 0 |
+| `packages/releases/package.json` | `@tenure/releases` | yes | 0 | — | 0 |
+| `packages/workflow/package.json` | `@tenure/workflow` | yes | 0 | — | 0 |
+
+## Dependency graphs
+
+### Declared — workspace to workspace
+
+### Source — workspace dependency graph
+
+No workspace declares another workspace as a dependency.
+
+### Target — workspace dependency graph
+
+```
+digraph workspaces {
+  "@tenure/system-studio" -> "@tenure/audit"
+  "@tenure/system-studio" -> "@tenure/contracts"
+  "@tenure/system-studio" -> "@tenure/finops"
+  "@tenure/system-studio" -> "@tenure/provisioning"
+  "tenure" -> "@tenure/contracts"
+  "@tenure/configuration" -> "@tenure/audit"
+  "@tenure/configuration" -> "@tenure/finops"
+  "@tenure/provisioning" -> "@tenure/platform-config"
+}
+```
+
+### Observed — module imports, rolled up to areas
+
+Derived from the import, export-from, dynamic `import()` and `require()`
+specifiers in every tracked source file, resolved against that side’s own
+file list and its `tsconfig.json` path aliases. Node builtins are counted
+and not drawn. Edges within one area are not drawn. A relative specifier
+that resolves to no tracked file is counted as unresolved, never guessed at.
+
+The scan is textual, so a code sample written inside a string literal is
+counted as if it were an import — four fixtures under `tests/architecture`
+embed `from "x"` and `require("z")` and are the reason single-letter
+packages appear below. That is a stated limit of the method, not a package.
+
+#### Source — 6 area edge(s) over 274 source file(s), 29 builtin import(s), 1 unresolved relative, 0 unresolved alias
+
+```
+digraph modules {
+  "apps/web/e2e" -> "apps/web/e2e/support" [label="28"]
+  "apps/web/src" -> "apps/web/src/lib" [label="1"]
+  "apps/web/src/app" -> "apps/web/src/components" [label="172"]
+  "apps/web/src/app" -> "apps/web/src/lib" [label="318"]
+  "apps/web/src/components" -> "apps/web/src/app" [label="7"]
+  "apps/web/src/components" -> "apps/web/src/lib" [label="10"]
+}
+```
+
+#### Target — 85 area edge(s) over 1068 source file(s), 509 builtin import(s), 1 unresolved relative, 7 unresolved alias
+
+```
+digraph modules {
+  "apps/system-studio/e2e" -> "apps/system-studio/src/generated" [label="1"]
+  "apps/system-studio/e2e" -> "apps/system-studio/src/lib" [label="27"]
+  "apps/system-studio/e2e" -> "apps/web/src/lib" [label="2"]
+  "apps/system-studio/e2e" -> "modules" [label="1"]
+  "apps/system-studio/e2e" -> "packages/configuration/src" [label="4"]
+  "apps/system-studio/e2e" -> "packages/contracts/src" [label="1"]
+  "apps/system-studio/e2e" -> "packages/finops/src" [label="1"]
+  "apps/system-studio/e2e" -> "packages/platform-config/src" [label="3"]
+  "apps/system-studio/e2e" -> "packages/provisioning/src" [label="1"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="34"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/generated" [label="1"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="156"]
+  "apps/system-studio/src/app" -> "blueprints" [label="7"]
+  "apps/system-studio/src/app" -> "modules" [label="7"]
+  "apps/system-studio/src/app" -> "packages/audit/src" [label="3"]
+  "apps/system-studio/src/app" -> "packages/configuration/src" [label="4"]
+  "apps/system-studio/src/app" -> "packages/finops/src" [label="7"]
+  "apps/system-studio/src/app" -> "packages/module-runtime/src" [label="5"]
+  "apps/system-studio/src/app" -> "packages/organization-model/src" [label="1"]
+  "apps/system-studio/src/app" -> "packages/platform-config/src" [label="8"]
+  "apps/system-studio/src/app" -> "packages/provisioning/src" [label="6"]
+  "apps/system-studio/src/components" -> "apps/system-studio/src/lib" [label="4"]
+  "apps/system-studio/src/components" -> "packages/provisioning/src" [label="3"]
+  "apps/system-studio/src/lib" -> "apps/system-studio/src/app" [label="2"]
+  "apps/system-studio/src/lib" -> "apps/system-studio/src/components" [label="5"]
+  "apps/system-studio/src/lib" -> "blueprints" [label="1"]
+  "apps/system-studio/src/lib" -> "modules" [label="2"]
+  "apps/system-studio/src/lib" -> "packages/audit/src" [label="2"]
+  "apps/system-studio/src/lib" -> "packages/configuration/src" [label="5"]
+  "apps/system-studio/src/lib" -> "packages/contracts/src" [label="2"]
+  "apps/system-studio/src/lib" -> "packages/finops/src" [label="4"]
+  "apps/system-studio/src/lib" -> "packages/module-runtime/src" [label="1"]
+  "apps/system-studio/src/lib" -> "packages/organization-model/src" [label="1"]
+  "apps/system-studio/src/lib" -> "packages/platform-config/src" [label="3"]
+  "apps/system-studio/src/lib" -> "packages/provisioning/src" [label="29"]
+  "apps/web/e2e" -> "apps/web/e2e/support" [label="39"]
+  "apps/web/e2e" -> "apps/web/src/components" [label="1"]
+  "apps/web/scripts" -> "apps/web/src/lib" [label="1"]
+  "apps/web/src" -> "apps/web/src/lib" [label="2"]
+  "apps/web/src/app" -> "apps/web" [label="1"]
+  "apps/web/src/app" -> "apps/web/src/components" [label="199"]
+  "apps/web/src/app" -> "apps/web/src/lib" [label="408"]
+  "apps/web/src/app" -> "modules" [label="1"]
+  "apps/web/src/app" -> "packages/authorization/src" [label="4"]
+  "apps/web/src/app" -> "packages/configuration/src" [label="4"]
+  "apps/web/src/app" -> "packages/contracts/src" [label="6"]
+  "apps/web/src/app" -> "packages/finops/src" [label="1"]
+  "apps/web/src/app" -> "packages/identity/src" [label="2"]
+  "apps/web/src/app" -> "packages/module-runtime/src" [label="1"]
+  "apps/web/src/app" -> "packages/payments/src" [label="1"]
+  "apps/web/src/app" -> "packages/platform-config/src" [label="23"]
+  "apps/web/src/components" -> "apps/web/src/app" [label="7"]
+  "apps/web/src/components" -> "apps/web/src/lib" [label="15"]
+  "apps/web/src/components" -> "packages/platform-config/src" [label="5"]
+  "apps/web/src/lib" -> "apps/web" [label="1"]
+  "apps/web/src/lib" -> "apps/web/scripts" [label="1"]
+  "apps/web/src/lib" -> "apps/web/src" [label="1"]
+  "apps/web/src/lib" -> "apps/web/src/app" [label="7"]
+  "apps/web/src/lib" -> "apps/web/src/components" [label="1"]
+  "apps/web/src/lib" -> "blueprints" [label="4"]
+  "apps/web/src/lib" -> "modules" [label="4"]
+  "apps/web/src/lib" -> "packages/audit/src" [label="5"]
+  "apps/web/src/lib" -> "packages/authorization/src" [label="12"]
+  "apps/web/src/lib" -> "packages/configuration/src" [label="3"]
+  "apps/web/src/lib" -> "packages/contracts/src" [label="14"]
+  "apps/web/src/lib" -> "packages/finops/src" [label="1"]
+  "apps/web/src/lib" -> "packages/identity/src" [label="5"]
+  "apps/web/src/lib" -> "packages/metadata/src" [label="2"]
+  "apps/web/src/lib" -> "packages/organization-model/src" [label="1"]
+  "apps/web/src/lib" -> "packages/platform-config/src" [label="20"]
+  "apps/web/src/lib" -> "packages/provisioning/src" [label="1"]
+  "apps/web/src/lib" -> "packages/releases/src" [label="1"]
+  "apps/web/src/lib" -> "packages/workflow/src" [label="1"]
+  "blueprints" -> "blueprints/corporate-divisions" [label="1"]
+  "blueprints" -> "blueprints/nonprofit-program-operations" [label="1"]
+  "blueprints" -> "blueprints/university-student-organizations" [label="1"]
+  "blueprints/corporate-divisions" -> "blueprints" [label="1"]
+  "blueprints/nonprofit-program-operations" -> "blueprints" [label="1"]
+  "blueprints/university-student-organizations" -> "blueprints" [label="1"]
+  "tests/architecture" -> "tools" [label="8"]
+  "tests/architecture" -> "tools/loop" [label="1"]
+  "tests/security" -> "tools" [label="9"]
+  "tools" -> "apps/web/src/lib" [label="1"]
+  "tools" -> "tools/loop" [label="1"]
+  "tools/loop" -> "tools" [label="1"]
+}
+```
+
+### Observed — external packages, and whether a manifest declares them
+
+An **undeclared** row is a real defect rather than a curiosity: the import
+resolves today through npm’s flat `node_modules` and breaks on the day the
+transitive dependency that hoisted it is removed.
+
+#### Source — 37 area/package pair(s), 2 undeclared
+
+| Area | Package | Imports | Declared |
+| --- | --- | ---: | --- |
+| `apps/web` | `@eslint/eslintrc` | 1 | **no** |
+| `apps/web/src/lib` | `server-only` | 10 | **no** |
+
+#### Target — 102 area/package pair(s), 38 undeclared
+
+| Area | Package | Imports | Declared |
+| --- | --- | ---: | --- |
+| `apps/web` | `@eslint/eslintrc` | 1 | **no** |
+| `apps/web/src/components` | `@jest/globals` | 1 | **no** |
+| `apps/web/src/lib` | `@jest/globals` | 14 | **no** |
+| `apps/web/src/lib` | `server-only` | 18 | **no** |
+| `blueprints` | `@tenure/module-runtime` | 1 | **no** |
+| `blueprints` | `@tenure/organization-model` | 1 | **no** |
+| `modules` | `@tenure/contracts` | 1 | **no** |
+| `modules` | `@tenure/finops` | 1 | **no** |
+| `packages/audit/src` | `@tenure/configuration` | 1 | **no** |
+| `packages/authorization/src` | `@tenure/blueprints` | 1 | **no** |
+| `packages/configuration/src` | `@tenure/contracts` | 1 | **no** |
+| `packages/configuration/src` | `@tenure/modules` | 1 | **no** |
+| `packages/contracts/src` | `@jest/globals` | 1 | **no** |
+| `packages/module-runtime/src` | `@jest/globals` | 1 | **no** |
+| `packages/module-runtime/src` | `@tenure/authorization` | 2 | **no** |
+| `packages/module-runtime/src` | `@tenure/contracts` | 1 | **no** |
+| `packages/module-runtime/src` | `@tenure/finops` | 1 | **no** |
+| `packages/module-runtime/src` | `@tenure/platform-config` | 1 | **no** |
+| `packages/organization-model/src` | `@tenure/blueprints` | 1 | **no** |
+| `packages/payments/src` | `@tenure/platform-config` | 1 | **no** |
+| `packages/platform-config/src` | `@tenure/authorization` | 1 | **no** |
+| `packages/platform-config/src` | `@tenure/blueprints` | 3 | **no** |
+| `packages/platform-config/src` | `@tenure/configuration` | 9 | **no** |
+| `packages/platform-config/src` | `@tenure/module-runtime` | 2 | **no** |
+| `packages/platform-config/src` | `@tenure/modules` | 4 | **no** |
+| `packages/platform-config/src` | `@tenure/organization-model` | 1 | **no** |
+| `packages/platform-config/src` | `@tenure/payments` | 2 | **no** |
+| `packages/platform-config/src` | `zod` | 4 | **no** |
+| `packages/provisioning/src` | `@jest/globals` | 2 | **no** |
+| `packages/provisioning/src` | `@tenure/identity` | 1 | **no** |
+| `packages/releases/src` | `@tenure/configuration` | 1 | **no** |
+| `packages/releases/src` | `@tenure/contracts` | 1 | **no** |
+| `tests/architecture` | `@tenure/blueprints` | 1 | **no** |
+| `tests/architecture` | `typescript` | 1 | **no** |
+| `tests/architecture` | `x` | 3 | **no** |
+| `tests/architecture` | `z` | 1 | **no** |
+| `tools/dev` | `@aws-sdk/client-dynamodb` | 3 | **no** |
+| `tools/dev` | `@aws-sdk/lib-dynamodb` | 4 | **no** |

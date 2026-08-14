@@ -1,0 +1,4689 @@
+{
+  "schema": 1,
+  "generated_by": "tools/simon-absorption-inventory.mjs",
+  "closes": [
+    "SIMON-000-001",
+    "SIMON-000-002",
+    "SIMON-000-003"
+  ],
+  "observed_at": "2026-08-14",
+  "source": {
+    "role": "source — the Simon OSE pilot application being absorbed",
+    "remote": {
+      "name": "live",
+      "fetch_url": "https://github.com/satvikOS/Tenure.git",
+      "push_url": "https://github.com/satvikOS/Tenure.git"
+    },
+    "configured_url": "https://github.com/satvikOS/Tenure.git",
+    "queried": {
+      "queried_as": "satvikOS/Tenure",
+      "canonical_name": "Tenurework/Tenure",
+      "visibility": "PUBLIC",
+      "is_fork": false,
+      "default_branch": "main",
+      "open_pull_requests": [],
+      "releases": [],
+      "environments": [],
+      "tags": []
+    },
+    "pinned_ref": "refs/remotes/live/main",
+    "pinned_commit": "3504b173828f0da18171f6dadab4ebfbfbbeb61f",
+    "branches": [
+      {
+        "ref": "live/fix/canonical-digest",
+        "commit": "eb16bfca4d01898416165803b2d89fe86225e0a5"
+      },
+      {
+        "ref": "live/fix/e2e-retired-credential-card",
+        "commit": "a121a640fcc839c476c2a5a7bbe81faca733b6ca"
+      },
+      {
+        "ref": "live/main",
+        "commit": "3504b173828f0da18171f6dadab4ebfbfbbeb61f"
+      },
+      {
+        "ref": "live/platform/reconcile-endpoint",
+        "commit": "0c1a1811eb567fc88e7f25e04f622cf4707c0e44"
+      },
+      {
+        "ref": "live/platform/reconcile-secret",
+        "commit": "0ae1a96cf71cf189afcb21eef0dc2d02e1bf7858"
+      },
+      {
+        "ref": "live/platform/schema-version",
+        "commit": "e3f609dffae6b877cdbb6ec092ee411ca74528f0"
+      },
+      {
+        "ref": "live/security/untrack-real-roster",
+        "commit": "6298add8a127026347657de31913d28c57872972"
+      }
+    ],
+    "local_tags": [],
+    "history": {
+      "commits": 168,
+      "newest_commit": "3504b173828f0da18171f6dadab4ebfbfbbeb61f",
+      "newest_commit_date": "2026-08-01",
+      "oldest_commit": "abf30691f8299414de6b115f4d40c8084049a0f4",
+      "oldest_commit_date": "2026-07-10",
+      "contributors": [
+        "Monorepo Migration",
+        "satvikOS",
+        "verification"
+      ]
+    },
+    "tracked_files": 357,
+    "files": [
+      ".dockerignore",
+      ".gitattributes",
+      ".github/workflows/ci.yml",
+      ".github/workflows/custom-domain.yml",
+      ".github/workflows/db-recovery.yml",
+      ".github/workflows/debug-logs.yml",
+      ".github/workflows/deploy.yml",
+      ".github/workflows/force-redeploy.yml",
+      ".github/workflows/ops-status.yml",
+      ".github/workflows/probe-debug.yml",
+      ".github/workflows/replace-acm-cert.yml",
+      ".github/workflows/rotate-auth-secret.yml",
+      ".github/workflows/seed-reference-data.yml",
+      ".github/workflows/verify-reminders.yml",
+      ".gitignore",
+      ".npmrc",
+      "Tenure Proceed 1 BP.docx",
+      "Tenure_Complete_System_Architecture_Blueprint.pdf",
+      "Tier1/2026 Simon Club Deliverables & Timelines.pdf",
+      "Tier1/2026-2027 Simon's Club Transition Process  (1).pdf",
+      "Tier1/Career Oriented Travel Guidance 2025-2026.pdf",
+      "Tier1/Club Board Descriptions-selected.zip",
+      "Tier1/Club Board Resources - Simon Business School.Alumni Outreach.pdf",
+      "Tier1/Club Board Resources - Simon Business School.pdf",
+      "Tier1/Club Deliverables & Expectations.pdf",
+      "Tier1/Club Leaders Transition_Onboarding Checklist (1).pdf",
+      "Tier1/Job Descriptions 2026-selected.zip",
+      "Tier1/SIMON BUSINESS SCHOOL CLUB EVENT REQUEST & EXECUTION GUIDE.pdf",
+      "Tier1/Simon Business School Off-Campus Event Alcohol Policy (1).pdf",
+      "Tier1/extracted/board-descriptions/Job Description_Club Advisors.pdf",
+      "Tier1/extracted/board-descriptions/Job Description_President_2025 (2).pdf",
+      "Tier1/extracted/board-descriptions/Job Description_VP of Events and Partnerships_2025 (1).pdf",
+      "Tier1/extracted/board-descriptions/Job Description_VP of Finance and Operations_2025 (1).pdf",
+      "Tier1/extracted/board-descriptions/Job Description_VP of Marketing and Communications_2025 (1).pdf",
+      "Tier1/extracted/job-descriptions/Job Description_Club Advisors.pdf",
+      "Tier1/extracted/job-descriptions/Job Description_President_2026.docx",
+      "Tier1/extracted/job-descriptions/Job Description_VP of Events and Partnerships_2026.docx",
+      "Tier1/extracted/job-descriptions/Job Description_VP of Finance and Operations_2026.docx",
+      "Tier1/extracted/job-descriptions/Job Description_VP of Marketing and Communications_2026.docx",
+      "Tier1/extracted/job-descriptions/SVC Role Descriptions_.docx",
+      "apps/web/.env.example",
+      "apps/web/Dockerfile",
+      "apps/web/e2e/admin-console.spec.ts",
+      "apps/web/e2e/admin.spec.ts",
+      "apps/web/e2e/app.spec.ts",
+      "apps/web/e2e/audit.spec.ts",
+      "apps/web/e2e/board-messaging.spec.ts",
+      "apps/web/e2e/calendar-filters.spec.ts",
+      "apps/web/e2e/calendar.spec.ts",
+      "apps/web/e2e/club-cards.spec.ts",
+      "apps/web/e2e/delegation.spec.ts",
+      "apps/web/e2e/deliverables.spec.ts",
+      "apps/web/e2e/dev-login-gate.spec.ts",
+      "apps/web/e2e/feed.spec.ts",
+      "apps/web/e2e/finance.spec.ts",
+      "apps/web/e2e/governance.spec.ts",
+      "apps/web/e2e/handoff.spec.ts",
+      "apps/web/e2e/impact.spec.ts",
+      "apps/web/e2e/layout.spec.ts",
+      "apps/web/e2e/memory.spec.ts",
+      "apps/web/e2e/messaging.spec.ts",
+      "apps/web/e2e/notifications.spec.ts",
+      "apps/web/e2e/policies.spec.ts",
+      "apps/web/e2e/portfolio.spec.ts",
+      "apps/web/e2e/reimbursement.spec.ts",
+      "apps/web/e2e/resources.spec.ts",
+      "apps/web/e2e/roster-fixture.ts",
+      "apps/web/e2e/roster.spec.ts",
+      "apps/web/e2e/run-id.ts",
+      "apps/web/e2e/search-reports.spec.ts",
+      "apps/web/e2e/shell.spec.ts",
+      "apps/web/e2e/soft-delete.spec.ts",
+      "apps/web/e2e/support/auth.ts",
+      "apps/web/eslint.config.mjs",
+      "apps/web/jest.config.js",
+      "apps/web/next.config.ts",
+      "apps/web/package.json",
+      "apps/web/playwright.config.ts",
+      "apps/web/postcss.config.mjs",
+      "apps/web/prisma/migrations/20260730000000_baseline/migration.sql",
+      "apps/web/prisma/migrations/migration_lock.toml",
+      "apps/web/prisma/schema.prisma",
+      "apps/web/public/robots.txt",
+      "apps/web/scripts/anonymize-roster.mjs",
+      "apps/web/scripts/census.mjs",
+      "apps/web/scripts/ci-two-tenant-fixture.mjs",
+      "apps/web/scripts/clubs-data.mjs",
+      "apps/web/scripts/db-bootstrap.mjs",
+      "apps/web/scripts/db-bootstrap.test.mjs",
+      "apps/web/scripts/deliverables-data.mjs",
+      "apps/web/scripts/dev-restart.mjs",
+      "apps/web/scripts/entrypoint.sh",
+      "apps/web/scripts/generate-roster.mjs",
+      "apps/web/scripts/resources-data.mjs",
+      "apps/web/scripts/roster-data.sample.mjs",
+      "apps/web/scripts/roster-source.mjs",
+      "apps/web/scripts/seed.mjs",
+      "apps/web/src/app/(app)/actions.ts",
+      "apps/web/src/app/(app)/admin/actions.ts",
+      "apps/web/src/app/(app)/admin/approvals/page.tsx",
+      "apps/web/src/app/(app)/admin/audit/page.tsx",
+      "apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx",
+      "apps/web/src/app/(app)/admin/clubs/page.tsx",
+      "apps/web/src/app/(app)/admin/layout.tsx",
+      "apps/web/src/app/(app)/admin/overrides/page.tsx",
+      "apps/web/src/app/(app)/admin/page.tsx",
+      "apps/web/src/app/(app)/admin/people/page.tsx",
+      "apps/web/src/app/(app)/approvals/[id]/page.tsx",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/app/(app)/approvals/new/page.tsx",
+      "apps/web/src/app/(app)/approvals/page.tsx",
+      "apps/web/src/app/(app)/calendar/[id]/page.tsx",
+      "apps/web/src/app/(app)/calendar/actions.ts",
+      "apps/web/src/app/(app)/calendar/error.tsx",
+      "apps/web/src/app/(app)/calendar/new/page.tsx",
+      "apps/web/src/app/(app)/calendar/page.tsx",
+      "apps/web/src/app/(app)/dashboard/page.tsx",
+      "apps/web/src/app/(app)/error.tsx",
+      "apps/web/src/app/(app)/feed/actions.ts",
+      "apps/web/src/app/(app)/feed/page.tsx",
+      "apps/web/src/app/(app)/layout.tsx",
+      "apps/web/src/app/(app)/messages/[id]/page.tsx",
+      "apps/web/src/app/(app)/messages/actions.ts",
+      "apps/web/src/app/(app)/messages/compose/page.tsx",
+      "apps/web/src/app/(app)/messages/page.tsx",
+      "apps/web/src/app/(app)/not-found.tsx",
+      "apps/web/src/app/(app)/notifications/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/summary/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/view/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/documents/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/documents/error.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/documents/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/members/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/members/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/memory/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/page.tsx",
+      "apps/web/src/app/(app)/orgs/actions.ts",
+      "apps/web/src/app/(app)/orgs/page.tsx",
+      "apps/web/src/app/(app)/reports/finance/page.tsx",
+      "apps/web/src/app/(app)/reports/page.tsx",
+      "apps/web/src/app/(app)/resources/[slug]/page.tsx",
+      "apps/web/src/app/(app)/resources/actions.ts",
+      "apps/web/src/app/(app)/resources/page.tsx",
+      "apps/web/src/app/(app)/search/page.tsx",
+      "apps/web/src/app/(app)/settings/actions.ts",
+      "apps/web/src/app/(app)/settings/page.tsx",
+      "apps/web/src/app/api/admin/directory/route.ts",
+      "apps/web/src/app/api/ai/chat/route.ts",
+      "apps/web/src/app/api/ai/draft/route.ts",
+      "apps/web/src/app/api/attachment/[id]/content/route.ts",
+      "apps/web/src/app/api/attachment/[id]/route.ts",
+      "apps/web/src/app/api/auth/[...nextauth]/route.ts",
+      "apps/web/src/app/api/calendar/event/[id]/route.ts",
+      "apps/web/src/app/api/calendar/ics/[token]/route.ts",
+      "apps/web/src/app/api/calendar/reschedule/route.ts",
+      "apps/web/src/app/api/documents/[id]/content/route.ts",
+      "apps/web/src/app/api/documents/[id]/save/route.ts",
+      "apps/web/src/app/api/documents/_lib/content.test.ts",
+      "apps/web/src/app/api/documents/_lib/content.ts",
+      "apps/web/src/app/api/documents/_lib/mammoth-sanitize.test.ts",
+      "apps/web/src/app/api/documents/_lib/sanitize.test.ts",
+      "apps/web/src/app/api/documents/_lib/sanitize.ts",
+      "apps/web/src/app/api/health/route.ts",
+      "apps/web/src/app/api/jobs/reminders/route.ts",
+      "apps/web/src/app/api/notifications/route.ts",
+      "apps/web/src/app/api/org-image/[orgId]/route.ts",
+      "apps/web/src/app/api/platform/reconcile/route.ts",
+      "apps/web/src/app/api/profile-image/[userId]/route.ts",
+      "apps/web/src/app/api/reports/pulse/route.ts",
+      "apps/web/src/app/api/search/route.ts",
+      "apps/web/src/app/api/templates/budget/route.ts",
+      "apps/web/src/app/apple-icon.tsx",
+      "apps/web/src/app/error.tsx",
+      "apps/web/src/app/favicon.ico",
+      "apps/web/src/app/globals.css",
+      "apps/web/src/app/icon.svg",
+      "apps/web/src/app/layout.tsx",
+      "apps/web/src/app/manifest.ts",
+      "apps/web/src/app/not-found.tsx",
+      "apps/web/src/app/page.tsx",
+      "apps/web/src/app/signin/page.tsx",
+      "apps/web/src/components/BackButton.tsx",
+      "apps/web/src/components/CalendarFilters.tsx",
+      "apps/web/src/components/CalendarMiniMonth.tsx",
+      "apps/web/src/components/CalendarSubscribe.tsx",
+      "apps/web/src/components/CalendarTimeGrid.tsx",
+      "apps/web/src/components/ClubCard.tsx",
+      "apps/web/src/components/ClubImageEditor.tsx",
+      "apps/web/src/components/ComingSoon.tsx",
+      "apps/web/src/components/DraftAssist.tsx",
+      "apps/web/src/components/EmailLink.tsx",
+      "apps/web/src/components/OrgTabs.tsx",
+      "apps/web/src/components/ProfileImageEditor.tsx",
+      "apps/web/src/components/QuickLinks.tsx",
+      "apps/web/src/components/QuickLinksRotator.tsx",
+      "apps/web/src/components/ResourcesBrowser.tsx",
+      "apps/web/src/components/ThemeSwitcher.tsx",
+      "apps/web/src/components/admin/AdminNav.tsx",
+      "apps/web/src/components/admin/DirectoryPicker.tsx",
+      "apps/web/src/components/admin/RoleTransferPanel.tsx",
+      "apps/web/src/components/ai/AIProvider.tsx",
+      "apps/web/src/components/ai/TenureAIPanel.tsx",
+      "apps/web/src/components/brand/TenureLogo.tsx",
+      "apps/web/src/components/calendar/EventInspector.tsx",
+      "apps/web/src/components/charts/BarChart.tsx",
+      "apps/web/src/components/charts/ChartEmpty.tsx",
+      "apps/web/src/components/charts/ChartLegend.tsx",
+      "apps/web/src/components/charts/ChartTooltip.tsx",
+      "apps/web/src/components/charts/DonutChart.tsx",
+      "apps/web/src/components/charts/HBarChart.tsx",
+      "apps/web/src/components/charts/LineAreaChart.tsx",
+      "apps/web/src/components/charts/LiveStats.tsx",
+      "apps/web/src/components/charts/Meter.tsx",
+      "apps/web/src/components/charts/RangeFilter.tsx",
+      "apps/web/src/components/charts/SankeyChart.tsx",
+      "apps/web/src/components/charts/Sparkline.tsx",
+      "apps/web/src/components/charts/format.ts",
+      "apps/web/src/components/charts/hooks.ts",
+      "apps/web/src/components/charts/index.ts",
+      "apps/web/src/components/charts/palette.ts",
+      "apps/web/src/components/charts/panels/ActivityChart.tsx",
+      "apps/web/src/components/charts/panels/ReportsAnalytics.tsx",
+      "apps/web/src/components/charts/timeseries.test.ts",
+      "apps/web/src/components/charts/timeseries.ts",
+      "apps/web/src/components/documents/AttachmentChip.tsx",
+      "apps/web/src/components/documents/DocContentView.tsx",
+      "apps/web/src/components/documents/DocumentRow.tsx",
+      "apps/web/src/components/documents/DocumentViewerOverlay.tsx",
+      "apps/web/src/components/documents/types.ts",
+      "apps/web/src/components/finance/BudgetBarChart.tsx",
+      "apps/web/src/components/finance/BudgetUpload.tsx",
+      "apps/web/src/components/finance/FinanceDashboard.tsx",
+      "apps/web/src/components/finance/LedgerDrawer.tsx",
+      "apps/web/src/components/finance/PortfolioSankey.tsx",
+      "apps/web/src/components/finance/ReimbursementForm.tsx",
+      "apps/web/src/components/resources/ResourceEditor.tsx",
+      "apps/web/src/components/shell/Footer.tsx",
+      "apps/web/src/components/shell/MainRegion.tsx",
+      "apps/web/src/components/shell/NotificationBell.tsx",
+      "apps/web/src/components/shell/SearchCommand.tsx",
+      "apps/web/src/components/shell/ShellHeader.tsx",
+      "apps/web/src/components/shell/SideNav.tsx",
+      "apps/web/src/components/ui/Avatar.tsx",
+      "apps/web/src/components/ui/Badge.tsx",
+      "apps/web/src/components/ui/Bento.tsx",
+      "apps/web/src/components/ui/Button.tsx",
+      "apps/web/src/components/ui/Card.tsx",
+      "apps/web/src/components/ui/ConfirmDialog.tsx",
+      "apps/web/src/components/ui/ConfirmInlineSubmit.tsx",
+      "apps/web/src/components/ui/EmptyState.tsx",
+      "apps/web/src/components/ui/IconFrame.tsx",
+      "apps/web/src/components/ui/Overlay.tsx",
+      "apps/web/src/components/ui/PageHeader.tsx",
+      "apps/web/src/components/ui/SeeAllSection.tsx",
+      "apps/web/src/components/ui/Segmented.tsx",
+      "apps/web/src/components/ui/Select.tsx",
+      "apps/web/src/components/ui/Tabs.tsx",
+      "apps/web/src/components/ui/TextField.tsx",
+      "apps/web/src/components/ui/icons.tsx",
+      "apps/web/src/instrumentation.ts",
+      "apps/web/src/lib/admin/capabilities.ts",
+      "apps/web/src/lib/admin/guard.ts",
+      "apps/web/src/lib/ai.ts",
+      "apps/web/src/lib/approvals-sla.test.ts",
+      "apps/web/src/lib/approvals-sla.ts",
+      "apps/web/src/lib/approvals.test.ts",
+      "apps/web/src/lib/approvals.ts",
+      "apps/web/src/lib/auth.ts",
+      "apps/web/src/lib/calendar-color.ts",
+      "apps/web/src/lib/calendar-data.ts",
+      "apps/web/src/lib/calendar-permissions.test.ts",
+      "apps/web/src/lib/calendar-sync.ts",
+      "apps/web/src/lib/calendar-write.ts",
+      "apps/web/src/lib/calendar.test.ts",
+      "apps/web/src/lib/calendar.ts",
+      "apps/web/src/lib/clubs.ts",
+      "apps/web/src/lib/db.ts",
+      "apps/web/src/lib/delegation.ts",
+      "apps/web/src/lib/dev-login.test.ts",
+      "apps/web/src/lib/dev-login.ts",
+      "apps/web/src/lib/directory.ts",
+      "apps/web/src/lib/env.test.ts",
+      "apps/web/src/lib/env.ts",
+      "apps/web/src/lib/finance.test.ts",
+      "apps/web/src/lib/finance.ts",
+      "apps/web/src/lib/institution-time.ts",
+      "apps/web/src/lib/memory.test.ts",
+      "apps/web/src/lib/memory.ts",
+      "apps/web/src/lib/messaging-data.ts",
+      "apps/web/src/lib/messaging.test.ts",
+      "apps/web/src/lib/messaging.ts",
+      "apps/web/src/lib/notify.ts",
+      "apps/web/src/lib/policies.ts",
+      "apps/web/src/lib/provisioning/reconcile.itest.ts",
+      "apps/web/src/lib/provisioning/reconcile.ts",
+      "apps/web/src/lib/rbac.test.ts",
+      "apps/web/src/lib/rbac.ts",
+      "apps/web/src/lib/resources-data.ts",
+      "apps/web/src/lib/resources.ts",
+      "apps/web/src/lib/s3.ts",
+      "apps/web/src/lib/schemas/creatable-card-types.test.ts",
+      "apps/web/src/lib/schemas/knowledge-card.test.ts",
+      "apps/web/src/lib/schemas/knowledge-card.ts",
+      "apps/web/src/lib/search-data.ts",
+      "apps/web/src/lib/search.test.ts",
+      "apps/web/src/lib/search.ts",
+      "apps/web/src/lib/tenancy/context.test.ts",
+      "apps/web/src/lib/tenancy/context.ts",
+      "apps/web/src/lib/tenancy/extension.ts",
+      "apps/web/src/lib/tenancy/isolation.itest.ts",
+      "apps/web/src/lib/tenancy/registry.test.ts",
+      "apps/web/src/lib/tenancy/registry.ts",
+      "apps/web/src/lib/tenancy/scope-args.test.ts",
+      "apps/web/src/lib/tenancy/scope-args.ts",
+      "apps/web/src/lib/tenant-scope.test.ts",
+      "apps/web/src/lib/tenant-scope.ts",
+      "apps/web/src/lib/time.test.ts",
+      "apps/web/src/lib/time.ts",
+      "apps/web/src/types/next-auth.d.ts",
+      "apps/web/tailwind.config.ts",
+      "apps/web/tsconfig.json",
+      "docs/RUNBOOK.md",
+      "docs/architecture/tenant-scoped-schema-plan.md",
+      "docs/decisions/ADR-0001-versioned-migrations-and-boot-safety.md",
+      "docs/decisions/ADR-0002-tenant-isolation-chokepoint.md",
+      "docs/decisions/ADR-0003-monorepo-apps-web.md",
+      "docs/decisions/ADR-0004-tenant-scoped-schema.md",
+      "docs/decisions/PRODUCT-DECISIONS.md",
+      "docs/market-analysis-roadmap.json",
+      "infrastructure/terraform/acm.tf",
+      "infrastructure/terraform/alb.tf",
+      "infrastructure/terraform/cloudfront.tf",
+      "infrastructure/terraform/cloudwatch.tf",
+      "infrastructure/terraform/dev-login-gate.tf",
+      "infrastructure/terraform/ecr.tf",
+      "infrastructure/terraform/ecs.tf",
+      "infrastructure/terraform/edge-access.tf",
+      "infrastructure/terraform/elasticache.tf",
+      "infrastructure/terraform/main.tf",
+      "infrastructure/terraform/outputs.tf",
+      "infrastructure/terraform/rds.tf",
+      "infrastructure/terraform/s3.tf",
+      "infrastructure/terraform/scheduler.tf",
+      "infrastructure/terraform/secrets.tf",
+      "infrastructure/terraform/security_groups.tf",
+      "infrastructure/terraform/ses.tf",
+      "infrastructure/terraform/sqs.tf",
+      "infrastructure/terraform/variables.tf",
+      "infrastructure/terraform/vpc.tf",
+      "package-lock.json",
+      "package.json",
+      "packages/.gitkeep"
+    ],
+    "workspaces": [
+      {
+        "manifest": "apps/web/package.json",
+        "directory": "apps/web",
+        "name": "tenure",
+        "private": true,
+        "scripts": [
+          "build",
+          "dev",
+          "e2e",
+          "lint",
+          "postinstall",
+          "start",
+          "test",
+          "test:isolation",
+          "type-check"
+        ],
+        "depends_on_workspaces": [],
+        "external_dependencies": 32,
+        "declared_dependencies": [
+          "@auth/prisma-adapter",
+          "@aws-sdk/client-s3",
+          "@aws-sdk/s3-request-presigner",
+          "@phosphor-icons/react",
+          "@playwright/test",
+          "@prisma/client",
+          "@types/jest",
+          "@types/node",
+          "@types/react",
+          "@types/react-dom",
+          "@types/sanitize-html",
+          "autoprefixer",
+          "class-variance-authority",
+          "eslint",
+          "eslint-config-next",
+          "jest",
+          "jest-environment-jsdom",
+          "jszip",
+          "lucide-react",
+          "mammoth",
+          "next",
+          "next-auth",
+          "postcss",
+          "prisma",
+          "react",
+          "react-aria-components",
+          "react-dom",
+          "sanitize-html",
+          "tailwindcss",
+          "typescript",
+          "xlsx",
+          "zod"
+        ]
+      },
+      {
+        "manifest": "package.json",
+        "directory": ".",
+        "name": "tenure-parent",
+        "private": true,
+        "scripts": [
+          "build",
+          "db:migrate",
+          "db:seed",
+          "dev",
+          "e2e",
+          "lint",
+          "start",
+          "test",
+          "test:isolation",
+          "type-check"
+        ],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      }
+    ],
+    "areas": [
+      {
+        "area": "(repository root)",
+        "files": 8
+      },
+      {
+        "area": ".github/workflows",
+        "files": 12
+      },
+      {
+        "area": "Tier1",
+        "files": 11
+      },
+      {
+        "area": "Tier1/extracted",
+        "files": 11
+      },
+      {
+        "area": "apps/web",
+        "files": 286
+      },
+      {
+        "area": "docs",
+        "files": 2
+      },
+      {
+        "area": "docs/architecture",
+        "files": 1
+      },
+      {
+        "area": "docs/decisions",
+        "files": 5
+      },
+      {
+        "area": "infrastructure/terraform",
+        "files": 20
+      },
+      {
+        "area": "packages",
+        "files": 1
+      }
+    ],
+    "import_graph": {
+      "code_files": 274,
+      "builtin_imports": 29,
+      "unresolved_relative_specifiers": 1,
+      "unresolved_alias_specifiers": 0,
+      "internal_edges": [
+        {
+          "from": "apps/web/e2e",
+          "to": "apps/web/e2e/support",
+          "imports": 28
+        },
+        {
+          "from": "apps/web/src",
+          "to": "apps/web/src/lib",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "apps/web/src/components",
+          "imports": 172
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "apps/web/src/lib",
+          "imports": 318
+        },
+        {
+          "from": "apps/web/src/components",
+          "to": "apps/web/src/app",
+          "imports": 7
+        },
+        {
+          "from": "apps/web/src/components",
+          "to": "apps/web/src/lib",
+          "imports": 10
+        }
+      ],
+      "external_edges": [
+        {
+          "from": "apps/web",
+          "package": "@eslint/eslintrc",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "apps/web",
+          "package": "@playwright/test",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web",
+          "package": "jest",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web",
+          "package": "next",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web",
+          "package": "tailwindcss",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/e2e",
+          "package": "@playwright/test",
+          "imports": 28,
+          "declared": true
+        },
+        {
+          "from": "apps/web/e2e",
+          "package": "xlsx",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/e2e/support",
+          "package": "@playwright/test",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/scripts",
+          "package": "@prisma/client",
+          "imports": 3,
+          "declared": true
+        },
+        {
+          "from": "apps/web/scripts",
+          "package": "xlsx",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "@aws-sdk/client-s3",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "@prisma/client",
+          "imports": 7,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "jszip",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "mammoth",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "next",
+          "imports": 107,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "react",
+          "imports": 4,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "sanitize-html",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "xlsx",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "zod",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "@phosphor-icons/react",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "@prisma/client",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "class-variance-authority",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "next",
+          "imports": 25,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "react",
+          "imports": 39,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "react-aria-components",
+          "imports": 4,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "react-dom",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "xlsx",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "@auth/prisma-adapter",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "@aws-sdk/client-s3",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "@aws-sdk/s3-request-presigner",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "@prisma/client",
+          "imports": 17,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "next",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "next-auth",
+          "imports": 3,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "react",
+          "imports": 3,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "server-only",
+          "imports": 10,
+          "declared": false
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "zod",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/types",
+          "package": "next-auth",
+          "imports": 1,
+          "declared": true
+        }
+      ]
+    },
+    "workflows": [
+      {
+        "file": ".github/workflows/ci.yml",
+        "name": "CI",
+        "triggers": [
+          "pull_request",
+          "push",
+          "workflow_call"
+        ],
+        "reaches_aws": false,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/custom-domain.yml",
+        "name": "Custom Domain Status",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/db-recovery.yml",
+        "name": "Database recovery and census",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/debug-logs.yml",
+        "name": "Debug Logs",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/deploy.yml",
+        "name": "Deploy",
+        "triggers": [
+          "push",
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": true,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/force-redeploy.yml",
+        "name": "Force Redeploy",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": true,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/ops-status.yml",
+        "name": "Ops Status",
+        "triggers": [
+          "push",
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/probe-debug.yml",
+        "name": "Probe Debug",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": false,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/replace-acm-cert.yml",
+        "name": "Replace ACM Certificate",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": true,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/rotate-auth-secret.yml",
+        "name": "Rotate Auth Secret",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": true,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/seed-reference-data.yml",
+        "name": "Seed reference data",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/verify-reminders.yml",
+        "name": "Verify Reminders",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": []
+      }
+    ],
+    "stack": [
+      {
+        "capability": "Frontend framework",
+        "matches": 1,
+        "evidence": [
+          "apps/web/next.config.ts"
+        ],
+        "pattern": "/^(apps\\/[^/]+\\/)?next\\.config\\.(ts|mjs|js)$/"
+      },
+      {
+        "capability": "Frontend routes (pages)",
+        "matches": 37,
+        "evidence": [
+          "apps/web/src/app/(app)/admin/approvals/page.tsx",
+          "apps/web/src/app/(app)/admin/audit/page.tsx",
+          "apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx",
+          "apps/web/src/app/(app)/admin/clubs/page.tsx",
+          "apps/web/src/app/(app)/admin/overrides/page.tsx",
+          "apps/web/src/app/(app)/admin/page.tsx"
+        ],
+        "pattern": "/\\/src\\/app\\/.*\\/page\\.tsx$|\\/src\\/app\\/page\\.tsx$/"
+      },
+      {
+        "capability": "Frontend layouts",
+        "matches": 3,
+        "evidence": [
+          "apps/web/src/app/(app)/admin/layout.tsx",
+          "apps/web/src/app/(app)/layout.tsx",
+          "apps/web/src/app/layout.tsx"
+        ],
+        "pattern": "/\\/src\\/app\\/.*layout\\.tsx$/"
+      },
+      {
+        "capability": "Frontend components",
+        "matches": 71,
+        "evidence": [
+          "apps/web/src/components/BackButton.tsx",
+          "apps/web/src/components/CalendarFilters.tsx",
+          "apps/web/src/components/CalendarMiniMonth.tsx",
+          "apps/web/src/components/CalendarSubscribe.tsx",
+          "apps/web/src/components/CalendarTimeGrid.tsx",
+          "apps/web/src/components/ClubCard.tsx"
+        ],
+        "pattern": "/\\/src\\/components\\/.*\\.tsx$/"
+      },
+      {
+        "capability": "Styles",
+        "matches": 1,
+        "evidence": [
+          "apps/web/src/app/globals.css"
+        ],
+        "pattern": "/\\.css$/"
+      },
+      {
+        "capability": "Design tokens / theme config",
+        "matches": 1,
+        "evidence": [
+          "apps/web/tailwind.config.ts"
+        ],
+        "pattern": "/tailwind\\.config\\.(ts|js|mjs)$|\\/tokens?\\.(ts|css|json)$/"
+      },
+      {
+        "capability": "HTTP API handlers",
+        "matches": 20,
+        "evidence": [
+          "apps/web/src/app/api/admin/directory/route.ts",
+          "apps/web/src/app/api/ai/chat/route.ts",
+          "apps/web/src/app/api/ai/draft/route.ts",
+          "apps/web/src/app/api/attachment/[id]/content/route.ts",
+          "apps/web/src/app/api/attachment/[id]/route.ts",
+          "apps/web/src/app/api/auth/[...nextauth]/route.ts"
+        ],
+        "pattern": "/\\/src\\/app\\/api\\/.*\\/route\\.ts$/"
+      },
+      {
+        "capability": "Backend services / domain libraries",
+        "matches": 30,
+        "evidence": [
+          "apps/web/src/lib/ai.ts",
+          "apps/web/src/lib/approvals-sla.ts",
+          "apps/web/src/lib/approvals.ts",
+          "apps/web/src/lib/auth.ts",
+          "apps/web/src/lib/calendar-color.ts",
+          "apps/web/src/lib/calendar-data.ts"
+        ],
+        "pattern": "/\\/src\\/lib\\/[^/]+\\.ts$/"
+      },
+      {
+        "capability": "Database engine (provisioned)",
+        "matches": 2,
+        "evidence": [
+          "infrastructure/terraform/elasticache.tf",
+          "infrastructure/terraform/rds.tf"
+        ],
+        "pattern": "/(^|\\/)(rds|elasticache)\\.tf$/"
+      },
+      {
+        "capability": "Database schema",
+        "matches": 1,
+        "evidence": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "pattern": "/prisma\\/schema\\.prisma$/"
+      },
+      {
+        "capability": "Database migrations",
+        "matches": 2,
+        "evidence": [
+          "apps/web/prisma/migrations/20260730000000_baseline/migration.sql",
+          "apps/web/prisma/migrations/migration_lock.toml"
+        ],
+        "pattern": "/prisma\\/migrations\\/.*\\.(sql|toml)$/"
+      },
+      {
+        "capability": "Events / scheduled jobs",
+        "matches": 2,
+        "evidence": [
+          "apps/web/src/app/api/jobs/reminders/route.ts",
+          "infrastructure/terraform/scheduler.tf"
+        ],
+        "pattern": "/scheduler\\.tf$|\\/api\\/jobs\\/.*\\/route\\.ts$|eventbridge/i"
+      },
+      {
+        "capability": "Queues",
+        "matches": 1,
+        "evidence": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "pattern": "/sqs\\.tf$|\\/queue[^/]*\\.ts$/"
+      },
+      {
+        "capability": "Identity and authentication",
+        "matches": 3,
+        "evidence": [
+          "apps/web/src/app/api/auth/[...nextauth]/route.ts",
+          "apps/web/src/lib/auth.ts",
+          "apps/web/src/lib/dev-login.ts"
+        ],
+        "pattern": "/\\/src\\/lib\\/auth\\.ts$|\\/api\\/auth\\/.*\\/route\\.ts$|\\/src\\/lib\\/dev-login\\.ts$|cognito/i"
+      },
+      {
+        "capability": "Authorization",
+        "matches": 2,
+        "evidence": [
+          "apps/web/src/lib/admin/guard.ts",
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "pattern": "/\\/rbac\\.ts$|\\/authorization\\/src\\/.*\\.ts$|\\/admin\\/guard\\.ts$/"
+      },
+      {
+        "capability": "Tenancy isolation",
+        "matches": 5,
+        "evidence": [
+          "apps/web/src/lib/tenancy/context.ts",
+          "apps/web/src/lib/tenancy/extension.ts",
+          "apps/web/src/lib/tenancy/registry.ts",
+          "apps/web/src/lib/tenancy/scope-args.ts",
+          "apps/web/src/lib/tenant-scope.ts"
+        ],
+        "pattern": "/\\/tenancy\\/[^/]+\\.ts$|\\/tenant-scope\\.ts$/"
+      },
+      {
+        "capability": "File storage",
+        "matches": 2,
+        "evidence": [
+          "apps/web/src/lib/s3.ts",
+          "infrastructure/terraform/s3.tf"
+        ],
+        "pattern": "/\\/s3\\.ts$|s3\\.tf$/"
+      },
+      {
+        "capability": "Search",
+        "matches": 3,
+        "evidence": [
+          "apps/web/src/app/api/search/route.ts",
+          "apps/web/src/lib/search-data.ts",
+          "apps/web/src/lib/search.ts"
+        ],
+        "pattern": "/\\/search[^/]*\\.ts$|\\/search\\/.*\\.ts$/"
+      },
+      {
+        "capability": "AI",
+        "matches": 3,
+        "evidence": [
+          "apps/web/src/app/api/ai/chat/route.ts",
+          "apps/web/src/app/api/ai/draft/route.ts",
+          "apps/web/src/lib/ai.ts"
+        ],
+        "pattern": "/\\/ai\\.ts$|\\/api\\/ai\\/.*\\/route\\.ts$|bedrock/i"
+      },
+      {
+        "capability": "Outbound integrations (email)",
+        "matches": 2,
+        "evidence": [
+          "apps/web/src/lib/notify.ts",
+          "infrastructure/terraform/ses.tf"
+        ],
+        "pattern": "/ses\\.tf$|\\/notify\\.ts$/"
+      },
+      {
+        "capability": "Observability",
+        "matches": 3,
+        "evidence": [
+          "apps/web/src/app/api/health/route.ts",
+          "apps/web/src/instrumentation.ts",
+          "infrastructure/terraform/cloudwatch.tf"
+        ],
+        "pattern": "/cloudwatch\\.tf$|instrumentation\\.ts$|\\/api\\/health\\/route\\.ts$/"
+      },
+      {
+        "capability": "Infrastructure as code",
+        "matches": 20,
+        "evidence": [
+          "infrastructure/terraform/acm.tf",
+          "infrastructure/terraform/alb.tf",
+          "infrastructure/terraform/cloudfront.tf",
+          "infrastructure/terraform/cloudwatch.tf",
+          "infrastructure/terraform/dev-login-gate.tf",
+          "infrastructure/terraform/ecr.tf"
+        ],
+        "pattern": "/^infrastructure\\/.*\\.tf$/"
+      },
+      {
+        "capability": "Unit tests",
+        "matches": 25,
+        "evidence": [
+          "apps/web/scripts/db-bootstrap.test.mjs",
+          "apps/web/src/app/api/documents/_lib/content.test.ts",
+          "apps/web/src/app/api/documents/_lib/mammoth-sanitize.test.ts",
+          "apps/web/src/app/api/documents/_lib/sanitize.test.ts",
+          "apps/web/src/components/charts/timeseries.test.ts",
+          "apps/web/src/lib/approvals-sla.test.ts"
+        ],
+        "pattern": "/\\.(test|itest)\\.(ts|tsx|mjs|js)$/"
+      },
+      {
+        "capability": "End-to-end tests",
+        "matches": 28,
+        "evidence": [
+          "apps/web/e2e/admin-console.spec.ts",
+          "apps/web/e2e/admin.spec.ts",
+          "apps/web/e2e/app.spec.ts",
+          "apps/web/e2e/audit.spec.ts",
+          "apps/web/e2e/board-messaging.spec.ts",
+          "apps/web/e2e/calendar-filters.spec.ts"
+        ],
+        "pattern": "/\\/e2e\\/.*\\.spec\\.ts$/"
+      },
+      {
+        "capability": "CI / deployment workflows",
+        "matches": 12,
+        "evidence": [
+          ".github/workflows/ci.yml",
+          ".github/workflows/custom-domain.yml",
+          ".github/workflows/db-recovery.yml",
+          ".github/workflows/debug-logs.yml",
+          ".github/workflows/deploy.yml",
+          ".github/workflows/force-redeploy.yml"
+        ],
+        "pattern": "/^\\.github\\/workflows\\/.*\\.ya?ml$/"
+      }
+    ],
+    "working_tree": "NOT CHECKED OUT — read from remote-tracking refs only; this repository never clones or pushes the pilot."
+  },
+  "target": {
+    "role": "target — this repository, the Tenure parent platform",
+    "remote": {
+      "name": "origin",
+      "fetch_url": "https://github.com/Tenurework/Tenure-Parent.git",
+      "push_url": "https://github.com/Tenurework/Tenure-Parent.git"
+    },
+    "configured_url": "https://github.com/Tenurework/Tenure-Parent.git",
+    "queried": {
+      "queried_as": "Tenurework/Tenure-Parent",
+      "canonical_name": "Tenurework/Tenure-Parent",
+      "visibility": "PUBLIC",
+      "is_fork": false,
+      "default_branch": "main",
+      "open_pull_requests": [],
+      "releases": [],
+      "environments": [
+        "aws-read",
+        "engine-production"
+      ],
+      "tags": []
+    },
+    "checked_out_branch": "studio-program",
+    "head_commit": "e8304ebe4eb8780fcb5f40ff638ffc5354e128b0",
+    "branches": [
+      {
+        "ref": "fix/canonical-digest",
+        "commit": "eb16bfca4d01898416165803b2d89fe86225e0a5"
+      },
+      {
+        "ref": "fix/e2e-retired-credential-card",
+        "commit": "a121a640fcc839c476c2a5a7bbe81faca733b6ca"
+      },
+      {
+        "ref": "main",
+        "commit": "6dfc541289c4fbebc62c29ce484878adbd2a45f8"
+      },
+      {
+        "ref": "platform/reconcile-endpoint",
+        "commit": "0c1a1811eb567fc88e7f25e04f622cf4707c0e44"
+      },
+      {
+        "ref": "platform/reconcile-secret",
+        "commit": "0ae1a96cf71cf189afcb21eef0dc2d02e1bf7858"
+      },
+      {
+        "ref": "platform/schema-version",
+        "commit": "e3f609dffae6b877cdbb6ec092ee411ca74528f0"
+      },
+      {
+        "ref": "security/untrack-real-roster",
+        "commit": "6298add8a127026347657de31913d28c57872972"
+      },
+      {
+        "ref": "studio-program",
+        "commit": "e8304ebe4eb8780fcb5f40ff638ffc5354e128b0"
+      },
+      {
+        "ref": "wip/ier-killed-run-20260808",
+        "commit": "815be47a3c4b718e034cb57bb7fc9d4b8468bec3"
+      },
+      {
+        "ref": "wip/studio-program-20260813",
+        "commit": "c5a468adeee6bc8a7f63dcaa93a1738a115cd4ba"
+      }
+    ],
+    "remote_branches": [
+      {
+        "ref": "origin",
+        "commit": "6dfc541289c4fbebc62c29ce484878adbd2a45f8"
+      },
+      {
+        "ref": "origin/main",
+        "commit": "6dfc541289c4fbebc62c29ce484878adbd2a45f8"
+      },
+      {
+        "ref": "origin/wip/studio-program-20260813",
+        "commit": "c5a468adeee6bc8a7f63dcaa93a1738a115cd4ba"
+      }
+    ],
+    "local_tags": [],
+    "history": {
+      "commits": 406,
+      "newest_commit": "6dfc541289c4fbebc62c29ce484878adbd2a45f8",
+      "newest_commit_date": "2026-08-13",
+      "oldest_commit": "abf30691f8299414de6b115f4d40c8084049a0f4",
+      "oldest_commit_date": "2026-07-10",
+      "contributors": [
+        "Claude",
+        "Monorepo Migration",
+        "satvikOS",
+        "verification"
+      ]
+    },
+    "tracked_files": 1343,
+    "files": [
+      ".dockerignore",
+      ".gitattributes",
+      ".github/workflows/aws-inventory.yml",
+      ".github/workflows/bootstrap-oidc.yml",
+      ".github/workflows/ci.yml",
+      ".github/workflows/custom-domain.yml",
+      ".github/workflows/db-recovery.yml",
+      ".github/workflows/debug-logs.yml",
+      ".github/workflows/deploy-studio.yml",
+      ".github/workflows/deploy.yml",
+      ".github/workflows/force-redeploy.yml",
+      ".github/workflows/ops-status.yml",
+      ".github/workflows/platform-plan.yml",
+      ".github/workflows/probe-debug.yml",
+      ".github/workflows/replace-acm-cert.yml",
+      ".github/workflows/rotate-auth-secret.yml",
+      ".github/workflows/seed-reference-data.yml",
+      ".github/workflows/verify-reminders.yml",
+      ".github/workflows/visual-baselines-refresh.yml",
+      ".gitignore",
+      ".npmrc",
+      "CLAUDE.md",
+      "Clubs and Board Position.xlsx",
+      "README.md",
+      "Tenure Proceed 1 BP.docx",
+      "Tenure_Behemoth_Capability_Completeness_Audit_v1.0.md",
+      "Tenure_Claude_Code_Global_Engine_Constitution_and_Document_Graph_v1.0 (1).md",
+      "Tenure_Claude_Code_Global_Engine_Constitution_and_Document_Graph_v1.0.md",
+      "Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0 (1).md",
+      "Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md",
+      "Tenure_Complete_System_Architecture_Blueprint.pdf",
+      "Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0 (1).md",
+      "Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md",
+      "Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0 (1).md",
+      "Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md",
+      "Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md",
+      "Tenure_Financial_Management_Cloud_Claude_Bible_v1.0.md",
+      "Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md",
+      "Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md",
+      "Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0 (1).md",
+      "Tenure_Global_Integration_Ecosystem_and_Connector_Certification_Claude_Bible_v1.0.md",
+      "Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md",
+      "Tenure_Operations_Supply_Manufacturing_and_Service_Cloud_Claude_Bible_v1.0.md",
+      "Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md",
+      "Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md",
+      "Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md",
+      "Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md",
+      "Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0 (1).md",
+      "Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md",
+      "Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md",
+      "Tier1/2025.2026 Club Org Student Leadership.xlsx",
+      "Tier1/2026 Simon Club Deliverables & Timelines.pdf",
+      "Tier1/2026-2027 Simon's Club Transition Process  (1).pdf",
+      "Tier1/2026.2027 Club Org Student Leadership 7.17.xlsx",
+      "Tier1/Career Oriented Travel Guidance 2025-2026.pdf",
+      "Tier1/Club Board Descriptions-selected.zip",
+      "Tier1/Club Board Resources - Simon Business School.Alumni Outreach.pdf",
+      "Tier1/Club Board Resources - Simon Business School.pdf",
+      "Tier1/Club Deliverables & Expectations.pdf",
+      "Tier1/Club Leaders Transition_Onboarding Checklist (1).pdf",
+      "Tier1/Job Descriptions 2026-selected.zip",
+      "Tier1/SIMON BUSINESS SCHOOL CLUB EVENT REQUEST & EXECUTION GUIDE.pdf",
+      "Tier1/Simon Business School Off-Campus Event Alcohol Policy (1).pdf",
+      "Tier1/extracted/board-descriptions/Job Description_Club Advisors.pdf",
+      "Tier1/extracted/board-descriptions/Job Description_President_2025 (2).pdf",
+      "Tier1/extracted/board-descriptions/Job Description_VP of Events and Partnerships_2025 (1).pdf",
+      "Tier1/extracted/board-descriptions/Job Description_VP of Finance and Operations_2025 (1).pdf",
+      "Tier1/extracted/board-descriptions/Job Description_VP of Marketing and Communications_2025 (1).pdf",
+      "Tier1/extracted/job-descriptions/Job Description_Club Advisors.pdf",
+      "Tier1/extracted/job-descriptions/Job Description_President_2026.docx",
+      "Tier1/extracted/job-descriptions/Job Description_VP of Events and Partnerships_2026.docx",
+      "Tier1/extracted/job-descriptions/Job Description_VP of Finance and Operations_2026.docx",
+      "Tier1/extracted/job-descriptions/Job Description_VP of Marketing and Communications_2026.docx",
+      "Tier1/extracted/job-descriptions/SVC Role Descriptions_.docx",
+      "apps/system-studio/Dockerfile",
+      "apps/system-studio/e2e/adoption.spec.ts",
+      "apps/system-studio/e2e/api-contract.spec.ts",
+      "apps/system-studio/e2e/audit-chain.spec.ts",
+      "apps/system-studio/e2e/auth-mode-logic.spec.ts",
+      "apps/system-studio/e2e/authorize-logic.spec.ts",
+      "apps/system-studio/e2e/aws-unknown-is-not-absent.spec.ts",
+      "apps/system-studio/e2e/commands-logic.spec.ts",
+      "apps/system-studio/e2e/commands.spec.ts",
+      "apps/system-studio/e2e/config-store.spec.ts",
+      "apps/system-studio/e2e/configuration-logic.spec.ts",
+      "apps/system-studio/e2e/configuration-surface.spec.ts",
+      "apps/system-studio/e2e/console-index.spec.ts",
+      "apps/system-studio/e2e/cost.spec.ts",
+      "apps/system-studio/e2e/diagnose.spec.ts",
+      "apps/system-studio/e2e/fleet-filter-logic.spec.ts",
+      "apps/system-studio/e2e/fleet-health-logic.spec.ts",
+      "apps/system-studio/e2e/fleet-surface.spec.ts",
+      "apps/system-studio/e2e/health-page-logic.spec.ts",
+      "apps/system-studio/e2e/high-risk-fails-closed.spec.ts",
+      "apps/system-studio/e2e/layout.spec.ts",
+      "apps/system-studio/e2e/md3-tokens-logic.spec.ts",
+      "apps/system-studio/e2e/object-authority-logic.spec.ts",
+      "apps/system-studio/e2e/operator-identity.ts",
+      "apps/system-studio/e2e/operator-roles.spec.ts",
+      "apps/system-studio/e2e/platform.spec.ts",
+      "apps/system-studio/e2e/preferences-logic.spec.ts",
+      "apps/system-studio/e2e/preferences.spec.ts",
+      "apps/system-studio/e2e/pricing-logic.spec.ts",
+      "apps/system-studio/e2e/pricing-surface.spec.ts",
+      "apps/system-studio/e2e/revisions-logic.spec.ts",
+      "apps/system-studio/e2e/security-page-logic.spec.ts",
+      "apps/system-studio/e2e/security-surface.spec.ts",
+      "apps/system-studio/e2e/signin.spec.ts",
+      "apps/system-studio/e2e/states-logic.spec.ts",
+      "apps/system-studio/e2e/tenant-page-logic.spec.ts",
+      "apps/system-studio/e2e/tenant-surface.spec.ts",
+      "apps/system-studio/next.config.ts",
+      "apps/system-studio/package.json",
+      "apps/system-studio/playwright.config.ts",
+      "apps/system-studio/src/app/api/auth/[...nextauth]/route.ts",
+      "apps/system-studio/src/app/api/aws/[surface]/route.ts",
+      "apps/system-studio/src/app/console-index/answer.test.ts",
+      "apps/system-studio/src/app/console-index/answer.ts",
+      "apps/system-studio/src/app/globals.css",
+      "apps/system-studio/src/app/layout.tsx",
+      "apps/system-studio/src/app/page.tsx",
+      "apps/system-studio/src/app/platform/audit/HoldControls.tsx",
+      "apps/system-studio/src/app/platform/audit/actions.ts",
+      "apps/system-studio/src/app/platform/audit/audit.module.css",
+      "apps/system-studio/src/app/platform/audit/entries.test.ts",
+      "apps/system-studio/src/app/platform/audit/entries.ts",
+      "apps/system-studio/src/app/platform/audit/page.tsx",
+      "apps/system-studio/src/app/platform/cost/CostAnswer.tsx",
+      "apps/system-studio/src/app/platform/cost/CostAttribution.tsx",
+      "apps/system-studio/src/app/platform/cost/CostBudgets.tsx",
+      "apps/system-studio/src/app/platform/cost/CostReportView.tsx",
+      "apps/system-studio/src/app/platform/cost/cost-citation.test.tsx",
+      "apps/system-studio/src/app/platform/cost/cost-decisions.test.ts",
+      "apps/system-studio/src/app/platform/cost/cost-decisions.ts",
+      "apps/system-studio/src/app/platform/cost/cost.module.css",
+      "apps/system-studio/src/app/platform/cost/page.tsx",
+      "apps/system-studio/src/app/platform/engine-answer.test.ts",
+      "apps/system-studio/src/app/platform/engine-answer.ts",
+      "apps/system-studio/src/app/platform/estate/declared-estate.ts",
+      "apps/system-studio/src/app/platform/estate/estate-answer.ts",
+      "apps/system-studio/src/app/platform/estate/estate-coverage.test.ts",
+      "apps/system-studio/src/app/platform/estate/estate-coverage.ts",
+      "apps/system-studio/src/app/platform/estate/estate.module.css",
+      "apps/system-studio/src/app/platform/estate/page.tsx",
+      "apps/system-studio/src/app/platform/health/answer.test.ts",
+      "apps/system-studio/src/app/platform/health/answer.ts",
+      "apps/system-studio/src/app/platform/health/health.module.css",
+      "apps/system-studio/src/app/platform/health/page.tsx",
+      "apps/system-studio/src/app/platform/page.tsx",
+      "apps/system-studio/src/app/platform/platform.module.css",
+      "apps/system-studio/src/app/platform/security/answer.ts",
+      "apps/system-studio/src/app/platform/security/page.tsx",
+      "apps/system-studio/src/app/platform/security/posture.test.ts",
+      "apps/system-studio/src/app/platform/security/posture.ts",
+      "apps/system-studio/src/app/platform/security/security.module.css",
+      "apps/system-studio/src/app/signin/page.tsx",
+      "apps/system-studio/src/app/tenants/AdoptForm.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/ConfigurationEditor.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/RollbackControls.test.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/RollbackControls.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/actions.ts",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/change-cost.test.ts",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/change-cost.ts",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/footprint.ts",
+      "apps/system-studio/src/app/tenants/[slug]/next-moves.ts",
+      "apps/system-studio/src/app/tenants/[slug]/page.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/summary.ts",
+      "apps/system-studio/src/app/tenants/[slug]/tenant-answers.test.ts",
+      "apps/system-studio/src/app/tenants/[slug]/tenant.module.css",
+      "apps/system-studio/src/app/tenants/actions.ts",
+      "apps/system-studio/src/app/tenants/error.tsx",
+      "apps/system-studio/src/app/tenants/fleet-view.test.ts",
+      "apps/system-studio/src/app/tenants/fleet-view.ts",
+      "apps/system-studio/src/app/tenants/fleet.module.css",
+      "apps/system-studio/src/app/tenants/loading.tsx",
+      "apps/system-studio/src/app/tenants/new/ChoiceGroup.tsx",
+      "apps/system-studio/src/app/tenants/new/ComposeForm.tsx",
+      "apps/system-studio/src/app/tenants/new/compose-pricing.test.tsx",
+      "apps/system-studio/src/app/tenants/new/compose.module.css",
+      "apps/system-studio/src/app/tenants/new/page.tsx",
+      "apps/system-studio/src/app/tenants/new/placement.test.tsx",
+      "apps/system-studio/src/app/tenants/new/placement.ts",
+      "apps/system-studio/src/app/tenants/new/quote.test.tsx",
+      "apps/system-studio/src/app/tenants/new/quote.ts",
+      "apps/system-studio/src/app/tenants/page.tsx",
+      "apps/system-studio/src/components/CommandPalette.tsx",
+      "apps/system-studio/src/components/DeploymentPanel.tsx",
+      "apps/system-studio/src/components/EvidencePanel.tsx",
+      "apps/system-studio/src/components/Launcher.tsx",
+      "apps/system-studio/src/components/Nav.tsx",
+      "apps/system-studio/src/components/OfflineBanner.tsx",
+      "apps/system-studio/src/components/PreferencesMenu.tsx",
+      "apps/system-studio/src/components/TagCompliancePanel.tsx",
+      "apps/system-studio/src/components/brand/TenureLogo.tsx",
+      "apps/system-studio/src/components/md3/Badge.tsx",
+      "apps/system-studio/src/components/md3/Button.tsx",
+      "apps/system-studio/src/components/md3/Card.tsx",
+      "apps/system-studio/src/components/md3/Chip.tsx",
+      "apps/system-studio/src/components/md3/DataTable.tsx",
+      "apps/system-studio/src/components/md3/Dialog.tsx",
+      "apps/system-studio/src/components/md3/EmptyState.tsx",
+      "apps/system-studio/src/components/md3/Field.tsx",
+      "apps/system-studio/src/components/md3/KeyValue.tsx",
+      "apps/system-studio/src/components/md3/ProgressIndicator.tsx",
+      "apps/system-studio/src/components/md3/Select.tsx",
+      "apps/system-studio/src/components/md3/SeverityChip.tsx",
+      "apps/system-studio/src/components/md3/Snackbar.tsx",
+      "apps/system-studio/src/components/md3/StaleIndicator.tsx",
+      "apps/system-studio/src/components/md3/Surface.tsx",
+      "apps/system-studio/src/components/md3/Switch.tsx",
+      "apps/system-studio/src/components/md3/Tabs.tsx",
+      "apps/system-studio/src/components/md3/TextField.tsx",
+      "apps/system-studio/src/components/md3/UnknownState.tsx",
+      "apps/system-studio/src/components/md3/aws-outcomes.test.tsx",
+      "apps/system-studio/src/components/md3/index.ts",
+      "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/src/generated/platform-truth.json",
+      "apps/system-studio/src/lib/adopt.test.ts",
+      "apps/system-studio/src/lib/adopt.ts",
+      "apps/system-studio/src/lib/api/envelope-contract.test.ts",
+      "apps/system-studio/src/lib/api/envelope.ts",
+      "apps/system-studio/src/lib/api/problem.ts",
+      "apps/system-studio/src/lib/audit-ledger.itest.ts",
+      "apps/system-studio/src/lib/audit-ledger.test.ts",
+      "apps/system-studio/src/lib/audit-ledger.ts",
+      "apps/system-studio/src/lib/auth-config.ts",
+      "apps/system-studio/src/lib/auth.ts",
+      "apps/system-studio/src/lib/authorize.ts",
+      "apps/system-studio/src/lib/aws/alarms.test.ts",
+      "apps/system-studio/src/lib/aws/alarms.ts",
+      "apps/system-studio/src/lib/aws/analyzer.test.ts",
+      "apps/system-studio/src/lib/aws/analyzer.ts",
+      "apps/system-studio/src/lib/aws/aws-health.test.ts",
+      "apps/system-studio/src/lib/aws/aws-health.ts",
+      "apps/system-studio/src/lib/aws/buckets.test.ts",
+      "apps/system-studio/src/lib/aws/buckets.ts",
+      "apps/system-studio/src/lib/aws/budgets.test.ts",
+      "apps/system-studio/src/lib/aws/budgets.ts",
+      "apps/system-studio/src/lib/aws/capabilities.test.ts",
+      "apps/system-studio/src/lib/aws/capabilities.ts",
+      "apps/system-studio/src/lib/aws/cdn.test.ts",
+      "apps/system-studio/src/lib/aws/cdn.ts",
+      "apps/system-studio/src/lib/aws/certificates.test.ts",
+      "apps/system-studio/src/lib/aws/certificates.ts",
+      "apps/system-studio/src/lib/aws/client.ts",
+      "apps/system-studio/src/lib/aws/cognito.test.ts",
+      "apps/system-studio/src/lib/aws/cognito.ts",
+      "apps/system-studio/src/lib/aws/compliance.test.ts",
+      "apps/system-studio/src/lib/aws/compliance.ts",
+      "apps/system-studio/src/lib/aws/console-link.ts",
+      "apps/system-studio/src/lib/aws/containers.test.ts",
+      "apps/system-studio/src/lib/aws/containers.ts",
+      "apps/system-studio/src/lib/aws/dashboards.test.ts",
+      "apps/system-studio/src/lib/aws/dashboards.ts",
+      "apps/system-studio/src/lib/aws/database.test.ts",
+      "apps/system-studio/src/lib/aws/database.ts",
+      "apps/system-studio/src/lib/aws/dns.test.ts",
+      "apps/system-studio/src/lib/aws/dns.ts",
+      "apps/system-studio/src/lib/aws/drift.ts",
+      "apps/system-studio/src/lib/aws/dynamodb-tables.test.ts",
+      "apps/system-studio/src/lib/aws/dynamodb-tables.ts",
+      "apps/system-studio/src/lib/aws/ecr.test.ts",
+      "apps/system-studio/src/lib/aws/ecr.ts",
+      "apps/system-studio/src/lib/aws/elasticache.test.ts",
+      "apps/system-studio/src/lib/aws/elasticache.ts",
+      "apps/system-studio/src/lib/aws/eventbridge.test.ts",
+      "apps/system-studio/src/lib/aws/eventbridge.ts",
+      "apps/system-studio/src/lib/aws/expected-alarms.ts",
+      "apps/system-studio/src/lib/aws/findings.ts",
+      "apps/system-studio/src/lib/aws/guardduty.test.ts",
+      "apps/system-studio/src/lib/aws/guardduty.ts",
+      "apps/system-studio/src/lib/aws/health.ts",
+      "apps/system-studio/src/lib/aws/iam.ts",
+      "apps/system-studio/src/lib/aws/identity.ts",
+      "apps/system-studio/src/lib/aws/inventory.ts",
+      "apps/system-studio/src/lib/aws/keys.test.ts",
+      "apps/system-studio/src/lib/aws/keys.ts",
+      "apps/system-studio/src/lib/aws/lambda.test.ts",
+      "apps/system-studio/src/lib/aws/lambda.ts",
+      "apps/system-studio/src/lib/aws/loadbalancer.test.ts",
+      "apps/system-studio/src/lib/aws/loadbalancer.ts",
+      "apps/system-studio/src/lib/aws/logs.test.ts",
+      "apps/system-studio/src/lib/aws/logs.ts",
+      "apps/system-studio/src/lib/aws/metrics.test.ts",
+      "apps/system-studio/src/lib/aws/metrics.ts",
+      "apps/system-studio/src/lib/aws/mutate.ts",
+      "apps/system-studio/src/lib/aws/network.test.ts",
+      "apps/system-studio/src/lib/aws/network.ts",
+      "apps/system-studio/src/lib/aws/organization.ts",
+      "apps/system-studio/src/lib/aws/posture.ts",
+      "apps/system-studio/src/lib/aws/pricing.test.ts",
+      "apps/system-studio/src/lib/aws/pricing.ts",
+      "apps/system-studio/src/lib/aws/quotas.test.ts",
+      "apps/system-studio/src/lib/aws/quotas.ts",
+      "apps/system-studio/src/lib/aws/read.ts",
+      "apps/system-studio/src/lib/aws/result.ts",
+      "apps/system-studio/src/lib/aws/retained.ts",
+      "apps/system-studio/src/lib/aws/secrets.test.ts",
+      "apps/system-studio/src/lib/aws/secrets.ts",
+      "apps/system-studio/src/lib/aws/ses.test.ts",
+      "apps/system-studio/src/lib/aws/ses.ts",
+      "apps/system-studio/src/lib/aws/sqs.test.ts",
+      "apps/system-studio/src/lib/aws/sqs.ts",
+      "apps/system-studio/src/lib/aws/tags.test.ts",
+      "apps/system-studio/src/lib/aws/tags.ts",
+      "apps/system-studio/src/lib/aws/throttle.ts",
+      "apps/system-studio/src/lib/aws/topology.ts",
+      "apps/system-studio/src/lib/aws/trail.test.ts",
+      "apps/system-studio/src/lib/aws/trail.ts",
+      "apps/system-studio/src/lib/aws/waf.test.ts",
+      "apps/system-studio/src/lib/aws/waf.ts",
+      "apps/system-studio/src/lib/cells.test.ts",
+      "apps/system-studio/src/lib/cells.ts",
+      "apps/system-studio/src/lib/command-gate.ts",
+      "apps/system-studio/src/lib/command-handlers.test.ts",
+      "apps/system-studio/src/lib/command-handlers.ts",
+      "apps/system-studio/src/lib/commands.ts",
+      "apps/system-studio/src/lib/config-sort-key.ts",
+      "apps/system-studio/src/lib/config-store.ts",
+      "apps/system-studio/src/lib/cost-report.ts",
+      "apps/system-studio/src/lib/cost-source.ts",
+      "apps/system-studio/src/lib/deliver.test.ts",
+      "apps/system-studio/src/lib/deliver.ts",
+      "apps/system-studio/src/lib/deployment-provenance.test.tsx",
+      "apps/system-studio/src/lib/editable-config.ts",
+      "apps/system-studio/src/lib/execution-provenance.test.tsx",
+      "apps/system-studio/src/lib/fleet-filter.ts",
+      "apps/system-studio/src/lib/fleet-health.ts",
+      "apps/system-studio/src/lib/high-risk-gate.test.ts",
+      "apps/system-studio/src/lib/object-authority.ts",
+      "apps/system-studio/src/lib/operators.ts",
+      "apps/system-studio/src/lib/preferences.ts",
+      "apps/system-studio/src/lib/registry-record.ts",
+      "apps/system-studio/src/lib/registry.ts",
+      "apps/system-studio/src/lib/revisions.ts",
+      "apps/system-studio/src/lib/secret-refs.test.ts",
+      "apps/system-studio/src/lib/secret-refs.ts",
+      "apps/system-studio/src/lib/tag-compliance.test.tsx",
+      "apps/system-studio/src/lib/tenant-state.ts",
+      "apps/system-studio/tsconfig.json",
+      "apps/web/.env.example",
+      "apps/web/Dockerfile",
+      "apps/web/e2e/a11y.spec.ts",
+      "apps/web/e2e/admin-console.spec.ts",
+      "apps/web/e2e/admin.spec.ts",
+      "apps/web/e2e/app.spec.ts",
+      "apps/web/e2e/audit.spec.ts",
+      "apps/web/e2e/board-messaging.spec.ts",
+      "apps/web/e2e/calendar-filters.spec.ts",
+      "apps/web/e2e/calendar.spec.ts",
+      "apps/web/e2e/chart-frame.spec.ts",
+      "apps/web/e2e/club-cards.spec.ts",
+      "apps/web/e2e/data-table.spec.ts",
+      "apps/web/e2e/delegation.spec.ts",
+      "apps/web/e2e/deliverables.spec.ts",
+      "apps/web/e2e/dev-login-gate.spec.ts",
+      "apps/web/e2e/feed.spec.ts",
+      "apps/web/e2e/finance.spec.ts",
+      "apps/web/e2e/governance.spec.ts",
+      "apps/web/e2e/handoff.spec.ts",
+      "apps/web/e2e/impact.spec.ts",
+      "apps/web/e2e/journeys.spec.ts",
+      "apps/web/e2e/layout.spec.ts",
+      "apps/web/e2e/localization.spec.ts",
+      "apps/web/e2e/memory.spec.ts",
+      "apps/web/e2e/messaging.spec.ts",
+      "apps/web/e2e/notifications.spec.ts",
+      "apps/web/e2e/offline.spec.ts",
+      "apps/web/e2e/policies.spec.ts",
+      "apps/web/e2e/portfolio.spec.ts",
+      "apps/web/e2e/reimbursement.spec.ts",
+      "apps/web/e2e/relay.spec.ts",
+      "apps/web/e2e/resources.spec.ts",
+      "apps/web/e2e/roster.spec.ts",
+      "apps/web/e2e/run-id.ts",
+      "apps/web/e2e/search-reports.spec.ts",
+      "apps/web/e2e/shell.spec.ts",
+      "apps/web/e2e/soft-delete.spec.ts",
+      "apps/web/e2e/support/auth.ts",
+      "apps/web/e2e/support/journey-metrics.spec.ts",
+      "apps/web/e2e/support/journey-metrics.ts",
+      "apps/web/e2e/support/roster.ts",
+      "apps/web/e2e/visual-baselines.spec.ts",
+      "apps/web/eslint.config.mjs",
+      "apps/web/jest.config.js",
+      "apps/web/next.config.ts",
+      "apps/web/package.json",
+      "apps/web/playwright.config.ts",
+      "apps/web/postcss.config.mjs",
+      "apps/web/prisma/migrations/20260730000000_baseline/migration.sql",
+      "apps/web/prisma/migrations/20260801210840_outbox_events/migration.sql",
+      "apps/web/prisma/migrations/20260802184410_membership_effective_state/migration.sql",
+      "apps/web/prisma/migrations/20260803070000_seat_is_not_a_role/migration.sql",
+      "apps/web/prisma/migrations/20260803160000_seat_carries_a_role_template/migration.sql",
+      "apps/web/prisma/migrations/20260806180000_activation_gates_serving/migration.sql",
+      "apps/web/prisma/migrations/20260807120000_audit_event_records_money_mode/migration.sql",
+      "apps/web/prisma/migrations/20260807120000_payments_tenant_scoped_ledger_and_provider_references/migration.sql",
+      "apps/web/prisma/migrations/20260807143000_outbox_dispatch_and_inbox/migration.sql",
+      "apps/web/prisma/migrations/20260807160000_ledger_reversal_state_machine/migration.sql",
+      "apps/web/prisma/migrations/20260807180000_posting_templates_double_entry_and_provider_events/migration.sql",
+      "apps/web/prisma/migrations/20260807203000_calendar_token_epoch/migration.sql",
+      "apps/web/prisma/migrations/20260807220000_model_usage_meter/migration.sql",
+      "apps/web/prisma/migrations/20260807234500_connection_launch_token/migration.sql",
+      "apps/web/prisma/migrations/migration_lock.toml",
+      "apps/web/prisma/schema.prisma",
+      "apps/web/public/robots.txt",
+      "apps/web/scripts/anonymize-roster.mjs",
+      "apps/web/scripts/census.mjs",
+      "apps/web/scripts/ci-two-tenant-fixture.mjs",
+      "apps/web/scripts/clubs-data.mjs",
+      "apps/web/scripts/db-bootstrap.mjs",
+      "apps/web/scripts/db-bootstrap.test.mjs",
+      "apps/web/scripts/deliverables-data.mjs",
+      "apps/web/scripts/design-token-lint.test.mjs",
+      "apps/web/scripts/duplicate-source-report.mjs",
+      "apps/web/scripts/e2e-directory-people.mjs",
+      "apps/web/scripts/entrypoint.sh",
+      "apps/web/scripts/generate-design-tokens.mjs",
+      "apps/web/scripts/generate-roster.mjs",
+      "apps/web/scripts/person-reach.itest.ts",
+      "apps/web/scripts/person-reach.mjs",
+      "apps/web/scripts/resources-data.mjs",
+      "apps/web/scripts/roster-data.sample.mjs",
+      "apps/web/scripts/roster-source.mjs",
+      "apps/web/scripts/seed-guard.mjs",
+      "apps/web/scripts/seed-guard.test.mjs",
+      "apps/web/scripts/seed.mjs",
+      "apps/web/src/app/(app)/actions.ts",
+      "apps/web/src/app/(app)/admin/actions.ts",
+      "apps/web/src/app/(app)/admin/approvals/page.tsx",
+      "apps/web/src/app/(app)/admin/audit/page.tsx",
+      "apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx",
+      "apps/web/src/app/(app)/admin/clubs/page.tsx",
+      "apps/web/src/app/(app)/admin/layout.tsx",
+      "apps/web/src/app/(app)/admin/outbox-actions.ts",
+      "apps/web/src/app/(app)/admin/overrides/page.tsx",
+      "apps/web/src/app/(app)/admin/page.tsx",
+      "apps/web/src/app/(app)/admin/payments/actions.ts",
+      "apps/web/src/app/(app)/admin/payments/liability-gate.test.ts",
+      "apps/web/src/app/(app)/admin/payments/page.tsx",
+      "apps/web/src/app/(app)/admin/people/page.tsx",
+      "apps/web/src/app/(app)/approvals/[id]/page.tsx",
+      "apps/web/src/app/(app)/approvals/actions.ts",
+      "apps/web/src/app/(app)/approvals/money-movement.test.ts",
+      "apps/web/src/app/(app)/approvals/new/page.tsx",
+      "apps/web/src/app/(app)/approvals/page.tsx",
+      "apps/web/src/app/(app)/calendar/[id]/page.tsx",
+      "apps/web/src/app/(app)/calendar/actions.ts",
+      "apps/web/src/app/(app)/calendar/error.tsx",
+      "apps/web/src/app/(app)/calendar/new/page.tsx",
+      "apps/web/src/app/(app)/calendar/page.tsx",
+      "apps/web/src/app/(app)/dashboard/page.tsx",
+      "apps/web/src/app/(app)/error.tsx",
+      "apps/web/src/app/(app)/feed/actions.ts",
+      "apps/web/src/app/(app)/feed/page.tsx",
+      "apps/web/src/app/(app)/gallery/page.tsx",
+      "apps/web/src/app/(app)/inbox/page.tsx",
+      "apps/web/src/app/(app)/layout.tsx",
+      "apps/web/src/app/(app)/messages/[id]/page.tsx",
+      "apps/web/src/app/(app)/messages/actions.ts",
+      "apps/web/src/app/(app)/messages/compose/page.tsx",
+      "apps/web/src/app/(app)/messages/page.tsx",
+      "apps/web/src/app/(app)/not-found.tsx",
+      "apps/web/src/app/(app)/notifications/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/summary/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/view/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/documents/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/documents/error.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/documents/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/finance/money-path.itest.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/members/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/members/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/memory/actions.ts",
+      "apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx",
+      "apps/web/src/app/(app)/orgs/[slug]/page.tsx",
+      "apps/web/src/app/(app)/orgs/actions.ts",
+      "apps/web/src/app/(app)/orgs/page.tsx",
+      "apps/web/src/app/(app)/reports/finance/page.tsx",
+      "apps/web/src/app/(app)/reports/page.tsx",
+      "apps/web/src/app/(app)/resources/[slug]/page.tsx",
+      "apps/web/src/app/(app)/resources/actions.ts",
+      "apps/web/src/app/(app)/resources/page.tsx",
+      "apps/web/src/app/(app)/search/page.tsx",
+      "apps/web/src/app/(app)/settings/actions.ts",
+      "apps/web/src/app/(app)/settings/page.tsx",
+      "apps/web/src/app/api/admin/directory/route.ts",
+      "apps/web/src/app/api/ai/ai-kill-switch.test.ts",
+      "apps/web/src/app/api/ai/chat/model-budget.test.ts",
+      "apps/web/src/app/api/ai/chat/relay-prompt-safety.test.ts",
+      "apps/web/src/app/api/ai/chat/retrieval-purpose.test.ts",
+      "apps/web/src/app/api/ai/chat/route.ts",
+      "apps/web/src/app/api/ai/draft/route.ts",
+      "apps/web/src/app/api/attachment/[id]/content/route.ts",
+      "apps/web/src/app/api/attachment/[id]/route.ts",
+      "apps/web/src/app/api/auth/[...nextauth]/route.ts",
+      "apps/web/src/app/api/calendar/event/[id]/route.ts",
+      "apps/web/src/app/api/calendar/ics/[token]/route.ts",
+      "apps/web/src/app/api/calendar/reschedule/route.ts",
+      "apps/web/src/app/api/connections/opportunity/route.ts",
+      "apps/web/src/app/api/documents/[id]/content/route.ts",
+      "apps/web/src/app/api/documents/[id]/save/route.ts",
+      "apps/web/src/app/api/documents/_lib/content.ts",
+      "apps/web/src/app/api/health/route.ts",
+      "apps/web/src/app/api/jobs/outbox/route.ts",
+      "apps/web/src/app/api/jobs/reminders/job-request.test.ts",
+      "apps/web/src/app/api/jobs/reminders/route.ts",
+      "apps/web/src/app/api/jobs/slo/route.ts",
+      "apps/web/src/app/api/me/route.ts",
+      "apps/web/src/app/api/notifications/route.ts",
+      "apps/web/src/app/api/org-image/[orgId]/route.ts",
+      "apps/web/src/app/api/payments/provider-events/route.ts",
+      "apps/web/src/app/api/platform/export/[slug]/route.ts",
+      "apps/web/src/app/api/platform/reconcile/route.ts",
+      "apps/web/src/app/api/profile-image/[userId]/route.ts",
+      "apps/web/src/app/api/reports/pulse/route.ts",
+      "apps/web/src/app/api/search/route.ts",
+      "apps/web/src/app/api/search/search-lifecycle.test.ts",
+      "apps/web/src/app/api/templates/budget/route.ts",
+      "apps/web/src/app/apple-icon.tsx",
+      "apps/web/src/app/design-contracts.test.ts",
+      "apps/web/src/app/error.tsx",
+      "apps/web/src/app/favicon.ico",
+      "apps/web/src/app/globals.css",
+      "apps/web/src/app/icon.svg",
+      "apps/web/src/app/layout.tsx",
+      "apps/web/src/app/manifest.ts",
+      "apps/web/src/app/not-found.tsx",
+      "apps/web/src/app/page.tsx",
+      "apps/web/src/app/signin/page.tsx",
+      "apps/web/src/app/signin/signin-methods.test.tsx",
+      "apps/web/src/components/BackButton.tsx",
+      "apps/web/src/components/CalendarFilters.tsx",
+      "apps/web/src/components/CalendarMiniMonth.tsx",
+      "apps/web/src/components/CalendarSubscribe.tsx",
+      "apps/web/src/components/CalendarTimeGrid.tsx",
+      "apps/web/src/components/ClubCard.tsx",
+      "apps/web/src/components/ClubImageEditor.tsx",
+      "apps/web/src/components/ComingSoon.tsx",
+      "apps/web/src/components/DensitySwitcher.tsx",
+      "apps/web/src/components/DraftAssist.tsx",
+      "apps/web/src/components/EmailLink.tsx",
+      "apps/web/src/components/OrgRecordHeader.tsx",
+      "apps/web/src/components/OrgTabs.tsx",
+      "apps/web/src/components/ProfileImageEditor.tsx",
+      "apps/web/src/components/QuickLinks.tsx",
+      "apps/web/src/components/QuickLinksRotator.tsx",
+      "apps/web/src/components/ResourcesBrowser.tsx",
+      "apps/web/src/components/ThemeSwitcher.tsx",
+      "apps/web/src/components/admin/AdminNav.tsx",
+      "apps/web/src/components/admin/DirectoryPicker.tsx",
+      "apps/web/src/components/admin/FundsFlowForm.tsx",
+      "apps/web/src/components/admin/RoleTransferPanel.tsx",
+      "apps/web/src/components/ai/AIProvider.tsx",
+      "apps/web/src/components/ai/TenureAIPanel.tsx",
+      "apps/web/src/components/ai/relay-reply.test.ts",
+      "apps/web/src/components/ai/relay-reply.ts",
+      "apps/web/src/components/brand/BrandPreview.tsx",
+      "apps/web/src/components/brand/TenureLogo.tsx",
+      "apps/web/src/components/calendar/EventInspector.tsx",
+      "apps/web/src/components/charts/BarChart.tsx",
+      "apps/web/src/components/charts/ChartEmpty.tsx",
+      "apps/web/src/components/charts/ChartFrame.tsx",
+      "apps/web/src/components/charts/ChartLegend.tsx",
+      "apps/web/src/components/charts/ChartTooltip.tsx",
+      "apps/web/src/components/charts/DonutChart.tsx",
+      "apps/web/src/components/charts/HBarChart.tsx",
+      "apps/web/src/components/charts/LineAreaChart.tsx",
+      "apps/web/src/components/charts/LiveStats.tsx",
+      "apps/web/src/components/charts/Meter.tsx",
+      "apps/web/src/components/charts/RangeFilter.tsx",
+      "apps/web/src/components/charts/SankeyChart.test.ts",
+      "apps/web/src/components/charts/SankeyChart.tsx",
+      "apps/web/src/components/charts/Sparkline.tsx",
+      "apps/web/src/components/charts/chart-table.test.ts",
+      "apps/web/src/components/charts/chart-table.ts",
+      "apps/web/src/components/charts/cvd.ts",
+      "apps/web/src/components/charts/format.ts",
+      "apps/web/src/components/charts/hooks.ts",
+      "apps/web/src/components/charts/index.ts",
+      "apps/web/src/components/charts/palette.test.ts",
+      "apps/web/src/components/charts/palette.ts",
+      "apps/web/src/components/charts/panels/ActivityChart.tsx",
+      "apps/web/src/components/charts/panels/ReportsAnalytics.tsx",
+      "apps/web/src/components/charts/timeseries.test.ts",
+      "apps/web/src/components/charts/timeseries.ts",
+      "apps/web/src/components/connections/MissingConnectionCard.test.tsx",
+      "apps/web/src/components/connections/MissingConnectionCard.tsx",
+      "apps/web/src/components/documents/AttachmentChip.tsx",
+      "apps/web/src/components/documents/DocContentView.tsx",
+      "apps/web/src/components/documents/DocumentRow.tsx",
+      "apps/web/src/components/documents/DocumentViewerOverlay.tsx",
+      "apps/web/src/components/documents/types.ts",
+      "apps/web/src/components/finance/BudgetBarChart.tsx",
+      "apps/web/src/components/finance/BudgetUpload.tsx",
+      "apps/web/src/components/finance/FinanceDashboard.tsx",
+      "apps/web/src/components/finance/LedgerDrawer.tsx",
+      "apps/web/src/components/finance/PortfolioSankey.tsx",
+      "apps/web/src/components/finance/ReimbursementForm.tsx",
+      "apps/web/src/components/resources/ResourceEditor.tsx",
+      "apps/web/src/components/shell/Footer.tsx",
+      "apps/web/src/components/shell/MainRegion.tsx",
+      "apps/web/src/components/shell/NavDrawerToggle.tsx",
+      "apps/web/src/components/shell/NotificationBell.tsx",
+      "apps/web/src/components/shell/OfflineBoundary.tsx",
+      "apps/web/src/components/shell/SearchCommand.test.tsx",
+      "apps/web/src/components/shell/SearchCommand.tsx",
+      "apps/web/src/components/shell/ShellHeader.tsx",
+      "apps/web/src/components/shell/SideNav.tsx",
+      "apps/web/src/components/shell/SkipLink.tsx",
+      "apps/web/src/components/shell/TenantSwitcher.tsx",
+      "apps/web/src/components/ui/Avatar.tsx",
+      "apps/web/src/components/ui/Badge.tsx",
+      "apps/web/src/components/ui/Bento.tsx",
+      "apps/web/src/components/ui/Button.tsx",
+      "apps/web/src/components/ui/Card.tsx",
+      "apps/web/src/components/ui/ConfirmDialog.tsx",
+      "apps/web/src/components/ui/ConfirmInlineSubmit.tsx",
+      "apps/web/src/components/ui/DataTable.tsx",
+      "apps/web/src/components/ui/EmptyState.tsx",
+      "apps/web/src/components/ui/IconFrame.tsx",
+      "apps/web/src/components/ui/Menu.tsx",
+      "apps/web/src/components/ui/Overlay.tsx",
+      "apps/web/src/components/ui/PageHeader.tsx",
+      "apps/web/src/components/ui/SeeAllSection.tsx",
+      "apps/web/src/components/ui/Segmented.tsx",
+      "apps/web/src/components/ui/Select.tsx",
+      "apps/web/src/components/ui/Skeleton.tsx",
+      "apps/web/src/components/ui/StateSurface.tsx",
+      "apps/web/src/components/ui/Tabs.tsx",
+      "apps/web/src/components/ui/TextField.tsx",
+      "apps/web/src/components/ui/Tooltip.tsx",
+      "apps/web/src/components/ui/data-table-model.test.ts",
+      "apps/web/src/components/ui/data-table-model.ts",
+      "apps/web/src/components/ui/design-system.test.ts",
+      "apps/web/src/components/ui/design-system.ts",
+      "apps/web/src/components/ui/gallery-catalog.test.ts",
+      "apps/web/src/components/ui/gallery-catalog.ts",
+      "apps/web/src/components/ui/icons.tsx",
+      "apps/web/src/components/ui/owned-wrappers.test.tsx",
+      "apps/web/src/components/ui/states.test.ts",
+      "apps/web/src/components/ui/states.ts",
+      "apps/web/src/instrumentation.ts",
+      "apps/web/src/lib/a11y/contrast.test.ts",
+      "apps/web/src/lib/a11y/contrast.ts",
+      "apps/web/src/lib/a11y/css-declarations.mjs",
+      "apps/web/src/lib/a11y/tenant-brand.test.ts",
+      "apps/web/src/lib/a11y/tenant-brand.ts",
+      "apps/web/src/lib/a11y/theme-tokens.ts",
+      "apps/web/src/lib/a11y/tokens.test.ts",
+      "apps/web/src/lib/a11y/tokens.ts",
+      "apps/web/src/lib/admin/capabilities.ts",
+      "apps/web/src/lib/admin/guard.test.ts",
+      "apps/web/src/lib/admin/guard.ts",
+      "apps/web/src/lib/ai.test.ts",
+      "apps/web/src/lib/ai.ts",
+      "apps/web/src/lib/approval-digest.itest.ts",
+      "apps/web/src/lib/approvals-sla.test.ts",
+      "apps/web/src/lib/approvals-sla.ts",
+      "apps/web/src/lib/approvals-world.ts",
+      "apps/web/src/lib/approvals.test.ts",
+      "apps/web/src/lib/approvals.ts",
+      "apps/web/src/lib/audit-append-only.test.ts",
+      "apps/web/src/lib/audit-append-only.ts",
+      "apps/web/src/lib/audit-record.test.ts",
+      "apps/web/src/lib/audit-record.ts",
+      "apps/web/src/lib/auth-connections.test.ts",
+      "apps/web/src/lib/auth-connections.ts",
+      "apps/web/src/lib/auth-session-lifetime.test.ts",
+      "apps/web/src/lib/auth.ts",
+      "apps/web/src/lib/authz/authority-is-not-a-title.test.ts",
+      "apps/web/src/lib/authz/borrowed-authority.test.ts",
+      "apps/web/src/lib/authz/borrowed-authority.ts",
+      "apps/web/src/lib/authz/institution-equivalence.test.ts",
+      "apps/web/src/lib/authz/navigation-capabilities.test.ts",
+      "apps/web/src/lib/authz/navigation-capabilities.ts",
+      "apps/web/src/lib/authz/resource-write-refusal.test.ts",
+      "apps/web/src/lib/authz/resource-write-refusal.ts",
+      "apps/web/src/lib/authz/roles-granting.ts",
+      "apps/web/src/lib/authz/seat-template-backfill.itest.ts",
+      "apps/web/src/lib/authz/seat-template.test.ts",
+      "apps/web/src/lib/authz/seat-template.ts",
+      "apps/web/src/lib/authz/seat-world.test.ts",
+      "apps/web/src/lib/authz/seat-world.ts",
+      "apps/web/src/lib/calendar-color.ts",
+      "apps/web/src/lib/calendar-conflict-policy.test.ts",
+      "apps/web/src/lib/calendar-conflict-policy.ts",
+      "apps/web/src/lib/calendar-data.ts",
+      "apps/web/src/lib/calendar-permissions.test.ts",
+      "apps/web/src/lib/calendar-recurrence.test.ts",
+      "apps/web/src/lib/calendar-recurrence.ts",
+      "apps/web/src/lib/calendar-sync.test.ts",
+      "apps/web/src/lib/calendar-sync.ts",
+      "apps/web/src/lib/calendar-token.itest.ts",
+      "apps/web/src/lib/calendar-write.test.ts",
+      "apps/web/src/lib/calendar-write.ts",
+      "apps/web/src/lib/calendar.test.ts",
+      "apps/web/src/lib/calendar.ts",
+      "apps/web/src/lib/cell-context.test.ts",
+      "apps/web/src/lib/cell-context.ts",
+      "apps/web/src/lib/clubs.ts",
+      "apps/web/src/lib/commands/bus.test.ts",
+      "apps/web/src/lib/commands/bus.ts",
+      "apps/web/src/lib/config/config-snapshot.test.ts",
+      "apps/web/src/lib/config/payment-mode.test.ts",
+      "apps/web/src/lib/config/server.ts",
+      "apps/web/src/lib/connections/capability-resolution.test.ts",
+      "apps/web/src/lib/connections/capability-resolution.ts",
+      "apps/web/src/lib/connections/credential-broker.test.ts",
+      "apps/web/src/lib/connections/credential-broker.ts",
+      "apps/web/src/lib/connections/pending-intent.ts",
+      "apps/web/src/lib/connections/selector-consent.test.ts",
+      "apps/web/src/lib/connections/selector-consent.ts",
+      "apps/web/src/lib/db.ts",
+      "apps/web/src/lib/delegation.ts",
+      "apps/web/src/lib/dev-login.test.ts",
+      "apps/web/src/lib/dev-login.ts",
+      "apps/web/src/lib/directory.ts",
+      "apps/web/src/lib/env.test.ts",
+      "apps/web/src/lib/env.ts",
+      "apps/web/src/lib/envelopes/envelopes.test.ts",
+      "apps/web/src/lib/envelopes/limits.ts",
+      "apps/web/src/lib/envelopes/pagination.ts",
+      "apps/web/src/lib/finance-integrity.test.ts",
+      "apps/web/src/lib/finance.test.ts",
+      "apps/web/src/lib/finance.ts",
+      "apps/web/src/lib/forms/resource-form.test.ts",
+      "apps/web/src/lib/forms/resource-form.ts",
+      "apps/web/src/lib/http/internal-headers.test.ts",
+      "apps/web/src/lib/http/internal-headers.ts",
+      "apps/web/src/lib/identity/access-report.ts",
+      "apps/web/src/lib/identity/access-state.itest.ts",
+      "apps/web/src/lib/identity/live-membership.itest.ts",
+      "apps/web/src/lib/identity/live-membership.ts",
+      "apps/web/src/lib/identity/seat-term.itest.ts",
+      "apps/web/src/lib/inbox/work-inbox.test.ts",
+      "apps/web/src/lib/inbox/work-inbox.ts",
+      "apps/web/src/lib/institution-time.test.ts",
+      "apps/web/src/lib/institution-time.ts",
+      "apps/web/src/lib/jobs/approvals-slo.itest.ts",
+      "apps/web/src/lib/jobs/outbox-dispatch.itest.ts",
+      "apps/web/src/lib/jobs/reminders-isolation.itest.ts",
+      "apps/web/src/lib/memory.test.ts",
+      "apps/web/src/lib/memory.ts",
+      "apps/web/src/lib/messaging-data.ts",
+      "apps/web/src/lib/messaging.test.ts",
+      "apps/web/src/lib/messaging.ts",
+      "apps/web/src/lib/metering/model-usage.itest.ts",
+      "apps/web/src/lib/metering/model-usage.test.ts",
+      "apps/web/src/lib/metering/model-usage.ts",
+      "apps/web/src/lib/notify.test.ts",
+      "apps/web/src/lib/notify.ts",
+      "apps/web/src/lib/org/projection.test.ts",
+      "apps/web/src/lib/org/projection.ts",
+      "apps/web/src/lib/outbox/consumers.test.ts",
+      "apps/web/src/lib/outbox/consumers.ts",
+      "apps/web/src/lib/outbox/dispatch.itest.ts",
+      "apps/web/src/lib/outbox/outbox.test.ts",
+      "apps/web/src/lib/outbox/outbox.ts",
+      "apps/web/src/lib/outbox/prisma-ports.itest.ts",
+      "apps/web/src/lib/outbox/prisma-ports.test.ts",
+      "apps/web/src/lib/outbox/prisma-ports.ts",
+      "apps/web/src/lib/partition-services.test.ts",
+      "apps/web/src/lib/partition-services.ts",
+      "apps/web/src/lib/payments/ledger-attribution.itest.ts",
+      "apps/web/src/lib/platform/tenant-export.itest.ts",
+      "apps/web/src/lib/platform/tenant-export.ts",
+      "apps/web/src/lib/policies.ts",
+      "apps/web/src/lib/provisioning/reconcile.itest.ts",
+      "apps/web/src/lib/provisioning/reconcile.ts",
+      "apps/web/src/lib/rbac.test.ts",
+      "apps/web/src/lib/rbac.ts",
+      "apps/web/src/lib/relay-tools.test.ts",
+      "apps/web/src/lib/relay-tools.ts",
+      "apps/web/src/lib/relay/action-plan.test.ts",
+      "apps/web/src/lib/relay/action-plan.ts",
+      "apps/web/src/lib/relay/ai-surface-fencing.test.ts",
+      "apps/web/src/lib/relay/citation-display.ts",
+      "apps/web/src/lib/relay/citation.test.ts",
+      "apps/web/src/lib/relay/citation.ts",
+      "apps/web/src/lib/relay/connection-class.test.ts",
+      "apps/web/src/lib/relay/connection-class.ts",
+      "apps/web/src/lib/relay/projection-policy.test.ts",
+      "apps/web/src/lib/relay/projection-policy.ts",
+      "apps/web/src/lib/relay/projection-state.test.ts",
+      "apps/web/src/lib/relay/projection-state.ts",
+      "apps/web/src/lib/relay/untrusted-content.test.ts",
+      "apps/web/src/lib/relay/untrusted-content.ts",
+      "apps/web/src/lib/resources-data.ts",
+      "apps/web/src/lib/resources.ts",
+      "apps/web/src/lib/s3.test.ts",
+      "apps/web/src/lib/s3.ts",
+      "apps/web/src/lib/schemas/knowledge-card.test.ts",
+      "apps/web/src/lib/schemas/knowledge-card.ts",
+      "apps/web/src/lib/search-data.itest.ts",
+      "apps/web/src/lib/search-data.ts",
+      "apps/web/src/lib/search.test.ts",
+      "apps/web/src/lib/search.ts",
+      "apps/web/src/lib/seat-is-not-a-role.itest.ts",
+      "apps/web/src/lib/system/build-system.test.ts",
+      "apps/web/src/lib/system/build-system.ts",
+      "apps/web/src/lib/system/reference-systems.test.ts",
+      "apps/web/src/lib/tenancy/context.test.ts",
+      "apps/web/src/lib/tenancy/context.ts",
+      "apps/web/src/lib/tenancy/extension.ts",
+      "apps/web/src/lib/tenancy/isolation.itest.ts",
+      "apps/web/src/lib/tenancy/locale-cookie.ts",
+      "apps/web/src/lib/tenancy/registry.test.ts",
+      "apps/web/src/lib/tenancy/registry.ts",
+      "apps/web/src/lib/tenancy/repository.test.ts",
+      "apps/web/src/lib/tenancy/repository.ts",
+      "apps/web/src/lib/tenancy/request-context.test.ts",
+      "apps/web/src/lib/tenancy/request-context.ts",
+      "apps/web/src/lib/tenancy/resolver.test.ts",
+      "apps/web/src/lib/tenancy/resolver.ts",
+      "apps/web/src/lib/tenancy/scope-args.test.ts",
+      "apps/web/src/lib/tenancy/scope-args.ts",
+      "apps/web/src/lib/tenant-scope.test.ts",
+      "apps/web/src/lib/tenant-scope.ts",
+      "apps/web/src/lib/tenant-switching.itest.ts",
+      "apps/web/src/lib/time.test.ts",
+      "apps/web/src/lib/time.ts",
+      "apps/web/src/lib/workflows/approval-definition.test.ts",
+      "apps/web/src/lib/workflows/approval-definition.ts",
+      "apps/web/src/middleware.ts",
+      "apps/web/src/types/next-auth.d.ts",
+      "apps/web/tailwind.config.ts",
+      "apps/web/tsconfig.json",
+      "apps/web/tsconfig.scratch.json",
+      "blueprints/README.md",
+      "blueprints/archetype.ts",
+      "blueprints/corporate-divisions/blueprint.ts",
+      "blueprints/index.ts",
+      "blueprints/nonprofit-program-operations/blueprint.ts",
+      "blueprints/package.json",
+      "blueprints/types.ts",
+      "blueprints/university-student-organizations/blueprint.ts",
+      "docs/RUNBOOK.md",
+      "docs/architecture/CURRENT-STATE-INVENTORY.md",
+      "docs/architecture/PLATFORM-ARCHITECTURE.md",
+      "docs/architecture/REVIEW-FINDINGS.md",
+      "docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md",
+      "docs/architecture/Tenure_Global_System_Architecture_Bible_v1.0.md",
+      "docs/architecture/architecture-document-graph.yaml",
+      "docs/architecture/aws-current-state.md",
+      "docs/architecture/aws-inventory.json",
+      "docs/architecture/capability-completeness-registry.yaml",
+      "docs/architecture/data-provenance.md",
+      "docs/architecture/entry-points.md",
+      "docs/architecture/github-current-state.md",
+      "docs/architecture/ownership.md",
+      "docs/architecture/repository-map.json",
+      "docs/architecture/resource-reconciliation.md",
+      "docs/architecture/studio-design-system.md",
+      "docs/architecture/studio-information-architecture.md",
+      "docs/architecture/subsystem-paths.md",
+      "docs/architecture/tenant-scoped-schema-plan.md",
+      "docs/architecture/ux-task-scorecard.md",
+      "docs/contracts/api-envelope.schema.json",
+      "docs/contracts/change-diff.schema.json",
+      "docs/contracts/conformance-fixtures.json",
+      "docs/contracts/control-plane.openapi.json",
+      "docs/contracts/cost-figure.schema.json",
+      "docs/contracts/drift-finding.schema.json",
+      "docs/contracts/estate-resource.schema.json",
+      "docs/decisions/ADR-0001-versioned-migrations-and-boot-safety.md",
+      "docs/decisions/ADR-0002-tenant-isolation-chokepoint.md",
+      "docs/decisions/ADR-0003-monorepo-apps-web.md",
+      "docs/decisions/ADR-0004-tenant-scoped-schema.md",
+      "docs/decisions/ADR-0005-CANONICAL-MONOREPO.md",
+      "docs/decisions/ADR-0006-configuration-engine.md",
+      "docs/decisions/ADR-0007-tenure-owned-aws-organization.md",
+      "docs/decisions/ADR-0008-document-precedence-and-requirement-import.md",
+      "docs/decisions/ADR-0008-modular-monolith-and-extraction-criteria.md",
+      "docs/decisions/KEY-RETIREMENT-CHECKLIST.md",
+      "docs/decisions/PRODUCT-DECISIONS.md",
+      "docs/decisions/README.md",
+      "docs/handoff/simon-sso.md",
+      "docs/implementation/AUTONOMOUS-LOOP.md",
+      "docs/implementation/NEXT-SESSION.md",
+      "docs/implementation/Tenure_Claude_Code_Global_Engine_Execution_Prompt_v1.0.md",
+      "docs/implementation/Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v2.0.md",
+      "docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md",
+      "docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md",
+      "docs/implementation/analytics-reporting-execution-ledger.md",
+      "docs/implementation/connection-composer-execution-ledger.md",
+      "docs/implementation/declarative-configurator-execution-ledger.md",
+      "docs/implementation/erp-pack-factory-execution-ledger.md",
+      "docs/implementation/financial-management-execution-ledger.md",
+      "docs/implementation/global-engine-execution-ledger.md",
+      "docs/implementation/identity-eligibility-entitlement-execution-ledger.md",
+      "docs/implementation/integration-ecosystem-execution-ledger.md",
+      "docs/implementation/operations-cloud-execution-ledger.md",
+      "docs/implementation/payments-treasury-execution-ledger.md",
+      "docs/implementation/people-hr-workforce-execution-ledger.md",
+      "docs/implementation/planning-epm-execution-ledger.md",
+      "docs/implementation/repository-map.md",
+      "docs/implementation/simon-ose-absorption-execution-ledger.md",
+      "docs/implementation/system-studio-aws-control-plane-execution-ledger.md",
+      "docs/implementation/tenant-experience-execution-ledger.md",
+      "docs/implementation/universal-work-graph-execution-ledger.md",
+      "docs/market-analysis-roadmap.json",
+      "docs/migrations/BASELINE-VALIDATION.md",
+      "docs/migrations/DUPLICATE-SOURCES.md",
+      "docs/migrations/LIVE-APP-IMPORT-PLAN.md",
+      "docs/migrations/duplicate-sources.json",
+      "docs/runbooks/approvals-queue-stalled.md",
+      "infrastructure/oidc/environments.json",
+      "infrastructure/oidc/main.tf",
+      "infrastructure/oidc/outputs.tf",
+      "infrastructure/oidc/roles.tf",
+      "infrastructure/oidc/variables.tf",
+      "infrastructure/studio/cloudfront.tf",
+      "infrastructure/studio/cognito.tf",
+      "infrastructure/studio/dynamodb.tf",
+      "infrastructure/studio/ecr.tf",
+      "infrastructure/studio/ecs.tf",
+      "infrastructure/studio/iam.tf",
+      "infrastructure/studio/main.tf",
+      "infrastructure/studio/network.tf",
+      "infrastructure/studio/outputs.tf",
+      "infrastructure/studio/secrets.tf",
+      "infrastructure/studio/variables.tf",
+      "infrastructure/terraform/acm.tf",
+      "infrastructure/terraform/alb.tf",
+      "infrastructure/terraform/cloudfront.tf",
+      "infrastructure/terraform/cloudwatch.tf",
+      "infrastructure/terraform/dev-login-gate.tf",
+      "infrastructure/terraform/ecr.tf",
+      "infrastructure/terraform/ecs.tf",
+      "infrastructure/terraform/edge-access.tf",
+      "infrastructure/terraform/elasticache.tf",
+      "infrastructure/terraform/main.tf",
+      "infrastructure/terraform/outputs.tf",
+      "infrastructure/terraform/rds.tf",
+      "infrastructure/terraform/s3.tf",
+      "infrastructure/terraform/scheduler.tf",
+      "infrastructure/terraform/secrets.tf",
+      "infrastructure/terraform/security_groups.tf",
+      "infrastructure/terraform/ses.tf",
+      "infrastructure/terraform/sqs.tf",
+      "infrastructure/terraform/variables.tf",
+      "infrastructure/terraform/vpc.tf",
+      "modules/index.ts",
+      "modules/package.json",
+      "mutation-backup-route.txt",
+      "package-lock.json",
+      "package.json",
+      "packages/.gitkeep",
+      "packages/audit/package.json",
+      "packages/audit/src/audit.test.ts",
+      "packages/audit/src/index.ts",
+      "packages/audit/src/record.ts",
+      "packages/audit/src/retention.ts",
+      "packages/audit/src/secret-values.ts",
+      "packages/audit/src/verify.ts",
+      "packages/authorization/package.json",
+      "packages/authorization/src/assurance.ts",
+      "packages/authorization/src/authorization.test.ts",
+      "packages/authorization/src/break-glass.test.ts",
+      "packages/authorization/src/break-glass.ts",
+      "packages/authorization/src/controls.test.ts",
+      "packages/authorization/src/controls.ts",
+      "packages/authorization/src/decide.ts",
+      "packages/authorization/src/index.ts",
+      "packages/authorization/src/model.ts",
+      "packages/authorization/src/permission-catalog.test.ts",
+      "packages/authorization/src/permission-catalog.ts",
+      "packages/authorization/src/policies.ts",
+      "packages/authorization/src/rebac-assurance.test.ts",
+      "packages/authorization/src/relationships.ts",
+      "packages/authorization/src/role-templates.ts",
+      "packages/authorization/src/service.test.ts",
+      "packages/authorization/src/service.ts",
+      "packages/authorization/src/support-session.test.ts",
+      "packages/authorization/src/support-session.ts",
+      "packages/configuration/package.json",
+      "packages/configuration/src/authority.test.ts",
+      "packages/configuration/src/authority.ts",
+      "packages/configuration/src/configuration.test.ts",
+      "packages/configuration/src/definition.ts",
+      "packages/configuration/src/domains.test.ts",
+      "packages/configuration/src/domains.ts",
+      "packages/configuration/src/exceptions.test.ts",
+      "packages/configuration/src/exceptions.ts",
+      "packages/configuration/src/expression.test.ts",
+      "packages/configuration/src/expression.ts",
+      "packages/configuration/src/index.ts",
+      "packages/configuration/src/integrity.test.ts",
+      "packages/configuration/src/integrity.ts",
+      "packages/configuration/src/layer-bridge.test.ts",
+      "packages/configuration/src/layer-bridge.ts",
+      "packages/configuration/src/layer-schema.test.ts",
+      "packages/configuration/src/layer-schema.ts",
+      "packages/configuration/src/merge.ts",
+      "packages/configuration/src/publication.test.ts",
+      "packages/configuration/src/publication.ts",
+      "packages/configuration/src/rejections.test.ts",
+      "packages/configuration/src/rejections.ts",
+      "packages/configuration/src/resolve.ts",
+      "packages/configuration/src/scopes.ts",
+      "packages/configuration/src/store.test.ts",
+      "packages/configuration/src/store.ts",
+      "packages/configuration/src/version.ts",
+      "packages/contracts/package.json",
+      "packages/contracts/src/contracts.test.ts",
+      "packages/contracts/src/index.ts",
+      "packages/finops/package.json",
+      "packages/finops/src/allocation.ts",
+      "packages/finops/src/finops.test.ts",
+      "packages/finops/src/index.ts",
+      "packages/finops/src/money.ts",
+      "packages/finops/src/pricing.test.ts",
+      "packages/finops/src/pricing.ts",
+      "packages/finops/src/receipt-allocation.test.ts",
+      "packages/finops/src/reporting.ts",
+      "packages/finops/src/settlement-components.ts",
+      "packages/finops/src/settlement.test.ts",
+      "packages/finops/src/settlement.ts",
+      "packages/finops/src/split.ts",
+      "packages/identity/package.json",
+      "packages/identity/src/access-state.test.ts",
+      "packages/identity/src/access-token.test.ts",
+      "packages/identity/src/assurance.test.ts",
+      "packages/identity/src/assurance.ts",
+      "packages/identity/src/auth-errors.test.ts",
+      "packages/identity/src/auth-errors.ts",
+      "packages/identity/src/authorization-request.test.ts",
+      "packages/identity/src/authorization-request.ts",
+      "packages/identity/src/claims-input.test.ts",
+      "packages/identity/src/claims-input.ts",
+      "packages/identity/src/code-exchange.test.ts",
+      "packages/identity/src/code-exchange.ts",
+      "packages/identity/src/connection-lifecycle.test.ts",
+      "packages/identity/src/connection-lifecycle.ts",
+      "packages/identity/src/discovery.test.ts",
+      "packages/identity/src/discovery.ts",
+      "packages/identity/src/domain-verification.test.ts",
+      "packages/identity/src/domain-verification.ts",
+      "packages/identity/src/effective-state.ts",
+      "packages/identity/src/enrolment.test.ts",
+      "packages/identity/src/enrolment.ts",
+      "packages/identity/src/entities.ts",
+      "packages/identity/src/federation-e2e.test.ts",
+      "packages/identity/src/handoff.test.ts",
+      "packages/identity/src/handoff.ts",
+      "packages/identity/src/identity.test.ts",
+      "packages/identity/src/index.ts",
+      "packages/identity/src/invalidation.test.ts",
+      "packages/identity/src/invalidation.ts",
+      "packages/identity/src/keying.test.ts",
+      "packages/identity/src/keying.ts",
+      "packages/identity/src/linking.test.ts",
+      "packages/identity/src/linking.ts",
+      "packages/identity/src/logout.test.ts",
+      "packages/identity/src/logout.ts",
+      "packages/identity/src/oidc-connection.test.ts",
+      "packages/identity/src/oidc-connection.ts",
+      "packages/identity/src/provider.test.ts",
+      "packages/identity/src/provider.ts",
+      "packages/identity/src/request-origin.test.ts",
+      "packages/identity/src/request-origin.ts",
+      "packages/identity/src/saml-assertion.test.ts",
+      "packages/identity/src/saml-assertion.ts",
+      "packages/identity/src/scim.test.ts",
+      "packages/identity/src/scim.ts",
+      "packages/identity/src/seats.test.ts",
+      "packages/identity/src/seats.ts",
+      "packages/identity/src/session.test.ts",
+      "packages/identity/src/session.ts",
+      "packages/identity/src/tenant-switch.test.ts",
+      "packages/identity/src/tenant-switch.ts",
+      "packages/identity/src/token-parsing.test.ts",
+      "packages/identity/src/token-parsing.ts",
+      "packages/identity/src/token-validation.test.ts",
+      "packages/identity/src/token-validation.ts",
+      "packages/identity/src/transitions.ts",
+      "packages/metadata/package.json",
+      "packages/metadata/src/field.ts",
+      "packages/metadata/src/form.ts",
+      "packages/metadata/src/index.ts",
+      "packages/metadata/src/metadata.test.ts",
+      "packages/module-runtime/package.json",
+      "packages/module-runtime/src/coexistence.ts",
+      "packages/module-runtime/src/index.ts",
+      "packages/module-runtime/src/manifest.ts",
+      "packages/module-runtime/src/module-runtime.test.ts",
+      "packages/module-runtime/src/module-tools-and-chains.test.ts",
+      "packages/module-runtime/src/resolve.ts",
+      "packages/module-runtime/src/slo.ts",
+      "packages/organization-model/package.json",
+      "packages/organization-model/src/assignment-states.test.ts",
+      "packages/organization-model/src/assignment-states.ts",
+      "packages/organization-model/src/bitemporal.test.ts",
+      "packages/organization-model/src/bitemporal.ts",
+      "packages/organization-model/src/continuity.test.ts",
+      "packages/organization-model/src/continuity.ts",
+      "packages/organization-model/src/graph.ts",
+      "packages/organization-model/src/index.ts",
+      "packages/organization-model/src/organization-model.test.ts",
+      "packages/organization-model/src/position-lifecycle.test.ts",
+      "packages/organization-model/src/position-lifecycle.ts",
+      "packages/organization-model/src/succession-release.test.ts",
+      "packages/organization-model/src/succession-release.ts",
+      "packages/organization-model/src/topology.ts",
+      "packages/payments/package.json",
+      "packages/payments/src/api-version.test.ts",
+      "packages/payments/src/api-version.ts",
+      "packages/payments/src/balance-transactions.test.ts",
+      "packages/payments/src/balance-transactions.ts",
+      "packages/payments/src/capability-registry.test.ts",
+      "packages/payments/src/capability-registry.ts",
+      "packages/payments/src/charge-model.test.ts",
+      "packages/payments/src/charge-model.ts",
+      "packages/payments/src/eligibility.test.ts",
+      "packages/payments/src/eligibility.ts",
+      "packages/payments/src/external-reference.test.ts",
+      "packages/payments/src/external-reference.ts",
+      "packages/payments/src/funds-flow.test.ts",
+      "packages/payments/src/funds-flow.ts",
+      "packages/payments/src/gateway.ts",
+      "packages/payments/src/index.ts",
+      "packages/payments/src/liability.test.ts",
+      "packages/payments/src/liability.ts",
+      "packages/payments/src/posting.test.ts",
+      "packages/payments/src/posting.ts",
+      "packages/payments/src/refusal.test.ts",
+      "packages/payments/src/refusal.ts",
+      "packages/payments/src/responsibility.test.ts",
+      "packages/payments/src/responsibility.ts",
+      "packages/payments/src/webhook.test.ts",
+      "packages/payments/src/webhook.ts",
+      "packages/platform-config/package.json",
+      "packages/platform-config/src/branding.test.ts",
+      "packages/platform-config/src/branding.ts",
+      "packages/platform-config/src/build-system.ts",
+      "packages/platform-config/src/business-calendar.test.ts",
+      "packages/platform-config/src/business-calendar.ts",
+      "packages/platform-config/src/compatibility.test.ts",
+      "packages/platform-config/src/compatibility.ts",
+      "packages/platform-config/src/definitions.ts",
+      "packages/platform-config/src/direction.test.ts",
+      "packages/platform-config/src/direction.ts",
+      "packages/platform-config/src/experiments.test.ts",
+      "packages/platform-config/src/experiments.ts",
+      "packages/platform-config/src/exposure.test.ts",
+      "packages/platform-config/src/exposure.ts",
+      "packages/platform-config/src/flags.test.ts",
+      "packages/platform-config/src/flags.ts",
+      "packages/platform-config/src/index.ts",
+      "packages/platform-config/src/localization.test.ts",
+      "packages/platform-config/src/localization.ts",
+      "packages/platform-config/src/model-entry.ts",
+      "packages/platform-config/src/model-policy.ts",
+      "packages/platform-config/src/module-permissions.test.ts",
+      "packages/platform-config/src/modules.test.ts",
+      "packages/platform-config/src/modules.ts",
+      "packages/platform-config/src/money.ts",
+      "packages/platform-config/src/provider-review.test.ts",
+      "packages/platform-config/src/provider-review.ts",
+      "packages/platform-config/src/resolve.test.ts",
+      "packages/platform-config/src/resolve.ts",
+      "packages/provisioning/package.json",
+      "packages/provisioning/src/adoption.test.ts",
+      "packages/provisioning/src/adoption.ts",
+      "packages/provisioning/src/catalogs.test.ts",
+      "packages/provisioning/src/catalogs.ts",
+      "packages/provisioning/src/cell-registry.test.ts",
+      "packages/provisioning/src/cell-registry.ts",
+      "packages/provisioning/src/change-class.ts",
+      "packages/provisioning/src/commercial.test.ts",
+      "packages/provisioning/src/commercial.ts",
+      "packages/provisioning/src/connector-capability.ts",
+      "packages/provisioning/src/deployment-signature.test.ts",
+      "packages/provisioning/src/execute.ts",
+      "packages/provisioning/src/identity-registry.test.ts",
+      "packages/provisioning/src/identity-registry.ts",
+      "packages/provisioning/src/index.ts",
+      "packages/provisioning/src/lifecycle.ts",
+      "packages/provisioning/src/manifest.ts",
+      "packages/provisioning/src/plan-catalog.ts",
+      "packages/provisioning/src/pool-strategy.test.ts",
+      "packages/provisioning/src/pool-strategy.ts",
+      "packages/provisioning/src/provider-packs.ts",
+      "packages/provisioning/src/provisioning.test.ts",
+      "packages/provisioning/src/residual-reconciliation.ts",
+      "packages/provisioning/src/resource-selector.test.ts",
+      "packages/provisioning/src/resource-selector.ts",
+      "packages/provisioning/src/resource-tags.ts",
+      "packages/provisioning/src/tenant-registry.test.ts",
+      "packages/provisioning/src/tenant-registry.ts",
+      "packages/provisioning/src/work-accelerators.ts",
+      "packages/releases/package.json",
+      "packages/releases/src/index.ts",
+      "packages/releases/src/release.ts",
+      "packages/releases/src/releases.test.ts",
+      "packages/releases/src/validate.ts",
+      "packages/workflow/package.json",
+      "packages/workflow/src/definition.ts",
+      "packages/workflow/src/engine.ts",
+      "packages/workflow/src/index.ts",
+      "packages/workflow/src/workflow.test.ts",
+      "pay5.json",
+      "tests/architecture/brand-mark-is-one-mark.test.mjs",
+      "tests/architecture/cache-does-not-cross-tenant-scopes.test.mjs",
+      "tests/architecture/certified-is-derived.test.mjs",
+      "tests/architecture/contracts-schemas-match-parsers.test.mjs",
+      "tests/architecture/document-graph.test.mjs",
+      "tests/architecture/experience-separation.test.mjs",
+      "tests/architecture/forbidden-clients.test.mjs",
+      "tests/architecture/guards-do-not-write-into-the-tree.test.mjs",
+      "tests/architecture/ledger-statuses.test.mjs",
+      "tests/architecture/live-membership.test.mjs",
+      "tests/architecture/lockfile-knows-every-workspace.test.mjs",
+      "tests/architecture/module-graph-callers-carry-provides.test.mjs",
+      "tests/architecture/module-objects.test.mjs",
+      "tests/architecture/module-resolution-declares-its-engine.test.mjs",
+      "tests/architecture/nav-hrefs-are-served.test.mjs",
+      "tests/architecture/navigation-outside-tenant-scope.test.mjs",
+      "tests/architecture/no-fixture-tenants-on-operator-surfaces.test.mjs",
+      "tests/architecture/no-overstated-connectors.test.mjs",
+      "tests/architecture/no-uncertified-provider-claims.test.mjs",
+      "tests/architecture/ownership.test.mjs",
+      "tests/architecture/pass-requires-evidence.test.mjs",
+      "tests/architecture/payments-port-is-the-only-door.test.mjs",
+      "tests/architecture/permission-catalog-is-tenant-blind.test.mjs",
+      "tests/architecture/prompt-matches-ledger.test.mjs",
+      "tests/architecture/provider-api-version-is-pinned.test.mjs",
+      "tests/architecture/provider-packs-bind-requirements.test.mjs",
+      "tests/architecture/redirect-lives-outside-tenant-scope.test.mjs",
+      "tests/architecture/resource-tags.test.mjs",
+      "tests/architecture/shell-separation.test.mjs",
+      "tests/architecture/status-assertions-are-exact.test.mjs",
+      "tests/architecture/ux-task-scorecard.test.mjs",
+      "tests/architecture/work-queue.test.mjs",
+      "tests/security/approval-steps-record-policy.test.mjs",
+      "tests/security/approver-is-looked-up.test.mjs",
+      "tests/security/audit-writes.test.mjs",
+      "tests/security/authority-comes-from-assignments.test.mjs",
+      "tests/security/authority-is-not-cached.test.mjs",
+      "tests/security/borrowed-authority-is-consulted.test.mjs",
+      "tests/security/cell-independence.test.mjs",
+      "tests/security/claims-are-not-authority.test.mjs",
+      "tests/security/duplicate-sources.test.mjs",
+      "tests/security/email-is-not-a-key.test.mjs",
+      "tests/security/entry-points.test.mjs",
+      "tests/security/enumeration-resistance.test.mjs",
+      "tests/security/every-path-authorizes.test.mjs",
+      "tests/security/financial-history-does-not-cascade.test.mjs",
+      "tests/security/handoff-invents-nothing.test.mjs",
+      "tests/security/key-report.test.mjs",
+      "tests/security/ledger-is-not-deleted.test.mjs",
+      "tests/security/no-binary-source.test.mjs",
+      "tests/security/no-hardcoded-estate.test.mjs",
+      "tests/security/no-host-derived-urls.test.mjs",
+      "tests/security/no-personal-data.test.mjs",
+      "tests/security/no-remote-build-fonts.test.mjs",
+      "tests/security/no-reusable-secrets-outside-the-vault.test.mjs",
+      "tests/security/no-tokens-in-browser-storage.test.mjs",
+      "tests/security/oidc-trust.test.mjs",
+      "tests/security/one-config-writer.test.mjs",
+      "tests/security/operator-boundary.test.mjs",
+      "tests/security/operator-plane-content.test.mjs",
+      "tests/security/production-workflows-disarmed.test.mjs",
+      "tests/security/provider-independence.test.mjs",
+      "tests/security/provider-secrets-go-through-the-broker.test.mjs",
+      "tests/security/repository-hygiene.test.mjs",
+      "tests/security/studio-auth-cognito.test.mjs",
+      "tests/security/studio-task-role-is-narrow.test.mjs",
+      "tests/security/workflow-drift.test.mjs",
+      "tools/aws-inventory.mjs",
+      "tools/contract-schemas.mjs",
+      "tools/create-registry-table.mjs",
+      "tools/dev/reset-registry-table.mjs",
+      "tools/dev/seed-studio-fleet.mjs",
+      "tools/dev/show-config-history.mjs",
+      "tools/dev/tamper-audit-row.mjs",
+      "tools/disarm-production-workflows.mjs",
+      "tools/document-graph.mjs",
+      "tools/duplicate-sources-doc.mjs",
+      "tools/entry-point-inventory.mjs",
+      "tools/import-requirements.mjs",
+      "tools/key-last-use.mjs",
+      "tools/key-summary.mjs",
+      "tools/loop/audit-incoming.mjs",
+      "tools/loop/aws-bridge-ground.mjs",
+      "tools/loop/aws-bridge-integrate.mjs",
+      "tools/loop/aws-bridge-services.mjs",
+      "tools/loop/aws-bridge-tabs.mjs",
+      "tools/loop/batch-gate.mjs",
+      "tools/loop/bible-watch.mjs",
+      "tools/loop/cluster-workflow.mjs",
+      "tools/loop/domain-workflow.mjs",
+      "tools/loop/harvested-queue.json",
+      "tools/loop/next-batch.mjs",
+      "tools/loop/plan-waves.mjs",
+      "tools/loop/queue-groups.json",
+      "tools/loop/queue-workflow.mjs",
+      "tools/loop/studio-program.mjs",
+      "tools/loop/surveyed-PAY-1.json",
+      "tools/loop/surveyed-PAY-2.json",
+      "tools/loop/surveyed-PAY-3.json",
+      "tools/loop/surveyed-PAY-4.json",
+      "tools/loop/surveyed-PAY-5.json",
+      "tools/loop/surveyed-PAY-6.json",
+      "tools/loop/surveyed-STUDIO-1.json",
+      "tools/loop/surveyed-STUDIO-2.json",
+      "tools/loop/surveyed-STUDIO-3.json",
+      "tools/loop/surveyed-STUDIO-4.json",
+      "tools/loop/surveyed-STUDIO-5.json",
+      "tools/loop/surveyed-STUDIO-6.json",
+      "tools/loop/surveyed-TTES-1.json",
+      "tools/loop/surveyed-TTES-2.json",
+      "tools/loop/surveyed-TTES-3.json",
+      "tools/loop/surveyed-TTES-4.json",
+      "tools/loop/surveyed-TTES-5.json",
+      "tools/loop/surveyed-TTES-6.json",
+      "tools/loop/surveyed-WRK-1.json",
+      "tools/loop/surveyed-WRK-2.json",
+      "tools/loop/surveyed-WRK-3.json",
+      "tools/loop/surveyed-WRK-4.json",
+      "tools/loop/surveyed-WRK-5.json",
+      "tools/loop/surveyed-WRK-6.json",
+      "tools/loop/wave-0.json",
+      "tools/loop/wave-1.json",
+      "tools/loop/wave-2.json",
+      "tools/loop/wave-3.json",
+      "tools/loop/wave-4.json",
+      "tools/loop/wave-items.json",
+      "tools/loop/wave-plan.json",
+      "tools/ownership-map.mjs",
+      "tools/platform-truth.mjs",
+      "tools/reconcile-execution-checkboxes.mjs",
+      "tools/repository-map.mjs",
+      "tools/run-platform-tests.mjs",
+      "tools/simon-sso-handoff.mjs",
+      "tools/verify-environments.mjs",
+      "tools/verify-workflow-permissions.mjs"
+    ],
+    "workspaces": [
+      {
+        "manifest": "apps/system-studio/package.json",
+        "directory": "apps/system-studio",
+        "name": "@tenure/system-studio",
+        "private": true,
+        "scripts": [
+          "build",
+          "dev",
+          "e2e",
+          "lint",
+          "start",
+          "type-check"
+        ],
+        "depends_on_workspaces": [
+          "@tenure/audit",
+          "@tenure/contracts",
+          "@tenure/finops",
+          "@tenure/provisioning"
+        ],
+        "external_dependencies": 49,
+        "declared_dependencies": [
+          "@aws-sdk/client-accessanalyzer",
+          "@aws-sdk/client-acm",
+          "@aws-sdk/client-backup",
+          "@aws-sdk/client-budgets",
+          "@aws-sdk/client-cloudfront",
+          "@aws-sdk/client-cloudtrail",
+          "@aws-sdk/client-cloudwatch",
+          "@aws-sdk/client-cloudwatch-logs",
+          "@aws-sdk/client-cognito-identity-provider",
+          "@aws-sdk/client-config-service",
+          "@aws-sdk/client-cost-and-usage-report-service",
+          "@aws-sdk/client-cost-explorer",
+          "@aws-sdk/client-dynamodb",
+          "@aws-sdk/client-ec2",
+          "@aws-sdk/client-ecr",
+          "@aws-sdk/client-ecs",
+          "@aws-sdk/client-elastic-load-balancing-v2",
+          "@aws-sdk/client-elasticache",
+          "@aws-sdk/client-eventbridge",
+          "@aws-sdk/client-guardduty",
+          "@aws-sdk/client-health",
+          "@aws-sdk/client-iam",
+          "@aws-sdk/client-kms",
+          "@aws-sdk/client-lambda",
+          "@aws-sdk/client-organizations",
+          "@aws-sdk/client-pricing",
+          "@aws-sdk/client-rds",
+          "@aws-sdk/client-resource-groups-tagging-api",
+          "@aws-sdk/client-route-53",
+          "@aws-sdk/client-s3",
+          "@aws-sdk/client-secrets-manager",
+          "@aws-sdk/client-securityhub",
+          "@aws-sdk/client-service-quotas",
+          "@aws-sdk/client-sesv2",
+          "@aws-sdk/client-sqs",
+          "@aws-sdk/client-ssm",
+          "@aws-sdk/client-sts",
+          "@aws-sdk/client-wafv2",
+          "@aws-sdk/lib-dynamodb",
+          "@playwright/test",
+          "@tenure/audit",
+          "@tenure/contracts",
+          "@tenure/finops",
+          "@tenure/provisioning",
+          "@types/node",
+          "@types/react",
+          "@types/react-dom",
+          "next",
+          "next-auth",
+          "react",
+          "react-dom",
+          "server-only",
+          "typescript"
+        ]
+      },
+      {
+        "manifest": "apps/web/package.json",
+        "directory": "apps/web",
+        "name": "tenure",
+        "private": true,
+        "scripts": [
+          "build",
+          "dev",
+          "e2e",
+          "lint",
+          "postinstall",
+          "start",
+          "test",
+          "test:isolation",
+          "type-check"
+        ],
+        "depends_on_workspaces": [
+          "@tenure/contracts"
+        ],
+        "external_dependencies": 30,
+        "declared_dependencies": [
+          "@auth/prisma-adapter",
+          "@aws-sdk/client-s3",
+          "@aws-sdk/s3-request-presigner",
+          "@phosphor-icons/react",
+          "@playwright/test",
+          "@prisma/client",
+          "@tenure/contracts",
+          "@types/jest",
+          "@types/node",
+          "@types/react",
+          "@types/react-dom",
+          "autoprefixer",
+          "class-variance-authority",
+          "eslint",
+          "eslint-config-next",
+          "jest",
+          "jest-environment-jsdom",
+          "jszip",
+          "lucide-react",
+          "mammoth",
+          "next",
+          "next-auth",
+          "postcss",
+          "prisma",
+          "react",
+          "react-aria-components",
+          "react-dom",
+          "tailwindcss",
+          "typescript",
+          "xlsx",
+          "zod"
+        ]
+      },
+      {
+        "manifest": "blueprints/package.json",
+        "directory": "blueprints",
+        "name": "@tenure/blueprints",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "modules/package.json",
+        "directory": "modules",
+        "name": "@tenure/modules",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "package.json",
+        "directory": ".",
+        "name": "tenure-parent",
+        "private": true,
+        "scripts": [
+          "build",
+          "db:migrate",
+          "db:seed",
+          "dev",
+          "e2e",
+          "generate",
+          "lint",
+          "loop:gate",
+          "loop:next",
+          "start",
+          "studio:build",
+          "studio:dev",
+          "studio:type-check",
+          "test",
+          "test:isolation",
+          "test:platform",
+          "type-check",
+          "verify"
+        ],
+        "depends_on_workspaces": [],
+        "external_dependencies": 1,
+        "declared_dependencies": [
+          "yaml"
+        ]
+      },
+      {
+        "manifest": "packages/audit/package.json",
+        "directory": "packages/audit",
+        "name": "@tenure/audit",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/authorization/package.json",
+        "directory": "packages/authorization",
+        "name": "@tenure/authorization",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/configuration/package.json",
+        "directory": "packages/configuration",
+        "name": "@tenure/configuration",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [
+          "@tenure/audit",
+          "@tenure/finops"
+        ],
+        "external_dependencies": 1,
+        "declared_dependencies": [
+          "@tenure/audit",
+          "@tenure/finops",
+          "zod"
+        ]
+      },
+      {
+        "manifest": "packages/contracts/package.json",
+        "directory": "packages/contracts",
+        "name": "@tenure/contracts",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/finops/package.json",
+        "directory": "packages/finops",
+        "name": "@tenure/finops",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/identity/package.json",
+        "directory": "packages/identity",
+        "name": "@tenure/identity",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/metadata/package.json",
+        "directory": "packages/metadata",
+        "name": "@tenure/metadata",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/module-runtime/package.json",
+        "directory": "packages/module-runtime",
+        "name": "@tenure/module-runtime",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/organization-model/package.json",
+        "directory": "packages/organization-model",
+        "name": "@tenure/organization-model",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/payments/package.json",
+        "directory": "packages/payments",
+        "name": "@tenure/payments",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/platform-config/package.json",
+        "directory": "packages/platform-config",
+        "name": "@tenure/platform-config",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/provisioning/package.json",
+        "directory": "packages/provisioning",
+        "name": "@tenure/provisioning",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [
+          "@tenure/platform-config"
+        ],
+        "external_dependencies": 0,
+        "declared_dependencies": [
+          "@tenure/platform-config"
+        ]
+      },
+      {
+        "manifest": "packages/releases/package.json",
+        "directory": "packages/releases",
+        "name": "@tenure/releases",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
+        "manifest": "packages/workflow/package.json",
+        "directory": "packages/workflow",
+        "name": "@tenure/workflow",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      }
+    ],
+    "areas": [
+      {
+        "area": "(repository root)",
+        "files": 37
+      },
+      {
+        "area": ".github/workflows",
+        "files": 17
+      },
+      {
+        "area": "Tier1",
+        "files": 13
+      },
+      {
+        "area": "Tier1/extracted",
+        "files": 11
+      },
+      {
+        "area": "apps/system-studio",
+        "files": 268
+      },
+      {
+        "area": "apps/web",
+        "files": 492
+      },
+      {
+        "area": "blueprints",
+        "files": 5
+      },
+      {
+        "area": "blueprints/corporate-divisions",
+        "files": 1
+      },
+      {
+        "area": "blueprints/nonprofit-program-operations",
+        "files": 1
+      },
+      {
+        "area": "blueprints/university-student-organizations",
+        "files": 1
+      },
+      {
+        "area": "docs",
+        "files": 2
+      },
+      {
+        "area": "docs/architecture",
+        "files": 20
+      },
+      {
+        "area": "docs/contracts",
+        "files": 7
+      },
+      {
+        "area": "docs/decisions",
+        "files": 12
+      },
+      {
+        "area": "docs/handoff",
+        "files": 1
+      },
+      {
+        "area": "docs/implementation",
+        "files": 23
+      },
+      {
+        "area": "docs/migrations",
+        "files": 4
+      },
+      {
+        "area": "docs/runbooks",
+        "files": 1
+      },
+      {
+        "area": "infrastructure/oidc",
+        "files": 5
+      },
+      {
+        "area": "infrastructure/studio",
+        "files": 11
+      },
+      {
+        "area": "infrastructure/terraform",
+        "files": 20
+      },
+      {
+        "area": "modules",
+        "files": 2
+      },
+      {
+        "area": "packages",
+        "files": 1
+      },
+      {
+        "area": "packages/audit",
+        "files": 7
+      },
+      {
+        "area": "packages/authorization",
+        "files": 20
+      },
+      {
+        "area": "packages/configuration",
+        "files": 28
+      },
+      {
+        "area": "packages/contracts",
+        "files": 3
+      },
+      {
+        "area": "packages/finops",
+        "files": 13
+      },
+      {
+        "area": "packages/identity",
+        "files": 57
+      },
+      {
+        "area": "packages/metadata",
+        "files": 5
+      },
+      {
+        "area": "packages/module-runtime",
+        "files": 8
+      },
+      {
+        "area": "packages/organization-model",
+        "files": 15
+      },
+      {
+        "area": "packages/payments",
+        "files": 27
+      },
+      {
+        "area": "packages/platform-config",
+        "files": 30
+      },
+      {
+        "area": "packages/provisioning",
+        "files": 30
+      },
+      {
+        "area": "packages/releases",
+        "files": 5
+      },
+      {
+        "area": "packages/workflow",
+        "files": 5
+      },
+      {
+        "area": "tests/architecture",
+        "files": 32
+      },
+      {
+        "area": "tests/security",
+        "files": 35
+      },
+      {
+        "area": "tools",
+        "files": 18
+      },
+      {
+        "area": "tools/dev",
+        "files": 4
+      },
+      {
+        "area": "tools/loop",
+        "files": 46
+      }
+    ],
+    "import_graph": {
+      "code_files": 1068,
+      "builtin_imports": 509,
+      "unresolved_relative_specifiers": 1,
+      "unresolved_alias_specifiers": 7,
+      "internal_edges": [
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "apps/system-studio/src/generated",
+          "imports": 1
+        },
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "apps/system-studio/src/lib",
+          "imports": 27
+        },
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "apps/web/src/lib",
+          "imports": 2
+        },
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "modules",
+          "imports": 1
+        },
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "packages/configuration/src",
+          "imports": 4
+        },
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "packages/contracts/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "packages/finops/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "packages/platform-config/src",
+          "imports": 3
+        },
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "packages/provisioning/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "apps/system-studio/src/components",
+          "imports": 34
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "apps/system-studio/src/generated",
+          "imports": 1
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "apps/system-studio/src/lib",
+          "imports": 156
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "blueprints",
+          "imports": 7
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "modules",
+          "imports": 7
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "packages/audit/src",
+          "imports": 3
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "packages/configuration/src",
+          "imports": 4
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "packages/finops/src",
+          "imports": 7
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "packages/module-runtime/src",
+          "imports": 5
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "packages/organization-model/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "packages/platform-config/src",
+          "imports": 8
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "to": "packages/provisioning/src",
+          "imports": 6
+        },
+        {
+          "from": "apps/system-studio/src/components",
+          "to": "apps/system-studio/src/lib",
+          "imports": 4
+        },
+        {
+          "from": "apps/system-studio/src/components",
+          "to": "packages/provisioning/src",
+          "imports": 3
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "apps/system-studio/src/app",
+          "imports": 2
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "apps/system-studio/src/components",
+          "imports": 5
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "blueprints",
+          "imports": 1
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "modules",
+          "imports": 2
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "packages/audit/src",
+          "imports": 2
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "packages/configuration/src",
+          "imports": 5
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "packages/contracts/src",
+          "imports": 2
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "packages/finops/src",
+          "imports": 4
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "packages/module-runtime/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "packages/organization-model/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "packages/platform-config/src",
+          "imports": 3
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "to": "packages/provisioning/src",
+          "imports": 29
+        },
+        {
+          "from": "apps/web/e2e",
+          "to": "apps/web/e2e/support",
+          "imports": 39
+        },
+        {
+          "from": "apps/web/e2e",
+          "to": "apps/web/src/components",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/scripts",
+          "to": "apps/web/src/lib",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src",
+          "to": "apps/web/src/lib",
+          "imports": 2
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "apps/web",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "apps/web/src/components",
+          "imports": 199
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "apps/web/src/lib",
+          "imports": 408
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "modules",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "packages/authorization/src",
+          "imports": 4
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "packages/configuration/src",
+          "imports": 4
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "packages/contracts/src",
+          "imports": 6
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "packages/finops/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "packages/identity/src",
+          "imports": 2
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "packages/module-runtime/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "packages/payments/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/app",
+          "to": "packages/platform-config/src",
+          "imports": 23
+        },
+        {
+          "from": "apps/web/src/components",
+          "to": "apps/web/src/app",
+          "imports": 7
+        },
+        {
+          "from": "apps/web/src/components",
+          "to": "apps/web/src/lib",
+          "imports": 15
+        },
+        {
+          "from": "apps/web/src/components",
+          "to": "packages/platform-config/src",
+          "imports": 5
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "apps/web",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "apps/web/scripts",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "apps/web/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "apps/web/src/app",
+          "imports": 7
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "apps/web/src/components",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "blueprints",
+          "imports": 4
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "modules",
+          "imports": 4
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/audit/src",
+          "imports": 5
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/authorization/src",
+          "imports": 12
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/configuration/src",
+          "imports": 3
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/contracts/src",
+          "imports": 14
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/finops/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/identity/src",
+          "imports": 5
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/metadata/src",
+          "imports": 2
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/organization-model/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/platform-config/src",
+          "imports": 20
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/provisioning/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/releases/src",
+          "imports": 1
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/workflow/src",
+          "imports": 1
+        },
+        {
+          "from": "blueprints",
+          "to": "blueprints/corporate-divisions",
+          "imports": 1
+        },
+        {
+          "from": "blueprints",
+          "to": "blueprints/nonprofit-program-operations",
+          "imports": 1
+        },
+        {
+          "from": "blueprints",
+          "to": "blueprints/university-student-organizations",
+          "imports": 1
+        },
+        {
+          "from": "blueprints/corporate-divisions",
+          "to": "blueprints",
+          "imports": 1
+        },
+        {
+          "from": "blueprints/nonprofit-program-operations",
+          "to": "blueprints",
+          "imports": 1
+        },
+        {
+          "from": "blueprints/university-student-organizations",
+          "to": "blueprints",
+          "imports": 1
+        },
+        {
+          "from": "tests/architecture",
+          "to": "tools",
+          "imports": 8
+        },
+        {
+          "from": "tests/architecture",
+          "to": "tools/loop",
+          "imports": 1
+        },
+        {
+          "from": "tests/security",
+          "to": "tools",
+          "imports": 9
+        },
+        {
+          "from": "tools",
+          "to": "apps/web/src/lib",
+          "imports": 1
+        },
+        {
+          "from": "tools",
+          "to": "tools/loop",
+          "imports": 1
+        },
+        {
+          "from": "tools/loop",
+          "to": "tools",
+          "imports": 1
+        }
+      ],
+      "external_edges": [
+        {
+          "from": "apps/system-studio",
+          "package": "@playwright/test",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio",
+          "package": "next",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/e2e",
+          "package": "@playwright/test",
+          "imports": 37,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "package": "next",
+          "imports": 22,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "package": "next-auth",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "package": "react",
+          "imports": 13,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "package": "react-dom",
+          "imports": 5,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/app",
+          "package": "server-only",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/components",
+          "package": "next",
+          "imports": 5,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/components",
+          "package": "react",
+          "imports": 20,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/components",
+          "package": "react-dom",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@aws-sdk/client-acm",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@aws-sdk/client-backup",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@aws-sdk/client-budgets",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@aws-sdk/client-cost-explorer",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@aws-sdk/client-dynamodb",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@aws-sdk/client-pricing",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@aws-sdk/client-securityhub",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@aws-sdk/client-ssm",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@aws-sdk/client-sts",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@aws-sdk/lib-dynamodb",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "next-auth",
+          "imports": 3,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "react-dom",
+          "imports": 3,
+          "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "server-only",
+          "imports": 13,
+          "declared": true
+        },
+        {
+          "from": "apps/web",
+          "package": "@eslint/eslintrc",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "apps/web",
+          "package": "@playwright/test",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web",
+          "package": "jest",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web",
+          "package": "next",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web",
+          "package": "tailwindcss",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/e2e",
+          "package": "@playwright/test",
+          "imports": 38,
+          "declared": true
+        },
+        {
+          "from": "apps/web/e2e",
+          "package": "xlsx",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/e2e/support",
+          "package": "@playwright/test",
+          "imports": 3,
+          "declared": true
+        },
+        {
+          "from": "apps/web/scripts",
+          "package": "@prisma/client",
+          "imports": 5,
+          "declared": true
+        },
+        {
+          "from": "apps/web/scripts",
+          "package": "xlsx",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src",
+          "package": "next",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "@prisma/client",
+          "imports": 10,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "jszip",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "mammoth",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "next",
+          "imports": 115,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "react",
+          "imports": 4,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "react-dom",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "xlsx",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "zod",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "@jest/globals",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "@phosphor-icons/react",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "@prisma/client",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "class-variance-authority",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "next",
+          "imports": 28,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "react",
+          "imports": 54,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "react-aria-components",
+          "imports": 4,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "react-dom",
+          "imports": 8,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/components",
+          "package": "xlsx",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "@auth/prisma-adapter",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "@aws-sdk/client-s3",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "@aws-sdk/s3-request-presigner",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "@jest/globals",
+          "imports": 14,
+          "declared": false
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "@prisma/client",
+          "imports": 34,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "next",
+          "imports": 6,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "next-auth",
+          "imports": 6,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "react",
+          "imports": 5,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "server-only",
+          "imports": 18,
+          "declared": false
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "tailwindcss",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
+          "package": "zod",
+          "imports": 2,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/types",
+          "package": "next-auth",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "blueprints",
+          "package": "@tenure/module-runtime",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "blueprints",
+          "package": "@tenure/organization-model",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "modules",
+          "package": "@tenure/contracts",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "modules",
+          "package": "@tenure/finops",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/audit/src",
+          "package": "@tenure/configuration",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/authorization/src",
+          "package": "@tenure/blueprints",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/configuration/src",
+          "package": "@tenure/audit",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "packages/configuration/src",
+          "package": "@tenure/contracts",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/configuration/src",
+          "package": "@tenure/finops",
+          "imports": 5,
+          "declared": true
+        },
+        {
+          "from": "packages/configuration/src",
+          "package": "@tenure/modules",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/configuration/src",
+          "package": "zod",
+          "imports": 9,
+          "declared": true
+        },
+        {
+          "from": "packages/contracts/src",
+          "package": "@jest/globals",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/module-runtime/src",
+          "package": "@jest/globals",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/module-runtime/src",
+          "package": "@tenure/authorization",
+          "imports": 2,
+          "declared": false
+        },
+        {
+          "from": "packages/module-runtime/src",
+          "package": "@tenure/contracts",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/module-runtime/src",
+          "package": "@tenure/finops",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/module-runtime/src",
+          "package": "@tenure/platform-config",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/organization-model/src",
+          "package": "@tenure/blueprints",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/payments/src",
+          "package": "@tenure/platform-config",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/platform-config/src",
+          "package": "@tenure/authorization",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/platform-config/src",
+          "package": "@tenure/blueprints",
+          "imports": 3,
+          "declared": false
+        },
+        {
+          "from": "packages/platform-config/src",
+          "package": "@tenure/configuration",
+          "imports": 9,
+          "declared": false
+        },
+        {
+          "from": "packages/platform-config/src",
+          "package": "@tenure/module-runtime",
+          "imports": 2,
+          "declared": false
+        },
+        {
+          "from": "packages/platform-config/src",
+          "package": "@tenure/modules",
+          "imports": 4,
+          "declared": false
+        },
+        {
+          "from": "packages/platform-config/src",
+          "package": "@tenure/organization-model",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/platform-config/src",
+          "package": "@tenure/payments",
+          "imports": 2,
+          "declared": false
+        },
+        {
+          "from": "packages/platform-config/src",
+          "package": "zod",
+          "imports": 4,
+          "declared": false
+        },
+        {
+          "from": "packages/provisioning/src",
+          "package": "@jest/globals",
+          "imports": 2,
+          "declared": false
+        },
+        {
+          "from": "packages/provisioning/src",
+          "package": "@tenure/identity",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/releases/src",
+          "package": "@tenure/configuration",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/releases/src",
+          "package": "@tenure/contracts",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "tests/architecture",
+          "package": "@tenure/blueprints",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "tests/architecture",
+          "package": "typescript",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "tests/architecture",
+          "package": "x",
+          "imports": 3,
+          "declared": false
+        },
+        {
+          "from": "tests/architecture",
+          "package": "z",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "tests/security",
+          "package": "yaml",
+          "imports": 1,
+          "declared": true
+        },
+        {
+          "from": "tools/dev",
+          "package": "@aws-sdk/client-dynamodb",
+          "imports": 3,
+          "declared": false
+        },
+        {
+          "from": "tools/dev",
+          "package": "@aws-sdk/lib-dynamodb",
+          "imports": 4,
+          "declared": false
+        }
+      ]
+    },
+    "workflows": [
+      {
+        "file": ".github/workflows/aws-inventory.yml",
+        "name": "AWS · Read-only inventory",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/bootstrap-oidc.yml",
+        "name": "AWS · Bootstrap OIDC (one-time)",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": true,
+        "repository_guards": [
+          "Tenurework/Tenure-Parent"
+        ]
+      },
+      {
+        "file": ".github/workflows/ci.yml",
+        "name": "CI",
+        "triggers": [
+          "pull_request",
+          "push",
+          "workflow_call"
+        ],
+        "reaches_aws": false,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/custom-domain.yml",
+        "name": "Custom Domain Status",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": [
+          "Tenurework/Tenure"
+        ]
+      },
+      {
+        "file": ".github/workflows/db-recovery.yml",
+        "name": "Database recovery and census",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": [
+          "Tenurework/Tenure"
+        ]
+      },
+      {
+        "file": ".github/workflows/debug-logs.yml",
+        "name": "Debug Logs",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": [
+          "Tenurework/Tenure-Parent"
+        ]
+      },
+      {
+        "file": ".github/workflows/deploy-studio.yml",
+        "name": "Deploy Studio",
+        "triggers": [
+          "push",
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": true,
+        "repository_guards": [
+          "Tenurework/Tenure-Parent"
+        ]
+      },
+      {
+        "file": ".github/workflows/deploy.yml",
+        "name": "Deploy",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": true,
+        "repository_guards": [
+          "Tenurework/Tenure"
+        ]
+      },
+      {
+        "file": ".github/workflows/force-redeploy.yml",
+        "name": "Force Redeploy",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": true,
+        "repository_guards": [
+          "Tenurework/Tenure"
+        ]
+      },
+      {
+        "file": ".github/workflows/ops-status.yml",
+        "name": "Ops Status",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": [
+          "Tenurework/Tenure"
+        ]
+      },
+      {
+        "file": ".github/workflows/platform-plan.yml",
+        "name": "Platform · Terraform plan (read-only)",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
+        "file": ".github/workflows/probe-debug.yml",
+        "name": "Probe Debug",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": false,
+        "is_deployment": false,
+        "repository_guards": [
+          "Tenurework/Tenure"
+        ]
+      },
+      {
+        "file": ".github/workflows/replace-acm-cert.yml",
+        "name": "Replace ACM Certificate",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": true,
+        "repository_guards": [
+          "Tenurework/Tenure"
+        ]
+      },
+      {
+        "file": ".github/workflows/rotate-auth-secret.yml",
+        "name": "Rotate Auth Secret",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": true,
+        "repository_guards": [
+          "Tenurework/Tenure"
+        ]
+      },
+      {
+        "file": ".github/workflows/seed-reference-data.yml",
+        "name": "Seed reference data",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": [
+          "Tenurework/Tenure"
+        ]
+      },
+      {
+        "file": ".github/workflows/verify-reminders.yml",
+        "name": "Verify Reminders",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": true,
+        "is_deployment": false,
+        "repository_guards": [
+          "Tenurework/Tenure"
+        ]
+      },
+      {
+        "file": ".github/workflows/visual-baselines-refresh.yml",
+        "name": "Visual baselines · refresh",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": false,
+        "is_deployment": false,
+        "repository_guards": []
+      }
+    ],
+    "stack": [
+      {
+        "capability": "Frontend framework",
+        "matches": 2,
+        "evidence": [
+          "apps/system-studio/next.config.ts",
+          "apps/web/next.config.ts"
+        ],
+        "pattern": "/^(apps\\/[^/]+\\/)?next\\.config\\.(ts|mjs|js)$/"
+      },
+      {
+        "capability": "Frontend routes (pages)",
+        "matches": 52,
+        "evidence": [
+          "apps/system-studio/src/app/page.tsx",
+          "apps/system-studio/src/app/platform/audit/page.tsx",
+          "apps/system-studio/src/app/platform/cost/page.tsx",
+          "apps/system-studio/src/app/platform/estate/page.tsx",
+          "apps/system-studio/src/app/platform/health/page.tsx",
+          "apps/system-studio/src/app/platform/page.tsx"
+        ],
+        "pattern": "/\\/src\\/app\\/.*\\/page\\.tsx$|\\/src\\/app\\/page\\.tsx$/"
+      },
+      {
+        "capability": "Frontend layouts",
+        "matches": 4,
+        "evidence": [
+          "apps/system-studio/src/app/layout.tsx",
+          "apps/web/src/app/(app)/admin/layout.tsx",
+          "apps/web/src/app/(app)/layout.tsx",
+          "apps/web/src/app/layout.tsx"
+        ],
+        "pattern": "/\\/src\\/app\\/.*layout\\.tsx$/"
+      },
+      {
+        "capability": "Frontend components",
+        "matches": 119,
+        "evidence": [
+          "apps/system-studio/src/components/CommandPalette.tsx",
+          "apps/system-studio/src/components/DeploymentPanel.tsx",
+          "apps/system-studio/src/components/EvidencePanel.tsx",
+          "apps/system-studio/src/components/Launcher.tsx",
+          "apps/system-studio/src/components/Nav.tsx",
+          "apps/system-studio/src/components/OfflineBanner.tsx"
+        ],
+        "pattern": "/\\/src\\/components\\/.*\\.tsx$/"
+      },
+      {
+        "capability": "Styles",
+        "matches": 11,
+        "evidence": [
+          "apps/system-studio/src/app/globals.css",
+          "apps/system-studio/src/app/platform/audit/audit.module.css",
+          "apps/system-studio/src/app/platform/cost/cost.module.css",
+          "apps/system-studio/src/app/platform/estate/estate.module.css",
+          "apps/system-studio/src/app/platform/health/health.module.css",
+          "apps/system-studio/src/app/platform/platform.module.css"
+        ],
+        "pattern": "/\\.css$/"
+      },
+      {
+        "capability": "Design tokens / theme config",
+        "matches": 2,
+        "evidence": [
+          "apps/web/src/lib/a11y/tokens.ts",
+          "apps/web/tailwind.config.ts"
+        ],
+        "pattern": "/tailwind\\.config\\.(ts|js|mjs)$|\\/tokens?\\.(ts|css|json)$/"
+      },
+      {
+        "capability": "HTTP API handlers",
+        "matches": 28,
+        "evidence": [
+          "apps/system-studio/src/app/api/auth/[...nextauth]/route.ts",
+          "apps/system-studio/src/app/api/aws/[surface]/route.ts",
+          "apps/web/src/app/api/admin/directory/route.ts",
+          "apps/web/src/app/api/ai/chat/route.ts",
+          "apps/web/src/app/api/ai/draft/route.ts",
+          "apps/web/src/app/api/attachment/[id]/content/route.ts"
+        ],
+        "pattern": "/\\/src\\/app\\/api\\/.*\\/route\\.ts$/"
+      },
+      {
+        "capability": "Backend services / domain libraries",
+        "matches": 64,
+        "evidence": [
+          "apps/system-studio/src/lib/adopt.ts",
+          "apps/system-studio/src/lib/audit-ledger.ts",
+          "apps/system-studio/src/lib/auth-config.ts",
+          "apps/system-studio/src/lib/auth.ts",
+          "apps/system-studio/src/lib/authorize.ts",
+          "apps/system-studio/src/lib/cells.ts"
+        ],
+        "pattern": "/\\/src\\/lib\\/[^/]+\\.ts$/"
+      },
+      {
+        "capability": "Database engine (provisioned)",
+        "matches": 2,
+        "evidence": [
+          "infrastructure/terraform/elasticache.tf",
+          "infrastructure/terraform/rds.tf"
+        ],
+        "pattern": "/(^|\\/)(rds|elasticache)\\.tf$/"
+      },
+      {
+        "capability": "Database schema",
+        "matches": 1,
+        "evidence": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "pattern": "/prisma\\/schema\\.prisma$/"
+      },
+      {
+        "capability": "Database migrations",
+        "matches": 15,
+        "evidence": [
+          "apps/web/prisma/migrations/20260730000000_baseline/migration.sql",
+          "apps/web/prisma/migrations/20260801210840_outbox_events/migration.sql",
+          "apps/web/prisma/migrations/20260802184410_membership_effective_state/migration.sql",
+          "apps/web/prisma/migrations/20260803070000_seat_is_not_a_role/migration.sql",
+          "apps/web/prisma/migrations/20260803160000_seat_carries_a_role_template/migration.sql",
+          "apps/web/prisma/migrations/20260806180000_activation_gates_serving/migration.sql"
+        ],
+        "pattern": "/prisma\\/migrations\\/.*\\.(sql|toml)$/"
+      },
+      {
+        "capability": "Events / scheduled jobs",
+        "matches": 6,
+        "evidence": [
+          "apps/system-studio/src/lib/aws/eventbridge.test.ts",
+          "apps/system-studio/src/lib/aws/eventbridge.ts",
+          "apps/web/src/app/api/jobs/outbox/route.ts",
+          "apps/web/src/app/api/jobs/reminders/route.ts",
+          "apps/web/src/app/api/jobs/slo/route.ts",
+          "infrastructure/terraform/scheduler.tf"
+        ],
+        "pattern": "/scheduler\\.tf$|\\/api\\/jobs\\/.*\\/route\\.ts$|eventbridge/i"
+      },
+      {
+        "capability": "Queues",
+        "matches": 1,
+        "evidence": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "pattern": "/sqs\\.tf$|\\/queue[^/]*\\.ts$/"
+      },
+      {
+        "capability": "Identity and authentication",
+        "matches": 9,
+        "evidence": [
+          "apps/system-studio/src/app/api/auth/[...nextauth]/route.ts",
+          "apps/system-studio/src/lib/auth.ts",
+          "apps/system-studio/src/lib/aws/cognito.test.ts",
+          "apps/system-studio/src/lib/aws/cognito.ts",
+          "apps/web/src/app/api/auth/[...nextauth]/route.ts",
+          "apps/web/src/lib/auth.ts"
+        ],
+        "pattern": "/\\/src\\/lib\\/auth\\.ts$|\\/api\\/auth\\/.*\\/route\\.ts$|\\/src\\/lib\\/dev-login\\.ts$|cognito/i"
+      },
+      {
+        "capability": "Authorization",
+        "matches": 14,
+        "evidence": [
+          "apps/web/src/lib/admin/guard.ts",
+          "apps/web/src/lib/rbac.ts",
+          "packages/authorization/src/assurance.ts",
+          "packages/authorization/src/break-glass.ts",
+          "packages/authorization/src/controls.ts",
+          "packages/authorization/src/decide.ts"
+        ],
+        "pattern": "/\\/rbac\\.ts$|\\/authorization\\/src\\/.*\\.ts$|\\/admin\\/guard\\.ts$/"
+      },
+      {
+        "capability": "Tenancy isolation",
+        "matches": 9,
+        "evidence": [
+          "apps/web/src/lib/tenancy/context.ts",
+          "apps/web/src/lib/tenancy/extension.ts",
+          "apps/web/src/lib/tenancy/locale-cookie.ts",
+          "apps/web/src/lib/tenancy/registry.ts",
+          "apps/web/src/lib/tenancy/repository.ts",
+          "apps/web/src/lib/tenancy/request-context.ts"
+        ],
+        "pattern": "/\\/tenancy\\/[^/]+\\.ts$|\\/tenant-scope\\.ts$/"
+      },
+      {
+        "capability": "File storage",
+        "matches": 2,
+        "evidence": [
+          "apps/web/src/lib/s3.ts",
+          "infrastructure/terraform/s3.tf"
+        ],
+        "pattern": "/\\/s3\\.ts$|s3\\.tf$/"
+      },
+      {
+        "capability": "Search",
+        "matches": 3,
+        "evidence": [
+          "apps/web/src/app/api/search/route.ts",
+          "apps/web/src/lib/search-data.ts",
+          "apps/web/src/lib/search.ts"
+        ],
+        "pattern": "/\\/search[^/]*\\.ts$|\\/search\\/.*\\.ts$/"
+      },
+      {
+        "capability": "AI",
+        "matches": 3,
+        "evidence": [
+          "apps/web/src/app/api/ai/chat/route.ts",
+          "apps/web/src/app/api/ai/draft/route.ts",
+          "apps/web/src/lib/ai.ts"
+        ],
+        "pattern": "/\\/ai\\.ts$|\\/api\\/ai\\/.*\\/route\\.ts$|bedrock/i"
+      },
+      {
+        "capability": "Outbound integrations (email)",
+        "matches": 2,
+        "evidence": [
+          "apps/web/src/lib/notify.ts",
+          "infrastructure/terraform/ses.tf"
+        ],
+        "pattern": "/ses\\.tf$|\\/notify\\.ts$/"
+      },
+      {
+        "capability": "Observability",
+        "matches": 3,
+        "evidence": [
+          "apps/web/src/app/api/health/route.ts",
+          "apps/web/src/instrumentation.ts",
+          "infrastructure/terraform/cloudwatch.tf"
+        ],
+        "pattern": "/cloudwatch\\.tf$|instrumentation\\.ts$|\\/api\\/health\\/route\\.ts$/"
+      },
+      {
+        "capability": "Infrastructure as code",
+        "matches": 35,
+        "evidence": [
+          "infrastructure/oidc/main.tf",
+          "infrastructure/oidc/outputs.tf",
+          "infrastructure/oidc/roles.tf",
+          "infrastructure/oidc/variables.tf",
+          "infrastructure/studio/cloudfront.tf",
+          "infrastructure/studio/cognito.tf"
+        ],
+        "pattern": "/^infrastructure\\/.*\\.tf$/"
+      },
+      {
+        "capability": "Unit tests",
+        "matches": 343,
+        "evidence": [
+          "apps/system-studio/src/app/console-index/answer.test.ts",
+          "apps/system-studio/src/app/platform/audit/entries.test.ts",
+          "apps/system-studio/src/app/platform/cost/cost-citation.test.tsx",
+          "apps/system-studio/src/app/platform/cost/cost-decisions.test.ts",
+          "apps/system-studio/src/app/platform/engine-answer.test.ts",
+          "apps/system-studio/src/app/platform/estate/estate-coverage.test.ts"
+        ],
+        "pattern": "/\\.(test|itest)\\.(ts|tsx|mjs|js)$/"
+      },
+      {
+        "capability": "End-to-end tests",
+        "matches": 72,
+        "evidence": [
+          "apps/system-studio/e2e/adoption.spec.ts",
+          "apps/system-studio/e2e/api-contract.spec.ts",
+          "apps/system-studio/e2e/audit-chain.spec.ts",
+          "apps/system-studio/e2e/auth-mode-logic.spec.ts",
+          "apps/system-studio/e2e/authorize-logic.spec.ts",
+          "apps/system-studio/e2e/aws-unknown-is-not-absent.spec.ts"
+        ],
+        "pattern": "/\\/e2e\\/.*\\.spec\\.ts$/"
+      },
+      {
+        "capability": "CI / deployment workflows",
+        "matches": 17,
+        "evidence": [
+          ".github/workflows/aws-inventory.yml",
+          ".github/workflows/bootstrap-oidc.yml",
+          ".github/workflows/ci.yml",
+          ".github/workflows/custom-domain.yml",
+          ".github/workflows/db-recovery.yml",
+          ".github/workflows/debug-logs.yml"
+        ],
+        "pattern": "/^\\.github\\/workflows\\/.*\\.ya?ml$/"
+      }
+    ],
+    "working_tree_dirty_paths": 123
+  },
+  "relationship": {
+    "merge_base": "d20d40d7846fc434b539f80cae8e437b750055ed",
+    "merge_base_date": "2026-07-31",
+    "note": "The two repositories share history: the parent was branched from the pilot. Absorption is therefore a convergence, not an import into an unrelated tree."
+  }
+}

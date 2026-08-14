@@ -235,6 +235,10 @@ const DOMAINS = [
       'apps/web/src/app/(app)/reports/',
       'apps/web/src/app/(app)/dashboard/',
       'apps/web/src/app/api/reports/',
+      // ANL-000-002. The semantic half of the same subsystem: metric
+      // definitions the reports page, the dashboard, the admin overview and
+      // the pulse endpoint all agree on, so none of them defines its own.
+      'apps/web/src/lib/analytics/',
       'packages/audit/',
       // The cell-side half of the same subsystem: the append-only extension
       // on the shared client, and the validated record builder it enforces.

@@ -392,8 +392,121 @@ for progress:
     root emails and tax details that are the operator's. Deciding the shape is
     mine; creating it is not.
 
-- [ ] **GE-010-002 … 007** — OUs, Control Tower baseline, SCPs, workload separation, partition abstraction.
+> The six items below were one row — `GE-010-002 … 007`, BLOCKED_EXTERNAL on the
+> four decisions ADR-0007 names. That shape is invisible to
+> `tools/document-graph.mjs`, whose reader requires `**<id>**` with nothing
+> between the id and the closing asterisks, so all six read as *undecided* and
+> returned to the queue on every tick. `002`, `003` and `004` are split out here
+> so each carries a status the queue can read. **`005` and `006` are deliberately
+> left grouped and undecided**: this session investigated three items, and
+> recording a decision on two more it did not investigate would park them
+> permanently on somebody else's evidence. `007` leaves the range entirely — it
+> has its own PASS row further down.
+
+- [x] **GE-010-002** — Model or reconcile the Management, Security, Log Archive, Infrastructure, Tenure Parent, Nonproduction, Production Cells, Dedicated Tenants and Quarantine OUs/accounts.
+  - Status: PASS
+  - **Scope, stated so it can be disagreed with.** The requirement's verb is
+    "model **or** reconcile". Reconciling *in AWS* is not available and is not
+    claimed: the inventory recorded `organizations:describe-organization`,
+    `list-accounts` and `list-roots` all denied and `organization.inUse: false`,
+    so there are no OUs to reconcile against. What is closed is the modelling
+    branch — the nine nodes, and every resource the estate actually contains
+    placed against one of them. Creating the OUs and vending accounts is
+    `GE-010-004`, which is BLOCKED_EXTERNAL below.
+  - Code/config: [`../architecture/ge-landing-zone-model.json`](../architecture/ge-landing-zone-model.json)
+    (the model, and the file the guard reads) and
+    [`../architecture/ge-landing-zone-model.md`](../architecture/ge-landing-zone-model.md)
+    (the readable form).
+  - Evidence: **39 resources** derived from `docs/architecture/aws-inventory.json`
+    — VPCs, load balancers, distributions, clusters, registries, the database,
+    the lock table, the cache, 3 buckets, 5 queues, 6 secrets, 3 log groups, 4
+    alarms and 5 deployment roles — and each is placed exactly once. 26 land in
+    Production Cells, 7 in Tenure Parent, 4 in Infrastructure, and **2 are
+    deliberately unplaced**, each naming the decision that would settle it (the
+    default VPC of the existing account, and the ECS service-linked role that
+    will exist in every account that runs a task). Five of the nine nodes take
+    nothing, which is the finding rather than an omission: the estate contains no
+    security-tooling account, no log archive, no nonproduction environment, no
+    backup vault, no KMS alias, no WAF and no hosted zone.
+  - The correspondence is checked in three directions against files somebody else
+    maintains, so it reds when either side moves: the nine node names are read out
+    of the requirement line in
+    `Tenure_Claude_Code_Global_Engine_Execution_Prompt_v1.0.md`, the eight OUs out
+    of the tree in `ADR-0007`, and the resources out of `aws-inventory.json`,
+    which the read-only inventory workflow rewrites.
+  - Tests: `tests/architecture/ge-landing-zone-model.test.mjs` — 8 assertions,
+    run with `node --test tests/architecture/ge-landing-zone-model.test.mjs`,
+    8/8. Proven to catch, not to pass: **6 mutations, 6 caught** — the Quarantine
+    node deleted (2 reds), a placement deleted (2 reds), the inventory given a
+    bucket nobody placed (1), a node's `exists_in_aws` flipped to `true` (1), the
+    readable document's count changed from 26 to 25 (1), and an unplaced
+    resource's reason removed (1). Restored, 8/8 again.
+  - The `exists_in_aws` mutation is the one that matters. While the inventory
+    reports no Organization, the guard refuses any node claiming to exist and any
+    placement whose disposition is not `proposed` — so this model cannot be
+    quietly promoted into a description of infrastructure nobody created.
+  - Honest limit: no OU exists, no account has been vended, and no resource has
+    moved. This is a model of a landing zone and a reconciliation of today's
+    estate against it, and it says so in its own `status: proposed`.
+  - Not done here: the checkbox in the execution prompts is left to
+    `tools/reconcile-execution-checkboxes.mjs`, which generates it from this
+    ledger — the prompts are shared with other domains and are not hand-edited.
+
+- [ ] **GE-010-003** — Management account has no product workload; root has governed MFA and no routine access keys, verified only through permitted metadata.
+  - Status: **BLOCKED_EXTERNAL** — on the four decisions ADR-0007 names, and on
+    an AWS read this repository cannot perform.
+  - There is no management account to verify. `docs/architecture/aws-inventory.json`
+    records `organization.inUse: false` and three `organizations:*` calls denied:
+    a single-account estate has no account that is "the management account", so
+    "has no product workload" is not a property anything currently has.
+  - The verification is also not collected today. `tools/aws-inventory.mjs` makes
+    no `iam get-account-summary` and no `get-credential-report` call, so
+    `AccountMFAEnabled` and `AccountAccessKeysPresent` — the permitted metadata
+    this item is verified through — appear nowhere in the committed inventory.
+  - What unblocks it, in order: the operator settles ADR-0007 (management
+    account, consolidated billing, root emails and tax details, and the
+    disposition of the account running the live pilot), then
+    `aws organizations create-organization --feature-set ALL`, then a run of
+    `.github/workflows/aws-inventory.yml` extended to project
+    `aws iam get-account-summary` and `aws iam generate-credential-report` /
+    `get-credential-report` for the management account. That workflow is under
+    `.github/workflows/**`, which this wave may not edit, and the run needs
+    credentials this session does not have.
+  - Not attempted: writing the guard against a management account that does not
+    exist would be a check that cannot fail, which is the defect this programme
+    has shipped five times.
+
+- [ ] **GE-010-004** — Control Tower / Account Factory or equivalent account-vending baseline, with organization trail and config, delegated security admin, contacts, tags, budgets, backup, IAM boundaries and deployment roles.
+  - Status: **BLOCKED_EXTERNAL** — on the four decisions ADR-0007 names.
+  - Every noun in this item is an Organizations feature. There is no
+    Organization (`aws-inventory.json` → `organization.inUse: false`), so there is
+    no root to enrol a landing zone in, no delegated administrator to appoint, no
+    organization trail to send to a Log Archive account that does not exist, and
+    nothing to vend an account into. `GE-010-002` above models what would be
+    vended; this is the item that vends it.
+  - What unblocks it: ADR-0007's four decisions, then
+    `aws organizations create-organization --feature-set ALL`, then
+    `aws controltower create-landing-zone` (or an equivalent account-vending
+    baseline), then the OUs of the model in
+    `docs/architecture/ge-landing-zone-model.json`. Each of those creates
+    irreversible, billable estate and is the operator's to run, not this
+    session's.
+  - Cost note, quoting only: an organization trail, Config in every account and a
+    landing zone carry recurring charges. No figure is recorded here because none
+    has been quoted by anyone.
+
+- [ ] **GE-010-005 … 006** — SCPs and guardrails; production / nonproduction / security / log workload separation.
   - Status: **BLOCKED_EXTERNAL** on the four decisions ADR-0007 names.
+  - Unchanged from the grouped row this was split out of; neither was re-decided
+    in the split. An SCP is an Organizations feature and there is no
+    Organization; proving nonproduction roles cannot reach production
+    (`GE-010-006`) is not provable in a single-account estate, because IAM is
+    account-scoped.
+  - `007` is dropped from this range rather than carried into it: it already has
+    its own row further down this ledger, recorded PASS for the partition
+    abstraction in `apps/web/src/lib/partition-services.ts`. Leaving it inside a
+    blocked range said the opposite of what the ledger says about it 9,000 lines
+    later.
 
 ## GE-011: GitHub Actions OIDC
 

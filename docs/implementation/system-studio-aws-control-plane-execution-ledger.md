@@ -5205,3 +5205,2548 @@ verbatim guard-needle scan, repaired, and the repaired file re-proved by the
 - **`docs/architecture/ownership.md` is stale by one more file** because this
   module is new. Regenerating it belongs to one `npm run generate` against a
   clean tree after this batch lands, not to concurrent writers.
+
+## STUDIO-070-004 (COMPUTE surface) — what is running, what is it running, and why did anything stop
+
+`apps/system-studio/src/app/platform/compute/page.tsx`, with its decisions in
+`compute-answer.ts` beside it, `compute.module.css` for geometry only, and
+`compute-answer.test.ts` + `e2e/compute-page-logic.spec.ts` holding it.
+
+Route: `/platform/compute`. Nothing links to it yet — the navigation entry is a
+different agent's file and is not claimed here.
+
+### What it composes, and from which readers
+
+Three loads, each the reader's own production entry point, called with no
+argument so the page takes the live gateway:
+
+- `containerReadings()` — `src/lib/aws/containers.ts`. Clusters, services, the
+  task-definition revision each service points at, the running tasks and the
+  tasks ECS has retained with `stoppedReason`, `stopCode` and per-container exit
+  codes.
+- `ecrReadings()` — `src/lib/aws/ecr.ts`. Repositories, images by digest, scan
+  findings by severity and `scanOnPush`.
+- `lambdaInventory()` — `src/lib/aws/lambda.ts`. Functions and the runtime
+  deprecation verdict for each.
+
+No AWS SDK import reaches this route: `e2e/compute-page-logic.spec.ts` asserts
+`@aws-sdk/` appears in neither file. No Prisma client either, asserted in the
+same spec beside the repository-wide check in
+`tests/security/operator-plane-content.test.mjs`.
+
+### The one sentence this surface exists to make unprintable
+
+ECS replaces a task that dies. A service crash-looping every ninety seconds
+therefore reports `running === desired` at almost every instant an operator looks
+at it, so a headline derived from the counts alone reads "Steady" while the
+estate is on fire. `computeAnswer` has an arm — step 4 — reachable only when the
+fleet IS at its desired count and tasks have still stopped for a reason somebody
+has to act on. It reads "Restarting" and names the affected services.
+
+Until this route existed, `stoppedReason` had never been rendered anywhere in the
+console. A crash-looping service and a slow one produced identical pixels.
+
+### Three absences kept apart from three findings
+
+- A refused `ecs:DescribeTasks` contributes no rows to the stopped table, so
+  `readFailures` names every per-cluster read that did not answer and the page
+  renders each through the shared `UnknownState`. An empty table is never the
+  answer to "did anything stop".
+- A digest missing from the registry index when some repository's `DescribeImages`
+  was refused is reported with those repositories NAMED and the sentence "this is
+  not a statement that it came from outside this registry". A digest genuinely
+  absent gets a provably different sentence.
+- `countsFor` returns null for `not-scanned`, `scan-incomplete` and `unknown`.
+  Only a completed scan produces a zero. A repository with `scanOnPush` disabled
+  is called out by name under "Scanning is off here".
+
+Plain-text environment variables whose NAMES look like credentials are listed per
+service, from `TaskDefinitionReading.credentialFindings`. Names only — nothing on
+this path reads `environment[].value`, and the test asserts the constructed
+value's absence from the whole reading and from every row.
+
+### Evidence
+
+```
+npx tsc --noEmit -p apps/system-studio/tsconfig.json
+  -> no error in any compute file (errors in findings.ts and inventory.ts are
+     other agents' files, mid-flight)
+
+npm run test --workspace apps/web -- --ci \
+  apps/system-studio/src/app/platform/compute/compute-answer.test.ts
+  -> Test Suites: 1 passed, Tests: 21 passed
+
+npx playwright test e2e/compute-page-logic.spec.ts   (from apps/system-studio)
+  -> 27 passed
+```
+
+The jest suite drives `containerReadings`, `ecrReadings` and `lambdaInventory` —
+the three functions the page calls — through a stand-in gateway answering the
+shapes the SDK returns, so the assertions land on the production path rather than
+on hand-built `AwsRead` literals.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | Mutation | Result |
+|---|---|---|
+| 1 | `computeAnswer` step 4 -> `if (false && stopped.incidents > 0)` | RED. 2 failed: `Expected: "Restarting" / Received: "Steady"` on the crash-looping estate and on the unreported-stop estate. |
+| 2 | `stoppedTaskRows` -> `incident: isIncident(cause) && cause.kind !== "unreported"` | RED. 1 failed: `Expected: true / Received: false` — a stop ECS never explained stopped counting as something to act on. |
+| 3 | `correlationFor` blind branch -> `if (false && index.blind.length > 0)` | RED. 1 failed: `Expected substring: "tenure-prod-app"` against `"this digest is in none of the repositories in this registry…"` — a fabricated claim about a read that was refused. |
+| 4 | `countsFor` `not-scanned` -> returns all-zero counts | RED. 2 failed: `Received: {"CRITICAL": 0, …}` where null was required — the reassuring zero for an image nothing scanned. |
+| 5 | `readFailures` -> stopped-task read no longer added | RED. 1 failed: `Expected length: 1 / Received length: 0` — a refused `DescribeTasks` stopped being named. |
+| 6 | `.mutation-probe { color: #ff0000 }` appended to `compute.module.css` | RED. `no colour lives in this route` failed in the Playwright spec. |
+
+All six restored; `grep -n "false &&\|MUTATION\|\|\| true"` over the route
+directory returns nothing, and both suites are green again at 21 and 27.
+
+### What is NOT closed, and is not claimed
+
+- **Nothing links to this route.** Adding `/platform/compute` to the console
+  navigation is another agent's file. `tests/architecture/shell-separation.test.mjs`
+  asserts every nav destination is a route the console serves; this route is
+  served, so it is safe to add.
+- **It has not been rendered in a browser.** `e2e/layout.spec.ts` and
+  `e2e/preferences.spec.ts` need a running console and an operator secret, and the
+  route list in `layout.spec.ts` is not this agent's file. The geometry rules
+  those specs measure are followed — every wide table is a `DataTable`, which
+  supplies its own bounded scroll region, and every AWS identifier carries
+  `overflow-wrap: anywhere` — but "followed" is not "measured", and this is not a
+  claim that it passes.
+- **The stopped-task window is roughly one hour.** `ECS_STOPPED_WINDOW.why` is
+  printed on the card verbatim. An empty incident list is a statement about that
+  window and about nothing before it. The long-horizon answer is CloudTrail and
+  the service event stream, and neither is read here.
+- **Whether this registry runs ENHANCED scanning is not readable.**
+  `ecr:GetRegistryScanningConfiguration` is not in the capability registry, so
+  `ecr.enhancedScanning.why` is printed as-is: basic scanning finds OS package
+  CVEs only, and the findings shown may be complete for the OS layer and silent
+  about the application layer.
+- **The runtime deprecation calendar is a transcription.** Its source and stamp
+  are printed on the card and in the provenance list, and once it is too old for a
+  "supported" verdict to be defensible the card says so in place of a reassurance.
+- **Nothing here writes.** No mutation capability is used, `src/lib/aws/mutate.ts`
+  is untouched, and every reader on this page is a describe or a list.
+- **No approval, review, certification or verification date is asserted
+  anywhere.** Every identifier in the tests is constructed — account
+  `123456789012` is AWS's documentation account, and the cluster, service,
+  repository, digest and function names correspond to no real resource.
+
+## STUDIO-080-009 (Messaging) — can this platform reach people, and is anything queued that nobody is processing
+
+`/platform/messaging` — `apps/system-studio/src/app/platform/messaging/page.tsx`,
+its pure decision module `reach.ts`, `reach.test.ts` and
+`e2e/messaging-page-logic.spec.ts`. It composes four readers that already
+existed and adds none: `ses.ts`, `sqs.ts`, `eventbridge.ts` and `metrics.ts`.
+No AWS SDK import, no Prisma import, no mutation path, and nothing under
+`src/lib/aws/` was edited.
+
+### What it reads, and what each reader contributes
+
+- `sesReadings()` — the sandbox state (`ProductionAccessEnabled`), the sending
+  identities, the 24-hour quota against `SentLast24Hours`, the account-level
+  suppression list and the configuration sets. `mailabilityVerdict()` is called
+  rather than re-derived.
+- `queueReadings()` — every queue, its depth, in-flight and delayed counts, its
+  redrive policy, and `deadLetterState()`'s own answer for which queues are
+  dead-letter targets.
+- `metricReadings()` — the number `sqs.ts` says out loud that it cannot read.
+  `AWS/SQS ApproximateAgeOfOldestMessage` (Maximum, 300s, one hour) per queue,
+  plus `AWS/SES Send` (Sum) for the send rate the quota is spent against. This
+  closes the gap `OLDEST_MESSAGE_NOT_READABLE` names: the module still holds no
+  `cloudwatch:GetMetricData` capability of its own, and the surface supplies it
+  by composition rather than by editing `sqs.ts`.
+- `eventBridgeSurface()` — the rules, their schedules or patterns and their
+  targets, with `ses.identity` handed over so STS is resolved once.
+
+### The two orderings this surface exists to get right
+
+1. **A sandbox account is not "mail works".** `mailabilityVerdict` returns
+   `CAN_SEND` for a sandboxed account with a verified identity — SES accepts the
+   call — and `recipientRestriction` is the whole difference. `reachAnswer` makes
+   that its own verdict, `REACHES_ONLY_VERIFIED`, toned `bad`.
+2. **A disabled SCHEDULED rule outranks everything except a dead-letter queue
+   with messages in it.** `ruleRank` places it half a step above every other
+   disabled rule, and `processingAnswer` ranks it above a stalled backlog. Same
+   precedent as `alarms.ts`'s DISABLED-outranks-OK.
+
+`CLEAR` is reachable only when every reading answered — the queue LISTING, every
+queue's DEPTH, the dead-letter derivation and the rules. A partly-unreadable load
+is `PARTLY_UNKNOWN`, and a wholly unreadable one is `UNKNOWN`. A queue is called
+`stalled` only when an age was actually MEASURED: 400 visible messages with no
+metric is `BACKLOG_AGE_UNKNOWN`, never a stall this page asserts and never a
+backlog it calls fresh.
+
+### What it will not print
+
+Suppressed addresses. `ses.ts` carries real recipients' addresses deliberately;
+this surface renders `byReason` and `byDomain` counts and `entries.length` only.
+`e2e/messaging-page-logic.spec.ts` asserts the page source contains no
+`.address` and no `entries.map`, and mutation M-11 proves that assertion bites.
+
+### Evidence
+
+- `npm run test --workspace apps/web -- --ci apps/system-studio/src/app/platform/messaging/reach.test.ts`
+  — 43 passed, 43 total.
+- `node_modules/.bin/playwright test e2e/messaging-page-logic.spec.ts` (from
+  `apps/system-studio`) — 11 passed.
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — no diagnostic names
+  any file under `src/app/platform/messaging/` or `e2e/messaging-page-logic.spec.ts`.
+  Errors in other agents' in-flight files (network/, identity/, findings.ts)
+  are present and are not this surface's.
+- NOT run, and not claimed: `e2e/layout.spec.ts` and `e2e/preferences.spec.ts`.
+  Both need a console serving at `PLAYWRIGHT_BASE_URL`, and this route is not in
+  `layout.spec.ts`'s route list yet — adding it belongs to whoever owns that file.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+A control run on the unmutated tree passed both suites before any mutation, and
+every file was restored and SHA-256-verified after each one.
+
+| # | Mutation | Suite | Test that went red |
+|---|---|---|---|
+| M-1 | `if (false && verdict.recipientRestriction !== null)` — sandbox softened | jest | a verified identity in a SANDBOX account is NOT 'reaches anyone' |
+| M-2 | `if (false && unreadable.length > 0)` — partly-unreadable reaches CLEAR | jest | one reading answering and one not is PARTLY_UNKNOWN; an unreadable queue DEPTH also blocks CLEAR |
+| M-3 | `no-datapoints` returns `{ seconds: 0 }` | jest | no datapoints is an absence, never an age of zero |
+| M-4 | `stalled: visible > 0` — stalled without a measured age | jest | stalled needs a MEASURED age; backlog with no measurable age; a fresh backlog is work in progress |
+| M-5 | `ruleRank` drops the `- 1` for a disabled schedule | jest | a disabled SCHEDULED rule is first |
+| M-6 | `isDeadLetter: queue.name.endsWith("-dlq")` | jest | a dead-letter queue is identified from the redrive data, never the name |
+| M-7 | unstated production-access review rendered `"granted"` | jest | no production-access review is reported as unstated, never as an approval |
+| M-8 | metric specs return `[]` when the queue listing was refused | jest | the SES send series is always asked for, even with no queues |
+| M-9 | `sectionOrder` never hoists the dead-letter card | jest | the dead-letter card is hoisted under the answer when anything failed |
+| M-10 | send series averaged instead of summed | jest | the window's sends are summed, not averaged |
+| M-11 | page prints `entries.map(e => e.address)` | playwright | the page never prints a suppressed recipient's address |
+| M-12 | `id="failed-deliveries"` renamed, so a hoisted section renders nothing | playwright | renders a card for every section the ordering can produce |
+
+#### The first harness was a guard that could not fail, and that is recorded
+
+The first run of this harness reported all twelve mutations caught. It was
+wrong: it invoked the suite with `execFileSync("npm.cmd", …)`, which throws
+`EINVAL` on this Node before the child starts, so every mutation "failed the
+suite" without a test ever running — the same shape as the five disabled guards
+this programme was called in to fix. It was found by checking the captured
+transcripts, which were zero bytes. The harness now runs a CONTROL against the
+unmutated tree first and refuses to report at all unless the clean tree passes;
+the table above is from the run after that control went green.
+
+### What is NOT closed, and is not claimed
+
+- **No navigation entry.** `tests/architecture/shell-separation.test.mjs`
+  requires every nav destination to be a route the console serves; this route is
+  `/platform/messaging` and adding it to the nav belongs to the navigation agent.
+- **The oldest-message age is one hour of history at five-minute resolution.**
+  A message that arrived and was consumed between two periods is not visible
+  here, and `metrics.ts`'s coverage figures are what say so.
+- **`ses.ts`'s `OLDEST_MESSAGE_NOT_READABLE` is unchanged.** The composition
+  happens on the surface; the reader still declares that it cannot read the age
+  itself, which remains true of that module.
+- **No approval, review, ARN, account id, region, price or date is asserted
+  anywhere.** Account `123456789012` in the tests is AWS's documentation account
+  and every domain is an RFC 2606 reserved name.
+
+## STUDIO-070-002 (TAGS) — tenant attribution across every service, and the difference between "untagged" and "we cannot see it"
+
+- [x] `apps/system-studio/src/lib/aws/tags.ts` models tag COVERAGE explicitly,
+      not just attribution, so a resource the Resource Groups Tagging API cannot
+      answer for is never reported as spend nobody owns.
+
+### The defect this closes
+
+`tag:GetResources` was being treated as a census. It is not. It is a REGIONAL
+index and it does not carry every resource type, so an ARN absent from its
+results is not an untagged resource — it may be a CloudFront distribution or a
+Route 53 hosted zone whose ARN carries no region at all, a bucket in another
+region, or a type the API does not carry. Every one of those renders identically
+to "somebody forgot to tag it" once the two are folded together, and a cost
+report built on that fold misattributes silently. It still adds up. It is still
+wrong.
+
+### Coverage is now five answers, and none of them is a default
+
+| answer | means | where it comes from |
+| --- | --- | --- |
+| `tenant` | `tenure:tenant` names a slug | tags that were actually read |
+| `shared` | `tenure:tenant = tenure:shared` — somebody DECIDED | tags that were actually read |
+| `untagged` | tags were read and carry no `tenure:tenant`. **A finding.** | tags that were actually read |
+| `not-coverable` | this API cannot answer here; something else can | the ARN's own anatomy, or `TAG_API_GAPS` |
+| `unknown` | the read failed. STUDIO-000-007. | `describeRead` of the index read |
+
+`unknown` is the arm `buckets.ts` and `cognito.ts` each grew independently
+before this existed. It is now written down once.
+
+### The rule that does the work is derived, not listed
+
+`parseArn` takes an ARN apart (`type/id`, `type:id` and bare-id forms, first
+separator wins). A global resource has an empty region segment — and a global
+resource's absence from a regional index says nothing whatsoever about its tags.
+That rule holds for every service, including ones nobody has written a reader
+for yet, which is why an IAM role ARN is caught by it despite appearing in no
+table. `TAG_API_GAPS` carries only the five entries where there is something
+more specific to say than the general rule.
+
+### The service's own tags outrank the index, and the answer says which
+
+`coverageFor` prefers a `NativeTagAnswer` — what the service said about its own
+resource — over the index, then falls back to the index, then to coverage
+reasoning. Every answer carries a `TagSource`, so a surface prints
+`simon-ose — via cognito-idp:DescribeUserPool, the service's own tags` rather
+than asserting `simon-ose` flatly.
+
+`buckets.ts` implements the opposite precedence (index first) and `cognito.ts`
+implements this one. **The two disagreeing is itself a defect**; native-first is
+correct and this is where it is now written down. Neither module was edited —
+they are other agents' files this batch.
+
+### What is a real read, and what is only named
+
+- `s3:GetBucketTagging` and `cognito-idp:DescribeUserPool` are real capabilities
+  in `capabilities.ts` that `buckets.ts` and `cognito.ts` perform today, so
+  `TAG_API_GAPS` names them in `readInstead`.
+- **`route53:ListTagsForResource` and `cloudfront:ListTagsForResource` are NOT in
+  the capability registry.** Those entries carry `readInstead: null` and a
+  `remedy` naming the action a human must add. A hosted zone therefore renders
+  `not-coverable`, which is honest, rather than `untagged`, which would be a
+  fabricated finding against a resource that is very probably tagged correctly.
+  Adding them is a change to `capabilities.ts` and `iam.tf`, which this agent
+  does not own.
+
+### Reached in production
+
+- `TagCompliancePanel.tsx` (rendered by `/platform/estate`) → `tagCompliance`
+  → `coverageFromIndex` + `coverageSummary` + `unownedResources`.
+- `app/tenants/[slug]/footprint.ts` → `forTenant` → the same core.
+- `console-link.ts` → `parseArn` / `ParsedArn`, imported rather than forked;
+  its 51 tests pass against this parser.
+- `/platform/estate`, `/platform/security` and `CostBudgets.tsx` →
+  `describeAttribution`, which `describeCoverage` is built ON so the wording
+  cannot drift.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | mutation | result |
+| --- | --- | --- |
+| M1 | global-ARN arm returns `{kind:"untagged"}` | 1 failed — and it first passed, exposing a real hole in the test suite (every global case was shadowed by `TAG_API_GAPS`); a case for a service in no table was added before re-running |
+| M2 | `if (false && native?.kind === "tags")` | 7 failed |
+| M3 | unreadable-index arm returns `{kind:"untagged"}` | 3 failed |
+| M4 | `if (false && parsed.region !== indexRegion)` | 1 failed |
+| M5 | `unownedResources` yields nothing | 4 failed |
+| M6 | `shared` folded into `untagged` in the core | 7 failed here, **plus `tenant-answers.test.ts`** — another agent's test, which is the proof the core is on the production path |
+| M7 | `problems: tagProblems(tags ?? {})` for unread tags | 1 failed |
+| M8 | `parseArn` splits on `/` only | 1 failed |
+| M9 | region-resolution failure defaults to a literal region | 1 failed |
+| M10 | `resourcesForTenant` matches by prefix | 1 failed |
+| M11 | a service's definitive "no tags" becomes `unknown` | 1 failed |
+| M12 | `describeSource` drops the provenance | 4 failed |
+
+Every mutation was removed; `grep -n "MUTATION\|false &&\||| true"` over both
+files returns nothing.
+
+### What is NOT closed, and is not claimed
+
+- **No surface renders `estateCoverage` yet.** The cost and estate pages are
+  other agents' files this batch. `unowned` and `notCoverable` are computed and
+  returned on the production path through `tagCompliance` and `forTenant`; the
+  rows are not on screen until a surface owner wires them.
+- **No Route 53 or CloudFront tag is read.** See above. Those resources are
+  reported as not-coverable with the missing IAM action named.
+- **No mutation capability is touched.** Nothing here writes, changes or deletes
+  a tag; `src/lib/aws/mutate.ts` is untouched. This makes an untagged resource
+  VISIBLE; a human still has to tag it.
+- **No approval, review or verification date is asserted.** Every identifier in
+  the tests is constructed — `123456789012` is AWS's documentation account,
+  `E1EXAMPLE` and `Z0123456789ABCDEFGHIJ` correspond to no real resource, and no
+  region or account is hard-coded in the module itself.
+- **Observed while working, not fixed, not mine:**
+  `apps/system-studio/src/lib/aws/console-link.ts:331` carries
+  `if (false && spec.partitions && !spec.partitions.includes(partition))` — a
+  guard that cannot fail. Reported to its owner rather than edited.
+
+---
+
+## STUDIO-110-009 (Security posture aggregation) — a check that did not run is not a check that passed
+
+`apps/system-studio/src/lib/aws/posture.ts` gains a second half: sixteen posture
+items folded from twelve service readers, and one score over them. The first
+half of the file — `managementAccountVerdict`, `centralizationPosture`,
+`curExistence` — is unchanged; no existing type was widened, narrowed or
+renamed.
+
+### The rule, and where it is structural rather than stated
+
+- `SecurityPostureItem` is a four-armed discriminated union — `PASS`, `FAIL`,
+  `NOT_CHECKED`, `UNKNOWN`. No boolean, no `ok?`, no optional field whose
+  absence reads as fine. `NOT_CHECKED` cannot be constructed without a `reason`
+  and a `remedy`; `UNKNOWN` cannot be constructed without the refused `action`
+  and a pasteable `minimumStatement`; `PASS` cannot be constructed without
+  `basis`, `checked` and `limits`. A pass that cannot say what it looked at does
+  not compile.
+- `PostureScore` is a union whose `CLEAN` arm types `fail`, `notChecked` and
+  `unknown` as the **literal `0`**, and whose `INCOMPLETE` arm types `fail` as
+  the literal `0`. Every arm carries all four counts, so a score cannot be
+  printed without the number of unanswered questions beside it. Mutation M-8
+  below is the proof: replacing the three literals with the real variables is a
+  `tsc` error, not a test failure.
+- `foldGuardDuty` has **no `PASS` branch at all**. Coverage would need
+  `guardduty:GetDetector`, which is not in the capability registry, so a
+  detector whose ENABLED/SUSPENDED state cannot be read is `NOT_CHECKED` even
+  when it returns zero findings. That is the exact failure the shape exists for.
+
+### The twelve readers it consumes, and the sixteen items it produces
+
+`guardduty`, `analyzer`, `buckets`, `keys`, `secrets`, `network`, `waf`, `ecr`,
+`compliance`, `trail`, `cognito`, `iam`. Three of them answer more than one
+question and get more than one item: S3 is asked separately about public access,
+encryption and versioning; ECR separately about whether scanning is ON and about
+what the scans found; IAM separately about wildcards and about key age.
+
+`SecurityPostureInput` has twelve REQUIRED fields and no optional ones, so a
+thirteenth reader is a compile error at every construction site rather than a
+posture that silently asks one fewer question.
+
+### The composition seam into `/platform/security`
+
+Item keys are deliberately the ones `app/platform/security/posture.ts` declares
+in `UNWIRED_CONTROLS` — `guardduty::detectors`, `analyzer::exists`,
+`s3::public-access`, `s3::encryption`, `kms::rotation`, `secrets::rotation`,
+`config::rule-compliance`, `ecr::scan-on-push`, `cloudtrail::logging`,
+`waf::web-acls` — plus four keys that page does not declare a placeholder for:
+`s3::versioning`, `network::internet-ingress`, `ecr::image-findings` and
+`cognito::mfa`, which arrive as new rows rather than displacing one. `controlsFor()` there merges live rows over placeholders
+BY KEY, so each live row displaces its own placeholder. The two `iam::` keys
+match the rows `controlsFromIam` already emits, so that merge is idempotent
+rather than duplicating the sweep. `controlRowsFor()` here returns
+`SecurityControlRow`, structurally identical to that page's `ControlRow` and
+declared locally rather than imported, so a library module does not depend on a
+route.
+
+### Evidence
+
+- `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/posture.test.ts`
+  — 20 passed, 20 total.
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — zero diagnostics
+  naming `src/lib/aws/posture.ts` or `src/lib/aws/posture.test.ts`. Errors in
+  other agents' in-flight files (`findings.ts`, `inventory.ts`,
+  `app/platform/identity/doors.ts`) are present and are not this module's.
+- Consumers of the pre-existing exports, checked and unchanged:
+  `src/app/platform/estate/estate-answer.ts:30,302,315` (`ClauseVerdict`,
+  `ManagementAccountVerdict`) and `src/app/platform/estate/page.tsx:21,337`
+  (`centralizationPosture`, `PostureRow`).
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+The suite was green before the first mutation and is green after the last.
+
+| # | Mutation | Result |
+|---|---|---|
+| M-1 | `if (notChecked > 0)` — the `\|\| unknown > 0` gate on INCOMPLETE removed | 2 failed, 18 passed |
+| M-2 | GuardDuty `not-enabled` returns `PASS` with `checked: 0` | 1 failed, 19 passed |
+| M-3 | S3 `publicExposure.kind === "unknown"` returns `PASS` | 2 failed, 18 passed |
+| M-4 | `refusalOf` returns `minimumStatement: ""` on both branches | 2 failed, 18 passed |
+| M-5 | `controlRowsFor` maps `UNKNOWN` to `NOT_CHECKING` | 1 failed, 19 passed |
+| M-6 | `rankPostureItems` drops the severity tiebreak | 1 failed, 19 passed |
+| M-7 | `SEVERITY_RANK.UNRANKED` moved from `0` to `5` | 1 failed, 19 passed |
+| M-8 | the `CLEAN` arm returns the real `fail`/`notChecked`/`unknown` | `tsc` TS2322 at posture.ts(693,3) |
+| M-9 | `foldIamWildcards` returns `PASS` when `posture === null` | 3 failed, 17 passed |
+
+M-6 was applied twice and is recorded honestly: the first attempt left the suite
+GREEN, because the ranking test's keys happened to sort alphabetically into the
+same order the severity tiebreak produces. The test was rewritten so alphabetical
+order contradicts the intended order at every step — expected `e,d,c,b,a` — and
+the same mutation then went red.
+
+### What is NOT closed, and is not claimed
+
+- **No page calls `securityPosture()` yet.** `/platform/security/page.tsx` is
+  another agent's file and this agent may not edit a route. Wiring it is one
+  import and one spread into the existing `controlsFor([...])` call. Until that
+  lands, the aggregation is reachable in production only through the module
+  `app/platform/estate/page.tsx` already imports, and the new export is not on a
+  render path. Stated rather than implied.
+- **No approval, review, ARN, account id, region, price or date is asserted.**
+  Account `123456789012` in the test is AWS's documentation placeholder and no
+  identifier in the file names a resource that exists.
+- **No AWS read is performed by this module.** Every call goes through a reader,
+  and every reader through the single gateway.
+
+### Amendment — the failing-estate arms, driven end to end
+
+The suite above proved the two GAP states through a live gateway and proved
+`FAIL` only through hand-built items. A fold that produced a `FAIL` from a real
+SDK shape was therefore untested end to end, which is half the module. Six cases
+were added, driven by a third stand-in gateway, `exposedEstate()`, describing an
+estate with something genuinely wrong in it:
+
+- `guardduty:ListDetectors` returns a detector and `guardduty:ListFindings`
+  returns none — the exact pair a SUSPENDED detector produces. Asserted
+  `NOT_CHECKED`, never `PASS`.
+- `ec2:DescribeSecurityGroups` returns one group admitting `0.0.0.0/0` on 22.
+  Asserted `FAIL` at `CRITICAL`, naming the group id and the CIDR.
+- `s3:GetBucketPublicAccessBlock` raises `NoSuchPublicAccessBlockConfiguration`
+  over a bucket `s3:ListBuckets` really returned. Asserted `FAIL`.
+- The score over that estate is `FAILING` with `worst: "CRITICAL"`, `fail > 0`
+  **and** `notChecked > 0` in the same object, and the four counts summing to
+  `total === 16` — the clause that the loudest state does not swallow the quiet
+  ones.
+- The ranking is monotone in the state order across the whole live posture.
+- `controlRowsFor` renders the failure as `CHECKING` and the silent detector as
+  `NOT_CHECKING`, in the same render.
+
+Suite: 26 passed, 26 total.
+
+### Amendment — mutations re-run against the current tree
+
+Nine runtime mutations and one type-level mutation, each applied to the
+PRODUCTION module, each run, each confirmed red, each restored. The suite was
+green (26/26) before the first and green (26/26) after the last, and
+`git diff --stat` reports the same 2056 insertions before and after.
+
+| # | Mutation | Result |
+|---|---|---|
+| A-1 | `foldGuardDuty` detectors-present-zero-findings returns `PASS` | 2 failed, 24 passed |
+| A-2 | `if (notChecked > 0 \|\| unknown > 0)` gated off with `false &&` | 5 failed, 21 passed |
+| A-3 | `foldNetworkIngress` open ingress severity `CRITICAL` → `LOW` | 2 failed, 24 passed |
+| A-4 | `rankPostureItems` state ordering forced to `0` | 2 failed, 24 passed |
+| A-5 | `controlRowsFor` maps `NOT_CHECKED` to `UNREADABLE` | 2 failed, 24 passed |
+| A-6 | `foldBucketVersioning` dropped from `securityPostureFrom` | 3 failed, 23 passed |
+| A-7 | `asOf` reads `new Date()` instead of the readings' newest stamp | 1 failed, 25 passed |
+| A-8 | `foldBucketPublicAccess` exposed branch gated off with `false &&` | 1 failed, 25 passed |
+| A-9 | `SEVERITY_RANK.UNRANKED` moved from `0` to `9` | 1 failed, 25 passed |
+| A-10 | the `CLEAN` arm returns the real `notChecked`/`unknown` | `tsc` TS2322 at posture.ts(693,3): `Type 'number' is not assignable to type '0'` |
+
+A-2 and A-8 are `false &&` guards, the exact defect shape this programme was
+called out for. Both were temporary, both were reverted from a pristine copy
+rather than by hand, and both are named here because a disabled guard that is
+not reported is the defect whether or not it was restored.
+
+### Amendment — caller, restated
+
+Still true and still not claimed otherwise: **no page calls `securityPosture()`.**
+`grep -rn "securityPosture" apps/system-studio/src` returns only `posture.ts` and
+`posture.test.ts`. The two production callers of this FILE are
+`src/app/platform/estate/page.tsx:21` (`centralizationPosture`) and
+`src/lib/aws/inventory.ts:89,1423` (`curExistence`), both of which reach the
+first half only. `/platform/security/page.tsx` is another agent's file and this
+agent may not edit a route; the wiring is one import and one spread into the
+existing `controlsFor([...])` call there.
+
+---
+
+## STUDIO-080-010 (Console deep links) — one link per readable resource type, and no link at all rather than a link to the wrong account
+
+`src/lib/aws/console-link.ts` built links for seven service home pages. The
+service programme made roughly two dozen more resource types readable, and a
+reading an operator cannot open is a reading they will find by pasting a name
+into a search box in whatever account their browser is already signed into —
+which is the unsafe path this module exists to replace. This change gives every
+newly-readable type a deep link, and makes the rules that keep those links
+honest properties of the code rather than of whoever writes the next one.
+
+### The four rules, and where each lives
+
+| Rule | Where it is enforced | What it stops |
+| --- | --- | --- |
+| The host comes from the partition | `CONSOLE_HOSTS` + `render` | A GovCloud or China resource opened in the commercial console — the GE-010-007 residency defect in miniature |
+| The region must belong to that partition | `partitionOfRegion` + `render` | A context assembled from two disagreeing sources producing a link into another jurisdiction |
+| A global service carries no region | `RegionScope`, four named arms | `?region=` leaking onto IAM / CloudFront / Route 53, and the identity's region replacing WAF CLOUDFRONT-scope's literal `region=global` |
+| An identifier that does not check out yields NO link | `arnFits` + per-arm shape tests | A link to the right console and the wrong account, which reads to an operator as "the resource is gone" |
+
+`RegionScope` has four arms because there are four real behaviours, not two:
+`REGIONAL` (regional host + region query), `GLOBAL` (global host, no region at
+all), `GLOBAL_REGION_QUERY` (S3 — global console, regional bucket) and
+`GLOBAL_REGION_LITERAL` (WAF at CLOUDFRONT scope, which reads the literal string
+`global`). Every entry in the table states which it is; there is no default to
+fall through to.
+
+### What is now linkable
+
+Cognito user pools; VPCs, subnets and security groups; load balancers and target
+groups; ECR repositories and images; ElastiCache clusters; DynamoDB tables;
+CloudWatch metrics, dashboards, alarms, log groups and log streams; S3 buckets;
+Secrets Manager secrets; KMS keys; CloudTrail trails; Config rules; Route 53
+hosted zones; CloudFront distributions; RDS instances; ECS clusters, services and
+tasks; ACM certificates; Service Quotas; Access Analyzer; GuardDuty findings; WAF
+web ACLs at both scopes; IAM roles. Thirty-two arms of `ConsoleResource`, each
+carrying exactly the identifiers its route needs — **required, never optional**,
+because an optional field a caller omits is invisible to `tsc` and the failure
+would be a URL missing the one segment that made it point at the right resource.
+
+### The parser is consumed, not forked
+
+`parseArn` and `ParsedArn` come from `./tags`. Three copies already exist in this
+directory (`tags.ts`, `quotas.ts`, `inventory.ts`); a fourth here would be a
+fourth set of colon/slash edge cases to keep in step, in the module whose whole
+job is deciding whether an ARN belongs to the account being linked into.
+
+### Every construction site of the changed type, named
+
+`ConsoleTarget["service"]` widened from seven members to twenty-five. Widening an
+INPUT union cannot break a caller that passes an old member, but the sites were
+read rather than assumed:
+
+- `src/app/platform/estate/page.tsx:183` — `consoleLink({ partition, region, service: "resource-groups" })`. Output asserted byte-identical in the test.
+- `e2e/aws-unknown-is-not-absent.spec.ts:746-749` — four calls with `service: "ecs"`. All four assertions reproduced verbatim in the jest test and green.
+- No other file constructs a `ConsoleTarget`, and no file outside this module reads `.service` off one. `SERVICE_HOMES` is a `Record` over the union, so `tsc` refuses a member with no entry.
+
+One behaviour deliberately changed: `service: "cloudfront"` now returns a GLOBAL
+URL rather than a regional one, because CloudFront is a global service and its
+old regional URL was wrong in the way rule 3 describes. **No caller passes
+`"cloudfront"` today** — grep over `apps/` returns only the two sites above.
+
+`ConsoleContext`, `ConsoleResource`, `ConsoleLinkOutcome` and
+`ConsoleMetricDimension` are new; they have no pre-existing construction sites.
+`ConsoleContext.accountId` is REQUIRED on purpose: a caller whose identity read
+did not succeed has no account, and therefore has no business rendering a link.
+
+### Evidence
+
+```
+npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/console-link.test.ts
+  Test Suites: 1 passed, 1 total
+  Tests:       51 passed, 51 total
+
+npx tsc --noEmit -p apps/system-studio/tsconfig.json
+  no diagnostic in console-link.ts or console-link.test.ts
+  (errors remain in doors.ts and network/answer.ts — other agents' files, mid-flight)
+```
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Applied to `src/lib/aws/console-link.ts` itself — not to a copy — one at a time,
+each followed by a byte-for-byte restore verified against the file's sha256
+(`restoredExactly: true`, and the suite green again afterwards).
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M1 | `const host = CONSOLE_HOSTS[partition]` becomes `const host = "console.aws.amazon.com"` | RED — 4 failed, 47 passed |
+| M2 | the `GLOBAL` arm of `render` gains `pairs.push(["region", region])` | RED — 4 failed, 47 passed |
+| M3 | `if (regionPartition !== partition) {` becomes `if (false && regionPartition !== partition) {` | RED — 2 failed, 49 passed |
+| M4 | the ARN account check in `arnFits` is prefixed with `false &&` | RED — 1 failed, 50 passed |
+| M5 | `logsSegment` encodes once instead of twice | RED — 2 failed, 49 passed |
+| M6 | `pairs.push(["region", "global"])` becomes `pairs.push(["region", region])` | RED — 1 failed, 50 passed |
+| M7 | the ElastiCache route lookup gains `?? "redis"` | RED — 1 failed, 50 passed |
+| M8 | the ARN service check in `arnFits` is prefixed with `false &&` | RED — 1 failed, 50 passed |
+| M9 | `if (second.startsWith("iso")) return null` is prefixed with `false &&` | RED — 1 failed, 50 passed |
+| M10 | the per-partition availability gate in `render` is prefixed with `false &&` | RED — 1 failed, 50 passed |
+| M11 | the ECR registry-account check is prefixed with `false &&` | RED — 1 failed, 50 passed |
+| M12 | the metric dimension loop sorts the dimensions by name | RED — 1 failed, 50 passed |
+| M13 | the ACM resource-type check is prefixed with `false &&` | RED — 1 failed, 50 passed |
+| M14 | the `./tags` import is replaced by a naive local parser splitting on every colon | RED — 2 failed, 49 passed |
+
+M3, M4, M8-M11 and M13 are deliberately the `if (false && ...)` shape this
+programme shipped five of. They were applied by a harness that restores the
+original after every run and were confirmed absent at the end: the file's sha256
+matches its pre-mutation value and the suite is green.
+
+### What is NOT closed, and is not claimed
+
+- **`resourceConsoleLink` has no production caller yet.** `consoleLink` is called
+  from `src/app/platform/estate/page.tsx:183` and now runs through the same
+  `render` core — the partition table, the region-to-partition check and the
+  scope arms are all exercised on that path. The deep-link arms are not: the
+  surfaces that will render them are other agents' files in this same batch, and
+  this agent does not own a route. Nothing here claims a link is on a page.
+- **This module verifies COMPOSITION, not AWS's routing table.** Whether the
+  console currently serves a given path is something neither this module nor its
+  tests can establish. What is proven is that the host, the region, the partition
+  and the account on every URL come from the resolved identity and from the
+  reader's identifiers, and that a mismatch produces no link. A path AWS later
+  changes degrades to the right account and region and the wrong page; a
+  hardcoded host would degrade to the wrong account, which is the failure being
+  designed out.
+- **Two services are refused outside the commercial partition** — CloudFront and
+  Route 53 hosted zones, and WAF at CLOUDFRONT scope with them. This errs towards
+  ABSENT: if that judgement is wrong, an operator sees "no console link" where
+  one existed, which a surface states plainly. The opposite error sends them to a
+  console page that does not load.
+- **ElastiCache links only for the two engines named in `ELASTICACHE_ROUTES`.**
+  Any other engine returns NO_LINK naming the two it knows, rather than guessing
+  a route.
+- **No approval, review, certification or date is asserted anywhere.** Every
+  identifier in the tests is constructed: `123456789012` is AWS's documentation
+  account, `210987654321` is its digits reversed, the UUIDs are repeated-digit,
+  and no ARN, distribution id or resource name here corresponds to anything real.
+- **This module reads nothing and writes nothing.** It holds no AWS client,
+  imports no SDK and issues no call; `src/lib/aws/mutate.ts` is untouched.
+
+## STUDIO-070-004 (NETWORK surface) — what can reach this estate from the internet, and is traffic getting to the services
+
+`apps/system-studio/src/app/platform/network/page.tsx`, with its decisions in
+`answer.ts` beside it, `network.module.css` for geometry only, and
+`answer.test.ts` + `e2e/network-surface.spec.ts` holding it.
+
+Route: `/platform/network`. Nothing links to it yet — the navigation entry is a
+different agent's file and is not claimed here.
+
+### What it composes, and from which readers
+
+Two loads, each the reader's own production entry point, called with no argument
+so the page takes the live gateway:
+
+- `networkReadings()` — `src/lib/aws/network.ts`. VPCs, subnets, route tables,
+  internet and NAT gateways, VPC endpoints, network ACLs and security groups,
+  each degrading on its own.
+- `loadBalancerReadings()` — `src/lib/aws/loadbalancer.ts`. The ELBv2 listing,
+  plus per-load-balancer listeners and target groups, plus per-target-group
+  health with AWS's own reason code on every unhealthy target.
+
+`page.tsx` renders and decides nothing; `networkAnswer(network, balancers)` in
+`answer.ts` is the single composition and is what the test drives.
+
+### The join neither reader could make alone
+
+`network.ts` states at length that it CANNOT answer "what is this security group
+attached to" — `ec2:DescribeNetworkInterfaces` is not in the capability registry,
+so its `SecurityGroupUsage` has a `no-attachment-visible` arm and no `unused`
+arm. `loadbalancer.ts` reads `SecurityGroups` on every load balancer it lists.
+`attachmentsFromLoadBalancers` joins the two, so an open ingress rule now names
+the load balancer carrying it, and the drift-candidate list EXCLUDES the groups
+an ALB holds — and returns `unknown`, naming no candidate at all, while the load
+balancer listing is unread. A group an internet-facing ALB is carrying must never
+appear on a list an operator might act on by deleting it.
+
+### The sentences this surface exists to make unprintable
+
+- **"0 paths from the internet"** under a refused `ec2:DescribeSecurityGroups`.
+  `openPaths` returns `unknown` carrying the read's own sentence; the lead prints
+  "No count is shown"; no table is drawn at all.
+- **"all targets healthy"** while one target group's health call was refused.
+  `servingVerdict` cannot reach `all-healthy` unless the listing answered, at
+  least one group was read, no group's health is unreadable, no load balancer's
+  target-group listing is unreadable, no group holds zero registered targets, and
+  nothing is not-serving.
+- **"private"** for a subnet whose route table sends `0.0.0.0/0` to an internet
+  gateway. `classifySubnet` reads `reachability` and nothing else, and the table
+  prints the route table id and association that produced each verdict.
+- **"unused"** about a security group, anywhere.
+
+### Evidence
+
+- `npm run test --workspace apps/web -- --ci apps/system-studio/src/app/platform/network/answer.test.ts`
+  — `Test Suites: 1 passed, 1 total` / `Tests: 41 passed, 41 total`.
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — zero errors matching
+  `app/platform/network`. The 14 remaining errors in that run are all in
+  `src/app/platform/data/answer.test.ts`, another agent's file, mid-flight.
+- `node --test tests/security/operator-plane-content.test.mjs` — 5 pass, 0 fail.
+- `node --test tests/architecture/shell-separation.test.mjs` — 8 pass, 0 fail.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | Mutation | Result |
+|---|---|---|
+| 1 | `openPaths` refusal arm returns a zero-count `known` reading instead of `unknown` | RED. `Tests: 2 failed, 39 passed, 41 total` — "is unknown, never a count of zero paths"; "keeps every panel honest when the security groups are refused". |
+| 2 | `pathSeverity` — the `sensitivePortsCovered` check deleted | RED. `Tests: 2 failed, 39 passed, 41 total` — "is critical for a range that COVERS a sensitive port, not only one that lands on it"; "puts the worst first". |
+| 3 | `rankPaths` — severity comparator reversed | RED. `Tests: 1 failed, 40 passed, 41 total` — "puts the worst first — a database on the internet above an open 443". |
+| 4 | `describeAttachment` — the load balancer lookup replaced by an empty list | RED. `Tests: 1 failed, 40 passed, 41 total` — "names the load balancer, which the network reader alone cannot see". |
+| 5 | `unattachedCandidates` — the `loadBalancersRead` guard disabled | RED. `Tests: 1 failed, 40 passed, 41 total` — "names no candidate at all while the load balancer listing is unread". |
+| 6 | `servingVerdict` — `tally.groupsUnreadable > 0` dropped from the partly-unknown condition | RED. `Tests: 1 failed, 40 passed, 41 total` — "cannot say all-healthy while one target group's health is unreadable". |
+| 7 | `unhealthyTargets` — `reasonCode` defaulted to an empty string | RED. `Tests: 2 failed, 39 passed, 41 total` — "keeps AWS's reason code verbatim"; "carries a missing reason code as null, never as an empty string". |
+| 8 | `plaintextListeners` — both arms pushed to `confirmed` | RED. `Tests: 1 failed, 40 passed, 41 total` — "is only a finding when this engine established there is no redirect anywhere". |
+| 9 | `classifySubnet` — reachability overridden from the `Name` tag | RED. `Tests: 2 failed, 39 passed, 41 total` — "is decided by the route table even when the name says the opposite"; "counts a VPC's subnets by their route-table verdict". |
+| 10 | `leadAnswer` — the truncated guard disabled | RED. `Tests: 1 failed, 40 passed, 41 total` — "refuses to say closed when the security-group walk stopped at its page cap". |
+
+All ten restored. A grep for disabled-guard shapes over
+`src/app/platform/network/` returns nothing, and the suite is green again at
+`Tests: 41 passed, 41 total`. Mutations 5 and 10 deliberately used the
+disabled-guard shape this programme was called in to fix; both were reverted in
+the same minute and that grep is the check.
+
+### What is NOT closed, and is not claimed
+
+- **No navigation entry.** `tests/architecture/shell-separation.test.mjs`
+  requires every nav destination to be a route the console serves; this route is
+  `/platform/network` and adding it to the nav belongs to the navigation agent.
+- **`e2e/network-surface.spec.ts` has not been executed.** It needs a running
+  Studio on `PLAYWRIGHT_BASE_URL` (default `http://localhost:3100`) with
+  `PLATFORM_OPERATORS` and `PLATFORM_OPERATOR_SECRET` set; neither is present in
+  this working tree. The spec is written and type-checks; it is not reported as
+  passing.
+- **`e2e/layout.spec.ts` does not yet list `/platform/network`.** That file is
+  not this agent's, so the route is not in its `ROUTES` array and has not been
+  measured at 1440 / 1180 / 900 / 320px. The CSS follows the same
+  `overflow-wrap: anywhere` and stacking rules the measured routes use, which is
+  a reason to expect it to pass and not evidence that it does.
+- **Attachment is still not settled.** Every drift row says CANDIDATE and names
+  `ec2:DescribeNetworkInterfaces` as the grant that would settle it. The word
+  "unused" appears nowhere on the surface.
+- **Managed prefix lists are not graded.** A rule whose source is a prefix list
+  is shown as that list; `ec2:GetManagedPrefixListEntries` is not held, so
+  grading it either way would be a claim nobody made. The page says so.
+- **No approval, review, ARN, account id, region, price or date is asserted
+  anywhere.** The account in the tests is the all-zero placeholder
+  `000000000000`, chosen because no real account can be it.
+
+## STUDIO-110-006 (extension) — one findings pipeline over every source now readable
+
+- Status: PASS for the READ half this item names. Suppression with justification
+  and expiry, and the remediation workflow, remain NOT DONE and are unchanged by
+  this entry — both are WRITES and belong on the typed-mutation surface
+  (STUDIO-080-004), which does not exist. The unchecked `[ ]` on the original
+  STUDIO-110-006 row above is left exactly as it is, and is not ticked here.
+- Code: `apps/system-studio/src/lib/aws/findings.ts` (the pipeline section, from
+  `PIPELINE_SOURCES` down)
+- Tests: `apps/system-studio/src/lib/aws/findings.test.ts` — 26 tests, run with
+  `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/findings.test.ts`
+- Production callers: `apps/system-studio/src/app/platform/security/page.tsx:154`
+  (`await securityFindings()`) and `apps/system-studio/src/lib/aws/inventory.ts:1421`.
+  Both reach `securityFindings`, which builds `SecuritySurface.pipeline` on
+  every load; nothing here is behind a flag or an unused export.
+
+### Five sources, one shape, and only one of them is an aggregator
+
+Security Hub (already wired) plus four DIRECT readers now in this directory:
+`guardduty.ts`, `analyzer.ts`, `ecr.ts` and `compliance.ts`. Each is consumed
+through its own module's exported readings — `guardDutyReadings`,
+`analyzerReadings`, `ecrReadings`, `complianceReadings` — and none is forked or
+stubbed. No new SDK call is made from this file: Security Hub is read once, by
+`securityFindings`, and the already-built reading is handed to
+`hubContributionFrom` rather than re-read, which the test
+"runs the pipeline from the same load the Security Hub table is drawn from"
+holds to one `securityhub:GetFindings` call per load.
+
+Security Hub INGESTS GuardDuty. Concatenating the two counts the same threat
+twice and a doubled critical count is a number an operator plans against, so
+rows are keyed on **resource ARN + finding type** and collapsed. When more than
+one source reported a row that is recorded rather than discarded —
+`NormalisedFinding.seenBy`, `corroborated` and a `corroboration` sentence — and
+every contributing record survives whole in `contributions`. A record missing
+either half of the key cannot be joined at all and gets `unjoinable::<source>::<id>`,
+which provably collides with nothing: guessing that two ARN-less findings are the
+same finding is how a real one disappears.
+
+### Severity is one scale, with each source's own value beside it
+
+The normalised scale is `SeverityBand`, IMPORTED from `guardduty.ts` rather than
+re-declared, so there is one vocabulary and not two that drift. Every
+contribution carries `native`: the source's own scale, its value verbatim, its
+numeric form where it has one, and the sentence describing how the mapping was
+made. Access Analyzer and AWS Config publish NO severity, so their rows are
+`UNRANKED` — which sorts ABOVE critical — rather than being assigned a band this
+engine chose. ECR's `UNDEFINED` and an unlabelled ASFF finding are UNRANKED for
+the same reason; reading either as "low" is how an unscored critical is buried.
+
+### A source that is not enabled contributes a marker, never zero findings
+
+`SourceContribution.state` is `NOT_CHECKED` for a GuardDuty region with no
+detector, an account with no analyzer, a denied ECR listing and a Config
+recorder that is not evaluating. `notCheckedContribution` is the ONLY
+constructor for that arm, it takes the caveat as an argument, and it is the only
+place `findings: []` is assigned on it — so "never zero findings" is a property
+of the code rather than of this paragraph. A source can also answer PARTLY
+(`REPORTED` with caveats): a repository with `scanOnPush` off, a detector whose
+findings were refused, a rule that has evaluated nothing. Dropping the whole
+source would hide what it did return; reporting it clean would hide the hole.
+
+### Every construction site of the changed type, named
+
+The only exported type this change widened is `SecuritySurface`, which gained
+ONE field, `pipeline`, and it is REQUIRED rather than optional — an optional
+field a caller omits is invisible to `tsc` at the site that omits it. Grepped
+across `apps/`, `tests/` and `tools/`:
+
+- `SecuritySurface` has NO object-literal construction site outside
+  `findings.ts`. Its consumers — `src/app/platform/security/page.tsx:154` and
+  `src/lib/aws/inventory.ts:1421` — receive the value from `securityFindings`
+  and cannot omit a field.
+- `SecurityFinding` gained NOTHING. Its two object-literal construction sites,
+  `src/app/platform/security/posture.test.ts:62` and
+  `e2e/security-page-logic.spec.ts:49`, are untouched and still compile; the
+  ASFF fields the pipeline needed live in a side map (`HubExtra`) keyed by the
+  dedupe key precisely so those two files were not dragged into this change.
+- `FindingSource`, `Severity` and `SourceState` gained nothing. Consumers
+  checked: `src/app/platform/security/answer.ts:42`, `posture.ts:47`,
+  `posture.test.ts:27`, `e2e/security-page-logic.spec.ts:22`.
+- `e2e/security-page-logic.spec.ts:365` and `:381` pass `duplicatesRemoved` to
+  `provenanceOf`'s own input type in `answer.ts:379`, not to `SecuritySurface`.
+  Read, and not a construction site of a type this change touches.
+
+### Evidence
+
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — no error in
+  `findings.ts` or `findings.test.ts`. Errors in other agents' in-flight files
+  (`src/app/platform/identity/page.tsx`) were present before this change and are
+  not claimed as fixed.
+- `npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/findings.test.ts`
+  — `Test Suites: 1 passed, 1 total` / `Tests: 26 passed, 26 total`.
+- The stand-in AWS client answers eleven capabilities with the shapes the real
+  SDK returns and can fail each INDEPENDENTLY, including the shapes that trip
+  naive readers: `guardduty:ListDetectors` OMITS `DetectorIds` when there are
+  none, `ecr:DescribeRepositories` OMITS `repositories`, and
+  `access-analyzer:ListAnalyzers` returns an empty array.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Applied to `findings.ts`, run, confirmed red, restored from a byte-identical
+copy (md5 `f4da688d10542e380b9c01eb50015cda` before and after), confirmed green.
+
+| # | Mutation | Result |
+|---|----------|--------|
+| P1 | `dedupeKey` returns the type alone, dropping the resource ARN | RED, 9 of 26 — findings on different resources merged into one row; green on restore |
+| P2 | `mergeContributions` sets `corroborated = false` | RED, 3 of 26 — two sources agreeing stopped being reported; green on restore |
+| P3 | GuardDuty's no-detector caveat downgraded `NOT_ENABLED` → `UNVERIFIED` | RED, 1 of 26 — a region nothing is watching read as merely unverified; green on restore |
+| P4 | GuardDuty's `native.value`/`native.numeric` nulled | RED, 1 of 26 — the mapping became unauditable; green on restore |
+| P5 | Access Analyzer rows given `severity: "HIGH"` | RED, 1 of 26 — a band this engine invented for a source publishing none; green on restore |
+| P6 | `PRIMARY_RANK.guardduty` 0 → 9, so the aggregator outranks the direct reader | RED, 2 of 26 — the detector id and occurrence count lost from the merged row; green on restore |
+| P7 | `assemblePipeline` returns a clean REPORTED contribution for a source nobody supplied | RED, 1 of 26 — a dropped source read as a clean one; green on restore |
+| P8 | merged `firstSeen`/`lastSeen` taken from the primary instead of `earliest`/`latest` | RED, 1 of 26 — the corroborated row lost the earlier sighting; green on restore |
+| P9 | `hubSeverity`'s default arm returns `INFORMATIONAL` instead of `UNRANKED` | RED, 1 of 26 — an unlabelled finding silently downgraded; green on restore |
+| P10 | `mergeSeverity` returns `UNRANKED` unconditionally | RED, 3 of 26 — a ranked source's band discarded; green on restore |
+
+### What is NOT closed, and is not claimed
+
+- **Suppression and the remediation workflow are still not built**, and this
+  entry does not tick STUDIO-110-006. Both are writes.
+- **Inspector and Macie are read ONLY through Security Hub.** They have no
+  direct reader in this directory, so when the hub is off they are reported as
+  NOT_ENABLED *through the hub* by the existing `sources` array and contribute
+  nothing to the pipeline. The pipeline's five sources are the five that are
+  directly readable today; adding a sixth is adding a reader, not editing this
+  file's shape.
+- **The Access Analyzer external principal and exposed action are not read.**
+  That needs `access-analyzer:GetFindingV2`, which the registry does not carry.
+  Every analyzer row says so on its face rather than defaulting them.
+- **The failing RESOURCES behind a Config rule are not named.** That needs
+  `config:GetComplianceDetailsByConfigRule`, which is not held; the finding
+  attaches to the rule ARN and states the limit.
+- **ECR basic-vs-enhanced scanning coverage is not readable** and travels as a
+  caveat on every ECR row rather than being assumed.
+- **No page renders `pipeline` yet.** `pipelineLines` is the funnel a unified
+  findings surface will render and is exercised by the tests; the surface that
+  prints it is not this agent's file. `securityFindings` builds the pipeline on
+  the production path today, so it is reached, not dead — but no screenshot of
+  it is claimed.
+- **No approval, review, account id, ARN, region, price or date is asserted.**
+  The account in the tests is AWS's own documentation placeholder
+  `123456789012`; every ARN, digest, detector id and rule name is obviously
+  constructed and no live estate appears.
+
+## STUDIO-IDENTITY-001 — `/platform/identity`: the two doors, and what guards them
+
+**The question the surface answers.** "Who can get into this control plane and
+into this account, and what is protecting those doors?" The lead is a COUNT of
+principals that can administer the platform, because that is the one number
+spanning both doors: the Cognito pool that gates this console, and IAM.
+
+**Composed from five readers, through their public entrypoints only.**
+`cognitoReadings()`, `iamPosture()`, `analyzerReadings()`, `keyReadings()` and
+`secretReadings()`. The surface imports no SDK package, no `lib/aws/client`, no
+`lib/aws/mutate` and no Prisma client; readers are the only path to AWS. The five
+are awaited sequentially rather than through `Promise.all`, because they share
+the throttle budget in `lib/aws/throttle.ts` and a THROTTLED panel on this page is
+the question left unanswered.
+
+**The rule the page is built around.** *An absence of findings from a control
+that is not running is NOT a pass.* `GuardState` has five arms and exactly one —
+`CHECKED_CLEAN` — is protection. `isPass` is the only place that decision is
+made. An account with no Access Analyzer is `NOT_RUNNING`, never
+`CHECKED_CLEAN`, and renders in a "Not protection" card placed ABOVE the
+findings, with the reason carried as a WORD (`GUARD_WORDS`) and not as a colour.
+
+**The 2026-08-13 audit.** A migration reissued a shared secret as a PERMANENT
+password with pool MFA left OPTIONAL, and nothing in the console could see it.
+Both are now guards: `mfaVerdict` maps `optional` to `FINDINGS` — a second factor
+nobody is required to enrol is the same protection as none — and
+`guardFromOperatorRoster` raises the reader's `neverForcedAPasswordChange`
+suspicion with its own disproving caveat carried alongside it.
+
+**What it never renders.** No password, token, client secret or raw user
+attribute beyond the sign-in identifier. Access key IDs *are* printed: an id is
+not a credential, and `aws iam update-access-key --access-key-id …` takes one.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | Mutation | Result |
+|---|---|---|
+| 1 | `isPass` widened to `state === "CHECKED_CLEAN" \|\| state === "NOT_RUNNING"` | RED. `Tests: 3 failed, 38 passed, 41 total` — "isPass admits CHECKED_CLEAN and nothing else"; "an account with NO Access Analyzer is NOT_RUNNING, never CHECKED_CLEAN"; "ONE guard that is not running takes Clear off the page". |
+| 2 | `analyzerVerdict` — `no-analyzer` arm mapped to `CHECKED_CLEAN`, findings `0` | RED. `Tests: 2 failed, 39 passed, 41 total` — "an account with NO Access Analyzer is NOT_RUNNING, never CHECKED_CLEAN"; "ONE guard that is not running takes Clear off the page". |
+| 3 | `mfaVerdict` — `optional` arm mapped to `CHECKED_CLEAN`, findings `0` | RED. `Tests: 2 failed, 39 passed, 41 total` — "MFA OPTIONAL on the console's pool is a FINDING, not a footnote"; "a finding outranks a gap and reaches At risk". |
+| 4 | `identityVerdict` — `if (false && notChecking.length > 0)` on the second branch | RED. `Tests: 1 failed, 40 passed, 41 total` — "ONE guard that is not running takes Clear off the page". |
+| 5 | `administratorCount` — `if (false && uncertain > 0)`, dropping the floor qualifier | RED. `Tests: 1 failed, 40 passed, 41 total` — "an uncertain account makes the count a floor rather than dropping out of it". |
+| 6 | `guardFromKeys` — incomplete rotation posture reported `CHECKED_CLEAN` | RED. `Tests: 1 failed, 40 passed, 41 total` — "a refused KMS listing is UNREADABLE, and an incomplete posture is PARTIAL". |
+| 7 | `guardsFromIam` — a refused IAM read reported `CHECKED_CLEAN` with findings `0` | RED. `Tests: 1 failed, 40 passed, 41 total` — "a refused IAM read makes BOTH IAM guards UNREADABLE with no count". |
+| 8 | `guardFromSecrets` — unknown posture reported `CHECKED_CLEAN` with findings `0` | RED. `Tests: 1 failed, 40 passed, 41 total` — "an unknown secrets posture is UNREADABLE, never a clean estate". |
+
+All eight restored; the suite is green again at `Tests: 41 passed, 41 total`, and
+a grep for disabled-guard shapes (`false &&`, `|| true`, `{true ?`, `// MUTATION`)
+over `src/app/platform/identity/` returns nothing. Mutations 4 and 5 deliberately
+used the disabled-guard shape this programme exists to fix; both were reverted in
+the same minute and that grep is the check.
+
+### A test that could not fail, found by mutating it
+
+`e2e/identity-surface.spec.ts` › "the IAM tables are not drawn from a read that
+did not answer" anchored on `page.indexOf("{iam.posture ? (")` over the RAW file.
+The explanatory comment above the badge in `page.tsx` quotes that exact string,
+so `indexOf` matched the COMMENT at an index earlier than the table. Replacing
+the real guard with `{true ? (` left the test GREEN — it proved nothing about the
+code it named. Fixed by anchoring on `routeCode("page.tsx")` (comments stripped).
+Re-applying `{true ? (` then failed at line 309 as it should; restored, and the
+structural suite is green at `10 passed`.
+
+### Evidence
+
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — no error in
+  `src/app/platform/identity/**` or `e2e/identity-surface.spec.ts`. One error
+  remains in a sibling agent's in-flight `app/platform/messaging/reach.ts`.
+  A pre-existing JSX syntax error in this route (a `{/* … */}` JSX comment placed
+  inside the `headerAside` PROP expression container, which is JavaScript and not
+  JSX children) reddened the whole project and is fixed.
+- `npm run test --workspace apps/web -- --ci src/app/platform/identity/doors.test.ts`
+  — `Test Suites: 1 passed`, `Tests: 41 passed, 41 total`.
+- `npx playwright test e2e/identity-surface.spec.ts --grep "the identity route's own files"`
+  — `10 passed`.
+
+### What is NOT closed, and is not claimed
+
+- **No navigation entry.** `tests/architecture/shell-separation.test.mjs` requires
+  every nav destination to be a route the console serves. This route is
+  `/platform/identity`; adding it to the nav belongs to the navigation agent.
+- **The seven browser tests in `e2e/identity-surface.spec.ts` have not run.** They
+  need a running Studio on `PLAYWRIGHT_BASE_URL` (default `http://localhost:3100`)
+  with `PLATFORM_OPERATORS` and `PLATFORM_OPERATOR_SECRET` set; none is present in
+  this working tree. They are written and they type-check. They are NOT reported
+  as passing.
+- **`e2e/layout.spec.ts` does not list `/platform/identity`.** That file is not
+  this agent's, so the route has not been measured at 1440 / 1180 / 900 / 320px.
+  The stylesheet uses only tokens, carries no physical direction, no colour, no
+  font size and no radius, stacks its two-column list below 30rem and opts every
+  identifier into `overflow-wrap: anywhere` — a reason to expect it to pass, and
+  not evidence that it does. The same applies to `e2e/preferences.spec.ts` and its
+  AA-contrast audit.
+- **No approval, review, ARN, account id, region, price or date is asserted
+  anywhere.** The account used in the tests is the all-zero placeholder
+  `000000000000`, chosen because no real account can be it.
+- **Nothing on this surface writes.** Every module it reads through is read-only;
+  a finding here is made visible so that a human can act on it.
+
+## STUDIO-070-004 (MESSAGING surface) — can this platform reach people, and is anything queued that nobody is processing
+
+**No checkbox is moved by this entry.** The SES, SQS, EventBridge and CloudWatch
+adapters were already ticked by their own rows. This is a SURFACE that composes
+them; ticking an adapter line again on the strength of a page that renders it
+would be a sign-off nobody gave.
+
+### The route
+
+`/platform/messaging` — `apps/system-studio/src/app/platform/messaging/page.tsx`,
+its pure decision module `reach.ts`, and `messaging.module.css`.
+
+The production caller is the Next.js App Router itself: `page.tsx` is the default
+export of a `force-dynamic` App Router segment, so a request to
+`/platform/messaging` renders it server-side. It is gated by
+`operatorConfigProblems()` and `isOperator(session?.user?.email)` before any AWS
+read is issued, exactly as the sibling platform routes are. `reach.ts` is reached
+from `page.tsx` (14 imported symbols), from `reach.test.ts` and from
+`e2e/messaging-page-logic.spec.ts`; nothing else in the repository imports it, so
+no consumer outside this directory can be broken by a change to its types.
+
+### Readers consumed, and how
+
+Four live reads, one clock. `const now = new Date()` is taken once and passed to
+all four as `{ now: clock }`, so the four readings are AS OF the same instant and
+the CloudWatch window ends where the SES reading was taken.
+
+- `ses.ts` — `sesReadings`, `mailabilityVerdict`. The sandbox arm is ranked as its
+  own headline rather than a caveat under a green badge.
+- `sqs.ts` — `queueReadings`, plus the `DeadLetterState` it derives from redrive
+  policies rather than from any queue's name.
+- `metrics.ts` — the one number `sqs.ts` says out loud it cannot read,
+  `AWS/SQS ApproximateAgeOfOldestMessage`, plus `AWS/SES Send` for the measured
+  send rate the 24-hour quota is spent against.
+- `eventbridge.ts` — the rules, handed `ses.identity` rather than resolving STS a
+  second time.
+
+The metric read is sequenced AFTER the queue listing because its queries are
+derived from it: a queue the listing never returned is never asked about, and its
+age renders `not-read` rather than as a zero.
+
+### The two orderings this surface exists to get right
+
+1. **A sandbox account is not "mail works."** `mailabilityVerdict`'s `CAN_SEND`
+   arm with a non-null `recipientRestriction` becomes `REACHES_ONLY_VERIFIED`,
+   toned `bad`. SES accepts the call and drops the message, and nothing in the
+   application ever hears about it.
+2. **A read that did not answer never renders as clear.** `CLEAR` is reachable
+   only when every reading the page depends on actually answered — including each
+   queue's individual depth read. A refused `sqs:ListQueues` renders `UNKNOWN`,
+   never "nothing is waiting".
+
+A dead-letter queue holding anything, and a DISABLED rule that still carries a
+schedule, each hoist their card to directly under the answer.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+| # | File | Mutation | Result |
+|---|---|---|---|
+| 1 | `reach.ts` | `composeQueues` — `stalled` no longer requires a MEASURED age (`age.kind === "seconds"` dropped) | RED. `Tests: 2 failed, 41 passed, 43 total` — "stalled needs a MEASURED age — an unknown age is never a stall"; "a fresh backlog is work in progress, not a defect". |
+| 2 | `reach.ts` | `processingAnswer` — the `PARTLY_UNKNOWN` gate disabled as `if (false && unreadable.length > 0)` | RED. `Tests: 2 failed, 41 passed, 43 total` — "one reading answering and one not is PARTLY_UNKNOWN — still never CLEAR"; "an unreadable queue DEPTH also blocks CLEAR". |
+| 3 | `reach.ts` | `reachAnswer` — the sandbox check disabled as `if (false && verdict.recipientRestriction !== null)` | RED. `Tests: 1 failed, 42 passed, 43 total` — "a verified identity in a SANDBOX account is NOT 'reaches anyone'". |
+| 4 | `reach.ts` | `ruleRank` — the half-step for a disabled SCHEDULED rule removed (`return base`) | RED. `Tests: 1 failed, 42 passed, 43 total` — "a disabled SCHEDULED rule is first — above every other disabled rule". |
+| 5 | `reach.ts` | `disabledSchedules` — the `row.schedule !== null` filter dropped | RED. `Tests: 1 failed, 42 passed, 43 total` — "a disabled rule with no schedule is not a stopped schedule". |
+| 6 | `page.tsx` | the suppression panel prints `entries.map((e) => e.address)` instead of `entries.length` | RED. `messaging-page-logic.spec.ts:78` — "the page never prints a suppressed recipient's address", `Expected pattern: not /\.address\b/`. |
+
+All six restored. `diff` against a pristine copy taken before the first mutation
+reports both files IDENTICAL, and the suites are green again at
+`Tests: 43 passed, 43 total` (jest) and `11 passed` (Playwright).
+
+Mutations 2 and 3 deliberately used the `false &&` disabled-guard shape this
+programme was called in to fix; both were reverted in the same minute, and a grep
+for `false &&`, `|| true`, `@ts-ignore`, `as any` and `.skip` over
+`src/app/platform/messaging/` returns nothing.
+
+### A finding about the verification itself
+
+The first `npx tsc --noEmit -p apps/system-studio/tsconfig.json` of this session
+reported errors ONLY in a sibling agent's `platform/identity/page.tsx` — four
+syntax errors — and nothing in this directory. That clean reading was NOT
+trustworthy: a deliberate `const __probe: number = "not a number"` appended to
+`reach.ts` was ALSO not reported while those syntax errors stood. Once the
+sibling file parsed, the same probe was reported immediately as
+`reach.ts(992,7): error TS2322: Type 'string' is not assignable to type 'number'`.
+
+A parse error anywhere in the project can therefore suppress semantic diagnostics
+for every other file in it, and "tsc printed nothing about my file" is not
+evidence that tsc checked it. The probe was removed and the final run is clean
+across the whole project.
+
+### What is NOT closed, and is not claimed
+
+- **No navigation entry.** `/platform/messaging` is absent from `Nav.tsx`, which
+  is not this agent's file. `tests/architecture/shell-separation.test.mjs` passes
+  at `# pass 8 # fail 0`, and `tests/security/operator-plane-content.test.mjs` at
+  `# pass 5 # fail 0`; adding the destination belongs to the navigation agent.
+- **`e2e/layout.spec.ts` does not list `/platform/messaging`.** That file is not
+  this agent's, so this route has NOT been measured at 1440 / 1180 / 900 / 320px
+  and its contrast has not been measured by `e2e/preferences.spec.ts`. The CSS
+  carries `overflow-wrap: anywhere` on every identifier and prose cell, holds no
+  colour at all, and stacks rather than rows the identity line — which is a
+  reason to expect it to pass and is not evidence that it does.
+- **The route has never been rendered against a live estate.** Every assertion
+  here is either a pure decision over constructed readings or a property of the
+  source. No page-level Playwright run was made: it needs a Studio on
+  `PLAYWRIGHT_BASE_URL` (default `http://localhost:3100`) with
+  `PLATFORM_OPERATORS` and `PLATFORM_OPERATOR_SECRET` set, and neither is present
+  in this working tree.
+- **No suppressed address is rendered, by design and by test.** `ses.ts` carries
+  real recipients' addresses deliberately; this surface prints counts by reason
+  and by domain, and mutation 6 is the proof that the guard fails when broken.
+- **No approval, review, ARN, account id, region, price or date is asserted
+  anywhere.** The fixtures use the documentation-reserved account `123456789012`,
+  the reserved TLD `.invalid`, and `example-region-1`, which is not a region AWS
+  has.
+
+## STUDIO-DATA-001 (DATA surface) — where this platform keeps state, whether it is protected, and what is about to interrupt it
+
+### The route
+
+`/platform/data`, served by `apps/system-studio/src/app/platform/data/page.tsx`
+— an async server component, `export const dynamic = "force-dynamic"`, gated on
+`operatorConfigProblems()` and `isOperator()` exactly as the sibling platform
+routes are. The Next.js App Router is the production caller: the file's default
+export IS the route handler, and `./answer.ts` is imported by it and by nothing
+else except its own test.
+
+The page leads with the question in the operator's words, as
+`data-testid="page-question"`, above every piece of apparatus that answers it.
+
+### Readers consumed, and how
+
+Five, all through `src/lib/aws/`, none read directly from the surface:
+
+- `dynamodb-tables.ts` — `tableReadings()`. The only reader that can say whether
+  the TENANT REGISTRY is recoverable, so its `registry: RegistryProtection` is
+  ranked first everywhere on the page: `RISK_RANK.REGISTRY_UNRECOVERABLE` is 0
+  and `tableRows` pins the registry row at index 0 however clean it is.
+- `database.ts` — `databaseReadings()`. Pending maintenance with the date AWS
+  will FORCE it, plus failover / restart / low-storage events.
+- `buckets.ts` — `bucketPosture()`. Public-access block, policy status,
+  encryption, versioning. PUBLIC ranks hardest of the bucket findings at rank 1.
+- `elasticache.ts` — `elastiCacheReadings()`. Encryption on both legs and
+  single-node clusters with no failover.
+- `retained.ts` — `retainedReadingsForTenant()`, for the backup VAULT listing.
+
+The four estate-wide loads run in one `Promise.all`. Identity and the tag index
+are handed to `retained.ts` rather than re-resolved, because `resolveIdentity`
+caches only an ACTUAL answer and the estate this console must boot in is one
+where STS does not answer at all.
+
+`CUSTOMER_TENANT_BINDINGS` is the slug source, never the unfiltered
+`TENANT_BINDINGS`. With no customer bound the vault call is not made and the
+panel says so in words rather than rendering an empty vault list.
+
+### The honest limit, stated on the page rather than glossed
+
+The AGE of a recovery point inside an AWS Backup vault is NOT on this page.
+`retained.ts` is the only reader in the console that lists them; it filters
+recovery points to one tenant's `tenure:tenant` tag and does not carry AWS's
+`CreationDate` or `ResourceArn` through into `RetainedResource`, so there is no
+honest way to age them from here. The requirement asked for "the age of the
+newest recovery point per protected resource"; what is delivered is the newest
+restorable time for the two stores that carry one natively — RDS automated
+backups and DynamoDB point-in-time recovery, both continuous — and a paragraph
+on the card naming the exact two fields whose addition to a module this surface
+does not own would lift the limit. It is recorded as a gap, not as an apology,
+and the card does not imply it is a statement about vault contents.
+
+### The guard that must never be switched off
+
+`verdictOf` returns `PROTECTED` only when `unknowns` is empty. A finding still
+outranks an unknown — a public bucket is public whether or not the cache read
+answered — but the ABSENCE of findings is not a pass while anything went unread.
+This console's own e2e estate cannot reach an AWS endpoint, so every read there
+lands in a valueless arm of `AwsRead`; a page deriving its badge from
+`findings.length === 0` would render "everything is protected" from nine
+refusals, pass every screenshot, and be wrong on the only morning it mattered.
+
+`UNKNOWN` is also ranked at 7, deliberately WORSE than `ROUTINE` at 8: a fact
+this console could not read must never sort below, or read calmer than, a queued
+action AWS told us about that nobody has to act on.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Every one applied to `src/app/platform/data/answer.ts` — the module the route
+imports, not a copy — run through `npm run test --workspace apps/web -- --ci
+apps/system-studio/src/app/platform/data/answer.test.ts`, then reverted. The
+restored file was confirmed byte-identical to a pre-mutation backup by `diff`,
+and the suite returns to `Tests: 28 passed, 28 total`.
+
+1. `found === "PROTECTED" && !complete` becomes `found === "PROTECTED" && false && !complete`
+   — the PROTECTED guard, switched off in the exact shape this programme has
+   shipped five times. RED: `× returns UNKNOWN, not PROTECTED, when nothing was
+   found and something went unread`. `Tests: 1 failed, 27 passed`.
+2. `RISK_RANK.REGISTRY_UNRECOVERABLE: 0` becomes `2` — the registry demoted below
+   a public bucket. RED, two tests: `× ranks REGISTRY_UNRECOVERABLE above every
+   other risk` and `× leads with the registry when its point-in-time recovery is
+   off`. `Tests: 2 failed, 26 passed`.
+3. `UNKNOWN: 7, ROUTINE: 8` becomes `UNKNOWN: 8, ROUTINE: 7` — a silence made to
+   read calmer than a known-benign queued action. RED: `× is PROTECTED for an
+   empty set, and the lowest rank otherwise`, on the explicit assertion
+   `worstRisk(["ROUTINE", "UNKNOWN"]) === "UNKNOWN"`. `Tests: 1 failed, 27 passed`.
+4. `maintenanceRows` forced-first comparator signs inverted (`return -1` swapped
+   with `return 1`) — the date AWS forces an action pushed to the bottom of the
+   table. RED: `× sorts forced actions first, by the date AWS applies them`.
+   `Tests: 1 failed, 27 passed`.
+5. `if (gaps.length > 0)` becomes `if (false && gaps.length > 0)` in `bucketRows`
+   — a bucket with one public-access-block flag off silently stops being PUBLIC.
+   RED: `× calls one missing block flag PUBLIC, and names which flag`.
+   `Tests: 1 failed, 27 passed`.
+6. `registryFinding` `"no-point-in-time-recovery"` returns risk `UNRECOVERABLE`
+   instead of `REGISTRY_UNRECOVERABLE` — the fleet's own record of itself
+   demoted to one unrecoverable store among several. RED: `× leads with the
+   registry when its point-in-time recovery is off`. `Tests: 1 failed, 27 passed`.
+
+No mutation was left in place. `grep` for `false &&`, `&& false` and `|| true`
+across the route directory and the spec returns nothing.
+
+### Evidence
+
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — zero errors in
+  `src/app/platform/data/**` and `e2e/data-surface.spec.ts`. Errors remain in
+  `src/app/platform/identity/page.tsx` (a parse error) and in `src/lib/aws/tags.ts`
+  / `tags.test.ts` (`'indexRegion' does not exist in type 'CoverageQuestion'`);
+  both are other agents' files, mid-flight, and neither is claimed here. Because
+  a parse error can suppress semantic diagnostics project-wide, the clean result
+  for this route is stated as "no diagnostic was emitted for these files", not as
+  proof the project is clean.
+- `npm run test --workspace apps/web -- --ci apps/system-studio/src/app/platform/data/answer.test.ts`
+  — `Test Suites: 1 passed`, `Tests: 28 passed, 28 total`.
+- `node --test tests/security/operator-plane-content.test.mjs` — `# pass 5 # fail 0`.
+  The route imports no Prisma client; it reads AWS and nothing else.
+- `node --test tests/architecture/shell-separation.test.mjs` — `# pass 8 # fail 0`.
+- `npx playwright test e2e/data-surface.spec.ts` — `1 passed, 7 skipped`. The one
+  that ran is the stylesheet rule; the seven that skipped are browser tests, below.
+
+### What is NOT closed, and is not claimed
+
+- **The route has never been rendered.** The seven browser tests in
+  `e2e/data-surface.spec.ts` SKIPPED. They need a Studio on
+  `PLAYWRIGHT_BASE_URL` (default `http://localhost:3100`) with
+  `PLATFORM_OPERATORS` and `PLATFORM_OPERATOR_SECRET` set; neither is present in
+  this working tree. Every claim above is a pure decision over constructed
+  readings or a property of the source. The page has NOT been observed to render.
+- **No navigation entry.** `/platform/data` is absent from `Nav.tsx`, which is
+  not this agent's file. Adding the destination belongs to the navigation agent.
+- **`e2e/layout.spec.ts` does not list `/platform/data`.** That file is shared and
+  was not edited. Its four widths and its overlap and overflow assertions are
+  therefore reproduced inside `e2e/data-surface.spec.ts` for this route — which
+  is a reason to expect the shared suite to pass once the route joins its
+  `ROUTES` array, and is not evidence that it does. `e2e/preferences.spec.ts` has
+  likewise not measured this route's contrast; the stylesheet holds no colour at
+  all, which is asserted, and that is a precondition rather than a result.
+- **Vault recovery-point ages are absent by design**, for the reason recorded
+  above. The card states the limit where a reader would otherwise assume the
+  opposite.
+- **No approval, review, ARN, account id, region, price or date is asserted
+  anywhere** in the route, its test or its spec.
+
+---
+
+## The fleet-health verdict — six readers composed into one ranked answer
+
+**File**: `apps/system-studio/src/lib/aws/health.ts` (+ `health.test.ts`)
+**Shape of the change**: `git diff --numstat` reports **1424 insertions, 0
+deletions**. Not one pre-existing line of this module was altered, so
+`FleetReadings`, `ObservationTarget`, `ObserveOptions`, `observationsFor`,
+`observeFleet`, `certificateObservation`, `alarmObservation` and
+`backupObservation` have the exact fields and signatures they had. That is the
+answer to "did you widen a shared type": nothing existing was widened, and the
+construction sites checked by name are
+`apps/system-studio/src/app/tenants/page.tsx` (`ObservationTarget`),
+`apps/system-studio/src/app/tenants/fleet-view.ts` and its test
+(`FleetReadings`), `apps/system-studio/src/app/tenants/[slug]/page.tsx`
+(`observeFleet`) and `apps/system-studio/e2e/fleet-health-logic.spec.ts` (nine
+pre-existing exports). The new types — `FleetHealthSources`,
+`FleetHealthReaders`, `FleetHealthVerdict`, `VerdictFinding`,
+`VerdictBlindSpot`, `FleetHealthOptions` — are constructed today only in
+`health.ts` itself and in `health.test.ts`. Every field of `FleetHealthSources`
+and every method of `FleetHealthReaders` is REQUIRED and nullable rather than
+optional, so a seventh reader breaks every construction site at compile time
+instead of silently dropping out of the verdict.
+
+### The five ranking rules, and where each one lives
+
+1. **AWS outranks our own alarms.** `FINDING_KINDS` opens with
+   `aws-health-affecting-us` and `aws-health-open-service-in-use`; the second
+   only fires when `touchesServiceInUse` matches the event against
+   `servicesInUse()`, which is derived from resources readers actually returned
+   and is EMPTY for a denied reader. An open public event that cannot be ruled
+   in or out lands in `couldNotSee`, not in the findings.
+2. **A muted alarm outranks OK.** `ALARM_FINDING.DISABLED` →
+   `alarm-actions-disabled` → `UNTRUSTED`, which sits above `CANNOT_SAY` and
+   above `HEALTHY`.
+3. **Zero healthy targets outranks an alarm that has not fired.**
+   `no-healthy-targets` is ranked above `alarm-firing` in `FINDING_KINDS`; both
+   `no-targets` and `none-serving` map to it.
+4. **A metric with NO DATA is never a zero.** `no-datapoints` becomes a finding
+   whose sentence says so in words; `not-read` becomes a gap instead, so the two
+   can never be averaged together.
+5. **A denied or throttled read degrades to "cannot say", never to OK.**
+   `HEALTHY` requires `findings` empty, `couldNotSee` empty AND `basedOn`
+   non-empty, all three at once.
+
+### A guard that could not fail, found and replaced
+
+`metricQueriesFor` carried `if (!byArn.has(lb.arn)) continue` under a comment
+claiming it "proves this one is the group's own". `byArn` was built from the
+same list `targetGroupsOf` walks, so the answer was always yes — the guard was
+inert. It is replaced by
+`if (group.loadBalancerArns.length > 0 && !group.loadBalancerArns.includes(lb.arn)) continue`,
+which is AWS's own attachment list rather than a restatement of this reader's
+nesting. It matters because CloudWatch answers a query for a `TargetGroup` +
+`LoadBalancer` pair it has never published with an EMPTY series, and an empty
+`HealthyHostCount` is indistinguishable from zero healthy hosts — rule 3 would
+then report a fabricated outage. Mutation M9 below is the proof the old guard
+was inert: reinstating it verbatim produces exactly the same single failure as
+deleting the new guard outright (M8).
+
+### Mutation proof — 14 applied one at a time, 14 killed
+
+Each was applied to `health.ts` (never to the test), the suite was run, and the
+file was restored and re-hashed. `sha256(health.ts)` before and after the whole
+run: `567e4f18e5b7f6e75ca887c69dc0553ce213e743a6be1fc999933d2117105918` —
+identical. Suite green on restore: **46 passed, 0 failed**.
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | `"aws-health-affecting-us": "AWS_INCIDENT"` → `"OUR_INCIDENT"` | RED — 2 failed |
+| M2 | `DISABLED: "alarm-actions-disabled",` commented out | RED — 1 failed |
+| M3 | `"no-healthy-targets"` moved below `"alarm-firing"` in `FINDING_KINDS` | RED — 1 failed |
+| M4 | `findings.push({ kind: "metric-no-data", …})` → `void 0 && findings.push(…)` | RED — 1 failed |
+| M5 | "This is not a value of zero:" struck from the no-data sentence | RED — 1 failed |
+| M6 | `: couldNotSee.length > 0` → `: false && couldNotSee.length > 0` | RED — 8+ failed |
+| M7 | `"Nothing in this pass went unread."` → `"All clear."` | RED — 1 failed |
+| M8 | the new `loadBalancerArns` attachment guard deleted | RED — 1 failed |
+| M9 | the new guard replaced by the OLD `byArn.has(lb.arn)` guard verbatim | RED — same 1 failure as M8, which is the proof the old guard was inert |
+| M10 | `if (row.verdict === "UNAUTHORIZED" \|\| …)` → `if (false && (…))` | RED — 1 failed |
+| M11 | `if (!isIncident(task.stopCause)) continue` → `if (false && …)` | RED — 1 failed |
+| M12 | `database-interrupting-maintenance` swapped below `database-pending-maintenance` | RED — 1 failed |
+| M13 | `sources.database && itemsOf(…).length > 0` → `sources.database` | RED — 3 failed |
+| M14 | `if (surface.rows.length === 0)` → `if (false && …)` | RED — 1 failed |
+
+M6 is the important one: it is the exact shape of the defect this programme was
+told about — a guard switched off with `false &&` that leaves the suite reading
+GREEN. It does not: eight cases fail, because the "a gap never resolves to OK"
+rule is asserted at eight different entry points rather than once.
+
+### What is NOT done, said plainly
+
+- **The verdict has no production caller yet.** `health.ts` IS reached in
+  production — `app/tenants/page.tsx` and `app/tenants/[slug]/page.tsx` call
+  `fleetReadings`, `observeFleet` and `HEALTH_REFRESH_MS` — but no route calls
+  `observeFleetHealth`, `fleetHealthVerdict` or `metricQueriesFor`. Its intended
+  consumer is `apps/system-studio/src/app/platform/health/page.tsx`, whose
+  `answer.ts` composes two readers (alarms, aws-health) where this composes six.
+  That file is a route and was outside this agent's allowlist, so it was not
+  touched. Until somebody wires it, this is a proven library with no surface.
+- **Nothing here has run against a live estate.** Every case is a pure decision
+  over constructed readings. The async case injects a `FleetHealthReaders` whose
+  six methods are functions in the test file; no AWS call is made.
+- **No approval, ARN, account id, region, price or date is asserted.** The
+  fixtures use the documentation-reserved account `123456789012` and constructed
+  resource names; no real load balancer, cluster, target group or database is
+  named.
+
+## STUDIO-080-010 (continued) — a reading's own placement, reconciled with the resolved identity
+
+Appended to the STUDIO-080-010 section above rather than rewriting it; that
+entry's evidence (51 tests, its own fourteen mutations) is the earlier run's and
+is left exactly as it was written. This entry records what was added on top and
+the mutations re-run against the file as it stands now.
+
+### The gap this closes
+
+Every deep-link arm took a `ConsoleContext` — partition, region, account — and
+every surface had only one obvious thing to put in it: the resolved identity.
+But an estate is not one region, and thirty readers in `src/lib/aws/` carry a
+`{partition, region, accountId}` triple read off the resource's OWN ARN
+(`network.ts`, `dynamodb-tables.ts`, `guardduty.ts`, `quotas.ts`, `waf.ts`,
+`logs.ts`, `keys.ts`, `secrets.ts`, `trail.ts`, `cdn.ts`, `dns.ts`,
+`containers.ts`, `certificates.ts`, `analyzer.ts`, `compliance.ts`, `ecr.ts`,
+`elasticache.ts`, `buckets.ts`, `metrics.ts`, `dashboards.ts`, `database.ts`,
+`loadbalancer.ts`, `cognito.ts` and the rest), each nullable precisely because
+the reader refuses to guess one. A GuardDuty finding in `us-east-1`, linked from
+a console whose identity resolved `eu-west-2`, would have opened an `eu-west-2`
+page with no such finding — which reads to an operator as "the finding is gone",
+the exact failure this module exists to prevent.
+
+`consoleContextForReading(identity, placement)` reconciles the two, and
+`resourceConsoleLinkForReading(identity, placement, resource)` is the one call a
+surface makes so the reconcile cannot be the step somebody forgets.
+
+The two fields are NOT treated the same way:
+
+| Field | Rule | Why |
+| --- | --- | --- |
+| `region`, `partition` | a stated value WINS over the identity's | It came off the resource's own ARN, and the reader already fell back to the identity where AWS returned none. Refusing it would hide a resource that exists. |
+| `accountId` | a stated value that is not the identity's yields NO LINK | A link to the wrong account is worse than no link. |
+| all three | a blank string is treated as absent, not as a value | An empty segment is what a missing identifier looks like once concatenated. |
+| stated partition vs stated region | not re-checked here — `render` owns it | One check in one place cannot drift from itself. |
+
+`network.ts` names the account field `ownerId` (that is what `DescribeVpcs`
+returns). The mapping is written at the call site — `accountId: vpc.ownerId` —
+rather than by renaming a reader's field, and `console-link.test.ts` holds a
+type-only bridge function so `tsc` checks it.
+
+### Type change, and every construction site checked
+
+Additive only. `StatedPlacement`, `ConsoleContextOutcome`,
+`consoleContextForReading` and `resourceConsoleLinkForReading` are new exports.
+No existing exported type gained, lost or widened a field, and no existing
+function changed shape or behaviour. The construction sites of the two types a
+caller can build were re-read, not assumed:
+
+- `ConsoleTarget` — `src/app/platform/estate/page.tsx:183`
+  (`service: "resource-groups"`) and `e2e/aws-unknown-is-not-absent.spec.ts:746-749`
+  (four calls, `service: "ecs"`). Unchanged; both outputs asserted byte-identical.
+- `ConsoleContext` — constructed only inside this module (`consoleLinkOutcome`
+  synthesises one with an empty `accountId` for a service HOME page) and in
+  `console-link.test.ts`. A grep for `ConsoleContext` and `ConsoleTarget` over
+  `apps/` returns no other file.
+- `StatedPlacement` has no construction site outside its own test yet, by
+  definition — it is new in this entry.
+
+### Evidence, this run
+
+```
+npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/console-link.test.ts
+  Test Suites: 1 passed, 1 total
+  Tests:       60 passed, 60 total
+
+npx tsc --noEmit -p apps/system-studio/tsconfig.json
+  no diagnostic in console-link.ts or console-link.test.ts
+  (three diagnostics remain in tags.ts / tags.test.ts — another agent's file, mid-flight)
+```
+
+### Mutations re-run against the file as it stands, each red, each restored
+
+Applied to `src/lib/aws/console-link.ts` itself, one at a time, by a harness that
+rewrites the original after every run and asserts the restored bytes are
+identical (`restoredIdentical: true` on all ten, and on the final restore).
+
+| # | Mutation | Result | First test that caught it |
+| --- | --- | --- | --- |
+| M1 | `"aws-us-gov": "console.amazonaws-us-gov.com"` becomes `"console.aws.amazon.com"` | RED — 4 failed, 56 passed | three partitions produce three different hosts, and a fourth produces null |
+| M2 | `if (regionPartition !== partition) {` becomes `if (false && regionPartition !== partition) {` | RED — 3 failed, 57 passed | a commercial partition holding a China region builds NO link |
+| M3 | the `GLOBAL` arm of `render` gains `pairs.push(["region", region])` | RED — 4 failed, 56 passed | IAM: no region in the host, no region in the query |
+| M4 | the ARN account check in `arnFits` is prefixed with `false &&` | RED — 1 failed, 59 passed | a certificate in ANOTHER account produces no link |
+| M5 | `logsSegment` encodes once instead of twice | RED — 2 failed, 58 passed | a log group name is encoded the way logsV2 reads it — twice, with $ |
+| M6 | `if (second.startsWith("iso")) return null` becomes `return "aws"` | RED — 1 failed, 59 passed | an air-gapped region is null, NOT commercial |
+| M7 | the stated-account check in `consoleContextForReading` is prefixed with `false &&` | RED — 2 failed, 58 passed | a reading in ANOTHER account produces no link, and names both accounts |
+| M8 | `region: statedValue(placement.region) ?? identity.region` becomes `region: identity.region` | RED — 5 failed, 55 passed | a stated region in the same account wins over the identity's region |
+| M9 | `COMMERCIAL_ONLY()` returns all three partitions | RED — 1 failed, 59 passed | the two edge services are refused outside the commercial partition |
+| M10 | the ECR registry-account check is prefixed with `false &&` | RED — 1 failed, 59 passed | an ECR repository in a different registry account produces no link |
+
+M2, M4, M7 and M10 are deliberately the `if (false && ...)` shape this programme
+shipped five of. A grep for that string over `console-link.ts` and
+`console-link.test.ts` returns nothing after the run, and the suite is green at
+60/60.
+
+### What is NOT closed, and is not claimed
+
+- **`resourceConsoleLink` and `resourceConsoleLinkForReading` still have no
+  production caller.** The only production caller of this module remains
+  `src/app/platform/estate/page.tsx:17,183,463` — `consoleLink`, `consoleCaveat`,
+  `linkablePartitions` — which exercises `render`'s partition table,
+  region-to-partition check and scope arms on the live path. The deep-link arms
+  are reached only by tests today; the surfaces that will render them are other
+  agents' routes in this same batch, and this agent owns no route. Nothing here
+  claims a deep link appears on a page.
+- **No reader is loaded by this module or its test.** The three reader imports in
+  the test are `import type` and are erased before it runs; the module holds no
+  AWS client, imports no SDK and issues no call. `src/lib/aws/mutate.ts` is
+  untouched.
+- **A stated region is trusted as far as the reader's own guarantee, no
+  further.** If a reader ever put a literal in that field rather than an
+  ARN-derived value, this module would build a link into it. The defence is that
+  reader's own tests, not this one's.
+- **No approval, review, certification, ARN, account id, region, price or date is
+  asserted anywhere.** `123456789012` is AWS's documentation account,
+  `210987654321` is its digits reversed, and every UUID is repeated-digit.
+
+### The estate stops being a partial picture — STUDIO-080-001, STUDIO-000-007, STUDIO-000-008
+
+**No checkbox is ticked by this entry.** STUDIO-080-001 asks for the whole
+estate; this entry composes every reader this build has into one inventory and
+makes its blind spots data. What is still not read is listed at the end.
+
+`inventory.ts` composed four services — ECS, RDS, CloudFront, ACM. Everything the
+service programme made readable was invisible to `/platform/estate`, and the page
+had no way to say so: a service nobody composed and a service that holds nothing
+were both simply not on the page.
+
+It now composes **54 sections**, and `estateCoverage` computes **0 capabilities
+with no reader at all** from `CAPABILITIES` rather than from a hand-kept list.
+
+#### The two properties, and where each one lives
+
+| Property | Where | What it refuses to do |
+| --- | --- | --- |
+| Coverage is data, not an absence | `SectionCoverage`, `CoverageReport` | Five arms — `VISIBLE`, `ABSENT`, `UNKNOWN`, `NOT_COMPOSED`, `NO_READER`. Only `ABSENT` is a claim about the ACCOUNT. A caller renders "we cannot see ECR" from `UNKNOWN` and "there is no ECR" from `ABSENT`; they are different values before they are different pixels. |
+| One denied service does not collapse the inventory | `load` / `from` / `resourceSection` | Every reader is `load`ed, never awaited into a bare `Promise.all`. A refused, throttled, broken or contract-refused service degrades to `UNKNOWN` for its own section; every other section stays real. |
+| The total names what it excludes | `EstateCount` | `counted` and `excluded` come out of one call and cannot be rendered apart. `text` says "at least" whenever anything was left out. A count that silently omitted a denied service would be a lie with a number on it. |
+
+`SectionContribution` keeps three kinds apart: `resources` (counted), `signal` (a
+service read for something that is not a resource — an alarm, a price, a quota),
+and `not-composed` (a reader exists and this composition deliberately does not
+drive it, with `holdsResources` deciding whether its absence makes the total a
+floor). Backup vaults and SSM parameters are `holdsResources: true`, so they are
+named in `count.excluded` rather than quietly missing.
+
+#### Cadence — 54 sections, not 54× the calls
+
+`cadencedGateway` collapses identical calls onto one in-flight promise within a
+load, and reuses answers between loads for exactly `CAPABILITIES[capability]
+.refreshMs` — read from the registry, never retyped. A throttle is never cached
+(`isTransient` / `isThrottle`); a denial is, because an IAM policy does not change
+between two reads a second apart. `GatewayLedger` reports what the load actually
+cost, so a fan-out regression is visible per capability rather than inferred.
+
+#### Mutation proofs — 14 applied, 13 killed, 1 survived and named
+
+Each mutation was applied to `inventory.ts`, the suite was run, and the module was
+restored from a pristine copy and re-run green (22/22) before the next.
+
+| # | Mutation | Result | What it proves |
+| --- | --- | --- | --- |
+| M1 | `coverageOf`'s failing arm returns `{ kind: "VISIBLE", resources: 0 }` | RED — 4 failed, 17 passed | a denial does not render as a service that holds nothing |
+| M2 | `load()`'s `try`/`catch` is removed | **GREEN — survived** | see "What is NOT proven" below |
+| M3 | the unreadable arm of `estateResourceCount` does `contributing += 1` instead of `excluded.push` | RED — 2 failed, 19 passed | the total names the service it could not read |
+| M4 | `holdsResources` is replaced by `false` | RED — 1 failed, 20 passed | a reader this page does not drive is excluded BY NAME |
+| M5 | the per-load `thisLoad` dedup is bypassed | RED — 1 failed, 20 passed | identity and the tag index are read once per load, not once per reader |
+| M6 | `reusable()` returns `true` | RED — 1 failed, 20 passed | a throttle is never held for the refresh window; a denial is |
+| M7 | the no-ARN branch stops pushing to `omitted` | RED — 1 failed, 20 passed | a resource read but not nameable is never dropped silently |
+| M8 | `ctx.accountId` fallback becomes a literal account id | RED — 1 failed, 20 passed | a bucket ARN's empty account resolves from identity, never a literal |
+| M9 | `estateCoverage` stops pushing `noReader` | RED — 1 failed, 20 passed | NO_READER is computed from the registry, not hand-listed |
+| M10 | `refreshMs` becomes the hard-coded `60_000` | RED — 1 failed, 20 passed | every section states the registry's own window |
+| M11 | `estateSectionLines` skips the ECS sections | RED — 1 failed, 20 passed | the first four lines stay byte-identical to `estateLines` |
+| M12 | the WAF CLOUDFRONT-scope omission stops being recorded | RED — 1 failed, 20 passed | half a service read is stated, not implied by absence |
+| M13 | `resourceSection`'s `catch` rethrows instead of `threw(...)` | RED — 1 failed, 20 passed | a resource the published contract refuses takes down its own section only |
+| M14 | the count's headline drops the "at least" branch | RED — 2 failed, 19 passed | a floor is never worded as a total |
+
+No `if (false && ...)`, `|| true` or `// MUTATION` stub survives the run: the
+module is byte-identical to its pre-mutation copy (`diff` clean) and the suite is
+green at 22/22.
+
+#### What is NOT proven, and is not claimed
+
+- **M2 survived.** `load()`'s `catch` is defence against a READER throwing
+  outright — an adapter bug, not a service failure. It could not be killed,
+  because every reader in this directory funnels its own AWS calls through
+  `readAws`, which catches first: a gateway that throws `CredentialsProviderError`
+  from every call and from `resolvedRegion` still resolves the whole load with
+  every section `UNKNOWN` (that case IS tested). Synthesising a reader-internal
+  bug would mean coupling this test to a sibling module's internals. The guard is
+  kept and reported unproven rather than deleted or claimed. The same isolation
+  property IS proven, through the reachable path, by M13.
+- **`from()`'s selector is not defended.** If a sibling reader renamed a field its
+  selector reads (`r.pools`, `r.buckets`), the selector would throw outside any
+  catch and take the load down. No defensive `catch` was added, because it could
+  not be tested either; this is recorded as a known latent path rather than
+  papered over.
+- **Metric series, Cost Explorer and object versions are deliberately not
+  composed**, each with its reason on the section. Metrics needs the caller's own
+  queries and every invented query is billed; Cost Explorer is money, not estate,
+  and is billed per call.
+- **This inventory reads ONE account.** `organizations:ListAccounts` is a signal
+  section for exactly that reason.
+- **No approval, review, certification, ARN, account id, region, price or date is
+  asserted.** `123456789012` is AWS's documentation account.
+
+## STUDIO-070-002 (continued) — attribution across every service, and the three ways an absence lies
+
+`tags.ts` could already tell a tagged resource from an untagged one, and could
+already tell "absent from the regional index" from "untagged". It could not tell
+either of the other two ways an absence means nothing:
+
+- **another partition.** `tag:GetResources` cannot see across `aws` /
+  `aws-us-gov` / `aws-cn`.
+- **another account.** It indexes ONE account — the caller's. A resource in a
+  member account is absent from it whether it is tagged or not, and reporting
+  that as untagged is a fabricated finding against an account this console has
+  never read.
+
+Both now resolve through one `ArnScope { partition, region, accountId }`, every
+field nullable, every field READ:
+
+1. the identity a surface already resolved (`arnScopeOf`, from
+   `sts:GetCallerIdentity`), or an explicit scope;
+2. the region the client itself resolved;
+3. `scopeFromIndex` — the partition and account the index's OWN returned ARNs
+   prove, unanimously or not at all. A console holding no `sts:GetCallerIdentity`
+   still attributes.
+
+A field nothing resolved stays null, and a null field makes an absence render
+`unknown` — never `untagged`, and never a literal `"aws"`.
+
+### A resource its own reader could not name
+
+`logs.ts`, `ecr.ts`, `cognito.ts`, `keys.ts`, `secrets.ts` and `elasticache.ts`
+each declare `arn: string | null`, because the AWS API they call can omit it.
+Such a resource cannot be joined to the tag index — there is no key — and the
+convenient move is to drop it, which shrinks the estate's own total precisely
+around the resources whose identity was already incomplete.
+
+`declarationsFrom` returns `{ declared, unidentified }` from one call, so both
+lists have to be destructured to use either. An unidentified resource is still
+attributable when its own service answered about its tags (no ARN is needed for
+that), is counted in the same `CoverageSummary`, and reaches `unowned` with the
+reader's own label. `coverage.summary.untagged` and `coverage.unowned.length`
+agree, ARN or no ARN — asserted, because a page reading "2 unowned" over a list
+of one is the defect.
+
+### Type changes, and every construction site checked
+
+| type | change | every construction / read site |
+| --- | --- | --- |
+| `CoverageQuestion` | `indexRegion: string \| null` → `indexScope: ArnScope`, REQUIRED | 2, both updated: `estateCoverage`'s `decide` (`tags.ts`), `ask` (`tags.test.ts`). `tsc` flagged both — the point of not making it optional |
+| `EstateCoverage` | `indexRegion` → `indexScope`; `+ unidentified` | constructed once (return of `estateCoverage`); `grep -rn "estateCoverage\|indexRegion\|indexScope" apps packages tools tests` finds no reader outside `tags.ts`/`tags.test.ts` |
+| `UnownedResource` | `arn: string` → `string \| null`; `+ label`, `+ accountId`, `+ partition` | constructed once (`unownedResources`); `grep -rn "unownedResources\|\.unowned\|UnownedResource"` outside `tags.ts` returns NOTHING — no surface renders these rows yet |
+| `DeclaredResource` | `+ label?`, `+ source?` (additive) | no external construction site |
+| `coverageSummary` | parameter relaxed to `readonly { coverage: TagCoverage }[]` | a relaxation: every existing caller still compiles |
+| `parseArn` / `ParsedArn` | UNCHANGED — `console-link.ts` imports both at 6 call sites | — |
+
+### Mutation proof — 12 applied one at a time, 12 killed
+
+Each: apply, run, confirm RED, restore, confirm GREEN. The module was verified
+byte-identical to its pre-mutation state at the end.
+
+| # | mutation | mutated | restored |
+| --- | --- | --- | --- |
+| M1 | `if (parsed.partition !== scope.partition)` → `if (false && …)` | RED — 1 failed, 44 skipped | GREEN |
+| M2 | `if (parsed.accountId !== scope.accountId)` → `if (false && …)` | RED — 1 failed, 44 skipped | GREEN |
+| M3 | `if (scope.accountId === null)` → `if (false && …)` | RED — 1 failed, 44 skipped | GREEN |
+| M4 | `if (scope.partition === null)` → `if (false && …)` | RED — 1 failed, 44 skipped | GREEN |
+| M5 | `scopeFromIndex` unanimity `seen.size === 1` → `seen.size >= 1` | RED — 1 failed, 44 skipped | GREEN |
+| M6 | `arnScopeOf` on a denied identity returns `{ partition: "aws", … }` | RED — 1 failed, 44 skipped | GREEN |
+| M7 | `mergeScope` becomes `{ ...fallback, ...preferred }` | RED — 1 failed, 44 skipped | GREEN |
+| M8 | `declarationsFrom` stops pushing ARN-less resources | RED — 1 failed, 44 skipped | GREEN |
+| M9 | an ARN-less resource with no native answer renders `untagged` | RED — 1 failed, 44 skipped | GREEN |
+| M10 | `unownedResources` skips the `unidentified` list | RED — 1 failed, 44 skipped | GREEN |
+| M11 | `UnownedResource.accountId` becomes a constant `null` | RED — 1 failed, 44 skipped | GREEN |
+| M12 | `summary: coverageSummary(resources)` — the ARN-less ones uncounted | RED — 1 failed, 44 skipped | GREEN |
+
+`npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/tags.test.ts`
+— 45 passed, 45 total. The three other suites that reach this module
+(`tag-compliance.test.tsx`, `cost-decisions.test.ts`, `tenants/[slug]`) — 9
+suites, 142 passed. `tests/security/operator-plane-content.test.mjs` — 5 passed
+(the only import added is `import type { Identity }`, which erases).
+
+### What is NOT done, said plainly
+
+- **No surface passes declared resources yet.** In production `taggedResources`
+  (`platform/cost/page.tsx`), `tagCompliance` (`components/TagCompliancePanel.tsx`)
+  and `forTenant` (`tenants/[slug]/footprint.ts`) reach the coverage core through
+  `coverageFromIndex`. `estateCoverage`, `coverageFor` and `declarationsFrom` are
+  reached only when a page hands over what its readers found; none does today,
+  and no comment in the module claims otherwise. `inventory.ts`'s
+  `EstateResource` is structurally a `DeclaredResource`, so the composition is
+  one argument for whoever owns that route.
+- **`UnownedResource` rows are rendered nowhere.** `TagCompliancePanel` shows the
+  counts and its own non-compliance table; the unowned rows are computed on a
+  live path and read by nobody. That is why `arn` could be widened safely, and it
+  is a gap, not a feature.
+- **Three names now exist twice under `src/lib/aws/`** — `estateCoverage`,
+  `DeclaredResource` and `parseArn` each mean one thing in `tags.ts` and another
+  in `inventory.ts`/`drift.ts`. A module importing both gets a compile error, not
+  a silent bug, but nothing here resolved it: those files belong to other agents.
+- **`TAG_API_GAPS` is not AWS's support matrix** and cannot be. The general rule
+  — a global ARN cannot be concluded from a regional index — is what catches the
+  services nobody listed.
+- **No approval, review, certification, ARN, account id, region, price or date is
+  asserted.** The accounts in the tests are `111122223333` and `444455556666`,
+  AWS's own documentation examples.
+
+## STUDIO-080-001 (continued) — the image the NEXT task pulls, and why it is neither a break nor housekeeping
+
+The wiring graph could already walk a tenant end to end — host, DNS record,
+CloudFront distribution, load balancer, listener, target group, ECS service, task
+definition, running digest, ECR repository — plus the RDS instances, DynamoDB
+tables, S3 buckets, queues and secrets its tags claim. `walkDigests` answers
+"which build is serving traffic" by reading the digest off a RUNNING task, which
+is the only stable answer to that question.
+
+It has one blind spot and it is wide:
+
+- **a service scaled to zero has no running task.** The digest hop returns
+  `unknown` and the whole right-hand end of the chain — image, repository —
+  vanishes from the graph. The most likely reason a service sits at zero is that
+  somebody is about to scale it back up.
+- **a running service reads green while the tag its revision names is gone.** A
+  container that is already up never pulls again, so an ECR lifecycle policy can
+  expire the tag out from under it and every hop in the graph stays `present`.
+
+Both are the same fact, and it is readable from the revision whether or not
+anything is running: `ecs:DescribeTaskDefinition` names an image, and
+`ecr:DescribeImages` either holds it or does not. When it does not, the next task
+placed fails `CannotPullContainerError` — at a scale-out under load, at an AZ
+replacement, at the next deploy.
+
+### A third severity, because folding it either way lies
+
+`walkDeclaredImages` / `walkDeclaredRepository` add two hops,
+`task-definition->declared-image` and `declared-image->ecr-repository`, and they
+are in `LATENT_EDGE_KINDS` — not `PATH_EDGE_KINDS`, not attribution.
+
+- Counted as a break, a tenant serving every request correctly is reported as
+  down beside the tenant that actually is, and the row that means an outage stops
+  being read.
+- Counted as an attribution, "the image this revision declares is gone from ECR"
+  files under a list titled *resources tagged for this tenant*, which is not what
+  it is, and it reads as housekeeping.
+
+`TenantWiring.latent` is its own list; `absentAttributions` is now the exclusion
+of BOTH sets, so adding a latent kind cannot quietly refile it. `reachOf` carries
+`latent` as a count on EVERY `ReachState` arm including `intact`, and
+`describeReach`'s intact arm was re-worded from "every one of the N hops this
+graph walked is connected" to "every one of the N hops this graph walked **on the
+request path** is connected" — the old wording became false the moment a walked
+hop could be disconnected without being a break.
+
+A reference carrying neither tag nor digest is looked up as `latest`, named in
+the sentence rather than applied silently. A `present` answer against a
+tag in a MUTABLE-tag repository says so: it proves a build answers to that tag
+today, not that it is the build the running task pulled.
+
+`reconcileTopology` — the account-role half of this module, shipped earlier —
+had no test anywhere in the repository. It has seven now.
+
+### Type changes, and every construction site checked
+
+| type | change | every construction / read site |
+| --- | --- | --- |
+| `ReachState` | `latent: number` added to all four arms, REQUIRED on each | constructed at 4 sites, all in `reachOf` (`topology.ts`), all updated; plus 2 literals in `topology.test.ts`. Read by `describeReach` (`topology.ts`) and the test. `grep -rn 'kind: "intact"\|kind: "unverified"\|kind: "no-hosts"\|kind: "broken"' apps/system-studio` — every other hit is a DIFFERENT union in `cdn.ts`, `containers.ts`, `ecr.ts`, `health.test.ts`, `compute-page-logic.spec.ts` |
+| `TenantWiring` | `+ latent: readonly WiringEdge[]`, REQUIRED | constructed once — the return of `tenantWiring`. `grep -rn "TenantWiring" apps/system-studio` outside `topology.*` returns NOTHING |
+| `WiringNodeKind` | `+ "declared-image"` | no `switch` anywhere is exhaustive over it; `grep -rn "WiringNodeKind" apps/system-studio` outside `topology.*` returns NOTHING |
+| `WiringEdgeKind` | `+ "task-definition->declared-image"`, `+ "declared-image->ecr-repository"` | the two `ReadonlySet` literals in `topology.ts`, both updated deliberately; no external reference |
+| `LATENT_EDGE_KINDS`, `isLatentEdge` | new exports | — |
+| `PATH_EDGE_KINDS`, `EdgeState`, `WiringEdge`, `WiringNode`, `PathRole`, `WiringAttribution`, `ReaderAttribution`, `TopologyVerdict`, `AccountRole`, `EstateScale` | UNCHANGED | `TopologyVerdict` is imported by `platform/estate/estate-answer.ts` and `platform/estate/page.tsx`; untouched on purpose |
+
+Nothing was added as optional. `latent` is required on every arm precisely so a
+construction site that omits it fails `tsc` rather than rendering "intact" over a
+service one scale-out from an outage.
+
+### Mutation proof — 12 applied one at a time, 12 killed
+
+Each: apply, run, confirm RED, restore, confirm GREEN, and the module verified
+byte-identical to its pre-mutation state after every single one. M7 SURVIVED on
+its first run and is recorded as survived — the test asserted the *sentence*
+said `latest` while the *lookup* was free to change. A second case was added (a
+repository holding the tag `latest`, a reference carrying no tag, expected
+`present`) and M7 was re-run against it.
+
+| # | mutation | mutated | restored |
+| --- | --- | --- | --- |
+| M1 | the `walkDeclaredImages(...)` call in `walkService` commented out | RED — 10 failed, 64 passed | GREEN — 74 passed |
+| M2 | `conclusive(repositories) ? "absent" : "unknown"` → `"unknown"` (repository not in the listing) | RED — 1 failed, 73 passed | GREEN — 74 passed |
+| M3 | the unread-`ecr:DescribeImages` arm's `"unknown"` → `"absent"` | RED — 1 failed, 73 passed | GREEN — 74 passed |
+| M4 | both latent kinds added to `PATH_EDGE_KINDS` | RED — 3 failed, 71 passed | GREEN — 74 passed |
+| M5 | `latentClause` returns `""` unconditionally | RED — 2 failed, 72 passed | GREEN — 74 passed |
+| M6 | `itemsOf(repository.images).some((i) => i.tags.includes(tag))` → `true` | RED — 3 failed, 71 passed | GREEN — 74 passed |
+| M7 | `const tag = reference.tag ?? "latest"` → `?? ""` | first run: **SURVIVED** — 74 passed. After the added case: RED — 1 failed, 74 passed | GREEN — 75 passed |
+| M8 | `absentAttributions` drops the `&& !isLatentEdge(e)` clause | RED — 2 failed, 72 passed | GREEN — 74 passed |
+| M9 | `if (input.unknownBecause)` → `if (false && input.unknownBecause)` | RED — 1 failed, 73 passed | GREEN — 74 passed |
+| M10 | `if (!input.selfAccountId)` → `if (false)` | RED — 1 failed, 73 passed | GREEN — 74 passed |
+| M11 | the zero-container `edge(...)` replaced by a bare `return` | RED — 1 failed, 73 passed | GREEN — 74 passed |
+| M12 | `const required = ORDER[role.requiredFrom] <= ORDER[input.scale]` → `const required = true` | RED — 1 failed, 73 passed | GREEN — 74 passed |
+
+M9 is failure mode 1 from the programme's own list, applied deliberately and
+restored deliberately. `grep -n "MUTATION\|false &&\|?? \"\"" topology.ts`
+returns nothing; the four guards were re-read by line number afterwards.
+
+`npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/topology.test.ts`
+— 75 passed, 75 total. `npx tsc --noEmit -p apps/system-studio/tsconfig.json`
+reports nothing in `topology.ts` or `topology.test.ts` (it reports three errors in
+`tags.ts` / `tags.test.ts`, another agent's file, mid-flight).
+
+### What is NOT done, said plainly
+
+- **The wiring half of this module has no production caller.** `reconcileTopology`,
+  `ACCOUNT_ROLES` and `requiredAt` are reached from `/platform/estate` —
+  `apps/system-studio/src/app/platform/estate/page.tsx:169`, a real route, via
+  `estate-answer.ts`'s `topologySummary` / `topologyAccount` / `topologyTone`, and
+  also from `e2e/aws-unknown-is-not-absent.spec.ts:717`. `tenantWiring`,
+  `wiringReadings`, `wiringLines`, `describeReach` and `describeEdge` — the
+  request-path graph and everything this entry adds — are imported by NOTHING
+  outside `topology.test.ts`. `grep -rn "tenantWiring\|wiringReadings\|wiringLines\|describeReach\|TenantWiring" apps/system-studio/src/app apps/system-studio/src/components apps/system-studio/src/lib`
+  returns only `network.ts`'s unrelated `describeReachability`. That is the
+  "correct code, zero effect" failure this ledger has recorded before, and no
+  comment in the module claims otherwise. The surface that would consume it is a
+  route, and routes belong to other agents; the shape a caller needs is
+  `wiringReadings()` → `tenantWiring({ slug, hosts, readings, deployWindow, now })`
+  → `wiringLines(wiring)`, with `wiring.broken`, `wiring.latent` and
+  `wiring.unreadable` as three separate tables.
+- **`wiringReadings` issues eleven `tag:GetResources` per load** — one per reader,
+  which is the readers' own contract. Consolidating it is a change to eleven other
+  modules, not to this one.
+- **`DeployWindow` is supplied, never derived.** This engine holds no capability
+  that reads a release calendar. `NO_DEPLOY_WINDOW` renders the certificate
+  horizon `unknown`; it never renders it fine.
+- **A data-plane edge is an ATTRIBUTION, not an observed connection.** No AWS read
+  proves an ECS service talks to an RDS instance — the connection string is in a
+  secret whose VALUE this engine deliberately never reads — and every one of those
+  `why` sentences says so.
+- **A mutable tag proves nothing about which build.** Where the repository allows
+  tags to move, the `present` sentence says that explicitly rather than implying
+  the running digest and the declared tag are the same image.
+- **No approval, review, certification, ARN, account id, region, price or date is
+  asserted.** The fixtures use `123456789012` — AWS's own documentation account —
+  and RFC 2606 reserved domains, and correspond to nothing that exists.
+
+---
+
+# Requirement reconciliation — the AWS read/aggregation programme, 2026-08-14
+
+Appended, not merged into the sections above. Every section this file already
+holds is another agent's row and stays exactly as written; what follows is the
+*accounting* those sections do not carry, because a section headed with an id
+that does not exist registers against nothing.
+
+## Why this section exists
+
+Measured on 2026-08-13 while the wave was still running: the service agents
+returned **172 claimed-PASS requirements under ids they invented** —
+`BUCKETS-01-listing`, `COGNITO-MFA-002`, `ACM-DETAIL-READ`,
+`CDN-DENIED-IS-NOT-EMPTY` and 168 more. None of those strings appears in the
+bible, in any ledger, or in `tools/loop/next-batch.mjs`'s output. The code they
+describe is real; the accounting was disconnected from it.
+
+**The universe of requirement ids.** Regenerated here, never quoted from memory:
+
+```
+node tools/loop/next-batch.mjs --size 2100 --json     # every UNDECIDED requirement
+```
+
+On 2026-08-14 that returns `total 2265 · decided 248 · remaining 2017`, of which
+**154 are `STUDIO-*`**. The bible
+(`Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`)
+declares **167** `STUDIO-*` ids in total. An id in neither set does not exist and
+must never be given a row.
+
+## The five invented ids already written into THIS file
+
+Found by extracting every `STUDIO-...` string from this ledger and subtracting
+the bible's own set. The precedent was already here and was correct — the AWS
+Health section above refuses to invent `STUDIO-080-009` in as many words. Four
+later sections invented one anyway.
+
+| Heading in this file | In the bible? | The real requirement its evidence bears on | Status against that real id |
+|---|---|---|---|
+| `## STUDIO-070-011 — Service Quotas` | **No** | `STUDIO-120-011` (quota/capacity admission and forecast before tenant launch); partially `STUDIO-040-004` ("quota shortage" among the pre-plan detections) | FAIL — see row below |
+| `## STUDIO-080-009 (Messaging)` | **No** | `STUDIO-070-004` (already PASS — adapters behind typed capabilities) and `STUDIO-120-003` (queue age is one of thirteen named health inputs) | 070-004 already decided; 120-003 FAIL — see row below |
+| `## STUDIO-080-010 (Console deep links)` | **No** | **No requirement matches.** Deep-linking an operator to the AWS console is nowhere in the bible's 167 ids. Real, tested work against no requirement — recorded as a coverage finding, not given an id. | NOT A REQUIREMENT |
+| `## STUDIO-DATA-001 (DATA surface)` | **No** | `STUDIO-080-001` (actual-resource inventory) and `STUDIO-100-005` (retained bytes and residual charge) | both FAIL — see rows below |
+| `## STUDIO-IDENTITY-001 — /platform/identity` | **No** | `STUDIO-000-009` (long-lived keys, wildcard policies, unmanaged resources) | FAIL — see row below |
+
+Those five headings are **left in place**. Deleting another agent's evidence to
+tidy the index would destroy the only record of what was built; the correction is
+this table, which says what each one actually counts toward.
+
+## The finding that decides most of the rows below
+
+Five aggregation entry points delivered by this programme **have no production
+caller**. They are reached from their own test file and from nowhere else, so no
+operator can see their output and no requirement they were written for is met.
+
+Probe, and the mutation that proves the probe discriminates rather than always
+returning nothing:
+
+```
+$ grep -rl "\bestateDrift\b" apps/system-studio/src/app
+exit=1                                    # no file — the claim
+
+--- mutation of the probe: same command, symbol swapped for one that IS reached
+$ grep -rl "\bsecurityFindings\b" apps/system-studio/src/app
+apps/system-studio/src/app/platform/security/answer.ts
+apps/system-studio/src/app/platform/security/page.tsx
+exit=0                                    # the probe finds callers when they exist
+```
+
+| Entry point | Module | Written for | Callers outside its own module |
+|---|---|---|---|
+| `estateDrift` (+ `parseTerraformEstate`, `observedBuckets`, `observedSecurityGroups`, `observedUserPools`, `observedTables`, `findingsOfKind`) | `src/lib/aws/drift.ts` | STUDIO-080-006, STUDIO-000-009 | `drift.test.ts` only |
+| `driftIgnore` / `ignoreItem` / `activeIgnores` / `DriftHistory` | `src/lib/aws/drift.ts` | STUDIO-080-006 (ignore with expiry, recurrence) | `e2e/aws-unknown-is-not-absent.spec.ts` only |
+| `findingsPipeline` / `assemblePipeline` / `pipelineLines` / `mergeContributions` | `src/lib/aws/findings.ts` | STUDIO-110-006 | **none at all**, not even its own test file |
+| `fleetHealthVerdict` | `src/lib/aws/health.ts` | STUDIO-120-003 | `health.test.ts` only |
+| `tenantWiring` / `wiringReadings` | `src/lib/aws/topology.ts` | STUDIO-080-002 | `topology.test.ts` only |
+
+A consequence worth naming on its own: `app/tenants/[slug]/page.tsx:1203` renders
+the drift item's `occurrences` and `firstSeenAt`, and neither production caller of
+`compareDesiredToActual` passes a `history`. `options.history ?? EMPTY_HISTORY`
+therefore makes that cell read "1x since <today>" on every load, forever. The
+recurrence *machinery* is correct; the number on the page is not a recurrence
+count.
+
+## Measured state of the aggregation modules, 2026-08-14
+
+Run from the repository root against the tree as it stood, uncommitted work in
+place. This is why nothing below is PASS.
+
+```
+npm run test --workspace apps/web -- --ci \
+  apps/system-studio/src/lib/aws/{findings,health,topology,inventory,posture,tags,console-link}.test.ts
+  -> Test Suites: 2 failed, 5 passed, 7 total
+     Tests:       4 failed, 296 passed, 300 total
+     FAIL posture.test.ts  - securityPosture ... > fails the bucket with no public
+                             access block, over a bucket S3 really listed
+     FAIL findings.test.ts - deduplication across sources, and corroboration >
+                             collapses the same threat reported by Security Hub
+                             and GuardDuty into one row
+                           - ... > says out loud that more than one source saw it
+                           - what the surface prints > states how many records
+                             collapsed and how many were corroborated
+
+npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/drift.test.ts
+  -> Tests: 1 failed, 39 passed, 40 total
+     - estateDrift — present but never declared > does NOT report a live resource
+       whose name the reader could not obtain
+```
+
+---
+
+## The rows
+
+Statuses follow this file's rule: `PASS`, `FAIL`, `BLOCKED_EXTERNAL`,
+`NOT_APPLICABLE`, and **there is no `PARTIAL`**. A requirement that names eleven
+things and got six is `FAIL`. Nothing below is `PASS`: no independent refuter
+verdict was available to this reconciliation for any of it, three of the four
+delivering modules are red, and five of the delivering entry points have no
+production caller.
+
+- [ ] **STUDIO-000-008** — Build a sanitized actual resource graph from Organizations/Resource Explorer/Resource Groups Tagging API/CloudFormation/Config/service APIs. Record resource owner, stack, tags, tenant, cell, environment, dependencies, cost attribution, drift, retention, and deletion behavior.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/inventory.ts` (`EstateResource`,
+    `estateInventory`, `estateCoverage`), `apps/system-studio/src/lib/aws/tags.ts`
+    (`taggedResources`, `attributionOf`),
+    `apps/system-studio/src/lib/aws/organization.ts`,
+    `apps/system-studio/src/lib/aws/compliance.ts`
+  - Tests: `apps/system-studio/src/lib/aws/inventory.test.ts` (passing),
+    `apps/system-studio/src/lib/aws/tags.test.ts` (passing)
+  - Caller: `apps/system-studio/src/app/platform/estate/page.tsx:119`,
+    `apps/system-studio/src/app/page.tsx:404`,
+    `apps/system-studio/src/app/tenants/[slug]/page.tsx:348`
+  - Reason: **four of the six sources the requirement enumerates are read** —
+    Organizations, Resource Groups Tagging API, Config, the service APIs. **Two
+    are not, and have no capability at all**: `capabilities.ts` contains no
+    `resource-explorer-2:*` key and no `cloudformation:*` key, so Resource
+    Explorer and CloudFormation are not merely uncomposed, they are unreachable
+    from this build. **Of the twelve facts the requirement says to record**,
+    `EstateResource` carries `arn`, `resourceType`, `name`, `state`, `region`,
+    `accountId`, `partition`, `tags`, `attribution` and `dependsOn`. Owner, stack,
+    cell, environment and retention exist only as raw values inside `tags` — they
+    are the `tenure:owner-seat`, `tenure:stack`, `tenure:cell`,
+    `tenure:environment` and `tenure:retention` keys of `REQUIRED_RESOURCE_TAGS`,
+    never lifted onto the record, so a resource missing the tag and a resource
+    whose tag was unread are the same absence at every consumer. **Cost
+    attribution, drift and deletion behaviour are absent from the record
+    entirely** — cost is not composed (`ce:GetCostAndUsageWithResources` is a
+    `notComposedSection` at `inventory.ts:1896`), drift lives in `estateDrift`,
+    which nothing calls, and deletion behaviour exists only as the coarse
+    `STATEFUL_RESOURCE_TYPES` set and the contract's `stateful` boolean.
+  - What would close it: a `resource-explorer-2:Search` and a
+    `cloudformation:DescribeStackResources` capability plus their readers, and the
+    seven missing facts lifted onto `EstateResource` — which is a shared type, so
+    every construction site named under STUDIO-080-001 below must change with it.
+
+- [ ] **STUDIO-000-009** — Identify all console-created/unmanaged resources, long-lived AWS keys, wildcard policies, orphan queues/topics/rules, public resources, unencrypted data, unowned costs, misleading alarms, disabled trails, and missing backups.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/iam.ts` (`iamPosture` — long-lived keys,
+    wildcards, unmanaged principals, `keyCoverage`, `unswept`),
+    `apps/system-studio/src/lib/aws/drift.ts` (`estateDrift`, `ManagedByFact`,
+    `DriftFindingKind: "undeclared"` — console-created resources),
+    `apps/system-studio/src/lib/aws/buckets.ts` (public exposure),
+    `apps/system-studio/src/lib/aws/alarms.ts` + `expected-alarms.ts` (DISABLED,
+    STALE, MISSING), `apps/system-studio/src/lib/aws/trail.ts`
+    (`cloudtrail:GetTrailStatus` — a stopped trail),
+    `apps/system-studio/src/lib/aws/eventbridge.ts` (`NO_TARGET`),
+    `apps/system-studio/src/lib/aws/tags.ts` (`unattributed` — spend nobody owns)
+  - Tests: `apps/system-studio/src/app/platform/identity/doors.test.ts` drives
+    `iamPosture`; `apps/system-studio/src/lib/aws/drift.test.ts` (1 failing,
+    above); `alarms.test.ts`, `trail.test.ts`, `eventbridge.test.ts`,
+    `buckets.test.ts`, `tags.test.ts`
+  - Caller: `iamPosture` — `app/platform/identity/page.tsx`,
+    `app/platform/security/page.tsx`. `estateDrift` — **none**.
+  - Reason: **three of the ten** things the requirement names reach an operator —
+    long-lived AWS keys, wildcard policies and unmanaged IAM principals, all from
+    `iamPosture`, whose own header states exactly that scope. Public resources,
+    unencrypted data, unowned cost, misleading alarms, disabled trails and orphan
+    rules each have a *reader* that answers for one service, but the aggregator
+    that would turn them into the requirement's single answer —
+    `estateDrift`'s `undeclared` finding — **has no production caller**, and its
+    own test file is currently one test red. Orphan queues and topics are not
+    detected at all: `sqs.ts` reads depth and redrive, not orphanhood, and there
+    is no SNS reader in this build.
+  - What would close it: a surface that calls `estateDrift`, plus an SNS reader
+    and an orphan rule for queues and topics.
+
+- [ ] **STUDIO-080-001** — Build a cross-account/region actual-resource inventory with ARN/ID, type, name, state, stack, tenant, module, dependencies, tags, security posture, health, cost, drift, last change, retention, and deletion behavior.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/inventory.ts`
+  - Tests: `apps/system-studio/src/lib/aws/inventory.test.ts` — passing
+  - Caller: `app/platform/estate/page.tsx:119`, `app/page.tsx:404`,
+    `app/tenants/[slug]/page.tsx:348`
+  - Reason: **it is neither cross-account nor cross-region.** `estateInventory`
+    resolves one identity through `sts:GetCallerIdentity` and issues every read in
+    that account and that region; `organizations:ListAccounts` is a *signal*
+    section, and this file already says so at the foot of the inventory section
+    ("This inventory reads ONE account"). Cross-account is `BLOCKED_EXTERNAL` on
+    the AWS Organization that blocks GE-010, GE-012 and GE-GATE-1 —
+    cross-**region** is not blocked on anything and is unbuilt. **Six of the
+    seventeen attributes** the requirement enumerates are on the record; stack,
+    tenant, module and retention are tag values rather than fields; and security
+    posture, health, cost, drift and last change are not present at all.
+  - **Construction sites of `EstateResource`, checked, for whoever widens it.**
+    This is a shared type and an added optional field is invisible to `tsc` at
+    every site that omits it. The sites are: the four named mappers inside
+    `inventory.ts` itself (`readEcsServices`, `readDatabases`,
+    `readDistributions`, `readCertificates`) plus the generic `Mapped` path every
+    other section goes through, and the consumers
+    `app/platform/estate/page.tsx`, `app/platform/estate/estate-answer.ts`,
+    `app/platform/estate/estate-coverage.ts`, `app/tenants/[slug]/footprint.ts`,
+    `app/tenants/[slug]/page.tsx`, `app/page.tsx`, and `src/lib/aws/drift.ts`
+    (`DriftItem.actual`). `packages/contracts`'s `EstateResource` JSON Schema is
+    `additionalProperties: false`, so a new field must be added there in the same
+    change or `parseEstateResource` will refuse every resource at runtime.
+
+- [ ] **STUDIO-080-002** — Create graph edges for network flow, trust, encryption, data, event, DNS, deployment, module, backup, monitoring, and cost allocation.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/topology.ts` (`WiringEdgeKind`,
+    `PATH_EDGE_KINDS`, `LATENT_EDGE_KINDS`, `tenantWiring`, `wiringReadings`)
+  - Tests: `apps/system-studio/src/lib/aws/topology.test.ts` — passing
+  - Caller: **none.** `tenantWiring` and `wiringReadings` are referenced only by
+    `topology.test.ts`. (`reconcileTopology`, the *account* topology in the same
+    file, IS reached from `app/platform/estate/page.tsx`; that is a different
+    requirement, STUDIO-010-001.)
+  - Reason: **five of the eleven edge classes** the requirement names are
+    modelled — network flow, DNS, deployment, data, and encryption only in its TLS
+    sense (`listener->acm-certificate`; there are no KMS grant edges). **Trust,
+    event, module, backup, monitoring and cost-allocation edges do not exist**,
+    and `tenant->sqs-queue` is documented in the module itself as an attribution
+    edge rather than an event-flow edge. On top of the six missing classes, the
+    graph that does exist reaches no surface.
+
+- [ ] **STUDIO-080-005** — Show unsupported/unmanaged AWS state honestly. Do not offer a generic JSON escape hatch that bypasses policy.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/inventory.ts` (`SectionCoverage`'s five
+    arms, `CoverageReport`, `estateCoverage` — `noReader` is computed as the
+    capability registry minus every capability some section claims, so a
+    capability nothing reads appears on the next render rather than silently),
+    `apps/system-studio/src/lib/aws/tags.ts` (`not-coverable`),
+    `apps/system-studio/src/lib/aws/iam.ts` (`unswept`),
+    `apps/system-studio/src/lib/aws/drift.ts` (`ManagedByFact`, `undeclared`)
+  - Tests: `apps/system-studio/src/lib/aws/inventory.test.ts` (passing),
+    `apps/system-studio/src/lib/aws/tags.test.ts` (passing)
+  - Caller: `estateCoverage` runs inside `estateInventory`, so the *unsupported*
+    half reaches `/platform/estate`, `/` and `/tenants/[slug]`.
+  - Reason: the **unsupported** half is met, and met well — five coverage arms,
+    with `NO_READER` computed from the registry rather than hand-listed, so a gap
+    cannot go stale. The **unmanaged** half is not met: "AWS state this platform
+    does not manage" is `estateDrift`'s `undeclared` finding and
+    `ManagedByFact { kind: "none" }`, and **nothing calls `estateDrift`**. The
+    second clause — no generic JSON escape hatch — is already established by
+    STUDIO-070-004 (PASS) and is not re-claimed here. A requirement with two
+    clauses and one delivered is FAIL.
+
+- [ ] **STUDIO-080-006** — Implement desired-versus-actual comparison, drift severity, ownership, safe remediation plan, ignore policy with expiry, and recurrence detection.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/drift.ts` — `compareDesiredToActual`,
+    `estateDrift`, `parseTerraformEstate`, `observedBuckets` /
+    `observedSecurityGroups` / `observedUserPools` / `observedTables`,
+    `DriftSeverity`, `DesiredResource.owner`, `Remediation`, `driftIgnore` +
+    `IgnoreWithoutExpiry`, `DriftHistory`
+  - Tests: `apps/system-studio/src/lib/aws/drift.test.ts` — **1 failed, 39
+    passed**; `apps/system-studio/e2e/aws-unknown-is-not-absent.spec.ts:818-838`
+    covers the ignore-without-expiry refusal
+  - Caller: `compareDesiredToActual` — `app/page.tsx:428`,
+    `app/tenants/[slug]/page.tsx:377`. `estateDrift`, `driftIgnore` and
+    `activeIgnores` — **none**.
+  - Reason: all six elements are **written**, and this is the row where that is
+    least the same thing as done. Desired-versus-actual, severity, ownership and
+    the safe-remediation refusal are reached, through `compareDesiredToActual`
+    only — the richer Terraform-declared-versus-observed engine, `estateDrift`,
+    is not. **Ignore-with-expiry has no production caller**: neither of the two
+    callers passes `history`, so `history.ignored` is permanently empty and the
+    `if (history.ignored.has(...)) continue` branch at `drift.ts:186` is
+    unreachable in production. **Recurrence detection is likewise unreachable**,
+    and worse than absent: `app/tenants/[slug]/page.tsx:1203` renders
+    `occurrences` and `firstSeenAt`, which without a history are always `1` and
+    today's date. The page prints a recurrence count that is not one.
+  - What would close it: persist and pass a `DriftHistory` from the registry at
+    both call sites, and give `estateDrift` a surface. `ignoreItem` already
+    returns the registry row shape; nothing writes it.
+
+- [ ] **STUDIO-080-007** — Detect orphans through IaC, tags, registry, Config, service APIs, CUR, and relationship graph; assign owner and expected cost.
+  - Status: FAIL
+  - Code: per-service orphan notions only —
+    `apps/system-studio/src/lib/aws/certificates.ts` (a certificate "in use by
+    nothing"), `apps/system-studio/src/lib/aws/loadbalancer.ts` (an orphaned
+    target group), `apps/system-studio/src/lib/aws/network.ts` (a security group
+    whose usage is unknown), `apps/system-studio/src/lib/aws/eventbridge.ts`
+    (`NO_TARGET`), `apps/system-studio/src/lib/aws/tags.ts` (`unattributed`)
+  - Tests: `certificates.test.ts`, `loadbalancer.test.ts`, `network.test.ts`,
+    `eventbridge.test.ts`, `tags.test.ts` — all passing
+  - Caller: each reader is reached through `estateInventory`'s sections.
+  - Reason: **there is no orphan detector.** No module aggregates the five
+    per-service notions above into one answer, so "orphans" is not a thing the
+    console has. Of the seven detection channels the requirement names, IaC is
+    unreachable (`estateDrift` has no caller), the relationship graph is
+    unreachable (`tenantWiring` has no caller), and **CUR is not read at all** —
+    `ce:GetCostAndUsageWithResources` is a `notComposedSection` at
+    `inventory.ts:1896` with its reason stated. Neither of the two things the
+    requirement says to assign — owner and expected cost — is assigned to
+    anything, because there is no orphan record to assign them to.
+
+- [ ] **STUDIO-100-005** — Show every retained byte/control resource and real residual charge for backups, snapshots, S3 versions, logs, keys, DNS, archives, compliance, legal hold, and evidence. Hibernation is not literal $0 when these remain.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/retained.ts` (`RetainedKind` =
+    `tag-index | rds-snapshot | log-group | backup-recovery-point`)
+  - Tests: exercised through
+    `apps/system-studio/src/app/platform/data/answer.test.ts`
+  - Caller: `retainedReadingsForTenant` — `app/platform/data/page.tsx`,
+    `app/tenants/[slug]/page.tsx`
+  - Reason: **three of the ten retained classes** are read — backups (Backup
+    vaults and recovery points), snapshots (RDS) and logs (log groups with
+    `storedBytes`). S3 object versions are not: `s3:ListObjectVersions` is a
+    registered capability that `inventory.ts` declares deliberately uncomposed and
+    that `retained.ts` never issues. Keys, DNS, archives, compliance artefacts,
+    legal hold and evidence are absent. **And the "real residual charge" is absent
+    entirely**: `retained.ts` contains no money — no minor-unit field, no price
+    lookup, no Cost Explorer read — so the surface can say a tenant retains bytes
+    and cannot say what they cost. The sentence the requirement exists to make
+    printable, "hibernation is not literal $0", is exactly the one it cannot
+    print.
+
+- [ ] **STUDIO-110-006** — Aggregate Security Hub/GuardDuty/Inspector/Macie/Config/Access Analyzer findings with dedupe, severity, affected tenants, SLA, ownership, suppression justification/expiry, and remediation workflow.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/findings.ts` — `securityFindings`
+    (Security Hub direct, plus per-product `FindingSource` state) and, separately,
+    `findingsPipeline` / `assemblePipeline` / `mergeContributions` / `dedupeKey` /
+    `SEVERITY_SLA_HOURS` / `PipelineAttribution`
+  - Tests: `apps/system-studio/src/lib/aws/findings.test.ts` — **3 failed**, all
+    three in the deduplication-and-corroboration group, which is the requirement's
+    own first named element
+  - Caller: `securityFindings` — `app/platform/security/page.tsx:154`.
+    `findingsPipeline` — **none anywhere in the repository, including its own test
+    file.**
+  - Reason: `FINDING_PRODUCTS` names all six products, but `PIPELINE_SOURCES`
+    drives five, and **Inspector and Macie have no reader**: there is no
+    `inspector2:*` and no `macie2:*` capability, so their findings can arrive only
+    if Security Hub is enabled and readable, and if `securityhub:GetFindings` is
+    refused there is no direct path to either. Of the seven properties the
+    requirement lists, dedupe, severity, affected tenants and SLA are implemented
+    (dedupe is currently red); **ownership exists only for Config rules
+    (`ruleOwner`), suppression justification and expiry do not exist at all, and
+    there is no remediation workflow** — a workflow would be a mutation, which
+    this read-only console will not carry and which therefore needs its own
+    recorded architectural decision rather than a quiet omission.
+
+- [ ] **STUDIO-120-003** — Build tenant-aware health from real synthetics, API checks, dependencies, queue age, error rates, database, identity, domain/TLS, integrations, Relay, backups, drift, and cost anomalies.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/health.ts` — `fleetHealthVerdict`,
+    `VerdictSource` (`aws-health | alarms | metrics | loadbalancer | containers |
+    database`), `VERDICT_LEVELS`, `FINDING_KINDS`
+  - Tests: `apps/system-studio/src/lib/aws/health.test.ts` — passing
+  - Caller: **none.** `fleetHealthVerdict` is referenced only by `health.test.ts`.
+    `observeFleet` and `observationsFor` in the same file ARE reached from
+    `app/tenants/page.tsx` and `app/tenants/[slug]/page.tsx`; the verdict built on
+    top of them is not.
+  - Reason: **six sources against the thirteen inputs the requirement names.**
+    Error rates, database and dependencies are covered. Synthetics, API checks,
+    queue age, identity, domain/TLS, integrations, Relay, backups, drift and cost
+    anomalies are not — several of them have readers in this same directory
+    (`certificates.ts` for TLS, `metrics.ts` for queue age, `retained.ts` for
+    backups, `drift.ts` for drift) that the verdict does not compose. The module's
+    own header is honest about the six; the requirement asks for thirteen.
+  - Worth preserving from this work whatever wires it up: `HEALTHY` is reachable
+    only when `findings` and `couldNotSee` are both empty *and* at least one
+    source produced something. That is the STUDIO-080-008 rule applied to a
+    composite verdict.
+
+- [ ] **STUDIO-120-011** — Add quota/capacity admission and forecast before tenant launch; never wait for a production quota failure to discover capacity.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/quotas.ts` — `quotaReadings()`, the
+    applied values for the twelve quotas that bound tenant provisioning across
+    nine service codes, via `servicequotas:ListServiceQuotas` with
+    `servicequotas:GetServiceQuota` as the per-target fallback
+  - Tests: `apps/system-studio/src/lib/aws/quotas.test.ts` — 38 pass, 0 fail
+    (recorded in the `STUDIO-070-011` section above, which is the invented id this
+    row replaces)
+  - Caller: reached as a section of `estateInventory`.
+  - Reason: the requirement has two verbs and the delivery has neither. **Reading
+    a quota is not admission**: nothing consults `quotaReadings()` before a
+    launch, the launch path does not import it, and no plan is refused because a
+    ceiling is near. **And there is no forecast** — no consumption-against-ceiling
+    projection exists, so "never wait for a production quota failure to discover
+    capacity" is not yet true. What landed is the input the admission control will
+    need, which is real progress and is not the requirement.
+  - Also bears on `STUDIO-040-004`, whose pre-plan detection list includes "quota
+    shortage"; that item stays undecided for the same reason.
+
+## STUDIO-080-008 — the standing PASS, re-checked against the new metrics reader
+
+`STUDIO-080-008` (never render green solely because no data is present) is
+already `PASS` in this ledger. The new `src/lib/aws/metrics.ts` **upholds it**,
+checked by opening the file rather than by taking its header's word:
+`SeriesSummary` at `metrics.ts:266-270` is a three-armed union — `datapoints`,
+`{ kind: "no-datapoints"; why }`, `{ kind: "not-read"; why }` — with **no arm
+carrying an optional mean**, so a caller cannot reach a statistic on a series
+that has none. A `GetMetricData` result carrying `StatusCode: "Forbidden"`
+summarises as `not-read` with the status code (`metrics.ts:694-725`), never as an
+absence and never as a zero. `metrics.test.ts:358` — "a metric that published
+nothing summarises as no-datapoints, not as 0" — asserts it, and the suite passes.
+`health.ts`'s `FINDING_KINDS` carries the same rule one level up: a metric with no
+datapoint is a finding there, not silence.
+
+The ratchet has not fallen.
+
+## What this reconciliation could not corroborate
+
+- **No refuter verdict was available for any of it.**
+  `tools/loop/studio-program.mjs` dispatches refuters and holds
+  `{id, refuted, reason}` in memory; nothing is written to the tree, so the
+  "independent refuter returned `refuted=false`" half of the PASS bar could not be
+  satisfied for a single requirement here. That alone is sufficient reason for
+  every row above to be `FAIL` rather than `PASS`, independently of the gaps named
+  in each.
+- **172 claimed-PASS ids were unmappable as ids** — every one of them, because
+  none exists in the bible or in any ledger. The ten requirements above are where
+  their *evidence* lands after being read against the requirement text; the ids
+  themselves map to nothing and were not preserved.
+- **One body of real, tested work matches no requirement at all**: the console
+  deep-link module (`src/lib/aws/console-link.ts` and `console-link.test.ts`,
+  passing, reached from `app/platform/estate/page.tsx`). No `STUDIO-*` id in the
+  bible asks for it. Recorded here as a coverage finding about the programme, not
+  given an id.
+- **Every service reader's own module header cites `STUDIO-070-004`**, which is
+  already `PASS`. Those citations are not inventions and they are not wrong, but
+  they register nothing: a reader tagged with an already-decided id moves no
+  counter. That is the mechanical reason twenty-four service readers produced no
+  movement in the decided count.
+
+## STUDIO-070-004 (PRICING, FINOPS SIDE) — the aggregation layer that turns resolved rates into a tenant's price
+
+- [x] **STUDIO-070-004 (grounded configuration cost)** — Compute a tenant's
+  monthly cost from RESOLVED AWS rates, per seat and for the whole organisation,
+  with a running total, across the fourteen meters the Price List adapter reads:
+  Fargate vCPU- and GB-hours, RDS instance-hours, ElastiCache node-hours, ALB
+  hours and LCU-hours, CloudFront requests and data transfer, S3 storage and
+  requests, DynamoDB read and write request units, SES outbound messages and SQS
+  requests.
+
+- **Was**: `packages/finops/src/pricing.ts` totalled `OptionPrice.perSeatMinor`
+  and `perOrgMinor` — figures typed into the catalogue by a person. The Studio's
+  `lib/aws/pricing.ts` had just started resolving the real published rates, and
+  nothing existed that could turn a rate into a tenant's bill: no usage shape, no
+  tier-ladder arithmetic, no rule for what happens when one rate of twelve fails
+  to resolve.
+- **Now**: `packages/finops/src/grounding.ts`. `groundShapeCost(shape, rates,
+  {seats, rounding})` prices one configuration option's `ComponentUsage[]`;
+  `groundedRunningTotal(shapes, rates, …)` totals a whole configuration;
+  `toOptionPrice(cost)` hands the result back to `quoteConfiguration` and
+  `runningTotal` as the `OptionPrice` those already total, and the test asserts
+  the two arrive at the same number rather than at two implementations of it.
+
+### The rate travels as a structural type, so the dependency runs one way
+
+A package may not import an app. `ResolvedShapeRate` / `ResolvedRate` /
+`ResolvedTier` are declared in `grounding.ts` as the subset of the reader's
+`ShapeRate` / `Rate` / `PricedTier` that arithmetic needs, and the reader's value
+is assignable to them without a cast or a re-export. `grounding.test.ts` holds a
+fixture with the reader's full field set — `sku`, `rateCode`, `description`,
+`effectiveDate`, `publishedDecimal`, `free` — and assigns it, so a divergence
+between the two shapes stops compiling rather than being discovered at runtime.
+
+### UNKNOWN propagates, and a complete-looking total is unconstructable
+
+`GroundedCost` has three arms and only `COMPLETE` carries a total; `INCOMPLETE`
+carries the components that DID price and deliberately no sum of them;
+`MIXED_CURRENCY` carries which meters resolved in which currency and no total.
+`toOptionPrice` takes `CompleteGroundedCost`, not `GroundedCost`, so an
+unresolved rate cannot become a price tag without a type error. A component
+missing from the rate table is treated identically to one that came back
+`unknown` or `ambiguous`: unpriced, never free.
+
+Twelve mutations were applied to `grounding.ts` one at a time, each run against
+`grounding.test.ts` and each restored byte-identically afterwards. Every one of
+them turned the suite red — including `if (false && refused.length > 0)`, which
+is the shape of the shipped-disabled guards this programme has already paid for,
+and which makes the running total present itself as complete while one rate is
+unknown.
+
+### What is NOT closed, and is not claimed
+
+- **No surface calls it yet.** `groundShapeCost` and `groundedRunningTotal` are
+  exported from `@tenure/finops` and reached only by their own test. The input
+  side is live — `inventory.ts` calls `pricingReadings()` on a request path —
+  and the output side is live — `quoteConfiguration` and `runningTotal` are what
+  the composer and the configuration page already total — but the file that
+  joins them is a surface, and this entry did not edit one. The wiring is a
+  `ComponentUsage[]` per configuration option plus one `groundedRunningTotal`
+  call; nothing here claims it exists.
+- **No usage shape is shipped for any real tenant.** `ComponentUsage.basis` is
+  required precisely so that a quantity cannot be felt, and no quantities have
+  been measured. A grounded rate multiplied by an invented quantity is still an
+  invented price.
+- **No AWS price appears anywhere in this module or its test.** The rates in the
+  test are round synthetic numbers, labelled as such, chosen so the arithmetic is
+  checkable by hand. Nothing here asserts what AWS charges for anything.
+- **No account id, ARN, region, resource name, date, approval or sign-off is
+  asserted**, and nothing in this package can move money — it imports `./money`
+  and `./pricing` and nothing else.
+
+### Declared-versus-observed drift, in three kinds — STUDIO-000-009, STUDIO-000-007
+
+`apps/system-studio/src/lib/aws/drift.ts` + `drift.test.ts`. The module already
+answered "what does the published artifact imply, and is it there". It now also
+answers "what does Terraform declare, what did the readers observe, and where do
+the two disagree" — modelled as THREE kinds, because they mean three different
+things and call for three different responses:
+
+| kind | means | severity |
+| --- | --- | --- |
+| `absent` | declared, and nothing of that name was read | `serving` for a serving type, else `costly` |
+| `undeclared` | read, and no declaration names it — STUDIO-000-009's console-created finding | `costly` |
+| `divergent` | declared AND present, with a setting that differs | `posture` for a control deciding reach or survival, else `cosmetic` |
+
+The declared side is parsed from the `.tf` SOURCE in `infrastructure/terraform`
+and `infrastructure/studio` — never from a state file, which is not in this
+repository and must not be fetched. `parseTerraformEstate` is pure (it takes file
+text, not a path), brace-counting with heredoc and `jsonencode` awareness, and
+proven against the repository's own 31 `.tf` files rather than against fixtures.
+
+#### Un-comparable is a value, not a finding
+
+A source parser cannot resolve `count`, `for_each`, `var.*`, `local.*` or a
+`${…}` interpolation. Every such declaration is reported as UN-COMPARABLE with
+its reason, never as absent — and it also suppresses the `undeclared` verdict for
+live resources of the same type, because a resource this parser cannot match may
+be the very one the unresolvable declaration made. The one thing an interpolated
+name yields honestly is its literal segments: `"${local.name_prefix}-tenants"`
+must render to something ending `-tenants`. That becomes a PATTERN; one match is
+a match, two is an ambiguity, and zero is un-comparable — emphatically not
+absence.
+
+Also un-comparable, each with its own sentence: a truncated listing (absence
+unproven), a live resource whose name the reader could not obtain, a live
+resource whose `tenure:managed-by` tag says Terraform when no file read here
+declares it, a declared setting no reader observes, and a setting whose sub-read
+was refused. A blind observed surface produces NO absent findings at all — the
+rule at the top of the module, one layer up.
+
+#### Types — nothing widened, three renamed to avoid a collision
+
+| type | change | every construction site checked |
+| --- | --- | --- |
+| `DriftSeverity`, `DriftItem`, `DriftReport`, `DesiredResource`, `Remediation`, `ResourceChangeDiff`, `DriftIgnore`, `DriftHistory` | UNCHANGED | `src/app/page.tsx`, `src/app/tenants/[slug]/page.tsx`, `src/app/platform/estate/page.tsx`, `src/app/console-index/answer.ts` + `.test.ts`, `e2e/aws-unknown-is-not-absent.spec.ts`, `e2e/revisions-logic.spec.ts` — enumerated by grep, none touched |
+| `EstateDriftSeverity` | NEW, separate from `DriftSeverity` | `posture` has no equivalent in the four-arm vocabulary `console-index/answer.ts` switches over; a fifth arm there would have fallen through its default and rendered a security finding as cosmetic |
+| `TerraformDeclaration`, `TerraformEstate`, `EstateDriftFinding` | NEW, deliberately NOT `DeclaredResource` / `DeclaredEstate` / `DriftFinding` | those three names are already taken by `lib/aws/tags.ts`, `app/platform/estate/estate-coverage.ts` and `@tenure/contracts` respectively |
+
+The only edit to pre-existing code is the extraction of `unreadableBecause` out
+of the ternary inside `compareDesiredToActual`, string-for-string identical.
+
+#### The published arm
+
+`@tenure/contracts` already models this question — `DriftFinding.kind` is
+`unmanaged | missing | modified`, the same three kinds. `publishedDrift()` emits
+it through `parseDriftFinding`, parsed rather than asserted, exactly as
+`resourceChangeDiff` does with `parseChangeDiff`.
+
+`missing` findings are WITHHELD with their reason and counted. The contract
+requires a real `arn`; a declared resource that does not exist has none, and the
+only ways to satisfy the schema are to assemble an ARN AWS never issued or to put
+a Terraform address in the field. Both are fabrications. The findings stay in the
+report this console renders; only the published projection is short, and it says
+by how much and why. `reversible` on an `unmanaged` finding takes a required
+`stateful` argument rather than an import, so `inventory.ts`'s
+`STATEFUL_RESOURCE_TYPES` remains the one place that decides it and no caller can
+omit it.
+
+#### Mutation proof — 19 applied one at a time, 19 killed
+
+Each: apply, run, confirm RED, restore, confirm GREEN. The module was verified
+byte-identical to its pre-mutation state at the end, and `grep` confirms no
+`if (false`, `&& false`, `|| true` or `// MUTATION` remains.
+
+| # | mutation | mutated | restored |
+| --- | --- | --- | --- |
+| M1 | `if (unresolvedDeclarations.length > 0)` -> `if (false && …)` | RED — 1 failed, 43 passed | GREEN |
+| M2 | `if (!surface.complete)` -> `if (false)` | RED — 1 failed, 43 passed | GREEN |
+| M3 | `if (want.name.kind !== "literal")` -> `if (false)` | RED — 3 failed, 41 passed | GREEN |
+| M4 | `if (observed.kind === "unreadable")` -> `if (false)` | RED — 1 failed, 43 passed | GREEN |
+| M5 | an absent public-access block reads as four flags ON | RED — 1 failed, 43 passed | GREEN |
+| M6 | `if (literal.length < MIN_PATTERN_LITERAL)` -> `if (false)` | RED — 1 failed, 43 passed | GREEN |
+| M7 | multi-line value consumption disabled, so `jsonencode` leaks | RED — 1 failed, 43 passed | GREEN |
+| M8 | the SSE sidecar looks for a `rules` block instead of `rule` | RED — 1 failed, 43 passed | GREEN |
+| M9 | a declared prefix-list source canonicalises as `cidr:0.0.0.0/0` | RED — 2 failed, 42 passed | GREEN |
+| M10 | `if (!input.declared.known)` -> `if (false)` | RED — 1 failed, 43 passed | GREEN |
+| M11 | `if (!live.nameKnown)` -> `if (false)` | RED — 1 failed, 43 passed | GREEN |
+| M12 | `looksTerraformManaged` matches nothing | RED — 1 failed, 43 passed | GREEN |
+| M13 | `declaresIngress` forced true | RED — 1 failed, 43 passed | GREEN |
+| M14 | `unreadableBecause` DENIED arm returns the capability, not the action | RED — 4 failed, 40 passed | GREEN |
+| M15 | `patterns.length === 1` -> `>= 1` | RED — 1 failed, 43 passed | GREEN |
+| M16 | `publishedDrift` stops withholding `absent` | RED — 1 failed, 43 passed | GREEN |
+| M17 | `publishedDrift` stops withholding an ARN-less finding | RED — 1 failed, 43 passed | GREEN |
+| M18 | `reversible` forced true for `unmanaged` | RED — 1 failed, 43 passed | GREEN |
+| M19 | `field` forced null (the contract rejects a `modified` with none) | RED — 2 failed, 42 passed | GREEN |
+
+`npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/drift.test.ts`
+— 44 passed, 44 total. Whole Studio suite: 73 suites, 2567 passed.
+`npx tsc --noEmit -p apps/system-studio/tsconfig.json` — exit 0.
+`node --test tests/security/operator-plane-content.test.mjs` — 5 passed (every
+reader import added is `import type`, which erases).
+
+#### What is NOT done, said plainly
+
+- **No production surface calls `estateDrift` yet.** `drift.ts` is reached in
+  production by `src/app/page.tsx`, `src/app/tenants/[slug]/page.tsx` and
+  `src/app/platform/estate/page.tsx`, and the `unreadableBecause` helper
+  extracted here executes on all three through `compareDesiredToActual`. The NEW
+  entry points — `parseTerraformEstate`, `estateDrift`, the four `observed*`
+  adapters and `publishedDrift` — have no caller. Wiring them is two edits in
+  files this agent does not own: `platform/estate/declared-estate.ts` must export
+  the `TerraformFile[]` it already collects (structurally a `TerraformSource[]`),
+  and `platform/estate/page.tsx` must call
+  `estateDrift({ declared: parseTerraformEstate(files), observed: [...], now })`
+  with the surfaces its readers already load. No comment in the module claims
+  otherwise.
+- **Four services participate in the DIVERGENT comparison**, not every readable
+  one: S3 posture, EC2 security-group ingress, Cognito MFA, DynamoDB protections.
+  Every other declared type participates in `absent`/`undeclared` where a surface
+  is supplied, and is listed in `report.unobserved` where none is. Adding a fifth
+  is one case in `attachExpectations` plus one adapter.
+- **Egress rules are not compared.** Ingress is what decides who can reach the
+  estate; a full egress comparison would add rows nobody acts on.
+- **No approval, review, certification, ARN, account id, region, price or date is
+  asserted.** The account in the tests is `012345678901` and every ARN names a
+  resource invented for the test; none is presented as real.
+
+### STUDIO-DATA-001 addendum — the page WAS rendered, and it was wrong
+
+The entry above recorded that the route had never been rendered. It has been
+now, and the render found a defect that every node-level test on this page had
+passed straight over. This section corrects the record; the section above is left
+as written rather than rewritten, because what it claimed at the time was true.
+
+#### The defect: two tables that claimed emptiness over reads that never happened
+
+`DataTable` renders its `empty` node whenever `rows.length === 0`. Two tables on
+this page fed it a bare claim:
+
+- the cache-changes table — *"Nothing is queued against a cache"*
+- the restore-points table — *"No store on this page has a continuous restore point"*
+
+Neither was guarded on whether the reads behind those rows had answered.
+`cacheChangeRows` returns `[]` for a refused `DescribeCacheClusters` exactly as it
+does for an estate with no queued change, and `recoveryRows` returns `[]` for a
+refused `ListTables` exactly as it does for an estate with no restorable store. On
+the estate this console must keep booting in — no credentials, every read in a
+valueless arm — both tables printed a calm, reassuring, entirely unfounded
+statement about the fleet's data protection.
+
+This is `lib/aws/read.ts`'s founding defect wearing a different hat. The type
+makes it impossible to reach `read.value` without narrowing. It cannot make it
+impossible to DROP the narrowed result and render a zero one layer up.
+
+Notably, the lead verdict was CORRECT throughout — `verdictOf` returned UNKNOWN
+and the page said so at the top. The two cards below it disagreed with their own
+headline. A surface can be right in its summary and lying in its detail.
+
+#### The fix
+
+`mayClaimEmpty(reads)` in `./answer.ts` — pure, exported, and asked of the READS
+rather than of the row count. `EMPTY` counts as answered, because that arm IS the
+claim; `STALE` counts, because it carries a value that was really read. Every
+valueless arm refuses the claim. Both tables now render the relevant
+`UnknownState`s — principal, action, error code, pasteable minimum statement — in
+the place the false sentence used to be. Two call sites in `page.tsx`, lines 446
+and 833.
+
+#### Mutation 7, on the new guard
+
+`readAnswered(read.state)` becomes `readAnswered(read.state) || read.state === "THROTTLED"`
+— one valueless arm quietly readmitted. RED: `× refuses the claim for every
+valueless arm, not only for a denial`. `Tests: 1 failed, 31 passed`. Restored,
+`Tests: 32 passed, 32 total`.
+
+Four new cases cover it: `EMPTY`/`ACTUAL`/empty-list may claim; a single denial
+among answers may not; each of `THROTTLED`, `UNCONFIGURED`, `ERROR`, `DENIED`
+refuses independently; `STALE` may claim.
+
+#### Evidence from the live render, and what it does NOT cover
+
+The route was served by `next dev` on port 3100 with `STUDIO_AUTH_MODE=credentials`
+and a local-only operator identity, and driven by `e2e/data-surface.spec.ts`.
+
+- **PASSED against a live render**: `a read that did not answer renders as a named
+  unknown, never as an empty list` (3.1m). This is the assertion that catches the
+  defect above, and it is the reason the defect is recorded as fixed rather than
+  as believed-fixed.
+- **NOT covered**: the other six browser tests did not produce a verdict. Two
+  distinct environment faults, neither in this agent's files:
+
+  1. **A missing installed dependency.** `@aws-sdk/client-ec2` is declared in
+     `apps/system-studio/package.json` and its peer `@aws-sdk/middleware-sdk-ec2`
+     is resolved in `package-lock.json`, but that package is NOT present in
+     `node_modules`. Webpack therefore fails with `Module not found: Can't resolve
+     '@aws-sdk/middleware-sdk-ec2'` for every route whose import graph reaches
+     `src/lib/aws/client.ts` — which is every AWS-backed route in the Studio, not
+     only this one. The unblocking command is `npm install` at the repository
+     root, which this agent is instructed not to run.
+  2. **A concurrently-edited tree.** Sixteen agents were editing shared modules
+     during the run; the dev server logged
+     `export 'releaseToSuccessor' … was not found in './succession-release'
+     (possible exports: … releaseToSuccessorRENAMED)` from
+     `packages/organization-model`, reached through `src/app/layout.tsx`.
+
+  So `it boots without AWS, and leads with the question in words` FAILED, and the
+  four geometry tests and the verdict-badge test did not report. That failure is
+  NOT evidence the page is sound and is NOT evidence it is broken; the build error
+  above is sufficient to explain it and no narrower cause was established. Re-run
+  after `npm install` on a quiescent tree:
+  `PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test e2e/data-surface.spec.ts`.
+
+#### The geometry claim, restated honestly
+
+`e2e/layout.spec.ts` still does not list `/platform/data`, and the four widths it
+would measure are reproduced inside `e2e/data-surface.spec.ts` — which did not
+report. This route's behaviour at 1440 / 1180 / 900 / 320px has therefore NOT been
+measured by anything. The stylesheet carries `overflow-wrap: anywhere` on every
+identifier and prose cell and declares no colour at all (that last is asserted, and
+it passed), which is a reason to expect it to hold and is not a measurement.

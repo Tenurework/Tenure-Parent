@@ -495,13 +495,140 @@ the commands or the ADR that would unblock it — if it cannot.
     `docker compose up -d` once the daemon restarts, then
     `npx playwright test e2e/shell.spec.ts -g "work inbox"` from `apps/web`.
 
-- [ ] **TTES-000-003** — Import every `TTES-*` item into the canonical ledger.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **TTES-000-003** — Import every `TTES-*` item into the canonical ledger.
+  - Status: PASS
+  - Code/config: `tests/architecture/ttes-requirements-are-imported.test.mjs` —
+    6 subtests, run by `npm run test:platform`
+    (`tools/run-platform-tests.mjs` discovers `tests/**/*.test.mjs`; CI runs it
+    at `.github/workflows/ci.yml:88`). It imports the document graph's own
+    parser rather than writing a second one, because two readers of one document
+    disagree eventually and the loop acts on the graph's answer, not on a test's.
+  - What was already true, stated plainly so this is not read as more than it
+    is: the 34 rows were in the file before this pass. `requirementsIn()` over
+    `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`
+    returns 34 `TTES-*` ids; the ledger states 34; the two sets are equal, no id
+    is stated twice, and `ledgerStatuses()` files none of them under another
+    domain's ledger. Measured, not assumed.
+  - What did NOT exist, and is what this closes: anything that would notice them
+    leaving. `grep -rn TTES tests/ tools/ --include=*.mjs` found six files
+    naming a TTES id and not one of them compares the Bible against the ledger.
+    A completed import with no check over it is indistinguishable from an import
+    that quietly loses ten rows six commits later, because the number nobody
+    re-derives is the number everybody trusts.
+  - The global ratchet in `tests/architecture/document-graph.test.mjs` is the
+    wrong shape for this and stays as it is. It counts requirements reaching NO
+    execution document, which is a union — so a `TTES-*` row filed under another
+    domain's ledger leaves that count unmoved while the domain accountable for it
+    has no row to work. It also looks in one direction only: an invented
+    `TTES-000-009` inflates a denominator nobody re-derives, and a duplicated id
+    is two statuses of which the loop reads whichever the parser saw last. All
+    three are asserted here, plus the count.
+  - Mutation run, each applied to the real file, run, and restored:
+    1. `- [ ] **TTES-000-004**` → `- [ ] **TTES-000-004x**` in this ledger →
+       `node --test tests/architecture/ttes-requirements-are-imported.test.mjs`
+       gives 5 pass / 1 fail, `not ok 2 - every TTES requirement the Bible
+       states has a row in the tenant-experience ledger`. Restored → 6/6.
+    2. Added an invented `TTES-000-009` row and a second `TTES-000-003` row →
+       5 pass / 1 fail, `not ok 3 - the tenant-experience ledger invents no
+       requirement and repeats none`. Restored → 6/6, and
+       `git diff --name-only` over this ledger came back empty.
+    Not mutation-proven, and named rather than implied: subtest 1 (the count
+    literal) would need an edit to the Bible, and subtest 4 (misfiling) an edit
+    to another domain's ledger — both are outside this pass's file allowlist
+    while sixteen other agents hold the tree.
+  - Also verified: `tests/architecture/guards-do-not-write-into-the-tree.test.mjs`
+    → 3/3, so this guard reads and does not repair.
 
-- [ ] **TTES-000-004** — Audit current deployed tenant product across personas/themes/viewports/accessibility.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **TTES-000-004** — Audit current deployed tenant product across personas/themes/viewports/accessibility.
+  - Status: PASS
+  - Code/config: `tools/ttes-experience-audit.mjs` (generator, `--check` mode),
+    `docs/architecture/ttes-experience-audit.md` (its output, committed),
+    `tests/architecture/ttes-experience-audit.test.mjs` (10 subtests, run by
+    `npm run test:platform`). It reuses `apps/web/src/lib/a11y/css-declarations.mjs`
+    — the brace-balanced CSS reader TTES-000-001 moved out of `theme-tokens.ts`
+    — rather than writing a second stylesheet parser, for the reason that file's
+    own header gives.
+  - **The word "deployed", answered honestly rather than quietly.** There are two
+    deployments: the live pilot at `Tenurework/Tenure`, which nothing here may
+    reach, and this monorepo's nonproduction stack. This audit measures neither.
+    It measures the checkout, it says so in §1 of its own output, and §7 lists
+    what a checkout cannot answer — rendered contrast, focus order, screen-reader
+    output, reflow at 400% zoom — as NOT ESTABLISHED, rather than letting four
+    green tables imply somebody looked. An audit's silence reads as a pass, so
+    the silence is written down.
+  - **Derived, not written.** A written audit is a photograph of a tree that
+    changed the same afternoon; its failure mode is "was right once", which reads
+    identically to "is right". Every table is generated: 9 personas read from the
+    three enums in `apps/web/prisma/schema.prisma` with the line each is declared
+    on, 11 token scopes read from `apps/web/src/app/globals.css` by SHAPE (any
+    rule declaring a custom property) so a new theme appears without anyone
+    remembering to add it, 3 CSS breakpoints and 5 Tailwind prefixes with
+    occurrence counts, 40 tenant pages each measured over its TRANSITIVE import
+    closure, and 5 static accessibility checks over 136 non-test `.tsx` files.
+  - **Findings it produced, and two false ones it produced first.** The audit's
+    first run reported 3 fixed-width pages and 2 accessibility hits, and the
+    majority of both was wrong — which is worth recording, because a findings
+    list that has to be triaged is how a real finding gets ignored:
+    * `app/page.tsx` and `orgs/[slug]/page.tsx` are 4- and 10-line `redirect()`
+      stubs that emit no element. "Renders the same at 320px as at 1440px" is
+      true of them and meaningless. Pages that emit no markup are now reported
+      `redirect only` and not asked the question — 38 rendering pages, not 40.
+    * `ConfirmDialog.tsx`'s `autoFocus` is inside an `<Overlay>`, where moving
+      focus in is REQUIRED. The check is now `autofocus-outside-a-modal` and
+      skips any file that renders a dialog.
+    * The undeclared-token check first reported `--z-`, `--other`, `--x` and
+      `--chart-N`; all four came from prose comments. Comments are stripped, and
+      inline `"--avatar-bg":` style keys count as declarations, so `Avatar.tsx`
+      is not reported for a token it sets itself.
+    What survives: **1 of 38** rendering pages conditions nothing on a breakpoint
+    (`apps/web/src/app/signin/page.tsx` — stated precisely: it is fluid
+    `w-full max-w-md` and may well be fine, but nothing about it changes with
+    the viewport and no test has looked at it narrow); **1** `target="_blank"`
+    with no `rel` (`apps/web/src/components/documents/DocumentViewerOverlay.tsx`,
+    a link to the sign-in page); **1** `autoFocus` outside a dialog
+    (`apps/web/src/app/(app)/search/page.tsx`); and **high contrast has no
+    in-product switch** — `prefers-contrast: more` is reachable only from the
+    operating system. 0 orphan tokens, 0 undeclared references, 0 unmapped
+    scopes, 0 personas the product never branches on.
+  - Determinism, because a generated artefact that is "current here, stale in
+    CI" has burned this programme repeatedly: directories are read in sorted
+    order, every path is compared and printed POSIX-normalised, every file is
+    CRLF-collapsed before it is scanned or line-counted, and nothing is stamped
+    with a date, host or revision. The guard asserts no CR byte and no
+    backslash path in the output, and renders twice in-process comparing bytes.
+  - Mutation run — 5 mutations, 5 caught, each applied to the real file, run,
+    and restored to green:
+    1. `apps/web/prisma/schema.prisma:431` → `:999` in the committed audit →
+       `node --test tests/architecture/ttes-experience-audit.test.mjs` gives
+       9 pass / 1 fail, `not ok 1 - the committed audit matches what the
+       generator produces now`. This is the REMOVE-OR-CORRUPT-ONE-ENTRY
+       mutation the evidence protocol asks of an inventory.
+    2. `ThemeSwitcher.tsx` → `ThemeSwitcherX.tsx` in the committed audit →
+       8 pass / 2 fail, adding `not ok 2 - every path the audit cites exists`.
+       A row naming a file nobody has is the fabricated-inventory failure.
+    3. In the generator, `if (!/\balt\s*=/.test(m[1])) out.push` → `if (false)
+       out.push` — the guard-that-cannot-fail shape, verbatim — → 9 pass /
+       1 fail, `not ok 9 - the accessibility checks still fire on markup that
+       is wrong`. A disarmed check prints `0` and reads as a clean bill.
+    4. `ACTIVATION` key `'html.dark'` → `'html.dark-REMOVED'` → 8 pass / 2 fail,
+       adding `not ok 6 - every token scope the stylesheet declares is mapped
+       to something that enters it`.
+    5. `PERSONA_ENUMS` reduced to two enums → 8 pass / 2 fail, adding
+       `not ok 4 - the persona section reads all three enums and every value in
+       them`. A partial vocabulary still renders as a full-looking table.
+    After each restore: 10/10, and `git status --porcelain` over
+    `tools/ttes-experience-audit.mjs` and the audit document showed them
+    identical to the versions this entry describes.
+  - Not run, and not claimed: no browser, no Playwright, no Postgres. The
+    rendered half of this requirement is `TTES-020-004`, which is
+    `BLOCKED_EXTERNAL` immediately below for the reason recorded there.
+  - Pre-existing failures observed while verifying, neither attributable to
+    these files: `tests/architecture/document-graph.test.mjs` → 11 pass /
+    2 fail — `the compiled artifacts are current` (the two generated YAMLs are
+    stale from other agents' concurrent ledger writes; the orchestrator runs
+    `npm run generate`) and `a requirement stated twice is stated identically`
+    (`WRK-000-001`, another domain). `requirementsIn()` over the new audit
+    document returns `[]`, so it adds no requirement statement of its own.
 
 - [x] **TTES-010-001** — Implement primitive/semantic/component/tenant token pipeline and type generation.
   - Status: PASS
@@ -968,7 +1095,53 @@ the commands or the ADR that would unblock it — if it cannot.
     HEAD, so none of the failures can be attributable to it.
 
 - [ ] **TTES-020-004** — Provide state/theme/density/locale/viewport stories and visual baselines.
-  - Status: FAIL
+  - Status: BLOCKED_EXTERNAL
+  - **Reclassified from FAIL to BLOCKED_EXTERNAL on 2026-08-14. Nothing was built
+    and nothing is claimed; the status is corrected, and the correction matters.**
+    `FAIL` means "the rest can be built now" and returns the item to
+    `tools/loop/next-batch.mjs` every tick, forever. Every remaining step here
+    requires a human hand, so an agent takes this row, re-derives the same
+    blocker, writes the same paragraph and moves on — which is what the two
+    dated updates below already are. The three steps, each with the exact
+    command, unchanged from the 2026-08-08 analysis and independently
+    re-verified today:
+    1. Dispatch `.github/workflows/visual-baselines-refresh.yml`
+       (`workflow_dispatch` only, by design — it holds `permissions: contents:
+       read` and pushes nothing):
+       `gh workflow run visual-baselines-refresh.yml --ref studio-program`
+    2. Download and unpack its artifact into the repository:
+       `gh run download <run-id> -n visual-baselines -D apps/web/e2e/__screenshots__`
+    3. Commit those PNGs together with the "Visual baselines (pinned
+       container)" step restored verbatim from `6038a62` into
+       `.github/workflows/ci.yml`, where a comment currently stands in its
+       place at line 373.
+  - Why an agent cannot do step 3 in particular: `.github/workflows/**` is
+    shared across every domain running against this tree, and restoring a CI
+    step there is precisely the kind of edit that must not be made from a
+    parallel run. The file is named and the change is named; a human or the
+    orchestrator makes it.
+  - Why steps 1–2 cannot be replaced by capturing locally, re-measured today
+    rather than taken on trust: the baselines must be captured on Linux (the
+    same Inter renders through DirectWrite on Windows and FreeType on Linux and
+    the two disagree on nearly every antialiased pixel). From this Windows host
+    that needs a container, and `docker version` reports the client only while
+    `docker ps` answers `request returned 500 Internal Server Error for API
+    route and version .../v1.54/containers/json` — the Docker Desktop daemon is
+    unreachable, exactly as recorded on 2026-08-08. `ls apps/web/e2e/__screenshots__`
+    → `No such file or directory`; `apps/web/e2e/visual-baselines.spec.ts` and
+    `.github/workflows/visual-baselines-refresh.yml` both exist. All four
+    measured on 2026-08-14.
+  - This row goes to PASS when the comparison runs green in CI against committed
+    reference images — not when the workflow exists, and not when an artifact has
+    been downloaded. Everything below is the prior analysis, kept in full.
+  - Stale prose left deliberately untouched, flagged here rather than silently
+    edited: `TTES-GATE-020`'s body says "004 … is FAIL in this file". It is now
+    `BLOCKED_EXTERNAL`. That row belongs to the gate, not to this requirement,
+    and this pass was scoped to three rows while sixteen other agents held the
+    tree; no guard reds on it (`ledger-statuses` 8/8,
+    `status-assertions-are-exact` 3/3, `pass-requires-evidence` gate subtests
+    green), and the gate's blocker is unchanged either way. Whoever next edits
+    the gate should restate it.
   - **Reclassified from PASS on 2026-08-07, and the claim below was false.** This entry
     said "the PNGs in `apps/web/e2e/__screenshots__` were generated in
     `mcr.microsoft.com/playwright:v1.61.1-noble`". They were not. That directory has

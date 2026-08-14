@@ -21,6 +21,7 @@ import { EmailLink } from "@/components/EmailLink"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { formatCents } from "@/lib/finance"
 import type { ApprovalStatus } from "@prisma/client"
+import { UNDECIDED_APPROVAL_STATUSES } from "@/lib/analytics/metrics"
 
 export const dynamic = "force-dynamic"
 
@@ -76,7 +77,10 @@ export default async function HandoffPage({
       db.approvalRequest.findMany({
         where: {
           organizationId: org.id,
-          status: { in: ["DRAFT", "PENDING_PRESIDENT", "NEEDS_CHANGES", "PENDING_OSE"] },
+          // ANL-000-002. "Still in flight" is `UNDECIDED_APPROVAL_STATUSES`,
+          // which is a different population from "awaiting decision" and is now
+          // named as such rather than spelled out here.
+          status: { in: [...UNDECIDED_APPROVAL_STATUSES] },
         },
         orderBy: { updatedAt: "desc" },
         take: 6,
@@ -110,12 +114,18 @@ export default async function HandoffPage({
             the club's six surfaces. This page used to reach for `PageHeader`
             directly, which put the anatomy right here and nowhere else; it now
             goes through the same `OrgRecordHeader` the other five do, so the
-            order is a component rather than six agreements. */}
+            order is a component rather than six agreements.
+
+            ANL-000-002. The subtitle below said "live from the seat lifecycle"
+            over four tiles that are read once, when the page renders, and never
+            move again — a reader who left the tab open read an hour-old number
+            labelled live. Nothing on this page polls; the honest word is "when
+            this page loaded", and §19 names calling stale data real time. */}
         <OrgRecordHeader
           slug={slug}
           org={org}
           section="Transition and handoff"
-          subtitle="Everything a new officer needs on day one, live from the seat lifecycle."
+          subtitle="Everything a new officer needs on day one, read from the seat lifecycle when this page loaded."
           status={
             <>
               <Badge variant={filledSeats === seats.length ? "success" : "info"}>

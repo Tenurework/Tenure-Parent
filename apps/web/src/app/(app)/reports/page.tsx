@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/ui/PageHeader"
 import { StatGrid, StatTile } from "@/components/ui/Bento"
 import { ReportsAnalytics } from "@/components/charts/panels/ReportsAnalytics"
 import { LiveStats } from "@/components/charts/LiveStats"
+import { countOpenApprovals, formatDuration, medianDurationMs } from "@/lib/analytics/metrics"
 
 export const dynamic = "force-dynamic"
 
@@ -83,23 +84,21 @@ export default async function ReportsPage() {
       }),
     ])
 
-    const statusCount = (s: string) => approvals.filter((a) => a.status === s).length
-    const pending = statusCount("PENDING_PRESIDENT") + statusCount("PENDING_OSE")
+    // ANL-000-002. Both figures are defined in `lib/analytics/metrics.ts` and
+    // nowhere else. This page used to decide what "awaiting decision" meant by
+    // naming two statuses inline — as did `/api/reports/pulse`, whose numbers
+    // replace these ones fifteen seconds later — and to compute the median with
+    // a formatting ladder that had no day rung, while the panel below computed
+    // it again with one. Five days read `120.0 h` here and `5.0 days` there.
+    const pending = countOpenApprovals(approvals)
     const publishedEvents = eventRows.length
 
-    // Median hours from request creation to final decision
-    const durations = decidedSteps
-      .map((s) => s.occurredAt.getTime() - s.approval.createdAt.getTime())
-      .sort((a, b) => a - b)
-    const medianMs = durations.length
-      ? durations[Math.floor(durations.length / 2)]
-      : null
-    const medianLabel =
-      medianMs === null
-        ? "—"
-        : medianMs < 36e5
-          ? `${Math.max(1, Math.round(medianMs / 6e4))} min`
-          : `${(medianMs / 36e5).toFixed(1)} h`
+    // All time, and the tile says so. The panel below measures the reader's
+    // selected range with the same function; the two numbers differ because the
+    // populations differ, which is now stated rather than left to be noticed.
+    const medianLabel = formatDuration(
+      medianDurationMs(decidedSteps.map((s) => s.occurredAt.getTime() - s.approval.createdAt.getTime())),
+    )
 
     // Roster fill by board-position category — filled vs vacant across all clubs.
     const rosterMap = new Map<string, { filled: number; vacant: number }>()
@@ -167,7 +166,7 @@ export default async function ReportsPage() {
             <StatTile
               label="Approvals awaiting decision"
               value={pending}
-              hint={`median time to decision ${medianLabel}`}
+              hint={`median time to decision ${medianLabel}, all time`}
               icon={CheckCircle}
             />
             <StatTile

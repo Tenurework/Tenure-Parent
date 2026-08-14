@@ -19,17 +19,95 @@ undecided and returns the item to the queue every tick, forever. An unfinished
 requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — naming
 the commands or the ADR that would unblock it — if it cannot.
 
-- [ ] **PLN-000-001** — Inventory current budget/planning/report code and false EPM claims.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **PLN-000-001** — Inventory current budget/planning/report code and false EPM claims.
+  - Status: PASS
+  - Code: `tools/pln-planning-inventory.mjs` derives the inventory from the tree and
+    writes `docs/architecture/pln-planning-inventory.md`. Nine anchors — the columns of
+    the three budget tables plus the named budget calculations — swept over
+    `apps/system-studio/src`, `apps/web/src`, `modules` and `packages`, in sorted
+    directory order, over CRLF-normalised text, with POSIX-normalised paths. Named
+    tokens rather than the word "budget", which also names the AI token budget and the
+    SLO error budget and neither is money. The generator REFUSES to emit a document
+    when a swept file has no hand-written note, or a note names a file the sweep did
+    not find, so the prose half cannot drift away from the derived half in silence.
+  - What it found, all verified by opening the file: 19 production files and 6 test
+    files carrying a budget anchor; 3 writers of a budget table; 5 surfaces that total
+    `budgetedCents`/`actualCents` without `summarize()` or `rollUpPortfolio()`, so the
+    mixed-currency defect PAY-080-004 fixed on the portfolio page is still live on
+    them; and 0 of the 36 canonical objects section 3 of the Bible requires. The 36 are
+    read out of the Bible at derivation time, not copied, and checked against
+    `model X {` in `apps/web/prisma/schema.prisma`.
+  - False claim recorded: `modules/index.ts` marks the `budgeting` module's
+    `state-machines-and-effective-dating` dimension `pass` because
+    "apps/web/src/lib/finance.ts is the only writer". `finance.ts` imports no database
+    client and writes nothing; the writers are `admin/actions.ts`, `approvals/actions.ts`
+    and `orgs/[slug]/finance/actions.ts`. Correcting it means editing `modules/index.ts`,
+    which is shared, so the inventory records the defect and does not touch the file.
+  - Tests: `tests/architecture/pln-planning-inventory.test.mjs`, 8 tests, `node --test`
+    at the repository root (`npm run test:platform` — 458 tests, mine are 216-223, all
+    green; the 13 unrelated failures in that run are other domains' generators, none
+    with a `pln-` name). It re-derives every table and compares byte-for-byte, checks
+    each inventoried path exists and still carries its anchor, checks the
+    Bible↔schema mapping from both ends, and asserts no CR, no native path and no
+    absolute path reaches the output.
+  - Mutations, 4 applied, 4 caught, all restored, suite green again after each:
+    (1) created `apps/web/src/lib/pln-mutation-probe.ts` containing `budgetedCents` —
+    the generator threw `these files carry a budget anchor and no note` and tests 1, 2
+    and 8 failed (5 pass / 3 fail); deleted it, 8/8.
+    (2) `| \`Scenario\` | **no** |` → `| \`Scenario\` | yes |` in the document — tests 1
+    and 3 failed (6/2); regenerated, 8/8.
+    (3) deleted the `approvals/actions.ts` row from section 3 — tests 1 and 4 failed
+    (6/2); regenerated, 8/8. This mutation is why test 4 slices section 3 out of the
+    document first: the first version searched the whole file, found the same path in
+    section 1, and passed while section 3 had lost the row.
+    (4) deleted `impact/page.tsx` from section 4 — tests 1 and 5 failed (6/2);
+    regenerated, 8/8.
+  - Scope: budget/planning code and the finance report surface. Dashboards and charts
+    as a class belong to ANL-000-001 and are not claimed here.
 
 - [ ] **PLN-000-002** — Implement canonical models, dimensions, measures, versions, scenarios, cells and lineage.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Status: BLOCKED_EXTERNAL
+  - Blocked on: `apps/web/prisma/schema.prisma` and `apps/web/src/lib/tenancy/registry.ts`,
+    both shared files this wave, plus a migration under `apps/web/prisma/migrations/`.
+  - Evidence that the work is real and not started: `docs/architecture/pln-planning-inventory.md`
+    section 5 shows 0 of 36 canonical objects present — no `PlanningModel`, `Dimension`,
+    `DimensionMember`, `Hierarchy`, `Measure`, `TimeGrain`, `Scenario`, `PlanVersion`,
+    `PlanningCell`, `DataSlice`, `DataLock` or any of the other 25 exists as a Prisma
+    model. The requirement is persistence, so it cannot be met by TypeScript types: a
+    declared interface with no table is the failure mode this programme has already
+    shipped once.
+  - The exact change that unblocks it: add the 36 models to `schema.prisma` with a
+    migration, and classify every one of them in `registry.ts`. That second file is not
+    optional — its own header states "Every model in schema.prisma must be classified
+    into exactly one bucket below, and registry.test.ts reads schema.prisma and fails if
+    any model is missing", so 36 new models red that suite until they are classified.
+    Both files are on this wave's shared list, so this domain must not edit them. Once
+    an owner of the schema has made the edit, the rest is:
+
+    ```bash
+    npm exec --workspace apps/web -- prisma migrate dev --name pln_planning_foundation
+    npm run test --workspace apps/web -- --ci   # apps/web/src/lib/tenancy/registry.test.ts
+    npm run test:platform
+    ```
+
+    Then PLN-000-003 can be built against the tables this creates.
 
 - [ ] **PLN-000-003** — Implement typed calculation graph, cycles, sparse/incremental evaluation and deterministic replay.
   - Status: FAIL
-  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Reason: not attempted in this batch, and honestly reported as unfinished rather than
+    part-built. Nothing resembling a calculation graph exists: the whole of the planning
+    arithmetic in this repository is `summarize()` in `apps/web/src/lib/finance.ts`
+    (projected = actual, else `forecastCents`, else 0; variance = budgeted - projected)
+    and `rollUpPortfolio()` beside it. There is no formula, so there is no dependency to
+    extract, no cycle to detect and nothing to replay.
+  - Why FAIL and not BLOCKED_EXTERNAL: the engine itself — a typed formula language,
+    static dependency extraction, cycle detection, sparse evaluation over a coordinate
+    space — needs no shared file and could be built now under `apps/web/src/lib/planning/`.
+    It is left in the queue deliberately. What it could not have in this batch is a
+    production caller or deterministic replay, because both need PLN-000-002's
+    `CalculationRule`, `PlanningCell` and `PlanVersion` tables, and a library nothing
+    calls is the "a type declares it" result this ledger exists to refuse.
+  - Order: build PLN-000-002 first, then this against it.
 
 - [ ] **PLN-000-004** — Import every `PLN-*` item into the canonical ledger.
   - Status: FAIL

@@ -19,17 +19,114 @@ undecided and returns the item to the queue every tick, forever. An unfinished
 requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — naming
 the commands or the ADR that would unblock it — if it cannot.
 
-- [ ] **HCM-000-001** — Inventory current people/member/seat/role/onboarding logic and false HCM claims.
-  - Status: FAIL
-  - Reason: imported from `Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **HCM-000-001** — Inventory current people/member/seat/role/onboarding logic and false HCM claims.
+  - Status: PASS
+  - Code/config: `tools/hcm-people-inventory.mjs`,
+    [`../architecture/hcm-people-inventory.md`](../architecture/hcm-people-inventory.md),
+    `tests/architecture/hcm-people-inventory-is-current.test.mjs`
+  - Evidence: generated from the tree, not written from memory. **52 Prisma models
+    read, 9 classified as people-domain, 6 derived as owning a relation into the
+    workforce core; 23 modules verified by path and anchor; 45 canonical objects
+    parsed from §4 of the source document and bound — 1 PRESENT, 7 PARTIAL, 37
+    ABSENT; 10 claims audited by opening the file.** Run
+    `node tools/hcm-people-inventory.mjs --check` and
+    `node --test tests/architecture/hcm-people-inventory-is-current.test.mjs`
+    (10 tests, 10 pass).
+  - Tests: **4 mutations applied, run, and all 4 caught** after the check was
+    strengthened. (1) Deleting the `SeatHolding` row from `PEOPLE_MODELS` →
+    "`SeatHolding` declares a relation into the workforce core (DirectoryPerson,
+    Role) and is classified by neither". (2) Renaming every occurrence of
+    `releaseToSuccessor` in `packages/organization-model/src/succession-release.ts`
+    → "no longer contains its anchor"; the file was restored byte-identical
+    (sha256 `83da7134e4b6e5ac…` before and after). (3) Hand-editing the generated
+    document's headline from `1 PRESENT` to `9 PRESENT` → stale, plus the
+    headline assertion. (4) Deleting the `HRCase` binding → "names canonical
+    object `HRCase` and this inventory does not bind it".
+  - **A guard that could not fail, found and fixed in this session.** The first
+    version of the anchor check used `String.includes`, and mutation (2) —
+    renaming `releaseToSuccessor` to `releaseToSuccessorRENAMED` — left the
+    substring behind and read GREEN over a tree that had changed. `anchorPresent`
+    now bounds an anchor on any side that ends in a word character, and
+    `tests/architecture/hcm-people-inventory-is-current.test.mjs` asserts the
+    superstring rename is rejected. No check was disabled to iterate.
+  - The three findings that change what can honestly be claimed:
+    1. **84 of the 89 symbols `packages/organization-model` exports are imported
+       by nothing outside the package.** Every assignment-state,
+       bitemporal-correction, position-lifecycle and succession-release export is
+       unreached; the 5 that non-test code takes are topology and graph
+       construction. The modelling that would answer "what did the organisation
+       look like in March" is written, tested, and connected to no caller.
+       `apps/web/src/lib/org/projection.ts` is imported only by its own test.
+    2. **One human is two rows and one placement is two rows.** `DirectoryPerson`
+       and `User` are joined by email — in a repository that already runs
+       `tests/security/email-is-not-a-key.test.mjs`. `RoleAssignment` (dates) and
+       `SeatHolding` (academic-year strings) are two answers to one question with
+       nothing reconciling them.
+    3. **No surface in `apps/web` claims payroll, benefits, time, absence,
+       compensation, recruiting or performance.** The false-claim risk here is
+       not in the product; it is three unresolved contradictions between
+       documents, recorded in the audit — including
+       `docs/architecture/PLATFORM-ARCHITECTURE.md`'s "Do not build payroll.
+       Ever." against §3.10's `TENURE_NATIVE_CERTIFIED` mode.
 
 - [ ] **HCM-000-002** — Implement distinct person/worker/member/job/position/seat/assignment models and migrations.
-  - Status: FAIL
-  - Reason: imported from `Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Status: BLOCKED_EXTERNAL
+  - Reason: every model and every migration this requirement asks for lands in
+    `apps/web/prisma/schema.prisma` and `apps/web/prisma/migrations/`, and the
+    schema is a shared file this agent must not edit while sixteen other domain
+    agents hold the same worktree — a conflict there loses another domain's work
+    rather than adding this one's. That alone is a wave-scoped block. The block
+    that is **not** wave-scoped is the design: `docs/architecture/REVIEW-FINDINGS.md`
+    P0-8 records three mutually exclusive target schemas all marked "Build now" —
+    `Role`→`Seat` with `@@map("Role")`, a `person`/`position`/`role_assignment`
+    rewrite of every PK and FK, and "do not rename" — and its own fix is "delete
+    two". Adding `Worker`, `Job`, `Position` and a unified `Assignment` on top of
+    an undecided base is implementing a known-broken design, which `CLAUDE.md`
+    forbids in as many words. P0-10 compounds it: `person`, `position` and
+    `role_assignment` appear in no RLS list, so new people tables have no
+    isolation story either.
+  - Unblocked by, in order: (a) an ADR choosing one of P0-8's three schemas and
+    saying what happens to `RoleAssignment` vs `SeatHolding` — so that this
+    blocker becomes false the day somebody writes it, and a checker can see that:
+
+    ls docs/decisions/hcm-0001-person-worker-and-assignment-model.md   # absent on 2026-08-14
+
+    (b) a wave in which this domain owns `apps/web/prisma/schema.prisma`,
+    `apps/web/src/lib/tenancy/registry.ts` (new models must be registered or they
+    are unscoped) and `apps/web/prisma/migrations/`; (c) then
+    `npx prisma migrate dev --name hcm_person_worker_assignment` against the
+    Postgres in `CLAUDE.md`, followed by `npm run test:platform` and
+    `npm run test --workspace apps/web -- --ci`.
+  - Evidence for the gap itself, so this is not taken on trust:
+    [`../architecture/hcm-people-inventory.md`](../architecture/hcm-people-inventory.md)
+    §4 records `Worker`, `EmploymentRelationship`, `Job` and `JobFamily` ABSENT
+    and §5 records `Person` and `Assignment` SPLIT WRONGLY, each derived from
+    `apps/web/prisma/schema.prisma` by `tools/hcm-people-inventory.mjs`.
 
 - [ ] **HCM-000-003** — Implement effective-dated workforce structures and historical reconstruction.
-  - Status: FAIL
-  - Reason: imported from `Tenure_People_HR_and_Workforce_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Status: BLOCKED_EXTERNAL
+  - Reason: the *structures* — legal employer, business unit, department, cost
+    centre, location, grade ladder, collective group, position hierarchy — do not
+    exist as tables, and creating them is `HCM-000-002`'s blocked schema work.
+    `HCM-000-002` is BLOCKED_EXTERNAL, and this requirement cannot be built ahead
+    of the tables it would date. The *mechanism* is already written and reaches no
+    caller, so building more of it would add unreached code rather than close
+    this: `packages/organization-model/src/bitemporal.ts` (`resolveAsOf`,
+    `correct`, `factHistory` — valid time, record time, corrections that preserve
+    prior truth) and `packages/organization-model/src/graph.ts` (`asOf`) are among
+    the 84 of 89 exports imported by nothing outside the package, measured in
+    [`../architecture/hcm-people-inventory.md`](../architecture/hcm-people-inventory.md)
+    §3. What effective dating does exist is per-row and partial —
+    `Seat.effectiveFrom`/`effectiveUntil`/`retiredAt`,
+    `InstitutionMembership.effectiveFrom`/`effectiveUntil`,
+    `RoleAssignment.startDate`/`endDate` — with no bitemporal record period and no
+    as-of query anywhere in `apps/web`.
+  - Unblocked by: `HCM-000-002` reaching PASS, then the same wave owning
+    `apps/web/prisma/schema.prisma` for a record-period column pair and
+    `apps/web/src/lib/db.ts` for an as-of read path. Both are shared files this
+    agent must not edit. Verified afterwards by
+    `npm run test --workspace apps/web -- --ci` with an integration test that
+    reconstructs a past org structure from a correction.
 
 - [ ] **HCM-000-004** — Import every `HCM-*` item into the canonical ledger.
   - Status: FAIL

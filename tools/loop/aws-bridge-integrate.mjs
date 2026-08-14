@@ -479,20 +479,50 @@ it reds; add a fake .tf resource type and show it reds.`,
     key: 'ledger',
     owns: 'docs/implementation/system-studio-aws-control-plane-execution-ledger.md and docs/implementation/NEXT-SESSION.md',
     kind: 'module',
-    brief: `Record what this programme actually established, under the evidence protocol.
+    brief: `Record what this programme actually established, under the evidence protocol —
+and reconcile it against the REAL requirement ids, which is the part that has already gone
+wrong once in this very run.
 
-Roughly fifty agents have just run. Your job is the honest record, and honesty here is worth
-more than a high number: this programme's history is of ~45 claims against 11 confirmations,
-and the handoff that survives is the one that says which was which.
+THE DEFECT YOU ARE FIXING, measured on 2026-08-13 while the wave was still running: the
+service agents returned 172 claimed-PASS requirements under ids they INVENTED —
+\`BUCKETS-01-listing\`, \`COGNITO-MFA-002\`, \`ACM-DETAIL-READ\`, \`CDN-DENIED-IS-NOT-EMPTY\` and
+163 more. Not one of those ids exists in any ledger or any Bible. The CODE is real and its
+tests pass; the ACCOUNTING is disconnected, so none of it registers against the 2,265-item
+programme. Your job is to connect them.
+
+THE ONLY SOURCE OF REQUIREMENT IDS. Run this and treat its output as the universe:
+
+    node tools/loop/next-batch.mjs --size 2100 --json
+
+It lists every UNDECIDED requirement — 2,045 of them on 2026-08-13, of which 154 are
+STUDIO-*. An id that is not in that output and not already a row in a ledger DOES NOT EXIST.
+Never write a row for one. If real, proven work matches no requirement, say so plainly in
+your result — that is a finding about the programme's coverage, not a licence to mint an id.
+
+DO THE MAPPING, requirement by requirement, from the requirement's own text outward. Read
+what each undecided STUDIO requirement actually ASKS, then look for delivered code that
+satisfies it. Some are obvious and some are traps:
+  · STUDIO-000-008 asks for a sanitized actual resource graph from Organizations / Resource
+    Explorer / Resource Groups — the inventory and topology work is a candidate. Does it
+    cover what the requirement enumerates, or only part?
+  · STUDIO-000-009 asks for console-created and unmanaged resources, long-lived AWS keys,
+    wildcard policies — iam.ts, analyzer.ts and drift.ts are candidates. Same question.
+  · STUDIO-080-008 (never render green solely because no data is present) is already PASS —
+    check whether the new metrics reader UPHOLDS it or quietly broke it.
+A partial match is FAIL, not PASS. A requirement that names eleven things and got six is a
+requirement that is not done, and writing PASS on it is exactly the false accounting this
+whole protocol exists to stop.
 
 For the ledger:
   · read the ledger's existing format and follow it exactly — Status, Reason, Evidence;
-  · a requirement is PASS only where an independent refuter returned refuted=false. Anything
-    else is FAIL with the refutation named, or BLOCKED_EXTERNAL naming the exact commands
-    that would unblock it. There is no PARTIAL.
+  · a requirement is PASS only where an independent refuter returned refuted=false AND you
+    have opened the file yourself and seen the code. Anything else is FAIL with the
+    refutation named, or BLOCKED_EXTERNAL naming the exact commands that would unblock it.
+    There is no PARTIAL.
+  · cite the delivering file and its test in the Evidence line, by path;
   · do NOT invent entries for work you cannot see in the tree. Verify each claim against the
     actual file before you write a row, and say in your result how many claims you could not
-    corroborate.
+    corroborate, and how many claimed ids were unmappable.
 
 For NEXT-SESSION.md: update §1 (where the work is), §2 (the three things the operator asked
 for and where each now stands), §3 (the honest denominator — REGENERATE it with

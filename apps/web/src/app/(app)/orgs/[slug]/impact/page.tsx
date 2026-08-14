@@ -16,6 +16,7 @@ import { StatGrid, StatTile } from "@/components/ui/Bento"
 import { OrgRecordHeader } from "@/components/OrgRecordHeader"
 import { Badge } from "@/components/ui/Badge"
 import { formatCents } from "@/lib/finance"
+import { UNDECIDED_APPROVAL_STATUSES } from "@/lib/analytics/metrics"
 
 export const dynamic = "force-dynamic"
 
@@ -64,11 +65,11 @@ export default async function ImpactPage({
     const countBy = Object.fromEntries(approvalGroups.map((g) => [g.status, g._count._all]))
     const approved = countBy["APPROVED"] ?? 0
     const rejected = countBy["REJECTED"] ?? 0
-    const pending =
-      (countBy["PENDING_PRESIDENT"] ?? 0) +
-      (countBy["PENDING_OSE"] ?? 0) +
-      (countBy["NEEDS_CHANGES"] ?? 0) +
-      (countBy["DRAFT"] ?? 0)
+    // ANL-000-002. Four statuses summed under the word "pending" — a different
+    // population from the two `/reports` sums under the same word. Both are
+    // legitimate questions; only one of them can be called "pending" without
+    // saying which, so the set is named in `lib/analytics/metrics.ts`.
+    const pending = UNDECIDED_APPROVAL_STATUSES.reduce((n, status) => n + (countBy[status] ?? 0), 0)
     const decided = approved + rejected
     const approvalRate = decided > 0 ? Math.round((approved / decided) * 100) : null
 

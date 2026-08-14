@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { Card, CardHeader } from "@/components/ui/Card"
+import { formatDuration, medianDurationMs } from "@/lib/analytics/metrics"
 import { LineAreaChart } from "../LineAreaChart"
 import { BarChart } from "../BarChart"
 import { HBarChart } from "../HBarChart"
@@ -19,6 +20,13 @@ const RANGE_OPTIONS: RangeOption<Range>[] = [
   { value: "year", label: "12 months" },
   { value: "all", label: "All" },
 ]
+
+/** The selected range as a phrase, for stating the filter beside a figure. */
+const RANGE_WORDS: Record<Range, string> = {
+  term: "this term",
+  year: "last 12 months",
+  all: "all time",
+}
 
 // Approval funnel stages, in pipeline order (top → bottom).
 const STAGES = [
@@ -80,23 +88,20 @@ export function ReportsAnalytics({
     for (const a of approvals) if (after(a.createdAt)) statusCount.set(a.status, (statusCount.get(a.status) ?? 0) + 1)
     const funnel = STAGES.map(([key, label]) => ({ label, values: [statusCount.get(key) ?? 0] }))
 
-    // 2. Time-to-decision distribution + median
+    // 2. Time-to-decision distribution + median.
+    //
+    // ANL-000-002. The median and its formatting come from
+    // `lib/analytics/metrics.ts`, which is also what the stat tile above this
+    // panel uses. This component used to carry its own copy of both, and the
+    // copies disagreed at the day boundary: the same five days rendered
+    // `5.0 days` here and `120.0 h` in the tile, under the same words.
     const durs = decisions.filter((d) => after(d.occurredAt)).map((d) => d.durationMs)
     const buckets = DURATION_BUCKETS.map(() => 0)
     for (const ms of durs) {
       const idx = DURATION_BUCKETS.findIndex((b) => ms < b.max)
       buckets[idx >= 0 ? idx : DURATION_BUCKETS.length - 1]++
     }
-    const sorted = [...durs].sort((a, b) => a - b)
-    const medianMs = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null
-    const medianLabel =
-      medianMs == null
-        ? "—"
-        : medianMs < HOUR
-          ? `${Math.max(1, Math.round(medianMs / 6e4))} min`
-          : medianMs < DAY
-            ? `${(medianMs / HOUR).toFixed(1)} h`
-            : `${(medianMs / DAY).toFixed(1)} days`
+    const medianLabel = formatDuration(medianDurationMs(durs))
 
     // 3. Events per month
     const evDates = eventDates.filter(after).map((s) => new Date(s))
@@ -154,7 +159,14 @@ export function ReportsAnalytics({
         </Card>
 
         <Card>
-          <CardHeader title="Time to decision" subtitle={`Median ${model.medianLabel} from request to final decision`} />
+          {/* The range is named, because the tile above measures all time and
+              this measures what the reader selected. Same definition, two
+              populations — and an unlabelled second number is what made them
+              look like a contradiction. */}
+          <CardHeader
+            title="Time to decision"
+            subtitle={`Median ${model.medianLabel} from request to final decision — ${RANGE_WORDS[range]}`}
+          />
           <BarChart
             categories={DURATION_BUCKETS.map((b) => b.label)}
             series={[{ name: "Decisions", values: model.buckets }]}

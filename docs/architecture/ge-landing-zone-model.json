@@ -1,0 +1,136 @@
+{
+  "about": "GE-010-002 — the Tenure landing zone as a model, with every resource the AWS inventory records placed against a node of it. Nothing here has been applied: no AWS Organization exists. Guarded by tests/architecture/ge-landing-zone-model.test.mjs.",
+  "status": "proposed",
+  "sources": [
+    "docs/decisions/ADR-0007-tenure-owned-aws-organization.md",
+    "docs/architecture/aws-inventory.json",
+    "docs/implementation/Tenure_Claude_Code_Global_Engine_Execution_Prompt_v1.0.md"
+  ],
+  "estate_observed_at": "2026-07-31T23:40:04.289Z",
+  "organization": {
+    "exists": false,
+    "evidence": "docs/architecture/aws-inventory.json — organization.inUse is false, and access.denied records organizations:describe-organization, list-accounts and list-roots all refused. A single-account estate.",
+    "creation_is_blocked_by": "ADR-0007 — four operator decisions: which account becomes the management account, the consolidated-billing arrangement, root email addresses and tax/contact details for member accounts, and the disposition of the account currently running the live pilot."
+  },
+  "max_undecided_placements": 2,
+  "nodes": [
+    {
+      "name": "Management",
+      "kind": "account",
+      "purpose": "The account the Organization is created from. Runs nothing: no workload, no pipeline, no application data. Root has MFA, no routine access keys and no day-to-day use, because it is the only account with nothing above it.",
+      "account_cardinality": "one",
+      "workloads": [],
+      "exists_in_aws": false,
+      "existence_evidence": "no Organization exists, so no management account exists either — aws-inventory.json organization.inUse=false"
+    },
+    {
+      "name": "Security",
+      "kind": "ou",
+      "purpose": "Delegated security administration — GuardDuty, Config and Security Hub, administered from here rather than from the management account.",
+      "account_cardinality": "one",
+      "exists_in_aws": false,
+      "existence_evidence": "no Organization exists — aws-inventory.json organization.inUse=false"
+    },
+    {
+      "name": "Log Archive",
+      "kind": "ou",
+      "purpose": "Write-once organization trail and Config history. The account whose contents an incident is reconstructed from, and which the accounts under investigation cannot edit.",
+      "account_cardinality": "one",
+      "exists_in_aws": false,
+      "existence_evidence": "no Organization exists — aws-inventory.json organization.inUse=false"
+    },
+    {
+      "name": "Infrastructure",
+      "kind": "ou",
+      "purpose": "Shared build, artifact and registry estate, DNS and certificates. Terraform state and its lock table belong here: they describe every other account and are not owned by any one of them.",
+      "account_cardinality": "one",
+      "exists_in_aws": false,
+      "existence_evidence": "no Organization exists — aws-inventory.json organization.inUse=false"
+    },
+    {
+      "name": "Tenure Parent",
+      "kind": "ou",
+      "purpose": "The global distribution engine — this repository and the System Studio. Its own OU rather than part of Infrastructure because it provisions and can destroy tenant infrastructure, and an account that can do that should not carry a shared build account's trust relationships.",
+      "account_cardinality": "one",
+      "exists_in_aws": false,
+      "existence_evidence": "no Organization exists — aws-inventory.json organization.inUse=false"
+    },
+    {
+      "name": "Nonproduction",
+      "kind": "ou",
+      "purpose": "Development and staging cells. Roles here must be unable to reach production resources, which is GE-010-006 and is not provable in a single-account estate.",
+      "account_cardinality": "one per cell",
+      "exists_in_aws": false,
+      "existence_evidence": "no Organization exists — aws-inventory.json organization.inUse=false"
+    },
+    {
+      "name": "Production Cells",
+      "kind": "ou",
+      "purpose": "Pooled and bridge tenants, one account per cell. The live pilot's workload is a pooled production tenant and belongs to a cell here.",
+      "account_cardinality": "one per cell",
+      "exists_in_aws": false,
+      "existence_evidence": "no Organization exists — aws-inventory.json organization.inUse=false"
+    },
+    {
+      "name": "Dedicated Tenants",
+      "kind": "ou",
+      "purpose": "One Tenure-owned account per siloed or dedicated tenant, vended for them. A tenant is never asked for an AWS account, so the isolation boundary is one Tenure controls and can be accountable for.",
+      "account_cardinality": "one per dedicated tenant",
+      "exists_in_aws": false,
+      "existence_evidence": "no Organization exists — aws-inventory.json organization.inUse=false"
+    },
+    {
+      "name": "Quarantine",
+      "kind": "ou",
+      "purpose": "Detached, deny-all. Where an account goes when it is compromised or being offboarded. Exists from day one and empty, because the time to discover that a deny-all OU does not exist is not during an incident.",
+      "account_cardinality": "zero or more",
+      "exists_in_aws": false,
+      "existence_evidence": "no Organization exists — aws-inventory.json organization.inUse=false"
+    }
+  ],
+  "nodes_with_nothing_to_place_today": {
+    "nodes": ["Security", "Log Archive", "Nonproduction", "Dedicated Tenants", "Quarantine"],
+    "why": "This is a finding, not an omission. The inventory records no backup vault, no KMS alias, no WAF, no hosted zone and no nonproduction workload of any kind, and every resource it does record belongs to either the pilot or the Studio. Five of the nine nodes therefore have nothing to reconcile — the estate has no security-tooling account, no log archive and no nonproduction environment to move."
+  },
+  "placements": [
+    { "resource": "alarm:tenure-pilot-alb-5xx", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "alarm:tenure-pilot-dlq-messages", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "alarm:tenure-pilot-ecs-no-running-tasks", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "alarm:tenure-pilot-rds-cpu-high", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "alb:tenure-pilot-alb", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "alb:tenure-studio-alb", "node": "Tenure Parent", "disposition": "proposed" },
+    { "resource": "cloudfront:d1n6mdis7bs02g.cloudfront.net", "node": "Production Cells", "disposition": "proposed", "note": "serves platform.tenurework.com, the pilot" },
+    { "resource": "cloudfront:d2kj4iy5i37kfd.cloudfront.net", "node": "Tenure Parent", "disposition": "proposed", "note": "the System Studio distribution" },
+    { "resource": "dynamodb:tenure-terraform-locks", "node": "Infrastructure", "disposition": "proposed", "note": "state locking for every stack, not the property of any one workload" },
+    { "resource": "ecr:tenure-pilot-app", "node": "Infrastructure", "disposition": "proposed", "note": "a registry is shared build estate; the cell pulls from it rather than owning it" },
+    { "resource": "ecr:tenure-studio", "node": "Infrastructure", "disposition": "proposed", "note": "a registry is shared build estate; the engine pulls from it rather than owning it" },
+    { "resource": "ecs-cluster:tenure-pilot", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "ecs-cluster:tenure-studio", "node": "Tenure Parent", "disposition": "proposed" },
+    { "resource": "elasticache:tenure-pilot-redis", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "iam-role:AWSServiceRoleForECS", "node": null, "disposition": "proposed", "undecided_reason": "A service-linked role AWS creates in whichever account runs ECS, not a workload that moves. It will exist in every account that ends up running a task, so placing it against one node would be a false statement about a real resource. Settled by the same operator decision as the account itself — ADR-0007." },
+    { "resource": "iam-role:tenure-pilot-ecs-execution", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "iam-role:tenure-pilot-ecs-task", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "iam-role:tenure-studio-ecs-execution", "node": "Tenure Parent", "disposition": "proposed" },
+    { "resource": "iam-role:tenure-studio-ecs-task", "node": "Tenure Parent", "disposition": "proposed" },
+    { "resource": "log-group:/aws/ecs/containerinsights/tenure-pilot/performance", "node": "Production Cells", "disposition": "proposed", "note": "one day of retention today; an organization trail's retention is Log Archive's problem, not this group's" },
+    { "resource": "log-group:/ecs/tenure-pilot", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "log-group:/ecs/tenure-studio", "node": "Tenure Parent", "disposition": "proposed" },
+    { "resource": "rds:tenure-pilot-db", "node": "Production Cells", "disposition": "proposed", "note": "carries real student data; the account boundary this moves behind is the point of the whole model" },
+    { "resource": "s3:tenure-pilot-documents-1549…97", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "s3:tenure-pilot-exports-1549…97", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "s3:tenure-tfstate-1549…97-us-east-1", "node": "Infrastructure", "disposition": "proposed", "note": "holds the state of every stack including the pilot's; the OIDC deploy role is already denied the pilot's state prefix" },
+    { "resource": "secret:events!connection/tenure-pilot-job/76407ff7-57c7-4268-bec2-4346d3d35591", "node": "Production Cells", "disposition": "proposed", "note": "AWS-managed EventBridge connection secret, created with the pilot's job connection" },
+    { "resource": "secret:rds!db-ce7fc7cf-399d-451d-9de8-a669132dd0b3", "node": "Production Cells", "disposition": "proposed", "note": "AWS-managed RDS master secret, moves with tenure-pilot-db" },
+    { "resource": "secret:tenure-pilot/app", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "secret:tenure-pilot/dev-login", "node": "Production Cells", "disposition": "proposed", "note": "placed where it lives, not where it belongs: a dev-login secret in a production account is a containment item in its own right and moving it to Nonproduction is not a landing-zone decision" },
+    { "resource": "secret:tenure-pilot/job", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "secret:tenure-studio/app", "node": "Tenure Parent", "disposition": "proposed" },
+    { "resource": "sqs:tenure-pilot-default", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "sqs:tenure-pilot-default-dlq", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "sqs:tenure-pilot-email", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "sqs:tenure-pilot-email-dlq", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "sqs:tenure-pilot-notifications", "node": "Production Cells", "disposition": "proposed" },
+    { "resource": "vpc:172.31.0.0/16", "node": null, "disposition": "proposed", "undecided_reason": "The default VPC of the account that exists today, carrying no workload. Its node follows the disposition of that account — whether it becomes the management account, a member account or is superseded — which ADR-0007 leaves to the operator." },
+    { "resource": "vpc:tenure-pilot-vpc", "node": "Production Cells", "disposition": "proposed" }
+  ]
+}

@@ -1,0 +1,635 @@
+{
+  "requirement": "ANL-000-001",
+  "generator": "tools/anl-analytics-inventory.mjs",
+  "classification": "docs/architecture/anl-analytics-inventory.md",
+  "scanRoots": [
+    "apps/system-studio/src",
+    "apps/web/src"
+  ],
+  "rules": {
+    "chart-kit": "path contains /components/charts/",
+    "chart-panel": "imports one of [\"@/components/charts\",\"/charts\\\"\",\"/charts'\",\"../ChartFrame\",\"./ChartFrame\"]",
+    "metric-endpoint": "app/**/route.ts containing one of [\".count(\",\".aggregate(\",\".groupBy(\"]",
+    "analytics-surface": "app/**/page.tsx rendering one of [\"StatTile\",\"LiveStats\",\"<Meter\",\"Sparkline\",\"ChartFrame\",\"StaleIndicator\"], aggregating server-side, or importing the chart kit",
+    "client-side-metric": "\"use client\" module containing one of [\".reduce(\",\"Map<string, number>\"]",
+    "metric-module": "non-page, non-route module in an analytics-surface directory that aggregates"
+  },
+  "counts": {
+    "artefacts": 61,
+    "byKind": {
+      "analytics-surface": 22,
+      "chart-kit": 22,
+      "chart-panel": 7,
+      "client-side-metric": 7,
+      "metric-endpoint": 2,
+      "metric-module": 8
+    }
+  },
+  "artefacts": [
+    {
+      "id": "apps/system-studio/src/app/platform/audit/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "page-math:.reduce("
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/compute/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "primitive:StaleIndicator"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/cost/cost-decisions.ts",
+      "kinds": [
+        "metric-module"
+      ],
+      "signals": [
+        "client-math:.reduce(",
+        "client-math:Map<string, number>"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/cost/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "primitive:StaleIndicator"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/data/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "primitive:StaleIndicator"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/estate/estate-answer.ts",
+      "kinds": [
+        "metric-module"
+      ],
+      "signals": [
+        "client-math:.reduce("
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/estate/estate-coverage.ts",
+      "kinds": [
+        "metric-module"
+      ],
+      "signals": [
+        "client-math:Map<string, number>"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/estate/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "primitive:StaleIndicator"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/health/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "primitive:StaleIndicator"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/identity/doors.ts",
+      "kinds": [
+        "metric-module"
+      ],
+      "signals": [
+        "client-math:.reduce("
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/identity/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "primitive:StaleIndicator"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/messaging/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "primitive:StaleIndicator"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/messaging/reach.ts",
+      "kinds": [
+        "metric-module"
+      ],
+      "signals": [
+        "client-math:.reduce("
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/network/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "primitive:StaleIndicator"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "page-math:.reduce("
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/tenants/fleet-view.ts",
+      "kinds": [
+        "metric-module"
+      ],
+      "signals": [
+        "client-math:.reduce("
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/tenants/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "primitive:StaleIndicator"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/web/src/app/(app)/admin/actions.ts",
+      "kinds": [
+        "metric-module"
+      ],
+      "signals": [
+        "aggregate:.count("
+      ],
+      "owner": "erp-modules"
+    },
+    {
+      "id": "apps/web/src/app/(app)/admin/audit/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "aggregate:.count("
+      ],
+      "owner": "erp-modules"
+    },
+    {
+      "id": "apps/web/src/app/(app)/admin/page.tsx",
+      "kinds": [
+        "analytics-surface",
+        "chart-panel"
+      ],
+      "signals": [
+        "aggregate:.count(",
+        "imports:/charts\"",
+        "imports:@/components/charts",
+        "primitive:StatTile"
+      ],
+      "owner": "erp-modules"
+    },
+    {
+      "id": "apps/web/src/app/(app)/admin/people/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "aggregate:.count("
+      ],
+      "owner": "erp-modules"
+    },
+    {
+      "id": "apps/web/src/app/(app)/dashboard/page.tsx",
+      "kinds": [
+        "analytics-surface",
+        "chart-panel"
+      ],
+      "signals": [
+        "aggregate:.aggregate(",
+        "aggregate:.count(",
+        "aggregate:.groupBy(",
+        "imports:/charts\"",
+        "imports:@/components/charts",
+        "page-math:Map<string, number>",
+        "primitive:<Meter",
+        "primitive:StatTile"
+      ],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/app/(app)/messages/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "aggregate:.groupBy("
+      ],
+      "owner": "notifications"
+    },
+    {
+      "id": "apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts",
+      "kinds": [
+        "metric-module"
+      ],
+      "signals": [
+        "aggregate:.aggregate(",
+        "aggregate:.count("
+      ],
+      "owner": "organization"
+    },
+    {
+      "id": "apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "page-math:.reduce("
+      ],
+      "owner": "organization"
+    },
+    {
+      "id": "apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "page-math:.reduce(",
+        "primitive:StatTile"
+      ],
+      "owner": "organization"
+    },
+    {
+      "id": "apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "aggregate:.count(",
+        "aggregate:.groupBy(",
+        "page-math:.reduce(",
+        "primitive:StatTile"
+      ],
+      "owner": "organization"
+    },
+    {
+      "id": "apps/web/src/app/(app)/orgs/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "page-math:Map<string, number>"
+      ],
+      "owner": "organization"
+    },
+    {
+      "id": "apps/web/src/app/(app)/reports/finance/page.tsx",
+      "kinds": [
+        "analytics-surface"
+      ],
+      "signals": [
+        "primitive:StatTile"
+      ],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/app/(app)/reports/page.tsx",
+      "kinds": [
+        "analytics-surface",
+        "chart-panel"
+      ],
+      "signals": [
+        "aggregate:.count(",
+        "imports:@/components/charts",
+        "primitive:LiveStats",
+        "primitive:StatTile"
+      ],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/app/api/notifications/route.ts",
+      "kinds": [
+        "metric-endpoint"
+      ],
+      "signals": [
+        "aggregate:.count("
+      ],
+      "owner": "notifications"
+    },
+    {
+      "id": "apps/web/src/app/api/reports/pulse/route.ts",
+      "kinds": [
+        "metric-endpoint"
+      ],
+      "signals": [
+        "aggregate:.count("
+      ],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/ResourcesBrowser.tsx",
+      "kinds": [
+        "client-side-metric"
+      ],
+      "signals": [
+        "client-math:.reduce("
+      ],
+      "owner": "erp-modules"
+    },
+    {
+      "id": "apps/web/src/components/charts/BarChart.tsx",
+      "kinds": [
+        "chart-kit",
+        "client-side-metric"
+      ],
+      "signals": [
+        "client-math:.reduce("
+      ],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/ChartEmpty.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/ChartFrame.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/ChartLegend.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/ChartTooltip.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/DonutChart.tsx",
+      "kinds": [
+        "chart-kit",
+        "client-side-metric"
+      ],
+      "signals": [
+        "client-math:.reduce("
+      ],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/HBarChart.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/LineAreaChart.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/LiveStats.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/Meter.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/RangeFilter.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/SankeyChart.tsx",
+      "kinds": [
+        "chart-kit",
+        "client-side-metric"
+      ],
+      "signals": [
+        "client-math:.reduce(",
+        "client-math:Map<string, number>"
+      ],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/Sparkline.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/chart-table.ts",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/cvd.ts",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/format.ts",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/hooks.ts",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/index.ts",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/palette.ts",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/panels/ActivityChart.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/panels/ReportsAnalytics.tsx",
+      "kinds": [
+        "chart-kit",
+        "client-side-metric"
+      ],
+      "signals": [
+        "client-math:.reduce(",
+        "client-math:Map<string, number>"
+      ],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/timeseries.ts",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/finance/BudgetBarChart.tsx",
+      "kinds": [
+        "chart-panel"
+      ],
+      "signals": [
+        "imports:/charts\"",
+        "imports:@/components/charts"
+      ],
+      "owner": "erp-modules"
+    },
+    {
+      "id": "apps/web/src/components/finance/BudgetUpload.tsx",
+      "kinds": [
+        "client-side-metric"
+      ],
+      "signals": [
+        "client-math:.reduce("
+      ],
+      "owner": "erp-modules"
+    },
+    {
+      "id": "apps/web/src/components/finance/FinanceDashboard.tsx",
+      "kinds": [
+        "chart-panel"
+      ],
+      "signals": [
+        "imports:/charts\"",
+        "imports:@/components/charts"
+      ],
+      "owner": "erp-modules"
+    },
+    {
+      "id": "apps/web/src/components/finance/LedgerDrawer.tsx",
+      "kinds": [
+        "client-side-metric"
+      ],
+      "signals": [
+        "client-math:.reduce("
+      ],
+      "owner": "erp-modules"
+    },
+    {
+      "id": "apps/web/src/components/finance/PortfolioSankey.tsx",
+      "kinds": [
+        "chart-panel"
+      ],
+      "signals": [
+        "imports:/charts\"",
+        "imports:@/components/charts"
+      ],
+      "owner": "erp-modules"
+    },
+    {
+      "id": "apps/web/src/components/ui/Bento.tsx",
+      "kinds": [
+        "chart-panel"
+      ],
+      "signals": [
+        "imports:@/components/charts"
+      ],
+      "owner": "(shared)"
+    }
+  ]
+}

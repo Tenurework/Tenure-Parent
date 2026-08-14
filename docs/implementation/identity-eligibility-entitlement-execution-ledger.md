@@ -20,16 +20,154 @@ requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — n
 the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **IER-000-001** — Register this Bible, version, digest, owner, dependencies, prefix, and precedence in the architecture document graph.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+  - Status: BLOCKED_EXTERNAL — four of the six attributes are registered; the two
+    that are missing cannot be added without changing a generator this wave's
+    file-isolation rules make off-limits
+  - What is already true, verified by opening the file:
+    `docs/architecture/architecture-document-graph.yaml` lines 354-368 register
+    the Bible as `tenure-global-identity-eligibility-entitlement-roster-and-access-continuity-engine-claude-bible-v1-0-1-`
+    with **version** `"1.0"`, **digest**
+    `sha256: f93238f09a62a8c48a0259cf8a7e77aa1b19e78069062878fd21758d9487cf4f`,
+    **prefix** `requirement_prefixes: [IER]`, and **precedence**
+    (`role: authority`, `superseded_by: null`, `supersedes: []`, `family:
+    Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible`),
+    over `states_requirements: 219`.
+  - What is missing: **owner** and **dependencies**. Not for this document — for
+    any document. `renderGraph()` in `tools/document-graph.mjs` emits exactly
+    fourteen keys per entry (`id`, `title`, `version`, `canonical_path`, `role`,
+    `family`, `superseded_by`, `supersedes`, `sha256`, `bytes`, `aliases`,
+    `requirement_prefixes`, `states_requirements`, `mentions_requirement_ids`),
+    and `classify()` never derives an owner or a dependency edge, so there is no
+    field to write them into and no yaml line to correct. The facts themselves
+    exist in the Bible — section 0.1 is a fifteen-row ownership-and-precedence
+    table, and section 0 is a thirteen-document read-order list which is the
+    dependency set — so this is a schema gap, not a knowledge gap.
+  - Why BLOCKED_EXTERNAL rather than FAIL: `tools/document-graph.mjs` and
+    `docs/architecture/architecture-document-graph.yaml` (generated, header line
+    1 reads "Do not edit by hand") are shared across every domain in this wave.
+    Widening the per-document schema also changes the artefact every other
+    agent's guard re-derives, and it is already owned elsewhere: `GE-430-001` is
+    literally "Build `architecture-document-graph.yaml` and
+    `capability-completeness-registry.yaml` with documents, versions/digests,
+    dependencies, prefixes, owners, outputs and status", and it is FAIL in
+    `docs/implementation/global-engine-execution-ledger.md:8785`. Doing it from
+    the IER ledger would be a second, divergent implementation of a GE
+    requirement.
+  - What would unblock it, exactly: in `tools/document-graph.mjs`, add `owner`
+    and `depends_on` to the object `classify()` builds and to the key list
+    `renderGraph()` writes — owner parsed from the Bible's "Owning domains:"
+    header line, `depends_on` from the section-0 read-order list resolved to
+    document ids — then `node tools/document-graph.mjs` to regenerate both
+    artefacts and `npm run test:platform` to confirm
+    `tests/architecture/document-graph.test.mjs` "the compiled artifacts are
+    current" still passes. That is one commit against a shared generator, and it
+    closes `GE-430-001` for all 21 prefixes at once rather than for IER alone.
+  - Evidence: `docs/architecture/architecture-document-graph.yaml:354`;
+    `tools/document-graph.mjs` `renderGraph()` — 14 emitted keys, 0 of them
+    owner or dependency; `docs/implementation/global-engine-execution-ledger.md:8785`.
 
-- [ ] **IER-000-002** — Import every IER-* requirement into the unified execution ledger without duplicate or missing IDs.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+- [x] **IER-000-002** — Import every IER-* requirement into the unified execution ledger without duplicate or missing IDs.
+  - Status: PASS
+  - What was open: the rows existed — `tools/import-requirements.mjs` wrote all
+    219 of them on 2026-08-08 — but nothing checked the three properties the
+    requirement actually names, and each was invisible to every existing guard.
+    (1) `ledgerStatuses()` in `tools/document-graph.mjs` reads rows into a `Map`
+    keyed by id, so a second row for one id silently overwrites the first and the
+    duplicate never surfaces; (2) `buildRegistry()` iterates the requirements the
+    *documents* state, never the rows the *ledgers* hold, so a row for an id no
+    Bible states is not an extra registry row — it is nothing at all; (3)
+    `importedIds()` scans the whole of `docs/implementation`, so an `IER-*` row
+    filed in another domain's ledger still counts as imported. `UNIMPORTED = 0`
+    in `tests/architecture/document-graph.test.mjs` proves only that a
+    requirement is missing from no execution document, which is a strictly
+    weaker claim than "in this ledger, exactly once, and nothing invented".
+  - Code: `tests/architecture/ier-ledger-import-is-complete.test.mjs` — five
+    tests. It parses the Bible with the graph's own `requirementsIn` (so it
+    cannot drift from the parser the registry counts with), reads the ledger with
+    the same row shape `ledgerStatuses()` reads, and compares the two id sets by
+    equality in both directions rather than by containment. It also scans every
+    other `*-execution-ledger.md` for stray `IER-*` rows, and asserts
+    `tools/import-requirements.mjs` still maps the `IER` prefix to this file.
+    Line endings are normalised on read, so the derivation is byte-identical on
+    Windows and Linux.
+  - Production caller: `npm run test:platform` →
+    `tools/run-platform-tests.mjs`, which walks `tests/` and passes every
+    `*.test.mjs` to bare `node --test`. `.github/workflows/ci.yml:87-88` runs
+    that as the "Platform tests" step, so this is a CI check with no workflow
+    edit.
+  - Measured: the Bible states 219 `IER-*` requirements, all distinct; the ledger
+    holds 219 rows, all distinct; 0 missing, 0 invented, 0 filed in another
+    ledger, 0 statuses outside `PASS | FAIL | BLOCKED_EXTERNAL | NOT_APPLICABLE`.
+  - Evidence: `node --test tests/architecture/ier-ledger-import-is-complete.test.mjs`
+    → 5 pass, 0 fail. 6 mutations applied, all 6 caught, each restored and
+    re-run green afterwards:
+    - delete the `IER-040-003` entry → test 1 reds, "stated by the Bible, absent from …"
+    - add a second `IER-040-003` row saying PASS → test 2 reds, "these ids have more than one row"
+    - add a row for `IER-999-001` → test 1 reds, "held by … stated by no Bible"
+    - change one `Status: FAIL` to `Status: PARTIAL` → test 5 reds, "rows … the loop cannot decide on"
+    - point the cross-ledger scanner at `PAY-` → test 3 reds, listing real rows in `docs/implementation/payments-treasury-execution-ledger.md`, which proves it does read the other ledgers rather than an empty list
+    - point the guard at a ledger basename the prefix registry does not map → test 4 reds, naming both sides
+  - Restored: the ledger and the test file were byte-identical to their
+    pre-mutation copies afterwards (`diff -q` clean), and `# pass 5 # fail 0`
+    was re-confirmed after the last restore. No guard was left disabled.
 
 - [ ] **IER-000-003** — Add IER-* completeness checks to CI and master prompt prefix validation.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+  - Status: BLOCKED_EXTERNAL — the CI half is standing; the master-prompt half
+    cannot be built from this ledger without editing two shared root authority
+    documents and a shared generator that four other domains' prompts run
+    through
+  - The CI half, already true:
+    `tests/architecture/ier-ledger-import-is-complete.test.mjs` is discovered by
+    `tools/run-platform-tests.mjs` and run by `.github/workflows/ci.yml:87-88`
+    ("Platform tests" → `npm run test:platform`). It reds on a missing `IER-*`
+    id, a duplicated one, an invented one, one filed in another domain's ledger,
+    and a status the loop cannot act on. 5 tests, 6 mutations, 6 caught — the
+    proof is recorded under `IER-000-002` above and is not re-claimed here.
+  - The master-prompt half, and why it is not merely unwritten. Line 67 of
+    `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md` is the
+    prefix roster — "Copy every requirement from the `GE-*`, `EXT-*`,
+    `STUDIO-*`, `CFG-*`, `PACK-*`, `INT-*`, `PAY-*`, `HCM-*`, `FIN-*`, `PLN-*`,
+    `OPS-*`, `TTES-*`, `ANL-*` and Simon prefixes into one traceable
+    verification system". `IER` is absent from it, and so are `CAT` and `WRK`.
+    Below that, `ITEM` in `tools/reconcile-execution-checkboxes.mjs:48` is
+    `/((?:GE|EXT|STUDIO|SIMON)-[\w-]+)/` — the checkbox reconciler recognises
+    four prefixes, so even a roster naming `IER` would have nothing to validate
+    against. Measured with `grep -c "IER-"`: 0 in
+    `docs/implementation/Tenure_Claude_Code_Global_Engine_Execution_Prompt_v1.0.md`,
+    0 in `docs/implementation/Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v2.0.md`,
+    0 in both root copies of the v3.0 master prompt — 4 files, 0 hits. The other
+    two entries in that tool's `PROMPTS` list (the System Studio and Simon OSE
+    execution prompts) are not on disk at all, which `read()` there tolerates by
+    returning null.
+  - Why BLOCKED_EXTERNAL rather than FAIL. The two root copies of the master
+    prompt are byte-identical (`sha1 637dbcf0c14a47d98b19e5bc43e6da5d55055b5c`)
+    and the document graph registers them as ONE document with an alias
+    (`docs/architecture/architecture-document-graph.yaml:259-272`); editing one
+    and not the other splits them into two authorities and double-counts every
+    requirement they state. So the change is: the same edit to two shared
+    authority documents, plus a shared generator whose regex governs four
+    prompts belonging to GE, EXT, STUDIO and SIMON. Three domains need the same
+    line in this wave. A writing-a-guard-that-passes shortcut was available here
+    and refused: asserting only the half that is true would be a check that
+    cannot fail on the half that is not.
+  - What would unblock it, exactly:
+    1. add `` `IER-*` `` (and `` `CAT-*` ``, `` `WRK-*` ``) to the prefix roster
+       at line 67 of BOTH `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md`
+       and `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0 (1).md`,
+       identically;
+    2. widen `ITEM` in `tools/reconcile-execution-checkboxes.mjs` to include
+       `IER` and add an IER checklist section to one file in its `PROMPTS` list,
+       so the roster has checkboxes to reconcile;
+    3. `node tools/document-graph.mjs && node tools/reconcile-execution-checkboxes.mjs`,
+       then `npm run test:platform` to confirm "the compiled artifacts are
+       current" and "every execution prompt agrees with the ledger" both pass;
+    4. then add the roster assertion — every prefix the graph shows an authority
+       owning must appear in the master prompt's roster — as a guard, and this
+       requirement closes.
+  - Evidence: `Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md:67`;
+    `tools/reconcile-execution-checkboxes.mjs:41-48`;
+    `docs/architecture/architecture-document-graph.yaml:259`;
+    `grep -c "IER-"` over the 4 prompt files that exist → 0 in all 4.
 
 - [ ] **IER-000-004** — Map every overlapping GE/CFG/HCM/INT/PACK/SIM requirement without divergent duplication.
   - Status: FAIL

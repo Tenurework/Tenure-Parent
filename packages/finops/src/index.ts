@@ -82,6 +82,34 @@ export {
 } from "./pricing"
 
 export {
+  INFRASTRUCTURE_COMPONENTS,
+  costComponent,
+  describeGroundedCost,
+  extendResolvedRate,
+  extendTierLadder,
+  groundShapeCost,
+  groundedLines,
+  groundedRunningTotal,
+  toOptionPrice,
+  type CompleteGroundedCost,
+  type ComponentUsage,
+  type ExtendedAmount,
+  type GroundedComponentLine,
+  type GroundedCost,
+  type GroundedLine,
+  type GroundedRunningTotal,
+  type GroundedTotalLine,
+  type GroundingOptions,
+  type InfrastructureComponent,
+  type ResolvedRate,
+  type ResolvedRates,
+  type ResolvedShapeRate,
+  type ResolvedTier,
+  type TenantShape,
+  type UnpricedComponent,
+} from "./grounding"
+
+export {
   TENANT_TAG,
   allocate,
   allocateReceipt,

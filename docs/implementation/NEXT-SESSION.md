@@ -180,6 +180,40 @@ workflow dies, before believing the tree is where you left it.**
 
 ## 2. WHERE THINGS ACTUALLY STAND — quantitative
 
+### 2.0 Where the AWS control-plane work is (added 2026-08-14)
+
+All of it is under `apps/system-studio/`, on branch `studio-program`. The service
+readers are committed; the five new surfaces and the aggregation-module edits
+were still uncommitted in the working tree when this was measured — agents do not
+commit, the orchestrator does.
+
+```
+src/lib/aws/            the read plane — 50 modules, excluding tests. read.ts
+                        (AwsRead<T>), capabilities.ts, client.ts, throttle.ts and
+                        identity.ts are the spine; the per-service readers hang
+                        off them; inventory, posture, health, drift, findings,
+                        topology, tags, console-link and retained aggregate them.
+                        mutate.ts is the ONLY mutation site and was not touched.
+src/app/platform/       10 operator routes. estate, cost, security, audit and
+                        health existed; compute, data, identity, messaging and
+                        network are new this programme and are NOT yet linked
+                        from the console navigation.
+e2e/                    Playwright. aws-unknown-is-not-absent.spec.ts is the
+                        STUDIO-000-007 proof; five new *-surface / *-page-logic
+                        specs beside the new routes.
+```
+
+Studio unit tests run through **apps/web's jest**, not a jest of their own:
+`npm run test --workspace apps/web -- --ci <path>`. `tests/**` at the repository
+root is a third runner (`npm run test:platform`, plain `node --test`).
+`apps/system-studio` must never import a Prisma client —
+`tests/security/operator-plane-content.test.mjs` asserts it.
+
+The accounting for all of it — which requirement each piece actually satisfies,
+and which it does not — is the section headed **"Requirement reconciliation — the
+AWS read/aggregation programme, 2026-08-14"** in
+`docs/implementation/system-studio-aws-control-plane-execution-ledger.md`.
+
 ### 2.1 The honest denominator
 
 Regenerate it — never quote from memory:
@@ -189,11 +223,42 @@ node tools/loop/next-batch.mjs | head -1
 grep -c 'Status: PASS' docs/implementation/*execution-ledger.md | sort -t: -k2 -rn
 ```
 
-| Metric | 2026-08-07, start | 2026-08-07, after this session |
-|---|---|---|
-| Requirements the QUEUE could see | **1,219** | **2,046** |
-| Decided | 133 | **145** |
-| Ledgers with ZERO PASS | 13 of 15 | **12 of 15** |
+| Metric | 2026-08-07, start | 2026-08-07, after that session | 2026-08-14, measured |
+|---|---|---|---|
+| Requirements the QUEUE could see | **1,219** | **2,046** | **2,265** |
+| Decided | 133 | **145** | **248** |
+| Remaining | — | — | **2,017** |
+| `Status: PASS` lines, all ledgers | — | — | **234** |
+| Ledgers with ZERO PASS | 13 of 15 | **12 of 15** | **3 of 16** |
+
+The 2026-08-14 column is the verbatim output of the two commands above, run
+against the tree with the AWS programme's uncommitted work in place:
+`248/2265 decided · 2017 remaining`. Per-ledger `Status: PASS` counts, same run:
+`global-engine 120 · payments-treasury 39 · system-studio 18 · erp-pack-factory
+17 · tenant-experience 16 · universal-work-graph 12 · connection-composer 4 ·
+declarative-configurator 3 · financial-management 1 · identity-eligibility-
+entitlement 1 · operations-cloud 1 · people-hr-workforce 1 · planning-epm 1 ·
+analytics-reporting 0 · integration-ecosystem 0 · simon-ose-absorption 0`.
+
+**234 PASS lines and 248 decided are not the same measurement and must not be
+reconciled to each other.** `decided` counts requirement ids the queue resolved
+to `PASS`, `BLOCKED_EXTERNAL` or `NOT_APPLICABLE`; the `grep` counts the string
+`Status: PASS`, which some rows carry with a qualifying clause after it.
+
+**The AWS read/aggregation programme moved the decided count by zero.** It
+delivered twenty-four service readers, five operator surfaces and eight
+aggregation modules — real code, reached by real callers — and every one of them
+was filed under an id that was either already decided (`STUDIO-070-004`,
+`STUDIO-080-008`) or does not exist (172 invented ids in agent results, and five
+invented headings written into the Studio ledger itself:
+`STUDIO-070-011`, `STUDIO-080-009`, `STUDIO-080-010`, `STUDIO-DATA-001`,
+`STUDIO-IDENTITY-001`). The reconciliation — every one of those mapped to the
+requirement its evidence actually bears on, with a status — is the section headed
+"Requirement reconciliation — the AWS read/aggregation programme, 2026-08-14" in
+`docs/implementation/system-studio-aws-control-plane-execution-ledger.md`.
+**The only source of requirement ids is `node tools/loop/next-batch.mjs --size
+2100 --json`, plus the ids already carrying a ledger row.** An id in neither does
+not exist.
 
 **The denominator moved because the queue was blind, not because work was lost.**
 `next-batch.mjs` named four prompts and three ledgers by hand; twenty-three
@@ -207,15 +272,11 @@ had already fixed in its own copy while the graph still had them: a bolded
 `Status: **BLOCKED_EXTERNAL**` read as `FAIL` (eleven entries), and with the bold
 readable, `GE-042-007` was ticked done while blocked — a false PASS among the 119.
 
-Still at zero:
+Still at zero (2026-08-14, regenerated — the 2026-08-07 list of twelve is
+superseded; nine of those twelve have since taken their first PASS):
 
 ```
-payments-treasury            224   universal-work-graph          88
-declarative-configurator      79   integration-ecosystem         65
-connection-composer           59   financial-management          34
-tenant-experience             34   people-hr-workforce           33
-operations-cloud              32   analytics-reporting           27
-planning-epm                  27   simon-ose-absorption          14
+analytics-reporting    integration-ecosystem    simon-ose-absorption
 ```
 
 ### 2.2 Test and guard baseline (must not regress)
@@ -412,6 +473,21 @@ you write a new script, copy the parsing block.
 | — | No account-disable exists. `disabledAt` is on `Principal` in `packages/authorization` only, not on `User` in the schema. | `apps/web/prisma/schema.prisma` |
 | — | `TenureAIPanel.tsx:121` paints the AI mark `#25a96d` — not `--primary`, not any token. Found by the new design-token lint. | `apps/web/src/components/ai/TenureAIPanel.tsx` |
 | GE-051-005 | Ratchet still at **30** unauthorized mutating paths. | — |
+| STUDIO-080-006 | `estateDrift` — the whole Terraform-declared-versus-observed drift engine, with `parseTerraformEstate`, `observedBuckets`, `observedSecurityGroups`, `observedUserPools`, `observedTables` — **has no production caller**. Reached from its own test file only. No operator can see drift. | `apps/system-studio/src/lib/aws/drift.ts` |
+| STUDIO-080-006 | Ignore-with-expiry and recurrence detection are **unreachable in production**. Neither caller of `compareDesiredToActual` (`app/page.tsx:428`, `app/tenants/[slug]/page.tsx:377`) passes a `history`, so `history.ignored` is permanently empty and `occurrences` is always 1. `app/tenants/[slug]/page.tsx:1203` **renders that 1 as a recurrence count**, which it is not. `driftIgnore` / `ignoreItem` / `activeIgnores` have no caller outside `e2e/aws-unknown-is-not-absent.spec.ts`. | `apps/system-studio/src/lib/aws/drift.ts:186`, `app/tenants/[slug]/page.tsx:1203` |
+| STUDIO-110-006 | `findingsPipeline` / `assemblePipeline` / `pipelineLines` / `mergeContributions` — the five-source normalisation and dedupe pipeline — have **no caller anywhere in the repository, including their own test file**. `/platform/security` still calls only the older `securityFindings()`. | `apps/system-studio/src/lib/aws/findings.ts` |
+| STUDIO-120-003 | `fleetHealthVerdict` **has no production caller**. `observeFleet` / `observationsFor` in the same module are reached; the verdict built on top of them is not. | `apps/system-studio/src/lib/aws/health.ts` |
+| STUDIO-080-002 | `tenantWiring` / `wiringReadings` — the resource wiring graph — **have no production caller**. `reconcileTopology` in the same file IS reached; the wiring half is not. | `apps/system-studio/src/lib/aws/topology.ts` |
+| — | Studio aggregation tests are **RED as of 2026-08-14**: `posture.test.ts` 1 failed, `findings.test.ts` 3 failed (all three in the dedupe/corroboration group), `drift.test.ts` 1 failed. 296/300 across the seven aggregation suites, plus 39/40 in drift. These were green-adjacent claims in agent results; they are not green. | `apps/system-studio/src/lib/aws/{posture,findings,drift}.test.ts` |
+| — | `apps/system-studio/src/lib/aws/console-link.ts` is real, tested and reached from `/platform/estate`, and **matches no requirement id in any Bible**. A coverage gap in the programme, not in the code. Do not mint an id for it; if it is wanted, it needs a Bible clause first. | `apps/system-studio/src/lib/aws/console-link.ts` |
+
+**The probe that produced the five "no production caller" rows**, so the next
+session can re-run it rather than trust it:
+
+```bash
+grep -rl "\bestateDrift\b" apps/system-studio/src/app     # empty  -> no caller
+grep -rl "\bsecurityFindings\b" apps/system-studio/src/app # 2 files -> probe works
+```
 
 **`docs/architecture/REVIEW-FINDINGS.md` overrides `PLATFORM-ARCHITECTURE.md`
 wherever they disagree.** It is 73 lines. Read it in full — it is cheap and it

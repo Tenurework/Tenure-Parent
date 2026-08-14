@@ -19,17 +19,159 @@ undecided and returns the item to the queue every tick, forever. An unfinished
 requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — naming
 the commands or the ADR that would unblock it — if it cannot.
 
-- [ ] **PAY-000-001** — Create `docs/payments/payment-authority-and-regulatory-boundary.md` with exact Tenure, tenant, Stripe, bank and network responsibilities.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **PAY-000-001** — Create `docs/payments/payment-authority-and-regulatory-boundary.md` with exact Tenure, tenant, Stripe, bank and network responsibilities.
+  - Status: PASS
+  - What was open: the payments code had grown a real authority model — an
+    eight-axis responsibility matrix, forbidden party/axis pairs, a
+    direct-charge exclusion list, a refusal layer and a liability gate — and no
+    document said what any of it meant. `docs/payments/` did not exist. The
+    boundary therefore lived only as behaviour: readable by opening five
+    TypeScript files in the right order, invisible to anybody deciding whether
+    Tenure had accepted a liability.
+  - Code/config — a document derived from the tree, not from the Bible's wording:
+    `docs/payments/payment-authority-and-regulatory-boundary.md`. Nine sections.
+    §1 lists the parties and says which ones the code can represent: four
+    (`TENURE`, `TENANT`, `PROVIDER`, `CUSTOMER`), not the five the requirement
+    names — the **bank and the card network are not modelled at all**, and §5,
+    §6 and §9 say so in those words rather than describing an intent as a
+    mechanism. §2 maps each of Bible §2's five "Tenure is" statements to the
+    file that performs it. §7 is the full axis table, one row per
+    `RESPONSIBILITY_AXES` entry, with the parties `FORBIDDEN_PARTIES` refuses
+    and the parties left. §8 answers each of Bible §2's seven "Tenure is not
+    automatically" lines with the mechanism that refuses it — and marks the one
+    with no mechanism ("not a replacement for provider, bank, network or
+    regulator records") as document-only. The registry composition (31 leaves,
+    24 `PLANNED`, 7 `UNSUPPORTED`, none transactable) is stated as a number the
+    guard recomputes.
+  - Tests: `tests/architecture/pay-authority-boundary-and-adrs.test.mjs`, 9
+    tests, run under bare `node --test` (the root suite is not jest). Test 1
+    pins every parsed list by value first, so a reader that silently returns
+    `[]` cannot make the other eight vacuously green — the failure that shipped
+    five times in this repository. Test 3 rebuilds the §7 table from
+    `packages/payments/src/responsibility.ts` and requires the line. Test 6
+    reads Bible §2's list out of the Bible rather than copying it here. Test 9
+    opens every repository path all three documents cite.
+  - Mutation 1: deleted the `kycUpdateOwner` row from the §7 table ->
+    `not ok 3 - the boundary document's axis table is the code's, row for row`,
+    8 pass / 1 fail; restored -> 9 pass / 0 fail.
+  - Mutation 2 (the other direction — code moves, document does not): in
+    `packages/payments/src/responsibility.ts`, changed
+    `merchantDisplay: ["CUSTOMER", "PROVIDER"]` to `merchantDisplay: ["CUSTOMER"]`
+    -> `not ok 3`, 8 pass / 1 fail; restored -> 9 pass / 0 fail, and
+    `git status --porcelain packages/payments/src/responsibility.ts` empty.
+  - Mutation 3: changed `| Guarantor for tenant negative balances. |` to
+    `| Guarantor for negative balances. |` ->
+    `not ok 6 - Bible §2's list of what Tenure is not is answered item by item`,
+    8 pass / 1 fail; restored -> 9 pass / 0 fail.
+  - Evidence: `node --test tests/architecture/pay-authority-boundary-and-adrs.test.mjs`
+    -> 9/9. `npm run test:platform` -> 484/503; the 19 failures are the
+    pre-existing ones (generated artefacts stale, `apps/web/src/lib/analytics/metrics.ts`
+    unowned, six STUDIO-070 entries unevidenced) and none names a file this
+    entry touched.
+  - Honest limit: the guard checks that the code has not grown past the
+    document. It cannot check §5, §6 or §9, because those describe what is not
+    modelled and there is nothing to compare them to. A green run is not
+    evidence that the bank and network rows are right.
 
-- [ ] **PAY-000-002** — Record the approved merchant-of-record default and all exception paths in an ADR.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **PAY-000-002** — Record the approved merchant-of-record default and all exception paths in an ADR.
+  - Status: PASS
+  - What was open: `packages/payments/src/responsibility.ts` and
+    `packages/payments/src/liability.ts` implemented a merchant-of-record
+    position nobody had written down — which is the state in which changing it
+    looks like a refactor. PAY-160-002 had already shipped a pre-activation
+    panel that renders "Merchant of record: UNDECIDED" and names *this*
+    requirement as the ADR that would decide it.
+  - Code/config: `docs/decisions/pay-adr-0001-merchant-of-record-default-and-exception-paths.md`.
+    Records the default Bible §1.1 states — the tenant legal entity is the
+    merchant, Tenure is not by default — with the three properties that make it
+    a rule (legal-entity boundary per Bible §1.4, no default arm, internal
+    allocation has no merchant per Bible §1.10), then **four exception paths,
+    which are not equals**: E1 destination charge and E2 separate charges and
+    transfers are *approvable* through `assertLiabilityApproved` with a pinned
+    `chargeModelDigest`; E3 cross-border acquiring and E4 a platform fee are
+    *hard blockers* in `packages/payments/src/charge-model.ts` that no approval
+    in this repository can clear, and each names what would (PAY-000-005; Bible
+    §1.6's five approvals). Four alternatives with why each was rejected.
+  - This ADR grants nothing. It records the Bible's approved default and states
+    that no exception is granted by it. Verified: `grep -rn "liability-exception" apps/web/prisma/`
+    returns nothing — no approval row exists — and `ApprovalType.EXCEPTION` is
+    real at `apps/web/prisma/schema.prisma:460`.
+  - It also records a **defect it does not fix** (Consequence 4):
+    `requiresLiabilityException` keys on the resolved `lossPayer`, so a
+    `DESTINATION` flow with `merchantDisplay: TENURE` and `lossPayer: TENANT`
+    passes the gate with no exception — Tenure appears as merchant while the
+    gate, watching loss, sees nothing. Closing it is a code change to
+    `packages/payments/src/liability.ts` belonging to PAY-040-002, deliberately
+    not made here.
+  - The `legal-merchant` disclosure in `packages/finops/src/pricing.ts:411` stays
+    `UNDECIDED` and was **not** flipped by this ADR, deliberately. It asks who is
+    legally selling to *this tenant*; the ADR records the platform default (the
+    tenant legal entity) and which legal entity that is for a given tenant, with
+    what provider arrangement, is still unrecorded. Flipping a per-tenant
+    disclosure on the strength of a platform default is the fabricated-approval
+    failure in miniature.
+  - Filename note: prefixed `pay-` rather than numbered `ADR-000N` because
+    sixteen agents are writing this tree concurrently and two claiming
+    `ADR-0009` loses somebody's work — the collision `docs/decisions/README.md`
+    records happening to `PD-004` and `ADR-0005`. Format follows
+    `docs/decisions/ADR-0007-tenure-owned-aws-organization.md`.
+  - Tests: `tests/architecture/pay-authority-boundary-and-adrs.test.mjs` test 7
+    requires the ADR to name every entry of `LIABILITY_SHIFTING_MODELS`, to name
+    the gate `assertLiabilityApproved` **and** for `packages/payments/src/liability.ts`
+    to still export it, and to quote Bible §1.1's default verbatim. Test 9 opens
+    every path it cites.
+  - Mutation 1: renamed the ADR's one `` `SEPARATE_CHARGE_AND_TRANSFER` `` to
+    `` `SPLIT_TRANSFER` `` -> `not ok 7 - the merchant-of-record ADR names every
+    liability-shifting model as an exception path`, 8 pass / 1 fail; restored ->
+    9 pass / 0 fail.
+  - Mutation 2: changed the cited `packages/payments/src/liability.ts` to
+    `packages/payments/src/liabilities.ts` ->
+    `not ok 9 - every repository path the three documents cite exists`,
+    8 pass / 1 fail; restored -> 9 pass / 0 fail.
+  - Evidence: `node --test tests/architecture/pay-authority-boundary-and-adrs.test.mjs`
+    -> 9/9, 5 mutations across this entry and PAY-000-001/003, 5 caught.
 
-- [ ] **PAY-000-003** — Record the fee payer, negative-balance, dispute and loss responsibility selection algorithm in an ADR.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **PAY-000-003** — Record the fee payer, negative-balance, dispute and loss responsibility selection algorithm in an ADR.
+  - Status: PASS
+  - What was open: the algorithm existed across four files and one ordering
+    decision — `FUNDS_FLOWS` being ascending platform liability — carried the
+    whole of Bible §1.2's "prefer" with nothing recording that it did. Reorder
+    that array and every future merchant gets a different liability answer, and
+    the diff reads as tidying.
+  - Code/config: `docs/decisions/pay-adr-0002-responsibility-selection-algorithm.md`.
+    Six numbered steps, each matching the implementation: (1) eligibility first,
+    `packages/payments/src/eligibility.ts`; (2) resolve all eight axes for every
+    flow, with the three refusals — unanswered, forbidden pair, and
+    `DIRECT_CHARGE_NOT_TENURE` — from `packages/payments/src/responsibility.ts`;
+    (3) take the first flow with zero blockers in `FUNDS_FLOWS` order, i.e.
+    ascending platform liability, `packages/payments/src/funds-flow.ts`; (4)
+    derive model and liable party through `MODEL_FOR_FLOW`, treating the
+    caller's claimed `lossBearer` as an input to check rather than a source of
+    truth; (5) the flow-independent refusals in
+    `packages/payments/src/charge-model.ts`; (6) the pinned-digest exception
+    when loss lands on Tenure. Six alternatives rejected with reasons, including
+    the tempting one — derive the matrix from the flow.
+  - Records why negative balance has no axis of its own: it is what an unpaid
+    loss becomes, so it resolves with `lossPayer`; splitting them would let one
+    configuration answer the same question twice.
+  - Tests: `tests/architecture/pay-authority-boundary-and-adrs.test.mjs` test 8
+    requires the ADR to name every `RESPONSIBILITY_AXES` entry, to state the
+    flow order verbatim (that order IS the algorithm), and to record every
+    `MODEL_FOR_FLOW` pair as `flow → MODEL`. A ninth axis, a fourth flow or a
+    re-ordering reds it.
+  - Mutation: the code-side mutation recorded under PAY-000-001 (removing
+    `PROVIDER` from `FORBIDDEN_PARTIES.merchantDisplay`) is the same guard file
+    proving it reads the real source; for this entry, deleting the
+    `kycUpdateOwner` row and renaming a model both red their tests as recorded
+    above. Restored each time -> 9 pass / 0 fail.
+  - Evidence: `node --test tests/architecture/pay-authority-boundary-and-adrs.test.mjs`
+    -> 9/9.
+  - Honest limit: this ADR records a decision, and the decision is real code —
+    but it selects nothing today. No merchant profile, no `FundsFlowConfig` and
+    no approval row exists in this repository, and no payment capability is
+    transactable. The algorithm is exercised only by
+    `packages/payments/src/responsibility.test.ts`, `funds-flow.test.ts`,
+    `charge-model.test.ts` and `liability.test.ts`.
 
 - [ ] **PAY-000-004** — Add prohibited-claim lint rules and content review for payments UI, docs and Relay responses.
   - Status: FAIL

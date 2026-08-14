@@ -1,0 +1,2036 @@
+{
+  "requirement": "PACK-000-001",
+  "generatedBy": "tools/pack-surface-inventory.mjs",
+  "modules": [
+    {
+      "key": "administration",
+      "name": "Administration",
+      "version": "1.0.0",
+      "owner": "reporting",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [
+        "AuditEvent"
+      ],
+      "permissions": [
+        "admin.console.read",
+        "admin.override.execute"
+      ],
+      "navigationHrefs": [
+        "/admin"
+      ],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "approvals",
+      "name": "Requests and approvals",
+      "version": "1.0.0",
+      "owner": "workflow",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [
+        "ApprovalDelegation",
+        "ApprovalRequest",
+        "ApprovalStep",
+        "ConflictDeclaration",
+        "Recusal"
+      ],
+      "permissions": [
+        "approvals.policy.read",
+        "approvals.request.assign",
+        "approvals.request.cancel",
+        "approvals.request.create",
+        "approvals.request.decide",
+        "approvals.request.read"
+      ],
+      "navigationHrefs": [
+        "/approvals"
+      ],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "budgeting",
+      "name": "Budgeting",
+      "version": "1.0.0",
+      "owner": "erp-modules",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [
+        "Budget",
+        "BudgetLine",
+        "ExternalReference",
+        "LedgerEntry",
+        "PaymentsFundsFlowConfig",
+        "ProviderBalanceTransaction",
+        "ProviderEventReceipt",
+        "ReceiptAllocation",
+        "Settlement",
+        "Transaction",
+        "Vendor"
+      ],
+      "permissions": [
+        "finance.budget.approve",
+        "finance.budget.propose",
+        "finance.budget.read",
+        "finance.budget.update",
+        "finance.ledger.export",
+        "finance.ledger.post",
+        "finance.ledger.read",
+        "finance.report.export",
+        "finance.report.read"
+      ],
+      "navigationHrefs": [
+        "/reports"
+      ],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "dashboard",
+      "name": "Dashboard",
+      "version": "1.0.0",
+      "owner": "reporting",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [],
+      "permissions": [],
+      "navigationHrefs": [
+        "/dashboard"
+      ],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "events",
+      "name": "Events and calendar",
+      "version": "1.0.0",
+      "owner": "notifications",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [
+        "ConflictRecord",
+        "Event"
+      ],
+      "permissions": [
+        "events.conflict.read",
+        "events.event.cancel",
+        "events.event.create",
+        "events.event.publish",
+        "events.event.read",
+        "events.event.update"
+      ],
+      "navigationHrefs": [
+        "/calendar"
+      ],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "feed",
+      "name": "Community feed",
+      "version": "1.0.0",
+      "owner": "notifications",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [
+        "CollabInterest",
+        "FeedComment",
+        "FeedPost"
+      ],
+      "permissions": [
+        "communications.announcement.create",
+        "communications.announcement.publish",
+        "communications.comment.create"
+      ],
+      "navigationHrefs": [
+        "/feed"
+      ],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "memory",
+      "name": "Organizational memory",
+      "version": "1.0.0",
+      "owner": "search-memory",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [
+        "Document",
+        "MemoryRecord"
+      ],
+      "permissions": [
+        "memory.note.create",
+        "memory.note.read",
+        "memory.note.read_sensitive"
+      ],
+      "navigationHrefs": [],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "messaging",
+      "name": "Messaging",
+      "version": "1.0.0",
+      "owner": "notifications",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [
+        "Attachment",
+        "Conversation",
+        "Delivery",
+        "Message",
+        "Participant"
+      ],
+      "permissions": [
+        "communications.message.create",
+        "communications.message.read",
+        "communications.thread.create"
+      ],
+      "navigationHrefs": [
+        "/messages"
+      ],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "organizations",
+      "name": "Organizations",
+      "version": "1.0.0",
+      "owner": "organization",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [
+        "DirectoryPerson",
+        "Organization",
+        "OrganizationAdvisor",
+        "Role",
+        "RoleAssignment",
+        "RoleTransfer",
+        "Seat",
+        "SeatHolding"
+      ],
+      "permissions": [
+        "org.roster.read",
+        "org.roster.update",
+        "org.unit.read",
+        "org.unit.update"
+      ],
+      "navigationHrefs": [
+        "/orgs"
+      ],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "reimbursements",
+      "name": "Reimbursements",
+      "version": "1.0.0",
+      "owner": "erp-modules",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [],
+      "permissions": [
+        "finance.reimbursement.approve",
+        "finance.reimbursement.create",
+        "finance.reimbursement.read"
+      ],
+      "navigationHrefs": [],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "resources",
+      "name": "Board resources",
+      "version": "1.0.0",
+      "owner": "erp-modules",
+      "lifecycle": "certified-limited",
+      "mode": "TENURE_NATIVE",
+      "objects": [
+        "Resource"
+      ],
+      "permissions": [
+        "resources.resource.archive",
+        "resources.resource.create",
+        "resources.resource.read",
+        "resources.resource.update"
+      ],
+      "navigationHrefs": [
+        "/resources"
+      ],
+      "source": "modules/index.ts"
+    },
+    {
+      "key": "search",
+      "name": "Tenure AI",
+      "version": "1.0.0",
+      "owner": "search-memory",
+      "lifecycle": "certified-limited",
+      "mode": "READ_ONLY",
+      "objects": [],
+      "permissions": [
+        "search.index.query"
+      ],
+      "navigationHrefs": [
+        "/search"
+      ],
+      "source": "modules/index.ts"
+    }
+  ],
+  "routes": [
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "api",
+      "url": "/api/auth/[...nextauth]",
+      "methods": [],
+      "source": "apps/system-studio/src/app/api/auth/[...nextauth]/route.ts"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "api",
+      "url": "/api/aws/[surface]",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "apps/system-studio/src/app/api/aws/[surface]/route.ts"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/",
+      "methods": [],
+      "source": "apps/system-studio/src/app/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform/audit",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/audit/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform/cost",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/cost/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform/estate",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/estate/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform/health",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/health/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/platform/security",
+      "methods": [],
+      "source": "apps/system-studio/src/app/platform/security/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/signin",
+      "methods": [],
+      "source": "apps/system-studio/src/app/signin/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/tenants",
+      "methods": [],
+      "source": "apps/system-studio/src/app/tenants/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/tenants/[slug]",
+      "methods": [],
+      "source": "apps/system-studio/src/app/tenants/[slug]/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/tenants/[slug]/configuration",
+      "methods": [],
+      "source": "apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
+      "kind": "page",
+      "url": "/tenants/new",
+      "methods": [],
+      "source": "apps/system-studio/src/app/tenants/new/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/admin/directory",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/admin/directory/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/ai/chat",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/ai/chat/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/ai/draft",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/ai/draft/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/attachment/[id]",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/attachment/[id]/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/attachment/[id]/content",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/attachment/[id]/content/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/auth/[...nextauth]",
+      "methods": [],
+      "source": "apps/web/src/app/api/auth/[...nextauth]/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/calendar/event/[id]",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "source": "apps/web/src/app/api/calendar/event/[id]/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/calendar/ics/[token]",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/calendar/ics/[token]/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/calendar/reschedule",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/calendar/reschedule/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/connections/opportunity",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/connections/opportunity/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/documents/[id]/content",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/documents/[id]/content/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/documents/[id]/save",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/documents/[id]/save/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/health",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/health/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/jobs/outbox",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/jobs/outbox/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/jobs/reminders",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/jobs/reminders/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/jobs/slo",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/jobs/slo/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/me",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/me/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/notifications",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/notifications/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/org-image/[orgId]",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/org-image/[orgId]/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/payments/provider-events",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/payments/provider-events/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/platform/export/[slug]",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/platform/export/[slug]/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/platform/reconcile",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/platform/reconcile/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/profile-image/[userId]",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/profile-image/[userId]/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/reports/pulse",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/reports/pulse/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/search",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/search/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/templates/budget",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/templates/budget/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/",
+      "methods": [],
+      "source": "apps/web/src/app/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/admin",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/admin/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/admin/approvals",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/admin/approvals/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/admin/audit",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/admin/audit/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/admin/clubs",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/admin/clubs/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/admin/clubs/[slug]",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/admin/overrides",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/admin/overrides/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/admin/payments",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/admin/payments/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/admin/people",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/admin/people/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/approvals",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/approvals/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/approvals/[id]",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/approvals/[id]/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/approvals/new",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/approvals/new/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/calendar",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/calendar/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/calendar/[id]",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/calendar/[id]/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/calendar/new",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/calendar/new/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/dashboard",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/dashboard/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/feed",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/feed/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/gallery",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/gallery/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/inbox",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/inbox/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/messages",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/messages/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/messages/[id]",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/messages/[id]/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/messages/compose",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/messages/compose/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/notifications",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/notifications/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/orgs",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/orgs/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/orgs/[slug]",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/orgs/[slug]/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/orgs/[slug]/documents",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/orgs/[slug]/documents/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/orgs/[slug]/documents/[id]/summary",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/summary/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/orgs/[slug]/documents/[id]/view",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/view/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/orgs/[slug]/finance",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/orgs/[slug]/handoff",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/orgs/[slug]/impact",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/orgs/[slug]/members",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/orgs/[slug]/members/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/orgs/[slug]/memory",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/reports",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/reports/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/reports/finance",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/reports/finance/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/resources",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/resources/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/resources/[slug]",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/resources/[slug]/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/search",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/search/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/settings",
+      "methods": [],
+      "source": "apps/web/src/app/(app)/settings/page.tsx"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "page",
+      "url": "/signin",
+      "methods": [],
+      "source": "apps/web/src/app/signin/page.tsx"
+    }
+  ],
+  "schemaModels": [
+    {
+      "model": "Account",
+      "fieldCount": 13,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ApprovalDelegation",
+      "fieldCount": 10,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ApprovalRequest",
+      "fieldCount": 19,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ApprovalStep",
+      "fieldCount": 15,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Attachment",
+      "fieldCount": 10,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "AuditEvent",
+      "fieldCount": 15,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Budget",
+      "fieldCount": 13,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "BudgetLine",
+      "fieldCount": 15,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "CollabInterest",
+      "fieldCount": 12,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ConflictDeclaration",
+      "fieldCount": 8,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ConflictRecord",
+      "fieldCount": 9,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ConnectionLaunchToken",
+      "fieldCount": 13,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Conversation",
+      "fieldCount": 12,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Deliverable",
+      "fieldCount": 14,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "DeliverableReminder",
+      "fieldCount": 6,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Delivery",
+      "fieldCount": 9,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "DirectoryPerson",
+      "fieldCount": 9,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Document",
+      "fieldCount": 17,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Event",
+      "fieldCount": 23,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ExternalReference",
+      "fieldCount": 12,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "FeedComment",
+      "fieldCount": 6,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "FeedPost",
+      "fieldCount": 14,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "InboxEvent",
+      "fieldCount": 6,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Institution",
+      "fieldCount": 20,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "InstitutionMembership",
+      "fieldCount": 12,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "LedgerEntry",
+      "fieldCount": 40,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "MemoryRecord",
+      "fieldCount": 14,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Message",
+      "fieldCount": 12,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ModelUsageMeter",
+      "fieldCount": 9,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Notification",
+      "fieldCount": 8,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "NotificationPreference",
+      "fieldCount": 6,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Organization",
+      "fieldCount": 30,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "OrganizationAdvisor",
+      "fieldCount": 5,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "OutboxEvent",
+      "fieldCount": 21,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Participant",
+      "fieldCount": 10,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "PaymentsFundsFlowConfig",
+      "fieldCount": 18,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ProviderBalanceTransaction",
+      "fieldCount": 13,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ProviderEventReceipt",
+      "fieldCount": 11,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "ReceiptAllocation",
+      "fieldCount": 11,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Recusal",
+      "fieldCount": 9,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Resource",
+      "fieldCount": 18,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Role",
+      "fieldCount": 13,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "RoleAssignment",
+      "fieldCount": 10,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "RoleTransfer",
+      "fieldCount": 15,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Seat",
+      "fieldCount": 16,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "SeatHolding",
+      "fieldCount": 8,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Session",
+      "fieldCount": 5,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Settlement",
+      "fieldCount": 11,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Transaction",
+      "fieldCount": 10,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "User",
+      "fieldCount": 25,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "Vendor",
+      "fieldCount": 15,
+      "tenantScoped": true,
+      "source": "apps/web/prisma/schema.prisma"
+    },
+    {
+      "model": "VerificationToken",
+      "fieldCount": 3,
+      "tenantScoped": false,
+      "source": "apps/web/prisma/schema.prisma"
+    }
+  ],
+  "services": [
+    {
+      "dir": "apps/system-studio",
+      "name": "@tenure/system-studio",
+      "private": true,
+      "dependsOn": [
+        "@tenure/audit",
+        "@tenure/contracts",
+        "@tenure/finops",
+        "@tenure/provisioning"
+      ],
+      "source": "apps/system-studio/package.json"
+    },
+    {
+      "dir": "apps/web",
+      "name": "tenure",
+      "private": true,
+      "dependsOn": [
+        "@tenure/contracts"
+      ],
+      "source": "apps/web/package.json"
+    },
+    {
+      "dir": "blueprints",
+      "name": "@tenure/blueprints",
+      "private": true,
+      "dependsOn": [],
+      "source": "blueprints/package.json"
+    },
+    {
+      "dir": "modules",
+      "name": "@tenure/modules",
+      "private": true,
+      "dependsOn": [],
+      "source": "modules/package.json"
+    },
+    {
+      "dir": "packages/audit",
+      "name": "@tenure/audit",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/audit/package.json"
+    },
+    {
+      "dir": "packages/authorization",
+      "name": "@tenure/authorization",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/authorization/package.json"
+    },
+    {
+      "dir": "packages/configuration",
+      "name": "@tenure/configuration",
+      "private": true,
+      "dependsOn": [
+        "@tenure/audit",
+        "@tenure/finops"
+      ],
+      "source": "packages/configuration/package.json"
+    },
+    {
+      "dir": "packages/contracts",
+      "name": "@tenure/contracts",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/contracts/package.json"
+    },
+    {
+      "dir": "packages/finops",
+      "name": "@tenure/finops",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/finops/package.json"
+    },
+    {
+      "dir": "packages/identity",
+      "name": "@tenure/identity",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/identity/package.json"
+    },
+    {
+      "dir": "packages/metadata",
+      "name": "@tenure/metadata",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/metadata/package.json"
+    },
+    {
+      "dir": "packages/module-runtime",
+      "name": "@tenure/module-runtime",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/module-runtime/package.json"
+    },
+    {
+      "dir": "packages/organization-model",
+      "name": "@tenure/organization-model",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/organization-model/package.json"
+    },
+    {
+      "dir": "packages/payments",
+      "name": "@tenure/payments",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/payments/package.json"
+    },
+    {
+      "dir": "packages/platform-config",
+      "name": "@tenure/platform-config",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/platform-config/package.json"
+    },
+    {
+      "dir": "packages/provisioning",
+      "name": "@tenure/provisioning",
+      "private": true,
+      "dependsOn": [
+        "@tenure/platform-config"
+      ],
+      "source": "packages/provisioning/package.json"
+    },
+    {
+      "dir": "packages/releases",
+      "name": "@tenure/releases",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/releases/package.json"
+    },
+    {
+      "dir": "packages/workflow",
+      "name": "@tenure/workflow",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/workflow/package.json"
+    }
+  ],
+  "featureFlags": {
+    "source": "packages/platform-config/src/flags.ts",
+    "killListKey": "platform.flags.killed",
+    "flags": [
+      {
+        "name": "aiAssistant",
+        "enabledKey": "platform.flags.aiAssistant.enabled",
+        "rolloutKey": "platform.flags.aiAssistant.rolloutPercent",
+        "source": "packages/platform-config/src/flags.ts"
+      }
+    ]
+  },
+  "integrations": [
+    {
+      "key": "adobe.acrobat-sign",
+      "displayName": "Adobe Sign",
+      "provider": "adobe",
+      "product": "acrobat-sign",
+      "capability": "agreement.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "api.adobesign.com",
+        "secure.adobesign.com"
+      ],
+      "requirementIds": [
+        "WRK-100-002"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "airtable.bases",
+      "displayName": "Airtable",
+      "provider": "airtable",
+      "product": "bases",
+      "capability": "record.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "airtable.com",
+        "api.airtable.com"
+      ],
+      "requirementIds": [
+        "WRK-100-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "asana.work",
+      "displayName": "Asana",
+      "provider": "asana",
+      "product": "work",
+      "capability": "task.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "app.asana.com"
+      ],
+      "requirementIds": [
+        "WRK-100-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "atlassian.confluence",
+      "displayName": "Confluence",
+      "provider": "atlassian",
+      "product": "confluence",
+      "capability": "page.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "api.atlassian.com",
+        "auth.atlassian.com"
+      ],
+      "requirementIds": [
+        "WRK-100-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "atlassian.jira",
+      "displayName": "Jira",
+      "provider": "atlassian",
+      "product": "jira",
+      "capability": "issue.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "api.atlassian.com",
+        "auth.atlassian.com"
+      ],
+      "requirementIds": [
+        "WRK-100-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "box.content",
+      "displayName": "Box",
+      "provider": "box",
+      "product": "content",
+      "capability": "file.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "account.box.com",
+        "api.box.com"
+      ],
+      "requirementIds": [
+        "WRK-090-004"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "cisco.webex",
+      "displayName": "Webex",
+      "provider": "cisco",
+      "product": "webex",
+      "capability": "meeting.sync",
+      "direction": "read",
+      "egressHosts": [
+        "webexapis.com"
+      ],
+      "requirementIds": [
+        "WRK-100-002"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "clickup.work",
+      "displayName": "ClickUp",
+      "provider": "clickup",
+      "product": "work",
+      "capability": "task.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "api.clickup.com",
+        "app.clickup.com"
+      ],
+      "requirementIds": [
+        "WRK-100-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "coda.docs",
+      "displayName": "Coda",
+      "provider": "coda",
+      "product": "docs",
+      "capability": "row.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "coda.io"
+      ],
+      "requirementIds": [
+        "WRK-100-002"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "docusign.esignature",
+      "displayName": "DocuSign",
+      "provider": "docusign",
+      "product": "esignature",
+      "capability": "envelope.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "account.docusign.com",
+        "docusign.net"
+      ],
+      "requirementIds": [
+        "WRK-100-002"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "dropbox.files",
+      "displayName": "Dropbox",
+      "provider": "dropbox",
+      "product": "files",
+      "capability": "file.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "api.dropboxapi.com",
+        "www.dropbox.com"
+      ],
+      "requirementIds": [
+        "WRK-100-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "egnyte.content",
+      "displayName": "Egnyte",
+      "provider": "egnyte",
+      "product": "content",
+      "capability": "file.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "egnyte.com"
+      ],
+      "requirementIds": [
+        "WRK-100-002"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "google.gmail",
+      "displayName": "Google Gmail",
+      "provider": "google",
+      "product": "gmail",
+      "capability": "message.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "accounts.google.com",
+        "gmail.googleapis.com",
+        "oauth2.googleapis.com"
+      ],
+      "requirementIds": [
+        "WRK-080-003"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "linear.issues",
+      "displayName": "Linear",
+      "provider": "linear",
+      "product": "issues",
+      "capability": "issue.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "api.linear.app",
+        "linear.app"
+      ],
+      "requirementIds": [
+        "WRK-100-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "microsoft.outlook-mail",
+      "displayName": "Microsoft Outlook Mail",
+      "provider": "microsoft",
+      "product": "outlook-mail",
+      "capability": "message.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "graph.microsoft.com",
+        "login.microsoftonline.com"
+      ],
+      "requirementIds": [
+        "WRK-080-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "miro.boards",
+      "displayName": "Miro",
+      "provider": "miro",
+      "product": "boards",
+      "capability": "board.sync",
+      "direction": "read",
+      "egressHosts": [
+        "api.miro.com",
+        "miro.com"
+      ],
+      "requirementIds": [
+        "WRK-100-002"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "monday.work",
+      "displayName": "Monday",
+      "provider": "monday",
+      "product": "work",
+      "capability": "item.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "api.monday.com",
+        "auth.monday.com"
+      ],
+      "requirementIds": [
+        "WRK-100-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "notion.workspace",
+      "displayName": "Notion",
+      "provider": "notion",
+      "product": "workspace",
+      "capability": "page.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "api.notion.com"
+      ],
+      "requirementIds": [
+        "WRK-090-003"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "ringcentral.messaging",
+      "displayName": "RingCentral",
+      "provider": "ringcentral",
+      "product": "messaging",
+      "capability": "message.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "platform.ringcentral.com"
+      ],
+      "requirementIds": [
+        "WRK-100-002"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "sharefile.content",
+      "displayName": "ShareFile",
+      "provider": "sharefile",
+      "product": "content",
+      "capability": "file.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "secure.sharefile.com",
+        "sharefile.com"
+      ],
+      "requirementIds": [
+        "WRK-100-002"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "slack.workspace",
+      "displayName": "Slack",
+      "provider": "slack",
+      "product": "workspace",
+      "capability": "message.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "slack.com"
+      ],
+      "requirementIds": [
+        "WRK-090-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "smartsheet.sheets",
+      "displayName": "Smartsheet",
+      "provider": "smartsheet",
+      "product": "sheets",
+      "capability": "row.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "api.smartsheet.com",
+        "app.smartsheet.com"
+      ],
+      "requirementIds": [
+        "WRK-100-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "trello.boards",
+      "displayName": "Trello",
+      "provider": "trello",
+      "product": "boards",
+      "capability": "card.sync",
+      "direction": "bidirectional",
+      "egressHosts": [
+        "api.trello.com",
+        "auth.atlassian.com"
+      ],
+      "requirementIds": [
+        "WRK-100-001"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    },
+    {
+      "key": "zoom.meetings",
+      "displayName": "Zoom Meetings",
+      "provider": "zoom",
+      "product": "meetings",
+      "capability": "meeting.sync",
+      "direction": "read",
+      "egressHosts": [
+        "api.zoom.us",
+        "zoom.us"
+      ],
+      "requirementIds": [
+        "WRK-090-002"
+      ],
+      "source": "packages/provisioning/src/provider-packs.ts"
+    }
+  ],
+  "tenantCustomization": {
+    "configurationLayers": [
+      {
+        "kind": "platformInvariant",
+        "rank": 0,
+        "source": "packages/configuration/src/layer-schema.ts"
+      },
+      {
+        "kind": "partitionRegion",
+        "rank": 1,
+        "source": "packages/configuration/src/layer-schema.ts"
+      },
+      {
+        "kind": "environment",
+        "rank": 2,
+        "source": "packages/configuration/src/layer-schema.ts"
+      },
+      {
+        "kind": "plan",
+        "rank": 3,
+        "source": "packages/configuration/src/layer-schema.ts"
+      },
+      {
+        "kind": "industryPack",
+        "rank": 4,
+        "source": "packages/configuration/src/layer-schema.ts"
+      },
+      {
+        "kind": "orgTemplate",
+        "rank": 5,
+        "source": "packages/configuration/src/layer-schema.ts"
+      },
+      {
+        "kind": "tenantBaseline",
+        "rank": 6,
+        "source": "packages/configuration/src/layer-schema.ts"
+      },
+      {
+        "kind": "tenantOverlay",
+        "rank": 7,
+        "source": "packages/configuration/src/layer-schema.ts"
+      },
+      {
+        "kind": "orgUnitOverlay",
+        "rank": 8,
+        "source": "packages/configuration/src/layer-schema.ts"
+      },
+      {
+        "kind": "experiment",
+        "rank": 9,
+        "source": "packages/configuration/src/layer-schema.ts"
+      },
+      {
+        "kind": "emergencyDeny",
+        "rank": 10,
+        "source": "packages/configuration/src/layer-schema.ts"
+      }
+    ],
+    "configurationDomains": [
+      {
+        "id": "branding",
+        "prefixes": [
+          "platform.branding."
+        ],
+        "status": "active",
+        "tenantAdminMayWrite": true,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "connectors",
+        "prefixes": [
+          "platform.connectors."
+        ],
+        "status": "reserved",
+        "tenantAdminMayWrite": true,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "cost",
+        "prefixes": [
+          "platform.cost."
+        ],
+        "status": "reserved",
+        "tenantAdminMayWrite": false,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "deployment",
+        "prefixes": [
+          "platform.deployment."
+        ],
+        "status": "reserved",
+        "tenantAdminMayWrite": false,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "entities",
+        "prefixes": [
+          "platform.entities."
+        ],
+        "status": "reserved",
+        "tenantAdminMayWrite": true,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "identity",
+        "prefixes": [
+          "platform.identity."
+        ],
+        "status": "reserved",
+        "tenantAdminMayWrite": false,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "localization",
+        "prefixes": [
+          "platform.localization."
+        ],
+        "status": "active",
+        "tenantAdminMayWrite": true,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "modules",
+        "prefixes": [
+          "platform.flags.",
+          "platform.modules."
+        ],
+        "status": "active",
+        "tenantAdminMayWrite": true,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "observability",
+        "prefixes": [
+          "platform.observability."
+        ],
+        "status": "reserved",
+        "tenantAdminMayWrite": false,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "organization",
+        "prefixes": [
+          "platform.organization.",
+          "platform.terminology."
+        ],
+        "status": "active",
+        "tenantAdminMayWrite": true,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "payments",
+        "prefixes": [
+          "platform.payments."
+        ],
+        "status": "active",
+        "tenantAdminMayWrite": false,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "permissions",
+        "prefixes": [
+          "platform.permissions."
+        ],
+        "status": "reserved",
+        "tenantAdminMayWrite": true,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "recovery",
+        "prefixes": [
+          "platform.recovery."
+        ],
+        "status": "reserved",
+        "tenantAdminMayWrite": false,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "relay",
+        "prefixes": [
+          "platform.relay."
+        ],
+        "status": "active",
+        "tenantAdminMayWrite": true,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "reports",
+        "prefixes": [
+          "platform.reports."
+        ],
+        "status": "reserved",
+        "tenantAdminMayWrite": true,
+        "source": "packages/configuration/src/domains.ts"
+      },
+      {
+        "id": "workflows",
+        "prefixes": [
+          "platform.workflows."
+        ],
+        "status": "reserved",
+        "tenantAdminMayWrite": true,
+        "source": "packages/configuration/src/domains.ts"
+      }
+    ],
+    "blueprints": [
+      {
+        "id": "corporate-divisions",
+        "source": "blueprints/corporate-divisions/blueprint.ts"
+      },
+      {
+        "id": "nonprofit-program-operations",
+        "source": "blueprints/nonprofit-program-operations/blueprint.ts"
+      },
+      {
+        "id": "university-student-organizations",
+        "source": "blueprints/university-student-organizations/blueprint.ts"
+      }
+    ]
+  }
+}

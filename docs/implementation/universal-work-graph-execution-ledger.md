@@ -19,9 +19,49 @@ undecided and returns the item to the queue every tick, forever. An unfinished
 requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — naming
 the commands or the ADR that would unblock it — if it cannot.
 
-- [ ] **WRK-000-001** — Inventory every current provider logo, route, SDK, OAuth app, token, webhook, sync, index, Relay tool, external action, environment, and public integration claim.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **WRK-000-001** — Inventory every current provider logo, route, SDK, OAuth app, token, webhook, sync, index, Relay tool, external action, environment, and public integration claim.
+  - Status: PASS
+  - Code: `tools/wrk-work-graph-inventory.mjs` derives `docs/architecture/wrk-work-graph-inventory.md`
+    from the working tree — one row per declared provider across all twelve axes the
+    requirement names, plus a detail table per axis. Every axis is derived: packs and
+    capabilities are brace-scanned out of `packages/provisioning/src/provider-packs.ts` and
+    `packages/provisioning/src/catalogs.ts`, routes from every `route.ts` in both apps, SDKs
+    from all 88 direct dependency declarations, environment NAMES from `process.env.*` with
+    comments stripped, egress from literal occurrences of the 40 declared hosts, Relay tools
+    from `modules/index.ts`, claims from string literals beside a capability verb.
+  - Not a duplicate of `docs/architecture/int-integration-inventory.md`: that one is
+    resource-oriented (queues, events, alarms, producers). This one is provider-oriented, and
+    the per-provider row is what makes invariant 3 — "no logo availability" — checkable at
+    all. Each axis alone looks like a connector; the row says whether one exists.
+  - Findings the derivation produced: 24 providers declared, 1 called (`anthropic`, at
+    `apps/web/src/lib/ai.ts:208`); 0 of 24 declared OAuth redirect paths served by any route,
+    so no declared pack can be authorized today; 1 of 24 with a client-registration
+    environment name; 0 provider logo assets out of 2 image assets in the whole repository;
+    1 Relay tool (`search.corpus`, read-only, Tenure's own corpus) and no external-action
+    tool; 0 of 21 sync/index surfaces naming a provider host; 0 public integration claims.
+  - Honest limit, stated in the document itself: deployed environments are NOT inspected.
+    Nothing here authenticates to AWS or reads Secrets Manager, and no secret value is read
+    or printed. Where WRK-000-001's "environment" means a running cell, that half is recorded
+    as unmet rather than approximated from source.
+  - Determinism: `git ls-files --cached --others`, POSIX paths, explicit sorts, CRLF
+    normalised before every match, output joined with `\n`, `.gitattributes` pins `eol=lf`.
+    Nothing reads a directory. The generated document is deliberately kept out of the
+    document graph — an early draft said "the Bible" in its first 4000 characters, which made
+    `tools/document-graph.mjs` classify it as an AUTHORITY and record it as the source
+    document for WRK-000-001 instead of the Bible; a guard now asserts it stays out.
+  - Tests: `tests/architecture/wrk-work-graph-inventory.test.mjs`, 9/9 under
+    `node --test` (the `npm run test:platform` runner). It runs `--check`, refuses an empty
+    scan, and re-derives every citation INDEPENDENTLY by opening the cited file at the cited
+    line.
+  - Evidence: 3 mutations, 3 caught. (a) deleted the real `slack.workspace` row from the
+    committed document — `--check` exit 1 "is stale", suite 7 pass / 1 fail; restored, exit 0,
+    8/8. (b) `names()` word-boundary matcher replaced with
+    `text.toLowerCase().includes(token.toLowerCase())` — 5 pass / 3 fail, including the
+    regression fixture that pins `/api/jobs/outbox` not being a Box route and
+    `@aws-sdk/s3-request-presigner` not being an Adobe SDK (both were real false positives on
+    the first run); restored, 8/8. (c) `packBlocks` line offset `+3` — 6 pass / 2 fail
+    (staleness AND the citation re-derivation); restored, 8/8. Command:
+    `node --test tests/architecture/wrk-work-graph-inventory.test.mjs`.
 
 - [x] **WRK-000-002** — Classify each exact provider/product/capability/direction as `PLANNED`, `DEVELOPMENT`, `CERTIFICATION_PENDING`, `AVAILABLE`, `DEGRADED`, `SUSPENDED`, or `UNSUPPORTED` with evidence.
   - Status: PASS
@@ -46,13 +86,77 @@ the commands or the ADR that would unblock it — if it cannot.
     `claimIsUnproven` forced to `false`: 2 failed / 62 passed (certification AND capability).
     Restored: 64/64. Command: `npx jest --ci provisioning/src/catalogs.test` from `apps/web`.
 
-- [ ] **WRK-000-003** — Import every `WRK-*` requirement into the canonical execution ledger and document graph.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **WRK-000-003** — Import every `WRK-*` requirement into the canonical execution ledger and document graph.
+  - Status: PASS
+  - State of the tree, re-derived rather than asserted: the Bible states 88 `WRK-*`
+    requirements by `requirementsIn`'s own reading; this ledger carries 88 rows; the
+    difference in both directions is empty; there are no duplicates; no other `*-ledger.md`
+    claims a `WRK-*` id; and `buildRegistry` resolves all 88 back to the Bible at its
+    canonical path. The document graph registers it at
+    `docs/architecture/architecture-document-graph.yaml:491` as `role: authority`,
+    `requirement_prefixes: [WRK]`, `states_requirements: 88`.
+  - What the existing ratchet could not see, and why this test exists: the global unimported
+    count in `document-graph.test.mjs` is a UNION over every ledger, so a `WRK-*` row filed
+    under another domain still reads as imported while this domain has nothing to work; an
+    invented id inflates a denominator nobody re-derives; a duplicated id means two statuses
+    and `next-batch.mjs` reads whichever the parser saw last. This checks all three, plus the
+    half the INT sibling does not — the document graph entry itself.
+  - Import is not progress. All 88 rows exist; at the time of writing 13 carry `PASS` and 75
+    carry `FAIL`. The value of this requirement is that those 75 are visibly failing instead
+    of invisible, and invisible reads exactly like done.
+  - Tests: `tests/architecture/wrk-requirements-are-imported.test.mjs`, 8/8 under
+    `node --test`. The Bible is read at the canonical path the GRAPH records, never a
+    hard-coded string.
+  - Evidence: 3 mutations, 3 caught. (a) deleted the `WRK-010-003` row from this ledger —
+    7 pass / 1 fail ("has a row in the work-graph ledger"); restored, 8/8. (b) renamed
+    `WRK-010-003` to the invented `WRK-999-999` — 6 pass / 2 fail (missing row AND invented
+    id); restored, 8/8. (c) pointed `GRAPH_ID` at `tenure-not-a-document-in-the-graph` —
+    1 pass / 7 fail, which proves the graph entry is genuinely read rather than assumed;
+    restored, 8/8. Command:
+    `node --test tests/architecture/wrk-requirements-are-imported.test.mjs`.
+  - Not mine to fix: `docs/architecture/architecture-document-graph.yaml` and
+    `capability-completeness-registry.yaml` are currently STALE against the tree
+    (`node tools/document-graph.mjs --check` exits 1). Verified this is not caused by
+    anything in this wave — the check still exits 1 with this domain's generated document
+    moved out of the tree. `tools/document-graph.mjs` is a shared generator; regenerating it
+    is the orchestrator's, not this domain's.
 
-- [ ] **WRK-000-004** — Bind this Bible to Integration, Tenant UX, Configurator, Relay, security, lifecycle, release, and owning domain Bibles.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **WRK-000-004** — Bind this Bible to Integration, Tenant UX, Configurator, Relay, security, lifecycle, release, and owning domain Bibles.
+  - Status: PASS
+  - Code: `tools/wrk-authority-bindings.mjs` derives
+    `docs/architecture/wrk-authority-bindings.md` — one row per binding with the governing
+    document, its requirement prefix, the ledger that tracks it, the code that exists today,
+    and where the boundary runs, quoting section 0 of the Bible for each.
+  - Both halves that can go wrong are derived, not typed: the LIST of bindings is parsed out
+    of WRK-000-004's own statement (`Bind this Bible to … Bibles.`), so dropping one reds and
+    inventing a ninth reds the other way; and the read-order contract in section 0 is parsed
+    and each of its 8 entries resolved to a file that exists.
+  - Bindings: Integration→INT, Tenant UX→TTES, Configurator→CFG, Relay→(no such authority;
+    owned by this Bible §5/§7 and `apps/web/src/lib/relay/*`), security→GE-150..153,
+    lifecycle→GE-103 + SIMON (tenant) distinguished from §15.1 (provider), release→GE-171 +
+    GE-430, owning domain→the 8 domain Bibles §0 item 7 names (HCM, FIN, PLN, OPS, ANL, PAY,
+    PACK, SIMON).
+  - Finding: read-order entry 8, "Tenure Major App and Industry Connector Catalog and
+    Certification Matrix", names a document this repository does not contain — `git grep -F`
+    finds the phrase only in that read-order line itself. Recorded as absent rather than
+    mapped onto the nearest-sounding document; the Connection Composer Bible is a different
+    document with a different title, and binding to it would be an invented correspondence.
+    Producing the missing document is not this domain's to do.
+  - No approval is claimed. Nobody from another domain has agreed this mapping; it is a
+    reading of the documents named, and every claim it makes resolves to a path.
+  - Tests: `tests/architecture/wrk-authority-bindings.test.mjs`, 8/8 under `node --test`.
+    Compares the table against the requirement's wording in BOTH directions, opens every
+    document/ledger/code path, and requires each governing document to be an `authority` in
+    the generated graph carrying the prefix its row claims.
+  - Evidence: 3 mutations, 3 caught. (a) renamed the `lifecycle` binding to
+    `lifecycle-DROPPED` — 6 pass / 2 fail (staleness AND the both-directions comparison);
+    restored, 8/8. (b) repointed the Integration binding at
+    `Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md` — a real
+    file with the wrong prefix — 6 pass / 2 fail on the graph-prefix check, which a
+    path-existence check alone would have passed; restored, 8/8. (c) cited the plausible
+    `packages/releases/src/release-plan.ts`, which does not exist — 6 pass / 2 fail;
+    restored, 8/8. Command:
+    `node --test tests/architecture/wrk-authority-bindings.test.mjs`.
 
 - [ ] **WRK-010-001** — Implement canonical provider, workspace, account, principal, container, object, permission, relationship, citation, sync, tombstone, and action objects.
   - Status: FAIL

@@ -19,9 +19,62 @@ undecided and returns the item to the queue every tick, forever. An unfinished
 requirement is `FAIL` if the rest can be built now, and `BLOCKED_EXTERNAL` — naming
 the commands or the ADR that would unblock it — if it cannot.
 
-- [ ] **PACK-000-001** — Inventory every existing module, route, schema, service, feature flag, integration and tenant customization.
-  - Status: FAIL
-  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **PACK-000-001** — Inventory every existing module, route, schema, service, feature flag, integration and tenant customization.
+  - Status: PASS
+  - Code: `tools/pack-surface-inventory.mjs` (the generator),
+    `docs/architecture/pack-surface-inventory.json` and
+    `docs/architecture/pack-surface-inventory.md` (its two outputs),
+    `tests/architecture/pack-surface-inventory.test.mjs` (the guard).
+  - What it inventories, and where each section comes from — all seven the
+    requirement names, each derived from a source file rather than written out:
+    **12 modules** from `modules/index.ts`; **80 routes** (28 API, 52 pages;
+    66 tenant, 14 deployer) walked from `apps/web/src/app` and
+    `apps/system-studio/src/app`; **52 schema models** from
+    `apps/web/prisma/schema.prisma`, 27 of them carrying `institutionId`;
+    **18 workspaces** from their own `package.json` files with the `@tenure/*`
+    edges between them; **1 feature flag** from
+    `packages/platform-config/src/flags.ts`; **24 provider packs** from
+    `packages/provisioning/src/provider-packs.ts` with their egress hosts;
+    and tenant customization as its three real mechanisms — **11 configuration
+    layers** from `packages/configuration/src/layer-schema.ts`, **16
+    configuration domains** from `packages/configuration/src/domains.ts` with
+    `tenantAdminMayWrite` carried, and **3 blueprints** under `blueprints/`.
+  - Why a generator: a hand-written inventory is accurate the day it is written
+    and *plausible* from the next commit onward, which is the failure this
+    programme keeps hitting. Every row carries a `source` path and the guard
+    opens all 107 of them.
+  - Cross-checked, not merely listed. Two sections derived independently are
+    compared: every model a module claims in `objects` must be a model
+    `schema.prisma` declares (38 claims, 0 orphans), and every `href` a module
+    advertises must be a page the tenant app serves (10 hrefs, 0 dangling).
+    The route counts land on `docs/architecture/entry-points.md`'s independently
+    generated "28 API routes · 52 pages" exactly.
+  - Byte-identical across checkouts: tracked files only (never `--others`, so
+    the document cannot describe whoever's working tree generated it), POSIX
+    paths, one fixed comparator for every sort, CRLF collapsed to LF before any
+    match or comparison, and no timestamp in the output. Ran the generator twice
+    and diffed both artifacts — identical.
+  - Tests: `node --test tests/architecture/pack-surface-inventory.test.mjs` →
+    6/6 pass. `node tools/pack-surface-inventory.mjs --check` → current.
+  - Evidence — 3 mutations applied to the committed inventory, 3 caught, all
+    restored to 6/6:
+    1. Corrupted one real cited path
+       (`packages/provisioning/src/provider-packs.ts` →
+       `…-renamed.ts`) → 2 of 6 red: "the committed inventory is what the tree
+       now says" and "every path the inventory cites is a file that exists".
+    2. Removed one real entry (the `events` module row) → 2 of 6 red: the
+       freshness check, and "the human document and the machine document agree",
+       because the markdown headline still said 12 modules.
+    3. Corrupted one real mapping (`organizations` claims `SeatV2` instead of
+       `Seat`) → 2 of 6 red, including "every schema model a module claims is a
+       model the database declares".
+  - Honest limits: (a) this is an inventory of what EXISTS, not a claim that any
+    of it is complete — the per-dimension verdicts are PACK-000-002's job and all
+    twelve modules are `certified-limited`; (b) `tools/pack-surface-inventory.mjs`
+    is not in the root `generate` script, because `package.json` is shared and
+    not this domain's to edit — adding
+    `&& node tools/pack-surface-inventory.mjs` to it is the one-line change that
+    would make the freshness check regenerate with the others.
 
 - [x] **PACK-000-002** — Classify each capability using the 17-dimension completeness contract.
   - Status: PASS
@@ -48,9 +101,47 @@ the commands or the ADR that would unblock it — if it cannot.
     `module-objects.test.mjs` failed on "every file a dimension cites is a file
     that exists"; restored -> 7/7.
 
-- [ ] **PACK-000-003** — Import every `PACK-*` requirement into the canonical ledger.
-  - Status: FAIL
-  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **PACK-000-003** — Import every `PACK-*` requirement into the canonical ledger.
+  - Status: PASS
+  - Code: `tests/architecture/pack-requirements-imported.test.mjs` — the check
+    that makes the import a claim somebody can refute, over the readers already
+    owned by `tools/document-graph.mjs`.
+  - What was true and what was missing. The import itself was already done —
+    `tools/import-requirements.mjs` seeded this ledger and all 53 `PACK-*`
+    requirements the Bible states (including the ten `PACK-GATE-*` ids) have a
+    row here. What did not exist was a check that could catch it coming undone.
+    The global ratchet in `tests/architecture/document-graph.test.mjs` counts
+    requirements no execution document mentions and holds it at zero, which is
+    necessary and not sufficient: a PACK row that MIGRATED into another domain's
+    ledger, or one stated TWICE, moves that count by nothing at all. The first
+    hands PACK work to whoever owns the other file; the second lets one
+    requirement hold two different statuses. Both are invisible to a total and
+    obvious to an equality, so the check asserts the equality across four
+    independently derived sets — what the Bible states, what the execution
+    system imported, what this ledger owns, and what the generated registry
+    resolves back to this Bible.
+  - Measured: 53 stated, 53 imported, 53 owned by
+    `docs/implementation/erp-pack-factory-execution-ledger.md`, 53 registry rows
+    all resolving to the pack Bible, 0 duplicates. Of those 53, 36 are FAIL —
+    this proves import and claims nothing about pack behaviour.
+  - Tests: `node --test tests/architecture/pack-requirements-imported.test.mjs`
+    → 5/5 pass.
+  - Evidence — 2 mutations, 2 caught, both restored to 5/5:
+    1. Renamed this ledger's `PACK-050-004` row to `PACK-050-999` → 3 of 5 red:
+       "every PACK requirement is in the execution system", "…owned by the pack
+       ledger", and "…exactly once".
+    2. Duplicated the `PACK-050-004` row inside this ledger, the second copy
+       claiming PASS → 1 of 5 red: "the pack ledger states each PACK requirement
+       exactly once". The global unimported ratchet in
+       `tests/architecture/document-graph.test.mjs` does NOT move under this
+       second mutation: with the duplicate row in place, the "unimported
+       count only shrinks" assertion stayed green, because both copies are
+       imported. That is exactly why this check exists separately from it.
+       The ratchet does move under the first mutation.
+  - Honest limit: import is not progress. This entry closes the wiring item
+    only — that every `PACK-*` requirement is visible to the one execution
+    system and owned by this file, so the loop cannot skip a requirement while
+    the denominator still looks plausible.
 
 - [x] **PACK-000-004** — Remove or relabel false `Available` claims.
   - Status: PASS
@@ -103,6 +194,42 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PACK-010-001** — Enforce one platform kernel for tenant, identity, authorization, configuration, workflow, audit, files, events, ledger, integration, Relay and lifecycle.
   - Status: FAIL
+  - **Re-judged, and the FAIL stands.** The orchestrator left this FAIL so a
+    different reader would decide it rather than the person who fixed it. This
+    is that reading, done without re-running the prior mutations, because the
+    thing that decides this item is not whether four mutations reproduce — it is
+    whether the requirement's own enumeration is satisfied, and it is not.
+    - The two claims I could check without mutating shared source both hold.
+      The proof that was recorded as caught and was not is now real:
+      `apps/web/src/lib/relay-tools.test.ts:252` asserts
+      `roch.offered[0].decision.policyRevision` equals
+      `policyRevisionOf(worldOf("rochester"))` — the value `decideCheck`
+      actually emits, not the helper called directly, which is what a frozen
+      constant satisfied. `apps/web/src/lib/s3.ts:3,111` imports and re-parses
+      `FileRef` on the way in, so the file contract is reached by production.
+    - What refuses the PASS: the requirement enumerates TWELVE concerns, and
+      `packages/contracts/src/index.ts` — the file this entry names as the
+      kernel boundary — declares a contract for nine of them and for **ledger,
+      integration and lifecycle it declares nothing at all**. Grepping its
+      exported declarations returns `TenantContext`, `Command`, `Query`,
+      `DomainEvent`, `OutboxRecord`, `JobRequest`, `IdempotencyRecord`,
+      `PermissionCheck`, `PermissionDecision`, `FileRef`, `ConfigSnapshot`,
+      `AuditEntry`, `ToolRegistration`, `ProcessChain` and the Studio
+      control-plane shapes; `ledger` appears in no exported name and neither
+      does any integration or connector envelope. The entry's own closing
+      paragraph says as much. A kernel that has no shape for a concern cannot
+      be the one kernel for it, and there is no PARTIAL — so this is FAIL, not
+      a PASS with a footnote.
+  - Not BLOCKED_EXTERNAL: nothing external is missing. The work is a ledger and
+    an integration contract in `packages/contracts/src/index.ts` plus a
+    production producer and consumer for each, on the pattern the five closed
+    contracts already set. It is deferred rather than blocked because that file
+    is the shared kernel boundary the FIN (`FIN-000-003`, immutable balanced
+    journal) and INT (`INT-000-001/002`) domains are working in during the same
+    wave, and two agents inventing two ledger envelopes in one file is the
+    parallel-foundation defect this requirement exists to forbid. Sequence it
+    after those domains have declared their shapes, then wire the kernel
+    contract to them.
   - Reclassified from PASS by the orchestrator, on its refuter's verdict. Four
     contracts were claimed proven by mutation; three reproduce exactly, and the
     fourth did not exist — the suite stayed green under it. A requirement whose
@@ -984,11 +1111,17 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PACK-GATE-000** — Catalog truth matches implemented/certified scope.
   - Status: FAIL
-  - Children: 2 of 4 decided. PACK-000-002 (17-dimension classification) and
-    PACK-000-004 (false `Available` claims removed) are PASS; PACK-000-001
-    (inventory every module, route, schema, service, flag, integration and
-    tenant customization) and PACK-000-003 (import every `PACK-*` requirement
-    into the canonical ledger) are FAIL.
+  - Children: 4 of 4 decided — `PACK-000-001` PASS, `PACK-000-002` PASS,
+    `PACK-000-003` PASS, `PACK-000-004` PASS. The inventory
+    (`docs/architecture/pack-surface-inventory.md`, generated) and the
+    requirement import (`tests/architecture/pack-requirements-imported.test.mjs`)
+    are the two that were outstanding; both closed with mutation proof.
+  - The gate itself stays FAIL. All four children being decided is a necessary
+    condition and not the gate's own claim: "catalog truth matches
+    implemented/certified scope" is a statement about the SCOPE the catalog
+    advertises, and nothing yet compares the twelve manifests' declared scope
+    against what a tenant is actually offered end to end. Ticking a gate the
+    moment its children go green is how a gate becomes a sum instead of a check.
   - **PASS withdrawn.** A gate is proven by its children and by nothing else,
     and this one was ticked over an inventory that has not been taken and a
     requirement import that has not happened — the two children that decide
