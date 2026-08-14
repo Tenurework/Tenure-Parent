@@ -349,7 +349,26 @@ export default async function EstatePage() {
       cell: (row) => (
         <div className={styles.cell}>
           <span>{row.detail}</span>
-          {row.minimumStatement ? <code>{row.minimumStatement}</code> : null}
+          {/*
+           * `md3-unknown-statement`, not a bare `<code>`.
+           *
+           * That rule exists for exactly this content and its own comment says
+           * why it is shaped the way it is: an operator pastes this into a
+           * policy document, so it must NOT be re-wrapped — it scrolls inside
+           * its own box instead, `white-space: pre` plus `overflow-x: auto`,
+           * "the same bargain `.md3-table-shell` strikes, and the reason the
+           * page itself never scrolls sideways at 320 CSS pixels".
+           *
+           * Rendered here without it, the statement was a bare `<code>` with
+           * `overflow-x: visible`. Measured against the DOM CI itself served,
+           * these ran 467 to 515 CSS pixels wide inside a 320-pixel viewport —
+           * the widest non-table content on the page.
+           */}
+          {row.minimumStatement ? (
+            <pre className="md3-unknown-statement">
+              <code>{row.minimumStatement}</code>
+            </pre>
+          ) : null}
         </div>
       ),
     },

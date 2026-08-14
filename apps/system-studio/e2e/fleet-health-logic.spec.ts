@@ -760,7 +760,24 @@ test.describe("the fleet page reports what it could not observe", () => {
     await first.click()
     await page.waitForURL(/\/tenants\/[^/]+$/)
 
-    const observed = page.locator("section", { hasText: "Observed" }).first()
+    /*
+     * `#observed`, not "the first section mentioning the word".
+     *
+     * This was `page.locator("section", { hasText: "Observed" }).first()`, and
+     * Playwright's `hasText` with a STRING is a case-insensitive SUBSTRING
+     * match. So it also matched the "Right now" card, whose supporting text
+     * reads "…from the registry and from what was observed of the running
+     * system" — an earlier section in DOM order, so `.first()` chose it, and the
+     * table it went looking for was three panels further down. The failure read
+     * `element(s) not found` while the table was present and correctly named,
+     * which is the most expensive shape a locator bug can take.
+     *
+     * The Card carries `id="observed"` precisely so a panel can be addressed
+     * rather than described. This is strictly more precise than what it
+     * replaces: it names ONE element, so the assertions below can no longer
+     * pass or fail on the strength of which panel happened to sort first.
+     */
+    const observed = page.locator("section#observed")
     await expect(observed).toBeVisible()
     // `/tenants/[slug]` composes `DataTable` for this panel too, so its Source
     // column is a plain `<td>` with no class to hook — the class was markup,

@@ -2185,6 +2185,21 @@ fieldset.destructive .chip {
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-4);
+  /*
+     A card is itself a flex item of the page's column, and a flex item defaults
+     to `min-width: auto` — "never shrink below my min-content width". A card
+     holding a nine-column table therefore refuses to go narrower than that
+     table's min-content, widens the column that contains it, and takes the
+     document with it. `layout.spec.ts` sees that as `/platform/estate — the page
+     scrolls sideways` at 320px, on the page with the most columns.
+
+     `.md3-card-header` below has carried this same line from the start, for the
+     same reason and one level down. The card was the level nobody had hit yet.
+
+     It does not defeat the table's own scrolling: `.md3-table-shell` keeps
+     `overflow-x: auto`, so a table wider than the card still scrolls inside its
+     own box. This only removes the card's veto on being narrowed. */
+  min-inline-size: 0;
 }
 .md3-card-header {
   display: flex;
