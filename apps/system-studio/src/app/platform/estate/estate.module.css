@@ -92,6 +92,30 @@
  * SIZE is left alone: `md3-body-small` on the table is the size, and a second
  * opinion here is how a page acquires a type scale of its own.
  */
+/*
+ * One "what this surface said" line, under a service group.
+ *
+ * These sentences carry capability identifiers — "unknown — this engine's role
+ * was refused cloudfront:ListDistributions (InvalidClientTokenId) as …" — and
+ * `cloudfront:ListDistributions` is twenty-eight characters with no space in
+ * it. `globals.css` gives `overflow-wrap: anywhere` to `p`, `li`, `dt`, `dd`,
+ * `code`, `.slug`, `.chip` and `legend`; a `span` in a plain `div` is in none of
+ * those, and `overflow-wrap` inherits, so everywhere else on this page it
+ * arrived free from `.cell`. This was the one place it did not.
+ *
+ * Measured by the layout suite itself, which now names what it caught: `351px
+ * of content in a 320px viewport`, offender `span.md3-body-small width=301`.
+ * Three earlier attempts at this failure were CSS hypotheses; this one is the
+ * element the test pointed at.
+ *
+ * `min-inline-size: 0` for the same reason every other flex context on this page
+ * carries it — the line sits in a column that must be allowed to narrow.
+ */
+.surfaceLine {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
 .identifier {
   font-family: var(--md-sys-type-mono);
   overflow-wrap: anywhere;

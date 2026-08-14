@@ -672,7 +672,11 @@ export default async function EstatePage() {
                       line.read.state !== "ACTUAL",
                   )
                   .map((line) => (
-                    <div key={line.surface} data-surface-line={line.surface}>
+                    <div
+                      key={line.surface}
+                      className={styles.surfaceLine}
+                      data-surface-line={line.surface}
+                    >
                       <span className="md3-body-small" data-testid={`line-${line.surface}`}>
                         {line.text}
                       </span>
