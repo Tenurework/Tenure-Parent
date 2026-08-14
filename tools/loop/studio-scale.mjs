@@ -67,6 +67,14 @@ own scratch directory first and say so in your result.
 NEVER delete a scratch directory that is not yours. Another agent is very likely still building
 or serving from it, and \`.next-<something-else>\` being an hour stale is not evidence otherwise —
 a directory's contents stop changing the moment a build finishes and a server starts reading it.
+
+STOP YOUR SERVER before you return, and stop it by the PID you started — never with a pattern
+that could match another agent's. This is the half that actually hurts: disk is merely full,
+but a leftover \`next build\` or standalone server goes on competing for CPU forever. The wave
+before this one left 18 build processes running from as early as 04:03 and 7 orphan servers,
+78 node processes in total, and the next build did not fail — it starved, running 72 minutes
+without emitting a BUILD_ID. Seven requirements were returned BLOCKED_EXTERNAL for that reason
+alone. Killing the leftovers took the same build back to normal.
 `
 
 const RESULT_SCHEMA = {
