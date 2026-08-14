@@ -45,9 +45,34 @@ export const PRODUCTION_OWNER = 'Tenurework/Tenure'
  */
 export const ENGINE_OWNER = 'Tenurework/Tenure-Parent'
 
-/** Jobs that deploy the engine, and are therefore armed HERE and nowhere else. */
+/**
+ * Jobs that act on the engine, and are therefore armed HERE and nowhere else.
+ *
+ * `production-workflows-disarmed.test.mjs` reads this. It used to keep its own
+ * copy, and the two had already drifted — `bootstrap-oidc.yml` was in the test's
+ * list and missing from this one, so this export was decoration that agreed with
+ * nothing. A list nobody reads is not a source of truth; it is a second thing to
+ * forget. The test now derives from here, so adding a job in one place is adding
+ * it in both.
+ */
 export const ENGINE_JOBS = {
   'deploy-studio.yml': ['deploy'],
+  // Creates the OIDC provider and roles using the long-lived keys one last
+  // time. Armed here because deployment identity for the engine is this
+  // repository's to own.
+  'bootstrap-oidc.yml': ['bootstrap'],
+  // Read-only. It reaches AWS, so it must be declared here or the disarm test
+  // treats it as an unguarded production job — but it makes no mutating call
+  // and no Terraform call, so it cannot take the state lock or deploy anything.
+  // Also named in the test's read-only allowlist, which proves that claim by
+  // scanning it for mutating commands rather than trusting this comment.
+  'studio-domain.yml': ['status'],
+  // Was armed to this repository and declared nowhere — it sat inside the
+  // read-only allowlist, which exempted it from the unguarded check, and the
+  // engine check only walked the declared list. So nothing verified that its
+  // guard named Tenure-Parent rather than some other repository. Found when the
+  // check was made bidirectional; read-only, like the one above.
+  'debug-logs.yml': ['logs'],
 }
 
 /** Every workflow that reaches AWS with this repository's credentials. */

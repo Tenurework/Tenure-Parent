@@ -58,7 +58,7 @@ resource "aws_acm_certificate" "studio" {
 
 output "studio_acm_validation_records" {
   description = "Add these CNAMEs at the registrar (Vercel) to validate the Studio certificate"
-  value       = var.studio_domain != "" ? [
+  value = var.studio_domain != "" ? [
     for o in aws_acm_certificate.studio[0].domain_validation_options : {
       name  = o.resource_record_name
       type  = o.resource_record_type

@@ -377,10 +377,17 @@ describe("the declaration is parsed from the Terraform, not typed here", () => {
     // `aws_db_instance.postgres` — one, unconditional.
     expect(declared.byResourceType.get("rds:db")).toEqual({ definite: 1, conditional: 0 })
 
-    // `aws_acm_certificate.custom` carries `count = var.custom_domain != "" ? 1 : 0`.
-    // It is CONDITIONAL, and asserting it as present is the false MISSING this
-    // distinction exists to prevent.
-    expect(declared.byResourceType.get("acm:certificate")).toEqual({ definite: 0, conditional: 1 })
+    // Two certificates, both conditional, and neither counted as definite:
+    // `aws_acm_certificate.custom` (the pilot's, `count = var.custom_domain != ""
+    // ? 1 : 0`) and `aws_acm_certificate.studio` (the engine's, guarded the same
+    // way on `var.studio_domain`). Asserting either as present is the false
+    // MISSING this distinction exists to prevent — a `count`-guarded resource
+    // may declare nothing at all.
+    //
+    // The number moved 1 -> 2 when the Studio's certificate was added. That is
+    // the assertion tracking the estate, which is its job; what it holds fixed
+    // is `definite: 0`, since a certificate behind a count is never definite.
+    expect(declared.byResourceType.get("acm:certificate")).toEqual({ definite: 0, conditional: 2 })
 
     // The service map, on the three names no rule derives from the Terraform
     // type: `aws_lb` → elasticloadbalancing, `aws_cognito_*` → cognito-idp,

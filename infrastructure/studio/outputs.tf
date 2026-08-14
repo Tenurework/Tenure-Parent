@@ -1,9 +1,10 @@
 output "studio_url" {
   description = "The System Studio. This is the platform engine, not a tenant."
-  # , not the distribution hostname: the deploy workflow
-  # reads this to prove the console serves, and after the custom domain is
-  # attached the CloudFront name is no longer where an operator goes.
-  value       = local.studio_origin
+
+  # The public origin, not the distribution hostname: the deploy workflow reads
+  # this to prove the console serves, and once the custom domain is attached the
+  # CloudFront name is no longer where an operator goes.
+  value = local.studio_origin
 }
 
 output "cloudfront_domain" {

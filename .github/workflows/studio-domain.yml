@@ -1,0 +1,241 @@
+name: Studio Domain Status
+
+# Read-only report on the System Studio's custom domain, and the instrument for
+# the two-phase change in `infrastructure/studio/acm.tf`.
+#
+# `tenurework.com` is held at Vercel, not Route 53. Terraform therefore cannot
+# write the DNS records itself: it requests the certificate, a human adds the
+# validation CNAME at the registrar, and only once ACM reports ISSUED can the
+# certificate be attached to CloudFront. This workflow answers the questions
+# that sit between those steps, and it answers them without an apply — so
+# checking "has it validated yet?" never takes the Terraform state lock and
+# never risks a deploy.
+#
+#   1. Does the certificate exist, and what is its status?
+#   2. What CNAME does ACM want, and is that record actually resolving?
+#   3. Does the subdomain point at the distribution yet?
+#   4. Does CloudFront carry the alias and the certificate?
+#
+# It makes no mutating call at all — describe, list and get only. The change
+# itself is made by Terraform through deploy-studio.yml, driven by
+# var.studio_domain and var.attach_studio_domain. This is the instrument panel
+# for that change, not another way to make it.
+#
+# Distinct from `custom-domain.yml`, which reports on the PILOT's domain
+# (platform.tenurework.com) and is disarmed here. Different domain, different
+# distribution, different owner — see ENGINE_JOBS in
+# tools/disarm-production-workflows.mjs.
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: "Studio domain to report on"
+        required: false
+        default: "helm.tenurework.com"
+      distribution_domain:
+        description: "CloudFront distribution hostname to match exactly"
+        required: false
+        default: "d2kj4iy5i37kfd.cloudfront.net"
+
+jobs:
+  status:
+    # Armed for the repository that OWNS the engine, and nowhere else. The rule
+    # is not "this repository may not reach AWS" — it is "a repository may only
+    # touch what it owns". The Studio is this repository's; the pilot is not.
+    if: github.repository == 'Tenurework/Tenure-Parent'
+
+    name: Report Studio domain status
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required to mint the OIDC token GitHub signs. Without it the assume-role
+      # fails as "Credentials could not be loaded", which reads like a bad role
+      # rather than a missing permission.
+      id-token: write
+
+    env:
+      # CloudFront viewer certificates must live in us-east-1, whatever region
+      # the distribution serves from. A certificate in the "right" region is
+      # simply invisible to CloudFront.
+      ACM_REGION: us-east-1
+      DOMAIN: ${{ inputs.domain }}
+      CF_DOMAIN: ${{ inputs.distribution_domain }}
+
+    steps:
+      # No long-lived key. This job only describes things, so it assumes the
+      # short-lived read role rather than joining the credentials ratchet in
+      # `oidc-trust.test.mjs` — a list that may only shrink. The role is
+      # ViewOnlyAccess with an explicit Deny on GetSecretValue, GetObject,
+      # Decrypt and Scan, which covers everything below: ACM describe/list are
+      # in ViewOnlyAccess, and `cloudfront:GetDistributionConfig` and
+      # `ListDistributions` are in the role's explicit extras.
+      #
+      # That last detail is why the CloudFront step calls get-distribution-CONFIG
+      # rather than get-distribution: the role grants one and not the other.
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+        with:
+          role-to-assume: ${{ vars.AWS_READ_ROLE_ARN }}
+          role-session-name: studio-domain-${{ github.run_id }}
+          aws-region: ${{ env.ACM_REGION }}
+
+      - name: Identity
+        run: |
+          # Account and principal only — never any credential material.
+          aws sts get-caller-identity \
+            --query '{Account:Account,Arn:Arn}' --output table
+
+      # ── The certificate, and the record it is waiting for ────────────────
+      - name: ACM certificate
+        id: acm
+        run: |
+          set -euo pipefail
+
+          ARN=$(aws acm list-certificates --region "$ACM_REGION" \
+            --query "CertificateSummaryList[?DomainName=='${DOMAIN}'].CertificateArn | [0]" \
+            --output text)
+
+          if [ -z "$ARN" ] || [ "$ARN" = "None" ]; then
+            {
+              echo "## Studio certificate — does not exist"
+              echo
+              echo "No ACM certificate for \`${DOMAIN}\` in \`${ACM_REGION}\`."
+              echo "Terraform creates it from \`var.studio_domain\` — run **Deploy Studio** first."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "status=ABSENT" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CERT=$(aws acm describe-certificate --region "$ACM_REGION" --certificate-arn "$ARN")
+          STATUS=$(echo "$CERT" | jq -r '.Certificate.Status')
+
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "arn=$ARN" >> "$GITHUB_OUTPUT"
+          echo "$CERT" | jq -r '.Certificate.DomainValidationOptions[]
+            | select(.ResourceRecord != null)
+            | "record_name=\(.ResourceRecord.Name)"' | head -1 >> "$GITHUB_OUTPUT"
+          echo "$CERT" | jq -r '.Certificate.DomainValidationOptions[]
+            | select(.ResourceRecord != null)
+            | "record_value=\(.ResourceRecord.Value)"' | head -1 >> "$GITHUB_OUTPUT"
+
+          VALIDATION=$(echo "$CERT" | jq -r '
+            .Certificate.DomainValidationOptions[]
+            | select(.ResourceRecord != null)
+            | "| \(.ResourceRecord.Type) | \(.ResourceRecord.Name) | \(.ResourceRecord.Value) | \(.ValidationStatus) |"')
+
+          {
+            echo "## Studio certificate — $STATUS"
+            echo
+            echo "- Domain: \`$DOMAIN\`"
+            echo "- ARN: \`$ARN\`"
+            echo "- Expires: $(echo "$CERT" | jq -r '.Certificate.NotAfter // "not yet issued"')"
+            echo
+            if [ "$STATUS" = "ISSUED" ]; then
+              echo "Validated. Set \`attach_studio_domain = true\` in \`infrastructure/studio\`"
+              echo "and deploy to bind it to CloudFront."
+            else
+              echo "### The record ACM is waiting for"
+              echo
+              if [ -n "$VALIDATION" ]; then
+                echo "| Type | Name | Value | Validation |"
+                echo "|---|---|---|---|"
+                echo "$VALIDATION"
+                echo
+                echo "Vercel strips the zone suffix — enter the Name **without** \`.tenurework.com\`."
+              else
+                echo "ACM has not published a validation record yet. Re-run in a minute."
+              fi
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Is the record actually there? ────────────────────────────────────
+      #
+      # The step above says what ACM wants. This one says what DNS is serving,
+      # and the difference between them is the whole diagnosis. Without it the
+      # only signal is a certificate that stays PENDING_VALIDATION, which looks
+      # identical whether the record was never added, added to the wrong zone,
+      # or added with the zone suffix duplicated — by far the most common
+      # mistake, because Vercel appends it and the ACM value already carries it.
+      - name: What DNS is actually serving
+        if: always()
+        run: |
+          set -uo pipefail
+
+          resolve() {
+            # +short prints nothing for NXDOMAIN, which is the answer we want to
+            # distinguish. Public resolver rather than the runner's, so this
+            # reports what the world sees.
+            dig +short @1.1.1.1 "$1" CNAME 2>/dev/null | head -3
+          }
+
+          WANT_NAME="${{ steps.acm.outputs.record_name }}"
+          WANT_VALUE="${{ steps.acm.outputs.record_value }}"
+
+          {
+            echo "### DNS, as the public internet sees it"
+            echo
+            echo "| Record | Expected | Actually resolving | |"
+            echo "|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$WANT_NAME" ]; then
+            GOT=$(resolve "$WANT_NAME")
+            # Trailing dots differ between ACM's value and dig's answer, and a
+            # string compare on them reports a false mismatch to somebody who
+            # did everything right.
+            if [ "${GOT%.}" = "${WANT_VALUE%.}" ]; then MARK="✅ matches"
+            elif [ -z "$GOT" ]; then MARK="❌ not resolving — add it at Vercel"
+            else MARK="⚠️ resolving to something else"
+            fi
+            echo "| validation | \`${WANT_VALUE}\` | \`${GOT:-(nothing)}\` | $MARK |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| validation | (no certificate yet) | — | |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          GOT_APEX=$(resolve "$DOMAIN")
+          if [ "${GOT_APEX%.}" = "${CF_DOMAIN%.}" ]; then MARK="✅ matches"
+          elif [ -z "$GOT_APEX" ]; then MARK="⏳ not added yet — only needed once ISSUED"
+          else MARK="⚠️ resolving to something else"
+          fi
+          {
+            echo "| \`$DOMAIN\` | \`${CF_DOMAIN}\` | \`${GOT_APEX:-(nothing)}\` | $MARK |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Has the certificate reached CloudFront? ──────────────────────────
+      - name: CloudFront distribution
+        if: always()
+        run: |
+          set -euo pipefail
+
+          # By exact hostname, never by an assumed ID. An ID copied from
+          # somewhere else is how a report describes the wrong distribution
+          # convincingly.
+          MATCHES=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?DomainName=='${CF_DOMAIN}'].Id" \
+            --output text | tr '\t' '\n' | grep -c . || true)
+
+          if [ "$MATCHES" -ne 1 ]; then
+            echo "::error::${MATCHES} distributions match ${CF_DOMAIN} — refusing to guess"
+            exit 1
+          fi
+
+          ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?DomainName=='${CF_DOMAIN}'].Id | [0]" \
+            --output text)
+
+          ALIASES=$(aws cloudfront get-distribution-config --id "$ID" \
+            --query 'DistributionConfig.Aliases.Items' --output json)
+          CERT=$(aws cloudfront get-distribution-config --id "$ID" \
+            --query 'DistributionConfig.ViewerCertificate' --output json)
+
+          {
+            echo "### CloudFront"
+            echo
+            echo "- Distribution: \`$ID\`"
+            echo "- Aliases: \`$(echo "$ALIASES" | jq -c '. // []')\`"
+            echo
+            echo '```json'
+            echo "$CERT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

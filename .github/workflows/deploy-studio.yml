@@ -210,6 +210,48 @@ jobs:
             --query 'services[0].{desired:desiredCount,running:runningCount,status:status}' --output table
 
       # A URL that 200s is the only evidence that any of the above worked.
+      # The custom domain is a two-phase change and this is the hand-off between
+      # the phases. `tenurework.com` is held at Vercel rather than Route 53, so
+      # Terraform cannot write the validation record itself — a human does, and a
+      # human who has to go and find it in the ACM console is a certificate that
+      # sits PENDING_VALIDATION for a week. Printing it into the job summary is
+      # the difference between "somebody will get to it" and a copy-paste.
+      #
+      # `|| true` on the output read: before `studio_domain` is set the output is
+      # an empty list, and a deploy that failed here would be a deploy blocked by
+      # a domain nobody had asked for yet.
+      - name: Certificate validation records, if any are outstanding
+        if: always()
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          RECORDS=$(terraform output -json studio_acm_validation_records 2>/dev/null || echo '[]')
+          ARN=$(terraform output -raw studio_acm_certificate_arn 2>/dev/null || echo '')
+          if [ "$RECORDS" = "[]" ] || [ -z "$RECORDS" ]; then
+            echo "No certificate requested — studio_domain is unset."
+            exit 0
+          fi
+
+          STATUS=$(aws acm describe-certificate --region us-east-1 --certificate-arn "$ARN" \
+            --query 'Certificate.Status' --output text 2>/dev/null || echo UNKNOWN)
+
+          {
+            echo "## Studio certificate — $STATUS"
+            echo
+            if [ "$STATUS" = "ISSUED" ]; then
+              echo "Validated. Set \`attach_studio_domain = true\` to bind it to CloudFront."
+            else
+              echo "Add these CNAME records at the registrar (Vercel holds \`tenurework.com\`):"
+              echo
+              echo "| Name | Type | Value |"
+              echo "|---|---|---|"
+              echo "$RECORDS" | jq -r '.[] | "| `\(.name)` | \(.type) | `\(.value)` |"'
+              echo
+              echo "Vercel strips the zone suffix: enter the name WITHOUT \`.tenurework.com\`."
+            fi
+            echo
+            echo "Certificate: \`$ARN\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Prove it serves
         run: |
           set -euo pipefail

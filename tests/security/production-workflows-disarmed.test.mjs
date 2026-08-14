@@ -23,7 +23,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { parse } from 'yaml'
 
-import { PRODUCTION_OWNER, WORKFLOW_DIR } from '../../tools/disarm-production-workflows.mjs'
+import { ENGINE_JOBS, PRODUCTION_OWNER, WORKFLOW_DIR } from '../../tools/disarm-production-workflows.mjs'
 
 const THIS_REPOSITORY = 'Tenurework/Tenure-Parent'
 
@@ -75,25 +75,36 @@ const isGuarded = (job) => guardedRepository(job) === PRODUCTION_OWNER
  * point of the allowlist is to make the exemption deliberate and few — not to
  * create a hole.
  */
-const READ_ONLY_JOBS = new Set(['platform-plan.yml:plan', 'aws-inventory.yml:inventory', 'debug-logs.yml:logs'])
+const READ_ONLY_JOBS = new Set([
+  'platform-plan.yml:plan',
+  'aws-inventory.yml:inventory',
+  'debug-logs.yml:logs',
+  // Armed here (it reports on the engine's own domain, so it is an engine job
+  // and appears in ENGINE_JOBS too) AND read-only. The two sets check different
+  // properties: ENGINE_JOBS that the guard names the engine owner, this that the
+  // job cannot change anything. A workflow whose entire purpose is answering
+  // "has the certificate validated yet?" must never be able to answer it by
+  // applying something.
+  'studio-domain.yml:status',
+])
 
 /**
- * Jobs that deploy THIS repository's own component, and are therefore armed
+ * Jobs that act on THIS repository's own component, and are therefore armed
  * here rather than disarmed.
  *
  * Not an exemption from the rule — the rule, correctly stated. A repository may
  * deploy what it owns and nothing else. These are checked against
  * ENGINE_OWNER below, so one of them guarded to the wrong repository still
  * fails.
+ *
+ * Derived from the tool rather than restated. This was a hand-kept literal, and
+ * it had already drifted from `ENGINE_JOBS`: `bootstrap-oidc.yml` was here and
+ * missing there. Nothing failed, because nothing read the export — so the
+ * drift was invisible in exactly the file whose job is noticing drift.
  */
-const ENGINE_DEPLOY_JOBS = new Set([
-  'deploy-studio.yml:deploy',
-  // GE-011-003. Creates the OIDC provider and roles using the long-lived keys
-  // one last time. Armed here because deployment identity for the engine is
-  // this repository's to own; checked below for its own state key like any
-  // other engine job.
-  'bootstrap-oidc.yml:bootstrap',
-])
+const ENGINE_DEPLOY_JOBS = new Set(
+  Object.entries(ENGINE_JOBS).flatMap(([file, jobs]) => jobs.map((j) => `${file}:${j}`)),
+)
 
 /**
  * Rewrite programmatic AWS invocations into command-line form.
@@ -253,6 +264,39 @@ test('an engine deploy is armed for THIS repository and nowhere else', async () 
       `${entry} is guarded to the PILOT's owner. The engine and the pilot are different things.`,
     )
   }
+})
+
+test('every job armed to the engine owner is declared as an engine job', async () => {
+  // The converse of the test above, and it exists because the test above was
+  // one-directional. That one walks the declared list and checks each entry's
+  // guard; nothing walked the guards and checked each was declared.
+  //
+  // Found by mutation. `studio-domain.yml:status` sits in BOTH ENGINE_JOBS and
+  // READ_ONLY_JOBS, and the read-only branch of the unguarded test returns
+  // first — so deleting it from ENGINE_JOBS left the whole suite green while
+  // quietly dropping the requirement that its guard name Tenure-Parent. A job
+  // could then be armed here, pointed anywhere, and nothing would say so.
+  //
+  // Walking from the guards makes the declaration mandatory rather than
+  // decorative: arming a job is now something the suite notices.
+  const mod = await import('../../tools/disarm-production-workflows.mjs')
+
+  const undeclared = []
+  for (const { file, doc } of workflows) {
+    for (const [name, job] of Object.entries(doc.jobs ?? {})) {
+      if (guardedRepository(job) !== mod.ENGINE_OWNER) continue
+      if (ENGINE_DEPLOY_JOBS.has(`${file}:${name}`)) continue
+      undeclared.push(`${file}:${name}`)
+    }
+  }
+
+  assert.deepEqual(
+    undeclared,
+    [],
+    `These jobs are armed for ${mod.ENGINE_OWNER} but are not declared in ENGINE_JOBS:\n  ` +
+      undeclared.join('\n  ') +
+      '\n\nDeclare them in tools/disarm-production-workflows.mjs, or remove the guard.',
+  )
 })
 
 test("no engine job writes the pilot's Terraform state", async () => {
