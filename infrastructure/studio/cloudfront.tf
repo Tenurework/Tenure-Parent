@@ -4,6 +4,10 @@
 # not serve the console that configures all of them.
 
 resource "aws_cloudfront_distribution" "studio" {
+  # Empty until the certificate is ISSUED. CloudFront refuses an alias it has no
+  # certificate for, so these two move together or the apply fails.
+  aliases = var.attach_studio_domain ? [var.studio_domain] : []
+
   enabled         = true
   comment         = "Tenure System Studio — internal platform engine"
   price_class     = "PriceClass_100"
@@ -46,8 +50,12 @@ resource "aws_cloudfront_distribution" "studio" {
   }
 
   viewer_certificate {
-    cloudfront_default_certificate = true
-    minimum_protocol_version       = "TLSv1"
+    cloudfront_default_certificate = var.attach_studio_domain ? null : true
+    acm_certificate_arn            = var.attach_studio_domain ? aws_acm_certificate.studio[0].arn : null
+    ssl_support_method             = var.attach_studio_domain ? "sni-only" : null
+    # TLSv1 is what the default certificate forces; a custom certificate can
+    # demand better, and an operator console has no reason to accept less.
+    minimum_protocol_version = var.attach_studio_domain ? "TLSv1.2_2021" : "TLSv1"
   }
 
   tags = local.tags

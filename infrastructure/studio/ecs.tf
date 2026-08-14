@@ -49,8 +49,8 @@ resource "aws_ecs_task_definition" "studio" {
         # Behind an ALB behind CloudFront, so the process cannot know its own
         # public hostname.
         { name = "AUTH_TRUST_HOST", value = "true" },
-        { name = "AUTH_URL", value = "https://${aws_cloudfront_distribution.studio.domain_name}" },
-        { name = "NEXTAUTH_URL", value = "https://${aws_cloudfront_distribution.studio.domain_name}" },
+        { name = "AUTH_URL", value = local.studio_origin },
+        { name = "NEXTAUTH_URL", value = local.studio_origin },
         { name = "STUDIO_AUTH_MODE", value = "cognito" },
         { name = "COGNITO_CLIENT_ID", value = aws_cognito_user_pool_client.studio.id },
         { name = "COGNITO_ISSUER", value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.studio.id}" },

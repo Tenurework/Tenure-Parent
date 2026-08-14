@@ -82,8 +82,8 @@ resource "aws_cognito_user_pool_client" "studio" {
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["email", "openid", "profile"]
-  callback_urls                        = ["https://${aws_cloudfront_distribution.studio.domain_name}/api/auth/callback/cognito"]
-  logout_urls                          = ["https://${aws_cloudfront_distribution.studio.domain_name}/signin"]
+  callback_urls                        = [for h in local.studio_auth_hosts : "https://${h}/api/auth/callback/cognito"]
+  logout_urls                          = [for h in local.studio_auth_hosts : "https://${h}/signin"]
   supported_identity_providers         = ["COGNITO"]
 
   enable_token_revocation       = true

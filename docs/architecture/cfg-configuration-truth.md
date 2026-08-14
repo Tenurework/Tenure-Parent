@@ -10,11 +10,11 @@ No timestamp, no hostname and no absolute path appears here, and every count is 
 | Authentication and authorization modules | 12 |
 | Configuration and form code | 64 |
 | Databases | 4 |
-| Infrastructure as code | 36 |
+| Infrastructure as code | 37 |
 | Workflows | 17 |
 | Tests over the configuration surface | 41 |
 | Deployed nonproduction behaviour | 3 |
-| **Total** | **201** |
+| **Total** | **202** |
 
 ## System Studio routes
 
@@ -158,6 +158,7 @@ Counted from the `resource`/`data` blocks in each file rather than from a plan, 
 | `infrastructure/oidc/outputs.tf` | terraform:oidc | 0 resources · 0 data sources |
 | `infrastructure/oidc/roles.tf` | terraform:oidc | 8 resources · 3 data sources |
 | `infrastructure/oidc/variables.tf` | terraform:oidc | 0 resources · 0 data sources |
+| `infrastructure/studio/acm.tf` | terraform:studio | 1 resources · 0 data sources |
 | `infrastructure/studio/cloudfront.tf` | terraform:studio | 1 resources · 0 data sources |
 | `infrastructure/studio/cognito.tf` | terraform:studio | 4 resources · 0 data sources |
 | `infrastructure/studio/dynamodb.tf` | terraform:studio | 2 resources · 0 data sources |

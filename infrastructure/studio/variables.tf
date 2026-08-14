@@ -179,3 +179,35 @@ variable "cell_reconcile_url" {
   type        = string
   default     = ""
 }
+
+variable "studio_domain" {
+  description = <<-EOT
+    The hostname the System Studio answers on, or "" for the CloudFront default.
+
+    `helm.tenurework.com` — the console an operator steers the fleet from, and
+    this codebase already calls the tenants a fleet everywhere (`listFleet`,
+    `observeFleet`, `fleetReadings`, "Fleet health").
+
+    Setting this REQUESTS a certificate. It does not attach one: see
+    `attach_studio_domain`, and `acm.tf` for why the two cannot be one apply.
+  EOT
+  type        = string
+  default     = "helm.tenurework.com"
+}
+
+variable "attach_studio_domain" {
+  description = <<-EOT
+    Bind the certificate and the alias to the distribution.
+
+    FALSE until ACM reports the certificate ISSUED. Attaching an unvalidated
+    certificate fails the apply, and `tenurework.com` is held at Vercel rather
+    than Route 53, so the validation CNAME is added by a human — which is a step
+    Terraform cannot wait on without blocking forever.
+
+    Flipping this also moves the auth URLs: Cognito's callback and logout URLs
+    and the task's AUTH_URL/NEXTAUTH_URL. All four move together or sign-in
+    breaks, which is why they read from one place.
+  EOT
+  type        = bool
+  default     = false
+}
