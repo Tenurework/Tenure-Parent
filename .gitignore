@@ -91,3 +91,9 @@ apps/web/scripts/roster-data.mjs
 # is a map of what to go after. Uploaded to a short-retention artifact, never
 # committed to a public repository.
 docs/architecture/key-last-use.json
+
+# Output of tools/loop/fin-mutation-run.mjs. The FIN ledger cites the COMMAND,
+# not this file — the point is that a reader re-runs the sequence rather than
+# trusting a committed transcript of it. Left tracked it would also churn a diff
+# on every run and land in the document walk.
+mutation-report.json
