@@ -44,7 +44,7 @@
 
 import type { BadgeTone } from "@/components/md3"
 
-import { CAPABILITIES, capabilitiesFor } from "../../../lib/aws/capabilities"
+import { ALL_CAPABILITIES, CAPABILITIES, capabilitiesFor } from "../../../lib/aws/capabilities"
 import type { EstateLine, EstateResource } from "../../../lib/aws/inventory"
 
 import { readAsOf } from "./estate-answer"
@@ -440,10 +440,50 @@ export function coverageRows(input: {
         // would be a claim about the whole console, and a dedicated surface may
         // well read the service in depth; what is true, and all that is true, is
         // that nothing feeds THIS inventory, so nothing here counts it.
-        because:
-          capabilities.length > 0
-            ? `This build declares ${capabilities.length} estate capability(ies) for ${service} and wires none of them into this page's inventory, so nothing ${service} holds is counted above. Another surface may read it in depth; this one does not, and cannot tell you whether it is empty.`
-            : `Terraform declares ${service} resources and no capability in this build names ${service} at all — neither a reader nor an IAM grant. It cannot be read from here even in principle.`,
+        /*
+         * Three sentences, because there are three different truths and the
+         * page was telling one of them about all of them.
+         *
+         * It used to say, whenever this inventory had no estate capability for a
+         * service: "no capability in this build names <service> at all — neither
+         * a reader nor an IAM grant. It cannot be read from here even in
+         * principle." That is a claim about the whole console, and the check
+         * behind it was `capabilitiesFor("estate")` — 42 of the 114 capabilities
+         * declared. The other 72 sit on posture, health, security, retention,
+         * identity, cost and organization.
+         *
+         * So the deployed console told an operator that cloudwatch, cognito-idp
+         * and iam had no reader and no grant. All three have both:
+         * `cloudwatch:DescribeAlarms` and `cloudwatch:GetMetricData` feed
+         * health, `cognito-idp:*` feeds identity, `iam:*` feeds posture. It also
+         * put the page in direct contradiction with
+         * `tests/architecture/every-provisioned-service-has-a-reader.test.mjs`,
+         * which passes precisely because those readers exist.
+         *
+         * The comment two fields up already stated the rule this violated —
+         * "'No reader in this build' would be a claim about the whole console,
+         * and a dedicated surface may well read the service in depth". The
+         * sentence now says only what was actually checked.
+         */
+        because: (() => {
+          if (capabilities.length > 0) {
+            return `This build declares ${capabilities.length} estate capability(ies) for ${service} and wires none of them into this page's inventory, so nothing ${service} holds is counted above. Another surface may read it in depth; this one does not, and cannot tell you whether it is empty.`
+          }
+
+          const surfaces = [
+            ...new Set(
+              ALL_CAPABILITIES.filter((capability) => serviceOf(capability) === service).map(
+                (capability) => CAPABILITIES[capability].surface,
+              ),
+            ),
+          ].sort()
+
+          if (surfaces.length > 0) {
+            return `No estate capability names ${service}, so this inventory does not count it. The console DOES read ${service} — ${surfaces.length} other surface(s) declare capabilities for it: ${surfaces.join(", ")}. This row is a gap in this page, not in the engine.`
+          }
+
+          return `Terraform declares ${service} resources and no capability anywhere in this build names ${service} — neither a reader nor an IAM grant, on any surface. It cannot be read from here even in principle.`
+        })(),
         declared,
       })
       continue
@@ -775,7 +815,12 @@ export function readerWord(reader: ReaderState): string {
     case "UNREADABLE":
       return "not read"
     case "NO_READER":
-      return "no reader in this build"
+      // "no reader in this build" was a claim about the whole console, made by
+      // a check that only looked at this page's own capabilities. Most services
+      // it was said about are read elsewhere — cloudwatch on health, cognito-idp
+      // on identity, iam on posture. The badge says what the row means: this
+      // inventory does not count it. `because` says whether anything else does.
+      return "not read on this page"
   }
 }
 

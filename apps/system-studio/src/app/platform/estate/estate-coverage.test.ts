@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 
-import type { Capability } from "../../../lib/aws/capabilities"
+import { ALL_CAPABILITIES, CAPABILITIES, type Capability } from "../../../lib/aws/capabilities"
 import { estateInventory, estateLines } from "../../../lib/aws/inventory"
 import type { AwsGateway } from "../../../lib/aws/read"
 
@@ -13,7 +13,9 @@ import {
   declarationRows,
   groupByService,
   parseTerraformDeclarations,
+  readerWord,
   serviceFor,
+  serviceOf,
   unknownDeclaration,
   unmappedSentence,
   type DeclaredEstate,
@@ -156,6 +158,92 @@ describe("a service with no reader is a gap, never an empty account", () => {
     // "S3 holds nothing" on an account holding buckets.
     expect(s3?.count).toBeNull()
     expect(s3?.because).toContain("wires none of them into this page's inventory")
+  })
+
+  /**
+   * The sentence must say only what was checked.
+   *
+   * This row used to read "no capability in this build names cloudwatch at all
+   * — neither a reader nor an IAM grant. It cannot be read from here even in
+   * principle." The check behind it was `capabilitiesFor("estate")`, which is 42
+   * of the 114 capabilities declared; the other 72 sit on posture, health,
+   * security, retention, identity, cost and organization.
+   *
+   * So the deployed console told an operator that cloudwatch, cognito-idp and
+   * iam had no reader and no grant, when all three have both — and it
+   * contradicted `every-provisioned-service-has-a-reader.test.mjs`, which passes
+   * BECAUSE those readers exist. A surface asserting the opposite of a guard is
+   * worse than either being wrong alone: whichever an operator believes depends
+   * on which they opened.
+   */
+  test("a service read on another surface is not reported as unreadable in principle", async () => {
+    // The REPOSITORY's own Terraform, because that is what puts cloudwatch,
+    // cognito-idp and iam into the service set at all — they arrive as DECLARED
+    // resources this page does not read, which is exactly the row that was
+    // making the false claim in production.
+    const lines = await linesFrom(ECS_ANSWERS)
+    const rows = coverageRows({ lines, declared: parseTerraformDeclarations(realTerraform()) })
+
+    // Every service the console declares a capability for, anywhere, that this
+    // page does not itself read. Derived, so a capability moved between surfaces
+    // keeps this test honest instead of stale.
+    const readElsewhere = rows.filter((row) => {
+      if (row.reader !== "NO_READER") return false
+      if (row.capabilities.length > 0) return false
+      return ALL_CAPABILITIES.some((capability) => serviceOf(capability) === row.service)
+    })
+
+    // Guards against a vacuous pass: if no service is in this position the
+    // assertions below prove nothing and this should say so rather than go green.
+    expect(readElsewhere.length).toBeGreaterThan(0)
+
+    for (const row of readElsewhere) {
+      const surfaces = [
+        ...new Set(
+          ALL_CAPABILITIES.filter((capability) => serviceOf(capability) === row.service).map(
+            (capability) => CAPABILITIES[capability].surface,
+          ),
+        ),
+      ]
+
+      if (row.because.includes("no capability anywhere in this build")) {
+        throw new Error(
+          `${row.service} is read on ${surfaces.join(", ")}, but the row claims no capability names it anywhere`,
+        )
+      }
+      expect(row.because).toContain("The console DOES read")
+      // And it names WHERE, so the row is actionable rather than merely hedged.
+      for (const surface of surfaces) expect(row.because).toContain(surface)
+    }
+  })
+
+  test("a service nothing anywhere declares still says so plainly", () => {
+    // The third sentence must stay reachable. If every service the estate could
+    // name were read somewhere, the honest "nothing can read this" arm would be
+    // dead code that reads like a live guarantee.
+    const declaredOnly = coverageRows({
+      lines: [],
+      declared: {
+        known: true,
+        byService: new Map([["madeupservice", { definite: 1, conditional: 0 }]]),
+        byResourceType: new Map(),
+        unmapped: [],
+        files: ["infrastructure/terraform/imaginary.tf"],
+        because: "",
+      },
+    })
+
+    const row = declaredOnly.find((r) => r.service === "madeupservice")
+    expect(row).toBeDefined()
+    expect(row?.reader).toBe("NO_READER")
+    expect(row?.because).toContain("no capability anywhere in this build")
+  })
+
+  test("the badge claims this page, not the whole console", () => {
+    // `no reader in this build` was a statement about the engine made by a check
+    // that only looked at one page's capabilities.
+    expect(readerWord("NO_READER")).toBe("not read on this page")
+    expect(readerWord("NO_READER")).not.toContain("build")
   })
 
   test("the gap is counted in the tally and said out loud in the answer", async () => {

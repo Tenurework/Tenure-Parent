@@ -539,7 +539,7 @@ export default async function EstatePage() {
               <b>{tally.unreadable}</b> read, but the call failed
             </Chip>
             <Chip data-testid="coverage-gap">
-              <b>{tally.noReader}</b> with no reader in this build
+              <b>{tally.noReader}</b> not read on this page
             </Chip>
           </div>
 
