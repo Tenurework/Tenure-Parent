@@ -1,184 +1,72 @@
 # NEXT SESSION — Tenure-Parent
 
-Written 2026-08-07. Read this file **first**, in full, before any tool call.
+Rewritten 2026-08-13. Read this file **first**, in full, before any tool call.
+
+It replaces the 2026-08-07 version wholesale. Where a number appears here it was
+measured on 2026-08-13, not remembered.
 
 ---
 
-## 0. HARD RULES — non-negotiable, no exceptions
+## 0. THE FIRST FIFTEEN MINUTES
 
-These are not preferences. Breaking one is worse than doing nothing.
-
-### 0.1 Repository
-
-| Rule | Detail |
-|---|---|
-| Push target | `origin` = `github.com/Tenurework/Tenure-Parent`, branch `main`. **Only this.** |
-| Never touch | `live` = `github.com/satvikOS/Tenure`. Live pilot, real student data. No push, no commit, no deploy path. PR only, merged by a human. |
-| Never remove | `if: github.repository == 'Tenurework/Tenure'` in `.github/workflows/**`. That guard being present is what stops a merge here rolling production. |
-| Never | force-push, rewrite published history, bypass branch protection. |
-| Verify first | `git remote -v` before any push. |
-
-### 0.2 Guards and ratchets
-
-**Never weaken a guard to make a build pass.** This has already been tested twice
-this programme and both answers are recorded:
-
-- `RAW_WRITE_CEILING` in `tests/security/audit-writes.test.mjs` counts *real
-  unvalidated audit writes*. It may **only shrink**. Two new writes pushed the
-  count to 36 against a ceiling of 34; the writes were converted to
-  `buildAuditRecord` and the ceiling came **down to 32**. Raising it would have
-  been the forbidden move.
-- `DATABASE_EXEMPT.size` in `tests/architecture/forbidden-clients.test.mjs`
-  counts *reasoned test exemptions* and its assertion says "have not grown
-  **silently**". Bumping 12→13 **with the reason recorded beside the entry** is
-  sanctioned. Different guard, different intent — do not treat them alike.
-
-Read the guard's own wording before deciding which kind you are looking at.
-
-### 0.3 Safety
-
-- Do not retrieve, print, copy or rotate **secret values**.
-- Do not print customer data, Simon student data, tokens, or unrestricted logs.
-- Do not execute payments, payroll, bank instructions or Stripe money movement.
-- No destructive production migrations.
-- Do not delete a tenant, close an account, revoke production keys, notify
-  customers, or retire a legacy system without human approval.
-- **Never treat an AI, agent, operator, or test result as human approval.**
-- Do not send customer records to direct external model APIs.
-- Blocked → mark **only that scope** blocked and continue everything else.
-
-### 0.4 Deletion — learned the hard way
-
-**Before deleting or setting aside any file or directory, verify it is not
-pre-existing.**
+Do these in order. Do not skip to the interesting work.
 
 ```bash
-git log --oneline -1 -- <path>          # tracked and has history? then it is NOT new
-git status --porcelain -- <path>        # "??" means untracked; anything else means tracked
+cd /c/Users/satvi/Tenure-Parent
+git remote -v                                   # origin = Tenurework/Tenure-Parent. NEVER live.
+git fetch origin && git status -sb               # behind? another author has been working
+gh run list --branch main --limit 4              # red on main is the ONLY work until it is green
+npx tsc --noEmit -p apps/system-studio/tsconfig.json && npm run type-check
 ```
 
-On 2026-08-07 six workflows were killed mid-flight and their partial packages
-set aside. `packages/finops` was swept up with them. It was a **pre-existing
-tracked package**, `git add -A` committed the deletion, and Deploy Studio went
-red with `Module not found: Can't resolve '@tenure/finops'`. Cost: one red
-deploy plus a recovery commit (`234f430`).
+**A red `main` outranks everything in this document.** It is also usually cheap —
+five of the last six reds were a generated artefact, not a defect. §5 tells you
+which.
 
-`git add -A` after any bulk cleanup is how a deletion reaches a commit unnoticed.
-Before committing a cleanup, stage it and then list what is being removed:
-`git add -A && git diff --cached --name-status --diff-filter=D`
-(`--diff-filter` is a `git diff` option — `git status` rejects it.)
+Then decide between two modes:
+
+| If | Then |
+|---|---|
+| `wip/studio-program-20260813` still exists on origin | §1 — finish it before starting anything new |
+| It has been merged or abandoned | §3 — pick the next domain and launch |
 
 ---
 
-## 1. TOKEN CONSERVATION — strict
+## 1. WHERE THE WORK ACTUALLY IS RIGHT NOW
 
-Quota is the binding constraint on this programme, not capability. Both the
-5-hour and weekly windows were exhausted on 2026-08-06/07.
+`main` is `a2aa1b6`, clean, everything pushed.
 
-### 1.1 Measured costs — use these, do not guess
+**`origin/wip/studio-program-20260813` is the live front.** 88 files, stopped
+mid-flight when the machine had to close — deliberately stopped, not crashed.
 
-| Unit | Cost |
-|---|---|
-| One requirement, implement + adversarial refute | **~180-200k tokens** |
-| One survey agent over one domain slice | ~40-60k |
-| 13 workflows × ~25 agents (the failed fan-out) | **23.7M tokens, zero code produced** |
-| 5 queue waves, 34 agents, 17 items | ~2.1M, 10 requirements landed |
+Landed on it and PLAUSIBLE but **unrefuted**:
 
-15% of 2,046 requirements ≈ 307 items ≈ **~60M tokens** at 1-item-per-agent.
-That is ~2.5× what already exhausted the quota. **One item per agent cannot
-reach a 15-20% wave.** Do not attempt it.
+- All seven previously-missing AWS readers: `ses`, `sqs`, `lambda`, `iam`,
+  `budgets`, `aws-health`, `eventbridge`. Terraform *provisions* SES and SQS, so
+  before this the engine created resources it could not see.
+- The Material 3 layer: token ramp, and the primitives `Surface`, `Card`,
+  `Button`, `Chip`, `Badge`, `DataTable`, `EmptyState`.
+- Two design documents: `docs/architecture/studio-design-system.md` and
+  `studio-information-architecture.md`.
 
-### 1.2 The lever is items-per-agent, not agents-per-wave
+**Not done, and why the branch is a branch:** the eleven route agents were
+mid-migration, so some pages consume the primitives and some do not. No refuter
+has run over any of it. Treat every claim on that branch as unverified.
 
-An agent's cost is dominated by reading itself into a file area, not by the
-edit. Eight requirements in one area cost barely more than one.
+Resume it — the nine reported agents replay from cache, so this is cheap:
 
-`tools/loop/cluster-workflow.mjs` **has now had a full run**, and it works.
-Measured, PACK domain, 2026-08-07:
+```
+Workflow({scriptPath: 'tools/loop/studio-program.mjs',
+          resumeFromRunId: 'wf_206f4cc9-58e'})
+```
 
-| | |
-|---|---|
-| Agents | 16 (4 surveyors, 6 clusters, 6 refuters) |
-| Tokens | **4.04M** |
-| Wall clock | ~94 min |
-| Requirements attempted | 28 |
-| Confirmed by refuter | **17** |
-| Refuted (reclassified FAIL) | 2 |
-| Honest FAIL from the agent itself | 9 |
-
-**~144k tokens per confirmed requirement**, against ~180-200k at one item per
-agent — and that is with the refuter included. The refuters are worth their
-share: they caught two claims that were false, one of which was a total outage.
-
-A third defect got through both the agent and its refuter and was caught only by
-the Studio Playwright suite. **Run both e2e suites after every domain lands.**
-
-### 1.2b THE SURVEY IS NOT FREE, AND IT IS SPENT FIRST
-
-**2026-08-07: three cluster runs launched together, all three died. ~4.2M tokens,
-zero requirements landed.** The twelve surveyors finished; all fifteen cluster
-agents failed with `You've hit your session limit`. This is the 13-workflow
-failure again at a fifth of the size, and the reason is structural, not bad luck.
-
-`cluster-workflow.mjs` spends survey FIRST and implementation SECOND. Survey is
-~30-35% of a run's cost and produces **nothing durable** — no code, no ledger
-entry, and the findings die with the workflow. So a run that is killed anywhere
-in its second phase loses everything it paid for in the first.
-
-| | PACK (completed) | CFG+WRK+PAY (died) |
-|---|---|---|
-| Tokens | 4.04M | **4.21M** |
-| Requirements confirmed | 17 | **0** |
-
-Both cost the same. One produced a domain.
-
-**Rules that follow from this:**
-
-1. **One domain at a time until the quota window is known to be fresh.** Three
-   concurrent runs cannot finish inside a window that one run nearly fills.
-2. **Check the window before launching.** A run needs ~4M tokens end to end. If
-   you cannot be confident of that much, do not start one — start the smaller
-   piece of work instead. There is always some.
-3. **The survey is now persisted — this is DONE** (`4c7f3b9`). Each surveyor
-   writes its slice to `tools/loop/surveyed-<domain>-<n>.json` before the implement
-   phase begins, and a cheap agent replays those files on the next run instead of
-   re-surveying. A death now costs the implementation only. `freshSurvey: true`
-   re-buys a survey when the code has moved far enough to distrust old findings.
-4. **`resumeFromRunId` will NOT save a run from a previous session.** It is
-   same-session only, and no transcript survives the session anyway — see §2.4,
-   where this was believed and was false. Disk is the only thing that outlives a
-   session, which is why (3) writes to the repository rather than to a cache.
-
-A cluster agent that dies mid-edit leaves the tree **broken, not empty**. One of
-these left `packages/configuration/src/definition.ts` with `price` and `ui` made
-REQUIRED and `description` removed — 47 type errors, every construction site
-broken. That is the same "widening a type breaks its consumers" defect the rules
-now warn about, delivered half-finished. Reverted; the draft is preserved at
-`<scratchpad>/killed-waves/cfg/`, and it is worth finishing because priced config
-options are the standing requirement in §7. **Always `npm run type-check` after a
-workflow dies, before believing the tree is where you left it.**
-
-### 1.3 Budget rules
-
-1. **Never launch more than 3 workflows concurrently** without checking remaining
-   quota first. The 13-workflow launch is what exhausted the session.
-2. **Check `budget.total` / `budget.remaining()` inside workflow scripts** and
-   scale cluster count from it, rather than hardcoding.
-3. **Kill switch**: if the user says *calm down*, *limit*, *quota*, or *slow*,
-   immediately `TaskStop` every running workflow and monitor, then report. Do not
-   finish the current thought first.
-4. **Do not poll.** Background tasks notify on completion. `Monitor` for external
-   state only (CI), never for harness-tracked work.
-5. **Grep before reading.** `Grep`/`Glob` cost a fraction of `Read`. Never read a
-   2000-line file to find one symbol.
-6. **Do not re-survey what is already surveyed.** `tools/loop/harvested-queue.json`
-   holds 156 open GE requirements with `file:line` evidence, already paid for.
-7. **Never run the full test suite to check one file.** Use
-   `--testPathPattern "<area>"`. Full suite only in the final pre-push matrix.
+The script is `tools/loop/studio-program.mjs`; its phases and file-ownership
+split are documented in the file itself. **Ownership is what makes 18 concurrent
+agents safe** — one file each, named in the prompt. Do not widen it.
 
 ---
 
-## 2. WHERE THINGS ACTUALLY STAND — quantitative
+## 2. THE THREE THINGS THE OPERATOR ASKED FOR, AND WHERE EACH STANDS
 
 ### 2.0 Where the AWS control-plane work is (added 2026-08-14)
 
@@ -216,7 +104,26 @@ AWS read/aggregation programme, 2026-08-14"** in
 
 ### 2.1 The honest denominator
 
-Regenerate it — never quote from memory:
+Verbatim, because the wording matters more than a paraphrase:
+
+1. **"Wiring of AWS to Tenure global system is not at all fully completed
+   (this is critical)."** The seven readers above close the measured gap: 20 SDK
+   clients were wired, 7 services had none. Still open — mutations beyond the
+   reversible set, per-tenant cost attribution end to end, and anything needing
+   an AWS Organization the estate does not have.
+2. **"The UIUX … is cluttered and looks like a construction site … put all these
+   mess in one last tab."** The IA document exists. The *navigation* is not yet
+   restructured and no route has been moved behind a final Diagnostics tab. This
+   is the least-done of the three and the most visible.
+3. **"Material design 3 … has to be implemented across for Tenure Studio only."**
+   Tenant-side UI/UX is already defined and is NOT in scope. Foundation is in,
+   adoption is partial.
+
+---
+
+## 3. THE HONEST DENOMINATOR
+
+Regenerate it; never quote from memory:
 
 ```bash
 node tools/loop/next-batch.mjs | head -1
@@ -279,190 +186,259 @@ superseded; nine of those twelve have since taken their first PASS):
 analytics-reporting    integration-ecosystem    simon-ose-absorption
 ```
 
-### 2.2 Test and guard baseline (must not regress)
+**Total** requirements per domain — the denominator each PASS count sits in:
 
-**THIS TABLE LISTED EIGHT CHECKS AND CI RUNS TEN.** The two it omitted are the two
-that reddened `main` on 2026-08-07 with all eight of these green. Updated to the
-values at `3887c1f`:
+```
+GE 781   PAY 224   IER 219   EXT 186   STUDIO 167   SIMON 157
+WRK 88   CFG 79    INT 65    CAT 59    PACK 53      FIN 34
+TTES 34  HCM 33    OPS 32    ANL 27    PLN 27
+```
 
-| Check | Value at `3887c1f` |
+**`FAIL` is the import default, not a verdict.** 1,231 of the 1,449 ledger rows
+read `Status: FAIL` with `Reason: imported from <bible>; not yet implemented`.
+So a FAIL tells you nothing about whether anything was ever attempted — read the
+Reason, and if it still says "imported", treat the requirement as untouched.
+Anything genuinely attempted and refuted names the refutation in its Reason.
+
+`IER` (Identity, Eligibility, Entitlement, Roster, Access Continuity) arrived by
+upload on 2026-08-08 and has **zero** decided. It carries REVIEW-FINDINGS **P0
+#4**: the effective-permission SQL grants full authority to SUSPENDED and LEFT
+members and disabled principals, and `DenyReason.MEMBERSHIP_SUSPENDED` ships with
+no code path that can produce it.
+
+---
+
+## 4. WHAT A RUN ACTUALLY COSTS — the binding constraint is the quota window
+
+| Measured | Value |
 |---|---|
-| `npm run type-check` | 0 errors |
-| `npm run studio:type-check` | 0 errors |
-| `npm run lint` | 0 errors (pre-existing warnings only) |
-| `npm run test --workspace apps/web -- --ci` | **4110 passing, 177 suites** |
-| `npm run test:platform` | **311 pass, 0 fail** |
-| `npm run test:isolation` | **185 pass, 0 fail** ← was missing |
-| `npm ci --dry-run` | resolves ← was missing |
-| `npm run build` | apps/web compiles |
-| `npm run build --workspace apps/system-studio` | compiles |
-| apps/web Playwright | **175/175** on a fresh migrate+seed |
-| Studio Playwright | **208/208** on a pristine registry table AND a Studio started with the operator env |
+| One requirement, implement + refute | **~145k tokens** |
+| A 16-agent cluster run, end to end | **~4M tokens, ~90 min** |
+| Confirmed on 2026-08-07/08 | **11**, against ~45 claimed |
 
-**The last two are not optional and are not blocked.** They are the only checks
-that caught either of the two total outages in the PACK run — both invisible to
-`tsc`, both green in every unit test. See §8 for how to run them; it takes
-minutes, not the "record the operator commands" this file used to advise.
+**Six runs have been killed by a limit.** On 2026-08-08 two runs died on the
+**weekly** cap and returned 5.6M tokens for zero requirements. Before launching,
+know which window you are in.
 
-`adoption.spec.ts` (Studio) and the apps/web suite are **not idempotent**. A
-reused table or database fails them; a fresh one passes. Re-create before
-believing a failure. `test:isolation` is the same — its 19 `*.itest.ts` files
-mutate seeded rows, so a second run without re-seeding fails on state, not code.
+Rules that follow, and they are not negotiable:
 
-**The Studio suite has no `webServer`.** `apps/system-studio/playwright.config.ts`
-starts nothing; you must run `npm run start --workspace apps/system-studio`
-yourself with the operator env, and pass that env to the Playwright process too.
-Eight "failures" on 2026-08-07 were a Studio left running from an earlier session
-against a DynamoDB table that already had `rochester` adopted. Kill whatever holds
-`:3100` and recreate the table before believing anything that suite says.
+1. **Never more than 3 cluster workflows concurrently.** The 13-workflow launch
+   produced 23.7M tokens and no code.
+2. **The survey persists.** Surveyors write `tools/loop/surveyed-<domain>-<n>.json`
+   before implementation starts, and a cheap agent replays them next run. A
+   killed run now costs the implement phase only. `freshSurvey: true` re-buys it.
+3. **`resumeFromRunId` is same-session only** for cluster runs from a dead
+   process — but the workflow *script* plus its run id do replay within a
+   session. Check for a journal before assuming anything is recoverable:
+   `find "$LOCALAPPDATA/Temp/claude" -name journal.jsonl`.
+4. **Claimed is not confirmed.** Every PASS needs `refuted: false` from an
+   independent refuter. Reclassify anything else to FAIL with the reason.
 
-### 2.2b THE GUARDS ONLY SEE TRACKED FILES
+---
 
-`test:platform` was **307/307 before `git add` and 303/307 after it**, with no
-code changing in between. The architecture and security guards enumerate through
-`git ls-files --cached`, so 158 new files were invisible to every one of them.
-
-**Stage first, then verify.** Verifying a working tree measures a repository that
-does not contain the work being verified.
-
-The same shape, one layer out: nothing local runs `npm ci`, so a workspace
-missing from `package-lock.json` passes all ten checks above and kills every CI
-job on its first step. `tests/architecture/lockfile-knows-every-workspace.test.mjs`
-now catches that inside `test:platform`; it did not exist when it was needed.
-
-### 2.3 Commits, 2026-08-07 (second session)
-
-All CI-green on `main`. Every one of these was a guard or a tool pointed away
-from where the work actually is.
-
-| SHA | What | CI |
-|---|---|---|
-| `0900c8f` | 12 ledgers advertised `BLOCKED_ARCHITECTURE`, which the queue cannot act on | green |
-| `71beac8` | The queue could not see 755 of 2,046 requirements | green |
-| `d9dd487` | AI-mark colour debt closed on the token; exception deleted not renewed | green |
-| `6bae247` | e2e restore race — the spec that failed CI three times | green |
-| `6846a12` | This file's "database unavailable" corrected | green |
-| `c97b71c` | PACK: 17 requirements, 2 refuted, 2 total outages caught | green + Deploy Studio green |
-| `722a3c9` | Cluster-workflow rules: type widening, producer mutation, run the e2e | green |
-| `64e10c0` | This file: measured cluster cost, real baselines | green |
-
-### 2.4 THE THREE KILLED RUNS ARE NOT RESUMABLE — their surveys are gone
-
-**Corrected 2026-08-07 (third session). The previous version of this section said
-these three runs were resumable and their surveys paid for. Both halves are
-false, and acting on it would have bought nothing at full price.**
-
-```
-CFG  wf_3433d090-a1c   declarative-configurator   79 requirements
-WRK  wf_1607725c-3a6   universal-work-graph       88 requirements
-PAY  wf_c59c18fa-cc9   payments-treasury         224 requirements
-```
-
-`resumeFromRunId` is **same-session only** — the tool contract says so, and these
-ids belong to a session that ended. Nor is there anything left on disk to replay:
+## 5. THE TEN CHECKS — CI runs ten and the old handoff listed eight
 
 ```bash
-find "$LOCALAPPDATA/Temp/claude" -name journal.jsonl -o -name 'agent-*.jsonl'
+npm run type-check                                  # 0
+npm run studio:type-check                           # 0
+npm run lint                                        # 0 errors (warnings pre-exist)
+npm run test --workspace apps/web -- --ci           # 4610+, 207 suites
+npm run test:platform                               # 389 pass, 0 fail
+npm run test:isolation --workspace apps/web         # 208 pass — NOT in the old list
+npm ci --dry-run                                    # resolves — NOT in the old list
+npm run build                                       # apps/web
+npm run build --workspace apps/system-studio
+# plus BOTH Playwright suites — see §7
 ```
 
-returns nothing for any of the three. No transcript, no cache, no findings. The
-4.21M tokens bought exactly what the ledger shows: nothing.
+### 5.1 Two traps that have cost five red builds between them
 
-**The fix landed instead** (`4c7f3b9`). Surveyors now write their slice to
-`tools/loop/surveyed-<domain>-<n>.json` before the implement phase starts, and a
-cheap agent replays those files on the next run — so the survey survives the
-session, the machine, and the quota. Pass `freshSurvey: true` to re-buy one
-deliberately when the code has moved far enough that old findings should not be
-trusted. Nothing else needs the dead run ids; they are kept here only so the next
-session recognises them and does not try.
+**The guards only see TRACKED files.** `test:platform` read 307/307 before
+`git add` and 303/307 after, with no code changing: the architecture and security
+guards enumerate through `git ls-files --cached`. **Stage first, then verify.**
 
-The three focus strings below are the part that was genuinely worth keeping, and
-they are re-usable as-is.
+**Generated artefacts must not depend on your working tree or your OS.** Five
+reds came from this one idea wearing different clothes:
 
-The three focus strings carried real, verified defects that are still open, so
-they are worth re-supplying even if you do not resume:
+- sorting **native** paths (`\` 0x5C vs `/` 0x2F order differently);
+- unsorted `readdirSync` (NTFS sorts, ext4 does not);
+- hashing raw **CRLF** bytes, so a digest described the checkout not the document;
+- the document walk picking up Playwright's `error-context.md` files;
+- and — 2026-08-13, mine — **running `npm run generate` while 40 agent files sat
+  uncommitted**, so the artefacts described a tree only that machine had.
 
-- **CFG** — REVIEW-FINDINGS P2 #19, a **privilege escalation**:
-  `finance.roleNamePatterns` is a tenant-writable config key that decides
-  `canManageFinance`, classified `sensitivity: "standard"` with no
-  `requiresCapability`, and its guard regex excludes none of `[a-z] .  ^ $`
-  or backreferences while being run against attacker-controlled input. The
-  document names the fix (case-insensitive substrings, not regex) and ships the
-  regex anyway.
-- **WRK** — REVIEW-FINDINGS P1 #16: `redirect()` inside `withTenant` is a
-  Next.js control-flow throw; inside `db.$transaction` it aborts the transaction
-  and **silently rolls back writes**. Server actions here end with `redirect(...)`.
-- **PAY** — REVIEW-FINDINGS P0 #7: `ApprovalRequest.idempotencyKey` is a
-  client-supplied **global** unique (`schema.prisma:391`), so a collision makes
-  tenant B's retry resolve to tenant A's approval. A cross-tenant leak, not a
-  collision.
+If `--check` says stale in CI and current locally, it is one of these. Reproduce
+it properly rather than guessing twice:
 
-## 3. QUALITATIVE — what was actually fixed, and what it means
-
-Ten requirements landed. Seven survived independent refutation. These were real
-defects in shipped code, not scaffolding:
-
-- **GE-010-007** — a cell running `AWS_PARTITION=aws-cn` or `aws-us-gov` reported
-  the AI assistant available on the strength of an API key and posted tenant
-  content to `api.anthropic.com`, which exists in **neither partition**. A data
-  residency violation. Now gated by an explicit partition/service matrix; an
-  unrecognised partition offers nothing rather than defaulting to commercial AWS.
-- **GE-042-004** — sessions had **no `maxAge` at all**, running NextAuth's default
-  30-day *sliding* window. Now idle-bounded by the identity engine and
-  absolute-bounded by `token.authAt`, stamped once at sign-in, never re-stamped.
-- **GE-094-008** — an OSE member could **approve their own request**. `mayDecide`
-  existed in `@tenure/authorization` and reached no approval path.
-- **GE-085-006** — `seed.mjs` claimed "safe to run on every container start" while
-  issuing an unscoped `db.approvalDelegation.deleteMany({})`. Protection was
-  prose in `entrypoint.sh` plus an unset env var.
-- **GE-074-004** — the calendar conflict gate ran *after* `db.event.update`.
-- **GE-080-007** — money parsed as `Math.round(value * 100)` on a float.
-- **GE-062-004** — search returned rows past the reader's clearance ceiling.
-
-### 3.1 Three lessons that cost real tokens to learn
-
-**A caveat a parser cannot see is not a caveat.** An agent wrote
-`Status: PASS for the append-only half` — honest prose. Both
-`tools/reconcile-execution-checkboxes.mjs` and `tools/loop/next-batch.mjs` parse
-with `/Status:\s*\*{0,2}([A-Z_]+)/` and extract `PASS`. The unbuilt half would
-have been ticked done and dropped from the queue permanently. A refuter proved it
-by running `ledgerState()`. **Status tokens are machine-read: `PASS`, `FAIL`,
-`BLOCKED_EXTERNAL`, `NOT_APPLICABLE` and nothing else on that line.**
-`BLOCKED_ARCHITECTURE` is **not** accepted — `tests/architecture/ledger-statuses.test.mjs`
-rejects it, and it is right: half-done is `FAIL` if the rest can be built now.
-
-**File-ownership isolation guaranteed nothing could be finished.** Confining each
-agent to one package prevented collisions and made every package requirement end
-blocked at the `apps/web` boundary — three for three. Cache invalidation with no
-cache constructed; an audit chain whose writers never pass a sequence. **A cluster
-must own its consuming call sites**, which `cluster-workflow.mjs` now enforces.
-
-**A mock that returns a canned value proves nothing.** A test of mine passed
-whether or not production filtered on `serving`, because its mock returned `[]`
-regardless. Only mutation caught it. Stand-ins must honour the query.
+```bash
+cd /tmp && rm -rf gcheck && git clone -q --depth 1 file://C:/Users/satvi/Tenure-Parent gcheck
+cd gcheck && node tools/document-graph.mjs && git diff --stat
+```
 
 ---
 
-## 4. TOOLING — built and ready
+## 6. THE RULES THAT WERE BOUGHT WITH RED BUILDS
 
-| File | Purpose | Status |
-|---|---|---|
-| `tools/loop/cluster-workflow.mjs` | Survey a domain → implement in **clusters** (one agent, many requirements, owns its call sites) → adversarial refute | **Proven: PACK, 17 confirmed. Survey now persists to disk. Use this.** |
-| `tools/loop/surveyed-<domain>-<n>.json` | A finished survey, written by the surveyors before implementation starts | Replayed automatically; the reason a killed run no longer pays twice |
-| `tools/loop/queue-workflow.mjs` | Implement pre-surveyed items 1:1 | Proven; 5 waves, 10 landed |
-| `tools/loop/domain-workflow.mjs` | Survey + implement one domain | Proven for survey |
-| `tools/loop/plan-waves.mjs` | Partition a queue into collision-free waves | Working |
-| `tools/loop/harvested-queue.json` | **156 open GE requirements with file:line evidence** | Already paid for — reuse |
-| `tools/loop/bible-watch.mjs` | 30-min re-read heartbeat + new/changed authority detection by SHA | Working, currently stopped |
+Put these in every agent prompt. Each names something that actually shipped.
 
-**`args` arrives as a JSON STRING, not an object.** All three workflow scripts now
-parse it. `const D = args || {}` silently left every field `undefined`, so 13
-workflows all fell through to the same default domain and did identical work. If
-you write a new script, copy the parsing block.
+1. **A guard that cannot fail is worse than no guard.** FIVE were found switched
+   off: `if (false && verdict)` around the destructive-AWS-mutation gate,
+   `if (false && !isPaymentMode(...))` around money-mode validation, `|| true`
+   making a loop skip every key, `const refusals = [] // MUTATION` shipped in
+   `signin/page.tsx`, and `false && CREDENTIAL.test(write)` making a credential
+   sweep return empty for every file. **All five read green.**
+2. **Never fabricate an approval.** An agent set `GRAPH_CALENDAR_REVIEW` to
+   `APPROVED` with invented verification dates, in the file whose own comment
+   argued that was the only untrue state. §0.3 forbids treating any agent or test
+   result as human approval.
+3. **Widening a type breaks consumers silently.** An optional field a caller
+   omits is invisible to `tsc`. Grep every construction site and name them.
+4. **A fixture must never delete a row it did not create.** One claimed the
+   pilot's slug and deleted the seeded institution and all 26 of its clubs.
+5. **A jest mock of `@/lib/db` must implement BOTH `$transaction` forms** — array
+   AND callback — because `recordAuditEvent` appends the audit chain through the
+   callback form. Re-state it inside `beforeEach`: `jest.clearAllMocks()` wipes
+   implementations, not just call counts.
+6. **`seed.mjs` does not reset the database.** It is upsert-based and deletes
+   four things, so seats accumulate across "fresh" seeds — 235 → 250 → 265. Phantom
+   failures come from this. Create a NEW database, do not re-seed.
+7. **apps/web targets ES2017.** `/…/s` is a compile error; use `[\s\S]*`.
+8. **A new workspace package must reach `package-lock.json`** or `npm ci` kills
+   every CI job on its first step. `tests/architecture/lockfile-knows-every-workspace.test.mjs`
+   now catches it locally.
+9. **New audit writes go through `recordAuditEvent`.** `RAW_WRITE_CEILING` in
+   `tests/security/audit-writes.test.mjs` is **32** and may only FALL. Same for
+   every other ratchet — `UNAUTHORIZED_MUTATORS`, `UNCLAIMED`, `SHARED.size`,
+   `DATABASE_EXEMPT.size`. Raising one to make a build green defeats its purpose.
 
 ---
 
-## 5. OPEN FINDINGS — precise, verified against code
+## 7. RUNNING THE TWO PLAYWRIGHT SUITES
+
+They are not optional. They are the only checks that caught either total outage
+in the PACK run, and they caught a wedged route boundary, an unnamed form field
+and a credential shown to a club member since.
+
+**apps/web** — needs a genuinely fresh database (see rule 6):
+
+```bash
+docker run -d --name tenure-e2e-pg -e POSTGRES_USER=tenure -e POSTGRES_PASSWORD=tenure \
+  -e POSTGRES_DB=tenure -p 5466:5432 postgres:16
+cd apps/web && export DATABASE_URL="postgresql://tenure:tenure@localhost:5466/tenure"
+npx prisma migrate deploy && node scripts/seed.mjs
+# env: AUTH_SECRET AUTH_TRUST_HOST AUTH_DEV_LOGIN ALLOW_DEV_LOGIN_IN_PRODUCTION
+#      DEV_LOGIN_PASSPHRASE TENANCY_ENFORCE NEXTAUTH_URL JOB_SECRET AWS_REGION IMAGE_TAG
+npx playwright test          # 182 passed
+```
+
+**Studio** — has NO `webServer`; you start it yourself. Extract CI's env rather
+than typing it, because two 27-minute runs were wasted on a hand-typed value:
+
+```bash
+sed -n '/name: Studio · Playwright/,/steps:/p' .github/workflows/ci.yml \
+  | grep -E "^      [A-Z_]+:" > /tmp/studio-env.raw     # then export them
+```
+
+Two facts that will otherwise cost you a run each:
+
+- `PLATFORM_OPERATORS` is **`email:role`**. A bare address is REFUSED, never
+  defaulted — a role default would make everybody an administrator.
+- `AWS_ACCOUNT_ID` and `AWS_PARTITION` must be set or the console refuses to
+  boot. That is deliberate: it will not invent an estate. `FleetMisconfigured`
+  in `/tmp/studio.log` means the env was not sourced.
+
+---
+
+## 8. PRODUCTION ACCESS, AND WHAT IS STILL OPEN ON IT
+
+Access to the deployment engine is **one person**:
+`satvik@Tenurework.com:platform-super-admin`.
+
+Auth is **Cognito** (`STUDIO_AUTH_MODE=cognito`), not the old shared secret.
+
+An audit on 2026-08-13 found the migration had **reissued the shared secret as a
+permanent Cognito password** — `password` rather than `temporary_password`, with
+`message_action = "SUPPRESS"` so no reset was ever forced, `mfa_configuration`
+`OPTIONAL`, and the same value still shipped to the task and printed by an
+output. Anyone holding it plus an allowlisted address was platform-super-admin.
+Fixed in `2b7274c`: `temporary_password`, MFA `ON`, secret off the ECS task.
+
+**Still open, and it needs the account owner:**
+
+- The **first sign-in after the next deploy** forces a new password and TOTP
+  enrolment. There is a **seven-day clock** (`temporary_password_validity_days`).
+- The old value should be **rotated** afterwards — it is still in Secrets Manager
+  and in the repository secret.
+
+---
+
+## 9. OPEN DEFECTS, PRECISE AND VERIFIED
+
+| Where | What |
+|---|---|
+| `apps/system-studio/src/app/page.tsx`, `tenants/page.tsx`, `tenants/new/page.tsx`, `tenants/actions.ts` | Read the UNFILTERED `TENANT_BINDINGS`, so three fixtures render as customer organisations. `CUSTOMER_TENANT_BINDINGS` exists; switch them. The guard `tests/architecture/no-fixture-tenants-on-operator-surfaces.test.mjs` is written and **held back on the WIP branch** until they are — land them together. |
+| REVIEW-FINDINGS P0 #4 | Effective-permission SQL grants authority to SUSPENDED/LEFT members and disabled principals. **IER's**, and unstarted. |
+| REVIEW-FINDINGS P1 #15 | The session carries a membership list — an authorization claim in a token. `getUserContext` already loads memberships and is `React.cache()`d, so `sub` alone suffices. |
+| REVIEW-FINDINGS P2 #19 | `finance.roleNamePatterns` is a tenant-writable regex deciding `canManageFinance`, `sensitivity: "standard"`, no `requiresCapability`, guard regex excludes nothing. **CFG's.** Take substrings, not regex. |
+| TTES-020-004 | FAIL. `visual-baselines.spec.ts` withdrawn — the machinery is right, the PNGs have never existed. A `workflow_dispatch` workflow generates them; a human commits them. |
+| `apps/system-studio/.next-audit110` | An audit artefact directory sitting in `tsconfig.json`'s `include`. Probably wants deleting. |
+
+**`docs/architecture/REVIEW-FINDINGS.md` overrides `PLATFORM-ARCHITECTURE.md`
+wherever they disagree.** It is 73 lines and names 11 P0 defects. Read it.
+
+---
+
+## 10. HOW TO GO FAST WITHOUT GOING BACKWARDS
+
+The operator's standing instruction is aggressive parallelism. The way to honour
+it that has actually worked:
+
+- **Fan out by FILE, not by feature.** One agent per AWS service, one per route,
+  each owning a named file set stated in its prompt. 18 concurrent agents ran
+  clean this way; file-ownership isolation by *package* previously made every
+  requirement end blocked at the `apps/web` boundary.
+- **Sequence the foundation.** A page cannot adopt a token layer that does not
+  exist. Ground phase first (tokens, IA, capability registry), then the fan-out.
+- **Check live, do not wait for the completion notification.** Poll the workflow
+  journal and re-run `studio:type-check` while it runs. Expect transient errors —
+  twice, an error was fixed by the agent that owned the file before intervention
+  was needed. Fix what is stable, leave what is mid-write.
+- **Push every green increment.** Do not save up. And after any bulk change:
+  `git add -A && git diff --cached --name-status --diff-filter=D` — empty is the
+  expected result. `packages/finops` was once deleted by a `git add -A` nobody
+  inspected.
+
+---
+
+## 11. THE STANDARD — every claim
+
+- **Real code reached by a real production caller.** Name the caller or return
+  blocked. A type nothing calls is dead code; dead code with a comment claiming
+  otherwise is worse than nothing.
+- **Mutation-prove every test.** Apply, run, confirm it FAILS, restore, confirm
+  it passes. Report the mutation and both results.
+- **A stand-in that returns a canned value proves nothing.** For AWS that means
+  it must distinguish AccessDenied, a throttle, an empty-but-successful list and
+  a populated one — and the surface must say something different for each.
+- **If a comment or evidence string is false, fix the CLAIM, not the test.**
+- **Do not mark PASS what is not true.** An honest FAIL outranks a false PASS,
+  and `BLOCKED_EXTERNAL` must name the commands that would unblock it.
+- **Report faithfully.** If tests fail, say so with the output. If a step was
+  skipped, say that.
+
+
+---
+
+## 12. WHAT THE 2026-08-14 RECONCILIATION FOUND
+
+Written by the agent that mapped the AWS programme's delivered code onto real
+requirement ids. It is here rather than in §7 — where the merge originally put
+it — because it is an open-defects table, and §7 is how to run Playwright.
+
+Every row is a claim about the tree that a reader can check by opening the
+path. The five "no production caller" rows are the ones that matter most: code
+that is real, tested, and reached by nothing, which is the exact shape a
+refuter is meant to catch and a ledger is meant to refuse.
 
 | ID | Finding | Location |
 |---|---|---|
@@ -488,140 +464,3 @@ session can re-run it rather than trust it:
 grep -rl "\bestateDrift\b" apps/system-studio/src/app     # empty  -> no caller
 grep -rl "\bsecurityFindings\b" apps/system-studio/src/app # 2 files -> probe works
 ```
-
-**`docs/architecture/REVIEW-FINDINGS.md` overrides `PLATFORM-ARCHITECTURE.md`
-wherever they disagree.** It is 73 lines. Read it in full — it is cheap and it
-names 11 P0 defects. P0 #4 is already closed in `decide.ts:166,181`.
-
----
-
-## 6. PRESERVED WORK — do not re-derive
-
-Killed mid-flight, kept rather than discarded:
-
-```
-<scratchpad>/killed-waves/payments/     partial packages/payments (PAY workflow)
-<scratchpad>/killed-waves/analytics/    partial apps/web/src/lib/analytics (ANL)
-<scratchpad>/agent-scratch/             AI/a11y cluster patch + registry analyses
-```
-
-Scratchpad root:
-`C:\Users\satvi\AppData\Local\Temp\claude\C--Users-satvi\48abdb25-e006-4e1c-8dfa-05b6eebc26c2\scratchpad`
-
-These are **unverified** — written by agents that died before reporting. One left
-`acceptsWrites` in `rbac.ts` with an elaborate comment claiming `tsc` enumerates
-every write path, and **zero callers**. Treat as drafts; verify before trusting.
-
----
-
-## 7. STANDING PRODUCT REQUIREMENT — cost transparency
-
-Every configuration option a tenant chooses, at **every stage** of setup, must
-carry a price tag — **per seat AND for the whole organisation** — with a running
-total, so cost is never a surprise at the end.
-
-Three owned areas:
-1. `packages/finops` — pricing engine. Integer minor units, **never floats**,
-   explicit currency and rounding. Quoting only; **no money movement**.
-2. `packages/configuration` + `packages/platform-config` — priced metadata on the
-   option model; resolver returns running cost beside resolved configuration.
-3. `apps/system-studio` — renders it. Must keep `e2e/layout.spec.ts` green:
-   off-white `#f2f0ed` on muted grey `#33302c`, no pure white or black.
-
-A new config option without a price is incomplete. Prove it with a test that reds
-when the price is removed.
-
----
-
-## 8. THE LOOP — run this, in this order
-
-```bash
-cd /c/Users/satvi/Tenure-Parent
-git remote -v                                   # confirm origin, never live
-gh run list --limit 6                           # red on main? that is the ONLY work
-```
-
-**A red build is the next tick's only work.** Fix one workflow at a time.
-
-Then:
-
-1. Read `docs/architecture/REVIEW-FINDINGS.md` **from disk** (73 lines).
-2. `node tools/loop/plan-waves.mjs --histogram` — see where open work concentrates.
-3. Launch **at most 3** `cluster-workflow.mjs` runs on zero-PASS domains.
-4. When they land: check every `PASS` has `refuted: false` from its refuter.
-   Reclassify anything else to `FAIL` in the ledger, with the reason.
-5. Full matrix — **all six, no shortcuts**:
-
-```bash
-npm run type-check                                  # must be 0
-npm run lint
-npm run test --workspace apps/web -- --ci           # >= 3184
-npm run test:platform                               # 216 pass, 0 fail
-npm run build                                       # apps/web
-npm run build --workspace apps/system-studio        # ← the one that was missed
-```
-
-6. `git add -A && git diff --cached --name-status --diff-filter=D` — **confirm
-   nothing is being deleted that you did not intend**. Empty output is the
-   expected result.
-7. Commit, push to `main`, wait for **green** (not red, not skipped, not cancelled).
-8. Regenerate: `node tools/document-graph.mjs`,
-   `node tools/reconcile-execution-checkboxes.mjs`, `node tools/ownership-map.mjs`.
-
-### Database — AVAILABLE. Check before believing otherwise.
-
-**This section previously said Postgres was unavailable ("no Docker daemon,
-nothing on 5432/5433") and it was wrong on 2026-08-07.** Docker was up, and the
-*previous session's own containers* were still listening on 5433, 5434 and 5439.
-Two e2e behaviours were guessed at rather than run, and the guesses cost three
-red CI runs on a test that takes 19 seconds to run locally.
-
-**Check, do not inherit the claim:**
-
-```bash
-docker info >/dev/null 2>&1 && echo up          # daemon
-docker ps                                        # containers already running
-netstat -an | grep -E "543[2-9]"                 # anything listening
-```
-
-Standing one up, verified end to end on 2026-08-07 (migrate + seed + 11/11 in
-`resources.spec.ts`):
-
-```bash
-docker run -d --name tenure-verify-pg -e POSTGRES_USER=tenure \
-  -e POSTGRES_PASSWORD=tenure -e POSTGRES_DB=tenure -p 5455:5432 postgres:16
-export DATABASE_URL="postgresql://tenure:tenure@localhost:5455/tenure"
-cd apps/web && npx prisma migrate deploy && node scripts/seed.mjs
-npx playwright test e2e/<one>.spec.ts        # one spec, not all 30, while iterating
-```
-
-The e2e run also needs the auth env CI sets — `AUTH_SECRET`, `AUTH_TRUST_HOST`,
-`AUTH_DEV_LOGIN`, `ALLOW_DEV_LOGIN_IN_PRODUCTION`, `DEV_LOGIN_PASSPHRASE`,
-`TENANCY_ENFORCE`, `NEXTAUTH_URL`, `JOB_SECRET`, `AWS_REGION`, `IMAGE_TAG`. Copy
-them from `.github/workflows/ci.yml`.
-
-**30 e2e specs and 12 `*.itest.ts` were treated as unrunnable on this ground.
-They are runnable.** No ledger entry names the database as its blocker — checked,
-`grep -A6 BLOCKED_EXTERNAL` over all fifteen ledgers returns nothing about
-Postgres or Docker — so nothing needs reclassifying. What was lost was
-*verification*: a whole class of proof was skipped as impossible while it was
-available, and "record the operator commands and move on" was the wrong answer to
-a database that was already running.
-
-The e2e suite is **not idempotent** — re-seed between runs.
-
----
-
-## 9. THE STANDARD — every claim
-
-- **Real code reached by a real production caller.** A type, interface or helper
-  nothing calls is dead code. Dead code carrying a comment that claims otherwise
-  is worse than nothing. **Name the caller or return blocked.**
-- **Mutation-prove every test.** Apply a mutation, run it, *confirm it fails*,
-  restore, confirm it passes. Report the mutation and both results.
-- **Always verify the baseline is green before trusting a mutation result.**
-- **If a comment or evidence string is false, fix the claim — not the test.**
-- **Do not mark PASS what is not true.** A requirement titled "signed X" is not
-  PASS while X is unsigned. An honest `FAIL` outranks a false `PASS`.
-- **Report faithfully.** If tests fail, say so with the output. If a step was
-  skipped, say that.
