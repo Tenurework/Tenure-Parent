@@ -2679,7 +2679,25 @@ a.md3-chip {
   font-weight: var(--md-sys-typescale-label-small-weight);
   letter-spacing: var(--md-sys-typescale-label-small-tracking);
   text-transform: uppercase;
-  white-space: nowrap;
+
+  /* `nowrap` was here so a short badge — "3 of 5", "OPEN" — never breaks across
+   * two lines for want of a few pixels. It is the right default and stays as
+   * one, but it cannot be absolute: some badges on this console carry a whole
+   * sentence, and "not known — the read did not answer" rendered 280px wide
+   * inside a 254px card header at 320px, spilling out of its own section.
+   *
+   * `min-inline-size: 0` lets the badge shrink as a flex item at all — `auto`
+   * pins it to its content and is what made the parent overflow rather than the
+   * badge give way. `max-inline-size: 100%` bounds it to its container, and
+   * `balance` breaks the sentence sensibly once it does wrap.
+   *
+   * Wrapping rather than truncating, deliberately: an ellipsis on a badge that
+   * says a read did not answer would hide the only part that matters. Nothing
+   * here clips text to make a layout work. */
+  white-space: normal;
+  text-wrap: balance;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 .md3-badge[data-tone="neutral"] {
   background: var(--md-sys-color-surface-container-high);

@@ -68,13 +68,24 @@ NEVER delete a scratch directory that is not yours. Another agent is very likely
 or serving from it, and \`.next-<something-else>\` being an hour stale is not evidence otherwise —
 a directory's contents stop changing the moment a build finishes and a server starts reading it.
 
-STOP YOUR SERVER before you return, and stop it by the PID you started — never with a pattern
-that could match another agent's. This is the half that actually hurts: disk is merely full,
-but a leftover \`next build\` or standalone server goes on competing for CPU forever. The wave
-before this one left 18 build processes running from as early as 04:03 and 7 orphan servers,
-78 node processes in total, and the next build did not fail — it starved, running 72 minutes
-without emitting a BUILD_ID. Seven requirements were returned BLOCKED_EXTERNAL for that reason
-alone. Killing the leftovers took the same build back to normal.
+STOP YOUR SERVER BEFORE YOU BUILD AGAIN, and before you return. Stop it by the PID you started —
+never with a pattern that could match another agent's.
+
+This is the half that actually hurts, and the mechanism is not what it looks like. On Windows a
+running \`node .next/standalone/.../server.js\` holds files under \`.next\` OPEN, and the next
+\`next build\` cannot replace them: it blocks. Not slowly — it consumes ZERO CPU and emits no
+BUILD_ID for as long as you leave it, which reads exactly like a slow build on a busy machine
+and is why it gets waited on instead of fixed. Measured here: 25 minutes at 0% CPU, then 210
+seconds to complete once the server was stopped. Nothing else changed.
+
+Leftovers compound it. The wave before this one finished with 18 \`next build\` processes still
+running from as early as 04:03 and 7 orphan servers — 78 node processes — and returned SEVEN
+requirements as BLOCKED_EXTERNAL, reporting a build that "ran 72 minutes without emitting a
+BUILD_ID". That was not an infrastructure problem. It was this.
+
+So: one server at a time, stopped before the next build, and stopped before you return. If a
+build sits with no output for more than a couple of minutes, check whether a server is holding
+\`.next\` before you assume the machine is busy.
 `
 
 const RESULT_SCHEMA = {

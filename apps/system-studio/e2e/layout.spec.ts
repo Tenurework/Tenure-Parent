@@ -101,17 +101,32 @@ async function textBoxes(page: Page): Promise<Box[]> {
       const style = getComputedStyle(el)
       if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") continue
 
-      const r = el.getBoundingClientRect()
-      if (r.width < 2 || r.height < 2) continue
-
-      out.push({
-        x: r.x + window.scrollX,
-        y: r.y + window.scrollY,
-        w: r.width,
-        h: r.height,
-        text: text.slice(0, 60),
-        tag: el.tagName.toLowerCase(),
-      })
+      // `getClientRects()`, one box per LINE — not `getBoundingClientRect()`,
+      // which returns the union of them.
+      //
+      // For an inline element that wraps, the union is a lie about where the ink
+      // is: a `<time>` broken across two lines returns one box spanning the full
+      // column width and both line heights, and every word on the second line
+      // sits geometrically "inside" it while overlapping nothing on screen. That
+      // produced `"2026-08-14 19:23 UTC" (time) over "OPEN" (b) — 100% covered`
+      // on /platform/audit at three widths, for a sentence reading
+      // "…as of <time>. An <b>OPEN</b> row is…" — two inline siblings in normal
+      // flow, which cannot overlap.
+      //
+      // It stayed hidden until the shell narrowed the content column enough to
+      // make that `<time>` wrap for the first time. The bug was always here; the
+      // wrap is what exposed it.
+      for (const r of el.getClientRects()) {
+        if (r.width < 2 || r.height < 2) continue
+        out.push({
+          x: r.x + window.scrollX,
+          y: r.y + window.scrollY,
+          w: r.width,
+          h: r.height,
+          text: text.slice(0, 60),
+          tag: el.tagName.toLowerCase(),
+        })
+      }
     }
     return out
   })
@@ -324,6 +339,22 @@ test("text is never clipped by a fixed height", async ({ page }) => {
       for (const el of Array.from(document.querySelectorAll("body *"))) {
         const style = getComputedStyle(el)
         if (style.overflow !== "hidden" && style.overflowY !== "hidden") continue
+
+        // Visually-hidden text is clipped ON PURPOSE — that is the whole
+        // technique. The standard recipe is a 1px box with `overflow: hidden`
+        // and `clip-path: inset(50%)`, which is indistinguishable by
+        // scrollHeight from a heading squashed by a fixed height. Reporting it
+        // would push somebody to "fix" an accessible label by making it
+        // visible, or to delete it — both worse than the false positive.
+        //
+        // Detected by the clip, not by a class name, so it holds for any
+        // module's own sr-only rule rather than one the test knows about.
+        // Nav.tsx's `Sections of {label}` group labels are the nine that
+        // surfaced this.
+        const clipsItself = style.clipPath !== "none" || style.clip !== "auto"
+        const oneByOne = el.clientWidth <= 2 && el.clientHeight <= 2
+        if (clipsItself && oneByOne) continue
+
         if (el.scrollHeight > el.clientHeight + 2) {
           bad.push(`${el.tagName.toLowerCase()} "${(el.textContent ?? "").trim().slice(0, 40)}"`)
         }

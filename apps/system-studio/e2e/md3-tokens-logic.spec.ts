@@ -56,6 +56,27 @@ const MD3_DIR = path.join(STUDIO, "src", "components", "md3")
 
 const css = fs.readFileSync(GLOBALS, "utf8")
 
+/**
+ * Every stylesheet in the console, for the "is this token used" question only.
+ *
+ * `css` above is `globals.css` alone, and it stays that way: the token SYSTEM is
+ * declared there and the assertions about the four themes must not start reading
+ * a module's local variables as palette entries.
+ *
+ * But consumption happens everywhere. Reading only `globals.css` meant a token
+ * declared there and used by a module stylesheet looked dead — which is exactly
+ * what happened to `--console-nav-offset`, declared for `nav.module.css` and
+ * consumed on its line 119, reported as referenced by nothing.
+ */
+const allStylesheets = (function walk(dir: string, out: string[] = []): string[] {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) walk(full, out)
+    else if (entry.name.endsWith(".css")) out.push(fs.readFileSync(full, "utf8"))
+  }
+  return out
+})(path.join(STUDIO, "src")).join("\n")
+
 /* ── The four themes, assembled the way the cascade assembles them ────────── */
 
 type Tokens = Record<string, string>
@@ -1083,7 +1104,17 @@ const DECLARED_NOT_REFERENCED = new Map([
 
 test("no token is declared without either a consumer or a recorded reason", () => {
   const declared = new Set([...css.matchAll(/^\s*(--[\w-]+)\s*:\s*[^;]+;/gm)].map((m) => m[1]))
-  const referenced = new Set([...css.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]))
+
+  // `[,)]`, not `)`. The old pattern required the closing paren to follow the
+  // name immediately, so `var(--console-nav-offset, 9rem)` — a reference WITH A
+  // FALLBACK, which is the careful way to write one — matched nothing. Every
+  // token used defensively read as dead, and the only reason that stayed hidden
+  // is that the shell was the first code to use fallbacks at all.
+  //
+  // Across every stylesheet, not just `globals.css`: see `allStylesheets`.
+  const referenced = new Set(
+    [...allStylesheets.matchAll(/var\(\s*(--[\w-]+)\s*[,)]/g)].map((m) => m[1]),
+  )
 
   const unreferenced = [...declared].filter((name) => !referenced.has(name)).sort()
   const unrecorded = unreferenced.filter((name) => !DECLARED_NOT_REFERENCED.has(name))
