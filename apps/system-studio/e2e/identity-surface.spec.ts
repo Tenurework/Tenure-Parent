@@ -177,7 +177,17 @@ test.describe("the identity surface", () => {
 
     // The word, not the colour. A guard that did not run must never carry the
     // sentence a guard that ran and found nothing carries.
-    const body = await table.innerText()
+    //
+    // `textContent` and NOT `innerText`. `.md3-badge` carries
+    // `text-transform: uppercase` from the token layer, so `innerText` hands
+    // back "NOT READABLE FROM HERE" — the stylesheet's rendering of the word
+    // rather than the word `GUARD_WORDS` chose. Two things follow. The positive
+    // match below could never be satisfied by any page, whatever it said. And
+    // the negative one could never fail: a CHECKED_CLEAN row in THIS table —
+    // the exact defect this test exists to catch — reads "CHECKED AND CLEAN"
+    // through `innerText`, and `not.toContain("Checked and clean")` passes over
+    // it. Reading the DOM text pins the vocabulary in both directions.
+    const body = (await table.textContent()) ?? ""
     expect(body).not.toContain("Checked and clean")
     expect(body).toMatch(/Not readable from here|Not running — nothing is checking/)
     // And no guard that did not run may print a count of zero.
@@ -189,9 +199,35 @@ test.describe("the identity surface", () => {
 
     // With an estate this console cannot reach, "Clear" is unreachable — and
     // that is the point.
-    const body = await page.locator("body").innerText()
+    //
+    // `main` rather than `body`, and `textContent` rather than `innerText`, for
+    // the reason spelled out on the guard table above: the verdict is a
+    // `.md3-badge`, the token layer uppercases those, and `innerText` therefore
+    // reports "NOT FULLY CHECKED" for a page whose verdict word is "Not fully
+    // checked". `main` because `body.textContent()` would also sweep up the
+    // flight payload in the trailing `<script>`s, and a sentence found in a
+    // serialised RSC chunk is not a sentence an operator read.
+    const body = (await page.locator("main").textContent()) ?? ""
     expect(body).not.toContain("This is the only condition under which an empty list on this page")
     expect(body).toMatch(/At risk|Not fully checked|Unknown/)
+
+    // And the verdict itself, from the badge beside the lead heading rather
+    // than from anywhere on the page the word happens to fall. `UnknownState`
+    // prints "Unknown" on every refused read, so the page-wide match above is
+    // satisfied by a refusal panel alone — it would hold on a page badged
+    // "Clear" over eight unread guards, which is the one thing this test is
+    // named for. Asserting the badge against the closed non-clear vocabulary is
+    // what actually forecloses that.
+    const verdict = page
+      .locator(".md3-card-header")
+      .filter({
+        has: page.getByRole("heading", { name: "How many principals can administer this platform" }),
+      })
+      .locator(".md3-badge")
+    await expect(verdict).toBeVisible()
+    expect(["At risk", "Not fully checked", "Unknown"]).toContain(
+      (await verdict.textContent())?.trim(),
+    )
   })
 
   test("nothing on the page is a password, a token or a client secret", async ({ page }) => {

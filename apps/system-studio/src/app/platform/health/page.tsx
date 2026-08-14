@@ -691,7 +691,7 @@ function HealthEventTable({ rows, empty }: { rows: readonly HealthEventRow[]; em
 /**
  * The vocabulary of this page, in the operator's language.
  *
- * Both halves of it: the seven alarm verdicts, which describe THIS estate, and
+ * Both halves of it: the eight alarm verdicts, which describe THIS estate, and
  * the AWS Health verdicts, which describe AWS's. They are one table with a
  * "From" column rather than two tables, because the question an operator has is
  * "what does that word mean", not "which reader produced it" — and because two
@@ -734,6 +734,19 @@ const LEGEND: ReadonlyArray<{
     tone: VERDICT_TONE.UNAUTHORIZED,
     means:
       "This engine's role was refused the read. It describes the whole surface rather than one alarm, and it is not a claim that anything is wrong.",
+  },
+  {
+    // Beside UNAUTHORIZED, because the pair is what an operator has to tell
+    // apart: both say nothing was learnt, and only the one above names a
+    // statement to grant. Absent from this legend, the word this console
+    // prints for a throttled or unconfigured read is the one word on the page
+    // with no entry explaining it.
+    verdict: "UNREADABLE",
+    word: ALARM_WORDS.UNREADABLE,
+    source: "Our alarms",
+    tone: VERDICT_TONE.UNREADABLE,
+    means:
+      "cloudwatch:DescribeAlarms was rate-limited, is not configured for this account, or failed. Like a refusal it describes the whole surface rather than one alarm, and unlike a refusal there is no permission to grant — the next move is to retry or to configure.",
   },
   {
     verdict: "STALE",

@@ -12,9 +12,9 @@ No timestamp, no hostname and no absolute path appears here, and every count is 
 | Databases | 4 |
 | Infrastructure as code | 36 |
 | Workflows | 17 |
-| Tests over the configuration surface | 39 |
+| Tests over the configuration surface | 41 |
 | Deployed nonproduction behaviour | 3 |
-| **Total** | **199** |
+| **Total** | **201** |
 
 ## System Studio routes
 
@@ -79,9 +79,9 @@ The set `configurationModules()` computes, which is also the left-hand side of t
 | `apps/system-studio/src/app/tenants/[slug]/configuration/RollbackControls.tsx` | form-component | 131 lines · 2 exports |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/actions.ts` | configuration-module | 506 lines · 6 exports |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/change-cost.ts` | configuration-module | 318 lines · 11 exports |
-| `apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx` | configuration-module | 1240 lines · 1 exports |
+| `apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx` | configuration-module | 1273 lines · 1 exports |
 | `apps/system-studio/src/app/tenants/new/ChoiceGroup.tsx` | configuration-module | 106 lines · 2 exports |
-| `apps/system-studio/src/app/tenants/new/ComposeForm.tsx` | form-component | 1155 lines · 4 exports |
+| `apps/system-studio/src/app/tenants/new/ComposeForm.tsx` | form-component | 1167 lines · 4 exports |
 | `apps/system-studio/src/app/tenants/new/page.tsx` | configuration-module | 294 lines · 1 exports |
 | `apps/system-studio/src/app/tenants/new/placement.ts` | configuration-module | 184 lines · 6 exports |
 | `apps/system-studio/src/app/tenants/new/quote.ts` | configuration-module | 362 lines · 11 exports |
@@ -253,8 +253,10 @@ Which runner owns a file is decided by where it lives: `tests/**` is bare `node 
 | `packages/platform-config/src/modules.test.ts` | jest (npm run test --workspace apps/web) | 779 lines |
 | `packages/platform-config/src/provider-review.test.ts` | jest (npm run test --workspace apps/web) | 161 lines |
 | `packages/platform-config/src/resolve.test.ts` | jest (npm run test --workspace apps/web) | 161 lines |
+| `tests/architecture/authorizing-routes-are-dynamic.test.mjs` | node --test (npm run test:platform) | 118 lines |
 | `tests/architecture/cfg-configuration-truth-is-current.test.mjs` | node --test (npm run test:platform) | 143 lines |
 | `tests/architecture/no-fixture-tenants-on-operator-surfaces.test.mjs` | node --test (npm run test:platform) | 165 lines |
+| `tests/architecture/tsconfig-includes-no-scratch-build.test.mjs` | node --test (npm run test:platform) | 139 lines |
 | `tests/security/entry-points.test.mjs` | node --test (npm run test:platform) | 121 lines |
 | `tests/security/every-path-authorizes.test.mjs` | node --test (npm run test:platform) | 456 lines |
 | `tests/security/one-config-writer.test.mjs` | node --test (npm run test:platform) | 148 lines |

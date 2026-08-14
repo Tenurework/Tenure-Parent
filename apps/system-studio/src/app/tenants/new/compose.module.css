@@ -48,6 +48,41 @@
 }
 
 /*
+ * An identifier set inside a running sentence.
+ *
+ * The summary at the top of this form answers "what am I about to create" in
+ * PROSE, and the facts it names are machine tokens: a blueprint id, an
+ * operating model, an engine version, an ISO-8601 instant. Each is marked up
+ * as its own inline element inside the sentence, and `globals.css` gives
+ * `code` — and this file's own wrapping rules give the rest — `overflow-wrap:
+ * anywhere`, which is what stops one of them setting a column floor wider than
+ * a 320px viewport.
+ *
+ * The two together break mid-token. A plain inline element split across a line
+ * boundary is an L-shaped run, and its BORDER BOX is the union of both halves:
+ * it starts where the first fragment starts, ends where the second ends, and
+ * therefore covers the words drawn between them on the line below. Those words
+ * are its inline siblings — the next fact in the same sentence — so the page
+ * ends up with text boxes drawn on top of each other, which is what
+ * `e2e/layout.spec.ts` measures. It is not only a measurement artefact: half an
+ * identifier at the end of one line, with an unrelated fact sitting beside its
+ * other half, is exactly as hard to read as it sounds.
+ *
+ * `inline-block` makes each one atomic. It moves to the next line whole rather
+ * than being split, wraps INSIDE its own box on the rare column narrow enough
+ * to need it, and so always occupies one rectangle — at every width, rather
+ * than at the widths where the wrap happens to land somewhere harmless.
+ * `max-inline-size` keeps that box inside the column, and the wrapping rule is
+ * restated here because an atomic box that cannot break its own content is the
+ * 320px overflow this file exists to prevent.
+ */
+.token {
+  display: inline-block;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+
+/*
  * A group of choices: a fieldset with a real legend.
  *
  * `min-inline-size: 0` is load-bearing and not cosmetic. A `<fieldset>` has a

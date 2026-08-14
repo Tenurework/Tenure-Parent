@@ -73,7 +73,23 @@ test.describe("operator sign-in", () => {
 
     // And it shows the systems, which is the point of getting in.
     await expect(page.getByText("Simon Business School — Ainslie OSE")).toBeVisible()
-    await expect(page.getByText("Midtown Arts Collective")).toBeVisible()
+
+    // `Midtown Arts Collective` used to be asserted VISIBLE here, beside the
+    // pilot. It is a FIXTURE binding — an organisation that does not exist —
+    // and the console index now maps `CUSTOMER_TENANT_BINDINGS` rather than the
+    // whole list, because the index is where an operator decides to advance a
+    // lifecycle or publish a configuration, and a fixture drawn as a customer
+    // is an invitation to do it to one. That is deliberate and is pinned in two
+    // places that both run:
+    // `tests/architecture/no-fixture-tenants-on-operator-surfaces.test.mjs` and
+    // `e2e/console-index.spec.ts` ("no organisation that does not exist is
+    // drawn beside the pilot") — the latter in this very suite, so leaving the
+    // line as it was would have this file and that one asserting opposites.
+    //
+    // So the assertion is INVERTED, not dropped: the same string still carries
+    // a check, and the pilot assertion above it is what stops an absence from
+    // passing on a page that rendered nothing.
+    await expect(page.getByText("Midtown Arts Collective")).toHaveCount(0)
   })
 
   test("a wrong secret is refused", async ({ page }) => {

@@ -341,7 +341,10 @@ export interface AuditRow {
   previousDigest: string | null
 }
 
-/** Where the projection's fields live inside the record's metadata. */
+/**
+ * Where `appendIntent` and `appendOutcome` PUT the projection's fields. One
+ * convention out; see `ROW_KEY_ALIASES` for what comes back in.
+ */
 const ROW_KEYS = {
   target: "_target",
   detail: "_detail",
@@ -349,6 +352,48 @@ const ROW_KEYS = {
   resolves: "_resolves",
   phase: "_phase",
 } as const
+
+/**
+ * Every spelling of each field, in the order the reader tries them.
+ *
+ * TWO writers put records into this chain and they do not agree on the names.
+ * `appendIntent`/`appendOutcome` here write the underscored ones. `advanceState`
+ * in `app/tenants/actions.ts` — the lifecycle writer, and the one that records
+ * every high-risk refusal — calls `ledger.append` directly and writes the bare
+ * ones: `phase`, `code`, `target`, `intentSequence`. Both are production
+ * writers, so a reader that knows only one convention silently drops half of
+ * what the ledger means.
+ *
+ * It dropped exactly that. Reading `_outcomeCode` alone, every lifecycle row
+ * fell through to the record-level ALLOW/DENY, so `REFUSED_CONFIRMATION`,
+ * `REFUSED_STALE_CONSEQUENCE` and `REFUSED_IRREVERSIBLE` all rendered as an
+ * undifferentiated "DENY" — the tenant page could say a move was refused and
+ * not which gate refused it — and every INTENT row was drawn as though it had
+ * been decided, which is the one distinction the intent/outcome pair exists to
+ * make. `src/lib/high-risk-gate.test.ts` pins the record those refusals are
+ * written as (`metadata.code === "REFUSED_CONFIRMATION"`), and
+ * `e2e/high-risk-fails-closed.spec.ts` is what reads it back off the page.
+ *
+ * The underscored name is tried FIRST, so no record that already carries one
+ * changes meaning, and a record carrying neither still falls back to the
+ * record-level fields exactly as before.
+ */
+const ROW_KEY_ALIASES: Readonly<Record<keyof typeof ROW_KEYS, readonly string[]>> = {
+  target: [ROW_KEYS.target, "target"],
+  detail: [ROW_KEYS.detail],
+  outcome: [ROW_KEYS.outcome, "code"],
+  resolves: [ROW_KEYS.resolves, "intentSequence"],
+  phase: [ROW_KEYS.phase, "phase"],
+}
+
+/** The first of a field's spellings this record actually carries. */
+function metaValue(meta: Record<string, unknown>, keys: readonly string[]): unknown {
+  for (const key of keys) {
+    const value = meta[key]
+    if (value !== undefined && value !== null) return value
+  }
+  return undefined
+}
 
 /**
  * Which outcome codes are an ALLOW.
@@ -364,17 +409,22 @@ function outcomeOf(code: string): AuditOutcome {
 }
 
 function rowFrom(record: AuditRecord): AuditRow {
-  const meta = record.metadata as Record<string, unknown>
+  const meta = (record.metadata ?? {}) as Record<string, unknown>
+  const resolves = metaValue(meta, ROW_KEY_ALIASES.resolves)
   return {
     seq: record.sequence ?? 0,
     at: record.occurredAt,
     action: record.action,
-    target: String(meta[ROW_KEYS.target] ?? record.resourceId ?? record.resourceType),
+    target: String(
+      metaValue(meta, ROW_KEY_ALIASES.target) ?? record.resourceId ?? record.resourceType,
+    ),
     actor: record.actorId,
-    detail: String(meta[ROW_KEYS.detail] ?? record.reason ?? ""),
+    detail: String(metaValue(meta, ROW_KEY_ALIASES.detail) ?? record.reason ?? ""),
     outcome:
-      meta[ROW_KEYS.phase] === "INTENT" ? null : String(meta[ROW_KEYS.outcome] ?? record.outcome),
-    resolves: typeof meta[ROW_KEYS.resolves] === "number" ? (meta[ROW_KEYS.resolves] as number) : null,
+      metaValue(meta, ROW_KEY_ALIASES.phase) === "INTENT"
+        ? null
+        : String(metaValue(meta, ROW_KEY_ALIASES.outcome) ?? record.outcome),
+    resolves: typeof resolves === "number" ? resolves : null,
     digest: record.recordHash,
     previousDigest: record.previousHash,
   }

@@ -1,0 +1,40 @@
+/*
+ * Geometry for the console index (`app/page.tsx`). One rule, and it is a
+ * wrapping rule.
+ *
+ * ── What this file may contain, and what it may not ────────────────────────
+ *
+ * Only geometry — here, only the wrapping rule the as-of stamp needs. It may
+ * NOT contain a colour, a font size, a weight, a radius or a shadow: those are
+ * the token layer's answers and `components/md3/` is how a surface asks for
+ * them. `e2e/console-index.spec.ts` scans `page.tsx` for a literal colour and
+ * for an inline `style={`, and this file exists so that neither becomes the
+ * only way to say "do not break this token in half".
+ *
+ * ── Why it exists at all ───────────────────────────────────────────────────
+ *
+ * `asOf()` renders `2026-08-14 06:11 UTC` — three tokens separated by ordinary
+ * spaces, inside prose. When the line breaks between them, the `<time>` element
+ * occupies two line boxes, and one inline element on two lines reports ONE
+ * rectangle spanning both: a box the full width of the paragraph and two lines
+ * tall, which encloses every other inline in the sentence. `e2e/layout.spec.ts`
+ * measures exactly that and reported `"/rochester" (code) over "2026-08-14
+ * 06:11 UTC" (time) — 100% covered` at 1440px, passing at 1180, 900 and 320
+ * only because the break landed elsewhere at those widths.
+ *
+ * The rectangle is a measurement, but the defect it measures is real and the
+ * screenshot shows it: the reader sees `Read at 2026-08-14` ending one line and
+ * `06:11 UTC.` starting the next — a stamp an operator is meant to quote into
+ * an incident channel, torn in half. Kept whole, it moves to the next line as a
+ * unit. Same remedy, and the same reasoning, as `.check .version` in
+ * `globals.css`.
+ *
+ * A non-breaking space inside `asOf()` would do this in JavaScript, and must
+ * not: the stamp is asserted with `innerText()` against
+ * `/^\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC$/` in `e2e/console-index.spec.ts`, so
+ * U+00A0 would change the text an operator copies in order to fix a line break.
+ * The line break is a layout question and this is the layout layer.
+ */
+.stamp {
+  white-space: nowrap;
+}

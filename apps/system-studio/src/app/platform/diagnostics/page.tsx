@@ -17,6 +17,28 @@ import {
 import styles from "./diagnostics.module.css"
 
 /**
+ * Every other route in this console declares this. This one did not, and it was
+ * the only difference that mattered.
+ *
+ * Without it Next prerendered the page at BUILD time, in a container with no
+ * `PLATFORM_OPERATORS` and no `AWS_ACCOUNT_ID` — so `operatorConfigProblems()`
+ * returned problems, the "Not configured" branch was rendered into static HTML,
+ * and CloudFront served that to everybody. Deployed, `/platform/diagnostics`
+ * answered 200 with "The Studio refuses to serve until its access control is
+ * set up" while every sibling correctly answered 307 to the sign-in form.
+ *
+ * The worse half is quieter: a static page decides nothing at request time, so
+ * the `authorizeCommand` gate below never ran in production. An authorization
+ * check on a prerendered route is dead code that reads exactly like a guard.
+ * `tests/architecture/authorizing-routes-are-dynamic.test.mjs` is what keeps
+ * that from happening again.
+ *
+ * Neither `tsc`, the 599 platform guards, the 7,149 unit tests nor a green
+ * build saw it. Driving the deployed URL did.
+ */
+export const dynamic = "force-dynamic"
+
+/**
  * `/platform/diagnostics` — what sits behind the last group in the navigation,
  * why each of them is there, and what now covers the work it was standing in
  * for.

@@ -357,10 +357,18 @@ const ENTRY_COLUMNS: readonly DataColumn<LedgerEntry>[] = [
   {
     key: "target",
     header: "To what",
+    /*
+     * The type on its own line, not trailing the id on the same one. `code` is
+     * `overflow-wrap: anywhere`, so a target id breaks mid-token in a narrow
+     * column and the type then carries on from the tail of that break —
+     * `…856 Tenant` read as one string, and the wrapped id's box drawn over the
+     * type's. `.cellLines` carries the argument.
+     */
     cell: (r) => (
-      <>
-        <code>{r.target}</code> <span className="md3-label-small">{r.targetType}</span>
-      </>
+      <span className={styles.cellLines}>
+        <code>{r.target}</code>
+        <span className="md3-label-small">{r.targetType}</span>
+      </span>
     ),
   },
   {
@@ -384,12 +392,23 @@ const ENTRY_COLUMNS: readonly DataColumn<LedgerEntry>[] = [
      * because the list is newest first and the record this one links to is
      * therefore BELOW it, not above. Relying on adjacency to make the chain
      * checkable would only work in the order nobody reads.
+     *
+     * One digest per line, for the same reason the target's type is on its own:
+     * two twelve-character hashes and an arrow on one line is a line that wraps,
+     * and a wrapped digest with the next one continuing from its tail is two
+     * hashes an operator cannot tell apart — the defect `layout.spec.ts` reported
+     * here as `d99f435ad625…` drawn over `none — head of the chain`. The arrow
+     * stays a text node beside the second digest, so the link is still stated
+     * rather than implied by position.
      */
     cell: (r) => (
-      <>
-        <code>{shortDigest(r.digest)}</code>{" ← "}
-        <code>{shortDigest(r.previousDigest)}</code>
-      </>
+      <span className={styles.cellLines}>
+        <code>{shortDigest(r.digest)}</code>
+        <span>
+          {"← "}
+          <code>{shortDigest(r.previousDigest)}</code>
+        </span>
+      </span>
     ),
   },
   {

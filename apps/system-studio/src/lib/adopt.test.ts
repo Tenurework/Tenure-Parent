@@ -60,25 +60,36 @@ describe("a fixture binding stays reachable by slug", () => {
 
   /**
    * `manifestForBinding` resolves a cell, and the cell registry refuses to
-   * invent an estate: with no `AWS_ACCOUNT_ID` and no `sts:GetCallerIdentity`
-   * it throws `FleetMisconfigured` rather than defaulting, because a default
-   * would place tenants in an account nobody chose. That refusal is correct
-   * and is asserted elsewhere; here it just has to be satisfied. The id is
-   * AWS's documentation placeholder, obviously constructed and not an estate.
+   * invent an estate: with none of these set and no `sts:GetCallerIdentity` it
+   * throws `FleetMisconfigured` rather than defaulting, because a default would
+   * place tenants in an account, a partition or a REGION nobody chose. That
+   * refusal is correct and is asserted elsewhere; here it just has to be
+   * satisfied.
+   *
+   * All three, not two. The first version of this set account and partition
+   * only, passed on the machine that wrote it, and failed in CI on
+   * `AWS_REGION` — because the author's shell happened to have one exported and
+   * the runner's did not. A test that reads ambient environment is a test that
+   * asserts something about the machine. Every value here is obviously
+   * constructed: `123456789012` is AWS's own documentation placeholder.
    */
-  const ACCOUNT = process.env.AWS_ACCOUNT_ID
-  const PARTITION = process.env.AWS_PARTITION
+  const AMBIENT = {
+    AWS_ACCOUNT_ID: process.env.AWS_ACCOUNT_ID,
+    AWS_PARTITION: process.env.AWS_PARTITION,
+    AWS_REGION: process.env.AWS_REGION,
+  }
   beforeAll(() => {
     process.env.AWS_ACCOUNT_ID = "123456789012"
     process.env.AWS_PARTITION = "aws"
+    process.env.AWS_REGION = "us-east-1"
   })
   afterAll(() => {
     // Restore rather than delete: an ambient value set by the runner is not
     // this test's to remove.
-    if (ACCOUNT === undefined) delete process.env.AWS_ACCOUNT_ID
-    else process.env.AWS_ACCOUNT_ID = ACCOUNT
-    if (PARTITION === undefined) delete process.env.AWS_PARTITION
-    else process.env.AWS_PARTITION = PARTITION
+    for (const [key, was] of Object.entries(AMBIENT)) {
+      if (was === undefined) delete process.env[key]
+      else process.env[key] = was
+    }
   })
 
   it("resolves through getTenantBinding", () => {

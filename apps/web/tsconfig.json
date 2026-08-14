@@ -110,11 +110,8 @@
     "../../blueprints/**/*.ts",
     "../../modules/**/*.ts",
     "../../packages/*/src/**/*.ts",
-    ".next-nav030/types/**/*.ts",
-    ".next-visual/types/**/*.ts",
     ".next/types/**/*.ts",
-    "next-env.d.ts",
-    ".next-gate030/types/**/*.ts"
+    "next-env.d.ts"
   ],
   "exclude": [
     "node_modules"

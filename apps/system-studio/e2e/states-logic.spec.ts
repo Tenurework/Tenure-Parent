@@ -292,16 +292,39 @@ test("the platform page renders DegradedState from the inventory's own refusals"
   // Derived from the inventory, not written down. `degradationOf(answered, [])`
   // — a caller that passes an empty failing half — can never be a degradation,
   // and would render "nothing was refused" over an estate with three refusals.
-  expect(page).toMatch(/degradationOf\(answered, refused\)/)
+  // Both arguments must therefore be identifiers the page computed off the
+  // estate: `\w+` cannot match `[`, so a literal in either half still fails.
+  // The state's own binding name is CAPTURED rather than spelled, so that the
+  // four assertions below stay tied to THIS call after a rename instead of
+  // quietly checking a variable some other panel happens to own.
+  const bound = /const (\w+) = degradationOf\(\s*(\w+)\s*,\s*(\w+)\b/.exec(page)
+  expect(
+    bound,
+    "the platform page must bind degradationOf(<working>, <failing>) to a state",
+  ).not.toBeNull()
+  const state = bound?.[1] ?? ""
+  // And the two halves are two different reads, not one counted on both sides.
+  expect(bound?.[2]).not.toBe(bound?.[3])
+  // Capturing the halves by name rather than spelling them costs the guarantee
+  // that they are READS, so it is asserted directly instead: each one is a
+  // binding this page computed off `estate`. That is the assertion this test
+  // exists for — a page that grew a hand-kept pair of lists, or that kept the
+  // call and stopped reading the inventory, satisfies every regex above and
+  // fails here.
+  for (const half of [bound?.[2] ?? "", bound?.[3] ?? ""]) {
+    expect(page, `${half} must be read off the estate, not written down`).toMatch(
+      new RegExp(`const ${half} = [\\s\\S]{0,120}?estate\\.`),
+    )
+  }
   // Both halves reach the component. `DegradedState` requires them in the type,
   // but a page could satisfy `tsc` with two literals.
-  expect(page).toMatch(/<DegradedState[^>]*working=\{state\.working\}/)
-  expect(page).toMatch(/<DegradedState[\s\S]{0,120}failing=\{state\.failing\}/)
+  expect(page).toMatch(new RegExp(`<DegradedState[^>]*working=\\{${state}\\.working\\}`))
+  expect(page).toMatch(new RegExp(`<DegradedState[\\s\\S]{0,120}failing=\\{${state}\\.failing\\}`))
   // And the other two arms are not the same arm. "Degraded" for an estate where
   // every read failed is the message that gets an outage treated as a slow page,
   // and for one where none did it is a smoke alarm nobody believes.
-  expect(page).toMatch(/state\.kind === "whole"/)
-  expect(page).toMatch(/state\.kind === "down"/)
+  expect(page).toMatch(new RegExp(`${state}\\.kind === "whole"`))
+  expect(page).toMatch(new RegExp(`${state}\\.kind === "down"`))
 })
 
 test.describe("a high-risk confirmation cannot be partial", () => {

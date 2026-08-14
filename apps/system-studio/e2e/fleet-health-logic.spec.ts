@@ -755,16 +755,30 @@ test.describe("the fleet page reports what it could not observe", () => {
     // declaration and therefore does not let a caller put a class on a `<td>`.
     // The property this line needs is unchanged and is the one it always
     // wanted: the first link in the first row of the attention list opens that
-    // tenant. (`td.id` survives on `/tenants/[slug]`, which is a different
-    // surface and a different agent's file; line 760 below still uses it.)
+    // tenant.
     const first = page.locator("section", { hasText: "Fleet health" }).first().locator("tbody tr td a").first()
     await first.click()
     await page.waitForURL(/\/tenants\/[^/]+$/)
 
     const observed = page.locator("section", { hasText: "Observed" }).first()
     await expect(observed).toBeVisible()
+    // `/tenants/[slug]` composes `DataTable` for this panel too, so its Source
+    // column is a plain `<td>` with no class to hook — the class was markup,
+    // and the property this test is about is not. Asserted through the table's
+    // own role instead, and TIGHTER than the `td.id` substring it replaces: the
+    // Source cell's whole text must BE the source, so a page that dropped the
+    // `queue-age` row and merely mentioned the words somewhere in another row's
+    // prose no longer passes, and neither does a row rendered anywhere other
+    // than inside this panel's table.
+    const sources = observed.getByRole("table", {
+      name: "Observation sources, and what each one said",
+    })
+    await expect(sources).toBeVisible()
     for (const source of ["tls", "alarm", "backup", "queue-age", "cost-anomaly", "drift"]) {
-      await expect(observed.locator("td.id", { hasText: source }).first()).toBeVisible()
+      await expect(
+        sources.getByRole("cell", { name: source, exact: true }),
+        `${source} has no row of its own`,
+      ).toHaveCount(1)
     }
     // The three that have no reader must say what would give them one, rather
     // than rendering as a blank row that reads like a healthy one.

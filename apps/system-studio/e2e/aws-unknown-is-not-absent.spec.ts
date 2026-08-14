@@ -865,18 +865,54 @@ test.describe("the drift comparison is reached from a page", () => {
     const source = tenantPage()
     expect(source).toContain("compareDesiredToActual(")
     expect(source).toContain("desiredFromDeployment(")
-    // The same function /platform/estate calls, so the two surfaces cannot
-    // disagree about what AWS said.
-    expect(source).toContain("await estateInventory()")
+    /*
+     * The same function /platform/estate calls, so the two surfaces cannot
+     * disagree about what AWS said.
+     *
+     * It is no longer `await estateInventory()` on a line of its own: the call
+     * constructs AWS clients, and a missing region or an unresolvable endpoint
+     * throws before any read is attempted, which is a configuration fault
+     * rather than a denial. So the page now awaits it THROUGH `readingAsync`,
+     * which turns that throw into a reading the page can render. The property
+     * this assertion exists for is unchanged — the tenant page performs the
+     * estate read itself, from the same function — and it still fails if the
+     * page stops calling it, or calls something else and calls it inventory.
+     */
+    expect(source).toMatch(/await readingAsync\(\s*\(\)\s*=>\s*estateInventory\(\)/)
   })
 
   test("it passes the READINGS, not flattened arrays", () => {
-    // Flattening would turn a denied surface into "no resources", and the report
-    // would then offer a plan to recreate every desired resource — the failure
-    // the union exists to refuse. The four readings must arrive whole.
+    /*
+     * Flattening would turn a denied surface into "no resources", and the report
+     * would then offer a plan to recreate every desired resource — the failure
+     * the union exists to refuse. The four readings must arrive whole.
+     *
+     * The inventory is now held in a reading rather than in a bare `estate`, so
+     * the four are read off `inventory.value`. The name is NOT hardcoded and NOT
+     * left free either — it is read back off the estate read itself, so the four
+     * fields must come off the object that read produced rather than off any
+     * object that happens to carry four fields with the right names. That is the
+     * link `estate.ecsServices` carried when the read was
+     * `const estate = await estateInventory()`, and it is what stops the report
+     * being computed against a second, staler inventory.
+     *
+     * The rest is pinned exactly as it was and nothing more: the four fields come
+     * off ONE expression, in the one order `compareDesiredToActual` documents, and
+     * each is passed as it stands. A comma has to follow each name, so `.value`,
+     * `?? []`, `.map(...)` or any other unwrapping fails this exactly as
+     * `estate.ecsServices.value ?? []` would have failed before.
+     */
     const source = tenantPage()
+    const bound = source.match(
+      /const (\w+) = await readingAsync\(\s*\(\)\s*=>\s*estateInventory\(\)/,
+    )
+    expect(bound, "the page no longer binds the estate reading to a name").not.toBeNull()
+    const inventory = `${bound![1]}(?:\\.\\w+)*`
     expect(source).toMatch(
-      /\[\s*estate\.ecsServices,\s*estate\.databases,\s*estate\.distributions,\s*estate\.certificates,?\s*\]/,
+      new RegExp(
+        `\\[\\s*(${inventory})\\.ecsServices,\\s*\\1\\.databases,` +
+          `\\s*\\1\\.distributions,\\s*\\1\\.certificates,?\\s*\\]`,
+      ),
     )
   })
 

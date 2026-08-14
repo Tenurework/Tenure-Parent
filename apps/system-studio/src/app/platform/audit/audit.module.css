@@ -94,6 +94,33 @@
 }
 
 /*
+ * A ledger cell that carries two things: the identifier, and the muted line that
+ * qualifies it — the target and its type, the digest and the digest it links
+ * back to.
+ *
+ * They used to be inline siblings separated by a space, and that is a defect at
+ * every width rather than a narrow-viewport one. `code` is `overflow-wrap:
+ * anywhere` (globals.css), so a long id — `hr-approve-87828856`, a 12-character
+ * digest — breaks mid-token and takes a second line; the qualifier then
+ * continues on that second line, hard against the tail of the id, and an
+ * operator reading `To what` sees `…856 Tenant` run together as one string. That
+ * is what `layout.spec.ts` measures when it says text is drawn on top of other
+ * text: the wrapped `code`'s box spans both lines, and its sibling sits inside
+ * it.
+ *
+ * A column, so each part owns a line of its own and neither can wrap into the
+ * other. `min-inline-size: 0` for the same reason every other rule in this file
+ * carries it — a flex item's automatic minimum size is its content's, and the
+ * content here is exactly the unbreakable-looking identifier that would
+ * otherwise set the column's floor.
+ */
+.cellLines {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+/*
  * The two hold forms, side by side where there is room and stacked where there
  * is not. `min(24rem, 100%)` is the same bargain the filter fields strike: never
  * narrower than readable, never wider than the viewport.

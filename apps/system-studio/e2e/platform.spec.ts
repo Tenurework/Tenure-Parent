@@ -89,7 +89,17 @@ test.describe("platform console", () => {
   test("shows connector setup references without credential values", async ({ page }) => {
     await signIn(page)
 
-    await expect(page.getByRole("heading", { name: "Setup references — 4" })).toBeVisible()
+    // The table's CAPTION, not an `<h3>` above it. `Setup references — 4` was a
+    // hand-rolled heading followed by a bare `<table className="grid">`; the
+    // index now renders it through the shared `DataTable`, whose `caption` prop
+    // emits a real `<caption>` — which is where a table's accessible name
+    // belongs, and is the locator this same spec already uses for `/platform`'s
+    // own tables further down ("Every read that was refused", "What this engine
+    // declares it can ask for"). The ASSERTION is unchanged: same string, same
+    // count of 4 read off the same catalog, still required to be visible, still
+    // failing if a fifth reference appeared or one stopped rendering. Only the
+    // element carrying it follows the component.
+    await expect(page.getByRole("table", { name: "Setup references — 4" })).toBeVisible()
     await expect(page.getByRole("cell", { name: "slack.workspace", exact: true }).first()).toBeVisible()
     for (const name of ["SLACK_APP_ID", "SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET", "SLACK_SIGNING_SECRET"]) {
       await expect(page.getByRole("cell", { name, exact: true })).toBeVisible()

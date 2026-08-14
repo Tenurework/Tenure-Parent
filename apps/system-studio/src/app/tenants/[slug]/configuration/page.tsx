@@ -219,6 +219,39 @@ const PAGE_CSS = `
   color: var(--md-sys-color-on-surface-variant);
   overflow-wrap: anywhere;
 }
+/*
+ * The configuration map is a column flex box with a max-block-size and
+ * overflow:auto, and its links carry an explicit min-height of one tap target.
+ * That explicit minimum REPLACES the automatic min-height:auto which is the
+ * only thing stopping a column flex item from being squeezed below the height of
+ * its own content — so once the map's content passes the cap, every link is
+ * shrunk to the tap target and each one's wrapped description is painted out the
+ * bottom of its own box, on top of the next link's domain name.
+ *
+ * It is only reachable in a middle band of widths: at 1440 and 1180 CSS pixels
+ * the map's grid column is wide enough that a description is two lines, and
+ * under 760 the media query in globals.css drops the cap entirely. At 900 the
+ * column is clamped to its 13rem floor, every description wraps to ten lines or
+ * more, and the map lands within a few dozen pixels of its own maximum — which
+ * side of it depends on the platform's font metrics. CI is the side that
+ * overlaps.
+ *
+ * What CI measured, in configuration-surface.spec.ts's overlap detector — the
+ * test is named for 320 CSS pixels but walks four widths and threw at the third:
+ *
+ *     "Which modules and features are enabled, their rollout, and t" over "relay"
+ *     "Locale, currency, calendar, working days, holidays, and text" over "branding"
+ *
+ * Both are a description painted over the NEXT link's domain name, which is the
+ * signature of the squeeze above rather than of a margin.
+ *
+ * A scroll container scrolls its items; it does not compress them. Stated as a
+ * child selector so it outranks the one-class rule in globals.css whichever
+ * order the two sheets land in.
+ */
+.config-map > .config-map-link {
+  flex-shrink: 0;
+}
 `
 
 /** Amount as a decimal string. `half-even` because this is a display total. */

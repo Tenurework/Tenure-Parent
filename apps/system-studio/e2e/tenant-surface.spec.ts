@@ -63,9 +63,30 @@ async function signIn(page: Page) {
 
 async function open(page: Page, slug: string) {
   await page.goto(`/tenants/${slug}`)
-  // The page is server-rendered, so its first card is in the initial HTML. This
-  // waits for the thing under test rather than for a network that a dev server's
-  // hot-reload socket keeps busy forever.
+  /*
+   * The segment's `loading.tsx` is flushed FIRST, and it is a `<section>` too.
+   *
+   * `app/tenants/loading.tsx` renders `LoadingState`, which is
+   * `<section class="state" data-state="loading">`. So "the first section in
+   * main is visible" is satisfied by the skeleton while the route is still
+   * streaming, and the assertions that take a single DOM reading — the card
+   * inventory, the table inventory, the four bounding boxes — measured a page
+   * with nothing on it and reported "seed-deployed rendered no cards". The
+   * assertions that use a retrying `expect` locator never saw it, which is why
+   * only some of this file went red.
+   *
+   * So the wait is for a card of this route's own — the page has no Suspense
+   * boundary inside it, so the whole body arrives in one flush and the first
+   * card being painted means all thirteen are — and then for no loading state
+   * to be left in `main`, which is what would catch a future inner boundary
+   * that streamed a panel in late.
+   */
+  await expect(page.locator("main section.md3-card").first()).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('main section[data-state="loading"]')).toHaveCount(0, {
+    timeout: 30_000,
+  })
+  // The original wait, kept: the route rendered a region, and it is not the one
+  // above having been swapped back out.
   await expect(page.locator("main section").first()).toBeVisible({ timeout: 30_000 })
 }
 

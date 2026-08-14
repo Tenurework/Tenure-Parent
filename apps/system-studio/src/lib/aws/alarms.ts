@@ -54,7 +54,13 @@ export const ALARM_WORDS: Readonly<Record<AlarmVerdict, string>> = {
   STALE: "Not moved",
   MISSING: "Not created",
   UNAUTHORIZED: "Unknown",
-  UNREADABLE: "Unknown",
+  // Not "Unknown" a second time. The word is the carrier — the tone repeats on
+  // purpose (both are `warn`), so two verdicts sharing a word leaves a badge an
+  // operator cannot read: UNAUTHORIZED is a refusal, which an IAM statement
+  // fixes and which this surface prints one for, and UNREADABLE is a throttle,
+  // an unconfigured account or a failed call, which it does not. Both mean
+  // "nothing was learnt"; only one of them names something to grant.
+  UNREADABLE: "Not read",
 }
 
 export interface AlarmRow {

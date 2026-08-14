@@ -49,6 +49,7 @@ import {
   type RegistryAnswer,
   type SystemPlacement,
 } from "./console-index/answer"
+import styles from "./console-index/console-index.module.css"
 
 export const dynamic = "force-dynamic"
 
@@ -91,6 +92,12 @@ const CATALOG_CAPABILITIES_SHOWN = 8
  * Sliced rather than formatted through `Intl`: a locale-dependent rendering is
  * a different string on a different machine, and this stamp is the thing an
  * operator quotes in an incident channel. UTC because the estate is.
+ *
+ * The three tokens are separated by ordinary spaces, and every `<time>` that
+ * prints them wears `styles.stamp` so a line break cannot fall between them.
+ * The separator stays a plain space on purpose — see the header of
+ * `console-index/console-index.module.css` for why the line break is answered
+ * in CSS rather than with a U+00A0 here.
  */
 function asOf(iso: string): string {
   return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`
@@ -521,7 +528,7 @@ export default async function StudioPage({
         supportingText={
           <>
             Read from the bindings compiled into this build, the tenant registry and the live AWS
-            estate at <time dateTime={now}>{asOf(now)}</time>.
+            estate at <time className={styles.stamp} dateTime={now}>{asOf(now)}</time>.
           </>
         }
       >
@@ -585,7 +592,7 @@ export default async function StudioPage({
             <>
               Every system below therefore shows {UNKNOWN} for its lifecycle state, and none of
               them was compared against AWS — there was nothing to compare against. Attempted at{" "}
-              <time dateTime={now}>{asOf(now)}</time>.
+              <time className={styles.stamp} dateTime={now}>{asOf(now)}</time>.
             </>
           }
         >
@@ -611,7 +618,7 @@ export default async function StudioPage({
             <>
               A resource this engine was not allowed to look for is not a resource that is missing.
               Nothing below was counted as agreement. Attempted at{" "}
-              <time dateTime={now}>{asOf(now)}</time>.
+              <time className={styles.stamp} dateTime={now}>{asOf(now)}</time>.
             </>
           }
         >
@@ -658,7 +665,7 @@ export default async function StudioPage({
               supportingText={
                 <>
                   <code>/{s.binding.slug}</code> — {placement.because} Read at{" "}
-                  <time dateTime={now}>{asOf(now)}</time>.
+                  <time className={styles.stamp} dateTime={now}>{asOf(now)}</time>.
                 </>
               }
             >
@@ -756,7 +763,7 @@ export default async function StudioPage({
             supportingText={
               <>
                 <code>/{s.binding.slug}</code> — {placement.because} Read at{" "}
-                <time dateTime={now}>{asOf(now)}</time>.
+                <time className={styles.stamp} dateTime={now}>{asOf(now)}</time>.
               </>
             }
             actions={
@@ -778,7 +785,7 @@ export default async function StudioPage({
                   {s.configProblems!.length > 0 || !s.topologyOk
                     ? `has ${s.configProblems!.length} problem${s.configProblems!.length === 1 ? "" : "s"}`
                     : "resolved cleanly"}
-                  , read at <time dateTime={now}>{asOf(now)}</time>
+                  , read at <time className={styles.stamp} dateTime={now}>{asOf(now)}</time>
                 </>
               }
               columns={FACT_COLUMNS}
@@ -976,7 +983,7 @@ export default async function StudioPage({
         }
         supportingText={
           <>
-            Decided at <time dateTime={now}>{asOf(now)}</time> for region{" "}
+            Decided at <time className={styles.stamp} dateTime={now}>{asOf(now)}</time> for region{" "}
             {availabilityScope.region || UNKNOWN}, partition{" "}
             {availabilityScope.partition || UNKNOWN}, engine version{" "}
             {pinnedEngineVersion || UNKNOWN}, with the marketplace closed. A decision is only true

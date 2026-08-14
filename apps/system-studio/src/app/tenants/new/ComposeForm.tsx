@@ -479,13 +479,22 @@ export function ComposeForm({
     {
       key: "what",
       term: "What this will be",
+      /*
+       * Every emphasised fact is a `.token` — see the note in the stylesheet.
+       * These are identifiers (`university-student-organizations`,
+       * `institution`), they are set inside a sentence that wraps, and a plain
+       * `<b>` split across a line boundary covers the facts either side of it.
+       */
       value: (
         <>
-          One tenant system on the <b>{blueprintId || "unnamed"}</b> blueprint, operating as{" "}
-          <b>{operatingModel || "unstated"}</b> for a <b>{organization || "unstated"}</b>{" "}
-          organisation, running <b>{selected.length}</b> of {modules.length} catalog module(s)
-          across {suites.length} functional suite(s), contracted on <b>{planId || "no plan"}</b>,
-          isolated as <b>{isolation || "unstated"}</b>.
+          One tenant system on the <b className={styles.token}>{blueprintId || "unnamed"}</b>{" "}
+          blueprint, operating as{" "}
+          <b className={styles.token}>{operatingModel || "unstated"}</b> for a{" "}
+          <b className={styles.token}>{organization || "unstated"}</b> organisation, running{" "}
+          <b className={styles.token}>{selected.length}</b> of {modules.length} catalog module(s)
+          across {suites.length} functional suite(s), contracted on{" "}
+          <b className={styles.token}>{planId || "no plan"}</b>, isolated as{" "}
+          <b className={styles.token}>{isolation || "unstated"}</b>.
         </>
       ),
     },
@@ -494,7 +503,9 @@ export function ComposeForm({
       term: "List price if activated today",
       value: (
         <>
-          <b data-testid="running-total-amount">{totalText}</b>{" "}
+          <b className={styles.token} data-testid="running-total-amount">
+            {totalText}
+          </b>{" "}
           {quote.state === "QUOTED" ? (
             <>
               per month — {quote.preview.quote.lines.length} option(s) at{" "}
@@ -534,8 +545,9 @@ export function ComposeForm({
       value: (
         <>
           Blueprint, module, plan, isolation and coexistence catalogs as compiled into this build,
-          engine <code>{engineVersion}</code>. Fleet read at <code>{fleetReadAt}</code>. The quote
-          is recomputed on this device as the form changes.
+          engine <code className={styles.token}>{engineVersion}</code>. Fleet read at{" "}
+          <code className={styles.token}>{fleetReadAt}</code>. The quote is recomputed on this
+          device as the form changes.
         </>
       ),
     },
