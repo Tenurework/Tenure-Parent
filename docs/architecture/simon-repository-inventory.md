@@ -65,23 +65,23 @@ Observed at **2026-08-14**. Source pinned to `3504b173828f0da18171f6dadab4ebfbfb
 | Releases | none |
 | Deployment environments | `aws-read` `engine-production` |
 | Open pull requests | none open |
-| Commits on the recorded head | 406 |
+| Commits on the recorded head | 425 |
 | Oldest commit | `abf30691f829` (2026-07-10) |
-| Newest commit | `6dfc541289c4` (2026-08-13) |
+| Newest commit | `a76d4607ec91` (2026-08-14) |
 | Contributors | 4 — Claude, Monorepo Migration, satvikOS, verification |
-| Tracked files | 1343 |
-| Working tree | checked out on `studio-program`, 123 dirty path(s) at 2026-08-14 |
+| Tracked files | 1457 |
+| Working tree | checked out on `HEAD`, 2 dirty path(s) at 2026-08-14 |
 
 | Branch | Commit |
 | --- | --- |
 | `fix/canonical-digest` | `eb16bfca4d01` |
 | `fix/e2e-retired-credential-card` | `a121a640fcc8` |
-| `main` | `6dfc541289c4` |
+| `main` | `54b3c3d4a532` |
 | `platform/reconcile-endpoint` | `0c1a1811eb56` |
 | `platform/reconcile-secret` | `0ae1a96cf71c` |
 | `platform/schema-version` | `e3f609dffae6` |
 | `security/untrack-real-roster` | `6298add8a127` |
-| `studio-program` | `e8304ebe4eb8` |
+| `studio-program` | `5561de0b6b84` |
 | `wip/ier-killed-run-20260808` | `815be47a3c4b` |
 | `wip/studio-program-20260813` | `c5a468adeee6` |
 
@@ -121,7 +121,7 @@ The two repositories share history: the parent was branched from the pilot. Abso
 | `.github/workflows/custom-domain.yml` | Custom Domain Status | workflow_dispatch | yes | — | `Tenurework/Tenure` |
 | `.github/workflows/db-recovery.yml` | Database recovery and census | workflow_dispatch | yes | — | `Tenurework/Tenure` |
 | `.github/workflows/debug-logs.yml` | Debug Logs | workflow_dispatch | yes | — | `Tenurework/Tenure-Parent` |
-| `.github/workflows/deploy-studio.yml` | Deploy Studio | push, workflow_dispatch | yes | **yes** | `Tenurework/Tenure-Parent` |
+| `.github/workflows/deploy-studio.yml` | Deploy Studio | workflow_dispatch, workflow_run | yes | **yes** | `Tenurework/Tenure-Parent` |
 | `.github/workflows/deploy.yml` | Deploy | workflow_dispatch | yes | **yes** | `Tenurework/Tenure` |
 | `.github/workflows/force-redeploy.yml` | Force Redeploy | workflow_dispatch | yes | **yes** | `Tenurework/Tenure` |
 | `.github/workflows/ops-status.yml` | Ops Status | workflow_dispatch | yes | — | `Tenurework/Tenure` |
@@ -130,5 +130,6 @@ The two repositories share history: the parent was branched from the pilot. Abso
 | `.github/workflows/replace-acm-cert.yml` | Replace ACM Certificate | workflow_dispatch | yes | **yes** | `Tenurework/Tenure` |
 | `.github/workflows/rotate-auth-secret.yml` | Rotate Auth Secret | workflow_dispatch | yes | **yes** | `Tenurework/Tenure` |
 | `.github/workflows/seed-reference-data.yml` | Seed reference data | workflow_dispatch | yes | — | `Tenurework/Tenure` |
+| `.github/workflows/studio-domain.yml` | Studio Domain Status | workflow_dispatch | yes | — | `Tenurework/Tenure-Parent` |
 | `.github/workflows/verify-reminders.yml` | Verify Reminders | workflow_dispatch | yes | — | `Tenurework/Tenure` |
 | `.github/workflows/visual-baselines-refresh.yml` | Visual baselines · refresh | workflow_dispatch | — | — | **none** |

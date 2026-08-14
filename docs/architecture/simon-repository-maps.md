@@ -35,25 +35,26 @@ checks the roll-ups add up to the file lists they came from.
 | Area | Tracked files |
 | --- | ---: |
 | `(repository root)` | 37 |
-| `.github/workflows` | 17 |
+| `.github/workflows` | 18 |
 | `Tier1` | 13 |
 | `Tier1/extracted` | 11 |
-| `apps/system-studio` | 268 |
-| `apps/web` | 492 |
+| `apps/system-studio` | 304 |
+| `apps/web` | 494 |
 | `blueprints` | 5 |
 | `blueprints/corporate-divisions` | 1 |
 | `blueprints/nonprofit-program-operations` | 1 |
 | `blueprints/university-student-organizations` | 1 |
 | `docs` | 2 |
-| `docs/architecture` | 20 |
+| `docs/architecture` | 44 |
 | `docs/contracts` | 7 |
-| `docs/decisions` | 12 |
+| `docs/decisions` | 15 |
 | `docs/handoff` | 1 |
 | `docs/implementation` | 23 |
 | `docs/migrations` | 4 |
+| `docs/payments` | 1 |
 | `docs/runbooks` | 1 |
 | `infrastructure/oidc` | 5 |
-| `infrastructure/studio` | 11 |
+| `infrastructure/studio` | 12 |
 | `infrastructure/terraform` | 20 |
 | `modules` | 2 |
 | `packages` | 1 |
@@ -61,7 +62,7 @@ checks the roll-ups add up to the file lists they came from.
 | `packages/authorization` | 20 |
 | `packages/configuration` | 28 |
 | `packages/contracts` | 3 |
-| `packages/finops` | 13 |
+| `packages/finops` | 15 |
 | `packages/identity` | 57 |
 | `packages/metadata` | 5 |
 | `packages/module-runtime` | 8 |
@@ -71,12 +72,13 @@ checks the roll-ups add up to the file lists they came from.
 | `packages/provisioning` | 30 |
 | `packages/releases` | 5 |
 | `packages/workflow` | 5 |
-| `tests/architecture` | 32 |
-| `tests/security` | 35 |
-| `tools` | 18 |
+| `tests` | 1 |
+| `tests/architecture` | 57 |
+| `tests/security` | 36 |
+| `tools` | 32 |
 | `tools/dev` | 4 |
-| `tools/loop` | 46 |
-| **total** | **1343** |
+| `tools/loop` | 49 |
+| **total** | **1457** |
 
 ## Workspace and package map
 
@@ -160,12 +162,12 @@ digraph modules {
 }
 ```
 
-#### Target — 85 area edge(s) over 1068 source file(s), 509 builtin import(s), 1 unresolved relative, 7 unresolved alias
+#### Target — 85 area edge(s) over 1145 source file(s), 697 builtin import(s), 1 unresolved relative, 0 unresolved alias
 
 ```
 digraph modules {
   "apps/system-studio/e2e" -> "apps/system-studio/src/generated" [label="1"]
-  "apps/system-studio/e2e" -> "apps/system-studio/src/lib" [label="27"]
+  "apps/system-studio/e2e" -> "apps/system-studio/src/lib" [label="30"]
   "apps/system-studio/e2e" -> "apps/web/src/lib" [label="2"]
   "apps/system-studio/e2e" -> "modules" [label="1"]
   "apps/system-studio/e2e" -> "packages/configuration/src" [label="4"]
@@ -173,10 +175,10 @@ digraph modules {
   "apps/system-studio/e2e" -> "packages/finops/src" [label="1"]
   "apps/system-studio/e2e" -> "packages/platform-config/src" [label="3"]
   "apps/system-studio/e2e" -> "packages/provisioning/src" [label="1"]
-  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="34"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="43"]
   "apps/system-studio/src/app" -> "apps/system-studio/src/generated" [label="1"]
-  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="156"]
-  "apps/system-studio/src/app" -> "blueprints" [label="7"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="221"]
+  "apps/system-studio/src/app" -> "blueprints" [label="8"]
   "apps/system-studio/src/app" -> "modules" [label="7"]
   "apps/system-studio/src/app" -> "packages/audit/src" [label="3"]
   "apps/system-studio/src/app" -> "packages/configuration/src" [label="4"]
@@ -205,7 +207,7 @@ digraph modules {
   "apps/web/src" -> "apps/web/src/lib" [label="2"]
   "apps/web/src/app" -> "apps/web" [label="1"]
   "apps/web/src/app" -> "apps/web/src/components" [label="199"]
-  "apps/web/src/app" -> "apps/web/src/lib" [label="408"]
+  "apps/web/src/app" -> "apps/web/src/lib" [label="414"]
   "apps/web/src/app" -> "modules" [label="1"]
   "apps/web/src/app" -> "packages/authorization/src" [label="4"]
   "apps/web/src/app" -> "packages/configuration/src" [label="4"]
@@ -216,7 +218,7 @@ digraph modules {
   "apps/web/src/app" -> "packages/payments/src" [label="1"]
   "apps/web/src/app" -> "packages/platform-config/src" [label="23"]
   "apps/web/src/components" -> "apps/web/src/app" [label="7"]
-  "apps/web/src/components" -> "apps/web/src/lib" [label="15"]
+  "apps/web/src/components" -> "apps/web/src/lib" [label="16"]
   "apps/web/src/components" -> "packages/platform-config/src" [label="5"]
   "apps/web/src/lib" -> "apps/web" [label="1"]
   "apps/web/src/lib" -> "apps/web/scripts" [label="1"]
@@ -243,10 +245,10 @@ digraph modules {
   "blueprints/corporate-divisions" -> "blueprints" [label="1"]
   "blueprints/nonprofit-program-operations" -> "blueprints" [label="1"]
   "blueprints/university-student-organizations" -> "blueprints" [label="1"]
-  "tests/architecture" -> "tools" [label="8"]
+  "tests/architecture" -> "tools" [label="15"]
   "tests/architecture" -> "tools/loop" [label="1"]
-  "tests/security" -> "tools" [label="9"]
-  "tools" -> "apps/web/src/lib" [label="1"]
+  "tests/security" -> "tools" [label="10"]
+  "tools" -> "apps/web/src/lib" [label="2"]
   "tools" -> "tools/loop" [label="1"]
   "tools/loop" -> "tools" [label="1"]
 }
@@ -265,7 +267,7 @@ transitive dependency that hoisted it is removed.
 | `apps/web` | `@eslint/eslintrc` | 1 | **no** |
 | `apps/web/src/lib` | `server-only` | 10 | **no** |
 
-#### Target — 102 area/package pair(s), 38 undeclared
+#### Target — 104 area/package pair(s), 40 undeclared
 
 | Area | Package | Imports | Declared |
 | --- | --- | ---: | --- |
@@ -305,5 +307,7 @@ transitive dependency that hoisted it is removed.
 | `tests/architecture` | `typescript` | 1 | **no** |
 | `tests/architecture` | `x` | 3 | **no** |
 | `tests/architecture` | `z` | 1 | **no** |
+| `tools` | `x` | 2 | **no** |
+| `tools` | `z` | 1 | **no** |
 | `tools/dev` | `@aws-sdk/client-dynamodb` | 3 | **no** |
 | `tools/dev` | `@aws-sdk/lib-dynamodb` | 4 | **no** |

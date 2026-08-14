@@ -11,10 +11,10 @@ No timestamp, no hostname and no absolute path appears here, and every count is 
 | Configuration and form code | 64 |
 | Databases | 4 |
 | Infrastructure as code | 37 |
-| Workflows | 17 |
+| Workflows | 18 |
 | Tests over the configuration surface | 41 |
 | Deployed nonproduction behaviour | 3 |
-| **Total** | **202** |
+| **Total** | **203** |
 
 ## System Studio routes
 
@@ -213,6 +213,7 @@ Counted from the `resource`/`data` blocks in each file rather than from a plan, 
 | `.github/workflows/replace-acm-cert.yml` | production-disarmed | triggers: workflow_dispatch |
 | `.github/workflows/rotate-auth-secret.yml` | production-disarmed | triggers: (none parsed) |
 | `.github/workflows/seed-reference-data.yml` | production-disarmed | triggers: workflow_dispatch |
+| `.github/workflows/studio-domain.yml` | no-aws-job-or-not-disarmed | triggers: workflow_dispatch |
 | `.github/workflows/verify-reminders.yml` | production-disarmed | triggers: (none parsed) |
 | `.github/workflows/visual-baselines-refresh.yml` | no-aws-job-or-not-disarmed | triggers: workflow_dispatch |
 
