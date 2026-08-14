@@ -1,554 +1,769 @@
 # System Studio information architecture and route map
 
-The Bible's required deliverable list (section 19, "Product and UX") names one:
-"System Studio information architecture and route map". This is it. It decides
-what the console's navigation is, where each of its routes sits in that
-navigation, and — the part that carries the weight — which routes are finished
-operator surfaces and which are not.
+The Bible's required-deliverable list (§19, "Product and UX") names one:
+"System Studio information architecture and route map". This is it.
+
+It decides three things and it is the only place any of them is decided:
+
+1. **The shell** — what frames every route: a persistent full-height left
+   navigation, a persistent top bar, and a content region that uses the
+   viewport instead of a 1280px column in the middle of a 1920px monitor.
+2. **The navigation tree** — the Bible's domains as groups, the routes inside
+   them, and a second level of sub-items inside the routes that have real
+   sub-surfaces.
+3. **The route map** — every route the console serves, which side of the
+   Diagnostics line it falls on, and how an operator reaches it.
+
+**This document is a specification that build agents implement from.** Sections
+1–2 record what exists today, measured. Sections 3–11 are normative: they say
+what must be built. Section 12 says which lane owns which file, so three agents
+can work at once without touching each other's files. Section 13 records the
+deliberate deviations. Section 14 is what this document does not do.
 
 **Authorities, in precedence order.**
 
-1. `Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`,
-   section 7.2 "Global shell", which lists the navigation domains this console
-   is for, and section 12, which lists the AWS service families it must expose.
-2. `docs/implementation/system-studio-aws-control-plane-execution-ledger.md`,
-   which records what has actually been built against those domains, with
-   evidence.
+1. `Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`
+   — §7.1 (experience objectives), §7.2 (global shell), §12 (AWS service
+   families), §19 (this deliverable), §20 (prohibited shortcuts).
+2. The product owner's direct instruction, where it overrides a clause. Every
+   such override is named in §13 with the clause it overrides.
+3. `docs/implementation/system-studio-aws-control-plane-execution-ledger.md`,
+   which records what has actually been built, with evidence.
 
-Nothing here is a taste argument. Where this document had a choice to make it
-says which clause made it, and where it had no clause it says that instead.
+Where this document is *choosing* rather than *following*, it says
+**CHOICE** and gives the reason. A document that dresses taste as a citation is
+worse than one that admits the taste.
 
 ---
 
-## 1. The problem this replaces
+## 1. What is wrong today, measured
 
-Eight equal tabs in one flat row — Tenants, Systems, Platform, Cost, Audit,
-Estate, Health, Security — ordered by a claim about an operator's workflow
-("find or create a tenant, inspect the systems that exist, then check the
-platform underneath them"). Three properties of that row:
+Every line below was read out of the tree, not remembered.
 
-- **No grouping and no hierarchy.** Eight peers. `/platform/cost` and
-  `/platform` were siblings in the row while one was inside the other in the
-  URL, which is why the active-entry rule needed a most-specific-wins tiebreak
-  in the first place.
-- **No connection to the document that says what the console is for.** The tab
-  names were page names. An operator could not read the row and learn which
-  parts of the control plane exist.
-- **Finished surfaces sitting beside half-built ones, indistinguishable.**
-  `/platform/health` reads CloudWatch live and reports seven verdicts.
-  `/platform` prints the execution ledger's own progress bar, a list of the
-  repository's test suites, and an AWS estate snapshot compiled at a commit.
-  Both were a tab of the same size, in the same row, in the same colour.
+**A note on citations.** This tree is being edited by several agents at once.
+`apps/system-studio/src/app/globals.css` moved 56 lines during the writing of
+this document, so every reference to it here is by **selector or symbol**, which
+`grep` finds whatever the line number has become. Line numbers are given only
+for files that were not under edit in this run (`Nav.tsx`, `layout.tsx`,
+`e2e/layout.spec.ts`, `lib/*`, the `tests/architecture/*` guards) and are true
+as of it.
 
-The operator's summary: the console "is cluttered and looks like a construction
-site, all messed up and confusing … put all these mess in one last tab".
+| # | Defect | Where it lives |
+|---|---|---|
+| 1 | **The content is a centred column.** `main { inline-size: min(100%, 1280px); margin-inline: auto }`. On a 1920px operator monitor that is 320px of empty page on each side, permanently. `.masthead` and `.tabs` pad themselves to match with `padding-inline: max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5)))`, so the whole console is pinned to that column. | `globals.css`, rules `main`, `.masthead`, `.tabs` |
+| 2 | **The top bar holds four things.** A text `Tenure` wordmark, the words "System Studio", the preferences menu, an "Internal" badge. No sign-out, no account, no search, no breadcrumb, no environment or account indicator. | `src/app/layout.tsx:37-42` |
+| 3 | **There is no way to sign out.** `signOut` is exported from `src/lib/auth.ts:49` and has **zero callers** anywhere under `src/`. An operator ends a session by clearing a cookie. | `grep -rn "signOut" apps/system-studio/src` → one hit, the export itself |
+| 4 | **The navigation has one level.** `GROUPS` is 10 groups and 14 entries rendered as a horizontal wrapping strip. A group is a label above a list; there is nothing below an entry. | `src/components/Nav.tsx:87-209`; `grep -c 'href: "'` → 14, `grep -c 'domain: "'` → 10 |
+| 5 | **The command palette is invisible.** `components/CommandPalette.tsx` returns `null` until Ctrl/Cmd-K is pressed (`if (!open) return null`, line 149) and nothing on any screen mentions it. The string "Ctrl" appears once in the whole UI — inside a code comment. | `src/components/CommandPalette.tsx:149`, `:103` |
+| 6 | **The mark is a word in a pill.** The masthead renders `<span className="mark">Tenure</span>` with a 10px square pseudo-element beside it. `components/brand/TenureLogo.tsx` has held the real rosette and a `TenureStudioWordmark` since before this run, and `grep -rn TenureLogo` returned hits in that file only — nothing rendered it. A design lane is landing `components/md3/Logo.tsx` over the same `PETAL` geometry while this is being written; §5 points the shell at it rather than at a third mark. | `grep -rn "TenureLogo"`; `git status --porcelain` |
+| 7 | **18 routes are served, not 17.** `find src/app -name page.tsx` → 18. The 17 in `tests/architecture/authorizing-routes-are-dynamic.test.mjs`'s comment predates `/platform/diagnostics`. | `href-probe`, §11 |
 
-## 2. The rule
+Two claims in the previous revision of this document were wrong and are
+corrected here rather than quietly dropped:
 
-> Every surface that is unfinished, diagnostic, or exists only to prove
-> something to a developer sits behind the **last** group, named **Diagnostics**.
-> Everything before Diagnostics is a finished, Bible-defined operator surface.
+- It said "**Ten groups, thirteen destinations**". It is fourteen. Counted:
+  `grep -c 'href: "' src/components/Nav.tsx` → 14.
+- It said "**Entry labels are the page's own `<h1>`**". Three are not:
+  `/` is labelled *Systems* and its `<h1>` is "Organization systems";
+  `/platform/estate` is *Estate* / "AWS estate"; `/platform/security` is
+  *Findings* / "Security posture". §5 decides what to do about that.
 
-No route is deleted and no route stops being served. Moving it behind the last
-group is the entire mechanism, and it is reversible in one row of the table in
-`apps/system-studio/src/components/Nav.tsx` on the day the surface becomes an
-operator surface.
+The operator's own words for the result: "very weak, cluttered, and isolated in
+the centre of the screen with no logout, back and forth, global search and
+interactions within this. Logo is still not put in there."
 
-The line is drawn in the rendering, not only in the ordering: the Diagnostics
-group is pushed to the end of its row and separated by a rule
-(`margin-inline-start: auto` and `border-inline-start`), because an ordering
-nobody perceives as an ordering is not a signal. Measured at 1440 CSS pixels,
-the tail group sits 244px clear of the group before it with a 1px rule between
-them; at 320 it is still separated, on the last row.
+## 2. What the Bible asks for, and what we are allowed to take
 
-The last group's **first** entry is `/platform/diagnostics`, the register of
-what is behind the line and what is unfinished about each of them. A quarantine
-that does not publish what it is holding is a drawer.
+§7.2, verbatim:
 
-## 3. The groups
+> - Left navigation: Fleet, Implementations, Blueprints, Modules, Releases,
+>   Changes, AWS, Identity, Data, Relay, Integrations, Domains, Security,
+>   Operations, FinOps, Evidence, Marketplace.
+> - Header: active environment, global/tenant scope, region/cell,
+>   command/search, notifications/incidents, help, operator profile.
+> - Context rail or inspector: selected object identity, provenance,
+>   dependencies, current vs desired state, health, cost, risks, change
+>   history, and actions.
+> - Command palette: navigation and safe draft creation only; high-risk action
+>   still uses full review/approval flow.
 
-The group names are the Bible's, from section 7.2's left-navigation list, in
-that list's order:
+§20 forbids, in these words: "Copy Monarch, Vercel, Perplexity, AWS Console,
+SAP, Workday, or Jira trade dress."
 
-> Fleet, Implementations, Blueprints, Modules, Releases, Changes, AWS, Identity,
-> Data, Relay, Integrations, Domains, Security, Operations, FinOps, Evidence,
-> Marketplace.
+**The line this document draws.** What those consoles get right is *structural*
+and is not their property: a navigation that is always there and has more than
+one level; a bar that never scrolls away; one keystroke to anything; an account
+menu that can end the session; a trail that says where you are and is clickable
+back. What is theirs is their *identity* — their palette, their type, their icon
+set, their spacing rhythm, their chrome. We take the first and none of the
+second. Every colour, radius, shadow and step in this shell comes from the
+Studio's own `--md-sys-*` layer, documented in `docs/architecture/studio-design-system.md`.
 
-A group holds a **list** of entries, not one. It held exactly one when this
-document was first written, which made "group" and "entry" the same row in the
-table; then three surfaces landed over three of the Bible's section 12 service
-families, all of them the AWS domain. Flattening them back into peers of Fleet
-and FinOps is precisely how the flat row was built the first time — one page at
-a time, each addition defensible on its own.
+## 3. The shell
 
-Narrowed to the domains with a real surface today, the Bible's order gives:
+### 3.1 The frame
+
+Three regions, in this arrangement, on every route except `/signin`:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ TOP BAR   mark · env/account · search · account menu       (sticky)  │  56px
+├───────────────┬──────────────────────────────────────────────────────┤
+│               │ BREADCRUMB  Fleet › Tenants › seed-deployed          │
+│  LEFT RAIL    ├──────────────────────────────────────────────────────┤
+│  (sticky,     │                                                      │
+│   own scroll) │ MAIN — fluid width, no centred column                │
+│               │                                                      │
+└───────────────┴──────────────────────────────────────────────────────┘
+```
+
+Normative properties:
+
+- **The top bar is `position: sticky; inset-block-start: 0`** and stays for the
+  life of the session. `.masthead` is already sticky; what changes is what it
+  carries (§5).
+- **The rail is `position: sticky`, not `position: fixed`.** Sticky participates
+  in the grid, so nothing has to reserve a margin for it, and — the reason that
+  decides it — `e2e/layout.spec.ts`'s overlap detector measures boxes in *page*
+  coordinates (`x: r.x + window.scrollX`, `y: r.y + window.scrollY`, lines
+  90-91). A fixed rail's rect stops corresponding to the page the moment
+  anything scrolls. At scroll 0 the two are identical, so this costs nothing and
+  removes a category of false positive nobody would enjoy diagnosing.
+- **The rail scrolls itself**: `block-size: calc(100dvh - var(--topbar-block-size));
+  overflow-y: auto`. `auto`, never `hidden` — `layout.spec.ts`'s "text is never
+  clipped by a fixed height" test (line 293) fires on `overflow`/`overflow-y`
+  computing to `hidden` with `scrollHeight > clientHeight` (line 308), and a
+  rail of fourteen entries plus sub-items will exceed 100dvh at 900px.
+- **`main` becomes fluid**: `inline-size: 100%`, `margin-inline` removed,
+  `padding-inline: var(--space-6)`. The `calc((100vw - 1280px) / 2 …)` padding
+  hacks in `.masthead` and `.tabs` go with it.
+- **`dvh`, not `vh`**, and every direction logical (`inline-size`,
+  `padding-inline`, `inset-inline-start`). `layout.spec.ts`'s "layout survives
+  RTL" test (line 463) flips `dir="rtl"` on the live document and re-runs the
+  whole overlap detector plus the sideways-scroll assertion; one `margin-left`
+  reds it.
+
+### 3.2 Reading measure — how full width does not become 1600px paragraphs
+
+A 1600px-wide paragraph is its own defect. Removing the centred column without
+answering this trades one bad layout for another. The answer has two parts and
+neither of them re-centres the application:
+
+**(a) Prose is capped where prose lives, not where the page lives.** A token
+`--measure: 72ch`, applied to the elements that carry sentences — `p`, `li`,
+`dd`, `.supporting-text`, `figcaption` — as `max-inline-size: var(--measure)`.
+A table cell, a `<code>`, a chip, a data row and a `<th>` are **excluded**: they
+are not prose and capping them re-introduces truncation. This mirrors the rule
+already in `globals.css` (`grep -n "overflow-wrap: anywhere"`), which gives it to
+`p, li, dt, dd, code, .slug, .chip, legend` and deliberately not to `span` or
+`td` — a wide table must scroll, not collapse.
+
+**(b) Width is spent on columns, not on stretch.** The card region becomes
+`display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 34rem), 1fr));
+gap: var(--space-5)`. At 1280 that is one column and nothing changes. At 1920
+with the rail it is two, and at an ultrawide three. Pages carry between 3 and 14
+top-level cards today (`/platform/page.tsx` 14, `/tenants/[slug]` 13,
+`/platform/estate` 10) — measured by `grep -c "<Card"` per route — so the
+columns have something to hold on every route.
+
+**CHOICE.** `34rem` as the column floor, and `72ch` as the measure. Neither
+number is in any authority. 34rem is roughly twice the `min-inline-size:
+min(18rem, 100%)` the console's own `.md3-card-header` already reserves for the
+headline before its `headerAside` wraps to a second line — i.e. the width at
+which a card header still fits its two parts side by side; 72ch is the upper end
+of the usual 45–75ch typographic
+range, chosen at the wide end because this console's paragraphs are dense
+technical sentences with ARNs in them. Both are tokens so a measurement can
+change them in one place.
+
+**What full width must not become.** A table is still a table: wide tables keep
+their own `overflow-x: auto` container. `layout.spec.ts`'s spill check
+(lines 268-288) only looks at elements whose `overflow-x` computes to `visible`,
+which is exactly the licence a scrolling container has and a stretched
+paragraph does not.
+
+## 4. The navigation tree
+
+### 4.1 Level one: the groups are the Bible's domains, in the Bible's order
+
+Not a choice — §7.2, and `tests/architecture/shell-separation.test.mjs`
+("the console's navigation groups are the Bible's domains, in the Bible's
+order", lines 1089-1129) parses the Bible's own left-navigation line and fails
+the build on a group named anything else, on a group out of order, on more or
+fewer than one `tail` group, on the tail not being last, and on the tail being
+named after one of the Bible's domains.
+
+The ten groups and fourteen entries below are **unchanged from what ships
+today**. The rail is a new rendering of the same table, not a new table.
 
 | # | Group (Bible domain) | Entry | Route | The requirement it serves |
 |---|---|---|---|---|
 | 1 | **Fleet** | Tenants | `/tenants` | §14. Fleet view with lifecycle, cell/region, health, drift, cost and next action (`STUDIO-100-001`); search, saved filters and comparison (`STUDIO-100-002`). |
-| 2 | **Blueprints** | Systems | `/` | §8. Every effective configuration value shown with its source layer and provenance (`STUDIO-040-003`), over the blueprint that produced it. Also answers **Modules** (the enabled module set per system) and **Integrations** (the connector/extension/model catalog with its refusals and setup references). |
-| 3 | **AWS** | Estate | `/platform/estate` | §12. Cross-account actual-resource inventory (`STUDIO-080-001`), account topology (`STUDIO-010-002`), and a refused read rendered as unknown rather than as absent (`STUDIO-000-007`). |
-| 3 | **AWS** | Network | `/platform/network` | §12 "Network and edge" — VPC, subnets, route tables, security groups, VPC endpoints, ALB/target-group health, TLS posture. `STUDIO-080-001` for the resource facts, `STUDIO-080-002` for the network-flow edges. |
-| 3 | **AWS** | Compute | `/platform/compute` | §12 "Compute and orchestration" — ECS clusters and services, the task-definition revision each one actually runs, retained stopped tasks with their stop reason, ECR image posture joined by digest, Lambda runtime deprecation. `STUDIO-080-001`, `STUDIO-080-006`. |
-| 3 | **AWS** | Messaging | `/platform/messaging` | §12 "Compute and orchestration" (SQS, SNS, EventBridge, Scheduler) plus SES deliverability. Queue depth, in-flight, redrive and dead-letter state, oldest-message age from CloudWatch, and disabled scheduled rules. `STUDIO-080-001`, `STUDIO-080-007`. |
-| 4 | **Identity** | Identity | `/platform/identity` | §12 "Identity and secrets" — Cognito pools and MFA/password posture, IAM wildcards and key rotation, KMS key lifecycle, Secrets Manager rotation, Access Analyzer. §7.2 names **Identity** as a domain of its own, so it takes its own group. |
-| 5 | **Data** | Data | `/platform/data` | §12 "Data and content" — DynamoDB (including the tenant registry's own recoverability), RDS and pending maintenance with forced apply dates, S3 public-exposure posture, ElastiCache encryption, AWS Backup vaults. §7.2 names **Data** as a domain of its own. |
+| 2 | **Blueprints** | Systems | `/` | §8. Every effective configuration value with its source layer and provenance (`STUDIO-040-003`). Also answers **Modules** and **Integrations** — see §4.3. |
+| 3 | **AWS** | Estate | `/platform/estate` | §12. Cross-account actual-resource inventory (`STUDIO-080-001`), account topology (`STUDIO-010-002`), refused reads rendered as unknown (`STUDIO-000-007`). |
+| 3 | **AWS** | Network | `/platform/network` | §12 "Network and edge". `STUDIO-080-001`, `STUDIO-080-002`. |
+| 3 | **AWS** | Compute | `/platform/compute` | §12 "Compute and orchestration". `STUDIO-080-001`, `STUDIO-080-006`. |
+| 3 | **AWS** | Messaging | `/platform/messaging` | §12 "Compute and orchestration" (SQS/SNS/EventBridge/Scheduler) plus SES deliverability. `STUDIO-080-001`, `STUDIO-080-007`. |
+| 4 | **Identity** | Identity | `/platform/identity` | §12 "Identity and secrets"; §7.2 names **Identity** as a domain of its own. |
+| 5 | **Data** | Data | `/platform/data` | §12 "Data and content"; §7.2 names **Data** as a domain of its own. |
 | 6 | **Security** | Findings | `/platform/security` | §15. Aggregated findings with severity, SLA and per-source answered/unknown state (`STUDIO-110-006`). |
-| 7 | **Operations** | Health | `/platform/health` | §12. Alarms with the verdicts CloudWatch does not return — disabled, stale, missing, unauthorized (`STUDIO-080-008`). |
-| 8 | **FinOps** | Cost | `/platform/cost` | §16. Cost allocation with honest unallocated spend (`STUDIO-120-008`), cost display (`STUDIO-120-009`), and approval thresholds before a commitment (`STUDIO-120-010`). |
+| 7 | **Operations** | Health | `/platform/health` | §12. Alarms with the verdicts CloudWatch does not return (`STUDIO-080-008`). |
+| 8 | **FinOps** | Cost | `/platform/cost` | §16. Cost allocation with honest unallocated spend (`STUDIO-120-008`), display (`-009`), approval thresholds (`-010`). |
 | 9 | **Evidence** | Audit | `/platform/audit` | §15. Tamper-evident audit with verification tooling and a retention plan (`STUDIO-110-005`). |
-| — | **Diagnostics** | Diagnostics | `/platform/diagnostics` | **None.** It is the register of the line itself. See §6. |
-| — | **Diagnostics** | Platform | `/platform` | **None.** See §6. |
+| — | **Diagnostics** (tail) | Diagnostics | `/platform/diagnostics` | **None.** The register of what is behind the line. §8. |
+| — | **Diagnostics** (tail) | Platform | `/platform` | **None.** §8. |
 
-Ten groups, thirteen destinations.
+Ten groups, **fourteen** destinations.
 
-Entry labels are the page's own `<h1>`, not the domain's, for two reasons. The
-domain is already printed above the entry, so repeating it wastes the one line
-of hierarchy this navigation has. And four labels are load-bearing in tests
-owned by other work: `e2e/cost.spec.ts` asserts the current entry reads exactly
-`Cost` on `/platform/cost` and exactly `Platform` on `/platform`;
-`e2e/platform.spec.ts` clicks a link named exactly `Systems` and a link named
-`Platform`; `e2e/preferences.spec.ts` clicks a link named `Tenants`. Those four
-were not changed.
+Why Network, Compute and Messaging are AWS entries rather than groups: §7.2
+names seventeen domains and none of them is Network, Compute or Messaging. §12
+names them, but §12 is the list of *AWS service families the AWS domain must
+expose*, not a second navigation. Messaging had one plausible second home and
+does not get it: §7.2's **Relay** is Relay by Tenure, the Bedrock-hosted
+customer copilot (§13), not SQS or SES.
 
-Three labels do repeat their domain — **Identity**, **Data** and
-**Diagnostics** — because in those three cases the page's own name *is* the
-domain's name. Renaming the entry to avoid the repetition would mean the word an
-operator sees in the navigation is not the word at the top of the page they
-land on, which costs more than the repetition does.
+### 4.2 Level two: sub-items, and which routes get them
 
-### Why Network, Compute and Messaging are AWS and not their own groups
+The operator asked for "menued, sub-menued, dropdowns … across and within and
+within". Level two is **sub-items inside an entry**, rendered under the current
+entry in the rail and reachable as anchors.
 
-§7.2 names seventeen domains and none of them is Network, Compute or Messaging.
-§12 does name them — "Network and edge", "Compute and orchestration" — but §12
-is the list of *AWS service families the AWS domain must expose*, not a second
-navigation. Inventing a group for each would put three names in the left
-navigation that no authority uses, which is the taste argument this document
-exists to avoid. They are entries under **AWS**.
+**The rule for who gets them.** A route gets sub-items when both hold:
 
-Messaging is the one that had a plausible second home and does not get it.
-§7.2's **Relay** is Relay by Tenure, the Bedrock-hosted customer copilot (§13);
-it is not SQS, EventBridge or SES. Filing a queue-depth page under Relay would
-mislead an operator about what Relay is, so it does not go there.
+1. It renders **four or more top-level surfaces** that are separately readable —
+   different AWS readers, different questions, different failure arms; and
+2. an operator arrives at it **wanting one of them specifically**, often enough
+   that scrolling past three others is a cost.
 
-## 4. Where each of the eighteen routes falls
+Measured card counts (`grep -c "<Card"`, which over-counts because empty-state
+cards are included, so the build agent trims to the page's real top-level
+sections): `/platform/page.tsx` 14, `/tenants/[slug]` 13, `/platform/estate` 10,
+`/platform/audit` 9, `/platform/identity` 8, `/platform/network` 8, `/` 7,
+`/platform/data` 7, `/platform/compute` 6, `/platform/health` 6,
+`/platform/messaging` 6, `/platform/security` 5, `/platform/cost` 3,
+`/tenants` 3, `/platform/diagnostics` 3, `/tenants/new` 0.
 
-Eighteen `page.tsx` routes are served, enumerated from
-`apps/system-studio/src/app/**/page.tsx` rather than from any list.
-
-| Route | Side of the line | Navigation position |
+| Entry | Sub-items | Why, or why not |
 |---|---|---|
-| `/tenants` | Operator surface | Fleet |
-| `/tenants/new` | Operator surface | Not a destination — reached from Fleet |
-| `/tenants/[slug]` | Operator surface | Not a destination — reached from Fleet |
-| `/tenants/[slug]/configuration` | Operator surface | Not a destination — reached from the tenant |
-| `/` | Operator surface | Blueprints |
-| `/platform/estate` | Operator surface | AWS |
-| `/platform/network` | Operator surface | AWS |
-| `/platform/compute` | Operator surface | AWS |
-| `/platform/messaging` | Operator surface | AWS |
-| `/platform/identity` | Operator surface | Identity |
-| `/platform/data` | Operator surface | Data |
-| `/platform/security` | Operator surface | Security |
-| `/platform/health` | Operator surface | Operations |
-| `/platform/cost` | Operator surface | FinOps |
-| `/platform/audit` | Operator surface | Evidence |
-| `/signin` | Pre-session chrome | Not a destination — the navigation does not render there |
-| `/platform/diagnostics` | **Behind Diagnostics** | Diagnostics, last group, first entry |
-| `/platform` | **Behind Diagnostics** | Diagnostics, last group |
+| **Tenants** `/tenants` | none static; a **contextual sub-tree** when inside a tenant (§4.4) | One table answering one question. Its second level is per-tenant and is therefore contextual, not static. |
+| **Systems** `/` | Systems · **Modules** · **Integrations** | The one place sub-items pay twice: §7.2's **Modules** and **Integrations** domains have no route and are answered inside this page (module set per system; catalog availability, refusals, credential references). Today an operator reading the navigation cannot learn that. A sub-item makes a Bible domain visible without inventing a group the guard would refuse. |
+| **Estate** `/platform/estate` | This account · Inventory · Declared vs actual · Reconcile | Ten cards, four distinct questions, and "which account am I in" is the one people arrive for. |
+| **Network** `/platform/network` | Exposure · Load balancing · VPC and subnets · Security groups · Edge and TLS | Eight cards over five EC2/ELBv2 readers that degrade independently. |
+| **Compute** `/platform/compute` | Services · Stops · Images · Lambda runtimes | "Why did it stop" is a distinct arrival from "what is running". |
+| **Messaging** `/platform/messaging` | Queues · Dead letters · Schedules · Email | SES sits under the same route as SQS and is a different job. |
+| **Identity** `/platform/identity` | Operators and pools · IAM · Keys · Secrets · Analyzer | Eight cards, five services. |
+| **Data** `/platform/data` | DynamoDB · RDS · S3 · Cache · Backups | Five readers; DynamoDB is ranked first everywhere because the tenant registry lives there. |
+| **Findings** `/platform/security` | Findings · Sources · SLA | Five cards; the sources table is what makes an empty findings list mean anything. |
+| **Health** `/platform/health` | Alarms · Coverage | Six cards, two questions. |
+| **Cost** `/platform/cost` | **none** | Three cards and one question, whose honest answer today is `NOT_CONFIGURED`. Sub-items on a page with one section is furniture. |
+| **Audit** `/platform/audit` | Chain · Retention · Records | Nine cards; verification and retention are separate operator jobs. |
+| **Diagnostics**, **Platform** | **none, deliberately** | §8. Unfinished work does not get an expanded tree — an expanded tree reads as a finished area. |
 
-The four "not a destination" rows are not commentary. They are declared in
-`UNLINKED` in `apps/system-studio/src/app/platform/diagnostics/register.ts`,
-each with its reason, they are rendered on `/platform/diagnostics` for an
-operator to read, and `tests/architecture/shell-separation.test.mjs` fails the
-build on a route that is in neither the navigation nor that table. See §8.
+**Labels are provisional and the page wins.** The labels above are short
+operator words. The build agent maps each to the page's real top-level card,
+and where the page's own wording is clearer, **the page's wording wins and this
+table is edited** — the labels must be the words on the page, or a sub-item
+becomes a promise the destination does not keep.
 
-`register.ts` is a sibling module rather than the page itself for a reason worth
-recording, because the first attempt put the tables in the page and it does not
-build: the App Router rejects a route file that exports anything outside its
-reserved set, and that constraint lives in the generated `.next/types/**` shim —
-so `tsc --noEmit` passes on it and `next build` does not. It is not in
-`Nav.tsx` either, which carries `"use client"`: a Server Component importing a
-plain constant out of a client module receives a client reference rather than the
-value. A sibling `.ts` is neither a route file nor a client module, and being a
-`.ts` is also what keeps the JSX — the column definitions and the link cell — in
-`page.tsx` where the rest of the markup is.
+**How a sub-item is addressed, and the trap in it.** A sub-item is
+`{ label, anchor }` where `anchor` is the `id` of a top-level `<Card>`
+(`Card` already accepts `id`, `src/components/md3/Card.tsx:49`). The href is
+**composed at render** — `` href={`${entry.href}#${sub.anchor}`} `` — and never
+written as a literal.
 
-### The eleven in front of the line, each justified
+That is not a style preference. `shell-separation.test.mjs`'s `HREF_LITERAL`
+(line 492) reads every `href="/…"` and `href: "/…"` in the layout and every
+shell component, and requires each to be a route the console serves. Measured
+with the guard's own reader, read-only:
 
-**`/tenants` — Fleet.** `STUDIO-100-001` requires the fleet view to show tenant,
-lifecycle, cell/account/region, release, health, cost, drift, blockers and next
-action; `STUDIO-100-002` requires search, saved filters, comparison and export
-under semantic authorization. The page renders all of it from the registry and
-live observations, pages its table, and states what it is holding back. This is
-the console's front door and the first group for the same reason the Bible lists
-Fleet first.
+```
+WOULD RED THE GUARD  href="/platform/network#security-groups"   (sub-item as a literal)
+PASSES               href: "/platform/network"                  (the entry itself)
+INVISIBLE to guard   href={`${entry.href}#${sub.anchor}`}        (composed from data)
+```
 
-**`/tenants/new` — Fleet's action, not a section.** It is the entry to the
-§9 implementation journey (intake and identity, organization, module composer,
-deployment placement) and it is finished for that scope. It is deliberately
-**not** a navigation destination. `e2e/operator-roles.spec.ts` asserts that for
-an Auditor the compose control is absent rather than disabled, and that
-`href="/tenants/new"` does not appear in an Auditor's markup at all — a global
-navigation entry renders for every role on every route and would put the string
-there. §6's deny-by-default requirement (`STUDIO-020-006`, `STUDIO-020-007`) is
-the reason that assertion exists, and a navigation that advertises a write an
-operator does not hold is a frontend-only guard pointed the wrong way. It stays
-the primary action on `/tenants`, where the page has the session and can decide.
+So the fragment must be composed, and because a composed href is invisible to
+that guard, the anchors need their own check — §10 specifies it: every declared
+`anchor` must appear as an `id="…"` in that route's `page.tsx`, or the build
+fails. Without it the sub-item table is prose, and prose is wrong within a month.
 
-**`/tenants/[slug]` — Fleet's detail.** Lifecycle state machine, the successor
-moves and which of them need approval (`STUDIO-060-007` typed confirmation and
-non-automatable irreversible moves), desired-versus-actual comparison
-(`STUDIO-080-006`), retained observations and residual findings for archived and
-purged states (`STUDIO-100-005`). A dynamic route cannot be a static navigation
-entry; it is reached from the fleet table and from the command palette, and the
-Fleet group stays lit while an operator is inside it — the active-entry rule
-matches a subtree, not an exact path.
+### 4.3 Bible domains with no surface
 
-**`/tenants/[slug]/configuration` — the tenant's own configuration.** The
-editor over immutable revisions, with the dependency graph, the rollback diff,
-and reserved and withheld domains named with the reason rather than hidden. It
-serves `STUDIO-040-003` (every effective value with its source layer, author and
-previous versions) and `STUDIO-040-007` (expected version, comparison,
-conflict). Same reasoning as above: dynamic, so it is reached from its tenant.
-
-**`/` — Blueprints.** Every configured organization system with its blueprint,
-its resolved configuration and the layer each value came from, its enabled
-module set, and the integration catalog's availability decisions with the
-reasons for each refusal and the credential references each connector would
-need. That is `STUDIO-040-003` for the blueprint layer, the **Modules** domain's
-per-system answer, and the **Integrations** domain's catalog. It is honest about
-its own limit in its own words — tenant overlays are files until the
-configuration store covers them — which is a stated scope, not an unfinished
-surface: the surface renders completely and truthfully for what it covers. It
-also holds the Marketplace's correct state: `marketplaceEnabled: false` is
-passed explicitly, so the marketplace is closed as a property of the code
-(`STUDIO-130-007`).
-
-**`/platform/estate` — AWS.** Every number comes from a call the process just
-made. The header band answers "which account am I looking at" without scrolling,
-and says so when the answer is not known rather than printing a default. A
-denied call renders as UNKNOWN carrying principal, action, error code,
-account/region and the minimum IAM statement (`STUDIO-000-007`). §12's whole
-point is that an operator understands the estate without receiving general AWS
-mutation access, and this page is read-only.
-
-**`/platform/network` — AWS.** §12 "Network and edge". Eight EC2 describes and
-the ELBv2 listing, each degrading on its own. It answers one question — what can
-reach this estate from the internet, and is traffic actually getting to the
-services — and it is the only surface that reads what the security groups
-*actually* are rather than what `infrastructure/terraform/security_groups.tf`
-intended. Public-versus-private is decided by the route table and prints the
-route table id beside the verdict, and every unhealthy target carries its reason
-code verbatim. A finished surface.
-
-**`/platform/compute` — AWS.** §12 "Compute and orchestration". ECS services
-joined to the task definition revision each one runs, ECR joined by **digest**
-rather than tag (both repositories are `MUTABLE`, so a re-pushed tag names one
-thing while the running task is another), stopped tasks with `stoppedReason`,
-and Lambda runtimes against a deprecation calendar. `stoppedReason` had no other
-reader in the console: a crash-looping service and a slow one were
-indistinguishable before this route existed.
-
-**`/platform/messaging` — AWS.** §12's SQS/SNS/EventBridge, plus SES. Its
-highest-value fact is the SES sandbox arm — a sandboxed account silently refuses
-every unverified recipient, so a student never receives their reminder and
-nothing in the application hears about it. Queue depth is joined to
-`ApproximateAgeOfOldestMessage` from CloudWatch, because without the age a queue
-being drained and a queue nothing has consumed since Tuesday are the same
-number. Dead-letter state is derived from redrive policies rather than from
-queue names.
-
-**`/platform/identity` — Identity.** §12 "Identity and secrets", and §7.2's own
-**Identity** domain. Built around one rule: an absence of findings from a
-control that is not running is not a pass. Guards that are not protecting
-anything get their own card *above* the findings, with the reason printed as a
-word rather than as a colour, and the clear verdict is unreachable while any
-guard sits in another arm.
-
-**`/platform/data` — Data.** §12 "Data and content", and §7.2's own **Data**
-domain. Five readers, and the one ranked first everywhere is DynamoDB, because
-the tenant registry lives there and it is the only reader that can say whether
-the fleet's own record of itself is recoverable. RDS is the only source of "is
-anything about to interrupt it": a pending maintenance action with a
-`ForcedApplyDate` is the one fact on the page with a date on which somebody else
-acts.
-
-**`/platform/security` — Security.** Findings with severity, SLA and attribution
-(`STUDIO-110-006`). The sources table is what makes the empty case mean
-something: with six products behind one aggregator, "no open findings" is only a
-fact if the page can also say which of the six answered, and when the call was
-refused all six read UNKNOWN and no findings table is drawn.
-
-**`/platform/health` — Operations.** `STUDIO-080-008` forbids rendering a green
-alarm because no data is present, and requires OK, ALARM, INSUFFICIENT_DATA,
-disabled, stale, missing and unauthorized to be distinguishable. The page reads
-CloudWatch live and the expected set comes from the Terraform, so MISSING is
-falsifiable rather than an absence nobody notices.
-
-**`/platform/cost` — FinOps.** The one that needs the distinction stated
-explicitly: **an honest empty state is not an unfinished surface.** There is no
-Cost and Usage Report to ingest — no AWS Organization exists and no role this
-engine could assume to call Cost Explorer — so `lib/cost-source.ts` returns
-`NOT_CONFIGURED` and the page renders that, naming what an operator must
-connect. It deliberately has no third arm showing sample figures, because the
-Bible's prohibited-shortcut list names "fake cost" and this is the page an
-Aurora cluster gets approved from. A finished surface whose data source is
-`BLOCKED_EXTERNAL` stays in front of the line; it is telling the operator
-something true and actionable. Demoting it would hide a real gap behind a tab
-named for unfinished work.
-
-**`/platform/audit` — Evidence.** `verifyChain` and `applyRetention` existed as
-code with no caller until this page called them; the verification now runs on
-every page load over the rows read back out of DynamoDB and reports a break by
-sequence position. The retention plan is a partition of the records and deletes
-nothing. §3 is an evidence law and this is the surface that checks the evidence
-is intact, which is why it takes **Evidence** rather than sitting under Security.
-
-## 5. The five surfaces that landed after this document was first written
-
-`/platform/network`, `/platform/compute`, `/platform/data`, `/platform/messaging`
-and `/platform/identity` were built, tested, and reachable from nothing. They
-were in no navigation, and no guard said a word: the only route check that
-existed read one direction — every destination must be a route — which catches a
-dead link and misses five live surfaces nobody can find. §8 is the guard that
-now reads both directions, and the second direction exists because of these five.
-
-Each is placed above by its Bible domain, in the Bible's order: three under
-**AWS**, one under **Identity**, one under **Data**. None of them needed a new
-group and none was invented for them.
-
-## 6. The Diagnostics line, re-decided
-
-`/platform` is the only pre-existing route behind the line, and it stays there.
-It serves no operator requirement. Its own header says what it is — "Compiled
-from the execution ledger, the execution prompt and the read-only AWS inventory
-at commit `<sha>`" — and its own source comment says why it was built: twelve
-commits of Phase 0 and Phase 1 work produced an inventory, an entry-point trace,
-a contradictions list and a set of guards, and none of it was visible in the
-product. That is a true and good reason to build a page. It is a reason addressed
-to a developer.
-
-What has changed is not the verdict but the **evidence for it**. Several of its
-panels were behind the line because nothing better existed. Five surfaces later,
-most of them are now a compiled duplicate of something that is read live:
-
-| Panel on `/platform` | What it is | Now answered live by |
-|---|---|---|
-| What this page found | The engine's verdict on itself | — |
-| This build, and the figures compiled into it | Build provenance | — |
-| The identity this engine is running as | The account/region/partition/principal this process resolved | `/platform/estate`, `/platform/identity` |
-| What this engine may read, and what it was refused | Refusals recorded in the **committed inventory** — what a past run was refused, not this render | `/platform/estate`, `/platform/identity` |
-| Where the programme stands | Ledger checkbox count per phase. A build report | — |
-| Open findings | Architecture-versus-inventory discrepancies. Documentation gaps, no severity, no tenant, no SLA | `/platform/security`, `/platform/identity` |
-| AWS estate | A resource snapshot compiled at a commit | `/platform/estate`, `/platform/network`, `/platform/compute`, `/platform/data` |
-| Queues with no producer and no consumer | Orphan detection over that snapshot | `/platform/messaging` |
-| Alarms in this snapshot | The alarm list as the snapshot recorded it | `/platform/health` |
-| Module adoption | A fragment of the **Modules** domain, which has no surface | — |
-| Release compatibility | A fragment of the **Releases** domain, which has no surface | — |
-| Execution ledger, item by item | A build report | — |
-| Test suites | A build report | — |
-
-Eight of the thirteen are now covered by a live surface. Five are build reports
-or fragments of a domain that has no surface at all. Neither half is an operator
-surface, so the route does not move — but the register above is published on
-`/platform/diagnostics` so that the reason is legible rather than asserted, and
-`tests/architecture/shell-separation.test.mjs` checks every row of it against
-the panels the page actually renders.
-
-**`/platform/diagnostics` is itself behind the line**, and it says so in its own
-first row. It reads nothing about the estate and answers no operator question;
-it is a fact about this console rather than about the platform it operates.
-
-Nothing is deleted. The programme's visibility is worth keeping, the compiled
-snapshot is the only record of some reads, and deleting a route to tidy a
-navigation is how work becomes invisible again.
-
-## 7. Bible domains with no surface
-
-Naming these is part of the deliverable. A navigation that shows only what exists
-tells an operator nothing about what does not.
+Naming these is part of the deliverable. A navigation that shows only what
+exists tells an operator nothing about what does not.
 
 | Bible domain | State today |
 |---|---|
-| Implementations | Partial and not a destination. `/tenants/new` and `/tenants/[slug]/configuration` are stage surfaces; the resumable multi-stage workspace with per-stage readiness and blockers (`STUDIO-050-001`, `STUDIO-050-002`) is not built. Its surfaces are reached from Fleet. |
-| Modules | Answered per-system inside Blueprints (`/`). No standalone catalog surface; a fragment sits on `/platform`. |
+| Implementations | Partial, not a destination. `/tenants/new` and `/tenants/[slug]/configuration` are stage surfaces; the resumable multi-stage workspace with per-stage readiness (`STUDIO-050-001/002`) is not built. Reached from Fleet. |
+| Modules | Answered per-system inside Blueprints (`/`), and now **visible** as a sub-item there (§4.2). No standalone catalog. |
 | Releases | No surface. A compatibility fragment sits on `/platform`. |
-| Changes | No surface. Lifecycle advances on `/tenants/[slug]` carry approval requirements, but there is no change-request queue, plan diff or approval inbox (§10). |
-| Relay | No surface (§13). Not to be confused with `/platform/messaging`, which is SQS/SNS/EventBridge/SES. |
-| Integrations | Answered inside Blueprints (`/`) as the catalog's availability decisions, refusals and setup references. |
-| Domains | No surface. Route 53, ACM and CloudFront facts appear on `/platform/network` as edge posture; custom-domain *management* (§12 "Network and edge", `STUDIO-080-004`'s "Enable custom domain") does not exist. |
+| Changes | No surface. Lifecycle advances on `/tenants/[slug]` carry approval requirements; there is no change-request queue, plan diff or approval inbox (§10 of the Bible). |
+| Relay | No surface (§13). Not `/platform/messaging`, which is SQS/SNS/EventBridge/SES. |
+| Integrations | Answered inside Blueprints (`/`), now visible as a sub-item. |
+| Domains | No surface. Route 53/ACM/CloudFront facts appear on `/platform/network` as edge posture; custom-domain *management* (`STUDIO-080-004`) does not exist. |
 | Marketplace | Deliberately absent. `STUDIO-130-007` requires it to stay a nonfunctional "Coming soon" until certification, packaging, review, billing and revocation exist; `/` passes `marketplaceEnabled: false` explicitly. A navigation entry would be the opposite of that requirement. |
 
-**Identity** and **Data** were on this list and are not any more. When one of the
-rest gets a real surface, it takes its own group, in the Bible's position,
-before Diagnostics.
+When one of these gets a real surface it takes its own group, in the Bible's
+position, before Diagnostics.
 
-## 8. What the navigation must keep agreeing with
+### 4.4 The contextual sub-tree, inside a tenant
 
-Four guards, and they are the reason the table in `Nav.tsx` is data rather than
-markup scattered through pages.
+§7.2's third bullet asks for a "context rail or inspector … selected object
+identity, provenance, dependencies, current vs desired state, health, cost,
+risks, change history, and actions". That is a large deliverable and it is not
+this one. What this document commits to is the navigational half of it:
 
-**`tests/architecture/shell-separation.test.mjs`**, which now reads both
-directions:
+When the path is under `/tenants/<slug>`, the **Fleet** group renders a
+contextual sub-tree beneath *Tenants*:
 
-- *Every destination is a route.* Every literal `href: "/…"` and `href="/…"` in
-  the console's layout and every component reachable from it must be a route the
-  console serves and not a tenant-application destination.
-- *Every route is a destination.* Every route under
-  `apps/system-studio/src/app/**/page.tsx` must be either a navigation entry or
-  a row in `UNLINKED` on `/platform/diagnostics` carrying a reason of at least
-  forty characters. A route in neither fails the build. It also refuses a stale
-  row (a declared route the console does not serve, which would excuse the next
-  route with the same path) and a contradictory one (a route both linked and
-  declared unlinked).
-- *The groups are the Bible's, in the Bible's order.* The guard parses section
-  7.2's own left-navigation line out of the Bible and requires every non-tail
-  group name to appear in it, in that list's relative order. Exactly one group
-  carries `tail`, it is last, and its name is **not** one of the Bible's
-  domains — the quarantine is named for what it holds.
-- *The register is the quarantine.* The routes in `QUARANTINED` on
-  `/platform/diagnostics` must be exactly the destinations in the tail group,
-  and every "now answered by" claim must point at a route the console serves.
-- *The register describes the real page.* Every headline in `PLATFORM_PANELS`
-  must be a `<Card>` that exists on `/platform`, and every top-level card there
-  (bar the "Not configured" refusal state, excluded by name) must be described.
+```
+FLEET
+  Tenants                     ← still the entry, still linked
+    seed-deployed             ← the slug, from the path
+      Overview                /tenants/seed-deployed
+      Configuration           /tenants/seed-deployed/configuration
+```
 
-Ten mutations were applied to prove those assertions can fail — a dropped nav
-entry, a stale unlinked row, a route declared both ways, the quarantine moved
-out of last place, a group renamed off the Bible's list, two groups swapped out
-of order, a register row pointed at the wrong route, a panel renamed on
-`/platform`, a supersession claim pointed at a route that does not exist, and
-the table reader itself broken. All ten reddened; the tree was restored and the
-suite returned to 13/13.
+Derived from `usePathname()`, not from a table: the slug is a value, and a
+table of tenants in the navigation would be a second fleet list that goes stale.
+Two dynamic routes exist under a tenant today, so the sub-tree has exactly two
+leaves; it grows when a third route lands.
 
-**`apps/system-studio/e2e/layout.spec.ts`** measures overlap, container spill,
-horizontal page scroll, text-wider-than-its-box and fixed-height clipping on
-every route at 1440, 1180, 900 and 320 pixels, and re-runs the overlap detector
-with `dir="rtl"`. The navigation's own CSS therefore uses logical properties
-only. **Its `ROUTES` array does not yet contain the six routes added since it
-was written** — see §10.
+**The tenant is named by its slug, not its display name.** The rail is a client
+component with no session and no registry read, and adding a `getTenant(slug)`
+call to the shell would put a DynamoDB read on every navigation. The slug is
+also what the fleet table itself links by — `e2e/fleet-surface.spec.ts:62`
+matches `getByRole("link", { name: "seed-deployed" })` — so an operator sees the
+same identifier in the table, the rail, the breadcrumb and the URL. The display
+name is on the page, in the `<h1>` (`tenants/[slug]/page.tsx:660`).
 
-**`apps/system-studio/e2e/cost.spec.ts`** requires exactly one element inside
-`nav.tabs` to carry `aria-current="page"`. The current **group** is marked
-`aria-current="true"` — a location within the console rather than the page
-itself — so the section indicator does not join that count. This is now load
-bearing rather than a corner: six routes sit under `/platform`, so on
-`/platform/network` both `/platform` and `/platform/network` match the subtree
-rule and only the longer one may light.
+## 5. The top bar
 
-**`apps/system-studio/e2e/preferences.spec.ts`** asserts AA contrast and that no
-colour is pure black or white.
+Left to right (in `dir=ltr`; all logical properties, so it mirrors):
 
-## 9. The navigation, measured
+| Slot | Content | When it is unknown |
+|---|---|---|
+| **Mark** | The rosette plus the wordmark, from the console's **one** mark component — `components/md3/Logo.tsx` (`Logo`, landing from the design lane during this run, over the same `PETAL` geometry) or, if that lands differently, `TenureStudioWordmark` in `components/brand/TenureLogo.tsx`. **The shell lane must not author a third mark**: `tests/architecture/brand-mark-is-one-mark.test.mjs` exists precisely because the tenant app carries the same geometry, and a third copy is a third thing to drift. It links to `/`, a served route, so the shell guard passes. | n/a |
+| **Environment** | The value of `DEPLOY_ENVIRONMENT`, read directly from `process.env`. | **`environment unknown`**, in the same type as a value, never blank. |
+| **Account · region** | `resolveIdentity()` (`src/lib/aws/identity.ts:76`) → `accountId`, `region`, and the partition when it is not `aws`. Process-cached for `IDENTITY_REFRESH_MS` = 15 minutes (`lib/aws/capabilities.ts:40`), so this is not an STS call per navigation. | The `DENIED` / `THROTTLED` / `ERROR` arms render **`account unknown`** with the capability name in the title, matching what `/platform/estate` already does. Never a default account id. |
+| **Global search** | A **button**, not an input: `Search  ⌘K` / `Ctrl K`, which opens the existing `CommandPalette`. Focus moves into the palette's own input. | n/a |
+| **Account menu** | A disclosure holding: the signed-in email; the operator role from `roleOf(email)`; the preferences controls that live in `PreferencesMenu` today; and **Sign out**. | Signed-out state does not occur — the shell does not render on `/signin`. If `auth()` returns no session on a shell route, the account menu shows **`no session`** and only the sign-out control, because a shell that cannot name its operator must not imply one. |
 
-The dev server cannot boot in this working tree (§10), so the geometry was put
-to the layout engine directly: the console's real `globals.css`, the
-navigation's real `NAV_CSS`, and markup generated by parsing the real `GROUPS`
-table — nothing hand-copied, because a divergence would make the measurement
-meaningless. Chromium, ten groups, thirteen destinations, current entry
-`/platform/messaging`:
+Five properties of that table are load-bearing:
 
-| Width | Nav height | Rows of groups | Text overlap | Page scrolls sideways | Text clipped |
-|---|---|---|---|---|---|
-| 1440 | 181px | 1 | 0 | no | none |
-| 1180 | 181px | 1 | 0 | no | none |
-| 900 | 276px | 2 | 0 | no | none |
-| 320 | 397px | 4 | 0 | no | none |
-| 320, `dir="rtl"` | 397px | 4 | 0 | no | none |
-| 320, compact density | 383px | 4 | 0 | no | none |
+**The environment chip must not read `fleet()`.** `lib/cells.ts:122` is
+`env("DEPLOY_ENVIRONMENT", "production")` — an unset variable becomes the string
+`production`. A chip that prints "production" because nobody set a variable is
+the single most dangerous string this console could show, and it is the same
+defect `estateFact()` in that very file refuses to commit for region, account
+and partition ("A default here would place tenants in an estate nobody chose").
+So the chip reads `process.env.DEPLOY_ENVIRONMENT` itself and prints
+`environment unknown` when it is empty. §20: "Report access denied as absent" is
+the prohibited shape; so is reporting an unset variable as a fact.
 
-320 is the hard case and it costs 397px of chrome — four wrapped rows of
-groups. That is the honest price of thirteen destinations plus ten group labels
-at that width; it wraps rather than scrolling, which is what WCAG 2.2 AA 1.4.10
-asks for, and every link keeps a 32px block size in both densities. Exactly one
-`aria-current="page"` and one `aria-current="true"` at every width.
+**Sign-out is a form, never a link.** `href="/api/auth/signout"` and
+`href="/signout"` both **red `shell-separation.test.mjs`** — measured with the
+guard's own reader; neither is a page route the console serves. The correct
+shape is a `<form>` with a server action calling the `signOut` from
+`src/lib/auth.ts:49`, which today has no caller at all. A POST is also the
+right thing on its own merits: a GET that ends a session can be triggered by a
+prefetch or an image.
 
-Contrast of everything grouping added, computed in all four theme/contrast
-combinations `preferences.spec.ts` exercises:
+**Search must not put destinations in the markup.** `e2e/operator-roles.spec.ts:79`
+asserts that an auditor's page markup does **not contain** `href="/tenants/new"`
+— on `/tenants`, over `page.content()`, which includes the shell. The palette
+survives that today only because it renders `null` when closed and its rows are
+buttons, not links. Therefore: **the top bar's search control is a button**, the
+palette stays closed-by-default, and no shell surface may render a create
+destination as an `href` literal. `href="/tenants/new"` passes the
+shell-separation guard (it *is* a served route) and reds the roles guard — two
+guards pointing opposite ways, and only one of them is about security.
 
-| | light | dark | light + more | dark + more |
-|---|---|---|---|---|
-| Group name, inactive (10.9px) | 7.27 | 10.75 | 12.14 | 16.49 |
-| Group name, current | 15.84 | 15.25 | 15.84 | 15.25 |
-| Current-group accent rule (2px) | 7.85 | 11.48 | 7.85 | 11.48 |
+**The palette's destinations must be filtered by role.** `Launcher` is a server
+component (`src/components/Launcher.tsx`) that already has the session available
+and today hands the palette `STATIC_DESTINATIONS` unfiltered — including
+"Compose a tenant" for an auditor, who is then refused by the page. The page
+refusing is the security property and it works (`operator-roles.spec.ts:87`).
+Offering it anyway is a navigation that advertises a write the operator does not
+hold, which §6 of the Bible (`STUDIO-020-006/007`, deny by default) is written
+against. Filter in `Launcher`, server-side, on `roleOf`.
 
-All above the 4.5 text floor and the 3.0 non-text floor. `NAV_CSS` contains no
-colour literal at all — every value is an MD3 alias token (`--muted`, `--text`,
-`--accent`, `--border`, `--space-*`), each resolving to a `--md-sys-*` role.
+**No notifications bell and no help icon, yet.** §7.2 lists both. Neither has a
+source of truth in this console: there is no incident feed and no help corpus. A
+bell that never lights teaches operators to ignore bells, and §20 forbids
+placeholders that make a surface look complete. **CHOICE, and a deferral, not a
+refusal**: they are added when `/platform/health` and the change queue can feed
+them. This paragraph is the record that the clause was read and consciously not
+met.
 
-One correction, recorded because the first draft of this work claimed otherwise:
-a `min-inline-size: auto` override was added to the navigation's link rule with
-a written justification that the stylesheet's `min(9rem, 100%)` would otherwise
-impose a 144px floor under every group at 320. Measured, it changes nothing —
-making the group `flex-direction: column` moves the main axis, so the
-stylesheet's `flex-basis` is a height the group has no free space to
-distribute, and the percentage in `min(9rem, 100%)` resolves against a
-shrink-to-fit containing block. The rule was removed and the comment now says
-what was measured.
+## 6. Breadcrumbs
 
-## 10. What this work did not do
+**The model.** A crumb per path segment, built from `usePathname()` plus one
+label resolver. Every crumb except the last is a link. The last carries
+`aria-current="page"`.
 
-- **It did not add the six new routes to `e2e/layout.spec.ts`'s `ROUTES`.**
-  `/platform/network`, `/platform/compute`, `/platform/data`,
-  `/platform/messaging`, `/platform/identity` and `/platform/diagnostics` are
-  not in that array, so their overlap, spill and horizontal-overflow are never
-  measured at any width. That file belongs to other work. Adding six strings to
-  it is the whole fix.
-- **It did not update the command palette.** `src/lib/commands.ts`
-  `STATIC_DESTINATIONS` still offers four destinations — Tenants, Systems,
-  Platform and Compose a tenant. Nine operator surfaces are unreachable from
-  Ctrl/Cmd-K, including all five that landed most recently, and no guard covers
-  it: `shell-separation.test.mjs` walks the layout's component graph, which does
-  not reach `lib/`. The bidirectional route check in §8 is deliberately about
-  the navigation, not the palette; extending it to the palette is the follow-up.
-- **It did not verify the navigation in a running browser against the real
-  application.** `@aws-sdk/client-ec2` is installed in this tree and its
-  transitive dependency `@aws-sdk/middleware-sdk-ec2` is not, so every route
-  that reaches `src/lib/aws/client.ts` returns 500 in `next dev` and the dev
-  overlay aborts navigation to the ones that do not. `npm install` at the
-  repository root is the unblock, and this session was forbidden to run it.
-- It did not change any `page.tsx` other than adding `/platform/diagnostics`.
-  The clutter inside `/platform` and the overlap between `/` and `/tenants` are
-  real and are not addressed here.
-- It did not delete a route, redirect one, or gate one.
-- It did not mark anything in the execution ledger. This is an information
-  architecture, not evidence that a requirement is met.
+**Where they render.** In the content region, immediately above the page's
+`<h1>`, inside `<nav aria-label="Breadcrumb">` — **not in the top bar and not
+inside `nav.tabs`**. Two reasons, both mechanical:
 
-## 11. Deviations from the Bible's shell, stated
+- `e2e/cost.spec.ts:87` asserts `nav.tabs [aria-current="page"]` has count
+  **exactly 1** and text exactly `Cost`. A breadcrumb inside that nav adds a
+  second `aria-current="page"` and reds it. Outside, both are correct
+  simultaneously: the rail marks the current section, the trail marks the
+  current page.
+- A trail in a sticky bar competes with the page title for the same line at 900
+  and 320px. Above the `<h1>` it wraps into the content flow like any other text.
 
-§7.2 describes a **left** navigation and a header carrying active environment,
-scope, region/cell, command/search, notifications, help and operator profile.
+**Labels.** Static segments use the navigation's own entry label, so the word in
+the rail and the word in the trail are one word. The root crumb is the group's
+domain name and links to the group's first entry.
 
-- The navigation is a horizontal strip of groups, not a left rail. The console's
-  surfaces are wide tables, and `e2e/layout.spec.ts` measures every route at 320
-  CSS pixels for WCAG 2.2 AA reflow (1.4.10); a rail costs that budget on every
-  route permanently, while a strip wraps. The grouping the section asks for is
-  delivered either way. Thirteen destinations is, however, the point at which
-  this trade stops being obviously right — §9's 397px is a real cost — and a
-  rail should be reconsidered when the fourteenth lands. If one is adopted, the
-  group table moves and this paragraph is what gets deleted.
-- The header carries the wordmark, the title, the preferences menu and an
-  "Internal" marker. Environment, scope, region/cell, notifications, help and
-  operator profile are not built. The command palette exists and is reachable
-  from every route (Ctrl/Cmd-K), with the gap named in §10.
+**A dynamic route: `/tenants/seed-deployed/configuration`.**
 
-## 12. Adding a route
+```
+Fleet  ›  Tenants  ›  seed-deployed  ›  Configuration
+ │         │            │                 └ aria-current="page", not a link
+ │         │            └ /tenants/seed-deployed
+ │         └ /tenants
+ └ /tenants   (the domain crumb resolves to its group's first entry)
+```
+
+`seed-deployed` is the slug, for the reason in §4.4. `Configuration` is the
+segment name title-cased through an explicit map — not a generic
+`capitalize(segment)`, which would render `New` for `/tenants/new` where the
+page says "Compose a tenant".
+
+**"Back and forth", explicitly.** The operator named it. Three mechanisms, and
+they are different things:
+
+1. **Up** — every ancestor crumb is a link. Reaching the fleet from a tenant's
+   configuration is one click, not the browser's Back pressed twice.
+2. **Back** — at 320px the trail collapses to a single `‹ Tenants` link (the
+   *parent*, not `history.back()`, which after a redirect goes somewhere the
+   operator did not come from).
+3. **Return** — the palette's recents already exist and are already ranked
+   (`lib/commands.ts:97-124`, recents first when the query is empty). Surfacing
+   the palette (§5) is what makes them reachable.
+
+## 7. Collapse behaviour at the four widths `layout.spec.ts` measures
+
+`e2e/layout.spec.ts` runs every listed route at **1440, 1180, 900 and 320**
+(line 66) and asserts: no text overlaps other text, no element's text is wider
+than its box, nothing is clipped by a fixed height, the page never scrolls
+sideways, and the whole overlap pass again under `dir="rtl"`. Playwright's own
+default viewport is **1280** (`devices["Desktop Chrome"]`), which is the width
+every *other* spec runs at — so 1280 is a fifth width with contracts on it.
+
+| Width | Rail | Top bar | Breadcrumb |
+|---|---|---|---|
+| **1440+** | Expanded, `inline-size: 17rem`. Group labels, entry labels, and the **current entry's** sub-items expanded; other entries' sub-items collapsed. | One row: mark, environment/account, search, account menu. | Full trail. |
+| **1280** (default viewport) | Same as 1440. **Entry labels must be text at this width** — `cost.spec.ts` asserts the current entry's text is exactly `Cost`, and `platform.spec.ts:78,85` and `preferences.spec.ts:159` click links named `Platform`, `Systems` and `Tenants`. An icon-only rail here breaks four specs. | One row. | Full trail. |
+| **1180** | Expanded, `inline-size: 15rem`. | One row; the environment/account chip drops the partition when it is `aws`. | Full trail. |
+| **900** | **Off-canvas.** The rail leaves the flow; a `Sections` disclosure button in the top bar opens it as an overlay. Content takes the full width. | One row: mark, sections button, search (icon + accessible name), account menu. | Full trail, wrapping. |
+| **320** | Off-canvas. | Two rows: (mark, sections, account) / (search, environment). | Collapses to `‹ Parent`. |
+
+**The closed off-canvas rail must be `display: none` or unmounted.** Not
+`transform: translateX(-100%)`, not `visibility: visible` with a negative
+offset. `layout.spec.ts`'s `textBoxes()` skips elements whose computed style is
+`display:none`, `visibility:hidden` or `opacity:"0"` (line 84) and measures
+everything else *in page coordinates* — so a translated-off-screen rail is
+measured, its fourteen labels sit on top of the content's boxes, and the overlap
+detector reds. Under `dir="rtl"` the same translation lands on the positive side
+and reds the sideways-scroll assertion as well.
+
+**Every route must be in `ROUTES`.** That array (line 41-54) lists nine routes.
+Six served routes are missing: `/platform/network`, `/platform/compute`,
+`/platform/data`, `/platform/messaging`, `/platform/identity`,
+`/platform/diagnostics`. A shell change is measured on nine routes and shipped
+on eighteen unless they are added. Adding six strings is the whole fix, and it
+belongs to the lane that owns `e2e/` (§12).
+
+## 8. What does not change
+
+- **The Diagnostics group stays last, and keeps everything unfinished behind
+  it.** `/platform/diagnostics` and `/platform` stay there, with `tail: true`,
+  after every operator group. The rule is unchanged: *everything before
+  Diagnostics is a finished, Bible-defined operator surface; everything
+  unfinished, diagnostic, or built to prove something to a developer sits behind
+  the last group.* Four guards in `shell-separation.test.mjs` hold it (§10).
+- **The rule is drawn, not implied.** In the strip it was `margin-inline-start:
+  auto` plus a `border-inline-start`. In the rail it becomes a top margin plus a
+  `border-block-start` above the group, and it is still drawn **from `tail`**,
+  from data, so the line cannot drift from the table.
+- **The register keeps publishing what the quarantine holds.**
+  `/platform/diagnostics` is the first entry of the last group and lists, per
+  route, what it is, what is unfinished about it, and which live surface now
+  answers what it used to. It is itself behind the line and says so.
+- **The four entry labels with test contracts**: `Tenants`, `Systems`,
+  `Platform`, `Cost`. Do not rename them in this work.
+- **`nav.tabs` keeps its `tabs` class.** The class is now a poor name for a
+  vertical rail. It is retained as a **test contract anchor**
+  (`cost.spec.ts:87,92`), and the new CSS hangs off an added `console-nav`
+  class. Renaming it means editing a passing spec for cosmetic reasons, which is
+  not a trade this work should make; the compensating cost is one comment in
+  `Nav.tsx` saying why the class is called that.
+- **`aria-current="page"` goes on the entry's own label element**, with
+  sub-items, counts and badges as **siblings**, never descendants. `cost.spec`
+  asserts `toHaveText("Cost")` on that element; a count inside it makes the text
+  `Cost 3`.
+- **Nothing is deleted, redirected or gated.** No route stops being served.
+
+## 9. The route map — all 18 routes
+
+Enumerated from `apps/system-studio/src/app/**/page.tsx`, not from a list:
+`find src/app -name page.tsx | wc -l` → **18**.
+
+| Route | Side of the line | Position in the shell | Sub-items |
+|---|---|---|---|
+| `/` | Operator surface | Blueprints › Systems | Systems · Modules · Integrations |
+| `/tenants` | Operator surface | Fleet › Tenants | contextual (§4.4) |
+| `/tenants/new` | Operator surface | **Not a destination** — the primary action on `/tenants`, role-gated there | — |
+| `/tenants/[slug]` | Operator surface | **Not a destination** — reached from the fleet table; Fleet stays lit | contextual leaf |
+| `/tenants/[slug]/configuration` | Operator surface | **Not a destination** — reached from the tenant | contextual leaf |
+| `/platform/estate` | Operator surface | AWS › Estate | 4 |
+| `/platform/network` | Operator surface | AWS › Network | 5 |
+| `/platform/compute` | Operator surface | AWS › Compute | 4 |
+| `/platform/messaging` | Operator surface | AWS › Messaging | 4 |
+| `/platform/identity` | Operator surface | Identity › Identity | 5 |
+| `/platform/data` | Operator surface | Data › Data | 5 |
+| `/platform/security` | Operator surface | Security › Findings | 3 |
+| `/platform/health` | Operator surface | Operations › Health | 2 |
+| `/platform/cost` | Operator surface | FinOps › Cost | none, deliberately |
+| `/platform/audit` | Operator surface | Evidence › Audit | 3 |
+| `/platform/diagnostics` | **Behind Diagnostics** | Diagnostics, first entry | none |
+| `/platform` | **Behind Diagnostics** | Diagnostics | none |
+| `/signin` | Pre-session | **No shell at all** — §9.1 | — |
+
+The four "not a destination" rows are declared in `UNLINKED` in
+`src/app/platform/diagnostics/register.ts`, each with a reason of at least forty
+characters, rendered on `/platform/diagnostics`, and enforced in both directions
+by `shell-separation.test.mjs` (a route in neither the navigation nor that table
+fails the build; a declared route the console does not serve also fails).
+
+`/tenants/new` stays out of the navigation on purpose, and the reason is a
+security assertion rather than a preference: `operator-roles.spec.ts:79` requires
+`href="/tenants/new"` to be absent from an auditor's *markup*, and a global
+navigation entry renders on every route for every role.
+
+### 9.1 The sign-in page
+
+`/signin` renders **no rail, no top bar chrome, no breadcrumb** — there are no
+sections to navigate between and no session to name. What it does render:
+
+- the `TenureStudioWordmark` (the same mark, the only piece of chrome shared
+  with the shell), and
+- the environment chip, with the same unknown arm as §5 — an operator about to
+  sign in should know which estate they are signing in to.
+
+It keeps `export const dynamic = "force-dynamic"` (`signin/page.tsx:9`) and its
+single failure message for every way sign-in can fail; distinguishing "not an
+operator" from "wrong secret" turns the page into an oracle for which Tenure
+staff exist. The visual work on this page belongs to the design lane (§12); its
+*information architecture* is this paragraph, and it is deliberately almost
+nothing.
+
+## 10. The guards this shell must satisfy, and the one it must add
+
+Existing, and green today — `node --test tests/architecture/shell-separation.test.mjs`
+→ **13 pass, 0 fail**:
+
+| Guard | What it will refuse |
+|---|---|
+| `shell-separation.test.mjs` — *every destination is a route* | Any `href="/…"` or `href: "/…"` literal in `layout.tsx` or any component reachable from it that is not a served route. **Measured**: `/api/auth/signout`, `/signout`, `/search` and `/platform/network#security-groups` all red it. |
+| — *every route is a destination* | A new route that is neither a nav entry nor a declared `UNLINKED` row with a ≥40-character reason. |
+| — *groups are the Bible's, in the Bible's order* | A renamed group, a reordered group, a second `tail`, a tail that is not last, a tail named after a Bible domain. |
+| — *the register is the quarantine* | The Diagnostics group and `QUARANTINED` disagreeing. |
+| — *the register describes the real page* | A `/platform` card renamed without its register row. |
+| `authorizing-routes-are-dynamic.test.mjs` | A `page.tsx` calling `auth()` / `isOperator` / `authorizeCommand` / `operatorConfigProblems` without `export const dynamic = "force-dynamic"`. |
+| `cost.spec.ts:87-93` | More or fewer than one `aria-current="page"` inside `nav.tabs`; current-entry text that is not exactly `Cost` / `Platform`. |
+| `platform.spec.ts:78,85`, `preferences.spec.ts:159` | Renaming `Platform`, `Systems`, `Tenants`. |
+| `operator-roles.spec.ts:79` | `href="/tenants/new"` anywhere in an auditor's markup, shell included. |
+| `layout.spec.ts` | Overlap, spill, clipping, sideways scroll, at four widths, LTR and RTL. |
+
+**Two guards this shell needs and does not have.** Both are specified here and
+built by the lane that owns `tests/architecture/` (§12):
+
+**(a) Declared sub-item anchors must exist.** For every `{ label, anchor }` in
+the navigation table, `id="<anchor>"` must appear in that entry's `page.tsx`.
+Direction matters and one direction is enough here: an anchor with no `id` is a
+sub-item that scrolls nowhere, while an `id` with no sub-item is just a card.
+The floor: the reader must parse at least fifteen sub-items across at least
+eight entries, or a reader that has stopped reading reports a clean navigation.
+This is the check that keeps §4.2 honest, because the composed href form the
+guard cannot see is exactly what makes it necessary.
+
+**(b) A layout that decides a permission must be dynamic.**
+`authorizing-routes-are-dynamic.test.mjs` filters `routeFiles()` on
+`/\/page\.tsx$/` (line 69). The shell puts `auth()` in `layout.tsx` for the
+first time — a file that guard does not look at. Next would be free to
+prerender the layout at build time, in a container with no operator
+environment, and serve every visitor an account menu rendered from a build-time
+session. That is the identical defect the guard exists for, one file to the
+left. **The fix is one character in a regex** (`/\/(page|layout)\.tsx$/`) plus
+`export const dynamic = "force-dynamic"` in the root layout, and it must land in
+the same change as the account menu, not after it.
+
+## 11. Verification performed for this document
+
+| Claim | Command | Result |
+|---|---|---|
+| The navigation and the routes still agree | `node --test tests/architecture/shell-separation.test.mjs` | 13 pass, 0 fail |
+| 18 routes are served | `find apps/system-studio/src/app -name page.tsx \| wc -l` | 18 |
+| 10 groups, 14 entries | `grep -c 'domain: "' src/components/Nav.tsx`; `grep -c 'href: "'` | 10; 14 |
+| 6 register rows | `grep -c 'route: "' src/app/platform/diagnostics/register.ts` | 6 (2 quarantined, 4 unlinked) |
+| `signOut` has no caller | `grep -rn "signOut" apps/system-studio/src` | 1 hit — the export in `lib/auth.ts` |
+| The logo is unused | `grep -rn "TenureLogo" apps/system-studio/src apps/system-studio/e2e` | 3 hits, all inside `TenureLogo.tsx` |
+| `.brand-wordmark` is unstyled | `grep -n "brand-wordmark" src/app/globals.css` | 0 |
+| Which shell hrefs the guard refuses | read-only probe replicating `routesOf()` + `HREF_LITERAL` | table in §4.2 and §5 |
+| Card counts per route | `grep -c "<Card"` per `page.tsx` | table in §4.2 |
+
+The href probe is a **prediction using the guard's own two readers**, run
+read-only against the working tree; it is not a mutation of the tree, because
+every file it concerns belongs to another agent in this run. The prediction is
+falsifiable the moment a build agent writes one of those literals: the guard
+either reds or this document is wrong.
+
+## 12. Implementation lanes — disjoint files
+
+Three agents can build this at once only if no two touch the same file.
+
+| Lane | Owns, exclusively | Builds |
+|---|---|---|
+| **A — shell frame** | `src/app/layout.tsx`, `src/components/TopBar.tsx` (new), `src/components/AccountMenu.tsx` (new), `src/components/EnvironmentChip.tsx` (new), `src/app/actions/session.ts` (new) | §3.1 frame, §5 top bar, sign-out server action, the root layout's `force-dynamic` |
+| **B — navigation** | `src/components/Nav.tsx`, `src/components/Breadcrumbs.tsx` (new), `src/components/Launcher.tsx`, `src/lib/commands.ts` | §4 tree and sub-items, §4.4 contextual sub-tree, §6 breadcrumbs, role-filtered palette destinations, the visible search affordance's data |
+| **C — proof** | `e2e/layout.spec.ts`, `tests/architecture/shell-separation.test.mjs`, `tests/architecture/authorizing-routes-are-dynamic.test.mjs` | The six missing routes in `ROUTES`, both new guards in §10, the collapse assertions for §7 |
+
+**`src/app/globals.css` is not in any of the three lanes, and that is a
+measurement, not a preference.** `git status --porcelain` during this run shows
+it modified by a theme/design lane that is also holding
+`src/components/md3/**`, `apps/system-studio/public/`, and
+`e2e/md3-tokens-logic.spec.ts`. Three edits to that file are needed for this
+shell and they are small, named and separable — **de-centre `main`**, **drop the
+`calc((100vw - 1280px) / 2 …)` padding from `.masthead` and `.tabs`**, and **add
+`--measure` with the prose rule of §3.2**. They must be handed to whichever
+agent holds `globals.css`, as three hunks, rather than raced for.
+
+Everything else A and B need ships as component-scoped
+`<style href precedence>` blocks, which is the pattern `Nav.tsx` already uses
+(`NAV_CSS`, line 250) and which React 19 hoists into `<head>` and deduplicates
+on `href`. Every value in those blocks is an alias token
+(`--space-*`, `--muted`, `--text`, `--accent`, `--border`) resolving to a
+`--md-sys-*` role; a colour literal in a component style block is a colour pair
+`e2e/md3-tokens-logic.spec.ts` does not know exists, in the file it is least
+likely to be pointed at.
+
+Before staging, each lane runs `git status --porcelain` and stages only its own
+paths.
+
+## 13. Deliberate deviations, recorded
+
+### 13.1 OLED black, against `STUDIO-030-002`
+
+`STUDIO-030-002` says, in these words: "Implement forest-green light/dark
+palettes with measured contrast, no muddy brown/gold legacy theme, **no
+pure-black glare**, and no low-contrast gray-on-gray critical text."
+
+The product owner has directed: "The dark theme should be OLED black not green —
+only logo and accent should be green (much richer deep forest velvety green)."
+
+**The clause is overridden by that instruction.** The dark theme's base becomes
+`#000`. This is recorded rather than reconciled, because pretending the clause
+says something else would be worse than the deviation.
+
+**What answers the concern behind the clause.** Pure black causes two real
+problems, and the requirement was written against them:
+
+1. **Glare** — maximum contrast between a black field and light text. Answered
+   by holding foregrounds *below* pure white: the dark theme's `on-surface` is a
+   high-luminance grey, never `#fff`, so the contrast ratio lands in the
+   comfortable band rather than at the maximum the display can produce.
+2. **Smearing between adjacent surfaces** — at `#000` a shadow has nothing to
+   fall on, so elevation stops being perceptible and two stacked panels become
+   one field. Answered structurally: **elevation comes from
+   surface-container steps that are visibly distinct at `#000`, not from shadow
+   alone.** Every `--md-sys-color-surface-container-*` step must be measurably
+   lighter than the one below it, and the step must survive both density modes
+   and the increased-contrast preference. Shadow remains, but it is decoration
+   on top of a step, never the step itself.
+
+That makes the deviation checkable rather than asserted: a step that collapses
+is a failing measurement, not a matter of opinion. The palette itself, the step
+values and the contrast measurements belong to
+`docs/architecture/studio-design-system.md` and to the theme lane — **this
+document does not set colour values and does not claim to have measured any.**
+
+The accent stays a rich deep forest green, on the logo and on accent surfaces
+only, which is `STUDIO-030-002`'s "protected brand/accent … not as decoration on
+every surface" and §7.1 unchanged.
+
+### 13.2 Two tests that are correct about the old palette and wrong about the new one
+
+- `apps/system-studio/e2e/preferences.spec.ts` (~line 402) —
+  `` `${theme} uses neither pure black nor pure white` ``.
+- `apps/system-studio/e2e/md3-tokens-logic.spec.ts` — the test named "the scrim
+  is translucent, dark enough to separate, and is not pure black", whose failure
+  message says in as many words: *"which preferences.spec.ts fails on"*. (Cited
+  by name, not by line: that file is being edited in this same run.)
+
+Under the directed palette the first assertion is false by construction. It must
+be **changed, not deleted, and not weakened**: the replacement asserts the new
+rule — the dark theme's base **is** `#000`; what must never happen is a
+**pure-white foreground**, an **invisible elevation step** between adjacent
+surface containers, or a **contrast pair below AA**. That is a strictly larger
+set of failures than "no pure black" caught, because it checks the two things
+pure black actually endangers rather than the colour that endangers them.
+
+**Ownership.** Both files belong to the theme/design lane, not to any lane in
+§12, and **this document did not edit either of them**. This section exists so
+the lane that does has the rule written down before it starts, and so that the
+change is on the record as deliberate rather than discovered later in a diff.
+
+## 14. What this document does not do
+
+- **It writes no component code.** No `.tsx`, no `.css`, no test was changed by
+  the work that produced it. The only file it touches is itself, plus its row in
+  the execution ledger.
+- **It does not close a `STUDIO-030-*` requirement.** It is §19's "Product and
+  UX" deliverable — an architecture — and a document is not a shipped surface.
+  The ledger row says so explicitly. `STUDIO-030-001` and `-030-003` are closed
+  by the token layer and the primitives; `-030-007` by the accessibility
+  evidence; `-030-012` by visual regression. This plan is written to make those
+  reachable and closes none of them.
+- **It does not measure the new shell.** No geometry claim here has been
+  observed in a browser, because the shell does not exist yet. §7 is a
+  specification with the assertion that will judge it named beside each row;
+  §11 is the list of what *was* measured, all of it about the tree as it stands.
+- **It does not design the context inspector.** §7.2's third bullet (selected
+  object identity, provenance, dependencies, current vs desired, health, cost,
+  risks, change history, actions) gets only its navigational half here (§4.4).
+  The inspector is a separate deliverable and should not be smuggled in as a
+  side effect of a shell change.
+- **It does not add notifications or help.** §5 records the deferral and why.
+- **It does not touch the Diagnostics line.** Nothing moves across it in this
+  work; a surface moving in front of it is a claim that it became finished, and
+  that claim needs its own evidence.
+
+## 15. Adding a route
 
 1. Decide the Bible domain it serves, from §7.2's list. If §7.2 has no name for
    it but §12 does, it is an entry under **AWS**. If neither does, it goes behind
-   Diagnostics and §6 of this document says so in one sentence.
-2. Add it to `GROUPS` in `apps/system-studio/src/components/Nav.tsx`, inside its
-   domain's group, with the group in the Bible's order and before the
-   Diagnostics group. If it is not going to be a destination at all, add it to
-   `UNLINKED` in `apps/system-studio/src/app/platform/diagnostics/register.ts`
-   with the reason instead. Doing neither fails
-   `tests/architecture/shell-separation.test.mjs`.
+   Diagnostics and §8 of this document says so in one sentence.
+2. Add it to `GROUPS` in `src/components/Nav.tsx`, inside its domain's group,
+   with the group in the Bible's order and before the Diagnostics group. If it
+   is not going to be a destination, add it to `UNLINKED` in
+   `src/app/platform/diagnostics/register.ts` with a reason instead. Doing
+   neither fails `tests/architecture/shell-separation.test.mjs`.
 3. If it goes behind Diagnostics, add its row to `QUARANTINED` in that same
    module: what it is, what is unfinished about it, and which live surfaces now
    answer what it was answering.
-4. Add the route to `ROUTES` in `apps/system-studio/e2e/layout.spec.ts` — a
-   route that is not in that array is a route whose overlap, spill and
-   horizontal overflow are never measured.
-5. Add its rows to §3 and §4 here, with the requirement it serves, or with the
+4. Decide whether it earns sub-items by §4.2's two-part rule. If it does, declare
+   them as `{ label, anchor }` and put `id={anchor}` on the matching top-level
+   `<Card>` — the anchor guard (§10a) fails the build otherwise. Never write the
+   fragment as an href literal.
+5. Add the route to `ROUTES` in `e2e/layout.spec.ts`. A route that is not in that
+   array is a route whose overlap, spill and horizontal overflow are never
+   measured at any width.
+6. If the route calls `auth()`, `isOperator`, `authorizeCommand` or
+   `operatorConfigProblems`, declare `export const dynamic = "force-dynamic"`.
+7. Add its rows to §4 and §9 here, with the requirement it serves — or with the
    sentence that it serves none yet.

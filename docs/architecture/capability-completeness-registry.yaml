@@ -30,9 +30,9 @@ by_prefix:
   WRK: 88
 by_status:
   BLOCKED_EXTERNAL: 28
-  FAIL: 2002
+  FAIL: 2001
   NOT_APPLICABLE: 1
-  PASS: 234
+  PASS: 235
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -18126,8 +18126,8 @@ requirements:
     section: "7.2 Global shell"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Create one token source for color, typography, spacing, radii, borders, elevation, motion, charts, density, and focus across every System Studio surface."
   - id: "STUDIO-030-002"
     prefix: STUDIO
@@ -18135,8 +18135,8 @@ requirements:
     section: "7.2 Global shell"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Implement forest-green light/dark palettes with measured contrast, no muddy brown/gold legacy theme, no pure-black glare, and no low-contrast gray-on-gray critical text."
   - id: "STUDIO-030-003"
     prefix: STUDIO
@@ -18160,10 +18160,10 @@ requirements:
     prefix: STUDIO
     source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
     section: "7.2 Global shell"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Implement comfortable and compact density modes without information loss, and persist only as operator preference."
   - id: "STUDIO-030-006"
     prefix: STUDIO
@@ -18171,8 +18171,8 @@ requirements:
     section: "7.2 Global shell"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Implement skeleton, empty, no-permission, stale, partial, error, retrying, offline, degraded, and conflict states for every asynchronous surface."
   - id: "STUDIO-030-007"
     prefix: STUDIO
@@ -18180,8 +18180,8 @@ requirements:
     section: "7.2 Global shell"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Meet WCAG 2.2 AA, keyboard-only operation, visible focus, screen-reader semantics, reduced motion, zoom/reflow, touch targets, high contrast, RTL readiness, and color-vision safety."
   - id: "STUDIO-030-008"
     prefix: STUDIO
@@ -18189,8 +18189,8 @@ requirements:
     section: "7.2 Global shell"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Prevent layout shift, focus loss, accidental double submit, hidden scrolling actions, modal stacking, and stale optimistic success in long-running workflows."
   - id: "STUDIO-030-009"
     prefix: STUDIO
@@ -18756,8 +18756,8 @@ requirements:
     section: "14. Tenant fleet, release, lifecycle, and verified zero cost"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Implement search, saved filters, group/bulk draft, comparison, release wave, health/cost charts, topology, and export with semantic authorization."
   - id: "STUDIO-100-003"
     prefix: STUDIO

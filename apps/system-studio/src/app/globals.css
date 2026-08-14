@@ -123,75 +123,125 @@
 }
 
 /*
- * ── Dark ───────────────────────────────────────────────────────────────────
+ * ── Dark — OLED black, neutral surfaces, one green ─────────────────────────
  *
- * Independently art-directed, not an inversion. Green-charcoal surfaces rather
- * than pure black, and softened text rather than pure white.
+ * Independently art-directed, not an inversion.
  *
- * Every pair here was measured rather than eyeballed, and the e2e suite
- * measures them again on the rendered page — a token can be correct and still
- * be overridden by a rule nobody remembered. Lowest is muted-on-surface at
- * 5.26:1, against a 4.5:1 requirement (WCAG 2.2 AA, 1.4.3).
+ * ## The base is #000000, and that is a deliberate deviation
  *
- * The status tints are lightened rather than reused. The light theme's #4c6350
- * on this background is 2.4:1 — legible on paper-coloured surfaces and not on
- * these, which is the trap in reusing one accent set across both.
+ * STUDIO-030-002 says "no pure-black glare". The product owner has directed an
+ * OLED-black dark theme, and that instruction overrides the clause; the
+ * override is recorded in the execution ledger rather than pretended away.
+ *
+ * The CONCERN behind the clause is real and is answered here rather than
+ * dismissed. Two things go wrong at #000 and both are structural:
+ *
+ *   1. Shadow stops working. A drop shadow is darker pixels, and there are no
+ *      darker pixels than #000, so elevation cannot be carried by
+ *      `--md-sys-elevation-*` alone. Elevation is therefore carried by the
+ *      CONTAINER LADDER, and every adjacent step is spaced so that it is
+ *      measurably distinct: #000 → #151515 → #222222 → #2d2d2d → #363636, which
+ *      is 1.150 / 1.148 / 1.155 / 1.140 : 1. `md3-tokens-logic.spec.ts` asserts
+ *      each adjacent step clears 1.12:1 and `preferences.spec.ts` re-measures
+ *      the same five tokens on the rendered page, so a ramp that collapses
+ *      reds the build instead of quietly smearing two panels together.
+ *   2. Adjacent panels smear. So `.md3-surface` draws a hairline in
+ *      `outline-variant` (#4a4a4a — 2.37:1 on the base) by default rather than
+ *      only when asked, and `data-outlined` now means the STRONGER boundary.
+ *
+ * ## The surfaces are neutral. The green is the accent and the mark.
+ *
+ * Every surface, every content colour and both outlines are pure greys — r = g
+ * = b, asserted rather than intended. The previous palette tinted the whole
+ * console green (`--md-sys-color-on-surface-variant: #edf7f0`) and then used a
+ * pale mint (#9bdcba, 48% saturation) as the accent, which is the wrong way
+ * round: the surfaces read as green and the green read as washed out.
+ *
+ * `--md-sys-color-primary` is #12cc7e — hue 155°, 84% saturation, 43% lightness.
+ * It is as deep as WCAG 2.2 AA permits a colour that is used as TEXT to be: it
+ * measures 5.73:1 on `surface-container-highest` and 4.67:1 there again with a
+ * 12% state layer composited on top, against a 4.5:1 requirement. A deeper
+ * forest green cannot be legible text on a dark surface — luminance is what
+ * contrast is made of — so the genuinely deep tone lives where it can be a FILL
+ * rather than a glyph: `primary-container` (#0b3b28) is the masthead mark and
+ * the current tab, and `inverse-primary` (#0d5638) is the accent on an inverse
+ * surface.
+ *
+ * Every pair below was computed, not eyeballed, and the suite computes them
+ * again: `md3-tokens-logic.spec.ts` for the token set and `preferences.spec.ts`
+ * for the rendered page, because a token can be correct and still be overridden
+ * by a rule nobody remembered.
  */
 :root[data-theme="dark"] {
-  --md-sys-color-primary: #9bdcba;
-  --md-sys-color-on-primary: #003824;
-  --md-sys-color-primary-container: #124f37;
-  --md-sys-color-on-primary-container: var(--md-ref-primary-90);
-  --md-sys-color-secondary: #b4cdc0;
-  --md-sys-color-on-secondary: #20362d;
-  --md-sys-color-secondary-container: #345048;
-  --md-sys-color-on-secondary-container: #d0e8dc;
-  --md-sys-color-tertiary: #a7ced9;
-  --md-sys-color-on-tertiary: #0b323d;
-  --md-sys-color-tertiary-container: #27454f;
-  --md-sys-color-on-tertiary-container: #c3e8f3;
-  --md-sys-color-error: #f3b6b8;
-  --md-sys-color-on-error: #45161a;
-  --md-sys-color-error-container: #62282c;
-  --md-sys-color-on-error-container: #ffdad9;
-  --md-sys-color-warning: #dfc56e;
-  --md-sys-color-on-warning: #3b2f00;
-  --md-sys-color-warning-container: #56450d;
-  --md-sys-color-on-warning-container: #f6e6bf;
-  --md-sys-color-success: #9ed5ad;
-  --md-sys-color-on-success: #06351f;
-  --md-sys-color-success-container: #1d4b33;
-  --md-sys-color-on-success-container: #c8e9d4;
-  --md-sys-color-background: #101813;
-  --md-sys-color-on-background: #e5eee8;
-  --md-sys-color-surface: #101813;
-  --md-sys-color-surface-dim: #101813;
-  --md-sys-color-surface-bright: #344139;
-  --md-sys-color-surface-container-lowest: #0b100d;
-  --md-sys-color-surface-container-low: #171f1a;
-  --md-sys-color-surface-container: #1b251f;
-  --md-sys-color-surface-container-high: #26312a;
-  --md-sys-color-surface-container-highest: #303c34;
-  --md-sys-color-surface-variant: #3f4a44;
-  --md-sys-color-on-surface: #e5eee8;
-  --md-sys-color-on-surface-variant: #bdcbc3;
-  --md-sys-color-outline: #87988e;
-  --md-sys-color-outline-variant: #3d4a42;
-  --md-sys-color-inverse-surface: #e5eee8;
-  --md-sys-color-inverse-on-surface: #17231d;
-  --md-sys-color-inverse-primary: var(--md-ref-primary-30);
+  --md-sys-color-primary: #12cc7e;
+  --md-sys-color-on-primary: #00120a;
+  --md-sys-color-primary-container: #0b3b28;
+  --md-sys-color-on-primary-container: #b6ecd0;
   /*
-   * Not `rgba(0, 0, 0, …)`. The scrim is a BACKGROUND, and
-   * `preferences.spec.ts` reads every rendered background looking for pure
-   * black — so the one token whose job is to darken the page was also the one
-   * token that could fail the "neither pure black nor pure white" assertion,
-   * and only while a dialog happened to be open. Green-charcoal at the same
-   * opacity is indistinguishable to the eye and unambiguous to the test.
+   * Neutral, not a green-grey. Secondary is the tonal button and the selected
+   * chip — a surface-like fill — and "only the logo and the accent are green"
+   * is the instruction. A second green family beside the primary is how a
+   * console ends up looking tinted while every individual token looks fine.
    */
-  --md-sys-color-scrim: rgba(6, 11, 8, 0.62);
-  --md-sys-state-hover: rgba(155, 220, 186, 0.1);
-  --md-sys-state-focus: rgba(155, 220, 186, 0.16);
-  --md-sys-state-pressed: rgba(155, 220, 186, 0.18);
+  --md-sys-color-secondary: #c4c4c4;
+  --md-sys-color-on-secondary: #1a1a1a;
+  --md-sys-color-secondary-container: #2e2e2e;
+  --md-sys-color-on-secondary-container: #e0e0e0;
+  --md-sys-color-tertiary: #8fc7dd;
+  --md-sys-color-on-tertiary: #06222c;
+  --md-sys-color-tertiary-container: #123844;
+  --md-sys-color-on-tertiary-container: #c3e8f3;
+  --md-sys-color-error: #f19a9d;
+  --md-sys-color-on-error: #3b0d10;
+  --md-sys-color-error-container: #5a2225;
+  --md-sys-color-on-error-container: #ffdad9;
+  --md-sys-color-warning: #d8bd6a;
+  --md-sys-color-on-warning: #2b2200;
+  --md-sys-color-warning-container: #4d3d08;
+  --md-sys-color-on-warning-container: #f6e6bf;
+  --md-sys-color-success: #8ed3a8;
+  --md-sys-color-on-success: #042313;
+  --md-sys-color-success-container: #16402b;
+  --md-sys-color-on-success-container: #c8e9d4;
+  /*
+   * The OLED base. Four roles resolve to the same #000000 on purpose — the page,
+   * the default surface, the dim surface and the lowest container are all "the
+   * black the panel is drawn on", and giving three of them a near-black of their
+   * own would be three steps of a ladder nobody can see.
+   */
+  --md-sys-color-background: #000000;
+  --md-sys-color-on-background: #e8e8e8;
+  --md-sys-color-surface: #000000;
+  --md-sys-color-surface-dim: #000000;
+  --md-sys-color-surface-bright: #3c3c3c;
+  --md-sys-color-surface-container-lowest: #000000;
+  --md-sys-color-surface-container-low: #151515;
+  --md-sys-color-surface-container: #222222;
+  --md-sys-color-surface-container-high: #2d2d2d;
+  --md-sys-color-surface-container-highest: #363636;
+  --md-sys-color-surface-variant: #262626;
+  /* Not #ffffff. A pure-white glyph on #000 is 21:1 and smears — the halation
+     the "no pure-black glare" clause is really about. #e8e8e8 is 17.14:1 on the
+     base and 9.86:1 on the highest container. */
+  --md-sys-color-on-surface: #e8e8e8;
+  --md-sys-color-on-surface-variant: #b8b8b8;
+  --md-sys-color-outline: #8f8f8f;
+  --md-sys-color-outline-variant: #4a4a4a;
+  --md-sys-color-inverse-surface: #e8e8e8;
+  --md-sys-color-inverse-on-surface: #141414;
+  --md-sys-color-inverse-primary: #0d5638;
+  /*
+   * Pure black, now, and deliberately. The scrim's whole job is to darken the
+   * page behind a dialog, and on a theme whose base surface IS #000 a
+   * green-charcoal scrim was a tint over black rather than a dimming of it.
+   * `md3-tokens-logic.spec.ts` no longer forbids the colour — it measures the
+   * WORK: the scrim must cut the brightest surface's luminance by at least half
+   * (this one cuts it to 12.2%), stay translucent, and never be pure white.
+   */
+  --md-sys-color-scrim: rgba(0, 0, 0, 0.72);
+  --md-sys-state-hover: rgba(18, 204, 126, 0.1);
+  --md-sys-state-focus: rgba(18, 204, 126, 0.16);
+  --md-sys-state-pressed: rgba(18, 204, 126, 0.18);
   --md-sys-elevation-0: none;
   --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.22);
   --md-sys-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.36), 0 1px 3px rgba(0, 0, 0, 0.28);
@@ -437,10 +487,16 @@
   --border: var(--md-sys-color-outline-variant);
   --border-strong: var(--md-sys-color-outline);
 }
+/*
+ * Neutral, like the surfaces it sits on. #edf7f0 was a green-tinted white here,
+ * which put the tint back into the one place a reader who has asked for MORE
+ * contrast is looking hardest. #e0e0e0 is 8.36:1 on the brightest surface it can
+ * land on and 18.5:1 on the base.
+ */
 :root[data-theme="dark"][data-contrast="more"] {
-  --md-sys-color-on-surface-variant: #edf7f0;
-  --md-sys-color-outline: #c6d7ce;
-  --md-sys-color-outline-variant: #82948a;
+  --md-sys-color-on-surface-variant: #e0e0e0;
+  --md-sys-color-outline: #c9c9c9;
+  --md-sys-color-outline-variant: #767676;
   --muted: var(--md-sys-color-on-surface-variant);
   --border: var(--md-sys-color-outline-variant);
   --border-strong: var(--md-sys-color-outline);
@@ -593,56 +649,219 @@ legend {
   overflow-wrap: anywhere;
 }
 
-.masthead {
-  display: flex;
+/* ── The shell frame ───────────────────────────────────────────────────────
+ *
+ * docs/architecture/studio-information-architecture.md §3.1. Three regions —
+ * a top bar that never leaves, a full-height navigation rail beside the
+ * content, and a content region that uses the viewport instead of a 1280px
+ * column centred in it. The operator's words for what this replaced: "very
+ * weak, cluttered, and isolated in the centre of the screen".
+ *
+ * Two numbers are tokens rather than literals because three rules have to
+ * agree on each of them, and they are the two that break silently when they
+ * do not: the rail's sticky offset is the top bar's height, and the rail's
+ * own height is the viewport minus that same number.
+ *
+ * `dvh`, not `vh`: on a phone `100vh` is the height the viewport has when the
+ * browser chrome is retracted, so a rail sized in `vh` is taller than the
+ * screen for the whole time the address bar is showing.
+ */
+:root {
+  /*
+   * The bar's own `min-block-size` (`components/topbar.module.css`, `.bar`).
+   * Two rules depend on this number and both break silently if it drifts: the
+   * rail sticks at it, and the navigation tree's own `max-block-size` is the
+   * viewport minus it. It is declared here rather than in the bar's stylesheet
+   * because the bar is one of three things that has to agree on it.
+   */
+  --topbar-block-size: 64px;
+  --rail-inline-size: 17rem;
+  /*
+   * §3.2(a). The measure applies to the elements that carry SENTENCES, never
+   * to the page, and this is the token both halves of that rule read. 72ch is
+   * the wide end of the 45–75ch typographic range, taken at the wide end
+   * because this console's paragraphs are dense technical sentences with ARNs
+   * in them. A table cell, a `<code>`, a chip and a `<th>` are excluded below
+   * for the same reason `overflow-wrap: anywhere` excludes `td`: a wide table
+   * must scroll, not collapse.
+   */
+  --measure: 72ch;
+}
+@media (max-width: 1180px) {
+  :root {
+    --rail-inline-size: 15rem;
+  }
+}
+
+/*
+ * STUDIO-030-007. The first stop in the tab order, on every route.
+ *
+ * A persistent rail is fourteen tab stops between the top of the document and
+ * the page, and it is persistent precisely so it is not re-traversed — this is
+ * what makes that true for a keyboard-only operator.
+ *
+ * Hidden with `opacity` and a transform rather than the usual 1px clipped box.
+ * A 1px `overflow: hidden` element whose text is 120px wide is exactly the
+ * shape `e2e/layout.spec.ts`'s "text is never clipped by a fixed height" check
+ * fires on, and a visually-hidden helper that reds the layout suite on every
+ * route is a helper nobody keeps. `opacity: 0` is also what that suite's own
+ * box collector skips, so this cannot become a phantom overlap either.
+ */
+.skip-link {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: 60;
+  opacity: 0;
+  transform: translateY(-100%);
+  min-block-size: var(--tap);
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  min-block-size: 64px;
-  padding-block: var(--space-3);
-  padding-inline: max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5)));
-  border-bottom: 1px solid var(--border);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--md-sys-shape-md);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.skip-link:focus {
+  opacity: 1;
+  transform: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.console-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  /*
+   * `start`, so the rail is a grid item of its own height rather than one
+   * stretched to the tallest row — which is what lets `position: sticky` on it
+   * mean anything at all.
+   */
+  align-items: start;
+}
+.console-content {
+  /*
+   * A grid item defaults to `min-width: auto` and refuses to shrink below its
+   * min-content, which one ARN in one table is enough to set. Every ancestor
+   * of a wide table has to say this or the table stops scrolling and the page
+   * starts.
+   */
+  min-inline-size: 0;
+}
+
+/*
+ * The navigation region.
+ *
+ * A plain container, deliberately: `components/Nav.tsx` carries its own
+ * disclosure below 901px and its own scrolling panel, so a second disclosure
+ * here would be two controls for one tree and a second scroller would be a
+ * scrollbar inside a scrollbar. What this supplies is the part the navigation
+ * cannot know — where it is, how wide it is, and that it stays with the
+ * operator as the page scrolls.
+ *
+ * `--console-nav-offset` is the variable `nav.module.css` declares for exactly
+ * this: its panel is `max-block-size: calc(100dvh - var(--console-nav-offset,
+ * 9rem))`, and the real number is the top bar plus this region's own padding,
+ * which only the shell knows.
+ */
+.console-rail {
+  min-inline-size: 0;
+  padding-block: var(--space-4);
+  padding-inline: var(--space-3);
+  border-block-end: 1px solid var(--border);
   background: var(--md-sys-color-surface-container-low);
-  box-shadow: var(--md-sys-elevation-1);
+  --console-nav-offset: calc(var(--topbar-block-size) + 2 * var(--space-4));
+}
+
+@media (min-width: 901px) {
+  .console-shell[data-shell="console"] {
+    grid-template-columns: var(--rail-inline-size) minmax(0, 1fr);
+  }
+  .console-rail {
+    /*
+     * Sticky, never fixed. Sticky participates in the grid, so nothing has to
+     * reserve a margin for it — and `layout.spec.ts` measures every text box
+     * in PAGE coordinates (`r.x + window.scrollX`), which a fixed rail's rect
+     * stops corresponding to the moment anything scrolls. At scroll 0 the two
+     * are identical, so this costs nothing and removes a category of false
+     * positive nobody would enjoy diagnosing.
+     */
+    position: sticky;
+    inset-block-start: var(--topbar-block-size);
+    block-size: calc(100dvh - var(--topbar-block-size));
+    z-index: 10;
+    border-block-end: 0;
+    border-inline-end: 1px solid var(--border);
+  }
+}
+
+/*
+ * The navigation's own frame, inside the region.
+ *
+ * `globals.css` gave `.tabs` a horizontal wrapping strip: `display: flex`, a
+ * bottom border, a background, and — until this change — an inline padding of
+ * `calc((100vw - 1280px) / 2 …)` so the strip lined up with a centred column.
+ * Inside a rail all four are wrong. `nav.module.css` already sets
+ * `.rail:global(.tabs) { display: block }`; these are the rest, and they are
+ * here rather than there because they undo rules this file sets.
+ */
+.console-rail nav.tabs {
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+/* ── The top bar, as far as the shell is concerned ────────────────────────
+ *
+ * The bar itself is `components/TopBar.tsx` over `components/topbar.module.css`
+ * — its slots, its account menu, its sign-out and its own sticky placement are
+ * that lane's. One property is not, and it is the operator's complaint:
+ *
+ *   .bar { padding-inline: max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5))) }
+ *
+ * That expression aligned the bar's contents with the 1280px centred column
+ * `main` used to be. The column is gone — see `main` below — so on a 1920px
+ * monitor it now indents the mark 340px from an edge nothing else starts at,
+ * and the rail beneath it starts at 0. Overridden here, on the bar's own
+ * `data-topbar` attribute, at (0,1,1) so it wins the tie with the hashed
+ * `.bar` class whichever order the two stylesheets are inserted in.
+ *
+ * THIS RULE SHOULD NOT SURVIVE. It belongs in `topbar.module.css`, whose lane
+ * wrote that expression when the column still existed. It is here because that
+ * file is not this lane's to edit, and it is written as one property with this
+ * paragraph rather than left as a defect nobody owns.
+ */
+body [data-topbar="true"] {
+  padding-inline: var(--space-4);
+}
+
+/*
+ * The shell's own region for the bar. `layout.tsx` explains why the wrapper
+ * exists; this is the only thing it does. Sticky here rather than only on the
+ * bar inside it, so what stays with the operator is the REGION — the bar's own
+ * sticky then resolves against a containing block of exactly its own height,
+ * which is a no-op rather than a fight. The rail sticks below it at
+ * `--topbar-block-size`, and the palette's backdrop is above both.
+ */
+.masthead {
   position: sticky;
   inset-block-start: 0;
   z-index: 20;
 }
-.masthead .mark {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-block-size: 32px;
-  padding-inline: var(--space-3);
-  border-radius: var(--md-sys-shape-full);
-  color: var(--md-sys-color-on-primary-container);
-  background: var(--md-sys-color-primary-container);
-  font-size: 0.92rem;
-  font-weight: 760;
-  letter-spacing: 0;
-}
-.masthead .mark::before {
-  content: "";
-  inline-size: 10px;
-  block-size: 10px;
-  border-radius: var(--md-sys-shape-xs);
-  background: var(--accent);
-  box-shadow: inset 0 0 0 2px var(--md-sys-color-on-primary-container);
-}
-.masthead .title {
-  color: var(--muted);
-  font-size: 0.86rem;
-  font-weight: 600;
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
+
 /*
- * The preferences control takes the flexible space, so it and the Internal
- * badge sit together at the right rather than being pushed apart by two `auto`
- * margins splitting the gap between them.
+ * The preferences disclosure is the bar's utility slot (`TopBar`'s `children`),
+ * and this is the one thing it needs from the frame: a containing block. Its
+ * panel is `position: absolute` and would otherwise resolve against the nearest
+ * positioned ancestor — the bar, or the viewport — and hang off the wrong edge.
+ * It was `.masthead .preferences` while the shell drew its own bar; the
+ * component moved and the rule follows it.
  */
-.masthead .preferences {
-  margin-inline-start: auto;
+.preferences {
   position: relative;
 }
 
@@ -757,27 +976,75 @@ legend {
   letter-spacing: 0.08em;
 }
 
+/*
+ * §3.1. Fluid, and this is the line the operator's complaint was about.
+ *
+ * It was `inline-size: min(100%, 1280px); margin-inline: auto` — 320px of dead
+ * page on each side of a 1920px operator monitor, permanently, with
+ * `.masthead` and `.tabs` padding themselves by
+ * `calc((100vw - 1280px) / 2 …)` to match. All three are gone. The width a
+ * paragraph is allowed to occupy is capped where the paragraph lives
+ * (`--measure`, below); the width the APPLICATION occupies is the viewport.
+ *
+ * `e2e/layout.spec.ts`'s "the content region uses the width available"
+ * measures this at 1440 and at 1920 so that re-centring it is a failing test
+ * rather than a preference somebody re-litigates.
+ */
 main {
   box-sizing: border-box;
-  inline-size: min(100%, 1280px);
-  margin-inline: auto;
+  inline-size: 100%;
+  min-inline-size: 0;
   padding-block: var(--space-5) var(--space-6);
   padding-inline: var(--space-5);
 }
+
+/*
+ * §3.2(a). The measure, applied to the elements that carry SENTENCES.
+ *
+ * Removing the centred column without this trades one bad layout for another:
+ * a 1600px paragraph is its own defect, and the eye loses the start of the
+ * next line. Scoped to `main` because the top bar and the rail are labels
+ * rather than prose, and excluding `td`, `th`, `code`, `.slug` and `.chip` for
+ * the reason `overflow-wrap: anywhere` excludes them — a wide table must
+ * scroll, not collapse.
+ */
+main p,
+main li,
+main dd,
+main figcaption,
+main .supporting-text {
+  max-inline-size: var(--measure);
+}
+
+/*
+ * STUDIO-030-007 / 030-008. The content region can hold focus, so it needs to
+ * be able to SHOW it.
+ *
+ * `layout.tsx` moves focus here when a route change drops it on `<body>`.
+ * `:focus-visible` rather than `:focus`, so the ring appears for the operator
+ * who arrived by keyboard and not for the one who arrived by mouse — the
+ * distinction the pseudo-class exists to make. Inset, because an outline drawn
+ * outside a full-width region is drawn off the page.
+ */
+main:focus {
+  outline: none;
+}
+main:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+}
+
 @media (max-width: 640px) {
-  .masthead {
-    min-block-size: auto;
+  /*
+   * The bar's own narrow-width rules moved with it, into
+   * `components/topbar.module.css`. What is left here is the frame and the
+   * page.
+   */
+  .console-rail {
     padding-inline: 16px;
-    gap: var(--space-2);
-  }
-  .masthead .preferences {
-    margin-inline-start: 0;
-  }
-  .masthead .title {
-    flex: 1 1 9rem;
   }
   .tabs {
-    padding-inline: 16px;
+    padding-inline: 0;
     gap: var(--space-1);
   }
   .tabs a,
@@ -813,9 +1080,7 @@ main {
   .tabs .here {
     flex-basis: 100%;
   }
-  .masthead .mark,
-  .pref-trigger,
-  .masthead .internal {
+  .pref-trigger {
     min-inline-size: 0;
   }
 }
@@ -1034,7 +1299,13 @@ form.signin button {
   border-bottom: 1px solid var(--border);
   margin: 0;
   padding-block: var(--space-3);
-  padding-inline: max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5)));
+  /*
+   * Was `max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5)))` —
+   * the navigation padding itself to line up with a 1280px centred column.
+   * The column is gone (see `main`), and inside the rail this is a plain
+   * inline padding again.
+   */
+  padding-inline: var(--space-3);
   font-size: 0.9rem;
   background: var(--md-sys-color-surface);
 }
@@ -2089,7 +2360,15 @@ fieldset.destructive .chip {
   display: block;
   color: var(--md-sys-color-on-surface);
   background: var(--md-sys-color-surface-container-low);
-  border: 1px solid transparent;
+  /*
+     A hairline by default, not `transparent`. On the OLED dark theme the base
+     surface is #000 and a drop shadow has no darker pixels to work with, so
+     elevation cannot separate two adjacent panels — without an edge they smear
+     into one another, which is the real content of STUDIO-030-002's
+     "no pure-black glare" clause. The width is unchanged (it was already a 1px
+     transparent border), so nothing reflows.
+  */
+  border: 1px solid var(--md-sys-color-outline-variant);
   min-inline-size: 0;
   /* A surface that changes level eases between shadows rather than snapping.
      `medium` because it is a region moving rather than a control responding —
@@ -2167,10 +2446,13 @@ fieldset.destructive .chip {
 .md3-surface[data-level="5"] {
   box-shadow: var(--md-sys-elevation-5);
 }
-/* Decorative, by the rule at the top of this section: the card already differs
-   from the page by its background, and this is the edge of that difference. */
+/* Every surface now carries the decorative hairline, so `outlined` means the
+   STRONGER boundary — `outline`, audited at 3:1 against every surface
+   (WCAG 2.2 AA 1.4.11) — rather than repeating the default and meaning nothing.
+   It is for a surface whose edge carries meaning: a panel you can act on, a
+   region the eye has to find first. */
 .md3-surface[data-outlined="true"] {
-  border-color: var(--md-sys-color-outline-variant);
+  border-color: var(--md-sys-color-outline);
 }
 
 /* ── Card ──────────────────────────────────────────────────────────────────

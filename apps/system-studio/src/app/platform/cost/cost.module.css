@@ -148,6 +148,18 @@
 .budgets :global(.md3-table) {
   min-inline-size: 48rem;
 }
+/*
+ * The published-rate table, for the same reason and one more of its own.
+ *
+ * Six columns, two of which carry a sentence and one a published decimal with a
+ * currency beside it. Below this minimum the rate column wraps mid-number at the
+ * 320 CSS pixels `layout.spec.ts` measures — and a price broken across two lines
+ * is a price that can be misread, which on this page is the whole failure mode.
+ * The shell scrolls inside its own border instead.
+ */
+.rates :global(.md3-table) {
+  min-inline-size: 52rem;
+}
 
 /*
  * The two halves of the remainder — shared by decision, and reaching no tenant

@@ -1,0 +1,227 @@
+/*
+ * The top bar's geometry. STUDIO-030-003.
+ *
+ * ── What this file may contain ─────────────────────────────────────────────
+ *
+ * Flow, gap, wrapping, sticky placement and truncation. Every length is a token
+ * declared in `globals.css`.
+ *
+ * It contains no colour, and that is a rule rather than a preference. It is the
+ * rule `platform/cost/cost.module.css` states and gives the reason for:
+ * `e2e/md3-tokens-logic.spec.ts` computes WCAG 2.2 AA ratios for the
+ * foreground/background PAIRS it can find, and every pair it can find is one
+ * declared in `globals.css`. A pair invented in a component stylesheet is a
+ * pair the audit does not know exists.
+ *
+ * So every colour on this bar arrives from a primitive: `Surface` paints the
+ * bar and sets `on-surface` on it, `Button` carries the control colours,
+ * `Chip` carries the estate readout, and `components/md3/Menu` brings the whole
+ * dropdown including the danger tone on Sign out. The two exceptions are
+ * `color: inherit` on the home link — which sets no colour, it declines the
+ * browser's default link blue and takes the surface's own foreground, the same
+ * foreground `Logo` draws its letterforms in — and `currentColor` on the key
+ * caps, a decorative non-text edge derived from whatever the surface already
+ * resolved.
+ *
+ * ── Density ───────────────────────────────────────────────────────────────
+ *
+ * Nothing here is hard-coded to a density. `--space-*` is redefined under
+ * `[data-density="compact"]` and `--tap` deliberately is not, so compact
+ * tightens the space around these controls and never the controls themselves
+ * (STUDIO-030-005, WCAG 2.2 AA 2.5.8).
+ */
+
+.bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 64px;
+  padding-block: var(--space-2);
+  /* Content aligns with `main`, which is `min(100%, 1280px)` centred, while the
+     bar's own surface runs full bleed. Same expression as the shell it
+     replaces, so nothing shifts horizontally between the bar and the page. */
+  padding-inline: max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5)));
+  /* `Surface` draws a hairline on all four edges; a full-bleed bar wants only
+     the one the page is under. Widths, not colours. */
+  border-inline-width: 0;
+  border-block-start-width: 0;
+  position: sticky;
+  inset-block-start: 0;
+  /* Above the navigation (10) and the page, below the command palette (100). */
+  z-index: 20;
+}
+
+.lead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+}
+
+.home {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* Declines the browser's default link colour rather than choosing one. */
+  color: inherit;
+  text-decoration: none;
+  min-inline-size: 0;
+  min-block-size: var(--tap);
+}
+
+.product {
+  font-size: var(--md-sys-typescale-label-large-size);
+  font-weight: 680;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.estateLabel {
+  font-size: var(--md-sys-typescale-label-small-size);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.estateValue {
+  font-family: var(--md-sys-type-mono);
+  /* An account id and a region are identifiers: they are read character by
+     character, and a proportional font is where `1` and `l` stop being
+     distinguishable. `anywhere` because a 12-digit id in a 320px bar has to
+     break somewhere, and breaking is better than pushing the page sideways. */
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Global search takes the slack, so the bar reads brand · estate — search —
+ * account at every width the console is asserted at.
+ */
+.search {
+  display: flex;
+  align-items: center;
+  flex: 1 1 14rem;
+  min-inline-size: 0;
+  margin-inline-start: auto;
+}
+.search :global(.md3-button) {
+  inline-size: 100%;
+  /* The label at the start and the shortcut at the end, which is what makes it
+     read as a search field rather than as a button that says a word. */
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.searchLabel {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+.key {
+  font-family: var(--md-sys-type-mono);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: 1;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--md-sys-shape-xs);
+  /* The cap is an outline of the text it sits with, not a second colour. */
+  opacity: 0.72;
+}
+
+.trail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  min-inline-size: 0;
+}
+
+.signedOut {
+  font-size: var(--md-sys-typescale-label-large-size);
+}
+
+/* ── The account menu ───────────────────────────────────────────────────── */
+
+.account {
+  /* Lets the trigger's label truncate rather than push the bar wider. The
+     popover's own containing block is `Menu`'s `[data-md3="anchor"]`, inside
+     this — nothing here positions it. */
+  min-inline-size: 0;
+}
+
+.accountEmail {
+  max-inline-size: 14rem;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The role WRAPS rather than truncating, and that is the difference between
+ * two defects. `platform-super-admin` and `platform-super-admin` clipped to
+ * "PLATFORM SUP…" are the same string to a reader who does not already know the
+ * five families apart; the whole reason the role is on screen is that an
+ * operator cannot otherwise predict which controls will refuse them. The
+ * address above it may be clipped — its full value is one keystroke away in the
+ * menu — but the role may not.
+ */
+.accountRole {
+  font-size: var(--md-sys-typescale-label-small-size);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+  opacity: 0.86;
+}
+/*
+ * So the trigger wraps too. Without this the two labels are laid out on one
+ * unbreakable line inside a control that is `max-inline-size: 100%`, and the
+ * overflow pushes the whole document sideways at 320px — which is one of the
+ * three failures `e2e/layout.spec.ts` measures on every route.
+ */
+.account :global(.md3-button) {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+/*
+ * The dropdown itself is `components/md3/Menu`, which brings its own popover
+ * geometry from `components/md3/primitives.css`. Nothing here positions it —
+ * two stylesheets placing one panel is how a menu ends up half off screen at
+ * one breakpoint and nowhere near its trigger at another.
+ */
+
+@media (max-width: 640px) {
+  .bar {
+    min-block-size: auto;
+    padding-inline: 16px;
+    gap: var(--space-2);
+  }
+  .search {
+    /* At this width the bar has already wrapped, so the automatic start margin
+       would push search away from the brand it now sits under. */
+    margin-inline-start: 0;
+    flex-basis: 100%;
+  }
+  .accountEmail {
+    max-inline-size: 9rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .trail {
+    inline-size: 100%;
+  }
+}

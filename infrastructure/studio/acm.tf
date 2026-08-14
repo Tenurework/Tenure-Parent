@@ -3,10 +3,12 @@
 # Two phases, and they cannot be collapsed into one apply.
 #
 #   1. This file requests the certificate. ACM emits a validation CNAME, which
-#      the outputs below print. Somebody adds it at the registrar — Vercel holds
-#      `tenurework.com`, not Route 53, so Terraform cannot write the record
-#      itself and there is no `aws_acm_certificate_validation` resource here to
-#      wait on one. It would block the apply forever.
+#      the outputs below print. A person publishes it wherever `tenurework.com`
+#      is served from — see "Why Terraform does not write the validation record
+#      itself", further down, for why that is a person and not a resource.
+#      There is deliberately no `aws_acm_certificate_validation` here: it waits
+#      on a record this configuration is not creating, so it would hold the
+#      apply open until it timed out.
 #   2. Once ACM reports ISSUED, `attach_studio_domain = true` binds it to the
 #      distribution in `cloudfront.tf` and moves the auth URLs onto the new name.
 #
@@ -19,9 +21,13 @@
 # worth writing down, because moving this stack to another region would silently
 # request the certificate somewhere CloudFront will not read it.
 #
-# CAA. `tenurework.com` already carries `0 issue "amazon.com"` at the apex, and
-# CAA is inherited down the tree, so ACM is permitted to issue for this
-# subdomain. Without it validation stays PENDING with no error anybody sees.
+# CAA. `infrastructure/terraform/variables.tf` records that the pilot's
+# `platform.tenurework.com` certificate reached ISSUED on 2026-07-30 only once a
+# CAA record authorising `amazon.com` was published at the apex, after two
+# requests failed CAA_ERROR. CAA is inherited down the tree, so that same record
+# is what permits ACM to issue for this subdomain. Nobody re-queried the apex
+# from here — `dig CAA tenurework.com +short` is the check — but a CAA_ERROR on
+# this certificate has exactly one known cause and it is written down.
 
 resource "aws_acm_certificate" "studio" {
   count             = var.studio_domain != "" ? 1 : 0
@@ -50,6 +56,33 @@ resource "aws_acm_certificate" "studio" {
   })
 }
 
+# ── Why Terraform does not write the validation record itself ────────────────
+#
+# It would be four resources — `aws_route53_record` per validation option and an
+# `aws_acm_certificate_validation` to wait for ISSUED — and both were written and
+# then TAKEN BACK OUT, deliberately, for two reasons that are worth the space:
+#
+#   1. There is no zone to write into that anybody has confirmed.
+#      `grep -rn "aws_route53_zone" infrastructure/` finds none in either stack,
+#      so `tenurework.com` is delegated somewhere this configuration cannot see.
+#      A hosted zone id cannot be guessed safely: Route 53 accepts any
+#      well-formed id this account can write, so a wrong one publishes a CNAME
+#      into the wrong domain and the apply SUCCEEDS while the certificate never
+#      validates. `aws route53 list-hosted-zones --query "HostedZones[?Name=='tenurework.com.']"`
+#      is the one command that settles it, and nobody has run it.
+#   2. `aws_route53_record` is a service this console does not read.
+#      `tests/architecture/every-provisioned-service-has-a-reader.test.mjs` went
+#      RED on exactly that — "Terraform declares 2 resource type(s) this table
+#      does not classify" — and it is right to. Its `ESTATE` has entries for
+#      `acm` and `cloudfront`; it has none for `route53`, so provisioning DNS
+#      here would add a service to the estate that no operator surface can show,
+#      which is the defect that file exists to catch. Landing it needs a
+#      `route53` ESTATE entry, a reader module, a surface director and a row in
+#      the wiring map — none of which live in this file.
+#
+# So the record is PRINTED, below, and published by a person. That path works
+# whoever holds the zone, which is the right default while nobody knows.
+
 # ── What a human has to do next ──────────────────────────────────────────────
 #
 # Printed as outputs rather than left in the AWS console, because the person who
@@ -57,7 +90,7 @@ resource "aws_acm_certificate" "studio" {
 # look it up" is how a certificate sits PENDING_VALIDATION for a week.
 
 output "studio_acm_validation_records" {
-  description = "Add these CNAMEs at the registrar (Vercel) to validate the Studio certificate"
+  description = "Add these CNAMEs at the registrar to validate the Studio certificate. Already written for you when studio_hosted_zone_id is set."
   value = var.studio_domain != "" ? [
     for o in aws_acm_certificate.studio[0].domain_validation_options : {
       name  = o.resource_record_name

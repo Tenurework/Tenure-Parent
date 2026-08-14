@@ -384,6 +384,16 @@ export function provenanceOf(input: {
    */
   healthReadState?: string
   healthRefreshMs?: number
+  /**
+   * The two standing-posture reads, when this page made them.
+   *
+   * Same rule as `healthReadState` above and for the same reason: absent means
+   * "this page did not ask". A page that printed `cloudwatch:ListDashboards`
+   * in its provenance without having called it would be describing apparatus
+   * rather than what produced what is on the screen.
+   */
+  dashboardsReadState?: string
+  logsReadState?: string
 }): readonly Provenance[] {
   const orUnknown = (value: string | null | undefined, why: string) =>
     value && value.trim() !== "" ? value : `Not known — ${why}`
@@ -401,6 +411,24 @@ export function provenanceOf(input: {
   if (input.healthReadState !== undefined) {
     facts.push({ label: "Also read", value: "health:DescribeEvents, every page, live" })
     facts.push({ label: "AWS Health answered", value: input.healthReadState })
+  }
+
+  if (input.dashboardsReadState !== undefined) {
+    facts.push({
+      label: "Dashboards read",
+      value: "cloudwatch:ListDashboards then cloudwatch:GetDashboard per dashboard, live",
+    })
+    facts.push({ label: "Dashboards answered", value: input.dashboardsReadState })
+  }
+
+  if (input.logsReadState !== undefined) {
+    facts.push({
+      label: "Log groups read",
+      value:
+        "logs:DescribeLogGroups, then logs:DescribeMetricFilters and one bounded " +
+        "logs:FilterLogEvents silence probe per group, live",
+    })
+    facts.push({ label: "Log groups answered", value: input.logsReadState })
   }
 
   facts.push(
@@ -736,6 +764,25 @@ export const SECTIONS = [
   "needs-attention",
   "watching-quietly",
   "coverage",
+  /*
+   * The three cards `watch.ts` decides.
+   *
+   * They sit BELOW the alarm coverage card and above provenance, in that order,
+   * and they never hoist. Everything above them is an event — something is
+   * firing, or AWS has raised something, or an alarm the Terraform declares was
+   * not created. These three are a standing condition: a log group nothing has
+   * read since somebody forgot, a dashboard nobody has opened, a retention
+   * setting that has been an unbounded bill for a year. Hoisting a month-old
+   * omission over an outage in progress is the wrong page during the ten
+   * minutes this page exists for.
+   *
+   * `unwatched` comes first of the three because it is the only one of them
+   * that is a FINDING rather than an inventory; the two below it are where an
+   * operator goes to see the rows the finding was computed from.
+   */
+  "unwatched",
+  "dashboards",
+  "log-groups",
   "provenance",
 ] as const
 
@@ -756,6 +803,26 @@ export type SectionId = (typeof SECTIONS)[number]
  */
 export function sectionOrder(aws: AwsSide): readonly SectionId[] {
   return aws.hoist
-    ? ["right-now", "aws-health", "needs-attention", "watching-quietly", "coverage", "provenance"]
-    : ["right-now", "needs-attention", "watching-quietly", "aws-health", "coverage", "provenance"]
+    ? [
+        "right-now",
+        "aws-health",
+        "needs-attention",
+        "watching-quietly",
+        "coverage",
+        "unwatched",
+        "dashboards",
+        "log-groups",
+        "provenance",
+      ]
+    : [
+        "right-now",
+        "needs-attention",
+        "watching-quietly",
+        "aws-health",
+        "coverage",
+        "unwatched",
+        "dashboards",
+        "log-groups",
+        "provenance",
+      ]
 }

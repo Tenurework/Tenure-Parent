@@ -7786,3 +7786,3506 @@ report. This route's behaviour at 1440 / 1180 / 900 / 320px has therefore NOT be
 measured by anything. The stylesheet carries `overflow-wrap: anywhere` on every
 identifier and prose cell and declares no colour at all (that last is asserted, and
 it passed), which is a reason to expect it to hold and is not a measurement.
+
+## The System Studio information architecture and route map — Bible §19, "Product and UX"
+
+- Deliverable: `docs/architecture/studio-information-architecture.md`, rewritten
+  in full. §19 names it in its own words: "System Studio information architecture
+  and route map". It now decides three things and is the only place any of them
+  is decided — the shell (persistent full-height left navigation, persistent top
+  bar, fluid content), the two-level navigation tree (the Bible §7.2 domains as
+  groups, their routes, and sub-items inside the routes that have real
+  sub-surfaces), and the route map for all 18 served routes.
+- Status: PASS
+- Reason: the deliverable is a document, and this is the document. It is a
+  specification three build lanes implement from; it is not a claim that the
+  shell exists.
+- Evidence: `node --test tests/architecture/shell-separation.test.mjs` -> 13
+  pass, 0 fail (the navigation and the routes still agree, in both directions,
+  with the groups still the Bible's domains in the Bible's order).
+  `find apps/system-studio/src/app -name page.tsx | wc -l` -> 18 routes, every
+  one placed in §9 of the document. `grep -c 'domain: "' Nav.tsx` -> 10 groups;
+  `grep -c 'href: "' Nav.tsx` -> 14 entries.
+
+### What this entry does NOT close
+
+**No `STUDIO-030-*` checkbox is ticked by this work, and none should be.** The
+ids exist and are real — `STUDIO-030-005` (density), `-030-006` (async states),
+`-030-007` (WCAG 2.2 AA, keyboard, reflow), `-030-008` (no layout shift or focus
+loss), `-030-011` (performance budgets) are the items this architecture is
+written to make reachable. A document does not close any of them; the code the
+lanes write does, with its own evidence. This entry is deliberately not written
+in the `- [ ] **STUDIO-030-xxx**` form, so `tools/reconcile-execution-checkboxes.mjs`
+cannot tick a prompt checkbox from it.
+
+### Three defects it records, each measured rather than recalled
+
+- `main { inline-size: min(100%, 1280px); margin-inline: auto }` — the console is
+  a centred column, which is the operator's "isolated in the centre of the
+  screen". `.masthead` and `.tabs` carry matching
+  `calc((100vw - 1280px) / 2 …)` padding, so the whole shell is pinned to it.
+- `signOut` is exported from `apps/system-studio/src/lib/auth.ts:49` and has
+  **zero callers** under `src/` (`grep -rn "signOut" apps/system-studio/src` ->
+  one hit, the export). There is no way to sign out of the console.
+- The command palette exists, is mounted in the layout, and is invisible:
+  `CommandPalette.tsx:149` is `if (!open) return null`, and the string "Ctrl"
+  appears once in the whole UI — inside a comment.
+
+### Two claims in the previous revision of the document were wrong
+
+Corrected in place rather than dropped: it said "ten groups, thirteen
+destinations" (it is **fourteen**, counted), and it said entry labels are the
+page's own `<h1>` (three are not — `/` is *Systems* / "Organization systems",
+`/platform/estate` is *Estate* / "AWS estate", `/platform/security` is
+*Findings* / "Security posture").
+
+### The guard constraints the shell must satisfy, established read-only
+
+A probe replicating `shell-separation.test.mjs`'s own two readers —
+`routesOf(OPERATOR)` and `HREF_LITERAL` — was run against the working tree
+without modifying it, because every file it concerns belongs to another agent in
+this run. Results, now written into the document as constraints on the build:
+
+- `href="/api/auth/signout"`, `href="/signout"`, `href="/search"` and
+  `href="/platform/network#security-groups"` would each **red the guard**: none
+  is a route the console serves. Sign-out is therefore a form POST to a server
+  action, and sub-item fragments are composed from data, never written as
+  literals.
+- `href="/tenants/new"` **passes** that guard and would **red**
+  `e2e/operator-roles.spec.ts:79`, which asserts an auditor's markup does not
+  contain it. Two guards pointing opposite ways; the navigation must satisfy
+  both, which is why the compose control stays the page's action and not a
+  navigation entry.
+
+The document also specifies two guards that do not exist yet and must land with
+the code: declared sub-item anchors must resolve to an `id` on the target route,
+and `authorizing-routes-are-dynamic.test.mjs` must widen its `/\/page\.tsx$/`
+filter (line 69) to layouts, because the shell puts `auth()` in `layout.tsx` for
+the first time and that guard does not look there — the identical prerender
+defect it exists for, one file to the left.
+
+### Deviation recorded, not smuggled
+
+`STUDIO-030-002` says "no pure-black glare". The product owner has directed OLED
+black for the dark theme. **The clause is overridden by that direct
+instruction**, and §13.1 of the document says so by name. What answers the
+concern behind the clause: foregrounds stay below pure white so contrast lands
+in the comfortable band rather than at the display's maximum, and **elevation
+comes from surface-container steps that are measurably distinct at `#000`, not
+from shadow alone** — at pure black a shadow has nothing to fall on, and two
+stacked panels become one field. §13.2 records that
+`e2e/preferences.spec.ts`'s "uses neither pure black nor pure white" and
+`e2e/md3-tokens-logic.spec.ts`'s scrim assertion are correct about the old
+palette and wrong about the directed one, and states the stronger rule that must
+replace them (never a pure-white foreground, never an invisible elevation step,
+never a contrast pair below AA). **This agent did not edit either spec** — both
+belong to the theme lane, which was actively editing `globals.css` and
+`md3-tokens-logic.spec.ts` during this run.
+
+### One generated artefact is now stale, by design of the ordering rule
+
+`docs/architecture/architecture-document-graph.yaml` records a `sha256` and
+`bytes` for this document, so rewriting it makes
+`node tools/document-graph.mjs --check` fail —
+`tests/architecture/document-graph.test.mjs` "the compiled artifacts are
+current" is red until it is regenerated. That command is the first step of
+`npm run generate`, which this agent was instructed not to run and which the
+orchestrator runs once, at the end, before `npm run test:platform`. Editing any
+registered document has this consequence; it is reported rather than
+worked around.
+
+## The Tenure mark becomes an asset — STUDIO-030-001, STUDIO-030-007
+
+The masthead rendered `<span className="mark">Tenure</span>`: a word in a pill
+with a 10px square `::before` beside it. That is a placeholder which reads as a
+logo at a glance and is not one — it cannot be a favicon, it cannot sit in a
+collapsed rail without the word wrapping, and the square is not the Tenure
+rosette. The operator's note was "logo is still not put in there".
+
+- [ ] **STUDIO-030-001** — one token source for colour, typography, spacing, radii,
+  borders, elevation, motion, charts, density and focus across every surface.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/components/md3/Logo.tsx` (`Logo`, `LogoProps`,
+    `LOGO_ICONS`, `LOGO_ICON_PATH`), `apps/system-studio/public/icon.svg`
+  - Tests: `apps/system-studio/src/components/md3/Logo.test.tsx` — 19 passing,
+    `npm run test --workspace apps/web -- --ci ../system-studio/src/components/md3/Logo.test.tsx`
+  - Caller: **none yet in a route.** `app/layout.tsx` belongs to the shell agent
+    and still renders the span. The two lines that change that are named below.
+  - Reason: this closes ONE clause of a requirement that names ten. The brand
+    mark now resolves `--md-sys-color-primary` and `--md-sys-color-on-surface`
+    instead of carrying a value, so it is inside the token source rather than
+    beside it, and `e2e/md3-tokens-logic.spec.ts`'s literal-colour scan covers it
+    (29 of its 30 tests pass against this directory with `Logo.tsx` present; the
+    thirtieth is the barrel line below). Typography, spacing, radii, elevation,
+    motion, charts, density and focus are untouched by this change.
+
+- [ ] **STUDIO-030-007** — WCAG 2.2 AA, keyboard-only operation, visible focus,
+  screen-reader semantics, reduced motion, zoom/reflow, touch targets, high
+  contrast, RTL readiness, colour-vision safety.
+  - Status: FAIL
+  - Code: as above — the `decorative | label` union in `LogoProps`
+  - Tests: as above, five accessibility cases
+  - Reason: the screen-reader-semantics clause is closed FOR THIS COMPONENT and
+    for nothing else. `<Logo />` and `<Logo mark />` carry `role="img"` and an
+    accessible name for the case where the mark IS the link to home;
+    `<Logo decorative />` carries `aria-hidden="true"` and no name in any of the
+    four naming syntaxes, for the case where it sits beside a visible "Tenure" —
+    the shape that otherwise makes a reader announce "Tenure Tenure". The two
+    are mutually exclusive at the type level: `decorative: true` types `label` as
+    `never`, so a named decorative mark does not compile. Nothing here addresses
+    keyboard operation, focus, reflow, touch targets, RTL or colour vision.
+
+### The colour, and the one literal in the change
+
+Nothing in `Logo.tsx` carries a colour. `public/icon.svg` does, and the reason is
+structural rather than a shortcut: a favicon is fetched and rendered as its own
+document by the browser chrome, with no page and therefore no token layer, so a
+custom property alone resolves to nothing and the mark renders as an empty
+square. The file asks for `--md-sys-color-primary` first and falls back, and it
+declares two tones because browser chrome has two backgrounds.
+
+The two tones are `#0b5c3d` and `#7fd6aa` — **read out of `globals.css` as it
+stands today (`--md-ref-primary-30` and `--md-ref-primary-80`), not invented.**
+The test does not pin those values, because the token agent is repalettising this
+console concurrently and a test that pinned them would go red on somebody else's
+correct change. It pins the PROPERTIES instead, recomputed from the file on every
+run: WCAG 2.2 relative luminance of each tone, the light-chrome tone at 8.04:1 on
+white and the dark-chrome tone at 12.10:1 on black against a 3:1 floor for
+non-text graphics, both hues inside 120°–180°, and the light tone strictly darker
+than the dark tone so a swap cannot pass.
+
+This does not touch **STUDIO-030-002** and takes no position on the OLED-black
+deviation recorded elsewhere in this file; the mark follows whatever
+`--md-sys-color-primary` becomes.
+
+### Two defects found by rendering the thing, which no assertion had caught
+
+1. **The favicon did not render at all.** Its explanatory comment spelled out a
+   custom property name, and XML forbids two consecutive hyphens inside a
+   comment. The document was not well-formed, Chromium refused it, and every tab
+   showed the broken-image glyph — while the petal count, the rotation check, the
+   token-reference check, the contrast measurement and the title check all
+   passed, because a string scan cannot tell a document from a text file. Found
+   by rendering the file in Chromium at 16/20/32/64px on white, tab-strip grey,
+   dark chrome and OLED black, in both `prefers-color-scheme` settings, and
+   looking at the result. Now guarded: `it is well-formed XML, which is what
+   decides whether it renders at all` checks comments for the forbidden double
+   hyphen, unterminated comments, element balance, the `xmlns` declaration, and
+   unescaped ampersands.
+2. **The wordmark was set on a rigid pitch and read as two words.** The first
+   render said "TE NURE": the T's right side below the crossbar is open, so a
+   metrically equal gap there reads as a word break. The letters are now fitted
+   optically — 5 units of clearance between stem-to-stem pairs, 3 after the T.
+   Re-rendered at 22/40/96px on OLED black and on paper, and read again.
+
+A third finding, in this repository rather than in this change: **`@/…` imports
+inside `apps/system-studio` resolve to `apps/web` under jest.** This app has no
+jest of its own and its component tests run through `apps/web`'s config, whose
+`moduleNameMapper` maps `^@/(.*)$` to `apps/web/src/$1`. `Logo.tsx` first
+imported `@/components/brand/TenureLogo`, got the TENANT app's file, which
+declares `PETAL` as a module-local const rather than exporting it — the import
+came back `undefined`, React dropped the `d` attribute, and six empty `<path>`
+elements rendered as nothing. It is a relative import now, with the reason
+written above it. No other file in `components/md3` uses `@/`.
+
+### Mutation proof — 10 applied one at a time, 10 killed
+
+Each was applied to the production file, the suite run, the failure read, the
+mutation reverted, and the suite re-run green (`19 passed, 19 total`).
+
+| # | Mutation | Red test |
+|---|---|---|
+| 1 | `fill="var(--md-sys-color-primary)"` becomes a hex literal | `neither form renders a colour value, in any syntax`; `it names the roles, so it moves when the theme moves`; `the source declares no colour and no inline style` — 3 failed, 16 passed |
+| 2 | the standalone naming object replaced by the decorative one | `standing alone, it has a name`; `the glyph standing alone has a name too`; `the caller can say what the name is` — 3 failed, 16 passed |
+| 3 | `aria-label` added to the decorative object | `decorative, it has no name at all — in any of the naming syntaxes` — 1 failed, 18 passed |
+| 4 | `{mark ? null :` becomes `{!mark ? null :`, moving the wordmark to the glyph | `the lockup draws the word, the glyph does not`; `it names the roles…` — 2 failed, 17 passed |
+| 5 | `width={width}` deleted from the `<svg>` | `both dimensions are attributes, and the aspect follows the box` — 1 failed, 18 passed |
+| 6 | `ROTATIONS` cut from six entries to five | `the component draws the guarded petal, six times, about the guarded centre`; `the lockup draws the word, the glyph does not` — 2 failed, 17 passed |
+| 7 | one petal rotation in `icon.svg` moved from 120° to 125° | `the favicon is that rosette and not a second drawing of it` — 1 failed, 18 passed |
+| 8 | dark-chrome tone set to the dark tone, 2.61:1 on black | `both chrome tones clear 3:1 against the chrome they are for` — 1 failed, 18 passed |
+| 9 | the favicon stops asking for the token and uses its fallback directly | `it asks for the token first, and only falls back to a literal` — 1 failed, 18 passed |
+| 10 | a custom-property name written back into the XML comment | `it is well-formed XML, which is what decides whether it renders at all` — 1 failed, 18 passed |
+
+Mutation 5's automated revert was itself faulty — the harness replaced an empty
+string, which matches at index 0, and re-inserted the line at the top of the
+file. The suite said so immediately (`ReferenceError: width is not defined`,
+`Tests: 0 total`). The file was repaired by hand, the placement re-read, and the
+suite is green. Recorded because a revert that silently half-worked is exactly
+the failure this section exists to make visible.
+
+### Two lines this change cannot write, and who must write them
+
+Both are in files owned by other agents. Both are one line.
+
+1. `apps/system-studio/src/components/md3/index.ts` —
+   `export { Logo, LOGO_ICONS, LOGO_ICON_PATH } from "./Logo"` (plus
+   `export type { LogoProps } from "./Logo"`). Until it lands,
+   `e2e/md3-tokens-logic.spec.ts` › `every component in the directory is exported
+   from the barrel` is RED with `missing: ["Logo"]`. Measured:
+   `npx playwright test e2e/md3-tokens-logic.spec.ts` → **1 failed, 29 passed**,
+   and that one failure is the whole of it.
+2. `apps/system-studio/src/app/layout.tsx` — `icons: LOGO_ICONS,` inside the
+   exported `metadata`, with `import { LOGO_ICONS } from "@/components/md3/Logo"`.
+   The file is in place at `public/icon.svg` and serves at `/icon.svg`; without
+   that field Next emits no `<link rel="icon">` and the tab stays blank.
+
+### What is NOT done, and is not claimed
+
+- **No route renders the mark yet.** The masthead still shows the span. This
+  change ships the asset and its proof; the shell agent places it.
+- **No raster favicon.** SVG only. A `.ico` or `.png` fallback for browsers that
+  predate SVG favicons needs a rasteriser this change does not add, and a
+  checked-in binary nobody here could open and inspect is worse than an honest
+  gap.
+- **The favicon's `prefers-color-scheme` switch is verified in Chromium only** —
+  both schemes, screenshotted and read. Firefox and Safari were not exercised.
+- **No approval, review, sign-off, ARN, account id, region, price or benchmark is
+  asserted anywhere in this change.** The two colour values are quoted from
+  `globals.css`; every ratio and hue in the tests is computed at run time.
+
+---
+
+## The dark theme becomes OLED black and the surfaces stop being green — STUDIO-030-001, STUDIO-030-002
+
+The operator's note: *"The dark theme should be OLED black not green — only logo
+and accent should be green (much richer deep forest velvety green)."*
+
+What was there: a green-charcoal dark theme (`--md-sys-color-background:
+#101813`) whose secondary text was a green-tinted white (`#edf7f0` in increased
+contrast), with a pale mint accent (`#9bdcba`, 48% saturation, 74% lightness).
+The surfaces read as green and the green read as washed out — exactly the wrong
+way round.
+
+- [ ] **STUDIO-030-002** — forest-green light/dark palettes with measured
+  contrast, no muddy brown/gold legacy theme, no pure-black glare, no
+  low-contrast gray-on-gray critical text.
+  - Status: FAIL
+  - **DELIBERATE DEVIATION, recorded rather than hidden.** The clause
+    *"no pure-black glare"* is **overridden by a direct instruction from the
+    product owner**: the dark theme's base surface is `#000000`. No agent, test
+    result or reviewer authorised this — it is the owner's instruction, quoted
+    above, and it is recorded here because a requirement that has been overridden
+    and a requirement that has been met do not look the same from the outside.
+  - **What was done to answer the concern behind the clause**, because the
+    concern is real:
+    1. *Shadow stops working at #000* — there are no darker pixels — so
+       elevation is carried by the container ladder, and every adjacent step is
+       spaced to be measurably distinct rather than nominally different:
+       `#000000` → `#151515` → `#222222` → `#2d2d2d` → `#363636`, measuring
+       **1.150 / 1.148 / 1.155 / 1.140 : 1**. Asserted at a 1.12:1 floor in
+       `md3-tokens-logic.spec.ts` and re-measured on the rendered page in
+       `preferences.spec.ts`.
+    2. *Adjacent panels smear* — so `.md3-surface` draws a hairline in
+       `outline-variant` (`#4a4a4a`, **2.37:1** on the base) by default instead
+       of only on request. The border was already `1px solid transparent`, so
+       nothing reflowed. `data-outlined="true"` moved up to `outline`, the
+       meaning-carrying boundary, rather than repeating the default.
+    3. *Glare is really about the white end* — and that half of the clause is
+       kept in full. No foreground is `#ffffff` in any theme, asserted in both
+       specs. `on-surface` is `#e8e8e8`: 17.14:1 on the base, 9.86:1 on the
+       highest container.
+  - Code: `apps/system-studio/src/app/globals.css` — the
+    `:root[data-theme="dark"]` and `:root[data-theme="dark"][data-contrast="more"]`
+    token blocks, plus two lines in `.md3-surface`.
+  - Caller: `apps/system-studio/src/app/layout.tsx` imports `./globals.css` and
+    its pre-paint script sets `data-theme="dark"`; every route in the console
+    renders through it. The tokens are consumed by `components/md3/*` (which may
+    not contain a colour) and by every rule in `globals.css`.
+  - Tests: `apps/system-studio/e2e/md3-tokens-logic.spec.ts` — five new
+    assertions and one rewritten one; `apps/system-studio/e2e/preferences.spec.ts`
+    — the pure-black/pure-white pair rewritten into three tests.
+  - Evidence:
+    `cd apps/system-studio && ../../node_modules/.bin/playwright test md3-tokens-logic.spec.ts`
+    → **29 passed, 1 failed**, and the one failure is `every component in the
+    directory is exported from the barrel` → `missing: ["Logo"]`, which is the
+    barrel line the brand-mark agent's own ledger entry above names as the line
+    it could not write. It is red before this change and red after it.
+    `npx tsc --noEmit -p apps/system-studio/tsconfig.json` → **no output**.
+  - Reason it is FAIL and not PASS: this closes the dark half of the item. The
+    light palette is unchanged (already forest green, no brown, no gold), and the
+    "no low-contrast gray-on-gray critical text" clause is asserted for the token
+    set, but the item also implies a review of every rendered surface at density
+    and contrast combinations that this change did not re-walk by hand.
+
+- [ ] **STUDIO-030-001** — one token source for colour, typography, spacing,
+  radii, borders, elevation, motion, charts, density and focus.
+  - Status: FAIL
+  - Reason: the colour clause is now stronger, and only the colour clause. Every
+    dark surface, content colour and boundary is a declared role — no rule below
+    the token blocks contains a literal colour (a hex/`rgb(` scan of
+    `globals.css` past the token blocks returns **four matches, all inside
+    comments**). Typography, spacing, radii, motion, charts, density and focus
+    are untouched by this change. Charts still have no token group at all.
+
+### The palette, with every number measured rather than asserted
+
+Read back through the same reader the audit uses
+(`apps/web/src/lib/a11y/css-declarations.mjs`), not transcribed from intent.
+
+| Role | Value | Measured |
+|---|---|---|
+| `background`, `surface`, `surface-dim`, `surface-container-lowest` | `#000000` | the OLED base |
+| `surface-container-low` | `#151515` | 1.150:1 on the base |
+| `surface-container` | `#222222` | 1.148:1 on `-low` |
+| `surface-container-high` | `#2d2d2d` | 1.155:1 on `-container` |
+| `surface-container-highest` | `#363636` | 1.140:1 on `-high` |
+| `surface-bright` | `#3c3c3c` | the brightest surface text can land on |
+| `surface-variant` | `#262626` | the table header band |
+| `on-surface` | `#e8e8e8` | 17.14:1 base · 9.86:1 highest |
+| `on-surface-variant` | `#b8b8b8` | 6.09:1 highest · 5.56:1 bright |
+| `outline` | `#8f8f8f` | 3.41:1 on `surface-bright` (worst case, needs 3) |
+| `outline-variant` | `#4a4a4a` | 2.37:1 on the base |
+| `primary` | `#12cc7e` — hue 155°, **84% saturation**, 43% lightness | 9.96:1 base · 5.73:1 highest · 5.23:1 bright · **4.67:1** highest under a 12% state layer |
+| `on-primary` | `#00120a` | 9.13:1 on `primary` |
+| `primary-container` | `#0b3b28` — the masthead mark, the current tab | 9.52:1 with its on-colour |
+| `on-primary-container` | `#b6ecd0` | |
+| `inverse-primary` | `#0d5638` — the deep tone as a glyph on a light surface | 7.13:1 on `inverse-surface` |
+| `scrim` | `rgba(0, 0, 0, 0.72)` | leaves `surface-bright` at **12.2%** of its luminance |
+
+**Why `primary` is `#12cc7e` and not something deeper.** Luminance is what
+contrast is made of. `primary` is used as TEXT — the label of a text or outlined
+button, on every surface — so WCAG 2.2 AA 1.4.3 sets a floor on how dark it can
+be, and the state-layer audit sets a second one above that. `#12cc7e` sits just
+above both with margin. The genuinely deep forest tone therefore lives where it
+is a FILL rather than a glyph: `primary-container` `#0b3b28` is the mark and the
+current tab, `inverse-primary` `#0d5638` is the accent on an inverse surface. A
+deeper `primary` would be an unreadable button label, which is not a trade this
+change is willing to make silently.
+
+**Neutrality is asserted, not intended.** Every surface, both content colours,
+both boundaries, the inverse pair and the whole secondary family satisfy
+`r = g = b` in both dark variants. `error`, `warning`, `success` and `tertiary`
+are deliberately excluded — hue is part of what they mean.
+
+### The two specs that forbade this, and exactly what changed in them
+
+Both were CORRECT about the old palette. Neither assertion was deleted, and
+neither was weakened.
+
+**1. `preferences.spec.ts` — `${theme} uses neither pure black nor pure white`**
+
+Was: one parameterised test per theme, failing on `rgb(0, 0, 0)` or
+`rgb(255, 255, 255)` as either a background or a text colour.
+
+Now: three tests. The rule was SPLIT so each half is asserted where it is true.
+
+| Test | What it holds |
+|---|---|
+| `light uses neither pure black nor pure white` | the original rule, unchanged in force, for the theme it is still true of |
+| `dark is pure black at the base, and pure black is never a glyph` | asserts POSITIVELY that `getComputedStyle(document.body).backgroundColor` is `rgb(0, 0, 0)` and that something renders it — a palette that drifted back to a charcoal now REDS, which the old test could never catch because a charcoal was what it wanted — and keeps the prohibition on pure black as a foreground and pure white as either |
+| `the dark container ladder is visibly stepped on the rendered page` | new: reads the five container tokens off the live document and requires each of the four adjacent steps to clear 1.12:1 |
+
+The only clause that changed meaning is "no pure-black background", and it
+changed into a stricter statement about the same tokens plus an elevation
+assertion the file did not have.
+
+**2. `md3-tokens-logic.spec.ts` — the scrim `… is not pure black`**
+
+Was: translucent, alpha ≥ 0.2, not pure black, not pure white.
+
+Now: translucent, alpha ≥ 0.2, not pure white, **and it must do its job** —
+composited over the brightest surface the theme has, it must cut that surface's
+relative luminance by at least half. The old colour clause existed only because
+`preferences.spec.ts` failed on rendered pure black; with the base at `#000` a
+green-charcoal scrim is a TINT over black rather than a dimming of it. Alpha is
+no substitute — `rgba(250, 250, 250, 0.62)` is 62% opaque and makes the page
+brighter — so the constraint was replaced with the property it was a proxy for,
+not dropped. Measured: dark 12.2%, light 33.7%.
+
+Five assertions were ADDED in the same file: the base is `#000000` in both dark
+variants; no surface, content colour or boundary carries a hue; no foreground is
+pure white in any of the four themes; every adjacent container step clears
+1.12:1; and the container ladder is strictly monotonic in every theme.
+
+### Mutation proof — 2 applied one at a time, 2 killed
+
+Each was applied to the production stylesheet, the suite run, the failure read,
+the mutation reverted, and the suite re-run green.
+
+| # | Mutation | Red test, verbatim |
+|---|---|---|
+| 1 | dark `--md-sys-color-on-surface-variant: #b8b8b8` → `#6a6a6a` | `every declared pair clears its WCAG 2.2 AA threshold › dark` — **1 failed, 3 passed**. `"--md-sys-color-on-surface-variant (#6a6a6a) on --md-sys-color-surface-container-highest (#363636) = 2.23:1, needs 4.5:1 — secondary text, table headings and disabled labels on surface-container-highest"` (six such lines) |
+| 2 | dark `--md-sys-color-surface-container-high: #2d2d2d` → `#222222`, collapsing it onto its neighbour | **2 failed, 3 passed**. `every adjacent container step is visibly distinct at #000`: `"dark: surface-container (#222222) → surface-container-high (#222222) = 1.000:1, needs 1.12:1"` and the same line for `dark-contrast`; `the container ladder climbs in one direction, in every theme`: `"dark container ladder is not strictly monotonic: surface-container-lowest=0.0000, surface-container-low=0.0075, surface-container=0.0160, surface-container-high=0.0160, surface-container-highest=0.0369"` |
+
+Reverted, both: `playwright test md3-tokens-logic.spec.ts -g "clears its WCAG"`
+→ **4 passed**; `-g "OLED|scrim"` → **6 passed**.
+
+**No guard was disabled to iterate.** No `if (false &&`, no `|| true`, no
+commented-out assertion exists in either spec after this change.
+
+### What is NOT done, and is not claimed
+
+- **No approval, review or sign-off is asserted.** The only human instruction
+  quoted is the product owner's, verbatim, at the top of this entry.
+- **No account id, ARN, region, price or benchmark appears in this change.**
+  Every hex is in the stylesheet and every ratio was computed at run time by
+  `apps/web/src/lib/a11y/contrast.ts` or by the identical WCAG arithmetic inlined
+  in the browser spec.
+- **The light theme is untouched.** Not one light token changed value, so the
+  design-token half of `docs/architecture/entry-points.md` — generated from the
+  light `:root` palette — is unaffected by this change. That document IS stale in
+  the tree (`node --test tests/architecture/experience-separation.test.mjs` →
+  **11 pass, 1 fail**, `entry-points.md is stale`), and the cause is measured
+  rather than assumed: the doc records the deployer as `2 routes` and contains
+  **0** matches for `api/export`, while `apps/system-studio/src/app/api/export/route.ts`
+  is present and untracked — another agent's route, added this hour. The
+  divergence assertions that actually guard the token contract
+  (`a divergence with no record`, `a SHARED_TOKENS entry cannot outlive the
+  divergence it describes`) pass.
+- **The dark elevation ramp is nearly inert and stays declared.** A drop shadow
+  needs darker pixels than `#000`. The levels still resolve and still ease; what
+  an operator sees separating two panels is the ladder and the hairline.
+- **`primary` is not the deepest green the operator's phrase suggests**, and the
+  reason is stated above rather than glossed: a darker `primary` would be an
+  illegible button label. The deep tone is in `primary-container` and
+  `inverse-primary`.
+- **`preferences.spec.ts` was rewritten and NOT RUN.** The three replacement
+  tests compile (`npx tsc --noEmit -p apps/system-studio/tsconfig.json` reports
+  nothing in that file) and are unproven by mutation, because they need a served
+  page. `npm run studio:build` was started against a local dynalite on :8011 with
+  a seeded registry and ran for 72 minutes without emitting `.next/BUILD_ID`
+  before the process was killed — the machine was running ~67 concurrent `node`
+  processes from parallel agents, and `apps/system-studio/.next` is shared with
+  another agent's already-running server on :3100 (built from an earlier tree, so
+  it does not serve this stylesheet). Exact commands that would unblock it, on a
+  free build slot:
+  `npx dynalite@3.2.2 --port 8011 &` ·
+  `export AWS_ENDPOINT_URL_DYNAMODB=http://127.0.0.1:8011 TENANT_TABLE=tenure-tenants-ci AWS_REGION=us-east-1 AWS_ACCOUNT_ID=000000000000 AWS_PARTITION=aws AWS_ACCESS_KEY_ID=AKIALOCALDYNAMODBXX AWS_SECRET_ACCESS_KEY=localdynamodbsecretnotreal` ·
+  `node tools/create-registry-table.mjs && node tools/dev/seed-studio-fleet.mjs` ·
+  `npm run studio:build` · copy `.next/static` into
+  `.next/standalone/apps/system-studio/.next/` ·
+  `HOSTNAME=127.0.0.1 PORT=3110 NEXTAUTH_URL=http://127.0.0.1:3110 PLATFORM_OPERATORS='operator@tenure.example:platform-super-admin,auditor@tenure.example:auditor-read-only' PLATFORM_OPERATOR_SECRET=ci-studio-not-a-placeholder-4c8e2f AUTH_SECRET=ci-studio-auth-not-a-placeholder-71bd93 AUTH_TRUST_HOST=true STUDIO_AUTH_MODE=credentials node .next/standalone/apps/system-studio/server.js &` ·
+  `cd apps/system-studio && PLAYWRIGHT_BASE_URL=http://127.0.0.1:3110 npx playwright test preferences.spec.ts`.
+  The token-level half of the same two rules IS proven, by the two mutations
+  above, in `md3-tokens-logic.spec.ts`.
+- **The generated document graph is stale after this append, deliberately.**
+  `node --test tests/architecture/document-graph.test.mjs` → **12 pass, 1 fail**:
+  `docs/architecture/architecture-document-graph.yaml` and
+  `capability-completeness-registry.yaml` are stale because `tools/document-graph.mjs`
+  reads `docs/implementation` and this entry adds two requirement rows to it.
+  `npm run generate` was NOT run — the orchestrator runs it once, at the end, so
+  that the artefact is not checkout-dependent. The other twelve tests in that file
+  pass.
+
+---
+
+## STUDIO-110-006 (continued) — two dark readers reach the security surface
+
+Appended, not merged. The `STUDIO-110-006` rows above — the requirement row, the
+`(extension)` section, and the reconciliation row at the foot of this file that
+records it `FAIL` — all stand exactly as written. This section records what
+changed underneath them and what did not.
+
+### What was wrong
+
+`apps/system-studio/src/lib/aws/guardduty.ts` (1,300 lines) and
+`apps/system-studio/src/lib/aws/compliance.ts` (1,459 lines) were real, tested
+modules, each with a capability in `capabilities.ts` and an IAM grant — and
+**imported by no page.** `/platform/security` declared both as placeholder rows
+in `UNWIRED_CONTROLS` (`guardduty::detectors`, `config::rule-compliance`) whose
+remedy was "go and look in the AWS console". The same reachability failure the
+services wave was refuted for: real code an operator could not see.
+
+### What now happens
+
+- **Status: FAIL** against STUDIO-110-006's own sentence, unchanged. See "what is
+  still missing" below. What follows is the delta, not a tick.
+- **Code**: `apps/system-studio/src/app/platform/security/page.tsx` calls
+  `guardDutyReadings()` and `complianceReadings()` in one `Promise.all` on every
+  load (`export const dynamic = "force-dynamic"` is already on the route).
+  `apps/system-studio/src/app/platform/security/posture.ts` gained the pure
+  mapping: `controlsFromGuardDuty`, `controlsFromCompliance`,
+  `exposuresFromGuardDuty`, `exposuresFromConfigRules`, `guardDutyBadge`,
+  `complianceBadge`, and `ExposureSeverity`/`SeveritySource`, whose new
+  `UNSTATED` / `unstated` arms exist because GuardDuty's `UNRANKED` band and AWS
+  Config's verdicts both carry **no severity at all**.
+- **Caller**: `apps/system-studio/src/app/platform/security/page.tsx`. Probe, and
+  the mutation that proves the probe discriminates:
+
+```
+$ grep -rl "\bguardDutyReadings\b" apps/system-studio/src/app
+apps/system-studio/src/app/api/aws/[surface]/route.ts
+apps/system-studio/src/app/platform/security/page.tsx
+apps/system-studio/src/app/platform/security/wiring.test.ts
+exit=0
+
+--- mutation: page.tsx's `Promise.all([guardDutyReadings(), complianceReadings()])`
+--- rewritten to call complianceReadings twice
+$ npm run test --workspace apps/web -- --ci \
+    apps/system-studio/src/app/platform/security/wiring.test.ts
+  -> Tests: 1 failed, 7 passed, 8 total
+     × GuardDuty is read on every load, by the page itself
+--- restored -> 8 passed
+```
+
+- **Reason it is not a cosmetic wiring**: the rule this page is built on is that
+  *an absence of findings from a control that is not running is not a pass*, and
+  both readers were written to answer exactly that. `guardduty:GetDetector` is
+  **not** in this engine's registry, so `ListDetectors` returning an id proves a
+  detector EXISTS and proves nothing about whether it is RUNNING —
+  `guardDutyCoverage` therefore tops out at `PARTIAL` and `guardDutyBadge` has no
+  `ok` arm at all. AWS Config's two recorder capabilities are **not** in the
+  registry either, so "is anything being recorded" is its own `NOT_WIRED` control
+  row (`config::recorder`) carrying both IAM actions and a pasteable statement,
+  above the rule table whose every verdict is conditional on it. A rule at
+  `INSUFFICIENT_DATA` maps to `NOT_CHECKING`, never to compliant.
+
+### Evidence
+
+```
+$ npm run test --workspace apps/web -- --ci \
+    apps/system-studio/src/app/platform/security/
+  -> Test Suites: 3 passed, 3 total
+     Tests:       75 passed, 75 total
+     (posture.test.ts 43 — unchanged and still green;
+      dark-readers.test.ts 24 — new; wiring.test.ts 8 — new)
+
+$ npx tsc --noEmit -p apps/system-studio/tsconfig.json
+  -> exit 0, no output
+
+$ npx playwright test e2e/security-surface.spec.ts --list
+  -> Total: 9 tests in 1 file  (4 of them new)
+```
+
+**Eight mutations, each applied to the production module, run, confirmed red,
+restored, confirmed green** — `Tests: 24 passed` / `8 passed` after every
+restore:
+
+| # | Mutation | Red test |
+|---|---|---|
+| 1 | `controlsFromGuardDuty` forces the detector row to `CHECKING` | 3 failed — "detectors present is PARTIAL at best — a listed detector may be SUSPENDED" and two others |
+| 2 | the protection-plan list is summarised instead of enumerated | 1 failed — "every protection plan is named individually, not summarised" |
+| 3 | `nothing-evaluated` falls through to `CHECKING` | 1 failed — "rules that all returned INSUFFICIENT_DATA are NOT_CHECKING, not compliant" |
+| 4 | the `config::recorder` row is dropped from the return | 3 failed — "the recorder is its own row on every arm…", "CHECKING is reachable, and only when…", "Clear stays unreachable once either reader has contributed a gap" |
+| 5 | an `UNRANKED` GuardDuty band is filed as `INFORMATIONAL` | 1 failed — "an UNRANKED band becomes UNSTATED, and outranks an open CRITICAL in the table" |
+| 6 | `exposuresFromConfigRules` stops filtering on `failing` | 1 failed — "only a FAILING Config rule is something that was found" |
+| 7 | `complianceBadge`'s compliant arm ignores unreadable/not-applicable/truncated | 1 failed — "a clean Config summary is uncomputable while anything is unread or unevaluated" |
+| 8 | `page.tsx` stops calling `guardDutyReadings()` | 1 failed — "GuardDuty is read on every load, by the page itself" |
+
+### What is still missing, and why this row is FAIL
+
+- **Suppression justification and expiry do not exist**, and **there is no
+  remediation workflow.** Both are writes. This console is read-only by
+  construction — `src/lib/aws/mutate.ts` is the only place a mutation may live —
+  so closing those two needs its own recorded architectural decision, not a quiet
+  extension here.
+- **Inspector and Macie still have no reader**: there is no `inspector2:*` and no
+  `macie2:*` capability, so their findings arrive only if Security Hub is enabled
+  AND readable. Unchanged by this work.
+- **Ownership** is still per-Config-rule only.
+- **Whether a GuardDuty detector is ENABLED, and which protection plans are on,
+  is still unknown** — `guardduty:GetDetector` is not in the registry, and adding
+  a capability was out of this change's file scope. The page now states that as a
+  named control with the exact grant that would answer it, which is the honest
+  ceiling and is not the same as answering it.
+- **The browser spec was written and not run.** `e2e/security-surface.spec.ts`
+  lists 9 tests and compiles under `tsc`, but the only local Studio instance is a
+  `.next/standalone` server on :3100 built from an earlier tree by a concurrent
+  agent, and `npm run studio:build` writes into the same `.next` that server is
+  serving from. Unblocking commands, once a build slot is free:
+  `npx dynalite@3.2.2 --port 8001` · `node tools/create-registry-table.mjs` ·
+  `node tools/dev/seed-studio-fleet.mjs` (both with
+  `AWS_ENDPOINT_URL_DYNAMODB=http://127.0.0.1:8001 TENANT_TABLE=tenure-tenants-ci`)
+  · `npm run studio:build` · `node .next/standalone/apps/system-studio/server.js`
+  · `PLAYWRIGHT_BASE_URL=http://localhost:3100 npx playwright test e2e/security-surface.spec.ts`.
+
+## STUDIO-070-004 (CloudWatch dashboards + CloudWatch Logs) — the two adapters reach a screen, and the subtraction nobody could make
+
+- [x] **STUDIO-070-004 — the CloudWatch dashboards and CloudWatch Logs service
+      adapters are now reached by a production caller.** Both readers already
+      existed behind typed capabilities and both entries in this ledger recorded
+      the same outstanding half: the dashboards entry says *"No page renders this
+      yet"* and *"The intersection itself is not computed here"*, and the logs
+      entry's reader was equally unreferenced. `apps/system-studio/src/app/platform/health/page.tsx`
+      now calls `dashboardReadings()` and `logGroupReadings(undefined, { probeSilenceWindowMs })`,
+      and `apps/system-studio/src/app/platform/health/watch.ts` computes the join
+      between them. No capability was added, no IAM grant was changed, and no
+      page reads AWS directly.
+  - Status: PASS for the read path, the render and the join. The live account
+    remains `BLOCKED_EXTERNAL` on the same dependency as every other row here.
+  - Reason: eleven readers under `src/lib/aws/` were imported by no page, so the
+    work they do reached no screen. Two of them belong on the health surface, and
+    neither can answer the operational question alone: `dashboards.ts` knows what
+    every widget references and not what exists; `logs.ts` knows every log group
+    and every metric filter and never opens a dashboard.
+  - Evidence: `npx playwright test e2e/health-page-logic.spec.ts` -> **58 passed,
+    58 total** (was 22 before this change). `npx playwright test e2e/layout.spec.ts
+    -g "platform/health"` against a live render -> **8 passed** (1440 / 1180 / 900
+    / 320px, overlap + containment + sideways-scroll). `npm run test --workspace
+    apps/web -- --ci "health/answer.test"` -> **24 passed, 24 total**.
+    `npx tsc --noEmit -p apps/system-studio/tsconfig.json` reports no error in
+    `page.tsx`, `answer.ts`, `watch.ts` or the spec.
+
+### The route that renders them
+
+`/platform/health` — `apps/system-studio/src/app/platform/health/page.tsx`, which
+already carried `export const dynamic = "force-dynamic"`. Three cards were added
+to `sectionOrder`, in this fixed position and never hoisted:
+
+| Card | What it renders | From |
+| --- | --- | --- |
+| **What nothing is watching** | the subtraction: log groups, namespaces and alarms against what the dashboards reference | `watch.ts` over both readers + `alarms.ts` |
+| **What the dashboards look at** | every dashboard, when it changed, and the metrics / alarms / log groups its widgets reference | `dashboardReadings()` |
+| **Log groups** | retention posture, stored bytes, KMS key, metric filters, and whether anything is still arriving | `logGroupReadings()` |
+
+They sit below the alarm-coverage card and above provenance and they never hoist:
+everything above them is an event, and these three are a standing condition. A
+month-old omission must not outrank an outage in progress on the ten minutes this
+page exists for.
+
+One sentence from the log reading IS on the lead card, with `data-testid="silence"`:
+a log group that has received nothing for 24 hours has a writer that has stopped,
+its error-count alarm sits in OK forever, and every panel above it reads calm. It
+deliberately does NOT enter `fleetVerdict` — silence is a bounded observation and a
+group that is legitimately idle overnight would otherwise flip the page's verdict
+on a schedule.
+
+### The join, and why it is the reason either reader belongs here
+
+`watch.ts` is pure — no client, no React, no `server-only` — so
+`e2e/health-page-logic.spec.ts` drives every branch at the node level. It answers
+four things that were unstatable in this console:
+
+1. **a log group nothing reads and nothing measures** — no dashboard queries it
+   by name and no metric filter on it emits into a namespace any dashboard draws,
+   so whatever it records reaches no screen and no metric;
+2. **a namespace this estate emits into that no dashboard draws** — computed
+   through `dashboards.ts`'s own `unwatchedNamespaces`, reused rather than
+   reimplemented, with the candidate set taken from the estate's metric filters;
+3. **an alarm that exists and appears on no dashboard**;
+4. **an alarm a dashboard NAMES that this account does not have** — the widget
+   renders as an empty box, which on a wall reads as "not firing".
+
+Every one of the four refuses to be a finding when it cannot be one. `partial`
+coverage makes every log group `UNDECIDABLE`, never `UNWATCHED`, because a set
+difference against an incomplete set reports a group on a dashboard nobody could
+open as unwatched — and somebody then builds a second dashboard for it. The same
+rule applies one level down: a group whose metric filters were refused is
+`UNDECIDABLE`, because `logs.ts` returns `UNCONFIGURED` rather than `EMPTY` for
+groups past its budget precisely so that distinction survives, and one `?? []`
+here would throw it away.
+
+### A defect a live render found, and the three panels it was hiding in
+
+The page was rendered live (`next dev`, credentials auth, no AWS credentials, so
+both readers came back `ERROR: Region is missing`) and the render was read rather
+than assumed. Three panels on the unwatched card were reassuring about reads that
+had not happened:
+
+* `Log groups nobody reads` printed **"0 of 0 — no dashboard queries them"**;
+* `Log groups this cannot decide` printed **"none — every group was compared
+  against a complete coverage set"**;
+* `Alarms a dashboard names that are not there` printed **"none — every alarm a
+  widget names was in the DescribeAlarms response"**.
+
+Each is now guarded by the flag from the side of the join that would have to have
+answered: `WatchJoin.groupsKnown` (new, and separate from `decidable` — a load can
+have complete dashboard coverage and no log groups to subtract from it) and
+`WatchJoin.alarms.decidable`. The re-render prints `not known — error — Error:
+Region is missing` and `not decidable — the alarm read did not answer…` in all
+three places. M-13, M-14 and M-15 below are the mutations that hold it.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Fifteen. Each was applied to `watch.ts` or `page.tsx` — never to a fixture — run,
+confirmed red, reverted, and confirmed green. Baseline and final state: **58
+passed, 58 total.**
+
+| # | File | Mutation | Result |
+|---|---|---|---|
+| M-1 | `watch.ts` | `emittedBy` returns `[]` instead of `null` for a metric-filter read that did not answer | **1 failed**, 57 passed |
+| M-2 | `watch.ts` | `watchOne` drops the partial-coverage guard, so a dashboard nobody opened makes a group unwatched | **1 failed**, 57 passed |
+| M-3 | `watch.ts` | `joinAlarms` counts every row as an alarm that exists, including MISSING and the surface rows | **1 failed**, 57 passed |
+| M-4 | `watch.ts` | `joinAlarms` answers even when the alarm read was refused | **1 failed**, 57 passed |
+| M-5 | `watch.ts` | a freshness probe that was refused is counted as silence | **1 failed**, 57 passed |
+| M-6 | `watch.ts` | a refused log-group listing is reported as a known posture of zero | **1 failed**, 57 passed |
+| M-7 | `watch.ts` | a group AWS reported no size for is folded into the byte total as zero | **1 failed**, 57 passed |
+| M-8 | `watch.ts` | `watchHeadline` drops its undecidable arm, so an unreadable subtraction reads as nothing found | **1 failed**, 57 passed |
+| M-9 | `watch.ts` | a dashboard body nobody could open is counted as a dashboard that is watching | **1 failed**, 57 passed |
+| M-10 | `watch.ts` | the subtraction table loses its worst-first order | **1 failed**, 57 passed |
+| M-11 | `page.tsx` | the page stops asking `logs.ts` for the silence probe, so every group renders NOT_PROBED | **1 failed**, 57 passed |
+| M-12 | `page.tsx` | the log-group panel narrows the wrong read, so a refused logs call renders as an empty table | **1 failed**, 57 passed |
+| M-13 | `watch.ts` | `watchJoin` always claims the log group listing answered | **1 failed**, 57 passed |
+| M-14 | `page.tsx` | the page prints the unwatched count whether or not the listing answered | **1 failed**, 57 passed |
+| M-15 | `page.tsx` | the page prints "none" for dangling alarms even when the alarm read was refused | **1 failed**, 57 passed |
+
+**Two of these were not caught on the first attempt, and the tests were the thing
+that was wrong.** M-10 survived because the ordering fixture named its groups
+alphabetically in rank order, so a comparator that lost its rank term produced the
+expected array by accident; the fixture now names them in the opposite order.
+M-15 survived because the assertion was `toContain("!join.alarms.decidable")` and
+the panel BESIDE the mutated one was already guarded, so the string was still
+present; the assertion now counts occurrences. Both were then re-run and both went
+red. A mutation that does not fail is a test that does not exist, and recording
+these two is the only reason the other thirteen mean anything.
+
+### Evidence
+
+```
+npx playwright test e2e/health-page-logic.spec.ts       # 58 passed, 58 total
+npx playwright test e2e/layout.spec.ts -g "platform/health"
+                                                        # 8 passed (1440/1180/900/320px)
+npm run test --workspace apps/web -- --ci "health/answer.test"
+                                                        # 24 passed, 24 total
+npx tsc --noEmit -p apps/system-studio/tsconfig.json     # no error in page.tsx / answer.ts / watch.ts
+```
+
+The 36 new cases carry no real account id, ARN or principal: `047385673922` and
+`123456789012` are placeholders. The log group fixtures are built through the
+reader's OWN `classifyRetention` / `classifyEncryption` / `classifyLogGroupSensitivity`
+rather than as hand-written objects, so a fixture cannot drift into a shape
+production never produces.
+
+The live render was driven at `http://localhost:3233` with `STUDIO_AUTH_MODE=credentials`
+and a local-only operator identity, with no AWS credentials present. Both readers
+returned `ERROR — Region is missing`, and the page printed, through the shared
+`components/md3/UnknownState`, the capability (`logs:DescribeLogGroups`,
+`cloudwatch:ListDashboards`), what AWS said, the detail, and the sentence "It is
+not a denial and it is not an absence." No table rendered a zero and no list
+rendered as empty.
+
+### What is NOT closed, and is not claimed
+
+- **Nothing was read from a real AWS account.** Whether the live `<prefix>-ops`
+  dashboard still points at services that exist, and whether `/ecs/<prefix>` is
+  still receiving anything, are exactly the questions this wiring was built to
+  answer and they have not been asked of a real account. `BLOCKED_EXTERNAL` on the
+  AWS Organization. The unblocking step is credentials for the estate plus
+  `logs:DescribeLogGroups`, `logs:DescribeMetricFilters`, `logs:FilterLogEvents`,
+  `cloudwatch:ListDashboards` and `cloudwatch:GetDashboard` on the Studio task
+  role — all five are already in `capabilities.ts` and in the IAM grant.
+- **The geometry was measured in the failure state only.** All four widths passed,
+  but with both readers erroring the two new tables render an `EmptyState` and an
+  `UnknownState` rather than forty rows of log group ARNs. A populated estate is
+  not measured. Both tables use `DataTable`'s bounded scroll region and put every
+  identifier in `styles.cell`, which opts back into `overflow-wrap: anywhere` —
+  that is a reason to expect it to hold and it is not a measurement.
+- **The candidate set is not a service inventory.** The subtraction compares the
+  log groups this account holds and the alarms it holds, which is narrower than
+  "the fleet". A service that writes no logs and has no alarm is invisible to the
+  join. `estateInventory` holds the wider evidence and composes roughly fifty
+  reads to get it; making an incident page pay for those on every load is not a
+  trade this surface makes, and `CANDIDATES_WHY` says so on the page rather than
+  leaving an operator to assume otherwise.
+- **The alarm join is by NAME.** `alarms.ts` returns names and no namespace, so
+  "in no alarm" cannot be a namespace join. A cross-account dashboard widget
+  naming an alarm in another account is indistinguishable from a dangling
+  reference, and the panel says so.
+- **The silence probe reports a BOUND, not an age.** `logs:DescribeLogStreams`
+  is the call that would give the true last-event time and it is not in the
+  capability registry; this page did not add it. SILENT claims only "nothing in
+  the last 24 hours".
+- **The nine other dark readers are still dark.** `cdn`, `certificates`,
+  `compliance`, `dns`, `guardduty`, `organization`, `pricing`, `quotas` and `waf`
+  are not touched by this entry.
+
+## STUDIO-070-004 (PRICING, SURFACE SIDE) — the published rate reaches a screen
+
+**No checkbox is moved by this entry.** STUDIO-070-004 is a service-adapter line
+that was ticked long ago and is re-stated per adapter; this records the pricing
+adapter's own row, which until now was the only one of its kind with no caller.
+
+- [x] **STUDIO-070-004 (Pricing adapter, surface)** — Read the published
+  on-demand rate for every shape this estate provisions, behind the typed
+  capability, and render it on the surface the capability registry already
+  assigns it to (`CAPABILITIES["pricing:GetProducts"].surface === "cost"`). No
+  arbitrary service/action/parameter endpoint: the shapes are a closed
+  `ShapeKey` union, the filters are the reader's, and no operator-supplied IAM
+  JSON exists anywhere on this path.
+  - Status: PASS
+  - Reason: `src/lib/aws/pricing.ts` was real, tested, granted and imported by
+    **nothing at all** — measured with
+    `grep -rn "aws/pricing" apps/system-studio/src apps/system-studio/e2e`,
+    which returned **0 matches** when this change began. It returns 13 now, in 8
+    files: the four this entry adds (`platform/cost/page.tsx`, `CostRates.tsx`,
+    `cost-rates.ts`, `cost-rates.test.tsx`), the two lines of comment in
+    `e2e/cost.spec.ts`, and — added concurrently by a sibling agent, and not
+    this entry's work — `app/api/aws/[surface]/route.ts`, `lib/aws/result.ts`
+    and `e2e/api-contract.spec.ts`. A reader that reaches no screen answers
+    nobody, and that is the reachability failure the services wave was refuted
+    for.
+  - Code: `apps/system-studio/src/app/platform/cost/page.tsx` (calls
+    `pricingReadings()` and renders `<CostRates>`),
+    `apps/system-studio/src/app/platform/cost/CostRates.tsx`,
+    `apps/system-studio/src/app/platform/cost/cost-rates.ts`,
+    `apps/system-studio/src/app/platform/cost/cost.module.css`
+  - Route: **`/platform/cost`**, server-rendered on demand
+    (`export const dynamic = "force-dynamic"`, which the route already carried
+    because it calls `auth()` and `authorizeCommand("cost.read", …)`).
+  - Tests: `apps/system-studio/src/app/platform/cost/cost-rates.test.tsx` (12),
+    `apps/system-studio/e2e/cost.spec.ts` (19, of which 4 are new)
+  - Evidence:
+
+```
+$ npx jest --ci --rootDir apps/web --config apps/web/jest.config.js \
+    apps/system-studio/src/app/platform/cost
+  -> Test Suites: 3 passed, 3 total
+     Tests:       38 passed, 38 total   (12 new in cost-rates.test.tsx;
+                                         cost-decisions 21 and cost-citation 5
+                                         unchanged and green)
+
+$ npx tsc --noEmit -p apps/system-studio/tsconfig.json
+  -> exit 0, no output, when this panel was written. It now reports 3 × TS6053
+     and none of them is a type error or in these files: a sibling agent left
+     `.next-live-agent/types/**/*.ts` in tsconfig `include` and deleted the
+     directory. This entry removed its OWN build's equivalent entry
+     (`.next-cost-rates/types/**/*.ts`, written into tsconfig by `next build`)
+     and deleted its scratch dist, so
+     `tests/architecture/tsconfig-includes-no-scratch-build.test.mjs` no longer
+     names it; the three that remain are not this work's.
+
+$ PLAYWRIGHT_BASE_URL=http://localhost:3121 npx playwright test e2e/cost.spec.ts
+  -> 18 passed, 1 flake (net::ERR_NETWORK_CHANGED on page.goto, re-run green:
+     "a refused read is never worded as good news" 1 passed)
+
+$ PLAYWRIGHT_BASE_URL=http://localhost:3121 npx playwright test \
+    e2e/layout.spec.ts -g "cost"
+  -> 9 passed  (/platform/cost at 1440, 1180, 900 and 320px: no overlapping
+     text, nothing overflowing, no sideways scroll, plus its DOM/LCP budget)
+```
+
+  Against a real build of this tree: `NEXT_DIST_DIR=.next-cost-rates npm run
+  studio:build` -> `ƒ /platform/cost`, served by
+  `node .next-cost-rates/standalone/apps/system-studio/server.js` on :3121 with
+  CI's own Studio env, DynamoDB Local (dynalite :8021) seeded by
+  `tools/create-registry-table.mjs` and `tools/dev/seed-studio-fleet.mjs`.
+
+### What it puts on the page, and the rule it holds
+
+The three panels above it answer what the fleet HAS spent — a bill, a tag
+inventory, a budget forecast. None of them answers what a change WOULD cost,
+which is what every approval on this page is about, and Cost Explorer cannot
+answer it either: it reports consumption. The fourth panel is the rate a quote is
+built from, read from AWS's own published price list.
+
+**A total is stated only when every shape resolved.** `standingMonthly` has two
+arms and the `known: true` one is the only one carrying an amount; there is no
+arm holding a partial sum beside a caveat, because a figure printed under the
+word "total" is read as the total. One unpriced shape — denied, throttled,
+unconfigured, ambiguous or simply not in the published list — and the figure is
+the word `Unknown` with the shapes that caused it named. A shape left out of a
+sum has been priced at zero, and an item quoted as free is exactly the surprise
+the price-tag requirement exists to prevent.
+
+**A published rate is never rendered at the currency's display precision.** A
+metered AWS rate is routinely finer than a cent, and `$0.0000001250` formatted at
+USD precision is `$0.00` — a real charge shown as free, on the surface a database
+gets approved from. The rate column prints AWS's own published decimal with the
+currency beside it and carries the exact integer (`Money.units`, at 10^-6 minor
+units) in the cell's `title`. That rule reaches the provenance line too: the
+reader's own `describeShapeRate` renders through `toDecimal`, so it is used only
+for the two arms that carry no amount.
+
+**No quantity is invented.** A monthly figure exists only where the unit is an
+hour, the quantity is one unit for `HOURS_PER_MONTH` = 730 (8,760/12, AWS's own
+month) and both halves are on the page. A per-request or per-GB rate reads
+`depends on volume` — known rate, unknowable month — never `Unknown`, which would
+make a perfectly readable price look like a failed read, and never a number this
+engine made up.
+
+**Currencies do not add.** The currency is read off each price list and never
+defaulted; two of them make the total `Unknown` naming both, rather than letting
+`@tenure/finops` throw inside a server component and 500 the route.
+
+The total is then read against the approval policy through `approvalFor` — the
+same function `previewPlanCost` uses to gate a real plan — and only when the
+currency is USD, because the bands are USD constants and a threshold of cents
+applied to another currency's minor units lands a commitment in the wrong band.
+An unknown total is `not assessed`; it is never banded as though it were small.
+
+### Mutation proof — six on the module, each applied to the production file, run, confirmed red, restored, confirmed green
+
+Baseline `GREEN`, restore `GREEN`, both measured by the same detector. The
+detector reads the run's own summary with **stderr folded into stdout**, because
+jest prints `Tests: N passed` to stderr and the first version of this harness
+read only stdout — it reported baseline RED and therefore "caught" all six
+before a single mutation was applied. A harness that cannot pass reports a clean
+sheet forever; that is the failure this file already records once, and it was
+re-run only after the detector itself was proven to distinguish the two.
+
+| # | Mutation | Result |
+|---|---|---|
+| 1 | an unpriced shape is skipped instead of making the total unknown | CAUGHT |
+| 2 | a published rate is formatted at the currency's display precision | CAUGHT |
+| 3 | a per-request rate is extended over a month anyway | CAUGHT |
+| 4 | two currencies are summed as though they were one | CAUGHT |
+| 5 | each shape's refusal renders as its own panel | CAUGHT |
+| 6 | the month is a different number of hours than AWS's own | CAUGHT |
+
+**The seventh mutation — deleting `<CostRates>` from `page.tsx`, which is the
+reachability claim itself — was attempted and NOT completed, and is therefore
+not claimed.** It needs two more `next build`s, and this working tree had ten
+concurrent `next build` processes in it from sibling agents, the oldest four
+hours old; the mutated build sat on its banner for twenty minutes and was killed,
+along with its predecessor, leaving `.next-cost-rates` partial. The commands, for
+whoever has a build slot:
+
+```
+node -e "…replace '<CostRates readings={rates} />' with a comment…"
+NEXT_DIST_DIR=.next-cost-rates npm run studio:build
+PLAYWRIGHT_BASE_URL=http://localhost:3121 npx playwright test e2e/cost.spec.ts \
+  -g "shows the rate a quote is built from"      # expect 4 failed
+# restore page.tsx, rebuild, re-run                # expect 4 passed
+```
+
+What IS measured is the same claim from the other side: those four tests passed
+against a real build of this tree, and each of them resolves something only this
+panel renders — the heading `What its shapes cost, per unit`, and
+`dl[aria-label^="The running total"]` asserted `toHaveCount(1)`.
+
+### The refusals, and why they are grouped
+
+Fourteen shapes share two capabilities, so fourteen identical denials would
+satisfy the letter of STUDIO-000-007 and defeat its purpose — a page of repeated
+panels is a page nobody reads to the end. `unknownGroups` groups by the ARM, the
+CAPABILITY and the REASON, which is exactly what the remedy depends on, and names
+every shape that shares it. Each group renders through the shared
+`components/md3/UnknownState`: the principal, the action as IAM spells it, the
+error code, the account/region/partition, and the pasteable minimum statement.
+Never an empty list, never a zero.
+
+In the local harness every shape reports UNCONFIGURED and the panel shows it:
+`sts:GetCallerIdentity` cannot answer with DynamoDB-Local-shaped credentials, so
+a region-scoped price is never asked for at all (`buildQuery` refuses to quote a
+region it cannot name), and the two edge-priced CloudFront shapes raise
+`EndpointRegionUnset` because `AWS_GLOBAL_ENDPOINT_REGION` is not set. Both are
+"we have not been told where to ask", which is not "there are no prices" — and
+the total is `Unknown` rather than `$0.00`, which is the whole point.
+
+### What this does NOT close, and is not claimed
+
+- **The per-seat half of the price tag is not on this page, deliberately.** A
+  per-seat figure is an organisation figure divided by a seat count, and this
+  surface has no seat count: `/platform/cost` describes the fleet's estate, not
+  one tenant's plan. Dividing by a number nobody supplied is inventing the
+  denominator, which is the same defect as inventing the rate.
+- **`@tenure/finops`'s `groundShapeCost` / `groundedRunningTotal` are still
+  reached only by their own test.** They were considered and not used here, and
+  the reason is theirs: `ComponentUsage` requires `perSeatQuantity`,
+  `perOrgQuantity` and a `basis`, and this page has no measured usage and no
+  seats. Forcing them would have meant felt quantities behind a grounded rate.
+  Their caller is the composer — `tenants/new` and `tenants/[slug]/configuration`
+  — and that wiring is still open.
+- **The catalogue is not yet grounded in these rates.** This page lets an
+  operator SEE the published rate a transcribed figure should agree with. It does
+  not replace the transcription, and nothing here edits
+  `packages/finops/src/pricing.ts`.
+- **STUDIO-120-009's "unit cost" line is advanced, not closed.** Its own sentence
+  also asks for amortized cost, cost by module/cell/environment and
+  plan-estimate variance, and this entry adds none of those. Its two recorded
+  honest limits stand.
+- **`rds-instance-hour` and `elasticache-node-hour` are permanently
+  UNCONFIGURED on this surface**, because they need an instance class and an
+  engine that only a plan can supply. The panel says exactly that, per shape,
+  rather than hiding the two rows.
+- No account id, ARN, region, resource name or price is asserted anywhere in the
+  new tests: the rates are round synthetic numbers in a stand-in gateway, and
+  `123456789012` is AWS's own documentation placeholder.
+- Nothing on this path writes. `pricing.ts` reads a public catalogue through
+  `readAws`, `src/lib/aws/mutate.ts` is untouched, and no capability was added.
+
+
+---
+
+## STUDIO-140-007 (continued) — the eleven unreached readers get a polled HTTP face, and it reports its state
+
+- Status: **PASS** for the surface registry, the polling contract and the
+  read-state honesty of all eleven live surfaces. **One RED is left behind and is
+  not this agent's file to fix** — see "What is NOT closed" below.
+- Reason: the item's own sentence is "prove read-only actual state differs from
+  access denied, missing, stale, and error in both API and UI". Eleven readers —
+  `cdn certificates compliance dashboards dns guardduty logs organization
+  pricing quotas waf` — were real, tested, IAM-granted code that no page and no
+  route imported. Their `AwsRead` states existed and reached nothing, so for
+  those eleven surfaces the API half of this item was unproven by construction.
+- Code:
+  - `apps/system-studio/src/lib/aws/result.ts` — eleven new `SURFACES` entries,
+    each DERIVED from its capability's own `refreshMs` via `pollBudgetFor`.
+  - `apps/system-studio/src/app/api/aws/[surface]/route.ts` — `readLiveSurface`,
+    a closed switch over `LiveSurfaceId`; `firstValueless` / `servingState` /
+    `unknownResponse`, the honesty gate.
+- Tests: `apps/system-studio/e2e/api-contract.spec.ts` — 8 pure + 16 over HTTP.
+- Evidence: `npx playwright test e2e/api-contract.spec.ts` against `next dev` on
+  :3111 with a seeded dynalite registry — **34 passed, 1 failed**, the failure
+  being the PRE-EXISTING `an unauthenticated call is a problem document` timing
+  out at 45s on Next's cold compile of the route (the same request answers
+  `401 application/problem+json` immediately once warm, and the equivalent new
+  test `an unauthenticated poll of a live surface` passed in 103 ms in the same
+  run).
+
+### The window is derived, because a hand-typed one is a second opinion
+
+`pollBudgetFor(refreshMs)` clamps the capability's own cadence to `[30 s, 15 min]`
+and hands out `POLL_BURST` (4) requests per window, multiplied by the number of
+the capability's own refreshes that fit when the cadence is faster than the floor.
+Nothing about a surface's budget is typed at the HTTP layer:
+
+| surface | capability | cadence | window | budget |
+| --- | --- | --- | --- | --- |
+| logs | `logs:DescribeLogGroups` | 120 s | 120 s | 4 |
+| cdn | `cloudfront:ListDistributions` | 300 s | 300 s | 4 |
+| dashboards, waf | `cloudwatch:ListDashboards`, `wafv2:ListWebACLs` | 900 s | 900 s | 4 |
+| certificates, compliance, dns, guardduty, organization | hourly | 3 600 s | 900 s | 4 |
+| quotas | `servicequotas:ListServiceQuotas` | 6 h | 900 s | 4 |
+| pricing | `pricing:GetProducts` | 24 h | 900 s | 4 |
+
+Nine surfaces landing on the same window is not the failure this derivation
+exists to prevent; they genuinely share a horizon. What is forbidden is one
+number spanning a ten-second queue depth and a twenty-four-hour price list, and
+`pollBudgetFor(SQS_DEPTH_TTL_MS)` returns `{30 000, 12}` — a bigger budget, not a
+shorter window — which is the case a global TTL gets wrong in the expensive
+direction.
+
+### What a poll is told, and what it is never told
+
+- A read that did not answer is a problem document with **no `items` field at
+  all**, so a poll cannot overwrite a good value on screen with a zero. Status
+  comes from `httpStatusFor`, the same function the console's `UnknownState`
+  branches on; the sentence comes from `describeRead`, so the principal, the
+  action, the error code and the pasteable minimum IAM statement are the same
+  words on both.
+- `DENIED` is `403 aws-access-denied`, which is a DIFFERENT problem type from the
+  `403 forbidden` an operator's own policy produces. Two 403s with opposite
+  remedies must be branchable without reading English.
+- `THROTTLED` is `429` with `x-throttle-origin: aws` and AWS's own backoff as
+  `Retry-After`; our limiter is `429` with `x-throttle-origin: control-plane`.
+  `problem.ts` has one `rateLimited` type and is another agent's file, so the
+  distinction travels in a header until it has a type of its own.
+- Every response — 200, 304, 403, 429, 501, 502 — carries `x-aws-capability`,
+  `x-aws-refresh-ms`, `x-aws-read-state` and `x-poll-after-ms`. The 304 carries
+  them because it has no body, and the control-plane 429 carries them because a
+  client that got throttled is exactly the client that needs the cadence.
+- `asOf` is the read's own clock, so a live surface rarely 304s. That is
+  deliberate: rounding the stamp to make representations repeat would report a
+  reading as older or newer than it is, and `x-poll-after-ms` is the bandwidth
+  argument instead.
+
+### Bible section 20 — still no generic AWS action runner
+
+`readLiveSurface` is a `switch` over eleven string literals, and a spec asserts
+the set of `case` literals equals the set of live surfaces exactly. The route
+contains no `gateway()` and no `.call(`; the only thing a caller controls is
+which of eleven branches runs. `POST` to any live surface is `405` before a body
+is parsed.
+
+### Mutations — seven applied one at a time, seven killed
+
+1. `windowMs: 60_000` hand-typed onto `cdn` — RED `the window and the budget are
+   the cadence run through the derivation` + `surfaces that move at different
+   speeds get different windows`, `2 failed 3 passed`. Restored, `5 passed`.
+2. `pollBudgetFor` ceiling clamp removed — RED `a cadence slower than the ceiling
+   is capped`, `1 failed 4 passed`. Restored, `5 passed`.
+3. `pollBudgetFor` floor clamp removed — RED `a cadence faster than the floor
+   earns a bigger budget, not a shorter window`, `1 failed 4 passed`. Restored.
+4. `case "waf"` renamed in `readLiveSurface` — RED `the live dispatch is a closed
+   switch over exactly the registered surfaces`, `1 failed 7 passed`. Restored,
+   `8 passed`.
+5. `firstValueless` returns `null` (serve rows whatever the read said) — RED for
+   **9 of 11** surfaces, `9 failed 3 passed`. **The two survivors were the
+   finding**: `pricing` and `quotas` build rows from per-item readings, so their
+   `items` are non-empty even when every underlying read was refused, and the
+   header still said `ACTUAL`. `servingState` was hardened to derive the state
+   from the reads rather than assume the gate ran; re-applying the same mutation
+   then killed `pricing` and `quotas` too. Restored, `12 passed`.
+6. Rate-limiter key `${surface}:${principal}` becomes `${principal}` — RED with
+   exactly the sentence written for it: `dashboards was throttled by another
+   surface's traffic`. Restored, `1 passed`.
+7. `x-aws-refresh-ms` removed from `liveHeaders` — RED for **all 11** surfaces,
+   `11 failed`. Restored.
+
+### What is NOT closed, and is not claimed
+
+- **`tests/architecture/contracts-schemas-match-parsers.test.mjs` is RED**, at
+  `the OpenAPI document describes only routes this repository serves`. It reads
+  `SURFACES` out of `result.ts` and asserts the set equals `CONTROL_PLANE_ROUTES`
+  in `tools/contract-schemas.mjs`; that table still lists three. Neither the tool
+  nor the generated `docs/contracts/control-plane.openapi.json` is in this
+  agent's file allowlist, and regenerating the document is `npm run generate`,
+  which this agent is instructed not to run. Unblocking is two steps: add the
+  eleven route entries to `CONTROL_PLANE_ROUTES`, then
+  `node tools/contract-schemas.mjs`. Baseline before this change was `9 pass`;
+  after it is `8 pass 1 fail`, and the failing name is the one above.
+- **The browser sign-in page issues no session cookie in this tree.**
+  `e2e/signin.spec.ts` `correct credentials reach the console` fails
+  independently of anything here, and `signin/**` is the shell wave's. The
+  `signIn` helper in `api-contract.spec.ts` therefore falls back to next-auth's
+  OWN credentials callback — the same provider, the same `authorize`, the same
+  signed `authjs.session-token` — and warns loudly each time it does. The page
+  itself remains covered by `signin.spec.ts`, which is where that regression
+  belongs.
+- **No AWS credentials were available**, so every live surface answered `DENIED`
+  or `UNCONFIGURED`. That is the arm this item is about and it was measured
+  end to end; the `ACTUAL` and `STALE` arms of these eleven surfaces have NOT
+  been exercised over HTTP against a real account.
+- **The rate-limiter test needs a fresh window.** A fixed-window counter is not
+  idempotent inside its own window, so a second run of the file within five
+  minutes skips that test loudly with the remedy named rather than passing on a
+  spent budget.
+- **`/api/aws/<live>` is not linked from any page.** It is a polling endpoint for
+  a client; the surfaces' UI is the sibling agents' wiring.
+- Nothing on this path writes. Every module reached is a `readAws` reader,
+  `src/lib/aws/mutate.ts` is untouched, no capability was added, and the only
+  write route remains `POST /api/aws/operations`.
+
+---
+
+## The estate leaves the building — STUDIO-100-002, the `export` clause
+
+The operator's words: *"install all AWS SDKs for live data streaming and exporting
+from AWS console to tenure studio. it still hasnt happened yet."* The SDKs are
+installed — 38 `@aws-sdk/client-*` packages, 114 capabilities, 50 readers. The
+half that had not happened is the second half of that sentence, and it was
+measurable:
+
+```
+$ grep -rn "[Cc]ontent-[Dd]isposition" apps/system-studio/src
+apps/system-studio/src/app/api/aws/[surface]/route.ts:472
+                                        # ONE. And it serves the tenant REGISTRY
+                                        # out of DynamoDB, not anything read
+                                        # from AWS.
+```
+
+Everything this console reads out of AWS — the inventory, the coverage table,
+the drift comparison, the security posture — could be looked at and could not be
+taken away.
+
+`GET /api/export?surface=<inventory|coverage|drift|posture>&format=<csv|json>`
+now serves each of the four as a file, and
+`apps/system-studio/src/lib/aws/export.ts` is the projection all four run
+through.
+
+### What an export has to carry, and what each clause is defending against
+
+- **Provenance per ROW.** Account, region, partition, AWS service, capability,
+  IAM action, and the row's own `asOf` — the RESOURCE's stamp, not the section's
+  and not the moment somebody pressed the button. Two sections of one export are
+  routinely hours apart; a single banner date makes an export a screenshot with
+  commas in it.
+- **A denied read leaves as a denied read.** Every builder emits a row for a
+  section, a service, a resource type or a control that could NOT be read,
+  carrying `state`, the refused action and the pasteable minimum IAM statement.
+  This is `lib/aws/read.ts`'s founding discipline carried into a file, and it
+  matters more there than on a page: a page can be refreshed next to the person
+  who knows it is short, and a file cannot.
+- **`state` and `verdict` are two columns.** `state` answers *could this engine
+  see it*; `verdict` answers *and what did the surface make of it* — `PASS` /
+  `FAIL` / `NOT_CHECKED` for a control, `absent` / `undeclared` / `divergent` for
+  a drift finding. A failing S3 public-access check is `state: READ,
+  verdict: FAIL`; a refused `kms:ListKeys` is `state: UNREADABLE,
+  verdict: UNKNOWN`. Collapsing those is the one thing `lib/aws/posture.ts`
+  exists to prevent, and a CSV is where it would happen unnoticed.
+- **CSV injection.** A cell whose first character is `=`, `+`, `-`, `@`, TAB or
+  CR is a formula to Excel, LibreOffice and Sheets. An AWS tag KEY may begin with
+  any of `= + - @` — the tag grammar allows all four — so a principal holding
+  `tag:TagResources` can put a formula into this console's output. `csvCell`
+  prefixes such a cell with an apostrophe. Whole numbers are exempt, because
+  `'-1` is a number that no longer sorts or sums and a formula parser stops at
+  the end of `-1` anyway.
+- **`comparable: false` is ONE row, not zero rows.** No reachable Terraform is
+  the NORMAL case in the deployed image, which ships the application and not the
+  infrastructure. `estateDrift` then returns every list empty, and a naive
+  `findings.map(...)` would produce a drift export with a header row and nothing
+  under it — which reads as *declared and actual agree*, the loudest false
+  statement this file could make.
+
+### A reachability gap this closes on the way past
+
+This ledger's own reconciliation records five aggregation entry points with no
+production caller, and names the remedy for one of them: *"What would close it: a
+surface that calls `estateDrift`."*
+
+```
+$ grep -rl "\bestateDrift\b" apps/system-studio/src/app
+apps/system-studio/src/app/api/export/route.ts     # was: no file, exit=1
+```
+
+`GET /api/export?surface=drift` is that surface. It drives `parseTerraformEstate`
+over the `.tf` this process can reach, `observedBuckets` / `observedSecurityGroups`
+/ `observedUserPools` / `observedTables` over the four readers, and `estateDrift`
+over both. That does NOT close STUDIO-080-006 or STUDIO-000-009 — an SNS reader,
+an orphan rule and a remediation plan are still absent — but the "reached only by
+its own test file" finding against `estateDrift` no longer holds.
+
+### Authorization
+
+Per request, server-side, through `authorizeCommand`, and once per command rather
+than once per request. `EXPORT_COMMANDS` lists what each surface aggregates:
+`inventory`, `coverage` and `drift` require `platform.read` AND `tenants.read`,
+because each writes a tenant slug or a tenant's declared infrastructure into its
+rows, and a family that may not read the register must not receive it spread
+across an estate file instead. `posture` asks about controls and requires
+`platform.read` alone.
+
+**Stated plainly: today this refuses only a principal with no operator role.**
+Every one of the nine families in `OPERATOR_GRANTS` currently holds both
+permissions. It is written as a list rather than as one check because the grant
+table is the thing that changes — the day `tenant:read` comes off a family, this
+endpoint closes for them without anybody remembering that it aggregates the
+register.
+
+`export const dynamic = "force-dynamic"` is declared, per
+`tests/architecture/authorizing-routes-are-dynamic.test.mjs`; without it Next
+prerenders the route at build time and the authorization check never runs.
+
+### Two refusals that are deliberate
+
+- **No registry, no export.** `TENANT_TABLE` unset is a 501, not a warning.
+  STUDIO-020-012 requires every allow to be recorded, and the whole estate
+  leaving the building is the single act on this console most in need of a row
+  naming who took it. The audit row is written BEFORE the bytes are produced.
+- **Six per operator per minute.** One export drives `estateInventory`,
+  `securityPosture` and four drift readers — of the order of a hundred AWS
+  describes. A refresh loop on a download URL is denial-of-wallet on this
+  console's own account. The counter lives in `export.ts` rather than in
+  `result.ts`'s `SURFACES` table because that file belongs to another surface's
+  owner this hour; it is the same fixed-window shape and belongs beside those
+  three the moment one person owns both.
+
+### Evidence
+
+```
+$ npm run test --workspace apps/web -- --ci apps/system-studio/src/lib/aws/export.test.ts
+  Test Suites: 1 passed, 1 total
+  Tests:       34 passed, 34 total
+
+$ npx tsc --noEmit -p apps/system-studio/tsconfig.json
+  # 4 errors, all in app/platform/security/{page.tsx,posture.ts} — another
+  # agent's files, concurrent. Zero in lib/aws/export.ts, lib/aws/export.test.ts,
+  # app/api/export/route.ts, e2e/export.spec.ts.
+```
+
+### Mutation proof — 16 applied to the production module one at a time, 16 killed
+
+Each mutation was written into `src/lib/aws/export.ts`, the suite run, the
+failure recorded, and the file restored. The restored file is 34/34 green.
+
+| # | Mutation applied to `src/lib/aws/export.ts` | Result |
+|---|---|---|
+| 1 | `stateOfRead`: `DENIED` -> `NONE` — a refusal reported as an absence | 2 failed, 32 passed |
+| 2 | a section that could not be read produces no row at all | 4 failed, 30 passed |
+| 3 | the CSV formula neutralisation is removed | 3 failed, 31 passed |
+| 4 | `isWholeNumber` always true — the numeric exemption swallows every payload | 3 failed, 31 passed |
+| 5 | an uncomparable drift report exports zero rows | 1 failed, 33 passed |
+| 6 | `redactSecretMaterial` stops redacting | 1 failed, 33 passed |
+| 7 | a resource row loses its own `asOf` | 1 failed, 33 passed |
+| 8 | a failing control is filed as a control nobody could read | 1 failed, 33 passed |
+| 9 | the file name stops naming the account | 3 failed, 31 passed |
+| 10 | the file name stops whitelisting the account id (header splitting) | 1 failed, 33 passed |
+| 11 | the inventory export stops requiring `tenants.read` | 1 failed, 33 passed |
+| 12 | the export budget never refuses | 1 failed, 33 passed |
+| 13 | an unattributed resource becomes a blank cell | 1 failed, 33 passed |
+| 14 | a service nobody read is exported as `0` resources | 1 failed, 33 passed |
+| 15 | what a reader could not name is dropped | 1 failed, 33 passed |
+| 16 | the unreadable-row count stops counting | 7 failed, 27 passed |
+
+### The browser evidence, and why there is none
+
+`apps/system-studio/e2e/export.spec.ts` exists, typechecks, and drives the route
+through a real signed-in session: nine tests over `Content-Disposition`, per-row
+state and provenance, an RFC-4180 reader proving no cell begins with a formula
+leader, the absence of credential material, the 404/400 problem documents, the
+401 with no session, and the 429 the budget produces.
+
+**It has not been run, and nothing here claims it has.** Two environment faults,
+neither in this agent's files:
+
+1. `npm run studio:build` was started at 07:49 and had printed nothing beyond
+   `Next.js 15.5.20` 45 minutes later. `apps/system-studio/.next/` was being
+   rewritten throughout by a concurrent `next dev` belonging to another agent in
+   this shared tree; two Next processes writing one `.next` do not settle.
+2. `npx next dev --port 3121`, given the CI job's own environment
+   (`.github/workflows/ci.yml:444-471`), bound the port and never reached
+   `Ready`; a request issued against it was still compiling after 400s. Seven
+   sibling agents were editing this tree during the attempt, and every write
+   restarts the dev compiler.
+
+The two servers already listening were not usable either: `:3100` is a
+`standalone` build predating this route (404 on `/api/export`), and `:3107`
+answers 500 to `/signin`, `/api/aws/fleet` and `/api/export` alike, which is a
+server started without `AUTH_SECRET` rather than anything about this code.
+
+Re-run on a quiescent tree:
+
+```
+npx dynalite@3.2.2 --port 8001
+AWS_ENDPOINT_URL_DYNAMODB=http://127.0.0.1:8001 TENANT_TABLE=tenure-tenants-ci \
+  node tools/create-registry-table.mjs && node tools/dev/seed-studio-fleet.mjs
+npm run studio:build
+PORT=3121 node .next/standalone/apps/system-studio/server.js
+PLAYWRIGHT_BASE_URL=http://localhost:3121 npx playwright test e2e/export.spec.ts
+```
+
+### No UI affordance, and it is not this agent's file
+
+`app/tenants/page.tsx:1032` already carries the precedent — a plain `<a download>`
+beside the fleet table, deliberately not a `next/link`, because a client-side
+navigation cancels a download. The equivalent belongs on
+`app/platform/estate/page.tsx` and `app/platform/security/page.tsx`, both of
+which are other agents' files this hour. Until one is added, the export is
+reachable by URL and by nothing an operator can click.
+
+- [ ] **STUDIO-100-002** — Implement search, saved filters, group/bulk draft, comparison, release wave, health/cost charts, topology, and export with semantic authorization.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/lib/aws/export.ts` (the projection, the CSV
+    writer, the JSON envelope, the redactor, the budget, `EXPORT_COMMANDS`),
+    `apps/system-studio/src/app/api/export/route.ts` (the route)
+  - Tests: `apps/system-studio/src/lib/aws/export.test.ts` — 34 passed, 34 total,
+    16 mutations applied to the production module and 16 killed.
+    `apps/system-studio/e2e/export.spec.ts` — written, typechecks, NOT RUN (see
+    above).
+  - Caller: `GET /api/export` is itself the production caller of
+    `inventoryTable` / `coverageTable` / `driftTable` / `postureTable`, and of
+    `estateDrift`, `parseTerraformEstate`, `observedBuckets`,
+    `observedSecurityGroups`, `observedUserPools` and `observedTables`, which
+    this ledger recorded as reached only by `drift.test.ts`. No page links to it.
+  - Reason: **one of the eight clauses this requirement names is delivered.**
+    `export with semantic authorization` now exists for the four AWS-backed
+    surfaces, per request and server-side, with an audit row written before the
+    bytes. Search and saved filters exist for the fleet only
+    (`src/lib/fleet-filter.ts`, `app/tenants/page.tsx`); **group/bulk draft,
+    release wave, health/cost charts and topology charts are absent**, and
+    `comparison` exists as `renderComparison` over configuration revisions rather
+    than as the tenant-to-tenant comparison the clause sits among. A requirement
+    that names eight things and got one and a half is FAIL, by this file's own
+    rule. Separately, the delivered clause's own browser evidence does not exist
+    yet: the assertions that a real operator's download carries a real estate are
+    written and unrun.
+  - What would close it: the six missing clauses; a run of `e2e/export.spec.ts`
+    against a built Studio on a tree nobody else is writing to; and the
+    `<a download>` affordances on `/platform/estate` and `/platform/security` —
+    that last being a two-line change in files this agent does not own.
+
+### Read-only, checked
+
+Nothing on this path writes to AWS. Every module reached is an `AwsRead` reader,
+`src/lib/aws/mutate.ts` is untouched, no capability was added, and the only write
+route remains `POST /api/aws/operations`. The one write of any kind is
+`putAuditEntry` into the registry table, which is what records that the export
+happened.
+
+---
+
+## STUDIO-120-011 (continued) — the ceilings reach a screen; admission and forecast still do not
+
+The reconciliation section above records `STUDIO-120-011` as FAIL for two separate
+reasons: the requirement has two verbs and the delivery had neither, and — in the
+finding that decides most of those rows — the reader's output reached no operator.
+This entry moves the second and **not** the first. **The status stays FAIL.**
+
+### What was wrong, measured rather than assumed
+
+`src/lib/aws/quotas.ts` (1,387 lines, 38 passing tests, two capabilities and their
+IAM grant) reached `estateInventory` as a `signalSection` at `inventory.ts:1816`, and
+a signal section carries a section STATE, not a value. The whole of `AppliedQuota` —
+the applied value, the scope, whether an increase can be requested, the headroom, the
+pressure verdict — was computed on every estate render and discarded before anything
+was drawn. `organizationSurface` was reached the same way at `inventory.ts:1422`, and
+`organizationAccounts` was reachable from nowhere but its own module.
+
+```
+$ grep -rl "quotaRows\|quotaCoverage\|unreadableQuotas" apps/system-studio/src/app
+apps/system-studio/src/app/platform/engine-answer.ts
+apps/system-studio/src/app/platform/page.tsx          # after this change
+
+$ grep -rl "\bappliedValueText\b" apps/system-studio/src/lib     # the probe's control
+exit=1                                  # the probe finds nothing when nothing is there
+```
+
+(A sibling agent has since added `src/app/api/aws/[surface]/route.ts`, which calls both
+readers as JSON. That is an endpoint, not a screen; the operator-visible caller is the
+page below.)
+
+### The route
+
+**`/platform`** — `apps/system-studio/src/app/platform/page.tsx`, two cards placed
+between the capability panel and the programme panel so the four live-read cards sit
+together and everything below them stays compiled apparatus:
+
+- **"The ceilings this engine provisions into"** — `quotaReadings()`, awaited on the
+  render, rendered through `quotaRows` / `unreadableQuotas` / `quotaCoverage` in
+  `./engine-answer.ts`.
+- **"Whether this estate has an AWS Organization"** — `organizationSurface()`,
+  rendered through `organizationAnswer` / `orgAccountRows`.
+
+The route already carried `export const dynamic = "force-dynamic"`, which
+`tests/architecture/authorizing-routes-are-dynamic.test.mjs` requires of anything
+calling `authorizeCommand`; it is unchanged.
+
+### The two sentences these cards may never print
+
+1. **An applied value with nothing beside it.** Whether a quota has been RAISED from
+   the AWS default is not readable by this engine — `ListServiceQuotas` and
+   `GetServiceQuota` return the applied `Value` and no default, and
+   `servicequotas:GetAWSDefaultServiceQuota` is not in the capability registry. Every
+   row therefore carries `against the AWS default: not known` in the same cell as the
+   value, and the card names the action that would answer it. A value printed alone
+   reads as the default, which for a quota somebody raised is exactly backwards.
+2. **A headroom nobody measured.** Where a usage number exists the row prints
+   `used of applied`; where it does not it prints `usage not known` and
+   `headroom not known` — never a remainder, never a percentage. Where the number came
+   from the tag index it is a LOWER bound on usage, so the headroom is rendered as an
+   UPPER bound (`AT MOST n left`). All three sentences come from the reader's own
+   `describeQuotaUsage` / `describeHeadroom` rather than being re-implemented at the
+   surface, which is the defect the reader's header warns about.
+
+The pressure badge reads `headroom not established` (tone `warn`), not `clear`, in the
+state this estate is in — quotas read and not one compared against a usage number.
+`clear` is reachable only when at least one comparison really happened.
+
+### The Organization answer is an answer, and it carries consequences
+
+`AWSOrganizationsNotInUseException` is a READ, not a refusal. Where AWS says it, the
+card says what it costs: STUDIO-010-001's twelve account roles cannot be FILLED (its
+own clause, "as justified by actual scale", is what makes that legitimate rather than a
+failure); STUDIO-010-002's separation is **vacuous rather than achieved**, because
+there is no management account to be kept out of; `organizations:ListAccounts` was
+never spent and renders as the `UNCONFIGURED` reading it is; and the roots and OUs
+STUDIO-010-003 asks for are **not read at all**, because no `organizations:ListRoots`
+capability exists — an empty root list would be the absence of a read rather than a
+reading of an absence, so none is drawn.
+
+The estate card's own row, which rendered `estate.organizationInUse ? "in use" : "not
+in use — a single-account estate"` from a boolean the collector writes for BOTH "not in
+use" AND "not visible to this principal", now says which of those it cannot distinguish
+and points at the live read.
+
+### A leak this work found in itself
+
+`UnknownState` renders the account id and principal ARN it is handed, and a `DENIED`
+reading carries both, live from STS and unmasked. The identity card on this same page
+has masked since it was written; handing an unmasked refusal to the same screen would
+have masked nothing. `maskUnknownRead` masks the account, the principal and the minimum
+statement, `orgAccountRows` masks the id it uses as a React key, and the page routes
+every refusal through one `masked()` call site per card. The existing whole-body
+assertion `expect(body).not.toMatch(/\b\d{12}\b/)` would have failed on the first
+denial in a credentialled deployment and passes in CI, which has no credentials and
+therefore no account id to leak — so the unit tests assert it directly instead.
+
+### Evidence
+
+```
+$ npm run test --workspace apps/web -- --ci \
+    apps/system-studio/src/app/platform/engine-answer.test.ts
+  -> Tests: 71 passed, 71 total          (34 of them new)
+
+$ npx tsc --noEmit -p apps/system-studio/tsconfig.json
+  -> exit 0, no diagnostics
+
+$ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3141 npx playwright test     e2e/platform.spec.ts -g "ceilings|Organization, and never"
+  -> 2 passed, 2 total                   (both new; run three times, green each time)
+
+$ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3141 npx playwright test     e2e/platform.spec.ts -g "renders UNKNOWN"
+  -> 1 passed        (the neighbour this change broke, re-scoped and re-run)
+
+$ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3141 npx playwright test e2e/platform.spec.ts
+  -> first whole-file run:  12 passed, 2 failed
+     second whole-file run:  9 passed, 3 flaky, 2 failed  (21.4m)
+```
+
+**The whole-file runs are not clean, and the reason is named rather than glossed.**
+The first run's two failures were the identity strict-mode break described below (this
+change's fault, and fixed) and `is reachable from the systems page`, which passes on
+its own. The second run was made on a box carrying ~86 concurrent `node` processes from
+sibling agents, and during it another agent's edit landed in `components/md3/index.ts`:
+
+```
+./src/components/md3/index.ts
+export 'scaleX' (reexported as 'scaleX') was not found in './chart'
+Import trace for requested module: ./src/components/md3/index.ts -> ./src/app/page.tsx
+```
+
+`src/app/page.tsx` therefore stopped compiling, and every test in this file that calls
+`signIn` — which asserts the root page's `Organization systems` heading — fails while
+that is true, including the three recorded as flaky and the two new ones. Both new
+tests passed on three separate isolated runs before that landed, and both were proven
+to FAIL under the two page mutations below, which is the property that makes them worth
+anything. Re-run them on a quiescent tree to confirm:
+`npx playwright test e2e/platform.spec.ts -g "ceilings|Organization, and never"`.
+
+Against a real render of this tree: `next dev` with `NEXT_DIST_DIR=.next-quota-agent`
+on :3141 (`STUDIO_AUTH_MODE=credentials`, a local-only operator, `AWS_ACCOUNT_ID` set,
+placeholder AWS keys), DynamoDB Local on :8001 seeded by `tools/create-registry-table.mjs`
+and `tools/dev/seed-studio-fleet.mjs`.
+
+`npm run studio:build` was also run on this tree and exited 0, but it is **not** offered
+as evidence of a complete production compile: a `next dev` was started in the same
+working tree before it finished, both used the default `distDir`, and the standalone
+output directory came out empty — which is precisely what `next.config`'s own comment
+above `distDir` warns happens when two Next processes share `.next`. The dev server was
+restarted under `NEXT_DIST_DIR=.next-quota-agent` for that reason, and every rendered
+result below comes from that instance.
+
+On that render every Service Quotas listing is refused, and the page reports it as ten
+separate named blocks — one per service, each carrying the principal, the action, the
+error code and a pasteable statement. Quoted from Playwright's own strict-mode listing
+of `.md3-unknown[data-reason="DENIED"]` on the rendered page:
+
+```
+2) …the applied value of VPCs per Region, VPC security groups per Region, …
+3) …the applied value of Services per cluster [ecs] — Refused …
+4) …the applied value of Application Load Balancers per Region, Target …
+5) …the applied value of DB instances [rds] — Refused …
+6) …the applied value of Distributions per AWS account [cloudfront] — …
+7) …the applied value of ACM certificates [acm] — Refused …
+8) …the applied value of User pools per account [cognito-idp] — Refused …
+9) …the applied value of Concurrent executions [lambda] — Refused …
+10) …the applied value of Daily sending quota [ses] — Refused …
+```
+
+That listing is also how this change was caught breaking a neighbour: the existing test
+`reports the identity it is running as, or renders UNKNOWN — never a blank` located
+`.md3-unknown[data-reason="DENIED"]` unscoped, which resolved to eleven elements once
+this page made twelve AWS calls instead of one. Its assertion is unchanged; it is now
+scoped to the identity card.
+
+### Mutations applied to the PRODUCTION path, each red, each restored
+
+Six on `src/app/platform/engine-answer.ts`, two on `src/app/platform/page.tsx`. Each was
+applied alone, run, restored, and the suite re-run green (`71 passed, 71 total`; the two
+browser tests `2 passed`).
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | `unreadableQuotas` groups on `serviceCode` alone, dropping state and capability | RED — `1 failed, 70 passed`: *two different failures on one service stay two blocks* |
+| M2 | `maskUnknownRead` returns a `DENIED` reading unchanged | RED — `5 failed, 66 passed`, incl. *a refusal never reaches the page carrying twelve consecutive digits* |
+| M3 | `organizationUnknownRead` always takes the `DENIED` arm | RED — `1 failed, 70 passed`: *a failure that is not a refusal does not print an error message as a policy* |
+| M4 | `quotaCoverage` counts a `not-known` headroom as a usage number | RED — `1 failed, 70 passed`: *a quota with no usage number is counted as having none, never as having room* |
+| M5 | `organizationAnswer` routes `UNKNOWN` into the `none` arm | RED — `3 failed, 68 passed`, and `tsc` reported 5 further errors: the union itself refuses the collapse |
+| M6 | `quotaRows` emits `raised: ""` | RED — `1 failed, 70 passed`: *no applied value is ever rendered without the default caveat beside it* |
+| E1 | `page.tsx` stops rendering `ceilingsUnread` — refused ceilings draw nothing | RED — *names the ceilings it provisions into…* |
+| E2 | `page.tsx` renders an unreadable Organization as the sentence "not in use" | RED — *says whether this estate has an Organization…* |
+
+M2 is the one worth keeping: it is a defect CI cannot see, because CI has no credentials
+and therefore no twelve digits to leak.
+
+### Status
+
+- [ ] **STUDIO-120-011** — Add quota/capacity admission and forecast before tenant launch; never wait for a production quota failure to discover capacity.
+  - Status: **FAIL** — unchanged, and deliberately not upgraded.
+  - Code: `apps/system-studio/src/app/platform/page.tsx`,
+    `apps/system-studio/src/app/platform/engine-answer.ts` (`quotaRows`,
+    `unreadableQuotas`, `quotaCoverage`, `appliedValueText`, `maskUnknownRead`,
+    `unknownArm`, `PRESSURE_WORD`)
+  - Tests: `apps/system-studio/src/app/platform/engine-answer.test.ts` — 71 passed,
+    34 new; `apps/system-studio/e2e/platform.spec.ts` — 14 passed, 2 new.
+  - Caller: `apps/system-studio/src/app/platform/page.tsx` — the "ceilings" card,
+    reached at `/platform`.
+  - Reason: **the requirement has two verbs and this delivers neither.** Reading a
+    quota is not *admission*: no launch path imports `quotaReadings`, no plan is
+    refused because a ceiling is near, nothing gates provisioning on this card. There
+    is no *forecast* either — no consumption-against-ceiling projection exists, and for
+    nine of the twelve targets there is not even a usage number to project from,
+    because exact consumption is a CloudWatch metric and this engine holds no
+    `cloudwatch:GetMetricData` capability. What changed is narrower and is the half
+    that was measurable: the applied values now reach an operator before 2am instead of
+    being computed and thrown away.
+  - What would close it: (a) a `cloudwatch:GetMetricData` capability so usage is a
+    number rather than a tag-index lower bound, (b) an admission gate on the
+    provisioning path that consults `quotaReadings()` and REFUSES a launch whose
+    projected demand crosses `QUOTA_PRESSURE_FRACTION`, and (c) a forecast over that
+    series. Also bears on `STUDIO-040-004` ("quota shortage" among the pre-plan
+    detections), which stays undecided for the same reason.
+
+### STUDIO-010-001 / STUDIO-010-002 — no new claim
+
+Both are already `[x] PASS` in this ledger, decided on `posture.ts`'s
+`managementAccountVerdict` and the estate page's topology reconciliation. This work adds
+a **second production caller** of `organizationSurface`, the first caller of
+`organizationAccounts` anywhere, and puts the answer's consequences on the engine's own
+state page. It moves no counter and reopens no row; it is recorded here so the code is
+attributable. `STUDIO-010-003` is untouched and is NOT claimed: no
+`organizations:ListRoots` capability exists in this build.
+
+### What is NOT closed, and is not claimed
+
+- **Admission and forecast.** The whole reason the status above is FAIL.
+- **Whether any applied value was raised from its AWS default.** Not readable by this
+  engine at all. Every row says so; none of them guesses.
+- **Exact usage for nine of the twelve targets.** Security-group rules, Lambda
+  concurrency and the SES daily volume are not taggable resources, so nothing this
+  engine reads counts against them; the rest fall back to a tag-index lower bound when
+  the tag index answers, and that bound is rendered as a bound.
+- **The roots and the OU hierarchy.** No capability, no reader, no row.
+- **Geometry at 1440 / 1180 / 900 / 320px was NOT measured for these two cards.**
+  `/platform` is already in `e2e/layout.spec.ts`'s `ROUTES`, so the four widths and the
+  RTL pass DO cover them by construction — but the run started this session was killed
+  after it began contending with a second Playwright process against the same dev
+  server, and by the time the tree was free `src/app/page.tsx` no longer compiled (see
+  above), which fails `layout.spec` at its own sign-in. The two cards are built to the
+  rules that suite enforces — every wide table is a `DataTable`, whose shell is
+  `overflow-x: auto`; every long identifier carries `styles.identifier`
+  (`overflow-wrap: anywhere`); no colour and no inline style is introduced — and that
+  is a reason to expect it to hold, not a measurement. Re-run on a quiescent tree:
+  `npx playwright test e2e/layout.spec.ts -g "platform"`.
+
+---
+
+## STUDIO-030-013 — the id does not describe the work, and the work it does describe was not done
+
+- Status: FAIL
+- Reason: STUDIO-030-013 reads, in the Bible at line 252, *"Conduct observed
+  30-minute, 90-minute, and multi-hour fatigue/usability sessions with
+  implementation, security, support, and FinOps personas; record findings and
+  fixes."* This agent was dispatched to give the Studio a `tenurework.com`
+  hostname. Those are not the same requirement and no amount of Terraform makes
+  them one. No observed session was run, no persona was recruited, and no
+  finding was recorded, so the item stays queued. `FAIL` and not
+  `BLOCKED_EXTERNAL`: the sessions need people, not an account owner's
+  credential, and `next-batch.mjs` treats `BLOCKED_EXTERNAL` as decided —
+  which would take a human-research item off the queue on the strength of a
+  DNS change.
+- Evidence: `sed -n '252p' Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md`
+  — one line, the sentence above. `grep -rn "STUDIO-030-013" --include=*.md .`
+  — 2 hits, both copies of the Bible, no ledger row. Recording a usability
+  study nobody observed is the fabricated-approval failure this programme has
+  already absorbed once; this row exists so the next agent does not find the id
+  ticked.
+
+### What the dispatch actually asked for, and where it stands
+
+The custom-domain work is **BLOCKED_EXTERNAL on one fact nobody has checked**:
+whether a Route 53 hosted zone for `tenurework.com` exists in this account.
+
+```
+$ grep -rn "aws_route53_zone" infrastructure/
+                                     # 0 hits, exit=1
+```
+
+The command that settles it, for the account owner:
+
+```
+aws route53 list-hosted-zones --query "HostedZones[?Name=='tenurework.com.']"
+```
+
+Nothing was applied. Neither Terraform nor the AWS CLI is installed on this
+machine (`which terraform` / `which aws`, both exit 1, and Docker is
+unavailable), so `terraform fmt -check` and `terraform validate` were NOT run
+here. The exact commands are
+`terraform -chdir=infrastructure/studio fmt -check -diff` and
+`terraform -chdir=infrastructure/studio init -backend=false && terraform -chdir=infrastructure/studio validate`.
+
+### The four places the hostname reaches, and the guard that now holds them together
+
+The console answers on `d2kj4iy5i37kfd.cloudfront.net` today. Renaming it is not
+a find-replace, because the public hostname is threaded through authentication in
+four places and a rename that reaches three of them produces a console that
+loads, shows a sign-in button, and cannot sign anybody in — the error surfacing
+at Cognito as `redirect_mismatch`, not in the Terraform diff:
+
+| where | reads |
+| --- | --- |
+| `cognito.tf` `callback_urls` | `local.studio_auth_hosts` |
+| `cognito.tf` `logout_urls` | `local.studio_auth_hosts` |
+| `ecs.tf` `AUTH_URL` | `local.studio_origin` |
+| `ecs.tf` `NEXTAUTH_URL` | `local.studio_origin` |
+
+`local.studio_host` in `acm.tf` is the single source: `var.studio_domain` once
+`attach_studio_domain` is true, and `aws_cloudfront_distribution.studio.domain_name`
+until then — so an unset name changes nothing. `studio_auth_hosts` keeps BOTH
+hosts while the custom name is attached, because flipping the variable and moving
+the DNS are separate events and an operator arriving on the old hostname in
+between must not be locked out by the change meant to improve things.
+
+`tests/security/studio-domain.test.mjs` is new and pins all of it: 9 tests,
+`node --test tests/security/studio-domain.test.mjs` → `# pass 9 # fail 0`.
+
+### Mutation proof — 11 applied one at a time, 11 killed, 11 restored green
+
+Baseline `exit=0 pass=9 fail=0` before and after every one.
+
+1. `cognito.tf` `logout_urls` hardcoded to the CloudFront host — RED,
+   `Cognito logout_urls must derive from local.studio_auth_hosts`.
+2. `ecs.tf` `AUTH_URL` set to `"https://${aws_cloudfront_distribution.studio.domain_name}"` — RED.
+3. `attach_studio_domain` default `false` → `true` — RED, `attach_studio_domain
+   must default false. Attaching an unvalidated certificate fails the apply…`.
+4. `aws_region` default `us-east-1` → `us-west-2` — RED. CloudFront reads a
+   viewer certificate only from us-east-1, and this stack's default provider IS
+   the certificate's region.
+5. `zone_id = "Z1D633PJN98FT9"` pasted into `acm.tf` — RED.
+6. an `aws_acm_certificate_validation` added — RED, `Nothing here writes the
+   validation record, so it would block the apply until it timed out`.
+7. an `aws_route53_record` added — RED, `That service has no ESTATE entry and no
+   reader`.
+8. `aws route53 list-hosted-zones` deleted from the comment — RED, `acm.tf must
+   name the exact command that would confirm the hosted zone`.
+9. `aliases = []` — RED.
+10. `studio_auth_hosts` drops the CloudFront host — RED, `the CloudFront domain
+    must stay an accepted callback host, or attaching the custom name locks the
+    operator out mid-cutover`.
+11. the hostname written as the literal `"helm.tenurework.com"` in
+    `cloudfront.tf` — RED on two tests at once.
+
+### Route 53 automation was written, and then taken back out
+
+`aws_route53_record` + `aws_acm_certificate_validation`, gated behind a
+`studio_hosted_zone_id` variable defaulting to `""`, were written and reverted.
+`tests/architecture/every-provisioned-service-has-a-reader.test.mjs` went RED on
+them — *"Terraform declares 2 resource type(s) this table does not classify"* —
+and it is right: its `ESTATE` has `acm` and `cloudfront` and no `route53` entry
+at all, so provisioning DNS here adds a service to the estate that no operator
+surface can show. Landing it needs a `route53` `ESTATE` entry, a reader module, a
+surface director and a wiring-map row, none of which are in this agent's file
+allowlist. Named rather than reached for. The reasoning is kept in `acm.tf` so
+the next person does not rediscover it, and the guard is now asserted from this
+side too, so re-adding Route 53 fails in `studio-domain.test.mjs` first.
+
+The validation CNAME is therefore printed — `studio_acm_validation_records`,
+`studio_acm_certificate_arn`, `studio_domain_cname_target` — and published by a
+person. That path works whoever holds the zone, which is the right default while
+nobody knows who does.
+
+### Suite state
+
+`npm run test:platform` → `# tests 624 # pass 604 # fail 20` with these changes.
+All 20 are pre-existing and none reads this agent's files — stale generated
+inventories (`npm run generate`, which this agent is instructed not to run) plus
+`no tsconfig includes a scratch build directory`. Established by A/B: the suite
+run twice, once with the two changed `.tf` files replaced by their index versions
+(`git show :<path>`, read-only) and the new spec held aside, diffing the
+`not ok` names. The first A/B caught a real regression —
+`the table classifies exactly the resource types the Terraform declares` — and
+that is what sent the Route 53 resources back out. The second A/B named one more,
+`no module hard-codes an AWS account id`; that one is a sibling agent's in-flight
+edit landing between the two runs, not this work — the guard excludes
+`infrastructure/` by construction (`const ROOTS = ['apps/web/src',
+'apps/system-studio/src', 'packages']`) and passes standalone: `node --test
+tests/security/no-hardcoded-estate.test.mjs` → `# pass 3 # fail 0`. The tree is
+being edited by eight other agents while this runs, so the test count moved
+620 → 624 across the runs; every number quoted here is from the run named beside
+it.
+
+---
+
+## STUDIO-030-003 — the twenty-two primitives, and the eleven that had no keyboard
+
+- Status: PASS
+- Reason: the requirement reads, in the Bible at line 242, *"Build accessible
+  primitives for button, link, input, select, combobox, command menu, dialog,
+  drawer, tooltip, popover, tabs, accordion, menu, toast, table, tree,
+  code/diff, date/time, stepper, file upload, chart, and status."* Twenty-two
+  names. Nine of them already existed in `components/md3` (button, link, input,
+  select, dialog, tabs, toast-as-message, table, status) and one outside it
+  (command menu — `components/CommandPalette.tsx`, which captures focus on open
+  and restores it on close). **Eleven did not exist at all**: combobox, drawer,
+  tooltip, popover, accordion, menu, tree, code/diff, date/time, stepper, file
+  upload, chart — plus `ModalDialog` and `ToastRegion`, which are the modal and
+  the live-region halves the existing `Dialog` and `Snackbar` explicitly decline
+  to be. All are built and all are exported from the barrel, which is the only
+  place a route may import a primitive from.
+
+  **"Accessible" is the load-bearing word, and it is where these are normally
+  wrong.** Each interactive primitive has its keyboard model written as a pure
+  function in `interaction.ts` (409 lines, no DOM, no React) and the component
+  is the adapter. That split is why the model can be ENUMERATED rather than
+  sampled: a menu opens on Enter, Space and ArrowDown and at the LAST item on
+  ArrowUp; arrows wrap and step over disabled items that stay rendered and
+  announced; Home and End land on the first and last ENABLED item; a repeated
+  character cycles while a growing buffer refines; Escape closes the top layer
+  only and returns focus to the trigger; Tab closes and lets focus continue.
+  The tree carries `aria-level`/`aria-setsize`/`aria-posinset`, ArrowRight into
+  an already-expanded branch, ArrowLeft up to the parent, and `*` for the level.
+  Every left/right rule takes a direction and swaps under RTL (STUDIO-030-007).
+
+  **Three deliberate refusals, recorded because each is a claim not made.**
+  `Menu` has labelled groups and NO nested submenus — a submenu needs its own
+  hover-intent timing and a second dismissal layer, and a half-built one opens
+  on hover and cannot be reached from a keyboard. `Combobox` leaves Home and End
+  to the text cursor, as APG requires for an editable combobox, and takes
+  nothing on Tab. `ToastRegion` has no timer, keeping `Snackbar`'s WCAG 2.2.1
+  reasoning rather than overriding it.
+
+  **`ModalDialog` and `Drawer` earn `aria-modal` rather than asserting it.**
+  `Dialog.tsx` refuses the attribute on the grounds that nothing in it makes the
+  background unreachable, and it is right; these portal to `<body>`, set the
+  `inert` ATTRIBUTE on every other body child (restoring only what they changed),
+  trap Tab against stops re-read on each press, and dismiss through a layer
+  stack so a dialog opened from a drawer closes itself and leaves the drawer.
+
+  **A new stylesheet, and the audit that follows it.**
+  `components/md3/primitives.css` (877 lines) is co-located because
+  `globals.css` is another agent's file this hour; it declares no colour value,
+  only layout resolving `--md-sys-*` and `--space-*`. Its hooks are `data-md3`
+  ATTRIBUTES, not `md3-` classes, because `md3-tokens-logic.spec.ts` asserts a
+  class contract between the components and `globals.css` that a second
+  stylesheet would break in both directions. That spec reads `.ts`/`.tsx` and
+  `globals.css` only, so this file could have dodged both of its guarantees —
+  and does not: `md3-primitives-logic.spec.ts` re-asserts them over it (no hex,
+  no colour function, no keyword in a colour position, every colour resolves a
+  token) and adds the drift check in both directions between the hooks the
+  components emit and the rules the sheet declares.
+- Evidence:
+  - `cd apps/system-studio && ../../node_modules/.bin/playwright test md3-primitives-logic --reporter=line` → **76 passed**. The keyboard models, the diff, the UTC arithmetic, the upload rules, the chart scales, and the stylesheet audit.
+  - `npm run test --workspace apps/web -- --ci src/components/md3/Primitives.test.tsx` → **28 passed**. The WIRING, in jsdom: focus moving, focus returning, `inert` going on and coming off, one live region, an `aria-activedescendant` that resolves inside the listbox it names.
+  - `npm run test --workspace apps/web -- --ci src/components/md3/PrimitivesMarkup.test.tsx` → **7 passed**. The five that need no client.
+  - `npx tsc --noEmit -p apps/system-studio/tsconfig.json` → exit 0.
+  - `cd apps/system-studio && ../../node_modules/.bin/playwright test md3-tokens-logic --reporter=line` → 29 passed, 1 failed. The failure is `no token is declared without either a consumer or a recorded reason` — `--console-nav-offset`, declared in `globals.css`, which this agent may not edit and does not reference. It is the navigation agent's token and its row, named here rather than absorbed.
+
+### Seven mutations, each applied, run, and restored
+
+Each was applied to the real source, the named suite was run, the named test
+went RED, and the file was restored from a copy taken before the edit.
+`git status --porcelain apps/system-studio/src/components/md3/` afterwards shows
+one `M` — `index.ts`, this agent's own addition — and the new files.
+
+| # | Mutation | Suite | Test that went RED |
+|---|---|---|---|
+| 1 | `step()` backward wrap returns the first enabled item, not the last | primitives-logic | `ArrowUp moves back and wraps at the start` |
+| 2 | `treeCommand` ArrowLeft no longer walks to the parent (`if (false && row.parentId)`) | primitives-logic | `ArrowLeft collapses an open branch, then walks to the parent` |
+| 3 | the diff's LCS branch forced (`else if (true)`) — the zip, not the subsequence | primitives-logic | `an inserted line is one addition…` and `line numbers are the numbers in each file…` |
+| 4 | `color: #8a8a8a` in `primitives.css` | primitives-logic **and** tokens-logic | `no hex code` and `every colour in the sheet resolves a token`. `md3-tokens-logic.spec.ts` did NOT catch it — which is why the guard was duplicated |
+| 5 | focus restoration disabled (`if (false && target …)`) | Primitives.test.tsx | 3 tests, in Menu and ModalDialog |
+| 6 | `child.setAttribute("inert", "")` commented out | Primitives.test.tsx | `it claims modality and earns it: portal, inert background, trapped Tab` |
+| 7 | roving `tabIndex` replaced with `tabIndex: 0` on every menu item | Primitives.test.tsx | `clicking opens it with the first item focused` |
+
+Mutation 4 is the one worth reading twice: it is the exact defect the colour ban
+exists to prevent, written into the one file the existing audit cannot open.
+
+### One real defect the tests found before a reviewer could
+
+`useFocusTrap(open, …)` in `ModalDialog` and `Drawer` activated on the render
+where `open` became true — which is the render BEFORE the portal host exists, so
+`panelRef.current` was still null, the effect returned early, and nothing
+afterwards re-ran it. The dialog would have mounted with focus still behind it
+and Tab still walking the page, while `aria-modal="true"` told a screen reader
+otherwise. It is now `open && host !== null`. Nothing on screen shows this;
+`it claims modality and earns it` does.
+
+### What is NOT proven, named rather than left to be discovered
+
+- **`FileUpload`'s selection handler.** `DataTransfer` and `FileList` cannot be
+  constructed in this jsdom, so `checkFiles` / `formatBytes` /
+  `describeSelection` are enumerated in the logic spec and the markup is
+  asserted, but the `onChange` path itself is exercised by neither. The control
+  is the platform's own visible `<input type="file">`, so the keyboard path is
+  the browser's.
+- **Consumption.** These are a library. Sixty-two files under `src/app` import
+  from `components/md3` today and none of them yet names `Menu`, `Popover`,
+  `Drawer`, `Tree`, `Combobox`, `Chart`, `Stepper`, `DateTimeField`,
+  `CodeBlock`, `DiffView`, `FileUpload`, `Accordion`, `Tooltip`, `ModalDialog`
+  or `ToastRegion` — the shell and account-menu work that consumes the first two
+  is in flight beside this. The primitives are proven by their own suites, not
+  by a page.
+- **`Logo` and `DangerZone`** were written by other hands into the same
+  directory and are exported from the barrel by two lines added here, because
+  `md3-tokens-logic.spec.ts` reds the build for any component in the directory
+  the barrel cannot reach. Their APIs are theirs.
+
+## STUDIO-080-002 (edge) — the chain from a hostname to an origin, and four readers that reached no screen
+
+**Status: FAIL against the requirement's own sentence. PASS for the edge slice of
+it, on a production route, with the residue named below.**
+
+STUDIO-080-002 says "create graph edges for network flow, trust, encryption,
+data, event, DNS, deployment, module, backup, monitoring, and cost allocation."
+This work delivers three of those eleven — **DNS**, **encryption**, and the
+**network-flow** edge in front of the estate — as a rendered, joined chain on
+`/platform/network`. Trust, data, event, deployment, module, backup, monitoring
+and cost-allocation edges are NOT delivered by these files and no claim is made
+about them. Recorded as FAIL rather than "PASS for its stated scope" because the
+sentence names eleven edge kinds and this closes three. The earlier entry
+"STUDIO-080-002 (DNS)" recorded the data layer for one of them and said in terms
+that "no page imports it yet"; that half is now closed.
+
+### What was wrong
+
+Four reader modules — `src/lib/aws/cdn.ts` (1,764 lines), `dns.ts` (1,684),
+`certificates.ts` (1,365) and `waf.ts` (1,613) — each with its own test file, its
+own capabilities and its own IAM grant, were imported by nothing under
+`src/app`. Measured against the committed tree:
+
+```
+$ for m in cdn dns certificates waf; do git grep -l "lib/aws/$m\"" HEAD -- apps/system-studio/src/app; done
+(no output for any of the four)
+```
+
+and against the working tree now:
+
+```
+$ grep -rl "@/lib/aws/cdn\|@/lib/aws/dns\|@/lib/aws/certificates\|@/lib/aws/waf" apps/system-studio/src/app
+apps/system-studio/src/app/api/aws/[surface]/route.ts     <- another agent, same session
+apps/system-studio/src/app/platform/network/page.tsx      <- this work
+```
+
+**The route that renders them: `/platform/network`**
+(`apps/system-studio/src/app/platform/network/page.tsx`, which carries
+`export const dynamic = "force-dynamic"` and sits behind
+`authorizeCommand("platform.read", …)`).
+
+### It is a chain, and that is the whole point
+
+Four tables cannot answer the question, because the answer lives in the join.
+`dns.ts` knows a record aliases `d111.cloudfront.net` and nothing about what that
+distribution serves. `cdn.ts` knows a distribution references an ACM ARN and
+nothing about whether that certificate validated. `certificates.ts` knows a
+certificate is `PENDING_VALIDATION` and nothing about which hostname is dark
+because of it. `waf.ts` knows an ARN carries no web ACL and nothing about whether
+that ARN is the one a tenant resolves to.
+
+`src/app/platform/network/edge.ts` is the join: one row per alternate domain
+name, read left to right the way a request travels — **1. DNS → 2. Distribution →
+3. Certificate → 4. Web ACL → 5. Origin** — with each break named at the leg it
+occurs on. It calls `hostVerdict()` from `dns.ts` rather than matching domain
+strings itself: that function already carries the pagination guard that stops an
+incomplete record read being reported as "this host does not resolve here", and a
+second implementation of the join would be a second place for that guard to go
+missing. It reads nothing; every AWS call is made by a reader.
+
+| Finding | Where it lands |
+| --- | --- |
+| A record aliasing a name this account does not own | its own card **above** the chain — asserted by measured `boundingBox().y` |
+| A certificate at `PENDING_VALIDATION` | `critical` break carrying the **exact CNAME**, verbatim from ACM |
+| Days to expiry as a **number** | the certificate table's sort key; `null` sorts LAST and prints why, never `0` |
+| An origin on `http-only`; a public S3 origin | `critical` / `high` breaks on the origin leg |
+| A distribution with no web ACL | `high` break; WAFv2 not in use renders `WAF_REMEDY` as a finding, not an empty table |
+| An invalidation still `InProgress` | its own card, and a line on the chain row it belongs to |
+
+### The region trap a naive join gets wrong
+
+`acm:ListCertificates` is regional and a CloudFront distribution's certificate
+lives in `us-east-1` whatever region this console runs in. An ARN the listing does
+not contain is therefore a REGION difference, not a missing certificate.
+`certificateLegOf` returns `not-in-listing`, names **both** regions, and says the
+expiry and validation are *not known* — never "fine" and never "missing". A page
+that rendered it as missing would send an operator to reissue a certificate that
+already exists. `unknownLegs()` counts it as an unread leg, so a chain carrying
+one cannot reach the `intact` verdict.
+
+### Refusals
+
+Each of the four reads renders through `components/md3/UnknownState` — principal,
+action, error code, account/region/partition, pasteable minimum statement.
+Seventeen such panels were counted on a live render with AWS unreachable.
+`chainBreaks()` produces **no** break from an `unknown` leg (a finding this engine
+did not establish is the same defect as suppressing one it did), and
+`edgeVerdict()` cannot reach `intact` while any leg is unread. The WAF card is
+explicit that a successful-empty and an `AccessDenied` are opposite facts:
+`no-web-acl-exists` prints `WAF_REMEDY` as a finding, a refusal prints an Unknown
+panel, and neither prints an empty table.
+
+### Evidence — unit
+
+```
+$ npm run test --workspace apps/web -- --ci \
+    apps/system-studio/src/app/platform/network/edge.test.ts
+  Test Suites: 1 passed, 1 total
+  Tests:       37 passed, 37 total
+$ npm run test --workspace apps/web -- --ci \
+    apps/system-studio/src/app/platform/network/answer.test.ts
+  Tests:       41 passed, 41 total      (the pre-existing half, unregressed)
+```
+
+Eight mutations, applied one at a time to the PRODUCTION module, each run, each
+RED, each restored:
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| M1 | `dnsLegOf` stops checking the alias points at THIS distribution | RED — `reads a record aliasing a DIFFERENT distribution as pointing elsewhere` · 1 failed, 36 passed |
+| M2 | a certificate with no expiry sorts FIRST instead of last | RED — `sorts by days remaining and puts a certificate with no expiry LAST` · 1 failed, 36 passed |
+| M3 | a REFUSED `wafv2:GetWebACLForResource` renders as NO web ACL | RED — `reads a REFUSED association as unknown, never as no web ACL` · 1 failed, 36 passed |
+| M4 | an unread WAF leg produces a finding | RED — `produces NO break from a leg that was never read` · 1 failed, 36 passed |
+| M5 | `intact` reachable while a leg is unread | RED — `cannot reach intact while any chain has a leg nobody read` · 1 failed, 36 passed |
+| M6 | a refused listing renders as `no CloudFront edge` | RED — `says unknown when the distribution listing did not answer` + 1 more · 2 failed, 35 passed |
+| M7 | a takeover stops outranking everything else in the lead | RED — `puts a subdomain takeover at the top of the lead` · 1 failed, 36 passed |
+| M8 | `PENDING_VALIDATION` stops being critical | RED — `calls PENDING_VALIDATION critical whatever its expiry says` · 1 failed, 36 passed |
+
+Restored: `Tests: 37 passed, 37 total`, exit 0.
+
+### Evidence — a real browser, twice, with AWS unreachable
+
+Credentials in this harness are DynamoDB-Local shaped and cannot reach any AWS
+endpoint, so every read on the page lands in a valueless arm — the state in which
+a naive page reports a clean edge.
+
+1. Against a **production build** (`NEXT_DIST_DIR=.next-edge npm run studio:build`,
+   exit 0, type checking included), served from
+   `.next-edge/standalone/apps/system-studio/server.js`:
+
+   ```
+   $ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3143 npx playwright test e2e/network-surface.spec.ts
+     16 passed (33.2s)                                            exit=0
+   ```
+
+2. Against a dev server on an isolated `NEXT_DIST_DIR`, after every mutation
+   below was restored:
+
+   ```
+   $ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3144 npx playwright test e2e/network-surface.spec.ts
+     16 passed (2.8m)                                             exit=0
+   ```
+
+Eight of the sixteen are new and all eight are about the edge: the chain is on the
+page with all five leg headers in ONE table; the takeover card is above the chain
+and the chain above the inventory (measured `boundingBox().y`); an unreachable
+CloudFront read never renders as an intact edge and produces a named Unknown for
+each of CloudFront, Route 53 and ACM; the WAF card draws no table and never claims
+"both scopes answered"; the certificate card draws no table and no zero; the
+disclosure names `wafv2:GetWebACL`, `route53domains:GetDomainDetail` and the
+`acm:ListCertificates`-is-regional caveat; the provenance names the state of all
+four reads; and the six edge cards hold their geometry at 1440/1180/900/320px.
+
+Two browser mutations, each applied to `page.tsx`, run, restored:
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| E1 | drop the CloudFront `UnknownState` from the chain card | RED — `an unreachable CloudFront read is never rendered as an intact edge`; the control test in the same run stayed green · 1 failed, 1 passed |
+| E2 | the certificate card's empty description becomes "No certificate is expiring soon." | RED — `a certificate table is not drawn from a listing that did not answer`, `Expected substring: "of no absence of one"` · 1 failed, 1 passed |
+
+Restored: `2 passed`, then the full sixteen.
+
+### A mutation that SURVIVED, and what that means
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| E3 | delete `overflow-wrap: anywhere` from `.identifier` in `network.module.css` | **SURVIVED** — `1 passed` |
+
+The geometry test cannot catch it, and the reason is worth writing down rather
+than papering over: with every AWS read refused there are no rows in any of these
+tables, so no long identifier is rendered outside a scroller and there is nothing
+for the lost wrapping rule to break. **The geometry claim on this section is
+therefore about its structure in the refused state, not about its wrapping with
+data present.** Nothing in this repository can currently measure the second,
+because nothing can populate these tables without an AWS account.
+
+### A false green found and removed
+
+The geometry test first passed while the browser was on the sign-in screen. Two
+causes, both fixed in `e2e/network-surface.spec.ts`:
+
+1. `signIn()` waited on `networkidle`. The shell renders a `<Link>` for every
+   console surface and Next prefetches them, so this app is never idle; the wait
+   resolved while the browser was still on `/signin`, and all sixteen tests then
+   asserted against the sign-in page. It now waits for the URL to leave
+   `/signin`, which is the event that means the session cookie is applied. This
+   is what turned a 15-failure run into a 16-pass run — **nothing on the page
+   changed between them**, and the pre-existing eight tests were failing for this
+   reason too.
+2. The geometry test measured `document.scrollWidth` without asserting which page
+   it was on. It now asserts the `Network` heading and the chain heading at every
+   width before measuring, and measures the six edge cards rather than the
+   document — see the next section for why.
+
+### A defect in another agent's file, reported rather than fixed
+
+At 320px the DOCUMENT scrolls sideways (`scrollWidth` 347 against a 320px
+viewport). Measured, the offender is not in this section:
+
+```
+BUTTON.md3-button md3-state    right=347  width=331  text="edge-agent@tenure.test Platform super admin"
+SPAN.topbar_accountRole__…     right=330  width=145  text="Platform super admin"
+```
+
+The top bar's account button lays the operator's address and role out at 331px
+inside a 320px viewport. Every element of the edge section that exceeds the
+viewport is inside a `.md3-table-shell`, which carries `overflow-x: auto` — the
+sanctioned bargain for a seven-column table and a pasteable IAM statement — and
+the test asserts exactly that rather than asserting about the document, so a red
+in this file stays a red about this file. The top bar is another agent's file
+this hour and was not touched. `e2e/layout.spec.ts` owns the document-level claim
+and will see it.
+
+### The one command that could not be run
+
+```
+$ NEXT_DIST_DIR=.next-primitives-agent npm run studio:build
+npm error code ENOSPC ... no space left on device
+```
+
+`df -h /c` → `276G  276G  0  100%`. The volume is full with eight agents'
+build output; this agent'''s own dist directory was 25K and has been removed. So
+the Next build is UNVERIFIED for these files, and the one thing it would have
+verified that `tsc` does not is that `primitives.css` — a plain global
+stylesheet imported by a component rather than by `layout.tsx` — survives the
+production compile. App Router permits that import from any layout, page or
+component; it has not been observed here. Whoever next has disk should run the
+build before this row is trusted end to end.
+
+---
+
+## STUDIO-030-004 — an irreversible control is not beside an ordinary one, and a guard says so for the whole console
+
+**Status: PASS** for the requirement's own sentence, with one follow-up named
+below that another agent's file allowlist owns.
+
+> *Make destructive controls visually and spatially distinct; never place
+> irreversible tenant/account/key deletion next to ordinary actions.*
+
+### What was actually wrong
+
+The separation existed, on exactly one surface. `AdvanceControls.tsx` splits its
+lifecycle moves into an ordinary `.chips` row and a `fieldset.destructive`, and
+`layout.spec.ts` measures the vertical gap between them on
+`/tenants/seed-deployed` alone. That is a convention: it holds on the file
+somebody wrote it in, it is re-derived by hand on the next surface that grows a
+purge control, and the `oneWay()` predicate deciding which side a move falls on
+was a local arrow function inside a client component — unexported, untested on
+its own, and invisible to every other page.
+
+Nothing in the console asserted the PROPERTY. A second surface could put a
+`Delete account` button in a row of ordinary ones and every existing test would
+stay green.
+
+### What was built
+
+**1. `src/components/md3/DangerZone.tsx` — the region.**
+
+The caller does not choose the placement; the risk does. `DangerZone` takes every
+action in a group together with the `HighRisk` that `lib/tenant-state.ts#riskOf`
+computed for it, reads `risk.reversibility`, and puts the irreversible ones in
+their own `fieldset.destructive` after the ordinary group. There is no
+`dangerous` prop, because a boolean is wrong in the safe-looking direction — a
+forgotten flag is `false`, and `false` is the chip row.
+
+`classifyConsequence` **throws** on a reversibility sentence that begins with
+neither `IRREVERSIBLE` nor `Reversible`. The default that would otherwise be
+taken is "ordinary", about the actions nobody has reviewed yet. Fail-closed here
+is a 500 on a page being built; fail-open is a purge button in a chip row in
+production.
+
+Three axes, because colour alone is forbidden as a carrier (Bible §26.3.2):
+spatial (its own fieldset, after the ordinary group, behind `--space-6`), verbal
+(a legend naming irreversibility, plus the engine's OWN `risk.reversibility`
+sentences printed as the hint the controls are `aria-describedby`), visual
+(`tone="danger"`, a different variant from its neighbours). It emits no new class
+names — `destructive`, `chips`, `hint`, `slug` and `md3-button` all already exist
+in `globals.css`, which this agent does not own.
+
+**2. `e2e/destructive-separation.spec.ts` — the guard.**
+
+Walks 21 routes (a declared floor of 19, plus every in-app link found on `/`,
+`/tenants` and `/platform`) at 1440, 900 and 320px, and measures each page twice:
+as it loads, and again with the one-way move CHOSEN — the state in which the
+confirmation panel, the typed-target field and the submit button that performs
+the purge are all on the page at once.
+
+Its vocabulary is derived, not kept: `riskOf` is called for every state in
+`ALL_STATES` and the ones it calls irreversible are kept (`PURGING`,
+`PURGED_ZERO_INCREMENTAL_COST`); `DESTRUCTIVE_VERBS` from `lib/aws/mutate.ts`
+supplies the account/key half (`terminate`, `delete`, `revoke`, `scale-to-zero`).
+Both are reduced to stems mechanically — `PURGING` to `purg`, `delete` to
+`delet` — so `Purge`, `purged`, `Deletion` and `Revoking` match with nobody
+maintaining a list of word endings. A control also counts when it declares itself
+through the `data-risk` attribute `DangerZone` emits.
+
+A pair fails on any of three conditions, and they fail for different reasons: the
+nearest common ancestor is a pure control group (every word inside it belongs to a
+control — a chip row is exactly that shape); the nearest common ancestor is a
+fieldset, card, list item, table row or cell; or the two rectangles are closer
+than 16px, which is `layout.spec.ts`'s floor, deliberately the same number.
+
+The last test in the file fails unless the walk actually found an irreversible
+control, and names `/tenants/seed-deployed` specifically. That is not decoration:
+the first run of this spec went green on all three widths and RED on that test,
+because it had been pointed at a server whose registry it could not reach and had
+therefore walked an unauthenticated console with no tenant pages in it. `signIn`
+now asserts it left `/signin` for the same reason.
+
+### Mutations applied, and what each proved
+
+| # | Mutation | Result |
+| - | -------- | ------ |
+| M1 | `classifyConsequence` returns `REVERSIBLE` instead of throwing | RED 2 — "refuses a consequence it cannot read", "throws before rendering half a group"; green on restore |
+| M2 | the one-way moves rendered in the ordinary chip row, the region keeping only its heading | RED 6, including "renders the irreversible action inside the separated region"; green on restore |
+| M3 | `IRREVERSIBLE_SENTENCE` unanchored (`/IRREVERSIBLE/`) | RED 1 — a sentence that merely mentions the word classified as irreversible; green on restore |
+| G1 | the rendered page mutated: the purge chip appended to `.advance > .chips` | RED — `"PURGING · needs approval" beside "LEGAL_HOLD" in div.chips (same button group; same card, row or cell)`, and the same beside `OFFBOARDING` at `4px apart, floor is 16px`; green on restore |
+| G2 | the derived vocabulary emptied (`pattern.length >= 400`) | RED 2 — `PURGING was not recognised`, and the non-vacuity test; the three width walks stayed green, which is exactly why that test exists; green on restore |
+| G3 | the confirmation's submit button moved into the ordinary row after choosing PURGING | RED — `"Move to PURGING" beside "LEGAL_HOLD" in div.chips`; green on restore |
+
+### Evidence
+
+- `npm run test --workspace apps/web -- --ci ../system-studio/src/components/md3/DangerZone.test.tsx`
+  — **18 tests, 18 passing.**
+- `cd apps/system-studio && PLAYWRIGHT_BASE_URL=http://127.0.0.1:3111 playwright test destructive-separation.spec.ts`
+  — **8 tests, 8 passing**, against a standalone build of this tree served on 3111
+  with dynalite on 8011 and `tools/dev/seed-studio-fleet.mjs` run against it.
+  21 routes by 3 widths, each measured twice.
+- `npx tsc --noEmit -p apps/system-studio/tsconfig.json` — **0 errors**, whole
+  project, with these files present.
+- Built with `NEXT_DIST_DIR=.next-danger-zone` so the shared `.next` of eight
+  concurrent agents was not clobbered; the `include` entry Next added to
+  `apps/system-studio/tsconfig.json` for that scratch directory was removed again.
+
+### What is NOT closed, and is not claimed
+
+- **`DangerZone` has no production caller yet.** The requirement's sentence is
+  satisfied for the console as it stands — the guard proves it across every route,
+  at three widths, in both the resting and the chosen state — but the region
+  itself is reached only by its own test until
+  `app/tenants/[slug]/AdvanceControls.tsx` adopts it, and that file belongs to
+  another agent's allowlist. Its local `oneWay()` should become the exported
+  `isIrreversible`, so one predicate decides for the whole console.
+- **The barrel export was needed and was NOT made here.** `md3-tokens-logic.spec.ts`
+  reds any component in `components/md3/` that the barrel cannot reach, and
+  `src/components/md3/index.ts` is another agent's file. It was named rather than
+  reached for; the agent holding it added the export while this ran, and
+  `playwright test md3-tokens-logic.spec.ts -g "exported from the barrel"` is
+  **1 passing** with `DangerZone.tsx` in the directory. That line is theirs, not
+  this row's.
+- The guard classifies an `<a href>` by the same vocabulary as a `<button>`. No
+  destructive action in this console is performed through a GET today; if one ever
+  is, it is caught, and if a benign filter link is ever labelled with a purge word,
+  it is a false positive that has to be answered rather than suppressed.
+
+## Density stops being a claim and becomes a measurement — STUDIO-030-005
+
+`data-density` reached the document before this entry, and `globals.css` already
+tightened six spacing tokens under `:root[data-density="compact"]` while leaving
+`--tap` alone. What did not exist anywhere was a test of the clause the
+requirement is actually built around — **"without information loss"**. Every
+assertion about density in this repository measured SPACING; a compact mode that
+dropped a column, hid a row or clipped a value would have left all of them green.
+
+- [x] **STUDIO-030-005** — Implement comfortable and compact density modes
+  without information loss, and persist only as operator preference.
+  - Status: PASS
+  - Code: `apps/system-studio/src/lib/preferences.ts`
+    (`PreferenceStore`, `preferenceStore`, `readPreference`, `writePreference` —
+    new; `Density`, `documentAttributes`, `NO_FLASH_SCRIPT` — unchanged),
+    `apps/system-studio/src/components/PreferencesMenu.tsx` (the density radio
+    group now reads and writes through those, and says so when the browser
+    refuses to store)
+  - Caller: `apps/system-studio/src/app/layout.tsx:231` renders
+    `<PreferencesMenu />` into `TopBar` on **every** route, and `layout.tsx:10`
+    inlines `NO_FLASH_SCRIPT` from the same module. There is no other consumer of
+    either file — `grep -rn "lib/preferences\|PreferencesMenu"
+    apps/system-studio/src` returns `layout.tsx:6`, `layout.tsx:10`,
+    `layout.tsx:231`, the component itself, and one comment in `TopBar.tsx:258`.
+  - Tests: `apps/system-studio/e2e/preferences-logic.spec.ts` — **29 passed,
+    29 total** (12 pre-existing, 17 new: 8 pure store cases, 3 repository-scan
+    cases, 6 rendered-page cases).
+  - Evidence:
+
+```
+$ cd apps/system-studio && PLAYWRIGHT_BASE_URL=http://127.0.0.1:3140 \
+    PLATFORM_OPERATORS='operator@tenure.example:platform-super-admin,auditor@tenure.example:auditor-read-only' \
+    PLATFORM_OPERATOR_SECRET=... npx playwright test preferences-logic
+  29 passed (46.6s)
+
+$ ... npx playwright test preferences.spec \
+    -g "the preferences menu|compact tightens space|reduced motion stops motion"
+  11 passed (54.7s)          # the sibling suite over the component this entry changed
+
+$ npx tsc --noEmit -p apps/system-studio/tsconfig.json
+  0 lines of output
+```
+
+### What "without information loss" is asserted to mean
+
+`/tenants`, `/platform` and `/` are each read twice — once comfortable, once
+compact, **with no reload between the two readings**, because density is a
+document attribute and the attribute is then the only variable. Each reading
+collects, from `<main>`:
+
+- every table's caption, its column headers and every row's cells;
+- every `th`/`td` that is in the DOM and **not drawn** (a hidden cell still
+  answers `textContent`, so the table reading alone cannot see this);
+- every VISIBLE text node, with the visibility of the whole ancestor chain
+  checked, so a `display: none` column is a difference rather than a silence;
+- every link, button, input, select and summary, by accessible name;
+- every element whose own overflow is `hidden`/`clip` and whose content does not
+  fit — text present in the DOM and cut off on screen — with whether it carries a
+  `title` or an `aria-label`.
+
+The two readings must be equal on all five, and the geometry must differ:
+`main`'s padding and its `scrollHeight` must both be strictly smaller in compact,
+or the two modes are one mode and the equalities are trivially true.
+
+### "Persist only as operator preference", checked three ways and not argued
+
+1. **Nothing leaves the browser.** Every request the page makes while the
+   preference is changed three times is inspected for the word in its URL or body
+   (0), the context's cookies are inspected for it (0), and the value is then
+   found in `localStorage` under exactly the declared key.
+2. **The server cannot have a copy.** `/tenants` is re-fetched with the
+   operator's own cookies before and after the choice; the served `<html>` tag is
+   byte-identical and contains no `data-density`.
+3. **No module could write one.** The storage key literal appears in exactly one
+   file in `src/` (`lib/preferences.ts`); of the modules that can put a record
+   somewhere durable — the ones naming `PutCommand`, `UpdateCommand`,
+   `DeleteCommand`, `TransactWriteCommand`, `putAuditEntry` or `TENANT_TABLE`,
+   asserted to number more than three so the scan cannot pass by looking at
+   nothing — none mentions a density; and neither owned file touches
+   `document.cookie`, `cookies()`, `fetch`, `XMLHttpRequest` or `sendBeacon`.
+
+### The defect found while proving clause two
+
+`PreferencesMenu` read `window.localStorage` **directly** in its mount effect.
+That property access THROWS — it does not return null — on a browser blocking
+site data (Safari private browsing; Chrome where the operator has denied the
+site). An exception thrown from an effect unmounts the tree containing it, and
+this component is in the masthead of every route, so the cost was not a lost
+preference: it was the console. `preferenceStore()` now probes the store with a
+read before trusting it, `readPreference` / `writePreference` swallow and report,
+and the panel says "...apply to this tab only" when the store refuses. A denied
+store now costs exactly the memory of a preference and nothing else.
+
+### Mutations applied, and what each one killed
+
+Every one was restored and the affected test re-run green afterwards.
+
+| Mutation | Test it killed, verbatim |
+| --- | --- |
+| `[data-density="compact"] .md3-table td:nth-child(3){display:none}` injected before the compact reading | `/tenants: compact hid a cell` — Received +8 |
+| `[data-density="compact"] .md3-table td{max-inline-size:40px;overflow:hidden;white-space:nowrap}` | `/tenants: compact truncated a value with no full text anywhere` — Received +142 |
+| compact's `--space-*` tokens reset to the comfortable values | `/tenants: compact did not tighten` — `Expected: < 20 / Received: 20` |
+| a `document.cookie` write of the preference in `set()` | `PreferencesMenu.tsx touches document.cookie`, AND `the density preference is in a cookie, which is sent on every request` — Received +12 |
+| `readStored` reading `window.localStorage.getItem` directly again | `a browser that denies storage...` — `locator('.pref-trigger')` **element(s) not found**: the masthead is gone |
+| a second `"tenure-studio-density"` literal in `PreferencesMenu.tsx` | `the density key appears in exactly one module` — Received `+ "components/PreferencesMenu.tsx"` |
+| `writePreference`'s catch returning `true` | `a refused write is reported, not thrown` — `Expected: false / Received: true` |
+| `preferenceStore` dropping its probe read | `a store that exists but throws on use also resolves to no store` |
+| `readPreference` dropping the allow-list check | `a value nobody defined is the default` — `Expected: "comfortable" / Received: "cosy"` |
+| the served-HTML reader pointed at the live DOM instead | `the server rendered a density it could only have got from a stored record` — `Received: "<html lang=\"en\" dir=\"ltr\" data-density=\"compact\">"`. A sensitivity check of the detector rather than a production mutation: no file this agent owns can make the SERVER learn a density. |
+
+### How it was run, and the one deviation
+
+The Studio was served by **`next dev`** on port 3140 with its own
+`NEXT_DIST_DIR`, not by the standalone build the harness prescribes.
+`npm run studio:build` was attempted four times and failed three times on other
+agents' files mid-flight (`Nav.tsx` → missing `nav.module.css`; `layout.tsx` →
+readonly `LOGO_ICONS`; `md3/index.ts` → `Chart` casing) and once because the
+machine's disk hit **100% full** — `df -h /c` read `276G 276G 0 100%`, and
+3.5 GB was recovered by deleting this agent's own `.next-density`. The assertions
+here are about the DOM and about network traffic, neither of which the dev server
+changes; the port-3100 instance another agent was running could not be used
+because it serves `_next/static` as `text/plain` and never hydrates.
+
+No production guard was disabled at any point. No `npm run generate` and no
+`npm install` were run.
+
+## STUDIO-030-008 (the trail) — where the operator is, and the way back
+
+**Status: FAIL against the requirement's own sentence. PASS for the breadcrumb
+surface the operator asked for — "back and forth" — on every route the shell
+frames, with the residue named below.**
+
+STUDIO-030-008 says, in these words: "Prevent layout shift, focus loss,
+accidental double submit, hidden scrolling actions, modal stacking, and stale
+optimistic success in long-running workflows." This work delivers a breadcrumb
+trail. It answers **one** of those six clauses, in one place — the trail causes
+no layout shift, and the reason is structural rather than asserted (below).
+**Focus loss, accidental double submit, hidden scrolling actions, modal stacking
+and stale optimistic success are untouched by these files, and no claim is made
+about any of them.** Recorded as FAIL rather than "PASS for its stated scope",
+because the sentence names six defects and this prevents one. The
+`docs/architecture/studio-information-architecture.md` §6 deliverable it
+implements is complete; the requirement id it was filed under is not.
+
+### What shipped
+
+| File | What it is |
+|---|---|
+| `apps/system-studio/src/components/Breadcrumbs.tsx` | The trail. `trailFor(pathname, names)` decides it; `<Breadcrumbs>` draws it. |
+| `apps/system-studio/src/components/breadcrumbs.module.css` | Its geometry and the 320px collapse. No literal colour — alias tokens only. |
+| `apps/system-studio/e2e/breadcrumbs.spec.ts` | 13 tests on the decision, 5 in a browser. |
+
+Its production caller is `apps/system-studio/src/app/layout.tsx`, which renders
+`<Breadcrumbs names={names} />` inside `<main>`, above `{children}` — the
+position §6 fixes, and deliberately not `nav.tabs`, where a second
+`aria-current="page"` would red `e2e/cost.spec.ts:87`. That file belongs to the
+shell lane and landed during this run; this lane did not edit it.
+
+### The four rules a crumb obeys
+
+1. **A crumb is the route's real name.** Static crumbs import `GROUPS` from
+   `components/Nav.tsx` rather than copying it, so the word in the rail and the
+   word in the trail cannot drift apart. A fixed sub-route takes its own page's
+   word: `/tenants/new` reads **Compose a tenant**, which is that page's `<h1>`
+   (`tenants/new/page.tsx:226`), not "New", which is what title-casing the URL
+   produces.
+2. **A tenant is named by its binding.** `/tenants/seed-deployed/configuration`
+   renders *Tenants / Seed seed-deployed / Configuration*. `Seed seed-deployed`
+   is the `displayName` on the registry record; the slug and the name are
+   different strings in the seed, which is what makes the assertion able to tell
+   them apart.
+3. **An unknown segment renders the segment itself**, unlinked, and says nothing
+   else about it. `/tenants/rochester/telemetry` ends in `telemetry`.
+4. **The current page is the last crumb and is not a link.** A `<span>` with
+   `aria-current="page"`, inside `<nav aria-label="Breadcrumb">` — a named
+   landmark a screen reader can announce and skip.
+
+### Why the name is a prop and not a fetch — the one clause of the id this does answer
+
+`Breadcrumbs` is a client component, because the trail comes from
+`usePathname()` and a server layout cannot see the path. So it cannot read
+DynamoDB, and it deliberately does not fetch either: a crumb that says
+`seed-deployed` and becomes `Seed seed-deployed` when a request lands **is**
+layout shift, and layout shift is the first clause of this requirement. The
+names are read once in the layout — from the same `listFleet()` the command
+palette's destinations already required — and arrive as props, so the trail is
+server-rendered at its final width and nothing about it moves after hydration.
+The 320px collapse is a CSS media query rather than a measurement, for the same
+reason.
+
+### Two deliberate deviations from the IA document
+
+1. **§6 puts the group's domain first** and links it to the group's first entry:
+   "Fleet › Tenants › seed-deployed › Configuration". Where the entry **is** its
+   group's first entry, that crumb is a link to where the very next crumb goes —
+   two adjacent controls, one destination — so it is dropped there and kept
+   wherever it says something the next crumb does not: `/platform/network` reads
+   "AWS / Network", and `/platform` reads "Diagnostics / Platform", which is the
+   line §8 draws made visible in the trail.
+2. **§4.4 and §6 name a tenant by its slug**, for a stated reason: the rail is a
+   client component and a `getTenant(slug)` there would put a DynamoDB read on
+   every navigation. The trail names it by its binding instead, on the product
+   owner's instruction that a crumb be the route's real name. The reason §4.4
+   gives is answered rather than ignored — there is no per-navigation read,
+   because the layout passes down the fleet it was already reading.
+
+### The palette clause, and what this surface does about it
+
+`STUDIO-030-002` says "no pure-black glare"; the product owner directed OLED
+black for the dark theme, and the IA document records that override in §13.1.
+**This lane set no colour value and measured none.** `breadcrumbs.module.css`
+contains no literal colour: the link is `--muted`, its hover and the current
+crumb `--text`, the focus ring `--accent` — each an alias resolving to a
+`--md-sys-*` role owned by the token layer, so whatever elevation steps that
+lane sets, this surface inherits them rather than being a hole in the measured
+palette. The two tests §13.2 names — `e2e/preferences.spec.ts` and
+`e2e/md3-tokens-logic.spec.ts` — belong to that lane and were **not edited
+here**.
+
+### Evidence
+
+```
+$ cd apps/system-studio && npx playwright test e2e/breadcrumbs.spec.ts \
+    -g "the trail a path produces"
+  13 passed
+
+$ ... PLAYWRIGHT_BASE_URL=http://127.0.0.1:3137 npx playwright test \
+    e2e/breadcrumbs.spec.ts                      # the whole file, best single run
+  17 passed, 1 failed (7.0m)
+    ✓ 13 × the trail a path produces
+    ✓ the sign-in page has none                                  16.8s
+    ✓ it sits above the page's own headline, not in the top bar  17.0s
+    ✓ a tenant crumb reads the name on the binding …             59.1s
+    ✓ at 320px it collapses to the parent …                      10.6s
+    ✘ the shell renders it, on every route it frames
+        page.goto: net::ERR_ABORTED — a Fast Refresh reload aborted the
+        navigation to /tenants/new. Not an assertion.
+
+$ ... npx playwright test e2e/breadcrumbs.spec.ts -g "on every route it frames"
+  1 passed (7.1m)                                # the same test, run alone
+
+$ npx tsc --noEmit -p apps/system-studio/tsconfig.json
+  exit 0, no output
+```
+
+**Every test in this file has been observed passing; the five browser tests have
+not all passed in one run, and that is stated rather than averaged.** The
+seventeen-route walk passes alone and fails inside a full run, always with
+`net::ERR_ABORTED` or a sign-in `waitForURL` timeout, never with an assertion
+message. The cause is measurable and is not in these files: this evidence comes
+from `next dev` (see below), eight agents are saving files into the same tree,
+and each save is a Fast Refresh that aborts whatever navigation is in flight —
+the dev log recorded a single recompile of **178 seconds** during the last run.
+A standalone server has no Fast Refresh, which is the one thing the unverified
+build below would settle.
+
+The seventeen are every route the shell frames, the two dynamic ones included:
+`/`, `/tenants`, `/tenants/new`, `/tenants/seed-deployed`,
+`/tenants/seed-deployed/configuration`, `/platform` and the eleven surfaces
+under it. On each, the trail exists exactly once, carries
+`aria-label="Breadcrumb"`, and holds exactly one `aria-current="page"` that is
+not a link.
+
+### Every behaviour was proven to be caught
+
+Each mutation was applied, the suite run, the file restored from a copy and
+compared with `cmp`. Eleven on the decision, two in the browser.
+
+| Mutation | Result |
+|---|---|
+| The tenant crumb title-cases the slug instead of using the binding | 1 failed — `…renders its address, and invents nothing` |
+| The binding is ignored; the crumb shows the address even when a name exists | 2 failed |
+| The current page keeps its `href` | 2 failed |
+| The deepest unknown segment is prettified | 1 failed |
+| The tenant-child fallback prettifies instead of showing the segment | 1 failed |
+| The fixed sub-route table is bypassed (`/tenants/new` reads "new") | 1 failed |
+| The domain crumb is always pushed, redundant or not | 5 failed |
+| The domain crumb points at the entry, not the group's first entry | 1 failed |
+| The sign-in page gets a trail | 1 failed |
+| A path no entry owns links its ancestors | 1 failed |
+| Percent-encoding is not decoded | 1 failed |
+| **browser** — the current page carries no `aria-current` | 1 failed — `Expected: 1 / Received: 0`, on `/` |
+| **browser** — the collapsed crumbs are `translateX(-9999px)` instead of `display: none` | 1 failed — `toBeHidden() … Expected: hidden / Received: visible` |
+
+**One mutation was not caught the first time, and that is the useful row.**
+Prettifying the deepest unknown segment passed all twelve tests then in the
+file, because the only unknown-segment test reached a shallower arm of
+`crumbBelow`. A test that reaches its last arm was added, the same mutation
+re-applied, and it then failed. A mutation that survives is a test that is not
+testing what its name says.
+
+### The production build, and the thing it found
+
+The first attempt died on a full volume (`ENOSPC` during the standalone trace,
+`df -h /c` → `3.5G` free of 276G, twenty `.next-*` directories from concurrent
+agents). It was retried when 16G came free and **succeeded**:
+
+```
+$ NEXT_DIST_DIR=.next-bc2 npm run studio:build
+  exit 0            # ƒ /tenants/[slug]/configuration  3.1 kB  118 kB
+$ cp -r .next-bc2/static .next-bc2/standalone/apps/system-studio/.next/static
+$ HOSTNAME=127.0.0.1 PORT=3138 … node .next-bc2/standalone/apps/system-studio/server.js
+$ PLAYWRIGHT_BASE_URL=http://127.0.0.1:3138 npx playwright test e2e/breadcrumbs.spec.ts
+  14 passed, 4 failed (3.1m)
+```
+
+So the CSS module imported by a client component in the shell survives the
+production compile, which was the thing dev mode could not settle. The fourteen
+are the thirteen decision tests and `the sign-in page has none` — every test that
+does not need a session.
+
+**The four that do need one are blocked, and not by these files.** On the
+standalone build every sign-in **POST** throws before it can authenticate; GETs
+are unaffected:
+
+```
+standalone.log:  ⨯ [TypeError: Invalid URL] { code: 'ERR_INVALID_URL', input: 'null' }   (×10)
+$ curl /signin  → 200      $ curl /  → 307        # neither adds a line
+                                                  # the ten lines are the ten POSTs
+```
+
+Ten errors, ten sign-in attempts, and the same code signs in without complaint
+under `next dev`. `src/app/signin/` is being rebuilt by another lane in this run
+(`page.tsx` modified; `attempts.ts`, `SignInSubmit.tsx`, `signin-state.ts`,
+`RetryCountdown.tsx`, `Announce.tsx`, `signin.module.css` new, and its own
+`[signin-debug]` logging still in the tree), so this is reported to that lane
+rather than diagnosed here — a console whose production build cannot
+authenticate is worth more than a breadcrumb, and it is invisible to a dev
+server. **The browser evidence above therefore comes from `next dev`** on its own
+`NEXT_DIST_DIR`, port 3137. To repeat it on the standalone server once sign-in
+is fixed: the four commands above, unchanged.
+
+Two runs during this session failed for reasons outside these files and are
+named rather than omitted: a dev server wedged by ENOSPC answered `/signin` with
+500 until it was restarted, and a Fast Refresh full reload — another lane saving
+a file mid-run — bounced a navigation back to its previous URL. Both were re-run
+and passed. The spec's own sign-in helper was hardened in the process: it waits
+for the URL to LEAVE `/signin` rather than for `networkidle`, which this ledger
+already records as a false green in `e2e/network-surface.spec.ts`. A breadcrumb
+suite is the shape that hides that best, because `/signin` legitimately has no
+trail, so "never signed in" and "no breadcrumb" would have been the same failure.
+
+### One thing for the lane that owns `/tenants/[slug]`
+
+`src/app/tenants/[slug]/page.tsx:653` renders its own
+`<nav aria-label="Breadcrumb">` holding a single `← Tenants` link. With the
+shell trail above it, that route now has two landmarks with the same accessible
+name, and the local one is a subset of the global one. It should be deleted by
+the lane that owns that file. This lane did not touch it; the spec here scopes
+to `nav[data-breadcrumbs="shell"]`, so it measures the shell's trail and not
+that one.
+
+No production guard was disabled at any point. No `npm run generate` and no
+`npm install` were run.
+
+## STUDIO-030-003 (navigation) — the console navigation is a tree now, and this row does NOT close the requirement
+
+- Status: FAIL
+- Reason: the dispatch that produced this work named `STUDIO-030-003`, and the
+  requirement's own sentence, read again at line 242 of the Bible before writing
+  this row, is *"Build accessible primitives for button, link, input, select,
+  combobox, command menu, dialog, drawer, tooltip, popover, tabs, accordion,
+  menu, toast, table, tree, code/diff, date/time, stepper, file upload, chart,
+  and status."* Twenty-two primitives in `components/md3`. This lane built the
+  console's **navigation** — the Bible §7.2 left-navigation tree — and touched
+  none of those twenty-two. It is not what that sentence describes, and
+  `docs/architecture/studio-information-architecture.md` §14 says so in advance:
+  *"It does not close a `STUDIO-030-*` requirement … `STUDIO-030-001` and
+  `-030-003` are closed by the token layer and the primitives."* The entry above
+  headed *"the twenty-two primitives, and the eleven that had no keyboard"* is
+  the one that answers this id. Recording this work as PASS on it would be a row
+  nobody could defend, so it is recorded as FAIL with what it did build and what
+  remains against the id.
+- What remains, against this id: nothing in this lane. The primitives entry
+  above is the claim on `STUDIO-030-003`; this row exists so the navigation work
+  is on the record with its evidence and is not silently counted against a
+  sentence it does not satisfy. The navigation is the deliverable of §19's
+  *"System Studio information architecture and route map"*, which the IA
+  document is, and no `STUDIO-030-*` id covers the shell itself.
+
+### What was built
+
+**One navigation, three levels, all of it declarative.**
+`apps/system-studio/src/components/Nav.tsx` — rendered by
+`src/app/layout.tsx` on every route except `/signin`, which is the production
+caller.
+
+1. **Sections** — the Bible §7.2 domains, in the Bible's order, unchanged: ten
+   groups, with `Diagnostics` last and drawing the quarantine rule from `tail`
+   in the data rather than from where the group happens to sit.
+2. **Entries** — the fourteen destinations, unchanged. `Tenants`, `Systems`,
+   `Platform` and `Cost` keep the labels four specs pin.
+3. **Sub-items** — 43 declared in all, 34 of them across 7 static entries, each `{ label, anchor }` where
+   `anchor` is the `id` of a top-level `<Card>` on that route's own page, and
+   the destination is COMPOSED at render — `` `${entry.href}#${sub.anchor}` `` —
+   because `HREF_LITERAL` in `shell-separation.test.mjs` refuses a fragment
+   written as a literal. Only anchors that exist today are declared;
+   `/platform/network`, `/platform/identity` and `/platform/security` render no
+   card with an `id` and therefore carry none (see "not claimed" below).
+4. **A contextual sub-tree** — inside `/tenants/<slug>` the Fleet section grows
+   the tenant, by its slug from the path, with `Overview` and `Configuration`
+   beneath it and 9 further sub-items of their own. Derived from
+   `usePathname()`, never from a table, because a table of tenants in the
+   navigation is a second fleet list that goes stale.
+
+**The defect the dispatch named is closed by construction.** A sub-item being
+current used to be able to leave its section unmarked. The section's
+`aria-current="true"` is now computed from a set that includes the contextual
+leaves, so inside `/tenants/seed-deployed` the current page is the leaf,
+`Tenants` above it carries `data-trail="true"`, and **Fleet is still the current
+section**. `cost.spec.ts`'s "exactly one `aria-current="page"` inside
+`nav.tabs`" survives: a sub-item takes `aria-current="location"`, which is the
+ARIA token for a place within the thing being read.
+
+**Collapse.** Above 900px the tree is in the first paint with no JavaScript at
+all — the disclosure button is `display: none` and the panel is shown by CSS
+regardless of state. At or below 900px the panel is `display: none` until the
+button is pressed, and the collapsed button still names the current page. Not a
+transform: `layout.spec.ts` measures every visible text box in page coordinates
+and skips only `display:none`/`visibility:hidden`/`opacity:0`, so a rail parked
+off-screen is measured, overlaps the content, and reds — and under `dir="rtl"`
+lands on the positive side and reds the sideways-scroll check as well.
+
+**`apps/system-studio/src/components/nav.module.css`** (new) carries the
+geometry. No colour pair is invented: the only colour references are the four
+aliases (`--muted`, `--text`, `--accent`, `--border`) the navigation's previous
+style block already used over the one background `globals.css` gives `.tabs`,
+because `md3-tokens-logic.spec.ts` computes AA over the pairs declared in
+`globals.css` and a pair invented in a component stylesheet is a pair the audit
+does not know exists.
+
+### The guard — `tests/architecture/shell-separation.test.mjs`, extended not relaxed
+
+All thirteen properties it already held still hold, and the file gained three,
+because the second level escapes every one of them: a composed href is invisible
+to `HREF_LITERAL` by design.
+
+| New test | What it refuses |
+|---|---|
+| *every navigation sub-item points at a card its route actually renders* | An `anchor` that is not the `id` of a `<Card>` on that route's `page.tsx`. Reads the opening tag only — pinned against `/tenants`, so an anchor pointing at a form control (`#q`) is refused too. |
+| *no sub-item label is confusable with an entry, a leaf or a section name* | A label that collides with any entry, leaf or domain name; a repeated label or anchor within one destination; and a label that shares no word with the headline of the card it opens (compared on a four-character prefix; **42 of the 43** declared anchors compared, the exception being `#summary` on `/`, whose card headline is computed from a count and is therefore not a string literal a reader can find). |
+| *the navigation composes every fragment and writes none of them as an href* | The literal shape that would red property (3), asserted directly. |
+| *the contextual sub-tree resolves to declared routes and reserves the static ones* | A leaf template the console does not serve or the register does not declare unlinked; and a `reserved` set that is not exactly the static routes served under its parent — **derived** from the route scan, so a second static sibling under `/tenants` fails the build until it is named. |
+
+### A claim that was wrong, measured, and corrected before it shipped
+
+The first draft of that last guard justified itself by saying an unreserved
+`/tenants/new` would render `href="/tenants/new"` into the shell, which
+`e2e/operator-roles.spec.ts` refuses to find in an auditor's markup. Measured by
+removing the reservation and rendering the path: it does **not**. On that path
+the leaf IS the current page, so it renders as a span with no href at all. What
+it actually renders is a link to `/tenants/new/configuration` — a route this
+console does not serve — five sub-items addressing cards the compose form does
+not have, and the current-page marker on a tenant that does not exist. The
+comment in `Nav.tsx` and the guard's header now say that, and say that
+`operator-roles.spec.ts` would have stayed green throughout, which is the reason
+the check has to exist here rather than being assumed to exist nearby.
+
+### Evidence
+
+| Claim | Command | Result |
+|---|---|---|
+| The architecture guard, extended | `node --test tests/architecture/shell-separation.test.mjs` | **17 tests, 16 pass, 1 fail** — the one failure is `the Diagnostics register describes the panels /platform actually renders`, which was **already red before this change** (baseline `12 pass 1 fail`, same test) and belongs to two files outside this allowlist. See below. |
+| The Studio typechecks | `npx tsc --noEmit -p apps/system-studio/tsconfig.json` | **exit 0, 0 diagnostics** |
+| Structure, in React | `node nav-ssr-check.cjs` — the real `Nav.tsx` compiled with the repo's `typescript` and rendered with `react-dom/server`, `next/link` and `next/navigation` stubbed | **30 checks, 30 pass** |
+| Cascade and breakpoint, in Chromium | `node nav-css-check.mjs` — the real `globals.css` + the real `nav.module.css` (`:global(…)` unwrapped by hand) over the real markup, at 1280, 320 and `dir=rtl` | **20 checks, 20 pass** |
+| Client behaviour, mounted | `node nav-client-check.cjs` — `react-dom/client` into jsdom, `matchMedia` stubbed so both sides of the breakpoint run | **13 checks, 13 pass** |
+
+Measured, not asserted: an entry is a 32px pill with a 999px radius and a
+sub-item is a 24px row at 13.12px with a 4px radius, which is how the module
+stylesheet is shown to beat `globals.css`'s `.tabs a`; the current section's
+underline computes `rgb(11, 92, 61)` while a quiet one computes
+`rgba(0, 0, 0, 0)`; `document.scrollWidth - clientWidth` is `0` at 1280, at 320
+collapsed, at 320 opened, and under `dir="rtl"`.
+
+### Mutations — 20 applied one at a time, 18 killed, 2 survived and are named
+
+Guard, against `Nav.tsx` (6 applied, 6 killed, restored `16 pass 1 fail`):
+
+1. `anchor: "topology"` → `"topolgy"` — RED *every navigation sub-item points at
+   a card its route actually renders*, `15 pass 2 fail`.
+2. sub-item label `"Configured systems"` → `"Tenants"` — RED *no sub-item label
+   is confusable…*.
+3. sub-item label `"Retention plan"` → `"Sending"` (an existing label, pointing
+   at the wrong card) — RED the same test, on the headline-word clause.
+4. the composed href replaced with the literal
+   `href="/platform/network#security-groups"` — RED **two**: *the navigation
+   composes every fragment* and *every operator console destination belongs to
+   the console*, `14 pass 3 fail`.
+5. `reserved: ["new"]` → `[]` — RED *the contextual sub-tree resolves to
+   declared routes and reserves the static ones*.
+6. leaf template `/tenants/[slug]/configuration` → `/tenants/[slug]/settings` —
+   RED that test **and** the anchor test, `14 pass 3 fail`.
+
+Guard, against the guard (2 applied, 1 killed, **1 survived**):
+
+7. `shallow()` removed from the entry field read — **SURVIVED**, all 17 green.
+   Recorded rather than hidden: every entry in the table writes its own `label`
+   before its `subItems`, so a nesting-blind reader finds the right string by
+   luck. The floor was rewritten to assert the helper directly against the field
+   order luck does not cover, and then —
+8. `shallow()` returns its body unchanged — RED *the information-architecture
+   readers reach every declaration they check*, `15 pass 2 fail`.
+
+Runtime, against `Nav.tsx` (7 applied, 7 killed, restored all-green):
+
+9. the section stops owning its contextual leaves — RED *S4 THE DEFECT: the
+   section survives a sub-item being current* and *S5 Fleet is still the current
+   section*. This is the dispatch's named defect, reintroduced and caught.
+10. the reserved segment is not consulted — RED *S6*.
+11. every sub-menu defaults open — RED 4 SSR checks and *C1 only the current
+    entry's sub-items are laid out*.
+12. contextual leaves are not candidates for the current page — RED 7 checks.
+13. a sub-item takes `aria-current="page"` instead of `"location"` — RED 5
+    checks, including *exactly one current page* on three routes.
+14. a collapsed sub-menu is not `hidden` — RED 5 checks.
+15. the `data-trail` marker is dropped — RED *S4 the parent entry is marked as
+    on the trail*.
+
+CSS (7 applied, 7 killed): the narrow-width disclosure rule removed — RED *C7
+the disclosure is showing*; `.panel[data-open="false"] { display: none }`
+removed — RED *C7* twice; `.subList[hidden]` removed — RED *C1*;
+`.rail .subLink` weakened to `.subLink` (so `.tabs a` wins) — RED *C2* and *C8*;
+the current-section accent removed — RED *C3*; `overflow-y: auto` → `hidden` —
+RED *C5*; the Diagnostics rule removed — RED *C4*.
+
+Client (5 applied, 3 killed, **1 survived**, 1 replaced by a sharper one):
+
+16. the `hashchange` listener never attached — RED *K2* and *K3*.
+17. `setOpen(query.matches)` → `setOpen(true)` — **SURVIVED**, because the
+    narrow-navigation effect immediately closes it again. Replaced with
+    `setOpen(false)`, which RED *K4 above the breakpoint the disclosure reports
+    itself expanded*.
+18. `opened[href] ?? isCurrent` → `isCurrent` (an operator's override ignored) —
+    RED *K8*.
+19. the narrow-navigation close removed — **SURVIVED**. Named rather than
+    papered over: the harness mounts fresh for each case and never navigates, so
+    "the overlay closes itself when the operator picks a destination at 320px"
+    is real behaviour with no test on it. Proving it needs the router, which is
+    the blocked item below.
+
+Every mutated file was restored and the restoration verified byte-identical
+(`fs.readFileSync(NAV) === ORIG` → `true`) with the suites re-run green after
+each batch.
+
+### What is NOT closed, and is not claimed
+
+- **No Playwright spec was run against a live server, and none is claimed.** The
+  Studio harness could not be brought up on this machine: `npm run studio:build`
+  produced no output for 33 and then 20 minutes across two attempts and was
+  killed both times, and `next dev -p 3129` printed `✓ Starting...` and never
+  became ready across three attempts (`curl --max-time 500` → `000`), while
+  `ps -W | grep -c node` reported 92–102 node processes from eight concurrent
+  agents. What would unblock it, in order, on a quiet machine:
+  `npm run studio:build`, then copy `.next/static` into
+  `.next/standalone/apps/system-studio/.next/`, then the documented
+  `node .next/standalone/apps/system-studio/server.js` invocation, then
+  `cd apps/system-studio && PLAYWRIGHT_BASE_URL=… npx playwright test
+  cost.spec.ts platform.spec.ts preferences.spec.ts operator-roles.spec.ts
+  layout.spec.ts`. The five specs whose contracts this change touches are named
+  there deliberately. The three harnesses above exercise the same component, the
+  same stylesheet and the same effects, and they are not the same thing as the
+  app.
+- **`e2e/layout.spec.ts` has not been run**, so the overlap detector has not
+  seen this tree. Sideways scroll was measured directly at all four widths and
+  under RTL; overlap and clipping were not. That file belongs to another lane.
+- **Three entries carry no sub-items because their pages carry no anchors.**
+  `/platform/network`, `/platform/identity` and `/platform/security` render no
+  `<Card>` with an `id` in this tree, and their `page.tsx` files are outside this
+  allowlist and under edit by other agents in this run. The IA document's §4.2
+  table asks for 5, 5 and 3 sub-items there. Declaring them would red the anchor
+  guard, which is the guard working. Unblocking is one edit per page: put
+  `id="…"` on the top-level `<Card>`s, then add the rows to `GROUPS`.
+  `/platform/cost` has none deliberately, per §4.2, and nothing behind
+  Diagnostics has any, per §8.
+- **`/` gets 2 sub-items, not the 3 the IA document names.** Only `#summary` and
+  `#catalog` are unconditional cards on that page; the other two ids are on
+  error-state cards that exist only when a read fails. A sub-item that is a dead
+  anchor most of the time is the defect the anchor guard exists for.
+- **The shell FRAME is not this lane's and was not built.** The IA document §3.1
+  specifies a full-height sticky left rail and a de-centred `main`; those live in
+  `src/app/layout.tsx` and `src/app/globals.css`, neither of which this agent
+  owns. The tree is written to answer both frames from one rule — the panel is
+  `repeat(auto-fill, minmax(12.5rem, 1fr))`, which tiles as a directory in the
+  full-width band the console renders today and resolves to a single column
+  inside a ~17rem rail — but in today's frame it is a taller band than the strip
+  it replaced.
+- **`the Diagnostics register describes the panels /platform actually renders`
+  is RED and was red before this change.**
+  `src/app/platform/page.tsx` has grown two panels — *The ceilings this engine
+  provisions into* and *Whether this estate has an AWS Organization* — that
+  `src/app/platform/diagnostics/register.ts` does not describe. Both files are
+  outside this allowlist. Unblocking is two rows in `PLATFORM_PANELS`. Baseline
+  before this change: `12 pass 1 fail`, same test, same two headlines.
+- **No Playwright spec file was added**, because this agent owns three files and
+  none of them is under `e2e/`. The runtime properties above therefore live in
+  scratchpad harnesses whose OUTPUT is the evidence, not in the repository. A
+  lane that owns `e2e/` should port them; the two worth porting first are the
+  current-section-survives-a-sub-item property and the reserved-segment one.
+
+## STUDIO-030-003 (partial) — the top bar: the mark, the estate, global search, and the sign-out this console did not have
+
+**Status** — PARTIAL, and the requirement is NOT closed by this row.
+STUDIO-030-003's own sentence names twenty-two primitives; this work builds
+none of them and *consumes* four — `Button`, `Link`/`ButtonLink`, `Surface` and
+the new `components/md3/Menu`. What it does deliver, end to end and proven in a
+browser, is the shell surface those primitives were needed for. What remains is
+named under *What is NOT closed* below.
+
+**Reason** — The operator's list of what was missing was "no logout, back and
+forth, global search and interactions … Logo is still not put in there". Three
+of those four are the top bar's, and one was not a matter of polish:
+`grep -rn "signOut" apps/system-studio/src` returned exactly one line before
+this change — the re-export in `lib/auth.ts` — and nothing consumed it. **The
+console had no way to sign out.** An operator who opened it on a shared machine
+could close the tab and leave a live session behind them.
+
+**Evidence** — `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3199 npx playwright test
+topbar.spec.ts` → **7 passed (19.6s)**, against a production standalone build
+(hashed `_next/static` chunks) serving this code. Seven DOM-level refutations,
+one per assertion, all RED: `npx playwright test --config <scratch>/topbar-refute`
+→ **7 passed (34.3s)**, every one of them a `mustReject`.
+`npx tsc --noEmit -p apps/system-studio/tsconfig.json` → the only error in the
+project is `layout.tsx(23,3)` on `LOGO_ICONS`, which is another agent's file;
+zero in `components/TopBar.tsx`, `components/AccountMenu.tsx`,
+`components/topbar.module.css` and `e2e/topbar.spec.ts`.
+
+### What is on the bar, and what each thing refuses to guess
+
+| slot | source | refusal |
+| --- | --- | --- |
+| the mark, linking `/` | `components/md3/Logo` | — |
+| who is signed in | `auth()` | — |
+| which operator role | `roleOf(email)` in `lib/operators.ts` | null renders "no operator role"; never a default. A default here is how everybody quietly ends up an administrator. |
+| the estate | `resolveIdentity()` in `lib/aws/identity.ts` | a read that did not answer renders `UNKNOWN` — never blank, and never `us-east-1` |
+| global search | the palette that already existed | one palette, not two |
+| sign out | `signOut()` inside a `"use server"` action | ends the session on the server; federated where configured, local otherwise |
+
+### Sign-out is server-side, and the spec says how it knows
+
+The action is declared in `TopBar.tsx` and handed to the client menu as a
+reference, so the client can invoke it and cannot decide what it means. The spec
+asserts the session cookie is `httpOnly` **before** signing out — so nothing
+running in the page could have cleared it — then that a POST was issued, that
+the cookie is gone, that `/api/auth/session` read server-side no longer names
+the operator, and that `/` bounces to `/signin`.
+
+What the spec deliberately does NOT claim: that the cookie cannot be replayed.
+The Studio uses NextAuth's JWT strategy; there is no server-side session store,
+so a captured cookie value stays valid until it expires. That is a property of
+the existing session strategy, not of this change, and it is written into the
+spec's own header rather than glossed.
+
+### The federated half, and the one variable that is missing
+
+In Cognito mode `signOut()` alone leaves the user pool's hosted-UI session
+alive, so "Continue with Cognito" signs the same person straight back in with no
+prompt. `federatedLogoutUrl()` builds the hosted-UI `/logout` URL and the action
+redirects to it *after* clearing the local cookie — local first, so an operator
+who closes the tab mid-redirect has still lost the Studio session.
+
+It returns null — and the local sign-out runs instead — unless the deployment
+supplies `COGNITO_DOMAIN`. The hosted UI lives at
+`<domain>.auth.<region>.amazoncognito.com`; the only Cognito host this
+application is given is `COGNITO_ISSUER`, a different host, and `cognito.tf`
+names the domain `${local.name_prefix}-${account_id}`. Reproducing that
+expression in application code would be this console inventing an AWS hostname
+out of a naming convention, which is the class of guess the estate readout
+exists to refuse. **`infrastructure/studio/ecs.tf` needs one line —
+`{ name = "COGNITO_DOMAIN", value = aws_cognito_user_pool_domain.studio.domain }`
+— and that file is not this agent's to edit.** Named rather than reached for.
+The region is parsed out of the issuer rather than read from `AWS_REGION`, so a
+GovCloud deployment cannot be sent to a commercial logout host.
+
+### The command palette was not forked
+
+`components/CommandPalette` has been mounted in the layout since GE-022-007 and
+invisible ever since: Ctrl/Cmd-K, and nothing on screen that said so. The new
+trigger synthesises that keystroke on `document`, which leaves one palette, one
+piece of open state and one open path. It focuses itself before dispatching,
+because the palette records `document.activeElement` as its focus-restore
+target — so Escape lands back on the trigger rather than on `<body>`, which the
+spec asserts by reading `document.activeElement` after the close.
+
+### The menu behaviour is the primitive's, not this file's
+
+`components/md3/Menu` owns the whole menu-button model — roving `tabIndex`,
+ArrowDown onto the first enabled item and ArrowUp onto the last, wrap,
+type-ahead, Escape closing and restoring focus, Tab closing without trapping.
+`AccountMenu` contributes data only: who, which role, which estate, and what
+signing out will do. STUDIO-030-007's keyboard assertions in the new spec are
+therefore assertions about that primitive as the account menu actually uses it,
+which is the level at which a keyboard model is worth asserting.
+
+The two read-only rows (address + role, estate) are `aria-disabled`, so the
+arrow keys skip them: a keyboard user reaching for sign-out does not step over
+two stops that do nothing. The spec pins that by asserting the first arrow stop
+is "Operator access".
+
+### The estate read is bounded, and its failures are remembered
+
+`resolveIdentity` caches successes for fifteen minutes and deliberately caches
+nothing else, so a role rotated under a running container is picked up without a
+deploy. That is right for a page that reads it once and wrong for a bar on every
+response, where a failing STS call would be re-attempted on every navigation by
+every operator. `TopBar` therefore races the read against a 2.5-second deadline
+and remembers a FAILURE for thirty seconds. It remembers no success —
+`resolveIdentity` already does, and a second success cache would be a second
+thing to invalidate.
+
+### Not shown before sign-in
+
+The AWS account number is an identifier worth having if you are trying to reach
+that account, and `/signin` is served to anybody who can resolve the hostname.
+The signed-out bar carries the mark and "Not signed in" and nothing else; the
+last test asserts the absence of the estate chip, the account menu and the
+search trigger on `/signin`.
+
+### Mutation proof — seven applied, seven RED, sources never left pristine
+
+Each mutation was applied to the SERVED ARTEFACT — the DOM the assertion reads,
+changed to exactly what the mutated source would have rendered — and the
+assertion was then required to reject. A source-level rebuild was prepared
+(`scratchpad/topbar-mutate.mjs`, seven anchored edits, all seven verified to
+apply cleanly and revert byte-identically) and **not run**: at the time this
+work reached that step the machine had 2.7 GB of disk and 0.31 GB of RAM free
+with sixteen concurrent `next build` processes, an `ENOSPC` had already been
+hit, and a Playwright worker had already been killed with `0xC0000409`. A
+seventeenth build would have been a real risk to eight other agents' work for a
+strictly weaker reason than the evidence below. This is recorded as what it is:
+proof that each assertion discriminates, not proof of the build wiring.
+
+| # | Defect injected | Assertion | Result |
+| --- | --- | --- | --- |
+| M1 | the mark's `href` points at `/platform/security` | mark links home | RED — `toHaveAttribute(expected) failed` |
+| M2 | the trigger stops naming the operator role | trigger names the role | RED — `toContainText(expected) failed` |
+| M3 | an unread estate prints `000000000000 · us-east-1` | an unread estate is UNKNOWN, never a guess | RED — `toEqual(expected) // deep equality` |
+| M4 | the search trigger loses its `<kbd>` caps | global search says its shortcut | RED — `toContainText(expected) failed` |
+| M5 | the read-only identity rows lose `aria-disabled` | the first arrow stop is an action, not a read-only row | RED — `toContainText(expected) failed` |
+| M6 | Sign out no longer invokes the server action | signing out reaches `/signin` | RED — `page.waitForURL: Timeout 6000ms exceeded` |
+| M7 | the signed-out bar renders the estate chip | the signed-out bar shows no estate | RED — `toHaveCount(expected) failed` |
+
+To finish this as a source mutation on a machine with room, in one window:
+`node <scratchpad>/topbar-mutate.mjs apply` →
+`NEXT_DIST_DIR=.next-topbar npm run studio:build` → serve that build on a free
+port → `npx playwright test topbar.spec.ts` (expect the seven named tests RED)
+→ `node <scratchpad>/topbar-mutate.mjs restore && node <scratchpad>/topbar-mutate.mjs check`
+→ re-run (expect 7 passed).
+
+### What is NOT closed
+
+STUDIO-030-003 asks for accessible primitives for button, link, input, select,
+combobox, command menu, dialog, drawer, tooltip, popover, tabs, accordion, menu,
+toast, table, tree, code/diff, date/time, stepper, file upload, chart and
+status. This row builds none of them. `components/md3/` gained `Accordion`,
+`Chart`, `Code`, `Combobox`, `DateTimeField`, `Drawer`, `FileUpload`, `Menu`,
+`ModalDialog`, `Popover`, `Stepper`, `ToastRegion`, `Tooltip` and `Tree` from
+the primitives agent while this was in flight; none of them is verified here and
+none is claimed here. The id stays open until somebody can say, with evidence,
+that the whole list is built and accessible.
+
+Two smaller things this row does not own and did not touch:
+
+* `infrastructure/studio/ecs.tf` — the `COGNITO_DOMAIN` line above.
+* `apps/system-studio/tsconfig.json` — `next dev` appended
+  `".next-topbar/types/**/*.ts"` to `include` on its own, beside the nine
+  sibling entries other agents' isolated dist dirs already left there. Left in
+  place rather than edited out, because a concurrent write to a file this agent
+  does not own is a worse defect than a stale include glob.
+
+---
+
+## The shell frame — the console stops being a column in the middle of the screen — STUDIO-030-008
+
+The operator's note: *"Currently it looks very weak, cluttered, and isolated in
+the centre of the screen with no logout, back and forth, global search and
+interactions within this."*
+
+What was there: `main { inline-size: min(100%, 1280px); margin-inline: auto }`,
+with `.masthead` and `.tabs` padding themselves by
+`max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5)))` so the whole
+console lined up with that column — 80px of dead page down each side of a 1440px
+screen and 320px down each side of a 1920px one.
+
+**This row is the FRAME only.** `src/app/layout.tsx`, the shell rules in
+`globals.css`, and `e2e/layout.spec.ts`. The bar's contents (`TopBar`,
+`AccountMenu`), the navigation tree (`Nav`) and the trail (`Breadcrumbs`) landed
+in the same run from three other lanes; this lane places them, sizes the regions
+they sit in, and owns nothing inside them. Where those three needed something
+from the frame, it is supplied by name rather than by reaching into their files:
+`--console-nav-offset` (the variable `nav.module.css` declares for the shell to
+fill in), `--topbar-block-size`, and the `header.masthead` region
+`e2e/breadcrumbs.spec.ts` measures.
+
+- [ ] **STUDIO-030-008** — Prevent layout shift, focus loss, accidental double
+  submit, hidden scrolling actions, modal stacking, and stale optimistic success
+  in long-running workflows.
+  - Status: FAIL
+  - **Two of the six clauses are closed; four are not, and the requirement is
+    one sentence.** Recorded as FAIL rather than as a PASS on the half that is
+    done.
+    - **Layout shift — closed for the frame.** Measured, not asserted: the shell
+      is rendered twice, once in a Playwright context with `javaScriptEnabled:
+      false` and once hydrated, and the top bar's, rail's and content region's
+      boxes must be equal. That is what catches a rail sized in an effect, a bar
+      that renders its account menu only after the session resolves, a
+      disclosure opened from `localStorage` on mount, and a mark with no
+      intrinsic size — four defects every other test in the file passes over,
+      because all four are correct once they have settled. The tenant names the
+      breadcrumb needs are read in the layout and passed down for the same
+      reason.
+    - **Focus loss — closed, and it was real.** `Nav` renders the entry an
+      operator is ON as a `<span>` and the others as `<a>`, so activating a rail
+      link unmounts the anchor holding focus and the browser drops focus on
+      `<body>`; the next Tab then restarts at the top of the document. Measured
+      on the running console: focus is on the anchor at 150ms, on `<body>` at
+      300ms, and — with the restoration in `layout.tsx` — on `#console-main` at
+      450ms. The narrower repair belongs in `Nav.tsx` (make the current entry an
+      `<a aria-current="page">` so the node survives) and is named here rather
+      than made, because that file is another lane's.
+    - **Accidental double submit — NOT closed.** The shell owns one form,
+      `TopBar`'s sign-out, and that file is another lane's. Nothing here
+      debounces or disables a submit.
+    - **Hidden scrolling actions — half.** The navigation tree is bounded to
+      `calc(100dvh - var(--console-nav-offset))` and scrolls itself with `auto`,
+      never `hidden`, so no destination is ever out of reach with nothing on
+      screen to say so; asserted. A page's own actions are not this lane's.
+    - **Modal stacking — NOT closed.** The ladder is right and deliberate —
+      palette backdrop 100, top bar 20, account panel 30 inside it, rail 10 —
+      but nothing asserts a second modal cannot open over the first.
+    - **Stale optimistic success in long-running workflows — NOT closed.** No
+      workflow surface is in this lane at all.
+  - Code: `apps/system-studio/src/app/layout.tsx` (rewritten: the three regions,
+    the skip link, the `header.masthead` region, `Breadcrumbs` mounted above
+    `{children}` with the fleet's display names, `export const dynamic =
+    "force-dynamic"`, and the focus restoration); `apps/system-studio/src/app/globals.css`
+    — `main`, `.masthead`, `.console-shell`, `.console-rail`, `.console-content`,
+    `.skip-link`, `.preferences`, `.tabs`'s padding, the `--topbar-block-size` /
+    `--rail-inline-size` / `--measure` tokens, and the prose measure. No token
+    block was touched.
+  - Caller: every route in the console. `app/layout.tsx` is the root layout;
+    `find src/app -name page.tsx` → 18 routes render through it, and the
+    JavaScript-disabled comparison above is a real request to the built server,
+    not a unit render.
+  - Tests: `apps/system-studio/e2e/layout.spec.ts` — six new tests (the content
+    region's width at 1440 and 1920, no reflow after hydration at 1440 and 900,
+    focus across a route change, the rail's collapse) plus the six routes that
+    were served and never measured (`/platform/network`, `/compute`,
+    `/messaging`, `/identity`, `/data`, `/diagnostics` — the array listed nine of
+    eighteen), and the DOM budget re-scoped to `main` with a new budget on the
+    shell.
+  - Evidence:
+    ```
+    NEXT_DIST_DIR=.next-shell npm run studio:build      # ✓ Compiled successfully
+    node <scratch>/serve-prod.cjs                       # port 3121, NODE_ENV=production
+    cd apps/system-studio && PLAYWRIGHT_BASE_URL=http://127.0.0.1:3121 \
+      ../../node_modules/.bin/playwright test layout.spec.ts --timeout=120000
+    ```
+    → **127 passed, 10 failed**, and every one of the ten is another lane's
+    surface. They are listed below with the measurement that attributes them.
+
+### The measurement that attributes the ten failures
+
+Six are `/platform/audit` (`"2026-08-14 16:18 UTC" (time) over "OPEN" (b) — 100%
+covered`) and `/platform/diagnostics` (`(code) over (code) — 42% covered`), at
+1440, 1180 **and 900**. Two are `span` elements spilling their section at 320
+(`/platform`, `/platform/compute`). One is `layout survives RTL`, which is the
+same audit collision mirrored. One is `text is never clipped by a fixed height`.
+
+**900 and 320 are the attribution.** Below 901px the rail leaves the flow and
+sits above the content, so the content region's inline size at those widths is
+`100vw` minus the same padding it had before this change — identical geometry.
+A collision that reproduces at 900 and a spill that reproduces at 320 cannot
+have been caused by a rail that is not beside the content at either width. No
+pre-shell baseline was run to corroborate that, and this paragraph is the
+argument rather than a second measurement.
+
+**The clipping failure is a new one and it is worth naming precisely**, because
+it is the trap this lane dodged in the same run. `nav.module.css`'s `.srOnly`
+hides a label with `inline-size: 1px; block-size: 1px; overflow: hidden` — and
+`layout.spec.ts`'s "text is never clipped by a fixed height" fires on exactly
+that shape: `overflow` computing to `hidden` with `scrollHeight > clientHeight`.
+Seven spans (`"Sections of Systems"`, `"Sections of Estate"`, …) are reported.
+`.skip-link` in `globals.css` is visually hidden with `opacity: 0` and a
+transform for this reason, and says so in a comment. The fix in `nav.module.css`
+is one line — drop `overflow: hidden` and keep `clip-path: inset(50%)`, or hide
+with opacity — and it belongs to that lane.
+
+### Mutations — five applied one at a time, five killed
+
+Each is a source edit, followed by `NEXT_DIST_DIR=.next-shell npm run
+studio:build` and a rerun against the rebuilt server; each was restored and the
+restoration re-verified by the tests that had been green passing again in the
+next run.
+
+1. `main { inline-size: min(100%, 1280px); margin-inline: auto }` restored —
+   RED `at 1920px the content region uses the width available`:
+   `184px of gutter between the navigation and the content / Expected: <= 48 /
+   Received: 184`. **The 1440 case survived**, and that is the finding: with a
+   272px rail subtracted, a 1280px cap is invisible at 1440 and only bites at
+   1920. Both widths are asserted for that reason, and the comment in the test
+   says so.
+2. Focus restoration disabled (`if(false&&document.activeElement===document.body)`)
+   — RED `moving between routes does not lose keyboard focus`: *"focus was
+   dropped on `<body>` by the route change and nothing put it back. A keyboard
+   operator now re-traverses the whole shell to reach the page they just
+   opened." Expected: not "body"*. Restored, `1 failed → 2 passed`.
+3. A rail width that arrives after hydration
+   (`document.querySelector(".console-rail").style.inlineSize = "20rem"` in the
+   layout's own script) — RED **both** `the shell does not reflow after
+   hydration` tests: `"w": 320` served against `"w": 272` hydrated at 1440, and
+   `"w": 320` against `"w": 900` at 900. Restored, both green.
+4. `.console-rail { position: static }` at ≥901 — RED `the navigation is a
+   full-height rail at 1440 and off-canvas at 320`: *"the rail does not stay
+   with the operator as the page scrolls" Expected: "sticky" Received:
+   "static"*. Restored.
+5. A second `<Nav />` inside the rail — RED **all four** budget tests: *"the
+   shell rendered 373 elements on / against a budget of 320. This is on EVERY
+   route, so it is the one budget that is paid fourteen times a session."* — and
+   also RED the rail test, on a strict-mode violation from two disclosures for
+   one tree. Restored.
+
+### The DOM budget was re-scoped, not raised
+
+`/ stays inside its DOM and LCP budget` failed at `500 elements against a budget
+of 400` with the page's own content unchanged: the shell is now 38 elements of
+top bar + 166 of navigation tree (200 inside a tenant, where the contextual
+sub-tree renders) + 3 of trail, measured at 1440.
+
+Raising the number would have been the same edit with the meaning removed — a
+page could then grow by 100 nodes and pass, and nothing would bound the chrome.
+The four numbers are **unchanged**; the reading is narrowed to
+`document.querySelectorAll("main *")`, which is what they were always about. The
+chrome gets a budget of its own — `SHELL_NODE_BUDGET = 320`, counted over the
+three shell regions by name rather than as "everything outside `main`", because
+the App Router emits a variable number of flight-payload `<script>` tags — plus
+a floor (`> 30`) so a shell that rendered nothing cannot satisfy a ceiling.
+Mutation 5 above is the proof it fires.
+
+### Deliberate deviations, recorded
+
+**§5 of the information architecture asks the estate chip to read
+`resolveIdentity()`.** `TopBar` does exactly that, with a timeout and a negative
+cache, and it is that lane's file. This lane's earlier draft read
+`AWS_ACCOUNT_ID`/`AWS_REGION` from the environment instead and was discarded
+when `TopBar` landed; there is no second estate readout.
+
+**§5 puts the display preferences inside the account menu.** They are left as
+their own control in the bar's utility slot. `e2e/preferences.spec.ts` clicks
+`.pref-trigger` directly, three times, with no disclosure to open first, and
+inside a closed `<details>` that selector resolves to an element with `display:
+none` and every one of those clicks times out. Moving them is a change to a file
+this lane does not own.
+
+**§7 collapses the rail to an off-canvas overlay below 901px.** It collapses in
+flow instead: `Nav`'s own disclosure closes the tree with `display: none` and
+leaves a 65px band carrying the `Sections` button. Measured rather than
+asserted, and the content takes the full width either way. An overlay wants
+`position: fixed`, and `layout.spec.ts` measures every text box in PAGE
+coordinates — a fixed rail's rect stops corresponding to the page the moment
+anything scrolls, which is a category of false positive nobody would enjoy
+diagnosing.
+
+**One rule in `globals.css` reaches into another lane's component**, and it is
+written as one property with the paragraph that says so:
+`body [data-topbar="true"] { padding-inline: var(--space-4) }`.
+`topbar.module.css` carries `padding-inline: max(var(--space-5), calc((100vw -
+1280px) / 2 + var(--space-5)))` — the centred-column expression, copied from the
+shell it replaced — which on a 1920px monitor indents the mark 340px from an
+edge the rail beneath it starts at 0. The rule should not survive; it belongs in
+that file, whose lane wrote the expression when the column still existed.
+
+### Verification that is NOT claimed
+
+- **The production standalone output could not be built.** `output:
+  "standalone"` traces from `outputFileTracingRoot` (the repo root) and copies
+  every sibling `.next-*` directory the other lanes are building into, which ran
+  the disk out of space twice (`ENOSPC`, at 2.2GB free with seventeen such
+  directories present). The compiled build in `.next-shell` is complete —
+  `BUILD_ID`, `server/`, `static/`, `routes-manifest.json`,
+  `prerender-manifest.json` — and was served with Next's own production request
+  handler instead. `next start` refuses under this config; that refusal is a CLI
+  check, not a runtime one.
+- **`next dev` was tried first and abandoned.** In a working tree eight agents
+  are editing, it recompiles continuously: `/` took 278s to compile once and
+  every test timed out. The numbers above are all from the production build.
+- **`tests/architecture/authorizing-routes-are-dynamic.test.mjs` still filters
+  on `/\/page\.tsx$/`**, so it does not yet see the `force-dynamic` this layout
+  now needs and declares. Widening it to `/\/(page|layout)\.tsx$/` is §10(b) of
+  the information architecture and belongs to the lane that owns
+  `tests/architecture/`.
+- **`.next-shell/types/**/*.ts` was added to `apps/system-studio/tsconfig.json`
+  by `next build`,** beside the five sibling entries other lanes' isolated dist
+  directories already left there. Left in place rather than edited out, for the
+  same reason the row above it gives.
+
+---
+
+## STUDIO-030-006 — the sign-in surface, and the ten states a sign-in form has
+
+> **Scope note, first, because it decides the status.** The requirement's own
+> sentence is "for every asynchronous surface". This entry covers ONE surface —
+> `/signin`. One surface is not every surface, so the item stays `- [ ]` and the
+> row below is `FAIL`. What follows is what that one surface got, and what is
+> still owed.
+
+- [ ] **STUDIO-030-006** — Implement skeleton, empty, no-permission, stale, partial, error, retrying, offline, degraded, and conflict states for every asynchronous surface.
+  - Status: FAIL
+  - Code: `apps/system-studio/src/app/signin/page.tsx` (rewritten from 111 lines),
+    `signin-state.ts` (new — the whole decision, pure), `attempts.ts` (new — the
+    lock-out), `SignInSubmit.tsx`, `RetryCountdown.tsx`, `Announce.tsx` (new
+    client components), `signin.module.css` (new).
+  - Tests: `apps/system-studio/e2e/signin.spec.ts` — 44 tests, 18 of them pure
+    logic that need no server.
+  - Caller: the route itself. `/signin` is `pages.signIn` in
+    `src/lib/auth.ts:52`, and eighteen route files redirect to it
+    (`grep -rn 'redirect("/signin' apps/system-studio/src` → 18 hits, in
+    `app/page.tsx`, `app/tenants/**`, `app/platform/**`). Twenty other e2e specs
+    sign in through this form to reach the surface they test.
+  - Reason: **ten of ten states are implemented and driven for `/signin`, and
+    `/signin` is one surface.** The requirement enumerates the states *for every
+    asynchronous surface*, and the other console surfaces are the other agents'
+    and remain as they were. Marking this `PASS` would record the sentence as
+    satisfied when a fraction of it is.
+  - What would close it: the same ten states on the fleet, tenant,
+    configuration, cost, estate, health, security, identity, data, messaging,
+    network and compute surfaces. `src/components/states.tsx` already owns the
+    vocabulary (fourteen governed kinds); what is missing is each surface
+    deciding which of them it is in, the way `signin-state.ts` now does.
+
+### What the surface was
+
+An `<h1>`, a sentence, two inputs, a button, one failure message, and a panel
+headed "Not configured" that said the same thing to a deployment nobody had
+configured, a deployment three-quarters configured, and a deployment whose
+Cognito issuer URL had a typo in it. No mark, no product name, one state. It is
+also the first — frequently the only — thing anybody sees of this product, and
+the only surface an unauthenticated stranger can reach.
+
+### The ten states, and what each one means on a sign-in form
+
+| requirement's word | what it is here | decided in |
+| --- | --- | --- |
+| skeleton | the POST is in flight | `SignInSubmit.tsx` |
+| empty | nothing configured; no address on earth can sign in | `signin-state.ts` `configBlock` |
+| partial | some of what the mode needs is set, some is not | `signin-state.ts` `configBlock` |
+| error | all of it is set and one value is refused | `signin-state.ts` `configBlock` |
+| no-permission | a federated identity was accepted and is not staff | `outcomeOf("AccessDenied")` |
+| stale | the form has been open long enough to have been redeployed under it | `SignInSubmit.tsx`, and `outcomeOf("SessionRequired")` |
+| conflict | this browser holds a session for a NON-operator | `page.tsx` — `auth()` + `isOperator` |
+| retrying | too many refusals from this client, with a stated next-attempt time | `attempts.ts` |
+| offline | `navigator.onLine` is false, so submitting would lose the form | `SignInSubmit.tsx` |
+| degraded | a production build authenticating by shared secret | `signin-state.ts` `isDegraded` |
+
+`empty`, `partial`, `error` and `retrying` replace the form, because in each of
+them nothing that could be typed would be accepted. The rest are notices: a
+condition an operator cannot fix from the sign-in page is not a reason to take
+the console away from them.
+
+### Two properties that are not cosmetic
+
+**A refusal says nothing about which half was wrong.** `authenticateOperator`
+already evaluated both halves regardless; this page has exactly one refusal
+message. New in this change: `signin.spec.ts` captures the whole `main` element
+for a wrong SECRET and for a wrong ADDRESS and asserts the two are identical
+strings — which neither pre-existing refusal test could see, because each only
+ever looked at its own page. The lock-out below is keyed on the CLIENT and never
+on the submitted address, for the same reason: a lock-out keyed on an address
+lets the allowlist be enumerated one address at a time.
+
+**The allowlist never reaches the browser.** The page is a server component;
+its three client components are handed a timestamp, a duration, a label and a
+boolean. `configFacts` returns variable NAMES and never values — a sentinel is
+fed in and the entire serialized view searched for it — so the misconfiguration
+panel cannot become a way to read `PLATFORM_OPERATORS` off an unauthenticated
+page. The built client output is walked for the operator address, its domain and
+the shared secret.
+
+### The lock-out, and everything wrong with it
+
+`attempts.ts` is the first thing in this console that counts failed sign-ins.
+Five free refusals, then an exponential lock from 15 s to a 15-minute ceiling,
+forgiven by a successful sign-in or by fifteen idle minutes. Recorded as
+limitations rather than glossed:
+
+- **It is in memory, so it is per instance.** Two ECS tasks keep two counters.
+  The right home is a DynamoDB item with a TTL; that is a write path added to
+  another surface's table from an unauthenticated page, which is a bigger
+  decision than a rate limiter should make on its own.
+- **The key is spoofable.** `x-forwarded-for` is attacker-controlled, so this is
+  a brake and not a gate: it turns a naive spray into a slow one. The honest fix
+  is a WAF rate rule on `/signin`, which `infrastructure/` would have to
+  declare and `lib/aws/waf.ts` can already read back.
+- **There is deliberately no global lock**, because a counter that locked the
+  FORM would let a stranger take the console away from Tenure's own staff.
+
+### STUDIO-030-002 — the clause this deliberately departs from
+
+STUDIO-030-002 requires, in these words, "no pure-black glare". The product
+owner directed an OLED-black dark theme in as many words. This surface is built
+for the palette the owner asked for, so **the clause is overridden by a direct
+instruction**, and that is recorded here rather than quietly satisfied.
+
+The concern behind the clause is real and is answered in `signin.module.css`:
+at #000 a shadow is a darkening with nothing darker to darken toward, so a
+raised surface has no visible edge and two adjacent ones smear into one shape.
+Every raised surface on this page is therefore a `surface-container-*` STEP —
+#000 → #151515 → #222222, a lightening, which is visible on an OLED panel —
+**and** a 1 px `outline-variant` border, never a shadow alone.
+
+### `useFormStatus` does not fire on this form, and that was measured
+
+The idiomatic source for the `skeleton` state is `useFormStatus().pending`. It
+returned `false` for the entire duration of a submission on this page. With the
+POST held open for 2500 ms by the harness, the button was sampled twelve times
+at 250 ms intervals and reported `aria-busy="false"` and `disabled=false` on
+every one, while the request was demonstrably in flight
+(`request.isNavigationRequest() === false`, so React had intercepted the submit
+and was fetching it). The component was live in the same build — its offline
+effect works. So `SignInSubmit` listens for the form's `submit` event instead,
+and clears on `renderedAt`, which is `Date.now()` on the server and therefore
+changes with every answer. Without that clearing the component is reused across
+the redirect and the button stays disabled forever after the first refusal —
+a worse defect than the one being fixed, and the reason the reset is a
+dependency rather than a timeout. `useFormStatus` is left in the expression so
+that a Next or React upgrade that starts reporting simply makes the state arrive
+a fraction earlier.
+
+### Evidence
+
+Six origins, one build, all on `127.0.0.1`, because five of the states are
+properties of a DEPLOYMENT and cannot be reached by any gesture on a correctly
+configured one. Cookies ignore the port, which is what makes the `conflict`
+state reachable at all: signing in on an origin that knows one extra operator
+leaves a session on the origin that does not.
+
+```
+npx dynalite@3.2.2 --port 8001 &
+node tools/create-registry-table.mjs && node tools/dev/seed-studio-fleet.mjs
+cd apps/system-studio && NEXT_DIST_DIR=.next-signin npx next build
+cp -r .next-signin/static .next-signin/standalone/apps/system-studio/.next-signin/
+#  3193 correctly configured        3196 PLATFORM_OPERATOR_SECRET unset
+#  3194 knows one extra operator    3197 PLATFORM_OPERATORS='a@b:not-a-real-role'
+#  3195 nothing configured          3198 STUDIO_AUTH_MODE=cognito + COGNITO_*
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:3193 SIGNIN_EMPTY_ORIGIN=… SIGNIN_PARTIAL_ORIGIN=… \
+  SIGNIN_ERROR_ORIGIN=… SIGNIN_FEDERATED_ORIGIN=… SIGNIN_STRANDED_ORIGIN=… \
+  npx playwright test signin.spec.ts
+```
+
+**Result, on the production standalone build, all six origins up: `41 passed,
+3 failed` of 44.** The three, and what each was:
+
+- `skeleton: the submission is in flight and the button cannot be pressed twice`
+- `under reduced motion nothing on this page animates`
+
+  One cause, and it is written up in the section above: `useFormStatus().pending`
+  never became true on this form. Fixed in `SignInSubmit.tsx` by listening for
+  the form's `submit` event, and the fix was **measured on a running server**
+  before being claimed — the same 2500 ms held POST, the same twelve samples at
+  250 ms, now reading
+  `{"label":"Signing in…","busy":"true","disabled":true,"skeleton":true}` for
+  samples 0-9 and `{"label":"Sign in","busy":"false","disabled":false,"skeleton":false}`
+  from sample 10, which is the answer arriving and the button becoming live
+  again. Those are exactly the four facts the two tests assert.
+
+- `degraded: a production build authenticating with a shared secret`
+
+  A defect in the TEST, not the page: it guarded on
+  `document.documentElement.dataset.theme !== undefined`, which is unset when
+  the operator's preference is "system". Removed, along with the `test.skip`
+  beside it — a skip whose condition is "the notice is absent" reports success
+  for the one outcome the test exists to catch. The state itself was observed
+  independently on the same build:
+  `curl -s http://127.0.0.1:3193/signin | grep -o 'data-state="[a-z]*"'` →
+  `data-state="degraded"`.
+
+**The browser half has NOT been re-run on a build containing those two fixes,
+and that is the honest gap in this row.** Three consecutive `next build`
+invocations stalled on this host: each was measured at 0.1-0.3 s of CPU per 15 s
+with zero worker children, against 18 concurrent `next build` processes and 73
+node processes belonging to the parallel wave. The command that closes it is the
+block above, unchanged.
+
+### Mutations — thirteen applied one at a time, thirteen killed
+
+Ten against the pure layer, which needs no build:
+`npx playwright test signin.spec.ts --grep "@logic"` — baseline **18 passed**.
+
+1. `configBlock` returns `empty` whenever there are problems — RED `nothing set,
+   some set and all set are three different answers`, `1 failed 17 passed`.
+2. `configFacts` returns the VALUES instead of the names — RED `the
+   misconfiguration panel is given names and never values` **and** `nothing set,
+   some set and all set…`, `2 failed 16 passed`.
+3. `outcomeOf` passes an attacker-supplied `?error=` through — RED `?error= is a
+   closed vocabulary, not a message to render` and `only an event interrupts a
+   screen reader`, `2 failed 16 passed`.
+4. the refusal notice is emitted beside a misconfiguration — RED `a refusal is
+   not shown beside a reason the form could never have worked`, `1 failed`.
+5. `isRedirectError` reads `message` instead of `digest` (the exact historical
+   defect) — RED `the redirect marker is read off digest, not off message`,
+   `1 failed 17 passed`.
+6. `isDegraded` always false — RED `a shared secret in a production build is a
+   degraded path` and `only an event interrupts a screen reader`, `2 failed`.
+7. `lockDurationMs` loses its `Math.min` ceiling — RED `the first refusals are
+   free and then the wait doubles`, `1 failed 17 passed`.
+8. `verdictFor`: `if (false && record.lockedUntil > now)` — RED `a client is
+   locked only after the free attempts are spent` and `an idle window forgives`,
+   `2 failed 15 passed`.
+9. `prune` stops enforcing `MAX_TRACKED` — RED `the store is bounded, so the
+   brake is not a memory primitive`, `1 failed 17 passed`.
+10. `clientKeyFrom` trusts the LAST proxy hop — RED `the client key is the first
+    proxy's answer, then the socket`, `1 failed 17 passed`.
+
+Restored: **18 passed**.
+
+### The browser-layer mutations are OWED, not done
+
+Three were prepared and are not claimed, for the same reason the re-run is not:
+each needs its own `next build`, and builds were not completing on this host.
+They are written down so the next session runs them rather than reinvents them:
+
+- `SignInSubmit.tsx`: `disabled={disabled}` → `disabled={false}`. Should redden
+  `skeleton: … cannot be pressed twice`, `offline: …`, and `stale: …`.
+- `page.tsx` `credentialsSignIn`: `if (false && verdictFor(store, key, Date.now()).locked)`.
+  Should redden `retrying: the lock is enforced by the action, not only by the
+  view` — and only that one, which is the point of having rewritten that test:
+  its first draft re-fetched `/signin` and checked the HTML said "Retrying",
+  which measures the VIEW and would have stayed green under exactly this
+  mutation. It now holds a form rendered BEFORE the lock in a second tab and
+  submits the CORRECT credentials through it, which only the action can refuse.
+- `page.tsx`: redirect to `?error=AccessDenied` when the typed address is not an
+  operator — an oracle. Should redden `the two refusals are the same page, word
+  for word`.
+
+### What is NOT closed, and is not claimed
+
+- **Nine other console surfaces.** Named above. This is why the row is `FAIL`.
+- **The lock-out is per instance and its key is spoofable.** Both are argued in
+  `attempts.ts`'s header, and neither is fixed here.
+- **`prefers-reduced-motion` is asserted for this page only.** The keyframe in
+  `signin.module.css` is turned off by name under both `[data-motion="reduced"]`
+  and the media query, and measured — but the audit is one page's.
+- **The federated path is not exercised past the button.** The `SIGNIN_FEDERATED
+  _ORIGIN` server carries a syntactically valid Cognito issuer that does not
+  exist, so the test asserts the button, the copy and the ABSENCE of any
+  password field. Completing an OIDC round trip needs a real user pool and is
+  `BLOCKED_EXTERNAL` on the same AWS Organization that blocks GE-010.
+- **`e2e/preferences.spec.ts` and `e2e/md3-tokens-logic.spec.ts` still assert
+  the OLD palette rule** — "uses neither pure black nor pure white", and a scrim
+  that is not pure black. Both files belong to another agent in this wave and
+  were not touched. They are the two tests that must change with the OLED
+  decision recorded above.
+- **`.next-signin/types/**/*.ts` was added to `apps/system-studio/tsconfig.json`
+  by `next build`,** beside the sibling entries other lanes' isolated dist
+  directories already left there (`.next-edge`, `.next-quota-agent`,
+  `.next-shell`). Left in place rather than edited out: the file is another
+  lane's, an unmatched glob is inert, and removing it races their edits.
+- **`e2e/signin.spec.ts` sets `x-forwarded-for` on the tests that fail on
+  purpose.** That is not a convenience — without it the two deliberate refusals
+  in this file would spend the lock-out budget shared by the twenty other specs
+  that sign in through this form to reach the surface they actually test. It is
+  also, deliberately, a live demonstration of the caveat in `attempts.ts`: the
+  key is spoofable, which is why that module calls itself a brake and not a
+  gate.

@@ -119,3 +119,164 @@ export type { SwitchProps } from "./Switch"
 
 export { SeverityChip, SEVERITIES } from "./SeverityChip"
 export type { SeverityChipProps, Severity } from "./SeverityChip"
+
+/* ── Two primitives owned elsewhere, exported here ─────────────────────────
+ *
+ * `Logo.tsx` (the mark) and `DangerZone.tsx` (STUDIO-030-004's spatially
+ * separated irreversible actions) were written alongside this set by other
+ * hands. They are exported from here because this barrel is the only place a
+ * route may import a primitive from, and `md3-tokens-logic.spec.ts` reds the
+ * build for any component in the directory that cannot be reached through it —
+ * "a primitive that exists but is not exported is one each route either imports
+ * by deep path or, far more likely, reimplements locally with a `<div>` and a
+ * colour". Their APIs are theirs; only these two lines are this file's.
+ */
+
+export { Logo, LOGO_ICONS, LOGO_ICON_PATH } from "./Logo"
+export type { LogoProps } from "./Logo"
+
+export {
+  DangerZone,
+  DANGER_ZONE_ATTRIBUTE,
+  DANGER_ZONE_GROUP,
+  DANGER_ZONE_LEGEND,
+  DANGER_ZONE_REGION,
+  IRREVERSIBLE,
+  REVERSIBLE,
+  RISK_ATTRIBUTE,
+  classifyConsequence,
+  isIrreversible,
+} from "./DangerZone"
+export type { Consequence, DangerAction, DangerZoneProps } from "./DangerZone"
+
+/* ── The interactive set ───────────────────────────────────────────────────
+ *
+ * STUDIO-030-003. Everything above this line renders in either tree because no
+ * file above it carries `"use client"`. Everything below either carries one or
+ * is a pure module, and that split is deliberate rather than incidental.
+ *
+ * The note at the top of this barrel says a primitive here "does not claim a
+ * behaviour it cannot implement without client JavaScript" — `Tabs` are links,
+ * `Dialog` does not claim `aria-modal`, `Snackbar` has no timer. That rule is
+ * intact. What has changed is that the escape hatch each of those files names
+ * ("a route that needs the client behaviour wraps the primitive, rather than
+ * this directory pretending") now exists as primitives instead of as advice, so
+ * a route that needs a menu gets one with a keyboard model rather than a
+ * `<details>` with a list in it.
+ *
+ * The keyboard model itself is NOT in the components. `interaction.ts` is pure
+ * — no DOM, no React — so the twenty-odd branches per widget (End on a list
+ * whose last two items are disabled, ArrowLeft on a collapsed tree node,
+ * repeated-character type-ahead) are enumerated in
+ * `e2e/md3-primitives-logic.spec.ts` at node speed, and the components are
+ * adapters proven in jsdom by `Primitives.test.tsx`.
+ *
+ * Importing one of these from a server component is fine: Next turns a
+ * `"use client"` module into a client reference at the import boundary, and the
+ * eleven route files that already import this barrel pull in only what they
+ * name.
+ *
+ * ## The two primitives from the requirement that are not new files
+ *
+ *   * **Command menu** — `@/components/CommandPalette`, which predates this set
+ *     and is already keyboard-complete (focus captured on open, restored on
+ *     close, no history entry). It is a console component rather than a
+ *     primitive, so it stays where it is rather than being duplicated here.
+ *   * **Toast** — `Snackbar` is the message; `ToastRegion` below is the live
+ *     region that announces a stack of them.
+ */
+
+export {
+  ACTIVATION_KEYS,
+  DISMISS_KEY,
+  FOCUSABLE_SELECTOR,
+  TYPEAHEAD_RESET_MS,
+  filterOptions,
+  firstEnabled,
+  isActivation,
+  isDismiss,
+  isTypeaheadKey,
+  lastEnabled,
+  listCommand,
+  nextTrapStop,
+  step,
+  treeCommand,
+  treeRows,
+  typeaheadBuffer,
+  typeaheadIndex,
+} from "./interaction"
+export type {
+  Direction,
+  FilterableOption,
+  ListCommand,
+  ListState,
+  Orientation,
+  TreeCommand,
+  TreeNode,
+  TreeRow,
+} from "./interaction"
+
+export { openLayerCount, useDismissableLayer, useFocusTrap, useModalHost } from "./hooks"
+export type { DismissableLayerOptions } from "./hooks"
+
+export { Popover } from "./Popover"
+export type { PopoverProps } from "./Popover"
+
+export { Menu } from "./Menu"
+export type { MenuProps, MenuGroup, MenuItem } from "./Menu"
+
+export { ModalDialog } from "./ModalDialog"
+export type { ModalDialogProps } from "./ModalDialog"
+
+export { Drawer } from "./Drawer"
+export type { DrawerProps } from "./Drawer"
+
+export { Tooltip } from "./Tooltip"
+export type { TooltipProps } from "./Tooltip"
+
+export { Accordion } from "./Accordion"
+export type { AccordionProps, AccordionSection } from "./Accordion"
+
+export { Tree } from "./Tree"
+export type { TreeProps } from "./Tree"
+
+export { Combobox } from "./Combobox"
+export type { ComboboxProps, ComboboxOption } from "./Combobox"
+
+export { ToastRegion, LIMIT as TOAST_LIMIT } from "./ToastRegion"
+export type { ToastRegionProps, ToastMessage } from "./ToastRegion"
+
+export { CodeBlock, DiffView } from "./Code"
+export type { CodeBlockProps, DiffViewProps } from "./Code"
+
+export { diffLines, describeDiff, MAX_DIFF_CELLS } from "./diff"
+export type { DiffKind, DiffResult, DiffRow } from "./diff"
+
+export { DateTimeField } from "./DateTimeField"
+export type { DateTimeFieldProps } from "./DateTimeField"
+
+export { combineDateTime, formatUtc, splitIso, DATE_PATTERN, TIME_PATTERN } from "./datetime"
+export type { DateTimeProblem, DateTimeResult } from "./datetime"
+
+export { Stepper } from "./Stepper"
+export type { StepperProps, Step, StepStatus } from "./Stepper"
+
+export { FileUpload } from "./FileUpload"
+export type { FileUploadProps } from "./FileUpload"
+
+export { checkFiles, describeSelection, formatBytes, matchesAccept } from "./files"
+export type { FileCandidate, FileCheckResult, FileRejection, FileRules } from "./files"
+
+export { Chart } from "./Chart"
+export type { ChartProps } from "./Chart"
+
+export {
+  DEFAULT_BOX,
+  describeSeries,
+  domainOf,
+  niceTicks,
+  scaleX,
+  scaleY,
+  seriesPath,
+} from "./chart-model"
+export type { Box, ChartPoint, ChartSeries, Domain } from "./chart-model"

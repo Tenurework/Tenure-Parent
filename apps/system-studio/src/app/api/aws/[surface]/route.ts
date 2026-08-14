@@ -12,11 +12,36 @@ import {
   pageSize,
 } from "@/lib/api/envelope"
 import { PROBLEM, problemResponse } from "@/lib/api/problem"
-import { SURFACES, consumeRate, isSurfaceId, type SurfaceId } from "@/lib/aws/result"
+import {
+  SURFACES,
+  consumeRate,
+  describeRead,
+  httpStatusFor,
+  isLiveSurface,
+  isSurfaceId,
+  itemsOf,
+  type AwsRead,
+  type LiveSurfaceId,
+  type RateDecision,
+  type SurfaceId,
+} from "@/lib/aws/result"
 import { listFleet, listOperations, putAuditEntry, registryConfigured } from "@/lib/registry"
 import { matchesFilter, parseFleetFilter } from "@/lib/fleet-filter"
 import { costSource } from "@/lib/cost-source"
 import { advanceState } from "@/app/tenants/actions"
+
+/* ── the eleven readers this route is the production caller of ───────────── */
+import { cdnReadings } from "@/lib/aws/cdn"
+import { certificateReadings } from "@/lib/aws/certificates"
+import { complianceReadings } from "@/lib/aws/compliance"
+import { dashboardReadings } from "@/lib/aws/dashboards"
+import { dnsReadings } from "@/lib/aws/dns"
+import { guardDutyReadings } from "@/lib/aws/guardduty"
+import { logGroupReadings } from "@/lib/aws/logs"
+import { organizationSurface } from "@/lib/aws/organization"
+import { pricingReadings } from "@/lib/aws/pricing"
+import { quotaReadings } from "@/lib/aws/quotas"
+import { wafReadings } from "@/lib/aws/waf"
 
 export const dynamic = "force-dynamic"
 
@@ -68,12 +93,35 @@ export const dynamic = "force-dynamic"
 
 type Params = { params: Promise<{ surface: string }> }
 
-/** Which command each surface is, so authorization is the page's own decision. */
-const SURFACE_COMMAND = {
+/**
+ * Which command each surface is, so authorization is the page's own decision.
+ *
+ * Every live surface reads control-plane state about the estate this console
+ * runs, which is what `platform.read` names — the same command `/platform`
+ * itself is authorized with, so an operator cannot be refused the page and
+ * granted its data over HTTP. `pricing` is the exception and is `cost.read`:
+ * a list price is money, and the role separation that keeps spend away from a
+ * support engineer has to hold whichever door the number comes through.
+ *
+ * Typed against `SurfaceId` rather than left open, so a surface added to
+ * `SURFACES` without an authorization decision does not compile.
+ */
+const SURFACE_COMMAND: Record<SurfaceId, "tenants.read" | "tenant.lifecycle.read" | "cost.read" | "platform.read"> = {
   fleet: "tenants.read",
   operations: "tenant.lifecycle.read",
   cost: "cost.read",
-} as const
+  cdn: "platform.read",
+  certificates: "platform.read",
+  compliance: "platform.read",
+  dashboards: "platform.read",
+  dns: "platform.read",
+  guardduty: "platform.read",
+  logs: "platform.read",
+  organization: "platform.read",
+  pricing: "cost.read",
+  quotas: "platform.read",
+  waf: "platform.read",
+}
 
 interface RequestContext {
   correlationId: string
@@ -177,7 +225,7 @@ function tenantRequired(ctx: RequestContext, where: string): Response {
 function admit(
   ctx: RequestContext,
   tenantId: string | null,
-): { ok: true } | { ok: false; response: Response } {
+): { ok: true; rate: RateDecision } | { ok: false; response: Response } {
   const command = SURFACE_COMMAND[ctx.surface]
   const decision = authorizeCommand(command, {
     principalId: ctx.principalId,
@@ -217,12 +265,314 @@ function admit(
           `which is why the budget is what it is.`,
         instance: ctx.instance,
         correlationId: ctx.correlationId,
-        headers: { "retry-after": String(rate.retryAfterSeconds) },
+        headers: {
+          "retry-after": String(rate.retryAfterSeconds),
+          // Which limiter said no. AWS throttling this engine and this engine
+          // throttling an operator are opposite facts with opposite remedies —
+          // wait, versus poll at the cadence you were given — and they arrive
+          // as the same status code. `problem.ts` has one `rateLimited` type,
+          // so the distinction travels here until it has one of its own.
+          "x-throttle-origin": "control-plane",
+          ...rateHeaders(ctx.surface, rate),
+          /*
+           * The cadence, on the response that most needs it.
+           *
+           * A client is here because it polled too fast. Telling it how fast
+           * the underlying reading actually moves is the whole remedy, and
+           * withholding it leaves the client to guess an interval — which is
+           * how it got throttled. `NOT_READ` rather than an arm of `AwsRead`:
+           * no call was made, so there is no reading and no `as of` to claim.
+           */
+          ...(isLiveSurface(ctx.surface)
+            ? liveHeaders(ctx.surface, "NOT_READ", null, rate.retryAfterSeconds * 1000)
+            : {}),
+        },
       }),
     }
   }
 
-  return { ok: true }
+  return { ok: true, rate }
+}
+
+/* ────────────────────────────────────────────────────── live AWS surfaces -- */
+
+/**
+ * STUDIO-140-007 — what a poller is told, and why none of it is reassuring.
+ *
+ * Eleven capability-backed readers now answer over HTTP. Each is polled, and a
+ * polled read is where the failure this whole vocabulary exists to prevent gets
+ * its best chance: the first read succeeds and paints a screen, the tenth is
+ * refused, and if the tenth answers `200 {items: []}` the screen quietly
+ * changes from "nine distributions" to "no distributions" without anybody being
+ * told a permission went away.
+ *
+ * So a live surface NEVER returns rows and a failure in the same response. The
+ * status comes from `httpStatusFor`, which is the same function the UI's
+ * unknown-state renderer branches on, and the body of a failure is a problem
+ * document with no `items` field at all — a client that keeps its last good
+ * value does so because there is nothing here to overwrite it with.
+ */
+
+/** Header block naming the operator's remaining allowance on THIS surface. */
+function rateHeaders(surface: SurfaceId, rate: RateDecision): Record<string, string> {
+  return {
+    "x-ratelimit-limit": String(rate.limit),
+    "x-ratelimit-remaining": String(rate.remaining),
+    "x-ratelimit-window-ms": String(SURFACES[surface].windowMs),
+    "x-ratelimit-scope": `operator:${surface}`,
+  }
+}
+
+/**
+ * One live surface's load: the reads its rows come from, the rows, and when.
+ *
+ * `gate` is not every read the module performed — it is exactly the reads the
+ * ROWS come from. That distinction is the difference between an honest surface
+ * and a plausible one: `cdnReadings` also resolves identity and the tag index,
+ * and gating on those would let a refused `cloudfront:ListDistributions` through
+ * as an empty distribution list because the tag read succeeded.
+ */
+interface LiveLoad {
+  gate: readonly AwsRead<unknown>[]
+  items: readonly unknown[]
+  /** When this load was assembled. The module's own stamp, never invented here. */
+  asOf: string
+}
+
+/**
+ * Perform one named surface's read.
+ *
+ * A `switch`, exhaustive over `LiveSurfaceId`, and deliberately not a table of
+ * functions keyed by a string. Bible §20 forbids a generic "AWS action runner"
+ * endpoint, and the property that keeps this route on the right side of that
+ * line is mechanical: the only thing a caller controls is which of these eleven
+ * branches runs. There is no service parameter, no action parameter and no
+ * parameter bag — each module below calls named capabilities with input it
+ * narrowed itself, and `gateway.call` switches on the capability again.
+ */
+async function readLiveSurface(surface: LiveSurfaceId): Promise<LiveLoad> {
+  switch (surface) {
+    case "cdn": {
+      const r = await cdnReadings()
+      return { gate: [r.distributions], items: itemsOf(r.distributions), asOf: r.asOf }
+    }
+    case "certificates": {
+      const r = await certificateReadings()
+      return { gate: [r.certificates], items: itemsOf(r.certificates), asOf: r.asOf }
+    }
+    case "compliance": {
+      const r = await complianceReadings()
+      return { gate: [r.rules], items: itemsOf(r.rules), asOf: r.asOf }
+    }
+    case "dashboards": {
+      const r = await dashboardReadings()
+      return { gate: [r.dashboards], items: itemsOf(r.dashboards), asOf: r.asOf }
+    }
+    case "dns": {
+      const r = await dnsReadings()
+      return { gate: [r.zones], items: itemsOf(r.zones), asOf: r.asOf }
+    }
+    case "guardduty": {
+      const r = await guardDutyReadings()
+      return { gate: [r.detectors], items: itemsOf(r.detectors), asOf: r.asOf }
+    }
+    case "logs": {
+      const r = await logGroupReadings()
+      return { gate: [r.groups], items: itemsOf(r.groups), asOf: r.asOf }
+    }
+    case "organization": {
+      const r = await organizationSurface()
+      // No Organization is UNCONFIGURED inside the module, not an empty account
+      // list — so "this account is not in an Organization" arrives here as a 501
+      // naming that, and never as a fleet of zero accounts.
+      const asOf = "asOf" in r.accounts ? r.accounts.asOf : new Date().toISOString()
+      return { gate: [r.accounts], items: itemsOf(r.accounts), asOf }
+    }
+    case "pricing": {
+      const r = await pricingReadings()
+      // Every shape gates. A price list missing one shape because that read was
+      // refused is an UNDERSTATED cost, which is the direction that gets
+      // somebody a bill they did not plan for.
+      return {
+        gate: r.shapes.map((shape) => shape.products),
+        items: r.shapes.map((shape) => ({
+          shape: shape.shape,
+          reads: shape.reads,
+          rate: shape.rate,
+          truncated: shape.truncated,
+          attribution: shape.attribution,
+          refreshMs: shape.refreshMs,
+          asOf: shape.asOf,
+        })),
+        asOf: r.asOf,
+      }
+    }
+    case "quotas": {
+      const r = await quotaReadings()
+      // Same rule: a headroom picture with one quota missing is a ceiling an
+      // operator plans against and then hits.
+      return { gate: r.quotas.map((q) => q.quota), items: r.quotas, asOf: r.asOf }
+    }
+    case "waf": {
+      const r = await wafReadings()
+      // Two scopes, two endpoints, two catalogues. A refused CLOUDFRONT scope
+      // with a readable REGIONAL one would render as "these are the web ACLs",
+      // and the missing half is exactly where an internet-facing distribution
+      // sits.
+      const acls = (read: AwsRead<{ scope: string; acls: readonly unknown[] }>) =>
+        read.state === "ACTUAL" || read.state === "STALE"
+          ? read.value.acls.map((acl) => ({ scope: read.value.scope, acl }))
+          : []
+      return {
+        gate: [r.regional, r.cloudfront],
+        items: [...acls(r.regional), ...acls(r.cloudfront)],
+        asOf: r.asOf,
+      }
+    }
+  }
+}
+
+/** Whether a read produced a value, or a claim that there is none. */
+function answered(read: AwsRead<unknown>): boolean {
+  return read.state === "ACTUAL" || read.state === "EMPTY" || read.state === "STALE"
+}
+
+/**
+ * The first read that did not answer, or null when every one of them did.
+ *
+ * Asked of the reads rather than of the row count, which is the guard that a
+ * `rows.length === 0` test cannot be: an empty array is what a denial and an
+ * empty estate both look like once the narrowing has been dropped one layer up.
+ */
+function firstValueless(gate: readonly AwsRead<unknown>[]): AwsRead<unknown> | null {
+  return gate.find((read) => !answered(read)) ?? null
+}
+
+/**
+ * The state a serving response reports.
+ *
+ * Weakest-first: one STALE read among fresh ones makes the whole response
+ * STALE, because the client is being handed rows that include held ones and
+ * "some of this is old" is the only true thing to say about that. All-EMPTY is
+ * EMPTY — a claim — and anything else is ACTUAL.
+ */
+function servingState(gate: readonly AwsRead<unknown>[]): string {
+  /*
+   * Defence in depth, and it earned its place.
+   *
+   * The gate above already refuses to serve when a read did not answer, so this
+   * line should be unreachable — but "should be unreachable" is exactly what was
+   * said about every empty list this vocabulary exists to prevent. Two surfaces
+   * build their rows from per-item readings (`pricing` shapes, `quotas`
+   * targets), so their `items` are non-empty even when every underlying read was
+   * refused; a mutation that removed the gate served those rows and the header
+   * still said ACTUAL. Deriving the state from the reads rather than assuming
+   * the gate ran means the response cannot claim what the reads did not say,
+   * whichever way it got here.
+   */
+  const unknown = gate.find((read) => !answered(read))
+  if (unknown) return unknown.state
+  if (gate.some((read) => read.state === "STALE")) return "STALE"
+  if (gate.length > 0 && gate.every((read) => read.state === "EMPTY")) return "EMPTY"
+  return "ACTUAL"
+}
+
+/**
+ * The staleness and cadence headers every live response carries — including the
+ * failures, and including the 304.
+ *
+ * The cadence is here rather than in the body for two reasons. The envelope is
+ * a published contract with `additionalProperties: false`, so a body field
+ * would be a contract change; and a 304 has no body at all, which is precisely
+ * the response after which a client most needs to know when to ask again.
+ */
+function liveHeaders(
+  surface: LiveSurfaceId,
+  state: string,
+  asOf: string | null,
+  pollAfterMs: number,
+): Record<string, string> {
+  const entry = SURFACES[surface]
+  return {
+    "x-aws-surface": surface,
+    "x-aws-capability": String(entry.capability),
+    // The capability's own declared cadence, from `capabilities.ts`. A client
+    // that polls faster than this is asking AWS a question whose answer it was
+    // already told cannot have changed.
+    "x-aws-refresh-ms": String(entry.refreshMs),
+    "x-aws-read-state": state,
+    ...(asOf ? { "x-aws-as-of": asOf } : {}),
+    // How long before asking again is worth anything. The cadence normally;
+    // AWS's own backoff when AWS is the one saying slow down.
+    "x-poll-after-ms": String(pollAfterMs),
+  }
+}
+
+/**
+ * Turn a read that did not answer into the response for it.
+ *
+ * `httpStatusFor` decides the code, so this endpoint and the console's
+ * `UnknownState` cannot disagree about what a denial is. `describeRead` writes
+ * the sentence, so the principal, the action, the error code and the pasteable
+ * minimum IAM statement are the same words on both — one renderer, as its own
+ * header says.
+ */
+function unknownResponse(
+  ctx: RequestContext,
+  surface: LiveSurfaceId,
+  read: AwsRead<unknown>,
+  rate: RateDecision,
+): Response {
+  const status = httpStatusFor(read)
+  const type =
+    read.state === "DENIED"
+      ? PROBLEM.awsDenied
+      : read.state === "THROTTLED"
+        ? PROBLEM.rateLimited
+        : read.state === "UNCONFIGURED"
+          ? PROBLEM.surfaceNotConfigured
+          : PROBLEM.internal
+  const title =
+    read.state === "DENIED"
+      ? "This engine's role was refused the read"
+      : read.state === "THROTTLED"
+        ? "AWS rate-limited the read"
+        : read.state === "UNCONFIGURED"
+          ? "Not configured"
+          : "The read failed"
+
+  /*
+   * Where the poller is told to go next.
+   *
+   * A THROTTLED read has already been retried with exponential backoff inside
+   * `readAws` and gave up — three attempts, not forever. Reporting it with
+   * AWS's own backoff as `Retry-After` is what makes the client's retry the
+   * continuation of that policy rather than a second, uncoordinated one.
+   * Everything else waits a cadence: a denial is not fixed by asking sooner.
+   */
+  const backoffMs =
+    read.state === "THROTTLED" ? read.retryAfterMs : (SURFACES[surface].refreshMs ?? 60_000)
+  const asOf = "asOf" in read ? read.asOf : null
+
+  return problemResponse({
+    type,
+    title,
+    status,
+    detail: describeRead(read, `the ${surface} surface`),
+    instance: ctx.instance,
+    correlationId: ctx.correlationId,
+    headers: {
+      "x-correlation-id": ctx.correlationId,
+      ...liveHeaders(surface, read.state, asOf, backoffMs),
+      ...rateHeaders(surface, rate),
+      ...(read.state === "THROTTLED"
+        ? {
+            "retry-after": String(Math.max(1, Math.ceil(read.retryAfterMs / 1000))),
+            "x-throttle-origin": "aws",
+          }
+        : {}),
+    },
+  })
 }
 
 /**
@@ -267,15 +617,20 @@ function envelopeResponse(
   request: Request,
   ctx: RequestContext,
   body: { items: readonly unknown[]; nextCursor: string | null; asOf: string },
+  extraHeaders: Record<string, string> = {},
 ): Response {
   const etag = etagFor(body)
   if (matchesEtag(request.headers.get("if-none-match"), etag)) {
     // No body, deliberately. A 304 carrying the payload it just told the client
     // it already has would make the whole mechanism a round trip that saves
     // nothing.
+    //
+    // The staleness headers still travel, because a 304 is the one response
+    // where the body cannot carry them and the client still has to decide when
+    // to ask again.
     return new Response(null, {
       status: 304,
-      headers: { etag, "x-correlation-id": ctx.correlationId },
+      headers: { etag, "x-correlation-id": ctx.correlationId, ...extraHeaders },
     })
   }
 
@@ -286,6 +641,7 @@ function envelopeResponse(
       etag,
       "cache-control": "no-store",
       "x-correlation-id": ctx.correlationId,
+      ...extraHeaders,
     },
   })
 }
@@ -312,8 +668,13 @@ export async function GET(request: Request, { params }: Params) {
 
   const admitted = admit(ctx, slug || null)
   if (!admitted.ok) return admitted.response
+  const rate = admitted.rate
 
-  if (!registryConfigured() && ctx.surface !== "cost") {
+  // Only the two registry-backed surfaces need the registry. Naming them is not
+  // a tidy-up: `!== "cost"` admitted every surface added after it, so each of
+  // the eleven live ones would have answered "TENANT_TABLE is not set" — a
+  // 501 about a DynamoDB table, on a route reading CloudFront.
+  if ((ctx.surface === "fleet" || ctx.surface === "operations") && !registryConfigured()) {
     return problemResponse({
       type: PROBLEM.surfaceNotConfigured,
       title: "Not configured",
@@ -325,6 +686,48 @@ export async function GET(request: Request, { params }: Params) {
   }
 
   try {
+    if (isLiveSurface(ctx.surface)) {
+      const surface = ctx.surface
+      const load = await readLiveSurface(surface)
+
+      // The gate, before a single row is looked at. A read that did not answer
+      // leaves this function here, with no `items` in the body at all.
+      const unknown = firstValueless(load.gate)
+      if (unknown) return unknownResponse(ctx, surface, unknown, rate)
+
+      const limit = pageSize(url.searchParams.get("limit"))
+      const cursorParam = url.searchParams.get("cursor")
+      const offset = cursorParam ? decodeCursor<{ offset: number }>(cursorParam).offset : 0
+      const items = load.items.slice(offset, offset + limit)
+      const nextOffset = offset + items.length
+      const state = servingState(load.gate)
+
+      return envelopeResponse(
+        request,
+        ctx,
+        {
+          items,
+          nextCursor: nextOffset < load.items.length ? encodeCursor({ offset: nextOffset }) : null,
+          /*
+           * The module's own stamp, which is when AWS was asked.
+           *
+           * It moves on every poll, so a live surface rarely produces a 304 —
+           * and that is the correct direction rather than a missed saving.
+           * Rounding it to make representations repeat would report a reading
+           * as older or newer than it is, and "shows a number that implies now"
+           * is the failure this field exists to prevent. `x-poll-after-ms`
+           * carries the bandwidth argument instead: a client that honours the
+           * cadence does not need a 304, because it does not ask.
+           */
+          asOf: load.asOf,
+        },
+        {
+          ...liveHeaders(surface, state, load.asOf, SURFACES[surface].refreshMs ?? 0),
+          ...rateHeaders(surface, rate),
+        },
+      )
+    }
+
     if (ctx.surface === "cost") {
       const source = await costSource()
       if (source.state === "NOT_CONFIGURED") {
@@ -348,7 +751,7 @@ export async function GET(request: Request, { params }: Params) {
         })),
         nextCursor: null,
         asOf: source.report.summary.actual.asOf,
-      })
+      }, rateHeaders(ctx.surface, rate))
     }
 
     if (ctx.surface === "operations") {
@@ -369,7 +772,7 @@ export async function GET(request: Request, { params }: Params) {
           page.operations.map((o) => o.completedAt ?? o.requestedAt),
           readAt,
         ),
-      })
+      }, rateHeaders(ctx.surface, rate))
     }
 
     // ── fleet ────────────────────────────────────────────────────────────────
@@ -490,7 +893,7 @@ export async function GET(request: Request, { params }: Params) {
         items.map((row) => row.updatedAt),
         readAt,
       ),
-    })
+    }, rateHeaders(ctx.surface, rate))
   } catch (err) {
     if (err instanceof CursorRejected) {
       return problemResponse({

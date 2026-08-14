@@ -10,7 +10,7 @@ Regenerate with `node tools/pack-surface-inventory.mjs`.
 is stale, if any row cites a path that is not there, or if a module claims a
 schema model the database does not declare.
 
-**12 modules · 86 routes (66 tenant, 20 deployer) · 52 schema models · 18 workspaces · 1 feature flag · 24 provider packs · 11 configuration layers · 16 configuration domains · 3 blueprints.**
+**12 modules · 87 routes (66 tenant, 21 deployer) · 52 schema models · 18 workspaces · 1 feature flag · 24 provider packs · 11 configuration layers · 16 configuration domains · 3 blueprints.**
 
 This is an inventory of what EXISTS, not a claim about what works. Every module
 below is `certified-limited` — Bible §6's name for a capability that runs and is
@@ -49,6 +49,7 @@ filesystem and never appear in a URL.
 |---|---|---|---|---|
 | deployer | api | `/api/auth/[...nextauth]` | — | `apps/system-studio/src/app/api/auth/[...nextauth]/route.ts` |
 | deployer | api | `/api/aws/[surface]` | GET POST | `apps/system-studio/src/app/api/aws/[surface]/route.ts` |
+| deployer | api | `/api/export` | GET | `apps/system-studio/src/app/api/export/route.ts` |
 | deployer | page | `/` | — | `apps/system-studio/src/app/page.tsx` |
 | deployer | page | `/platform` | — | `apps/system-studio/src/app/platform/page.tsx` |
 | deployer | page | `/platform/audit` | — | `apps/system-studio/src/app/platform/audit/page.tsx` |

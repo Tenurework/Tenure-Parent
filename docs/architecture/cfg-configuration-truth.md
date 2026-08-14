@@ -6,7 +6,7 @@ No timestamp, no hostname and no absolute path appears here, and every count is 
 
 | Axis | Rows |
 |---|---:|
-| System Studio routes | 24 |
+| System Studio routes | 25 |
 | Authentication and authorization modules | 12 |
 | Configuration and form code | 64 |
 | Databases | 4 |
@@ -14,7 +14,7 @@ No timestamp, no hostname and no absolute path appears here, and every count is 
 | Workflows | 18 |
 | Tests over the configuration surface | 41 |
 | Deployed nonproduction behaviour | 3 |
-| **Total** | **203** |
+| **Total** | **204** |
 
 ## System Studio routes
 
@@ -24,7 +24,8 @@ Every `page.tsx`, `route.ts`, `actions.ts` and `layout.tsx` under `apps/system-s
 |---|---|---|
 | `apps/system-studio/src/app/api/auth/[...nextauth]/route.ts` | api | /api/auth/[...nextauth] · authz: none named |
 | `apps/system-studio/src/app/api/aws/[surface]/route.ts` | api | /api/aws/[surface] · authz: authorizeCommand, session |
-| `apps/system-studio/src/app/layout.tsx` | layout | / · authz: none named |
+| `apps/system-studio/src/app/api/export/route.ts` | api | /api/export · authz: authorizeCommand, isOperator, session |
+| `apps/system-studio/src/app/layout.tsx` | layout | / · authz: session |
 | `apps/system-studio/src/app/page.tsx` | page | / · authz: authorizeCommand, session |
 | `apps/system-studio/src/app/platform/audit/actions.ts` | server-actions | /platform/audit · authz: isOperator, session |
 | `apps/system-studio/src/app/platform/audit/page.tsx` | page | /platform/audit · authz: isOperator, session |
@@ -260,7 +261,7 @@ Which runner owns a file is decided by where it lives: `tests/**` is bare `node 
 | `tests/architecture/no-fixture-tenants-on-operator-surfaces.test.mjs` | node --test (npm run test:platform) | 165 lines |
 | `tests/architecture/tsconfig-includes-no-scratch-build.test.mjs` | node --test (npm run test:platform) | 139 lines |
 | `tests/security/entry-points.test.mjs` | node --test (npm run test:platform) | 121 lines |
-| `tests/security/every-path-authorizes.test.mjs` | node --test (npm run test:platform) | 456 lines |
+| `tests/security/every-path-authorizes.test.mjs` | node --test (npm run test:platform) | 462 lines |
 | `tests/security/one-config-writer.test.mjs` | node --test (npm run test:platform) | 148 lines |
 | `tests/security/operator-boundary.test.mjs` | node --test (npm run test:platform) | 151 lines |
 | `tests/security/operator-plane-content.test.mjs` | node --test (npm run test:platform) | 149 lines |

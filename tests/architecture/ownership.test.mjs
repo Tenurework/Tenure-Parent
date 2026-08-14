@@ -99,10 +99,25 @@ test('the shared list stays small', () => {
   //     it reads the shell, the settings page and the switchers in one test.
   //     Scoping it to a domain would mean the surfaces outside that domain
   //     stopped being checked, which is the opposite of what it is for.
+  //
+  // 18 -> 19, argued the same way, and for a reason the ratchet did not
+  // anticipate: the classified UNIVERSE grew rather than a file being moved
+  // into shelter. `listFiles` matched `.ts|.tsx|.mjs` only, so no stylesheet
+  // had an owner — invisible until the console shell landed four of them in
+  // `apps/system-studio/src/components/` and `the console components are owned,
+  // not filed as shared` failed on files the map could not even see. Widening
+  // it to `.css` classified 22 of the 23 stylesheets straight into
+  // `control-plane`, which is a net gain of 22 owned files for one shared one.
+  //
+  //   · `apps/web/src/app/globals.css` is the twenty-third. It is the tenant
+  //     application's entire stylesheet and every domain in that app renders
+  //     through it, so handing it to one domain would make the others its
+  //     tenants — the identical argument that already puts
+  //     `apps/web/src/app/layout.tsx`, the root document, on this list.
   assert.equal(
     SHARED.size,
-    18,
-    `${SHARED.size} files are owned by no domain, expected 18. This may only fall — if a file ` +
+    19,
+    `${SHARED.size} files are owned by no domain, expected 19. This may only fall — if a file ` +
       `was classified into a domain, lower this in the same commit.`,
   )
   assert.ok(SHARED_PREFIXES.length <= 5, 'too many shared directories')

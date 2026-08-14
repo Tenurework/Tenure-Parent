@@ -8,7 +8,7 @@ Generated from the filesystem. `npm run test:platform` regenerates this and
 fails if the committed copy is stale, so it cannot quietly go out of date, and
 fails if a handler appears with no guard and no entry on the public allowlist.
 
-**28 API routes · 58 pages · 21 server-action modules exporting 73 actions.**
+**29 API routes · 58 pages · 21 server-action modules exporting 73 actions.**
 
 ## The two experiences
 
@@ -21,7 +21,7 @@ and only one of them may be reached by a customer.
 | Experience | App | Surface | What it is |
 |---|---|---:|---|
 | `tenant` | `apps/web` | 26 routes · 40 pages · 17 action modules | What a customer signs into. Everything it serves is scoped to one institution. |
-| `deployer` | `apps/system-studio` | 2 routes · 18 pages · 4 action modules | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
+| `deployer` | `apps/system-studio` | 3 routes · 18 pages · 4 action modules | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
 
 ## What a guard means here
 
@@ -68,8 +68,9 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/api/reports/pulse` | tenant | GET | `session` + `tenant` |
 | `/api/search` | tenant | GET | `session` + `tenant` |
 | `/api/templates/budget` | tenant | GET | `session` |
-| `/api/auth/[...nextauth]` | deployer |  | **none** |
+| `/api/auth/[...nextauth]` | deployer |  | `session` |
 | `/api/aws/[surface]` | deployer | GET, POST | `session` + `operator` |
+| `/api/export` | deployer | GET | `session` + `operator` |
 
 ## Pages
 
@@ -317,7 +318,6 @@ otherwise report `capability` for all twenty-one.
 
 - `tenant:/api/auth/[...nextauth]`
 - `tenant:/api/health`
-- `deployer:/api/auth/[...nextauth]`
 - `tenant:/`
 
 Allowlisted as necessarily public:
@@ -333,7 +333,7 @@ Allowlisted as necessarily public:
 TTES-000-001. The two experiences render from two stylesheets, and nothing
 compared them until now. `apps/web/src/app/globals.css` declares
 226 token names; `apps/system-studio/src/app/globals.css` declares
-160; 12 names are declared by both and
+164; 12 names are declared by both and
 5 of those carry different values — so one token name means two
 colours across the platform, which is fine when it is a decision and is a defect
 when it is drift.
@@ -414,6 +414,7 @@ justified, and capped at 1 so the next one fails the build.
 | `--chart-8` | tenant | `#d23f38` | — |
 | `--chart-axis` | tenant | `#d6d4cc` | — |
 | `--chart-grid` | tenant | `#ecebe5` | — |
+| `--console-nav-offset` | undefined | — | — |
 | `--content-max` | tenant | `1720px` | — |
 | `--control-h` | tenant | `40px` | — |
 | `--control-h-lg` | tenant | `44px` | — |
@@ -572,6 +573,7 @@ justified, and capped at 1 so the next one fails the build.
 | `--md-sys-typescale-title-small-size` | deployer | — | `0.84rem` |
 | `--md-sys-typescale-title-small-tracking` | deployer | — | `0.01em` |
 | `--md-sys-typescale-title-small-weight` | deployer | — | `650` |
+| `--measure` | deployer | — | `72ch` |
 | `--motion-base` | both (agree) | `180ms` | `180ms` |
 | `--motion-fast` | both (agree) | `120ms` | `120ms` |
 | `--motion-slow` | tenant | `240ms` | — |
@@ -587,6 +589,7 @@ justified, and capped at 1 so the next one fails the build.
 | `--radius-md` | tenant | `9px` | — |
 | `--radius-sm` | tenant | `7px` | — |
 | `--radius-xl` | tenant | `18px` | — |
+| `--rail-inline-size` | deployer | — | `17rem` |
 | `--row-h` | tenant | `32px` | — |
 | `--segment-active-bg` | tenant | `#ffffff` | — |
 | `--shadow-focus` | tenant | `0 0 0 3px rgba(25, 128, 82, 0.28)` | — |
@@ -735,6 +738,7 @@ justified, and capped at 1 so the next one fails the build.
 | `--text-disabled` | tenant | `#b7bac0` | — |
 | `--text-inverse` | tenant | `#ffffff` | — |
 | `--text-link` | tenant | `#14724a` | — |
+| `--topbar-block-size` | deployer | — | `64px` |
 | `--warn` | deployer | — | `#765b12` |
 | `--warning` | tenant | `#b07a10` | — |
 | `--warning-light` | tenant | `#f7efd8` | — |

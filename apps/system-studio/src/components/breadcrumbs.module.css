@@ -1,0 +1,153 @@
+/*
+ * The trail, in the content region, above the page's own <h1>.
+ * Structure for `components/Breadcrumbs.tsx`; §6 and §7 of
+ * `docs/architecture/studio-information-architecture.md`.
+ *
+ * ── What this file may contain ─────────────────────────────────────────────
+ *
+ * Geometry, and colour ONLY through the alias tokens `--muted`, `--text`,
+ * `--accent` and `--border`, each of which resolves to a `--md-sys-*` role
+ * (`globals.css`). No literal colour, no shadow, no radius: a colour written
+ * here would be a pair `e2e/md3-tokens-logic.spec.ts` cannot see and
+ * `e2e/preferences.spec.ts`'s rendered-page contrast audit would have to catch
+ * after the fact, in the file it is least likely to be pointed at. There is no
+ * global rule painting a bare `<a>` in this console, so the link colour below
+ * is not decoration — without it the browser draws its own blue, which is the
+ * one hue an OLED-black monotone shell has no place for.
+ *
+ * Every direction is logical — `padding-inline`, `margin-block`, `inline-size`.
+ * `e2e/layout.spec.ts` flips `dir="rtl"` on the live document and re-runs its
+ * whole overlap and sideways-scroll pass; a `margin-left` here reds it.
+ */
+
+/*
+ * The landmark. `margin-block-end` rather than a margin on the page's <h1>,
+ * because the page does not know this is above it.
+ */
+.trail {
+  margin-block: 0 var(--space-3);
+  min-inline-size: 0;
+}
+
+/*
+ * `flex-wrap: wrap` is the whole answer to a long name at a narrow width: a
+ * tenant called "Simon Business School — Ainslie OSE" wraps its crumb onto the
+ * next line instead of pushing the page sideways, which is what
+ * `layout.spec.ts`'s horizontal-overflow assertion measures at 320px.
+ *
+ * `align-items: baseline` so the separator sits on the same line as the words
+ * either side of it rather than being centred against a taller crumb.
+ */
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-inline-size: 0;
+}
+
+/*
+ * A flex item defaults to `min-width: auto` and refuses to shrink below its
+ * min-content width. `globals.css` gives `overflow-wrap: anywhere` to `li`, so
+ * a long unbroken identifier can break — but only if the item is allowed to be
+ * narrower than it, which is what `min-inline-size: 0` grants.
+ */
+.crumb {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  /* The label scale from the token layer, not a size chosen here. A trail is a
+     row of labels, and `--md-sys-typescale-label-large-*` is what this console
+     already sizes labels with. */
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+}
+
+/* Decoration between two names. Never the strongest thing on the line. */
+.separator {
+  color: var(--muted);
+  opacity: 0.65;
+}
+
+/*
+ * `min-block-size: var(--tap)` is WCAG 2.2 AA 2.5.8, not padding taste: these
+ * are list items rather than links inside a sentence, so the inline exception
+ * does not apply to them and the target has to be big enough to hit.
+ */
+.link,
+.here,
+.unlinked {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tap);
+  min-inline-size: 0;
+  padding-inline: var(--space-1);
+}
+
+.link {
+  color: var(--muted);
+  text-decoration: none;
+}
+.link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+.link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The current page. Not a link, and the only crumb at full strength. */
+.here {
+  color: var(--text);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+}
+
+/* A crumb nothing serves — an unknown segment. Says where you are, goes nowhere. */
+.unlinked {
+  color: var(--muted);
+}
+
+/*
+ * The 320px collapse (§7): one `‹ Parent` link, and nothing else.
+ *
+ * `display: none`, never a translation off-screen: `layout.spec.ts` skips
+ * elements computing to `display: none` and measures everything else in PAGE
+ * coordinates, so a crumb moved off the viewport is still measured, still
+ * overlaps whatever it lands on, and under `dir="rtl"` lands on the positive
+ * side and scrolls the page sideways.
+ *
+ * Keyed off `data-collapsible`, which the component sets only when a parent
+ * exists. A one-crumb trail keeps its one crumb rather than collapsing to an
+ * empty landmark.
+ */
+.back {
+  display: none;
+}
+
+@media (max-width: 30rem) {
+  .list[data-collapsible="true"] > .crumb:not([data-crumb-role="parent"]) {
+    display: none;
+  }
+  .list[data-collapsible="true"] .separator {
+    display: none;
+  }
+  .list[data-collapsible="true"] .back {
+    display: inline-block;
+    margin-inline-end: var(--space-1);
+  }
+  /*
+   * "Back" is a direction, and the direction reverses. A chevron authored as
+   * `‹` points at the parent in `dir="ltr"` and away from it in `dir="rtl"`;
+   * mirroring the glyph is the logical-property equivalent for a shape.
+   * `e2e/layout.spec.ts` renders every route under `dir="rtl"`.
+   */
+  :global([dir="rtl"]) .list[data-collapsible="true"] .back {
+    transform: scaleX(-1);
+  }
+}

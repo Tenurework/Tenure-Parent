@@ -1,0 +1,368 @@
+/*
+ * The console navigation: sections, the routes inside them, and the sub-items
+ * inside a route.
+ *
+ * ── What this file may contain, and what it may not ────────────────────────
+ *
+ * Geometry, and nothing else that can be avoided: flow direction, gap,
+ * wrapping, disclosure, and the two-pixel rule that draws the Diagnostics line.
+ * Every value is a token declared in `globals.css`.
+ *
+ * The only colour references here are `--muted`, `--text`, `--accent` and
+ * `--border` — the four aliases the navigation's previous style block already
+ * used, over the one background `globals.css` gives `.tabs`. No new
+ * foreground/background PAIR is invented: `e2e/md3-tokens-logic.spec.ts`
+ * computes WCAG 2.2 AA over the pairs it can find, and every pair it can find
+ * is declared in `globals.css`. A pair invented in a component stylesheet is a
+ * pair the audit does not know exists. There is no font size that is not a
+ * quiet label, no shadow, and no radius that `globals.css` has not already set
+ * on the element being styled.
+ *
+ * ── Specificity, deliberately ──────────────────────────────────────────────
+ *
+ * `globals.css` styles `.tabs`, `.tabs a` and `.tabs .here`, and those rules
+ * are kept: an entry is still a pill and the current one is still the filled
+ * pill. Sub-items are not entries and must not inherit the entry's tap-target
+ * pill, so every selector that has to win is written as a descendant of the
+ * hashed `.rail` class — `.rail .subLink` is (0,2,0) against `.tabs a`'s
+ * (0,1,1) and wins on class count wherever the two stylesheets land. The
+ * element rule itself is written `.rail:global(.tabs)` for the same reason: a
+ * bare `.rail` ties with `.tabs` and the winner would be decided by insertion
+ * order, which is not a thing to depend on.
+ *
+ * ── Directions ─────────────────────────────────────────────────────────────
+ *
+ * Physical directions are not used anywhere below. `e2e/layout.spec.ts` flips
+ * `dir` to `rtl` on the live document and re-runs its overlap detector and its
+ * sideways-scroll assertion, so one `margin-left` here would red it.
+ *
+ * ── The frame this sits in ─────────────────────────────────────────────────
+ *
+ * The panel is a grid of sections at `minmax(12.5rem, 1fr)`, which is one
+ * decision that answers two frames: in the full-width band the console renders
+ * today the sections tile across it as a directory, and inside the ~17rem
+ * full-height rail the information architecture specifies (section 3.1, owned
+ * by the shell lane) the same grid resolves to a single column and the tree
+ * becomes the rail. The navigation does not decide which frame it is in, and
+ * does not need to.
+ */
+
+.rail:global(.tabs) {
+  display: block;
+}
+
+/* ── The disclosure, below the breakpoint ─────────────────────────────────
+ *
+ * `display: none` above 900px rather than a JavaScript branch, so the tree is
+ * in the first paint and does not depend on hydration to exist. Below it the
+ * panel is REMOVED from the flow rather than translated off-screen:
+ * `layout.spec.ts` measures every visible text box in PAGE coordinates and
+ * skips only `display:none`, `visibility:hidden` and `opacity:0`, so a rail
+ * parked at `translateX(-100%)` is still measured, still overlaps the content
+ * it is sitting on top of, and reds — and under `dir="rtl"` the same
+ * translation lands on the positive side and reds the sideways-scroll check as
+ * well.
+ */
+.disclosure {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: calc(var(--tap) + var(--space-2));
+  padding-inline: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--md-sys-shape-full);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.disclosureWord {
+  font-weight: 650;
+}
+
+/* The current page, so a closed tree still says where the operator is. */
+.disclosureHere {
+  color: var(--muted);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.disclosure::after {
+  content: "";
+  inline-size: 0;
+  block-size: 0;
+  border-inline: 4px solid transparent;
+  border-block-start: 5px solid currentColor;
+  transition: transform var(--motion-fast) var(--ease-entry);
+}
+
+.disclosure[aria-expanded="true"]::after {
+  transform: rotate(180deg);
+}
+
+/* ── The tree ─────────────────────────────────────────────────────────────── */
+
+.panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  align-items: start;
+  gap: var(--space-3) var(--space-4);
+  /*
+   * `auto`, never `hidden`. `layout.spec.ts` fails an element whose overflow
+   * computes to `hidden` while its scrollHeight exceeds its clientHeight —
+   * text clipped by a fixed height — and a tree of fourteen destinations plus
+   * their sub-items will exceed the viewport inside a full-height rail. The
+   * offset is a variable so the shell lane can set the real one against its
+   * top bar without editing this file.
+   */
+  max-block-size: calc(100dvh - var(--console-nav-offset, 9rem));
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .disclosure {
+    display: inline-flex;
+  }
+  .panel {
+    margin-block-start: var(--space-3);
+  }
+  .panel[data-open="false"] {
+    display: none;
+  }
+}
+
+/* ── A section: one of the Bible's domains ────────────────────────────────── */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  /*
+   * No `min-inline-size: 0`. A flex item defaults to `min-width: auto`, which
+   * is what stops a section being squeezed narrower than its own label — and a
+   * label narrower than its text is precisely the defect layout.spec.ts's
+   * `scrollWidth > clientWidth` check exists to catch.
+   */
+}
+
+.sectionName {
+  font-size: 0.68rem;
+  line-height: 1.5;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-inline: var(--space-3);
+  padding-block-end: 2px;
+  white-space: nowrap;
+  border-block-end: 2px solid transparent;
+}
+
+.section[aria-current="true"] .sectionName {
+  color: var(--text);
+  border-block-end-color: var(--accent);
+}
+
+/*
+ * The Diagnostics rule, drawn from `tail` in the data rather than from where
+ * the group happens to sit. In the horizontal strip this replaced it was a
+ * `margin-inline-start: auto` and a vertical hairline; in a grid of sections
+ * that has no meaning, so it becomes a line above the section itself. It is
+ * still drawn from the same attribute, so the rule cannot drift from the table.
+ */
+.section[data-tail="true"] {
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
+}
+
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.entry {
+  min-inline-size: 0;
+}
+
+.entryRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+/*
+ * The entry keeps the pill `globals.css` gives it; only the flex behaviour it
+ * inherited from a wrapping horizontal strip is reset. `flex: 1 1 calc(50% …)`
+ * and `min-inline-size: min(9rem, 100%)` were written to lay eight equal tabs
+ * out two-up below 640px, and a link that is now a child of its own row would
+ * otherwise be sized by a rule about a layout that no longer exists.
+ */
+.rail .entryRow a,
+.rail .entryRow .here {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  justify-content: flex-start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The ancestor of the page being read: on the trail, but not the current page. */
+.rail .entryRow a[data-trail="true"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ── Sub-items: the sections of one route's own page ──────────────────────── */
+
+/*
+ * The per-entry disclosure.
+ *
+ * A button and a sibling list, not a `<details>`. `Nav.tsx` records the
+ * measurement that decided it: a `<details>` is one element, its summary has to
+ * sit on the entry's line, and its open list therefore becomes a flex item on
+ * that same line and squeezes the entry's own label to one character per line.
+ */
+.toggle {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tap);
+  min-block-size: var(--tap);
+  padding: 0;
+  border: 0;
+  border-radius: var(--md-sys-shape-full);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.toggle::after {
+  content: "";
+  inline-size: 0;
+  block-size: 0;
+  border-inline: 4px solid transparent;
+  border-block-start: 5px solid currentColor;
+  transition: transform var(--motion-fast) var(--ease-entry);
+}
+
+.toggle[aria-expanded="true"]::after {
+  transform: rotate(180deg);
+}
+
+.toggle:hover {
+  color: var(--text);
+  background: var(--md-sys-state-hover);
+}
+
+/* The accessible name of a control whose face is a triangle. */
+.srOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.subList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /*
+   * The indent is a border rather than a padding so the level is VISIBLE at a
+   * glance and not only implied by a few pixels of white space — the two-level
+   * tree has to read as two levels for the sub-items to be worth having.
+   */
+  margin-inline-start: var(--space-4);
+  padding-inline-start: var(--space-3);
+  border-inline-start: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * `hidden` is an attribute the UA implements as `display: none`, and the rule
+ * above would beat it on specificity — a collapsed sub-menu that is still laid
+ * out is a collapsed sub-menu in the accessibility tree, which is the thing
+ * every `getByRole` locator in the existing specs would then start matching.
+ */
+.subList[hidden] {
+  display: none;
+}
+
+/*
+ * A sub-item is not an entry. It drops the pill, the border and the tap-target
+ * height of `.tabs a` and takes a smaller row — still above the 24px minimum
+ * WCAG 2.2 AA 2.5.8 asks of a target, which is what `--tap` is.
+ */
+.rail .subLink {
+  display: flex;
+  align-items: center;
+  /*
+   * MEASURED at 320: without this the sub-items rendered centred, because
+   * `globals.css` gives `.tabs a { justify-content: center }` below 640px — a
+   * rule written to centre eight equal tabs laid out two-up. A column of
+   * centred labels under a left-aligned entry does not read as a list.
+   */
+  justify-content: flex-start;
+  min-block-size: var(--tap);
+  padding-block: 2px;
+  padding-inline: var(--space-2);
+  border: 0;
+  border-radius: var(--md-sys-shape-xs);
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-decoration: none;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.rail .subLink:hover {
+  color: var(--text);
+  background: var(--md-sys-state-hover);
+}
+
+/*
+ * The section of the page currently being read. `aria-current="location"`, set
+ * from the fragment, is the attribute — so the indicator is derived from the
+ * same fact a screen reader is given rather than from a second piece of state
+ * that can disagree with it.
+ */
+.rail .subLink[aria-current="location"] {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--md-sys-state-hover);
+}
+
+/* ── The contextual sub-tree, inside one tenant ───────────────────────────── */
+
+.context {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  margin-inline-start: var(--space-4);
+  padding-inline-start: var(--space-3);
+  border-inline-start: 1px solid var(--border);
+}
+
+.contextKey {
+  display: block;
+  padding-inline: var(--space-2);
+  padding-block: 2px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}

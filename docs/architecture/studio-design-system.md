@@ -64,7 +64,80 @@ Two layers, which is Material's structure and is worth keeping.
 > corner ramp, the motion durations and curves, and the state-layer opacities
 > were all already declared. Nothing was added to close a gap; what was added
 > below is the audit of three **new pairs** the severity chip introduced, and
-> three assertions about the scrim that the dialog introduced.
+> three assertions about the scrim that the dialog introduced — one of which has
+> since been rewritten and one added, so the scrim now carries four. See
+> [The scrim](#the-scrim).
+
+### The dark theme is OLED black — a recorded deviation from STUDIO-030-002
+
+STUDIO-030-002 reads, in full: *"Implement forest-green light/dark palettes with
+measured contrast, no muddy brown/gold legacy theme, **no pure-black glare**, and
+no low-contrast gray-on-gray critical text."*
+
+The product owner has directed an OLED-black dark theme. That instruction
+overrides the emphasised clause. The deviation is recorded in
+`docs/implementation/system-studio-aws-control-plane-execution-ledger.md` under
+STUDIO-030-002 rather than papered over, and the **concern behind the clause is
+answered rather than waived**. Two things go wrong at `#000000`, and both are
+structural:
+
+1. **Shadow stops working.** A drop shadow is darker pixels, and there are none
+   darker than `#000`. Elevation therefore cannot be carried by
+   `--md-sys-elevation-*`; it is carried by the container ladder, and every
+   adjacent step is spaced to be measurably distinct.
+2. **Adjacent panels smear.** So `.md3-surface` draws a hairline in
+   `outline-variant` **by default** rather than only when asked. The border was
+   already `1px solid transparent`, so nothing reflowed.
+
+And the half of the clause that is genuinely about glare survives intact: **no
+foreground is pure white.** `#ffffff` on `#000` is 21:1, which is where halation
+and the smearing of adjacent glyphs actually come from. `on-surface` is `#e8e8e8`.
+
+#### The ramp, measured
+
+| Role | Value | Step from the one below |
+|---|---|---|
+| `surface-container-lowest` (= `background`, `surface`, `surface-dim`) | `#000000` | — |
+| `surface-container-low` | `#151515` | **1.150:1** |
+| `surface-container` | `#222222` | **1.148:1** |
+| `surface-container-high` | `#2d2d2d` | **1.155:1** |
+| `surface-container-highest` | `#363636` | **1.140:1** |
+| `surface-bright` | `#3c3c3c` | 1.095:1 |
+| `surface-variant` (the table header band) | `#262626` | — |
+
+Four roles resolve to the same `#000000` deliberately — the page, the default
+surface, the dim surface and the lowest container are all *the black the panel is
+drawn on*, and giving three of them a near-black of their own would be three
+steps of a ladder nobody can see.
+
+`md3-tokens-logic.spec.ts` asserts each of the four bracketed steps clears
+**1.12:1**, and `preferences.spec.ts` re-measures the same five tokens on the
+rendered page. The card hairline, `outline-variant` `#4a4a4a`, is **2.37:1** on
+the base.
+
+#### Green is the accent and the mark, and nothing else
+
+Every surface, both content colours, both boundaries, the inverse pair and the
+whole secondary family are pure greys — `r = g = b`, asserted, not intended. The
+previous palette tinted the console green (`on-surface-variant: #edf7f0`) and
+then used a pale mint (`#9bdcba`, 48% saturation) as the accent, which is the
+wrong way round.
+
+| Role | Value | Measured |
+|---|---|---|
+| `primary` | `#12cc7e` — hue 155°, **84% saturation**, 43% lightness | 9.96:1 on the base, 5.73:1 on `surface-container-highest`, **4.67:1** there again under a 12% state layer |
+| `on-primary` | `#00120a` | 9.13:1 on `primary` |
+| `primary-container` | `#0b3b28` — the masthead mark, the current tab | 9.52:1 with its on-colour |
+| `on-primary-container` | `#b6ecd0` | |
+| `inverse-primary` | `#0d5638` — the accent on an inverse surface | 7.13:1 on `inverse-surface` |
+
+`primary` is as deep as WCAG 2.2 AA permits a colour used as **text** to be —
+luminance is what contrast is made of, so a darker forest green cannot be a legible
+glyph on a dark surface. The genuinely deep tone therefore lives where it is a
+**fill** rather than a glyph: `primary-container` and `inverse-primary`.
+
+Not neutral, deliberately: `error`, `warning`, `success` and `tertiary`. Hue is
+part of what those mean.
 
 ---
 
@@ -122,17 +195,24 @@ on a dark surface and nothing says so until the chip that uses it ships.
 | **Content** | `on-surface`, `on-surface-variant` | Body text, and the quieter text: captions, table headings, disabled labels, hints. |
 | **Boundaries** | `outline`, `outline-variant` | See below. The distinction is load-bearing. |
 | **Inverse** | `inverse-surface`, `inverse-on-surface`, `inverse-primary` | A surface that must read as *not* part of the page. The accent inverts with it — `primary` on `inverse-surface` is 1.4:1 in light. |
-| **Scrim** | `scrim` | The page behind a dialog. Deliberately not `rgba(0, 0, 0, …)`: `preferences.spec.ts` fails the theme that renders pure black. |
+| **Scrim** | `scrim` | The page behind a dialog. `rgba(0, 0, 0, 0.72)` in dark — see below. |
 
 ### `outline` and `outline-variant` are not interchangeable
 
 - **`outline`** is a boundary that carries **meaning** — the edge of a control,
   the edge of a focusable thing. Audited at 3:1 against every surface
-  (WCAG 2.2 AA 1.4.11). `Button`, `Chip` and the table's header rule use it.
+  (WCAG 2.2 AA 1.4.11). `Button`, `Chip`, the table's header rule and
+  `Surface`'s `outlined` prop use it.
 - **`outline-variant`** is a **decorative** hairline: the edge of a card that is
   already distinct by its container colour, the divider between two rows that
-  are already legible. It is around 1.2–1.5:1 by design and **may never be the
+  are already legible. It is around 1.2–2.4:1 by design and **may never be the
   only thing separating a control from the page.**
+
+Every `.md3-surface` now carries the decorative hairline by default, because at
+`#000` a drop shadow has no darker pixels to work with and two adjacent panels
+would otherwise smear. `data-outlined="true"` therefore moved up to `outline` —
+the stronger, meaning-carrying boundary — rather than repeating the default and
+meaning nothing. Both pairs were already in the audit.
 
 That rule caught a real defect while it was being written: the disabled filled
 button drew its border in `outline-variant`, which measured 1.21:1 in light and
@@ -152,16 +232,23 @@ the chip is what carries the meaning for everyone who cannot see the difference.
 
 ### The scrim
 
-`--md-sys-color-scrim` is the page behind a `Dialog`, and the audit asserts three
+`--md-sys-color-scrim` is the page behind a `Dialog`, and the audit asserts four
 things about it in both themes: that it is **translucent** (an opaque scrim is a
 page, not a scrim), that it is at least 20% opaque (below that it stops
-separating), and that it is **neither pure black nor pure white**.
+separating), that it is **not pure white**, and that it **does its job** —
+composited over the brightest surface the theme has, it must cut that surface's
+relative luminance by at least half.
 
-The last one is not fussiness. `preferences.spec.ts` reads every rendered
-background looking for `rgb(0, 0, 0)`, so the one token whose entire job is to
-darken the page is also the one that could red that assertion — and only while a
-dialog happened to be open, which is the hardest version of that failure to
-reproduce.
+The last one replaced an older assertion that the scrim's colour must not be pure
+black. That rule was correct about the old palette and is wrong about this one:
+the dark theme's base surface **is** `#000`, so a green-charcoal scrim was a tint
+over black rather than a dimming of it, and the prohibition would have forced
+exactly that. Alpha alone is no substitute — `rgba(250, 250, 250, 0.62)` is 62%
+opaque and makes the page *brighter* — so the colour constraint was not dropped,
+it was replaced with the property it was a proxy for.
+
+Measured: the dark scrim leaves `surface-bright` at **12.2%** of its luminance,
+the light scrim at **33.7%**.
 
 ### Material's disabled opacities are deliberately absent
 
@@ -228,6 +315,12 @@ ramp, not a second set of numbers. About ninety rules already name them.
 ## Elevation — `--md-sys-elevation-0` … `-5`
 
 A shadow ramp, per theme. Level 0 is `none`.
+
+**On the dark theme the shadow ramp is nearly inert, and that is expected.** A
+drop shadow is darker pixels and the base surface is `#000000`, so the levels
+still resolve and still ease, but what an operator actually sees separating two
+panels is the container ladder and the hairline — which is why both are asserted
+numerically rather than left to a screenshot.
 
 Elevation and the container ladder are **independent** here. Material ties them
 together through a surface tint — higher surfaces get more primary mixed in —

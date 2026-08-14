@@ -22,8 +22,8 @@ documents:
     family: "anl-analytics-inventory"
     superseded_by: null
     supersedes: []
-    sha256: b5448480b25b49f77e0699206807989f3fe3a06cc7283e083a9c6cb248f597b8
-    bytes: 18455
+    sha256: "136c74d71b86631d3ee7382fd176123ed8fbc906f0d0dcf9c197b371d5649862"
+    bytes: 19060
     aliases: []
     requirement_prefixes:
       - ANL
@@ -68,8 +68,8 @@ documents:
     family: "fin-finance-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "17113d206dc6ffbd2c14b70c322451ffaa2ed25ad735126212cb1cb0f957d945"
-    bytes: 17895
+    sha256: "576e9ac69a5c7d7a11c09bcef982305e3f95c5478eb1e71147805118de4839ee"
+    bytes: 18163
     aliases: []
     requirement_prefixes:
       - FIN
@@ -83,8 +83,8 @@ documents:
     family: "int-integration-inventory"
     superseded_by: null
     supersedes: []
-    sha256: d48919b76e28c34a363765453e35b6d26ad59a47204a63fd37d2930513064833
-    bytes: 20519
+    sha256: "05959c88c1a1b1f86126f5598b3398140beac5cabd2756bb15779535b017ab5d"
+    bytes: 20622
     aliases: []
     requirement_prefixes:
       - INT
@@ -114,8 +114,8 @@ documents:
     family: "pack-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: a302ac3fcf37b30cc354cb4213ce6d773a5d37bd32cd24b19e8693f15d8d17dd
-    bytes: 20701
+    sha256: "91e33eb25866dc7361720bc7086ffaf7e79fd19b21aa642437de3dfdc79856b7"
+    bytes: 20793
     aliases: []
     requirement_prefixes:
       - PACK
@@ -130,13 +130,13 @@ documents:
     family: "studio-information-architecture"
     superseded_by: null
     supersedes: []
-    sha256: "5295db23262ad238dc00ff4e2db6d72f85f91760aabea58dd597bacff7e11b5d"
-    bytes: 35691
+    sha256: "750da92bcefa5d2058f7eb538e196abf997f4dbbdff6469f044f6dc8ec056f66"
+    bytes: 52626
     aliases: []
     requirement_prefixes:
       - STUDIO
     states_requirements: 0
-    mentions_requirement_ids: 24
+    mentions_requirement_ids: 19
   - id: "subsystem-paths"
     title: "Subsystem paths, duplicates, and contradictions"
     version: unversioned
@@ -343,7 +343,7 @@ documents:
     superseded_by: null
     supersedes:
       - Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    sha256: "8d9bbda5841f3c5cae29c60b00eaa00736da3ce9f5bc08fe1ebf98dd4c8c0ed8"
+    sha256: "97042ba1031225b3677b692386ab3b3ba0f4ca9289129b157b4176c4826a0c93"
     bytes: 67283
     aliases: []
     requirement_prefixes:

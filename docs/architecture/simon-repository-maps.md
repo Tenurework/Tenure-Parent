@@ -162,22 +162,22 @@ digraph modules {
 }
 ```
 
-#### Target — 85 area edge(s) over 1145 source file(s), 697 builtin import(s), 1 unresolved relative, 0 unresolved alias
+#### Target — 85 area edge(s) over 1145 source file(s), 703 builtin import(s), 47 unresolved relative, 4 unresolved alias
 
 ```
 digraph modules {
   "apps/system-studio/e2e" -> "apps/system-studio/src/generated" [label="1"]
-  "apps/system-studio/e2e" -> "apps/system-studio/src/lib" [label="30"]
-  "apps/system-studio/e2e" -> "apps/web/src/lib" [label="2"]
+  "apps/system-studio/e2e" -> "apps/system-studio/src/lib" [label="32"]
+  "apps/system-studio/e2e" -> "apps/web/src/lib" [label="1"]
   "apps/system-studio/e2e" -> "modules" [label="1"]
   "apps/system-studio/e2e" -> "packages/configuration/src" [label="4"]
   "apps/system-studio/e2e" -> "packages/contracts/src" [label="1"]
   "apps/system-studio/e2e" -> "packages/finops/src" [label="1"]
   "apps/system-studio/e2e" -> "packages/platform-config/src" [label="3"]
   "apps/system-studio/e2e" -> "packages/provisioning/src" [label="1"]
-  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="43"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="45"]
   "apps/system-studio/src/app" -> "apps/system-studio/src/generated" [label="1"]
-  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="221"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="244"]
   "apps/system-studio/src/app" -> "blueprints" [label="8"]
   "apps/system-studio/src/app" -> "modules" [label="7"]
   "apps/system-studio/src/app" -> "packages/audit/src" [label="3"]

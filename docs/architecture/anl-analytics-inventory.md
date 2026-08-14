@@ -111,6 +111,7 @@ scan can prove that word:
 | Artefact | Source | Truth | Note |
 |---|---|---|---|
 | `apps/system-studio/src/app/platform/cost/cost-decisions.ts` | Budgets and tag readings handed in by the page | `derived-server` | Threshold rows and the "running away" verdict. |
+| `apps/system-studio/src/app/platform/cost/cost-rates.ts` | `lib/aws/pricing` — the published on-demand rates for the shapes this estate provisions | `derived-server` | Quote rows and their total. Arithmetic is integer minor units in `Money`, never a float. The rates are READ, not transcribed: a catalogue of typed-in prices is right on the day somebody typed it and wrong from the next AWS price change onward, with nothing in the product able to say which day it is. A rate that could not be read is absent, never zero — a quote that silently prices something at nothing is worse than no quote. |
 | `apps/system-studio/src/app/platform/estate/estate-answer.ts` | Estate readings handed in by the page | `derived-server` | The sentences the estate page leads with, including the arms that must not be reachable when a read failed. |
 | `apps/system-studio/src/app/platform/estate/estate-coverage.ts` | Declared capabilities vs read resources | `derived-server` | Both directions of drift, including services with no reader. |
 | `apps/system-studio/src/app/platform/identity/doors.ts` | Cognito and IAM readings | `derived-server` | Front-door and account-door counts, kept distinct. |

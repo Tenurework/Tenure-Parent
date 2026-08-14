@@ -189,8 +189,19 @@ jobs:
       - name: Terraform apply
         working-directory: ${{ env.TF_DIR }}
         run: |
+          # `attach_studio_domain` is set HERE and not as the variable's default.
+          # The default is what a fresh account gets, and there the certificate is
+          # necessarily unissued, so attaching it fails the first apply. This
+          # deployment's certificate reached ISSUED on 2026-08-14 (validation
+          # SUCCESS for helm.tenurework.com, read from ACM), which is a fact about
+          # this account and not about the module.
+          #
+          # To move the console back onto the CloudFront hostname, set this to
+          # false and deploy: Cognito keeps both hostnames, so it is reversible
+          # without locking anybody out.
           terraform apply \
             -var="image_tag=$IMAGE_TAG" \
+            -var="attach_studio_domain=true" \
             -var="platform_operators=${{ secrets.PLATFORM_OPERATORS }}" \
             -var="platform_operator_secret=${{ secrets.PLATFORM_OPERATOR_SECRET }}" \
             -var="platform_reconcile_secret=${{ secrets.PLATFORM_RECONCILE_SECRET }}" \

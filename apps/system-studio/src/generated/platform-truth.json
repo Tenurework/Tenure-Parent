@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "a8acafa",
+  "commit": "3a5753d",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 244,
@@ -1763,7 +1763,7 @@
     ],
     "totalItems": 2265,
     "totalGates": 181,
-    "decided": 263,
+    "decided": 264,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -3954,7 +3954,7 @@
         "source": "STUDIO",
         "items": 14,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "STUDIO · 8. Core domain model and desired-state contract",
@@ -4276,7 +4276,7 @@
   "suites": [
     {
       "name": "platform guards",
-      "files": 36,
+      "files": 37,
       "what": "repository and deployment invariants"
     },
     {
@@ -4291,7 +4291,7 @@
     },
     {
       "name": "end to end",
-      "files": 77,
+      "files": 82,
       "what": "real browser"
     }
   ]

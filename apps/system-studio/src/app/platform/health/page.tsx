@@ -13,8 +13,25 @@ import {
 } from "@/components/md3"
 import { ALARM_WORDS, alarmSurface, type AlarmRow } from "@/lib/aws/alarms"
 import { HEALTH_WORDS, awsHealthSurface, tenantsAffected, type HealthEventRow } from "@/lib/aws/aws-health"
+import {
+  dashboardReadings,
+  describeContent,
+  describeCoverage,
+  describeDashboardAttribution,
+  describeTruncation,
+  type DashboardRow,
+} from "@/lib/aws/dashboards"
 import { expectedAlarmNames } from "@/lib/aws/expected-alarms"
 import { identityHeadline } from "@/lib/aws/identity"
+import {
+  describeCompleteness,
+  describeLastEvent,
+  describeLogGroupAttribution,
+  describeMetricFilters,
+  describeRetention,
+  logGroupReadings,
+  type LogGroupReading,
+} from "@/lib/aws/logs"
 import { isOperator, operatorConfigProblems } from "@/lib/operators"
 
 import {
@@ -35,6 +52,25 @@ import {
   type SectionId,
 } from "./answer"
 import styles from "./health.module.css"
+import {
+  CANDIDATES_WHY,
+  FRESHNESS_TONE,
+  FRESHNESS_WORD,
+  RETENTION_TONE,
+  RETENTION_WORD,
+  SILENCE_PROBE_WHY,
+  SILENCE_WINDOW_MS,
+  WATCH_TONE,
+  WATCH_WORD,
+  dashboardCensus,
+  formatBytes,
+  retentionCensus,
+  silenceCensus,
+  silenceWarning,
+  watchHeadline,
+  watchJoin,
+  type LogGroupWatch,
+} from "./watch"
 
 export const dynamic = "force-dynamic"
 
@@ -111,6 +147,34 @@ export default async function HealthPage() {
    */
   const aws = await awsHealthSurface(undefined, { identity: surface.identity })
 
+  /*
+   * The two standing-posture reads.
+   *
+   * `dashboardReadings` opens every dashboard body and parses out the metric
+   * namespaces, alarm names and log groups its widgets reference.
+   * `logGroupReadings` reads every log group's retention, bytes, key and metric
+   * filters — and, because `probeSilenceWindowMs` is passed, asks each group
+   * once whether anything arrived in the last day.
+   *
+   * That probe is the one deliberate cost on this page. `logs.ts` makes it
+   * opt-in precisely so a caller has to choose it: `logs:FilterLogEvents` is
+   * billed for the bytes it scans over the window, and a console left open on a
+   * page that probed every group is a line on the bill nobody chose. It is
+   * chosen HERE because the finding it produces is invisible everywhere else on
+   * this page — a service whose writer has stopped leaves its error-count alarm
+   * sitting in OK forever, and every panel above reads calm. The probe never
+   * returns a log line; `logs.ts` discards the messages inside itself and only a
+   * timestamp leaves it.
+   *
+   * Sequential rather than `Promise.all`: these two are the LAST reads on the
+   * page and they are the expensive ones, and issuing them alongside the alarm
+   * and Health calls would put four concurrent multi-page walks against the same
+   * per-account CloudWatch throttle — which turns a slow page into a throttled
+   * one, and a throttled read into an UNKNOWN panel.
+   */
+  const dashboards = await dashboardReadings()
+  const logs = await logGroupReadings(undefined, { probeSilenceWindowMs: SILENCE_WINDOW_MS })
+
   const answer = leadAnswer(surface.read.state, surface.rows)
   const answered = readAnswered(surface.read.state)
   const side = awsSide({ state: aws.events.state, rows: aws.rows, because: aws.headline })
@@ -120,6 +184,25 @@ export default async function HealthPage() {
   const { attention, quiet } = partitionAlarms(surface.rows)
   const coverage = coverageOf(expected, surface.rows, surface.read.state)
   const blast = tenantsAffected(aws)
+
+  /*
+   * The join. `watch.ts` does the subtracting; nothing here decides anything.
+   *
+   * It is computed from the three readings this page already holds and reads
+   * nothing further, which is what keeps the arithmetic testable at the node
+   * level with no estate.
+   */
+  const join = watchJoin({
+    logs,
+    dashboards,
+    alarmRows: surface.rows,
+    alarmReadState: surface.read.state,
+  })
+  const watch = watchHeadline(join)
+  const silence = silenceCensus(logs.groups)
+  const stopped = silenceWarning(silence)
+  const retention = retentionCensus(logs.groups)
+  const boards = dashboardCensus(dashboards.dashboards)
 
   /*
    * Account, region and partition come from the identity read and from nowhere
@@ -143,11 +226,15 @@ export default async function HealthPage() {
     asOf: surface.asOf,
     healthReadState: aws.events.state,
     healthRefreshMs: aws.refreshMs,
+    dashboardsReadState: dashboards.dashboards.state,
+    logsReadState: logs.groups.state,
   })
 
   const alarmsUnknown = unknownArm(surface.read)
   const eventsUnknown = unknownArm(aws.events)
   const entitiesUnknown = unknownArm(aws.entities)
+  const dashboardsUnknown = unknownArm(dashboards.dashboards)
+  const logsUnknown = unknownArm(logs.groups)
 
   /* ── The cards, keyed by the id `sectionOrder` arranges them under ─────── */
 
@@ -184,6 +271,25 @@ export default async function HealthPage() {
             {fleet.attribution}
           </p>
           {answer.because ? <p className="md3-body-medium">{answer.because}</p> : null}
+
+          {/*
+            The finding that is invisible everywhere else on this page.
+            A log group that has received nothing since before the last deploy
+            has a writer that has stopped, and the alarm over its error count
+            sits in OK forever because zero errors is what a stopped service
+            produces. It is printed here, beside the answer, rather than only
+            in the log card below — a stopped writer is not a footnote.
+
+            It does NOT enter `fleetVerdict`: silence is a bounded observation
+            ("nothing in the last 24 hours"), and a group that is legitimately
+            idle overnight would otherwise flip the page's whole verdict on a
+            schedule. The sentence names the groups and lets a person decide.
+          */}
+          {stopped ? (
+            <p className="md3-body-medium" data-testid="silence">
+              {stopped}
+            </p>
+          ) : null}
 
           {/* The verdict tally, as chips rather than as a second table. Only
               verdicts that are actually present appear — a row of zeroes is a
@@ -475,6 +581,317 @@ export default async function HealthPage() {
       </Card>
     ),
 
+    /* ── The intersection nobody is watching ────────────────────────────── */
+    unwatched: (
+      <Card
+        id="unwatched"
+        headline="What nothing is watching"
+        headerAside={
+          <span className={styles.row}>
+            <Badge tone={watch.tone} title={watch.sentence}>
+              {watch.verdict}
+            </Badge>
+            <StaleIndicator
+              asOf={dashboards.asOf}
+              cadenceMs={dashboards.refreshMs}
+              label="the dashboard reading this subtracts from"
+            />
+          </span>
+        }
+        supportingText={statedAsOf(
+          "Every log group and every alarm this account holds, subtracted from what the dashboards actually reference — the part of the estate no screen and no metric is looking at",
+          dashboards.asOf,
+        )}
+      >
+        <div className={styles.stack}>
+          <p className="md3-body-large" data-testid="watch-headline">
+            {watch.sentence}
+          </p>
+
+          {/*
+            The honest boundary of the candidate set, printed before the counts
+            rather than after them. "3 things are unwatched" reads as a claim
+            about the fleet; it is a claim about two inventories.
+          */}
+          <p className="md3-body-small">{CANDIDATES_WHY}</p>
+
+          {/*
+            Why the subtraction is not a finding, when it is not. This is the
+            sentence that stops an operator building a second dashboard for a
+            service that is already on one nobody could open.
+          */}
+          {join.because ? (
+            <p className="md3-body-medium" data-testid="watch-undecidable">
+              This subtraction is INCOMPLETE. {join.because}
+            </p>
+          ) : null}
+
+          <KeyValue
+            ariaLabel="What the subtraction found"
+            items={[
+              /*
+                Both of these print a COUNT, and a count of zero out of zero is
+                the most reassuring sentence on the page. So neither is rendered
+                unless the log group listing actually answered: with no listing
+                there is no denominator, and "0 of 0 log groups are unwatched"
+                describes an estate nobody looked at as an estate with nothing
+                wrong in it.
+              */
+              {
+                key: "dark-groups",
+                term: "Log groups nobody reads",
+                value: !join.groupsKnown
+                  ? `not known — ${join.groupsBecause ?? "the log group listing did not answer"}`
+                  : `${join.unwatched} of ${join.groups.length} — no dashboard queries them and no metric filter on them feeds a namespace any dashboard draws`,
+              },
+              {
+                key: "undecidable-groups",
+                term: "Log groups this cannot decide",
+                value: !join.groupsKnown
+                  ? "not known — there is no list of log groups to decide anything about"
+                  : join.undecidable === 0
+                    ? "none — every group was compared against a complete coverage set"
+                    : `${join.undecidable} — either their metric filters were not read or the dashboard coverage set is incomplete. Not a claim that they are unwatched, and not a claim that they are fine`,
+              },
+              {
+                key: "namespaces",
+                term: "Namespaces no dashboard draws",
+                value:
+                  join.namespaces.kind === "decidable"
+                    ? join.namespaces.namespaces.length === 0
+                      ? `none — every one of the ${join.candidateNamespaces.length} namespace(s) this estate's metric filters emit into appears on a dashboard`
+                      : `${join.namespaces.namespaces.join(", ")} — a metric filter writes into ${join.namespaces.namespaces.length === 1 ? "it" : "them"} and nothing plots ${join.namespaces.namespaces.length === 1 ? "it" : "them"}`
+                    : `not decidable — ${join.namespaces.why} Shortlist to check by hand: ${join.namespaces.notOnAnyDashboardRead.length > 0 ? join.namespaces.notOnAnyDashboardRead.join(", ") : "none"}`,
+              },
+              {
+                key: "alarms-off-dashboard",
+                term: "Alarms on no dashboard",
+                value: !join.alarms.decidable
+                  ? `not decidable — ${join.alarms.because ?? "one side of the join did not answer"}`
+                  : join.alarms.onNoDashboard.length === 0
+                    ? `none — all ${join.alarms.existing} alarm(s) that exist are named by a dashboard widget`
+                    : `${join.alarms.onNoDashboard.length} of ${join.alarms.existing}: ${join.alarms.onNoDashboard.join(", ")}. They can still page somebody; nobody looking at a wall would see them`,
+              },
+              {
+                key: "alarms-dangling",
+                term: "Alarms a dashboard names that are not there",
+                /*
+                  "none" here is a claim that every widget points at something
+                  real, and it can only be made when BOTH sides answered. With
+                  a refused alarm read the list is empty because nothing was
+                  compared, and printing "none" would turn that into the
+                  reassurance the whole read plane exists against.
+                */
+                value: !join.alarms.decidable
+                  ? `not decidable — ${join.alarms.because ?? "one side of the join did not answer"}`
+                  : join.alarms.referencedAndAbsent.length === 0
+                    ? "none — every alarm a widget names was in the DescribeAlarms response"
+                    : `${join.alarms.referencedAndAbsent.join(", ")} — a widget points at ${join.alarms.referencedAndAbsent.length === 1 ? "an alarm" : "alarms"} this account does not have, so it renders as an empty box, which on a wall reads as “not firing”. A cross-account widget would look the same, and this join is by name only`,
+              },
+            ]}
+          />
+
+          <WatchTable
+            rows={join.groups}
+            empty={
+              <EmptyState
+                headline={
+                  logsUnknown ? "This list is not empty — it is unknown" : "No log group to compare"
+                }
+                description={
+                  logsUnknown
+                    ? "The log group read did not answer, so there is nothing to subtract the dashboards from. The panel below names the principal, the action and the statement that would fix it."
+                    : "logs:DescribeLogGroups answered and this account holds no log group at all. Nothing is unwatched because nothing is writing — which is a finding about the estate, not a clean bill of health."
+                }
+              />
+            }
+          />
+
+          {logsUnknown ? (
+            <UnknownState read={logsUnknown} what="the log groups this subtraction starts from" />
+          ) : null}
+          {dashboardsUnknown ? (
+            <UnknownState
+              read={dashboardsUnknown}
+              what="the dashboards this subtraction compares against"
+            />
+          ) : null}
+        </div>
+      </Card>
+    ),
+
+    /* ── The dashboards themselves ──────────────────────────────────────── */
+    dashboards: (
+      <Card
+        id="dashboards"
+        headline="What the dashboards look at"
+        headerAside={
+          <span className={styles.row}>
+            <Badge
+              tone={boards.known ? (boards.unknownContent > 0 ? "warn" : "neutral") : "warn"}
+              title="Dashboards this account holds, and how many of their bodies could be parsed"
+            >
+              {boards.known ? `${boards.watching} of ${boards.total} parsed` : "Not known"}
+            </Badge>
+            <StaleIndicator
+              asOf={dashboards.asOf}
+              cadenceMs={dashboards.refreshMs}
+              label="the dashboard reading"
+            />
+          </span>
+        }
+        supportingText={statedAsOf(
+          "Every CloudWatch dashboard in this account, when each was last changed, and the metrics, alarms and log groups its widgets reference — parsed out of the body, not guessed at",
+          dashboards.asOf,
+        )}
+      >
+        <div className={styles.stack}>
+          {dashboardsUnknown ? (
+            <UnknownState read={dashboardsUnknown} what="the CloudWatch dashboards in this account" />
+          ) : (
+            <>
+              <p className="md3-body-medium">{describeCoverage(dashboards.coverage)}</p>
+              <p className="md3-body-small">{describeTruncation(dashboards.truncation)}</p>
+              {boards.watchingNothing > 0 ? (
+                <p className="md3-body-medium">
+                  {boards.watchingNothing} dashboard(s) parsed and declare no widget at all. A
+                  dashboard somebody emptied still opens, and an operator who opens it sees a page
+                  with nothing wrong on it.
+                </p>
+              ) : null}
+              <DashboardTable
+                rows={
+                  dashboards.dashboards.state === "ACTUAL" ||
+                  dashboards.dashboards.state === "STALE"
+                    ? dashboards.dashboards.value
+                    : []
+                }
+                empty={
+                  <EmptyState
+                    headline="This account has no CloudWatch dashboard"
+                    description="cloudwatch:ListDashboards answered and returned nothing. Nothing in this account is displayed on a wall, which is why every log group above is unwatched unless a metric filter and an alarm carry it."
+                  />
+                }
+              />
+            </>
+          )}
+        </div>
+      </Card>
+    ),
+
+    /* ── The log groups, their retention, and whether anything arrives ──── */
+    "log-groups": (
+      <Card
+        id="log-groups"
+        headline="Log groups"
+        headerAside={
+          <span className={styles.row}>
+            <Badge
+              tone={
+                retention.known
+                  ? retention.neverExpires + retention.tooShort > 0
+                    ? "bad"
+                    : "ok"
+                  : "warn"
+              }
+              title="Log groups whose retention is either unbounded or shorter than an on-call rotation"
+            >
+              {retention.known
+                ? `${retention.neverExpires + retention.tooShort} of ${retention.groups} misretained`
+                : "Not known"}
+            </Badge>
+            <Badge
+              tone={silence.known ? (silence.silent > 0 ? "bad" : "ok") : "warn"}
+              title="Log groups that received nothing in the last 24 hours"
+            >
+              {silence.known ? `${silence.silent} silent` : "Not known"}
+            </Badge>
+            <StaleIndicator
+              asOf={logs.asOf}
+              cadenceMs={logs.refreshMs.groups}
+              label="the log group reading"
+            />
+          </span>
+        }
+        supportingText={statedAsOf(
+          "Every log group in this account: how long it keeps what it is given, what it is billing for, whose key it is under, what turns its lines into metrics, and whether anything is still writing to it",
+          logs.asOf,
+        )}
+      >
+        <div className={styles.stack}>
+          {logsUnknown ? (
+            <UnknownState read={logsUnknown} what="the log groups in this account" />
+          ) : (
+            <>
+              <p className="md3-body-small">{describeCompleteness(logs.completeness)}</p>
+              <KeyValue
+                ariaLabel="The account's log retention posture"
+                items={[
+                  {
+                    key: "never-expires",
+                    term: "Never expire",
+                    value:
+                      retention.neverExpires === 0
+                        ? "none — every group has a retention somebody set"
+                        : `${retention.neverExpires} of ${retention.groups}. AWS defines a missing retentionInDays as Never expire: the group only grows, nothing in it ages out, and for a group carrying tenant data that is a retention-policy breach as well as an unbounded bill`,
+                  },
+                  {
+                    key: "too-short",
+                    term: "Shorter than an on-call rotation",
+                    value:
+                      retention.tooShort === 0
+                        ? "none — no group deletes its evidence inside a week"
+                        : `${retention.tooShort} of ${retention.groups}. An incident that starts on a Saturday has no evidence left when it is reviewed on the Friday`,
+                  },
+                  {
+                    key: "bytes",
+                    term: "Stored",
+                    value: `${formatBytes(retention.storedBytes)} across ${retention.groups - retention.groupsNotReportingBytes} group(s)${
+                      retention.groupsNotReportingBytes === 0
+                        ? ""
+                        : `, plus ${retention.groupsNotReportingBytes} group(s) for which AWS reported no size at all — not counted as zero`
+                    }`,
+                  },
+                  {
+                    key: "keys",
+                    term: "Under a key this estate cannot revoke",
+                    value:
+                      retention.withoutCustomerKey === 0
+                        ? "none — every group names a customer-managed KMS key"
+                        : `${retention.withoutCustomerKey} of ${retention.groups} carry no kmsKeyId, so they are encrypted with the AWS-owned CloudWatch Logs key. That is encryption at rest and it is not a key this estate holds, audits or can revoke`,
+                  },
+                  {
+                    key: "tenant-data",
+                    term: "Named as carrying tenant data",
+                    value: `${retention.markedTenantData} of ${retention.groups} have a name that marks them as carrying tenant data. This page prints no log line from any group; the absence of a marker is a statement about the NAME and is not a certification`,
+                  },
+                  {
+                    key: "arriving",
+                    term: "Still receiving",
+                    value: `${silence.receiving} receiving · ${silence.silent} silent · ${silence.unreadable} not established · ${silence.notProbed} not probed`,
+                  },
+                ]}
+              />
+              <p className="md3-body-small">{SILENCE_PROBE_WHY}</p>
+              <LogGroupTable
+                rows={
+                  logs.groups.state === "ACTUAL" || logs.groups.state === "STALE"
+                    ? logs.groups.value
+                    : []
+                }
+                empty={
+                  <EmptyState
+                    headline="This account holds no log group"
+                    description="logs:DescribeLogGroups answered and returned nothing. Nothing in this account is writing a log anywhere CloudWatch can see, which is a finding rather than a tidy estate."
+                  />
+                }
+              />
+            </>
+          )}
+        </div>
+      </Card>
+    ),
+
     /* ── Where all of it came from ──────────────────────────────────────── */
     provenance: (
       <Card
@@ -676,6 +1093,175 @@ function HealthEventTable({ rows, empty }: { rows: readonly HealthEventRow[]; em
             <span className={styles.cell}>
               <span>{row.detail}</span>
               <span className="md3-label-small">{row.entitiesDetail}</span>
+            </span>
+          ),
+        },
+      ]}
+      rows={rows}
+      empty={empty}
+    />
+  )
+}
+
+/**
+ * The subtraction, one row per log group.
+ *
+ * `watch.ts` has already ordered them — the finding first, then the doubt, then
+ * the ones that are fine — because a table an operator has to scan for the bad
+ * rows is a table whose bad rows get missed. The verdict word is a Badge and the
+ * reason is prose beside it, in the same three-column shape as every other table
+ * on this page.
+ */
+function WatchTable({ rows, empty }: { rows: readonly LogGroupWatch[]; empty: ReactNode }) {
+  return (
+    <DataTable
+      caption="Every log group, and whether anything at all is looking at it"
+      rowKey={(row) => row.logGroupName}
+      columns={[
+        {
+          key: "group",
+          header: "Log group",
+          cell: (row) => (
+            <span className={styles.cell}>
+              <span className={styles.identifier}>{row.logGroupName}</span>
+              {row.silent ? (
+                <span className="md3-label-small">received nothing in the last 24 hours</span>
+              ) : null}
+            </span>
+          ),
+        },
+        {
+          key: "verdict",
+          header: "Verdict",
+          cell: (row) => (
+            <Badge tone={WATCH_TONE[row.verdict]} title={row.verdict}>
+              {WATCH_WORD[row.verdict]}
+            </Badge>
+          ),
+        },
+        {
+          key: "detail",
+          header: "What it means",
+          cell: (row) => <span className={styles.cell}>{row.detail}</span>,
+        },
+      ]}
+      rows={rows}
+      empty={empty}
+    />
+  )
+}
+
+/**
+ * The dashboards, and what each one's body actually references.
+ *
+ * `describeContent` is `dashboards.ts`'s own renderer rather than a sentence
+ * this page assembles: it is the single funnel through which `watching`,
+ * `watching-nothing`, `malformed` and `not-read` are worded, and a second
+ * wording here is how a dashboard nobody could open ends up reading like a
+ * dashboard watching nothing.
+ */
+function DashboardTable({ rows, empty }: { rows: readonly DashboardRow[]; empty: ReactNode }) {
+  return (
+    <DataTable
+      caption="Every CloudWatch dashboard in this account and what its widgets reference"
+      rowKey={(row) => row.name}
+      columns={[
+        {
+          key: "dashboard",
+          header: "Dashboard",
+          cell: (row) => (
+            <span className={styles.cell}>
+              <span className={styles.identifier}>{row.name}</span>
+              <span className="md3-label-small">{describeDashboardAttribution(row.attribution)}</span>
+            </span>
+          ),
+        },
+        {
+          key: "changed",
+          header: "Last changed",
+          cell: (row) => (
+            <span className={styles.cell}>
+              <span className={styles.identifier}>
+                {row.lastModified ?? "not known — the listing carried no parseable timestamp"}
+              </span>
+            </span>
+          ),
+        },
+        {
+          key: "references",
+          header: "What it references",
+          cell: (row) => <span className={styles.cell}>{describeContent(row.content)}</span>,
+        },
+      ]}
+      rows={rows}
+      empty={empty}
+    />
+  )
+}
+
+/**
+ * One log group's posture: how long it keeps things, and whether anything still
+ * arrives.
+ *
+ * Both badges come from the reader's own classification — `RetentionPosture` and
+ * `LastEventAge` — and both keep their four arms apart. In particular NOT_PROBED
+ * and SILENT are different words with different tones: one is this console
+ * having decided not to spend a billed call, the other is an observation that
+ * nothing arrived, and a table that rendered them alike would let a probe this
+ * page skipped read as a service that has gone quiet.
+ */
+function LogGroupTable({ rows, empty }: { rows: readonly LogGroupReading[]; empty: ReactNode }) {
+  return (
+    <DataTable
+      caption="Every log group in this account, its retention posture and its freshness"
+      rowKey={(row) => row.logGroupName}
+      columns={[
+        {
+          key: "group",
+          header: "Log group",
+          cell: (row) => (
+            <span className={styles.cell}>
+              <span className={styles.identifier}>{row.logGroupName}</span>
+              <span className="md3-label-small">{describeLogGroupAttribution(row.attribution)}</span>
+            </span>
+          ),
+        },
+        {
+          key: "retention",
+          header: "Retention",
+          cell: (row) => (
+            <span className={styles.cell}>
+              <span className={styles.row}>
+                <Badge tone={RETENTION_TONE[row.retention.kind]} title={row.retention.kind}>
+                  {RETENTION_WORD[row.retention.kind]}
+                </Badge>
+                <Badge tone={FRESHNESS_TONE[row.lastEvent.state]} title={row.lastEvent.state}>
+                  {FRESHNESS_WORD[row.lastEvent.state]}
+                </Badge>
+              </span>
+              <span className="md3-label-small">{describeRetention(row.retention)}</span>
+            </span>
+          ),
+        },
+        {
+          key: "detail",
+          header: "What it holds, and whether anything is arriving",
+          cell: (row) => (
+            <span className={styles.cell}>
+              <span>{describeLastEvent(row.lastEvent)}</span>
+              <span className="md3-label-small">{describeMetricFilters(row.metricFilters)}</span>
+              <span className="md3-label-small">
+                {row.storedBytes === null
+                  ? "stored bytes not reported by AWS — not counted as zero"
+                  : formatBytes(row.storedBytes)}
+                {" · "}
+                {row.encryption.kind === "customer-key"
+                  ? `customer key ${row.encryption.kmsKeyArn}`
+                  : "AWS-owned key, which this estate cannot revoke"}
+                {row.sensitivity.kind === "tenant-data"
+                  ? ` · name marks it as carrying tenant data (${row.sensitivity.marker})`
+                  : ""}
+              </span>
             </span>
           ),
         },

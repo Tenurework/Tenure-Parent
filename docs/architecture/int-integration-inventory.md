@@ -34,7 +34,7 @@ approximated from structure.
 
 | category | count |
 | --- | --- |
-| HTTP route handlers | 28 |
+| HTTP route handlers | 29 |
 | — inbound from a provider | 1 |
 | — inbound from the scheduler | 3 |
 | internal event types | 2 |
@@ -59,6 +59,7 @@ reach it. `direction` is derived from the route path, not asserted.
 | --- | --- | --- | --- | --- |
 | deployer | `/api/auth/[...nextauth]` | GET, POST | tenant-session | `apps/system-studio/src/app/api/auth/[...nextauth]/route.ts` |
 | deployer | `/api/aws/[surface]` | GET, POST | outbound-aws | `apps/system-studio/src/app/api/aws/[surface]/route.ts` |
+| deployer | `/api/export` | GET | tenant-session | `apps/system-studio/src/app/api/export/route.ts` |
 | tenant | `/api/admin/directory` | GET | tenant-session | `apps/web/src/app/api/admin/directory/route.ts` |
 | tenant | `/api/ai/chat` | POST | tenant-session | `apps/web/src/app/api/ai/chat/route.ts` |
 | tenant | `/api/ai/draft` | POST | tenant-session | `apps/web/src/app/api/ai/draft/route.ts` |

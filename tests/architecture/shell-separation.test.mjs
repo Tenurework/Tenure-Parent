@@ -151,6 +151,53 @@ import { test } from "node:test"
  * each one alone fails open: a register that lists nothing satisfies "everything
  * listed exists", and a navigation that links everything twice satisfies
  * "everything reachable is listed".
+ *
+ * ## The second level, and why it needs its own three checks (STUDIO-030-003)
+ *
+ * The navigation became a tree: sections, the routes inside them, and sub-items
+ * inside the routes that have several separately-readable surfaces. A sub-item
+ * is a destination like any other and must resolve to something real, but it is
+ * addressed differently and the difference is exactly what makes it escape
+ * every check above.
+ *
+ * A sub-item is `{ label, anchor }` and its destination is COMPOSED at
+ * render — `` `${entry.href}#${sub.anchor}` ``. It has to be: `HREF_LITERAL`
+ * requires every `href` literal in a shell file to be a route the console
+ * serves, and `/platform/network#security-groups` is not one, so writing the
+ * fragment as a literal reds (3). But a composed destination is invisible to
+ * that reader, which means without a further check the whole second level is
+ * unguarded prose — and a table of anchors in prose is wrong within a month.
+ * So:
+ *
+ *   6. Every declared `anchor` is the `id` of a `<Card>` on that route's own
+ *      `page.tsx`, and every sub-item label is distinguishable from every entry
+ *      label and section name in the tree. An anchor with no card is a sub-item
+ *      that scrolls nowhere; a label that repeats an entry's is two things in
+ *      one navigation with one accessible name, which is how a `getByRole`
+ *      locator starts matching the wrong element.
+ *   7. No fragment is written as an href literal anywhere in the navigation —
+ *      the rule (3) cannot see being broken, asserted directly.
+ *   8. The contextual sub-tree — the leaves that appear under Fleet only while
+ *      the path is already inside a tenant — resolves to route TEMPLATES the
+ *      console serves and declares as unlinked, and its `reserved` segment list
+ *      is exactly the static routes served directly under its parent.
+ *
+ *      That last one is the clause with a measurement behind it. `/tenants/new`
+ *      is a served route — the compose form — and not an object id. Removing
+ *      the reservation and rendering `/tenants/new` puts a link to
+ *      `/tenants/new/configuration` in the chrome of every role, which is a
+ *      route this console does not serve; five sub-items addressing cards the
+ *      compose form does not have; and the current-page marker on a fabricated
+ *      "Overview" rather than on Tenants.
+ *
+ *      It does NOT produce the literal `href="/tenants/new"` —
+ *      `e2e/operator-roles.spec.ts` refuses that exact string in an auditor's
+ *      markup, and on that path the leaf is the current page and renders as a
+ *      span with no href. So that spec stays green while the shell is wrong,
+ *      which is precisely why this needs a check here rather than a nearby one
+ *      that happens to look similar. The expected set is DERIVED from the
+ *      routes, so a second static sibling under `/tenants` fails the build
+ *      until it is named.
  */
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -390,22 +437,36 @@ function uiEvidence(repoPath) {
  * the same normalisation `nav-hrefs-are-served.test.mjs` applies, for the same
  * reason: a nav entry says `/calendar` and that is what a browser asks for.
  */
-function routesOf(app) {
-  const routes = new Set()
+function routeFilesOf(app) {
+  const routes = new Map()
   for (const file of gitFiles(`${app.root}/app`)) {
     if (!/\/page\.tsx$/.test(file)) continue
     const route = file
       .slice(`${app.root}/app`.length)
       .replace(/\/page\.tsx$/, "")
       .replace(/\/\([^)]+\)/g, "")
-    routes.add(route || "/")
+    routes.set(route || "/", file)
   }
   return routes
+}
+
+function routesOf(app) {
+  return new Set(routeFilesOf(app).keys())
 }
 
 const ROUTES = new Map(APPS.map((app) => [app.name, routesOf(app)]))
 const TENANT = "web"
 const OPERATOR = "system-studio"
+
+/**
+ * Route → the `page.tsx` that serves it, for the console.
+ *
+ * (6) has to open the page a sub-item points into, and deriving the path from
+ * the route string would have to re-implement route groups and dynamic
+ * segments. The scan already knows which file produced which route; this keeps
+ * the pairing instead of throwing it away.
+ */
+const OPERATOR_ROUTE_FILES = routeFilesOf(APPS.find((app) => app.name === OPERATOR))
 
 /** `/platform/cost` → `/platform`. A menu is separated at the top of the tree. */
 function topSegment(route) {
@@ -928,6 +989,34 @@ function objectLiterals(source) {
   return out
 }
 
+/**
+ * An object body with every NESTED object blanked out.
+ *
+ * `field()` takes the first match in a body, and an entry now carries a
+ * `subItems: [{ label: … }]` of its own. Reading `label` off the raw body would
+ * return whichever `label:` came first in the source, so an entry whose fields
+ * were reordered would silently start reporting its first sub-item's label as
+ * its own — a reader that is wrong only sometimes. Blanking keeps the offsets,
+ * so nothing else that indexes into the body has to know.
+ */
+function shallow(body) {
+  const out = body.split("")
+  let depth = 0
+  scan(body, 0, (ch, i) => {
+    if (ch === "{") {
+      depth += 1
+      if (depth === 1) out[i] = " "
+    } else if (ch === "}") {
+      if (depth === 1) out[i] = " "
+      depth -= 1
+    } else if (depth >= 1) {
+      out[i] = ch === "\n" ? "\n" : " "
+    }
+    return undefined
+  })
+  return out.join("")
+}
+
 const field = (body, key) => new RegExp(`\\b${key}:\\s*"((?:[^"\\\\]|\\\\.)*)"`).exec(body)?.[1] ?? null
 
 function stringList(body, key) {
@@ -943,20 +1032,105 @@ function stringList(body, key) {
  * written in TypeScript, and this runner is `node --test` with neither a React
  * nor a TypeScript loader.
  */
+function subItems(body) {
+  return objectLiterals(body)
+    .filter((subBody) => /\banchor:\s*"/.test(subBody))
+    .map((subBody) => ({ label: field(subBody, "label"), anchor: field(subBody, "anchor") }))
+}
+
 function navigation() {
   const table = tableSource(NAV, "GROUPS")
   if (!table) return []
   return objectLiterals(table).map((groupBody) => ({
-    domain: field(groupBody, "domain"),
-    tail: /\btail:\s*true\b/.test(groupBody),
+    domain: field(shallow(groupBody), "domain"),
+    tail: /\btail:\s*true\b/.test(shallow(groupBody)),
     entries: objectLiterals(groupBody)
-      .filter((entryBody) => /\bhref:\s*"/.test(entryBody))
-      .map((entryBody) => ({ href: field(entryBody, "href"), label: field(entryBody, "label") })),
+      .filter((entryBody) => /\bhref:\s*"/.test(shallow(entryBody)))
+      .map((entryBody) => ({
+        href: field(shallow(entryBody), "href"),
+        label: field(shallow(entryBody), "label"),
+        subItems: subItems(entryBody),
+      })),
+  }))
+}
+
+/**
+ * The contextual sub-tree: leaves that exist only while the path is already
+ * inside one object, addressed by a route TEMPLATE rather than by an href.
+ *
+ * Read the same way and for the same reason as `GROUPS` — `Nav.tsx` is a client
+ * component in TypeScript and this runner is `node --test` with neither loader.
+ */
+function contextual() {
+  const table = tableSource(NAV, "CONTEXTUAL")
+  if (!table) return []
+  return objectLiterals(table).map((branchBody) => ({
+    parent: field(shallow(branchBody), "parent"),
+    reserved: stringList(shallow(branchBody), "reserved") ?? [],
+    leaves: objectLiterals(branchBody)
+      .filter((leafBody) => /\btemplate:\s*"/.test(shallow(leafBody)))
+      .map((leafBody) => ({
+        template: field(shallow(leafBody), "template"),
+        label: field(shallow(leafBody), "label"),
+        subItems: subItems(leafBody),
+      })),
   }))
 }
 
 const NAV_GROUPS = navigation()
 const NAV_ENTRIES = NAV_GROUPS.flatMap((group) => group.entries)
+const NAV_CONTEXTUAL = contextual()
+const NAV_LEAVES = NAV_CONTEXTUAL.flatMap((branch) => branch.leaves)
+
+/**
+ * Every sub-item in the tree, with the route whose page has to carry its anchor.
+ *
+ * A static entry's route is its own href. A contextual leaf's is its template —
+ * `/tenants/[slug]`, which is a route the console serves and therefore a page
+ * this can open, even though no operator can be sent to it without a slug.
+ */
+const SUB_ITEMS = [
+  ...NAV_ENTRIES.flatMap((entry) =>
+    entry.subItems.map((sub) => ({ ...sub, route: entry.href, owner: entry.label })),
+  ),
+  ...NAV_LEAVES.flatMap((leaf) => leaf.subItems.map((sub) => ({ ...sub, route: leaf.template, owner: leaf.label }))),
+]
+
+/**
+ * The `id`s the `<Card>`s on a page declare.
+ *
+ * Read out of the opening tag only. A naive "the next `id="…"` after `<Card`"
+ * walks straight into the card's children and would accept an anchor pointing
+ * at a form control or a table cell, which is not a top-level surface and is not
+ * what a sub-item promises. The tag ends at the first `>` that is not inside a
+ * `{…}` prop expression — JSX props hold arrow functions, and `=>` is a `>`.
+ */
+function cards(repoPath) {
+  const text = code(repoPath)
+  const found = []
+  for (const match of text.matchAll(/<Card\b/g)) {
+    const from = match.index + "<Card".length
+    let depth = 0
+    const end = scan(text, from, (ch, i) => {
+      if (ch === "{") depth += 1
+      else if (ch === "}") depth -= 1
+      else if (ch === ">" && depth === 0) return i
+      return undefined
+    })
+    if (end === null) continue
+    const props = text.slice(from, end)
+    const id = /\bid=\{?"([^"]*)"/.exec(props)
+    // The headline is read out of the same opening tag rather than by walking
+    // back from the id, because the two props are written in either order —
+    // `/platform/estate` puts the headline first, `/platform/health` puts the
+    // id first — and a reader that assumes one order silently finds nothing on
+    // half the console.
+    if (id) found.push({ id: id[1], headline: /\bheadline=\{?"([^"]*)"/.exec(props)?.[1] ?? null })
+  }
+  return found
+}
+
+const cardIds = (repoPath) => cards(repoPath).map((card) => card.id)
 
 /** The Bible's own left-navigation domain list, in the Bible's own order. */
 function bibleDomains() {
@@ -1031,6 +1205,86 @@ test("the information-architecture readers reach every declaration they check", 
       assert.ok(entry.href && entry.label, `an entry in the ${group.domain} group is missing its href or label`)
     }
   }
+
+  // The second level fails open in exactly the same way the first one does: a
+  // reader that stops finding sub-items reports a navigation with no second
+  // level, and every check below it passes by having nothing to check. So the
+  // floor is a count, a spread across entries, and one entry named out loud —
+  // `/platform/health` is the six-card surface the rule in the information
+  // architecture (§4.2) was written against, and if it comes back with no
+  // sub-items the reader is broken rather than the table.
+  assert.ok(
+    SUB_ITEMS.length >= 30,
+    `parsed ${SUB_ITEMS.length} sub-item(s) out of ${NAV}, expected at least 30 — an empty second ` +
+      `level satisfies every check on it by default`,
+  )
+  const withSubItems = new Set(SUB_ITEMS.map((sub) => sub.route))
+  assert.ok(
+    withSubItems.size >= 8,
+    `sub-items were found on ${withSubItems.size} route(s), expected at least 8 — a reader that ` +
+      `finds them on one entry proves nothing about the rest of the tree`,
+  )
+  assert.ok(
+    SUB_ITEMS.some((sub) => sub.route === "/platform/health"),
+    `no sub-item parsed for /platform/health, which declares six of them. The reader has stopped ` +
+      `descending into entry objects.`,
+  )
+  for (const sub of SUB_ITEMS) {
+    assert.ok(sub.label && sub.anchor, `a sub-item under ${sub.route} is missing its label or its anchor`)
+  }
+
+  // And the entry fields must still be the ENTRY's, now that an entry contains
+  // objects of its own.
+  const systems = NAV_ENTRIES.find((entry) => entry.href === "/")
+  assert.equal(
+    systems?.label,
+    "Systems",
+    `the entry for "/" parsed with label ${JSON.stringify(systems?.label)}. A nested sub-item's ` +
+      `label is being read as the entry's own, which makes every label check below read the wrong string.`,
+  )
+
+  /*
+   * `shallow()` is what keeps that true, and the row above does NOT prove it:
+   * every entry in the table today writes its own `label` before its
+   * `subItems`, so a reader that ignored nesting would find the right string by
+   * luck. Measured — removing `shallow()` from the entry read leaves all
+   * seventeen tests green. So the helper is asserted on its own, against the
+   * field order that luck does not cover. Without `shallow()` this returns
+   * "Inner", and the check below is the only thing in the file that says so.
+   */
+  const nested = 'href: "/x", subItems: [{ label: "Inner", anchor: "a" }], label: "Outer"'
+  assert.equal(
+    field(shallow(nested), "label"),
+    "Outer",
+    `shallow() is not blanking nested objects, so an entry that declares its sub-items before its ` +
+      `own label parses with its first sub-item's label. Every label check in this file then compares ` +
+      `the wrong string, and the collision check below stops being able to see a real collision.`,
+  )
+
+  assert.ok(
+    NAV_CONTEXTUAL.length >= 1,
+    `parsed ${NAV_CONTEXTUAL.length} contextual branch(es) out of ${NAV}, expected at least 1`,
+  )
+  assert.ok(NAV_LEAVES.length >= 2, `parsed ${NAV_LEAVES.length} contextual leaf/leaves, expected at least 2`)
+  for (const leaf of NAV_LEAVES) {
+    assert.ok(leaf.template && leaf.label, `a contextual leaf is missing its template or its label`)
+  }
+
+  // (6) opens pages and counts card ids; a card reader that has stopped reading
+  // reports every anchor as missing, which is loud, but one that reads the
+  // WHOLE page instead of the opening tag reports every id on it as a card and
+  // is silent. Both are pinned: a page that has ids, and one that has none.
+  const estate = cardIds(OPERATOR_ROUTE_FILES.get("/platform/estate"))
+  assert.ok(
+    estate.includes("identity") && estate.includes("topology"),
+    `the card reader found {${estate.join(", ")}} on /platform/estate, which declares id="identity" ` +
+      `and id="topology" on two of its cards`,
+  )
+  assert.ok(
+    !cardIds(OPERATOR_ROUTE_FILES.get("/tenants")).includes("q"),
+    `the card reader returned the id of a form control on /tenants ("q"). It is reading past the ` +
+      `opening tag into the card's children, so an anchor pointing at an input would pass.`,
+  )
 
   assert.ok(
     BIBLE_DOMAINS.length >= 15,
@@ -1219,4 +1473,204 @@ test("the Diagnostics register describes the panels /platform actually renders",
       `Renamed or removed. Either way an operator reading the register is reading about a page that is ` +
       `not there — which is how a document that was true once becomes a document nobody trusts.`,
   )
+})
+
+// ── (6) a sub-item resolves to a surface the page actually renders ──────────
+
+test("every navigation sub-item points at a card its route actually renders", () => {
+  const missingPage = []
+  const missingAnchor = []
+
+  for (const sub of SUB_ITEMS) {
+    const file = OPERATOR_ROUTE_FILES.get(sub.route)
+    if (!file) {
+      missingPage.push(`${sub.owner} › ${sub.label} -> ${sub.route}`)
+      continue
+    }
+    if (!cardIds(file).includes(sub.anchor)) missingAnchor.push(`${sub.route}#${sub.anchor} (${sub.label})`)
+  }
+
+  assert.deepEqual(
+    missingPage,
+    [],
+    `a sub-item hangs off a route the console does not serve:\n  ${missingPage.join("\n  ")}\n\n` +
+      `Its href is composed at render from the entry's own, so this is the only reader that would ever ` +
+      `notice.`,
+  )
+  assert.deepEqual(
+    missingAnchor,
+    [],
+    `these sub-items name an anchor no <Card> on that page declares:\n  ${missingAnchor.join("\n  ")}\n\n` +
+      `A sub-item is \`{ label, anchor }\` and its destination is composed — \`\${entry.href}#\${anchor}\` — ` +
+      `precisely so that HREF_LITERAL does not refuse it. The cost of that is this check: without it the ` +
+      `whole second level is prose, and an anchor whose card was renamed is a navigation entry that ` +
+      `scrolls nowhere and says nothing.`,
+  )
+})
+
+test("no sub-item label is confusable with an entry, a leaf or a section name", () => {
+  const taken = new Map()
+  for (const group of NAV_GROUPS) {
+    taken.set(group.domain.toLowerCase(), `the ${group.domain} section`)
+    for (const entry of group.entries) taken.set(entry.label.toLowerCase(), `the ${entry.label} entry`)
+  }
+  for (const leaf of NAV_LEAVES) taken.set(leaf.label.toLowerCase(), `the ${leaf.label} leaf`)
+
+  const collisions = SUB_ITEMS.filter((sub) => taken.has(sub.label.toLowerCase())).map(
+    (sub) => `${sub.owner} › ${sub.label} collides with ${taken.get(sub.label.toLowerCase())}`,
+  )
+  assert.deepEqual(
+    collisions,
+    [],
+    `two things in one navigation answer to one name:\n  ${collisions.join("\n  ")}\n\n` +
+      `Every spec that clicks this navigation addresses it by accessible name — ` +
+      `\`getByRole("link", { name: "Systems", exact: true })\` in platform.spec.ts, "Cost" in ` +
+      `cost.spec.ts, "Tenants" in preferences.spec.ts. A sub-item that answers to an entry's name is a ` +
+      `second element those locators can match, and a reader who cannot tell the two apart either.`,
+  )
+
+  const duplicated = []
+  for (const owner of new Set(SUB_ITEMS.map((sub) => sub.route))) {
+    const labels = SUB_ITEMS.filter((sub) => sub.route === owner).map((sub) => sub.label)
+    const anchors = SUB_ITEMS.filter((sub) => sub.route === owner).map((sub) => sub.anchor)
+    if (new Set(labels).size !== labels.length) duplicated.push(`${owner} repeats a sub-item label`)
+    if (new Set(anchors).size !== anchors.length) duplicated.push(`${owner} repeats a sub-item anchor`)
+  }
+  assert.deepEqual(duplicated, [], duplicated.join("\n  "))
+
+  /*
+   * And the label has to be about the card it opens.
+   *
+   * An anchor that exists is not yet a promise kept: `{ label: "Retention",
+   * anchor: "holds" }` passes (6) and sends an operator somewhere else. So a
+   * label and its card's headline must share a word — compared on a four-
+   * character prefix, because the page says "reconciling" where a navigation
+   * says "Reconcile" and demanding an exact word would force the rail to speak
+   * in gerunds.
+   *
+   * Honest about its own reach: it can only run where the headline is a string
+   * literal (several are computed from a count), and a shared common word like
+   * "what" satisfies it. It catches a label pointing at an unrelated card, which
+   * is the failure that actually happens when a page is refactored. The count of
+   * comparisons it managed is asserted so that it cannot quietly stop running.
+   */
+  const stem = (word) => word.toLowerCase().replace(/[^a-z]/gi, "")
+  const words = (text) =>
+    text
+      .split(/\s+/)
+      .map(stem)
+      .filter((word) => word.length >= 4)
+
+  let compared = 0
+  const unrelated = []
+  for (const sub of SUB_ITEMS) {
+    const file = OPERATOR_ROUTE_FILES.get(sub.route)
+    if (!file) continue
+    const headline = cards(file).find((card) => card.id === sub.anchor)?.headline
+    if (!headline) continue
+    const left = words(sub.label)
+    const right = words(headline)
+    if (left.length === 0 || right.length === 0) continue
+    compared += 1
+    const shares = left.some((a) => right.some((b) => a.slice(0, 4) === b.slice(0, 4)))
+    if (!shares) unrelated.push(`${sub.route}#${sub.anchor}: "${sub.label}" vs the card "${headline}"`)
+  }
+
+  assert.ok(
+    compared >= 25,
+    `only ${compared} sub-item label(s) could be compared against a card headline, expected at least ` +
+      `25 — the headline reader has stopped finding them and this check is now running on nothing`,
+  )
+  assert.deepEqual(
+    unrelated,
+    [],
+    `these sub-items are labelled as something other than the card they open:\n  ${unrelated.join("\n  ")}`,
+  )
+})
+
+// ── (7) a fragment is never written as a literal ────────────────────────────
+
+test("the navigation composes every fragment and writes none of them as an href", () => {
+  const literals = [...code(NAV).matchAll(/\bhref\s*(?::|=)\s*"([^"]*)"/g)].map((match) => match[1])
+  assert.ok(
+    literals.length >= 12,
+    `${literals.length} href literal(s) read out of ${NAV}, expected at least 12 — the reader that ` +
+      `would notice a fragment is not reading`,
+  )
+
+  const fragments = literals.filter((href) => href.includes("#"))
+  assert.deepEqual(
+    fragments,
+    [],
+    `the navigation writes a fragment as an href literal:\n  ${fragments.join("\n  ")}\n\n` +
+      `HREF_LITERAL requires every href literal in a shell file to be a route the console serves, and ` +
+      `"/platform/network#security-groups" is not one — so this shape reds the destination check above ` +
+      `and cannot ship. Compose it: \`href={\`\${entry.href}#\${sub.anchor}\`}\`.`,
+  )
+})
+
+// ── (8) the contextual sub-tree, and the segment it must never treat as an id ─
+
+test("the contextual sub-tree resolves to declared routes and reserves the static ones", () => {
+  const served = ROUTES.get(OPERATOR)
+  const unlinked = new Set(UNLINKED.map((row) => row.route))
+  const entryHrefs = new Set(NAV_ENTRIES.map((entry) => entry.href))
+
+  for (const branch of NAV_CONTEXTUAL) {
+    assert.ok(
+      entryHrefs.has(branch.parent),
+      `the contextual sub-tree hangs under ${branch.parent}, which is not a navigation entry. It ` +
+        `renders inside that entry, so an operator would never see it.`,
+    )
+
+    for (const leaf of branch.leaves) {
+      assert.ok(
+        served.has(leaf.template),
+        `the contextual leaf "${leaf.label}" points at ${leaf.template}, which the console does not ` +
+          `serve. Composed from the path, so no other reader here would see it.`,
+      )
+      assert.ok(
+        unlinked.has(leaf.template),
+        `${leaf.template} is a contextual leaf and is not declared in UNLINKED on ${REGISTER}. Those ` +
+          `two tables are the two halves of one statement — reached from somewhere else, and this is ` +
+          `where from — and a leaf missing from the register is a route the register says nothing about.`,
+      )
+    }
+
+    /*
+     * The reserved set is DERIVED, and the header records what removing it
+     * actually renders — a dead `/tenants/new/configuration` link in every
+     * role's chrome, five fragments into a form that has no such cards, and the
+     * current-page marker on a tenant that does not exist. Deriving the expected
+     * set from the routes rather than restating it is what makes a second static
+     * sibling under `/tenants` fail here instead of shipping.
+     */
+    const statics = [...served]
+      .filter((route) => route.startsWith(`${branch.parent}/`))
+      .map((route) => route.slice(branch.parent.length + 1))
+      .filter((rest) => !rest.includes("/") && !rest.startsWith("["))
+      .sort()
+
+    assert.ok(
+      statics.length >= 1,
+      `no static route was found under ${branch.parent}, so the reservation check below has nothing ` +
+        `to refuse — /tenants/new is one and the route scan has stopped seeing it`,
+    )
+    assert.deepEqual(
+      [...branch.reserved].sort(),
+      statics,
+      `the contextual sub-tree under ${branch.parent} reserves {${[...branch.reserved].sort().join(", ")}} ` +
+        `and the console serves {${statics.join(", ")}} as static routes there.\n\n` +
+        `An unreserved static segment is treated as an object id, which renders its href into the shell ` +
+        `on every role — the exact string e2e/operator-roles.spec.ts requires to be absent from an ` +
+        `auditor's markup.`,
+    )
+    for (const segment of branch.reserved) {
+      assert.ok(
+        served.has(`${branch.parent}/${segment}`),
+        `${branch.parent}/${segment} is reserved and the console does not serve it. A stale reservation ` +
+          `hides a real object id from the sub-tree.`,
+      )
+    }
+  }
 })

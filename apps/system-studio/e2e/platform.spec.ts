@@ -355,7 +355,18 @@ test.describe("platform console", () => {
       await expect(page.getByText("Partition", { exact: true })).toBeVisible()
     } else {
       // The whole point of STUDIO-000-007: not an empty list, not a zero.
-      const unknown = page.locator(`.md3-unknown[data-reason="${state}"]`)
+      //
+      // SCOPED to the identity card, which it did not need to be while this
+      // page made one AWS call. It now makes twelve — the Service Quotas
+      // listings and the Organization read — and on an estate that refuses
+      // them this selector resolved to ELEVEN elements and failed on strict
+      // mode. That is the grouped rendering working, not a regression: each
+      // refused service listing is its own named block with its own statement.
+      // The assertion is unchanged; only its scope follows the page.
+      const identityCard = page.locator(".md3-card").filter({
+        has: page.getByRole("heading", { name: "The identity this engine is running as" }),
+      })
+      const unknown = identityCard.locator(`.md3-unknown[data-reason="${state}"]`)
       await expect(unknown).toBeVisible()
       await expect(unknown).toContainText("sts:GetCallerIdentity")
     }
@@ -372,5 +383,140 @@ test.describe("platform console", () => {
     for (const queue of truth.estate.sqsQueues) {
       await expect(page.getByText(queue, { exact: true })).toBeVisible()
     }
+  })
+
+  /* ───────────────────────────────────────────────────────────────────────
+   * The two readers this page brought out of the dark.
+   *
+   * `src/lib/aws/quotas.ts` and `src/lib/aws/organization.ts` were real,
+   * tested, granted code that no page imported: the quota reader reached
+   * `estateInventory` only as a coverage SIGNAL — a section state, never a
+   * single applied value — and `organizationSurface` was called from nothing
+   * at all. Work an operator cannot see is indistinguishable from work that
+   * did not happen, which is this page's own opening sentence.
+   *
+   * Both tests below assert a property that survives running WITH and WITHOUT
+   * AWS credentials, because CI has none and a deployed console has some. The
+   * shape is the same in both cases and it is the shape that matters: a read
+   * that answered renders its value with what is not known beside it, and a
+   * read that did not renders as a named unknown carrying the statement that
+   * would grant it — never as an empty table and never as a zero.
+   */
+
+  test("names the ceilings it provisions into, and never prints headroom it did not measure", async ({ page }) => {
+    await signIn(page)
+    await page.goto("/platform")
+
+    const card = page.locator(".md3-card").filter({
+      has: page.getByRole("heading", { name: "The ceilings this engine provisions into" }),
+    })
+    await expect(card).toBeVisible()
+
+    // The verdict is carried by a WORD. Colour alone is forbidden on this
+    // console, and "headroom not established" is the arm this estate is
+    // actually in for most of its quotas — it must not read as "clear".
+    await expect(card.locator(".md3-badge").first()).toHaveText(
+      /no ceiling read|headroom not established|no quota pressure|near a ceiling/,
+    )
+
+    // Whether any of these values was RAISED from the AWS default is not
+    // readable by this engine, and the card says so with the action that would
+    // answer it rather than leaving an applied value to read as a default.
+    await expect(card).toContainText("servicequotas:GetAWSDefaultServiceQuota")
+    await expect(card).toContainText("ceilings answered with an applied value")
+
+    const table = card.getByRole("table", {
+      name: /Every quota that bounds tenant provisioning/,
+    })
+    await expect(table).toBeVisible()
+
+    const nothingRead = await table.getByText("No applied value was read on this render").count()
+    if (nothingRead > 0) {
+      // No credentials, or no grant. The whole point of STUDIO-000-007: the
+      // reads that did not answer are named, with the principal, the action
+      // and a pasteable statement — not summarised as an estate with no
+      // ceilings.
+      const unknown = card.locator(".md3-unknown")
+      expect(await unknown.count()).toBeGreaterThan(0)
+      await expect(unknown.first()).toContainText("servicequotas:")
+    } else {
+      const rows = await table.getByRole("row").allInnerTexts()
+      // The header row plus at least one quota.
+      expect(rows.length).toBeGreaterThan(1)
+      for (const row of rows.slice(1)) {
+        expect(row, "an applied value rendered with no default caveat beside it").toContain(
+          "against the AWS default: not known",
+        )
+        if (row.includes("usage not known")) {
+          // The reassurance defect this card is written against: a ceiling
+          // nobody counted against must not print a remainder or a percentage.
+          expect(row, "a quota with no usage number printed a headroom").toContain(
+            "headroom not known",
+          )
+        }
+      }
+    }
+  })
+
+  test("says whether this estate has an Organization, and never confuses a refusal with an absence", async ({ page }) => {
+    await signIn(page)
+    await page.goto("/platform")
+
+    const card = page.locator(".md3-card").filter({
+      has: page.getByRole("heading", { name: "Whether this estate has an AWS Organization" }),
+    })
+    await expect(card).toBeVisible()
+
+    const badge = card.locator(".md3-badge").first()
+    await expect(badge).toHaveText(
+      /an Organization, managed here|no Organization — one account|not known — the read did not answer/,
+    )
+    // `textContent`, not `innerText`. `.md3-badge` is `text-transform: uppercase`
+    // in `globals.css`, and `innerText` returns the RENDERED text — so the word
+    // read back is "NO ORGANIZATION — ONE ACCOUNT" while the assertion above,
+    // which Playwright evaluates against `textContent`, sees the source casing.
+    // Reading the two different ways is how a branch below silently became
+    // unreachable; this cost a run to find and is worth the four lines.
+    const word = ((await badge.textContent()) ?? "").trim()
+
+    if (word.startsWith("no Organization")) {
+      // AWS answered `AWSOrganizationsNotInUseException` — a read, not a
+      // refusal. The consequences are the point: "not in use" printed alone is
+      // technically correct and tells an operator nothing.
+      await expect(card).toContainText("AWSOrganizationsNotInUseException")
+      await expect(card).toContainText("STUDIO-010-001")
+      await expect(card).toContainText("STUDIO-010-002")
+      // And the account list is the read that was never made, rendered as
+      // exactly that rather than as an Organization with no accounts.
+      const unknown = card.locator('.md3-unknown[data-reason="UNCONFIGURED"]')
+      await expect(unknown).toBeVisible()
+      await expect(unknown).toContainText("organizations:ListAccounts")
+    } else if (word.startsWith("not known")) {
+      // The defect this console shipped once: a denied `DescribeOrganization`
+      // turned into a falsy boolean and rendered as "not in use — a
+      // single-account estate".
+      const unknown = card.locator(".md3-unknown").first()
+      await expect(unknown).toBeVisible()
+      await expect(unknown).toContainText("organizations:DescribeOrganization")
+      await expect(card).not.toContainText("single AWS account")
+    } else {
+      await expect(
+        card.getByRole("table", { name: "Every account in this Organization" }),
+      ).toBeVisible()
+    }
+
+    // Whatever the arm, the OU hierarchy is NOT claimed: this engine declares
+    // no organizations:ListRoots capability, so an empty root list would be an
+    // absence of a read rather than a reading of an absence.
+    await expect(card).toContainText("organizations:ListRoots")
+
+    // And no account id reaches the page unmasked. The whole-body assertion in
+    // "shows the estate, and never the unmasked account id" covers this card
+    // too; this is the same check scoped to the two cards that render live
+    // account identifiers, so a failure names which one.
+    const text = await card.innerText()
+    expect(text, "an unmasked 12-digit AWS account id in the Organization card").not.toMatch(
+      /\b\d{12}\b/,
+    )
   })
 })

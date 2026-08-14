@@ -15,14 +15,14 @@
     "metric-module": "non-page, non-route module in an analytics-surface directory that aggregates"
   },
   "counts": {
-    "artefacts": 61,
+    "artefacts": 62,
     "byKind": {
       "analytics-surface": 22,
       "chart-kit": 22,
       "chart-panel": 7,
       "client-side-metric": 7,
       "metric-endpoint": 2,
-      "metric-module": 8
+      "metric-module": 9
     }
   },
   "artefacts": [
@@ -54,6 +54,16 @@
       "signals": [
         "client-math:.reduce(",
         "client-math:Map<string, number>"
+      ],
+      "owner": "control-plane"
+    },
+    {
+      "id": "apps/system-studio/src/app/platform/cost/cost-rates.ts",
+      "kinds": [
+        "metric-module"
+      ],
+      "signals": [
+        "client-math:.reduce("
       ],
       "owner": "control-plane"
     },
@@ -173,7 +183,8 @@
         "analytics-surface"
       ],
       "signals": [
-        "page-math:.reduce("
+        "page-math:.reduce(",
+        "primitive:StaleIndicator"
       ],
       "owner": "control-plane"
     },

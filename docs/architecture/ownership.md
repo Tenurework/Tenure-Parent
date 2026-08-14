@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**882 files · 13 domains with code · 1 declared and unbuilt · 22 shared.**
+**950 files · 13 domains with code · 1 declared and unbuilt · 23 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
@@ -16,7 +16,7 @@ defensible.
 
 | Domain | Files | Experience | What it owns |
 |---|---:|---|---|
-| `control-plane` | 282 | deployer + engine + tenant | Composing, provisioning and operating tenants. The engine, not any tenant. |
+| `control-plane` | 349 | deployer + engine + tenant | Composing, provisioning and operating tenants. The engine, not any tenant. |
 | `identity` | 72 | engine + tenant | Who someone is: providers, sessions, the sign-in surface. |
 | `authorization` | 44 | engine + tenant | What someone may do: capabilities, policy decisions, delegation. |
 | `organization` | 45 | engine + tenant | The org graph: institutions, organizations, roles, seats, the directory. |
@@ -46,8 +46,8 @@ is gone rather than reworded.
 
 | Experience | Files | What it is |
 |---|---:|---|
-| `tenant` | 401 | What a customer signs into. Everything it serves is scoped to one institution. |
-| `deployer` | 240 | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
+| `tenant` | 402 | What a customer signs into. Everything it serves is scoped to one institution. |
+| `deployer` | 307 | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
 | `engine` | 241 | Library code with no surface of its own. It renders to nobody; it is rendered through by whichever app imports it, so it belongs to neither audience and is available to both. |
 
 ### Rendered to no declared audience
@@ -92,6 +92,7 @@ list here would mean the domains are wrong rather than that the code is unusual.
 | `apps/web/src/app/error.tsx` | the root error boundary |
 | `apps/web/src/app/not-found.tsx` | the root 404 |
 | `apps/web/src/app/manifest.ts` | the PWA manifest |
+| `apps/web/src/app/globals.css` | the tenant application's whole stylesheet — every domain in that app renders through it, so giving it to one would make the others its tenants |
 | `apps/web/src/app/apple-icon.tsx` | the home-screen icon, generated at the document root |
 | `apps/web/src/app/api/health/route.ts` | the load-balancer probe — deliberately owned by nothing |
 

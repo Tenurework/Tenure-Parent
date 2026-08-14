@@ -1223,8 +1223,8 @@
       ],
       "tags": []
     },
-    "checked_out_branch": "HEAD",
-    "head_commit": "a8acafa1d124e85f438c0d7f6cf8a7cd6fe0ecea",
+    "checked_out_branch": "main",
+    "head_commit": "3a5753d6ddc28d9f7eae160d0e3dd1d70929e73d",
     "branches": [
       {
         "ref": "fix/canonical-digest",
@@ -1236,7 +1236,7 @@
       },
       {
         "ref": "main",
-        "commit": "54b3c3d4a5327aecae1f5c8bafdf501f4af89219"
+        "commit": "3a5753d6ddc28d9f7eae160d0e3dd1d70929e73d"
       },
       {
         "ref": "platform/reconcile-endpoint",
@@ -1270,11 +1270,11 @@
     "remote_branches": [
       {
         "ref": "origin",
-        "commit": "a76d4607ec91d7d310ddb785b8ce2de0c0be56d0"
+        "commit": "3a5753d6ddc28d9f7eae160d0e3dd1d70929e73d"
       },
       {
         "ref": "origin/main",
-        "commit": "a76d4607ec91d7d310ddb785b8ce2de0c0be56d0"
+        "commit": "3a5753d6ddc28d9f7eae160d0e3dd1d70929e73d"
       },
       {
         "ref": "origin/wip/studio-program-20260813",
@@ -1283,8 +1283,8 @@
     ],
     "local_tags": [],
     "history": {
-      "commits": 425,
-      "newest_commit": "a76d4607ec91d7d310ddb785b8ce2de0c0be56d0",
+      "commits": 432,
+      "newest_commit": "3a5753d6ddc28d9f7eae160d0e3dd1d70929e73d",
       "newest_commit_date": "2026-08-14",
       "oldest_commit": "abf30691f8299414de6b115f4d40c8084049a0f4",
       "oldest_commit_date": "2026-07-10",
@@ -3269,9 +3269,9 @@
     ],
     "import_graph": {
       "code_files": 1145,
-      "builtin_imports": 697,
-      "unresolved_relative_specifiers": 1,
-      "unresolved_alias_specifiers": 0,
+      "builtin_imports": 703,
+      "unresolved_relative_specifiers": 47,
+      "unresolved_alias_specifiers": 4,
       "internal_edges": [
         {
           "from": "apps/system-studio/e2e",
@@ -3281,12 +3281,12 @@
         {
           "from": "apps/system-studio/e2e",
           "to": "apps/system-studio/src/lib",
-          "imports": 30
+          "imports": 32
         },
         {
           "from": "apps/system-studio/e2e",
           "to": "apps/web/src/lib",
-          "imports": 2
+          "imports": 1
         },
         {
           "from": "apps/system-studio/e2e",
@@ -3321,7 +3321,7 @@
         {
           "from": "apps/system-studio/src/app",
           "to": "apps/system-studio/src/components",
-          "imports": 43
+          "imports": 45
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3331,7 +3331,7 @@
         {
           "from": "apps/system-studio/src/app",
           "to": "apps/system-studio/src/lib",
-          "imports": 221
+          "imports": 244
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3721,7 +3721,7 @@
         {
           "from": "apps/system-studio/src/app",
           "package": "next",
-          "imports": 29,
+          "imports": 30,
           "declared": true
         },
         {
@@ -3757,7 +3757,7 @@
         {
           "from": "apps/system-studio/src/components",
           "package": "react",
-          "imports": 20,
+          "imports": 21,
           "declared": true
         },
         {
@@ -4825,7 +4825,7 @@
         "pattern": "/^\\.github\\/workflows\\/.*\\.ya?ml$/"
       }
     ],
-    "working_tree_dirty_paths": 2
+    "working_tree_dirty_paths": 120
   },
   "relationship": {
     "merge_base": "d20d40d7846fc434b539f80cae8e437b750055ed",

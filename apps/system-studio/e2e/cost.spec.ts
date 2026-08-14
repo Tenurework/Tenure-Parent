@@ -334,3 +334,118 @@ test.describe("the FinOps Center answers all three parts of its question", () =>
     }
   })
 })
+
+/**
+ * The rate a quote is built from — STUDIO-070-004 (Pricing adapter).
+ *
+ * The three panels above answer what the fleet HAS spent. None of them answers
+ * what a change WOULD cost, which is what every approval on this page is
+ * actually about, and Cost Explorer cannot answer it either — it reports
+ * consumption. `lib/aws/pricing.ts` reads AWS's own published on-demand rates
+ * for the shapes this estate provisions, and until this panel existed that
+ * reader — real, tested, with a capability and an IAM grant — reached no screen
+ * at all.
+ *
+ * These assertions are written to hold in EVERY arm, for the reason the block
+ * above gives: in this job the credentials are DynamoDB-Local shaped, so the
+ * region does not resolve and most shapes come back unconfigured — but a spec
+ * that assumed that would red the day the job is given a real read-only role,
+ * which is a change that should make this page better rather than break its
+ * tests.
+ */
+test.describe("the FinOps Center shows the rate a quote is built from", () => {
+  const RATES = "What its shapes cost, per unit"
+
+  test("prices the shapes this estate provisions, and says what it is as of", async ({ page }) => {
+    await signIn(page)
+    await page.goto("/platform/cost")
+
+    await expect(page.getByRole("heading", { name: RATES })).toBeVisible()
+
+    const rates = page.locator("section", { hasText: RATES }).first()
+    await expect(rates, "the rates panel does not say what it is as of").toContainText(/as of/i)
+
+    // One of the three legitimate shapes, never nothing at all. STUDIO-000-007.
+    const shapes = rates.locator("[data-reason], table.md3-table, .md3-empty")
+    expect(await shapes.count(), "the rates panel rendered nothing at all").toBeGreaterThan(0)
+
+    // The quantity behind any monthly figure is on the page rather than implied:
+    // a monthly cost is a rate times a quantity, and a page showing the product
+    // while hiding the quantity is showing an opinion.
+    await expect(rates).toContainText(/730 hours/)
+  })
+
+  test("never prints a total that costed an unpriced shape at zero", async ({ page }) => {
+    /*
+     * The rule this panel exists to hold. A total is stated only when every
+     * shape resolved; one denial, one throttle, one ambiguous SKU and the figure
+     * is the word Unknown. The most convincing wrong answer available is the sum
+     * of whatever happened to resolve, printed under the word total — so this
+     * asserts on the total block itself rather than on the page, where the rows'
+     * own figures legitimately appear.
+     */
+    await signIn(page)
+    await page.goto("/platform/cost")
+
+    const total = page.locator('dl[aria-label^="The running total"]')
+    await expect(total).toHaveCount(1)
+
+    const text = (await total.textContent()) ?? ""
+    if (/Unknown/.test(text)) {
+      expect(text, "an unknown total printed a currency amount anyway").not.toMatch(/\$\d/)
+      // And it says what would make it knowable, rather than just refusing.
+      expect(text).toMatch(/unpriced|no resolved rate|currenc|hourly/i)
+      // A commitment whose cost is unknown may not be banded as though it were
+      // small — that is the approval this page's thresholds govern.
+      expect(text).toMatch(/cannot be approved on cost/i)
+    } else {
+      // If it IS known, it names what is in it and what is not. A total whose
+      // composition is invisible is a total nobody can check.
+      expect(text).toMatch(/hourly shape/i)
+    }
+  })
+
+  test("a rate it could not read is a refusal with a remedy, never a free shape", async ({
+    page,
+  }) => {
+    await signIn(page)
+    await page.goto("/platform/cost")
+
+    const rates = page.locator("section", { hasText: RATES }).first()
+
+    if ((await rates.locator("[data-reason]").count()) > 0) {
+      // The refusal carries the capability and its own remedy rather than a
+      // support link, exactly as every other panel's does.
+      await expect(rates).toContainText(/pricing:GetProducts/)
+      await expect(rates).toContainText(/capability/i)
+    }
+
+    /*
+     * And nothing in this panel prices anything at zero — not a refused read,
+     * and not a real sub-cent rate rendered at the currency's display precision.
+     * `$0.0000001250` per write request unit formatted as `$0.00` is a genuine
+     * charge shown as free, on the surface a database gets approved from.
+     */
+    await expect(rates).not.toContainText("$0.00")
+  })
+
+  test("keeps the approval verdicts out of a second table", async ({ page }) => {
+    /*
+     * The approval bands are policy, stated once. This panel reads that policy
+     * against one figure and renders the verdict in its own description list —
+     * never in a table cell, because a second cell carrying the same verdict
+     * word makes the band table's assertions above resolve two elements and
+     * turns a policy statement into a policy that appears to be stated twice.
+     */
+    await signIn(page)
+    await page.goto("/platform/cost")
+
+    const rates = page.locator("section", { hasText: RATES }).first()
+    await expect(rates.getByRole("cell", { name: /executive/i })).toHaveCount(0)
+    await expect(rates.getByRole("cell", { name: "two people" })).toHaveCount(0)
+
+    // And the band table itself still resolves to exactly one cell per verdict.
+    await expect(page.getByRole("cell", { name: "two people" })).toHaveCount(1)
+    await expect(page.getByRole("cell", { name: /executive/i })).toHaveCount(1)
+  })
+})

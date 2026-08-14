@@ -360,7 +360,7 @@ const listFiles = () =>
     })
       .split('\n')
       .filter(Boolean),
-  ).filter((f) => /\.(ts|tsx|mjs)$/.test(f))
+  ).filter((f) => /\.(ts|tsx|mjs|css)$/.test(f))
 
 /**
  * Files that are genuinely cross-cutting, with the reason.
@@ -452,6 +452,11 @@ const SHARED = new Map([
   ['apps/web/src/app/error.tsx', 'the root error boundary'],
   ['apps/web/src/app/not-found.tsx', 'the root 404'],
   ['apps/web/src/app/manifest.ts', 'the PWA manifest'],
+  [
+    'apps/web/src/app/globals.css',
+    'the tenant application\'s whole stylesheet — every domain in that app renders through it, so ' +
+      'giving it to one would make the others its tenants',
+  ],
   ['apps/web/src/app/apple-icon.tsx', 'the home-screen icon, generated at the document root'],
   ['apps/web/src/app/api/health/route.ts', 'the load-balancer probe — deliberately owned by nothing'],
 ])

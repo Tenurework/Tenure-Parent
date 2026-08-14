@@ -212,8 +212,19 @@ variable "attach_studio_domain" {
     and the task's AUTH_URL/NEXTAUTH_URL. All four move together or sign-in
     breaks, which is why they read from one place.
 
-    TRUE since 2026-08-14. ACM reports the certificate ISSUED and the domain's
-    validation status SUCCESS, read from the account rather than assumed:
+    The DEFAULT STAYS FALSE, and that is not a leftover. The default is what a
+    fresh account gets, and there the certificate is necessarily unissued — an
+    apply that tries to attach it fails. `studio-domain.test.mjs` asserts this,
+    and it caught a change of this default to `true` on the grounds that THIS
+    account's certificate happens to be issued. Which confuses a fact about one
+    deployment with the safe starting state for every deployment.
+
+    So the live value is set where it belongs, per-deployment, in
+    `deploy-studio.yml`:  -var="attach_studio_domain=true".
+
+    It was flipped there on 2026-08-14, once ACM reported the certificate ISSUED
+    and helm.tenurework.com's validation SUCCESS — read from the account rather
+    than assumed:
 
       STUDIO_CERT_STATUS=ISSUED
       STUDIO_CERT_VALIDATION=SUCCESS helm.tenurework.com
@@ -224,5 +235,5 @@ variable "attach_studio_domain" {
     DNS propagates — nobody is locked out by the switch.
   EOT
   type        = bool
-  default     = true
+  default     = false
 }

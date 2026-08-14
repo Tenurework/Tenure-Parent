@@ -1,0 +1,877 @@
+/*
+ * ── The interactive primitives' stylesheet ─────────────────────────────────
+ *
+ * ## Why this file is here and not in `globals.css`
+ *
+ * `globals.css` is one agent's file and it is the console's TOKEN source. This
+ * sheet declares no token, no colour value and no font: every declaration below
+ * resolves a `--md-sys-*` or `--space-*` variable that `globals.css` owns, so
+ * the palette still lives in exactly one place and a theme change still reaches
+ * every primitive. What is here is LAYOUT — where a popover sits relative to its
+ * trigger, which axis a drawer slides on, how a diff's columns are sized — which
+ * is the half that belongs beside the component it describes.
+ *
+ * ## Why the hooks are `data-md3` attributes and not `md3-` class names
+ *
+ * `e2e/md3-tokens-logic.spec.ts` asserts that every `md3-*` CLASS a component
+ * emits is declared in `globals.css`, and that every `md3-*` class in
+ * `globals.css` is emitted by a component. Those two assertions are a contract
+ * between two files, and a primitive that emitted `md3-menu` from here would
+ * break both halves of it while changing nothing about the console. So the
+ * classes these components emit are the EXISTING ones — `md3-surface`,
+ * `md3-state`, `md3-button`, the type scale — and this layer's own hooks are
+ * attributes, which is the mechanism `Surface` already uses for its container
+ * and elevation ladders (`data-container`, `data-level`).
+ *
+ * The guarantee that spec protects is not weakened, it is repeated:
+ * `e2e/md3-primitives-logic.spec.ts` scans THIS file for a hex code, a colour
+ * function and all 148 CSS colour keywords, and asserts that every
+ * `[data-md3="…"]` selector here is emitted by a component and every value a
+ * component emits is styled here. Same drift check, same colour ban, applied to
+ * the file that could otherwise dodge both.
+ *
+ * ## No animation
+ *
+ * Nothing here moves. A drawer that slides needs a reduced-motion variant, a
+ * duration that survives `data-motion="reduced"`, and an exit animation that
+ * must not delay focus restoration — three things to get right for an effect
+ * that costs an operator 200ms on every open. The console's overlays appear.
+ */
+
+/* ── Anchored layers: popover, menu, combobox listbox ─────────────────────── */
+
+[data-md3="anchor"] {
+  position: relative;
+  display: inline-block;
+  /* A flex item defaults to min-width:auto and refuses to shrink below its
+     min-content; every row wrapper in this console carries this for that
+     reason, and an anchor inside a toolbar is a flex item. */
+  min-inline-size: 0;
+}
+
+[data-md3="anchor"][data-block="true"] {
+  display: block;
+}
+
+[data-md3="popover"] {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  z-index: 30;
+  min-inline-size: 14rem;
+  /* Never wider than the viewport at 320px, which is where an anchored panel
+     is the usual cause of a sideways page scroll. */
+  max-inline-size: min(24rem, calc(100vw - var(--space-4) * 2));
+}
+
+[data-md3="popover"][data-block="true"] {
+  inline-size: 100%;
+  max-inline-size: none;
+}
+
+[data-md3="popover"][data-align="start"] {
+  inset-inline-start: 0;
+}
+
+[data-md3="popover"][data-align="end"] {
+  inset-inline-end: 0;
+}
+
+[data-md3="popover-panel"] {
+  padding: var(--space-2);
+  max-block-size: min(28rem, 70vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+[data-md3="trigger-hint"] {
+  margin-inline-start: var(--space-2);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ── Menu ─────────────────────────────────────────────────────────────────── */
+
+[data-md3="menu"] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+[data-md3="menu-group"] + [data-md3="menu-group"] {
+  margin-block-start: var(--space-2);
+  padding-block-start: var(--space-2);
+  border-block-start: 1px solid var(--md-sys-color-outline-variant);
+}
+
+[data-md3="menu-group-label"] {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  color: var(--md-sys-color-on-surface-variant);
+  text-transform: uppercase;
+}
+
+[data-md3="menu-item"] {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0 var(--space-3);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--md-sys-shape-corner-small);
+  background: none;
+  color: var(--md-sys-color-on-surface);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+[data-md3="menu-item"][data-tone="danger"] {
+  color: var(--md-sys-color-error);
+}
+
+[data-md3="menu-item"][aria-disabled="true"] {
+  /* Keeps its label. `globals.css` states the rule: the control an operator
+     cannot press is usually the one they came to press. */
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: not-allowed;
+}
+
+[data-md3="menu-item-label"] {
+  grid-column: 1;
+}
+
+[data-md3="menu-item-detail"] {
+  grid-column: 1;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="menu-hint"] {
+  grid-column: 2;
+  grid-row: 1;
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-type-mono);
+  white-space: nowrap;
+}
+
+/* ── Modal dialog and drawer ──────────────────────────────────────────────── */
+
+[data-md3="modal-host"] {
+  /* The portal host itself is nothing: it must not create a stacking context
+     of its own or add a box that the page can scroll to. */
+  display: contents;
+}
+
+[data-md3="modal"] {
+  display: contents;
+}
+
+[data-md3="modal-scrim"] {
+  /* The backdrop itself is `.md3-dialog-scrim`; this only stops a long dialog
+     from being clipped when the viewport is shorter than it is. */
+  align-items: flex-start;
+}
+
+[data-md3="modal-busy"] {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="drawer-scrim"] {
+  /* Reuses `.md3-dialog-scrim` for the backdrop itself; these rules only move
+     the panel to the edge the drawer opens from. */
+  padding: 0;
+}
+
+[data-md3="drawer-scrim"][data-side="inline-start"] {
+  justify-content: flex-start;
+  align-items: stretch;
+}
+
+[data-md3="drawer-scrim"][data-side="inline-end"] {
+  justify-content: flex-end;
+  align-items: stretch;
+}
+
+[data-md3="drawer-scrim"][data-side="block-end"] {
+  align-items: flex-end;
+  justify-content: stretch;
+}
+
+[data-md3="drawer"] {
+  display: flex;
+  min-inline-size: 0;
+  max-inline-size: 100vw;
+}
+
+[data-md3="drawer"][data-side="inline-start"],
+[data-md3="drawer"][data-side="inline-end"] {
+  inline-size: min(30rem, 100vw);
+}
+
+[data-md3="drawer"][data-side="block-end"] {
+  inline-size: 100%;
+  max-block-size: 85vh;
+}
+
+[data-md3="drawer-panel"] {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-inline-size: 0;
+  max-block-size: 100vh;
+}
+
+[data-md3="drawer-header"],
+[data-md3="drawer-footer"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  min-inline-size: 0;
+}
+
+[data-md3="drawer-header"] {
+  border-block-end: 1px solid var(--md-sys-color-outline-variant);
+}
+
+[data-md3="drawer-header"] h2 {
+  margin: 0;
+  min-inline-size: 0;
+}
+
+[data-md3="drawer-footer"] {
+  border-block-start: 1px solid var(--md-sys-color-outline-variant);
+  justify-content: flex-end;
+}
+
+[data-md3="drawer-body"] {
+  flex: 1;
+  min-block-size: 0;
+  min-inline-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4);
+}
+
+/* ── Tooltip ──────────────────────────────────────────────────────────────── */
+
+[data-md3="tooltip-anchor"] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+[data-md3="tooltip-trigger"] {
+  display: inline-flex;
+  min-inline-size: 0;
+}
+
+[data-md3="tooltip"] {
+  position: absolute;
+  z-index: 35;
+  inset-inline-start: 0;
+  max-inline-size: 18rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+  pointer-events: none;
+}
+
+[data-md3="tooltip"][data-placement="block-end"] {
+  inset-block-start: calc(100% + var(--space-1));
+}
+
+[data-md3="tooltip"][data-placement="block-start"] {
+  inset-block-end: calc(100% + var(--space-1));
+}
+
+/*
+ * Closed, not absent. The tip stays in the accessibility tree so
+ * `aria-describedby` resolves whether or not it is visible; `display: none`
+ * and unmounting are both ways to make a description that some screen readers
+ * announce and others do not.
+ */
+[data-md3="tooltip"][data-open="false"] {
+  clip-path: inset(50%);
+  block-size: 1px;
+  inline-size: 1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ── Accordion ────────────────────────────────────────────────────────────── */
+
+[data-md3="accordion"] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+[data-md3="accordion-item"] {
+  min-inline-size: 0;
+}
+
+[data-md3="accordion-heading"] {
+  margin: 0;
+}
+
+[data-md3="accordion-trigger"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-block-size: var(--tap);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+[data-md3="accordion-marker"] {
+  flex: none;
+  inline-size: 0;
+  block-size: 0;
+  border-inline-start: 6px solid currentColor;
+  border-block-start: 5px solid transparent;
+  border-block-end: 5px solid transparent;
+}
+
+[data-md3="accordion-trigger"][aria-expanded="true"] [data-md3="accordion-marker"] {
+  border-inline-start: 5px solid transparent;
+  border-inline-end: 5px solid transparent;
+  border-block-start: 6px solid currentColor;
+  border-block-end: 0;
+}
+
+[data-md3="accordion-label"] {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+[data-md3="accordion-hint"] {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="accordion-panel"] {
+  padding: 0 var(--space-4) var(--space-4);
+  min-inline-size: 0;
+}
+
+/* ── Tree ─────────────────────────────────────────────────────────────────── */
+
+[data-md3="tree"] {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-inline-size: 0;
+}
+
+[data-md3="tree-item"] {
+  display: block;
+  min-block-size: var(--tap);
+  border-radius: var(--md-sys-shape-corner-small);
+  cursor: pointer;
+  /* The indent is the level, and it is a real one rather than a nested list,
+     because the rows are flattened so that arrow keys move by ROW. */
+  padding-inline-start: calc(var(--space-3) * (var(--tree-level, 1)));
+}
+
+[data-md3="tree-item"][data-level="1"] { --tree-level: 1; }
+[data-md3="tree-item"][data-level="2"] { --tree-level: 2; }
+[data-md3="tree-item"][data-level="3"] { --tree-level: 3; }
+[data-md3="tree-item"][data-level="4"] { --tree-level: 4; }
+[data-md3="tree-item"][data-level="5"] { --tree-level: 5; }
+
+[data-md3="tree-item"][aria-selected="true"] {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+[data-md3="tree-item"][aria-disabled="true"] {
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: not-allowed;
+}
+
+[data-md3="tree-row"] {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--tap);
+  padding-inline-end: var(--space-3);
+  min-inline-size: 0;
+}
+
+[data-md3="tree-twisty"] {
+  flex: none;
+  inline-size: 0;
+  block-size: 0;
+  border-inline-start: 6px solid currentColor;
+  border-block-start: 5px solid transparent;
+  border-block-end: 5px solid transparent;
+}
+
+[data-md3="tree-item"][aria-expanded="true"] [data-md3="tree-twisty"] {
+  border-inline-start: 5px solid transparent;
+  border-inline-end: 5px solid transparent;
+  border-block-start: 6px solid currentColor;
+  border-block-end: 0;
+}
+
+[data-md3="tree-twisty"][data-leaf="true"] {
+  border: 0;
+  inline-size: 6px;
+}
+
+[data-md3="tree-label"] {
+  min-inline-size: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Listbox (combobox popup) ─────────────────────────────────────────────── */
+
+[data-md3="listbox"] {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+[data-md3="listbox-option"] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-block-size: var(--tap);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--md-sys-shape-corner-small);
+  cursor: pointer;
+  min-inline-size: 0;
+}
+
+[data-md3="listbox-option"][aria-selected="true"] {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+[data-md3="listbox-option"][data-current="true"] [data-md3="listbox-label"]::after {
+  /* The committed choice says so in a word, not only in a highlight. */
+  content: " (chosen)";
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="listbox-detail"],
+[data-md3="listbox-empty"],
+[data-md3="combobox-status"] {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="listbox-empty"] {
+  padding: var(--space-2) var(--space-3);
+}
+
+[data-md3="combobox-status"] {
+  margin: 0 0 var(--space-1);
+  padding: 0 var(--space-3);
+  text-transform: uppercase;
+}
+
+/* ── Code and diff ────────────────────────────────────────────────────────── */
+
+[data-md3="code"],
+[data-md3="diff"] {
+  margin: 0;
+  min-inline-size: 0;
+}
+
+[data-md3="code-caption"] {
+  display: block;
+  padding-block-end: var(--space-2);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="code-language"],
+[data-md3="diff-summary"] {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="code-body"] {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-sys-color-surface-container-lowest);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-type-mono);
+  max-block-size: 32rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  /* A line of code is not prose: it must scroll, not be broken at an arbitrary
+     character. `globals.css` gives `code` overflow-wrap:anywhere for inline
+     use; a block is the case where that is wrong. */
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+[data-md3="diff-scroll"],
+[data-md3="chart-table-scroll"] {
+  overflow-x: auto;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
+}
+
+[data-md3="diff-table"] {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-family: var(--md-sys-type-mono);
+}
+
+[data-md3="diff-table"] th,
+[data-md3="diff-table"] td {
+  padding: 2px var(--space-2);
+  text-align: start;
+  vertical-align: top;
+}
+
+[data-md3="diff-lineno"] {
+  inline-size: 4rem;
+  color: var(--md-sys-color-on-surface-variant);
+  text-align: end;
+  user-select: none;
+}
+
+[data-md3="diff-sign"] {
+  inline-size: 2rem;
+  text-align: center;
+}
+
+[data-md3="diff-text"] {
+  white-space: pre;
+}
+
+[data-kind="added"] {
+  background: var(--md-sys-color-success-container);
+  color: var(--md-sys-color-on-success-container);
+}
+
+[data-kind="removed"] {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+/*
+ * The one place this layer hides text from the screen.
+ *
+ * Clipped rather than `display: none`, because the point is that it IS
+ * announced — it is the word a reader gets when the plus sign and the tint are
+ * both unavailable to them.
+ */
+[data-md3="sr-only"] {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Date and time ────────────────────────────────────────────────────────── */
+
+[data-md3="datetime"],
+[data-md3="upload"] {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+[data-md3="datetime-legend"],
+[data-md3="upload-legend"] {
+  padding: 0;
+  color: var(--md-sys-color-on-surface);
+}
+
+[data-md3="datetime-support"],
+[data-md3="upload-support"],
+[data-md3="upload-hint"],
+[data-md3="upload-status"],
+[data-md3="upload-size"] {
+  margin: var(--space-1) 0 0;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="datetime-parts"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block-start: var(--space-2);
+}
+
+[data-md3="datetime-part"] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+[data-md3="datetime-error"] {
+  margin: var(--space-2) 0 0;
+  color: var(--md-sys-color-error);
+}
+
+/* ── Stepper ──────────────────────────────────────────────────────────────── */
+
+[data-md3="stepper-list"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-inline-size: 0;
+}
+
+[data-md3="stepper"][data-orientation="vertical"] [data-md3="stepper-list"] {
+  flex-direction: column;
+}
+
+[data-md3="step"] {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+[data-md3="step-body"] {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-block-size: var(--tap);
+  padding: var(--space-2);
+  border-radius: var(--md-sys-shape-corner-small);
+  border-block-start: 3px solid var(--md-sys-color-outline-variant);
+  color: inherit;
+  text-decoration: none;
+  min-inline-size: 0;
+}
+
+[data-md3="step"][data-status="done"] [data-md3="step-body"] {
+  border-block-start-color: var(--md-sys-color-success);
+}
+
+[data-md3="step"][data-status="current"] [data-md3="step-body"] {
+  border-block-start-color: var(--md-sys-color-primary);
+}
+
+[data-md3="step"][data-status="blocked"] [data-md3="step-body"] {
+  border-block-start-color: var(--md-sys-color-warning);
+}
+
+[data-md3="step"][data-status="failed"] [data-md3="step-body"] {
+  border-block-start-color: var(--md-sys-color-error);
+}
+
+[data-md3="step-index"] {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tap);
+  block-size: var(--tap);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-highest);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="step-text"] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+[data-md3="step-label"] {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-md3="step-status"],
+[data-md3="step-detail"] {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ── File upload ──────────────────────────────────────────────────────────── */
+
+[data-md3="upload-drop"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-start: var(--space-2);
+  padding: var(--space-4);
+  min-inline-size: 0;
+}
+
+[data-md3="upload-drop"][data-dragging="true"] {
+  border-color: var(--md-sys-color-primary);
+}
+
+[data-md3="upload-label"] {
+  /* A real <label for>, beside the real input rather than wrapped around a
+     hidden one: the focus ring has to land somewhere a keyboard user can see. */
+  flex: none;
+  color: var(--md-sys-color-on-surface);
+}
+
+[data-md3="upload-input"] {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  color: var(--md-sys-color-on-surface);
+}
+
+[data-md3="upload-list"],
+[data-md3="upload-rejected"] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+[data-md3="upload-item"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+[data-md3="upload-name"] {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-md3="upload-rejected"] {
+  color: var(--md-sys-color-error);
+}
+
+/* ── Chart ────────────────────────────────────────────────────────────────── */
+
+[data-md3="chart"] {
+  margin: 0;
+  min-inline-size: 0;
+}
+
+[data-md3="chart-caption"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  padding-block-end: var(--space-2);
+}
+
+[data-md3="chart-meta"] {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="chart-empty"] {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--md-sys-shape-corner-small);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="chart-svg"] {
+  inline-size: 100%;
+  block-size: 13.75rem;
+  overflow: visible;
+}
+
+[data-md3="chart-grid"],
+[data-md3="chart-axis"] {
+  stroke: var(--md-sys-color-outline-variant);
+  stroke-width: 1;
+}
+
+[data-md3="chart-axis"] {
+  stroke: var(--md-sys-color-outline);
+}
+
+[data-md3="chart-tick"] {
+  fill: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-small-size);
+}
+
+[data-md3="chart-series"] {
+  stroke: var(--md-sys-color-primary);
+  stroke-width: 2;
+  fill: none;
+}
+
+/*
+ * Four series, four roles AND four dash patterns (set on the element, since the
+ * pattern is data). Tint alone is not a distinction — Bible section 26.3.2 —
+ * and four lines in one hue is the chart nobody can read in a printed review.
+ */
+[data-series="1"] {
+  stroke: var(--md-sys-color-tertiary);
+}
+
+[data-series="2"] {
+  stroke: var(--md-sys-color-secondary);
+}
+
+[data-series="3"] {
+  stroke: var(--md-sys-color-on-surface-variant);
+}
+
+[data-md3="chart-legend"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+[data-md3="chart-swatch"] {
+  flex: none;
+  /* The legend key carries the same dash pattern as the line, so the legend is
+     readable in one colour — on paper, and by a reader who cannot separate the
+     four hues. */
+  overflow: visible;
+}
+
+[data-md3="chart-legend"] li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+[data-md3="chart-table"] summary {
+  cursor: pointer;
+  padding: var(--space-2) 0;
+}
+
+/* ── Toasts ───────────────────────────────────────────────────────────────── */
+
+[data-md3="toast-region"] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+[data-md3="toast"] {
+  min-inline-size: 0;
+}

@@ -6,12 +6,14 @@ import { auth } from "@/lib/auth"
 import { authorizeCommand } from "@/lib/authorize"
 import { budgetReadings } from "@/lib/aws/budgets"
 import { denialContextFrom, resolveIdentity } from "@/lib/aws/identity"
+import { pricingReadings } from "@/lib/aws/pricing"
 import { taggedResources } from "@/lib/aws/tags"
 import { costSource, type CostSource } from "@/lib/cost-source"
 
 import { CostAnswer, type CostFigure } from "./CostAnswer"
 import { CostAttribution } from "./CostAttribution"
 import { CostBudgets } from "./CostBudgets"
+import { CostRates } from "./CostRates"
 import { CostReportView } from "./CostReportView"
 import { formatAmount, thresholdRows, type ThresholdRow } from "./cost-decisions"
 import styles from "./cost.module.css"
@@ -62,6 +64,22 @@ import styles from "./cost.module.css"
  *      valueless arms through the shared `UnknownState` — with the principal,
  *      the action and a pasteable minimum IAM statement — rather than as an
  *      empty list. Verified by rendering this route with no credentials set.
+ *
+ * ## The fourth panel, which is about a change rather than about the past
+ *
+ * Three questions, and then the one every approval on this page is actually
+ * about: what would a change COST. The three above are readings of what has
+ * already happened — a bill, a tag inventory, a budget forecast — and none of
+ * them can answer it. Cost Explorer cannot either: it reports what was SPENT.
+ * So `CostRates` reads AWS's own published on-demand price list through
+ * `lib/aws/pricing.ts` and shows the rate for each shape this estate provisions,
+ * with a running total for the hourly ones. The catalogue's rates are
+ * transcribed — right the day they were typed — and this is what an operator
+ * checks them against. STUDIO-070-004 (Pricing adapter).
+ *
+ * Its total is UNKNOWN whenever any shape's rate is unresolved, and there is no
+ * arm that prints a partial sum: a total that quietly costs an unpriced item at
+ * zero is the exact surprise a price tag exists to prevent.
  *
  * ## Money
  *
@@ -201,6 +219,25 @@ export default async function CostPage() {
   const budgets = await budgetReadings(undefined, { identity, tagged })
 
   /*
+   * The rates a quote is built from — STUDIO-070-004 (Pricing adapter).
+   *
+   * `pricingReadings()` with no arguments is the reader's documented production
+   * entry point: it takes the live gateway, resolves identity through the same
+   * process cache the three reads above used, and prices every shape this estate
+   * provisions one after another rather than in parallel — the Price List's
+   * response bodies are large and its throttle is per account, so a page load
+   * bursting fourteen of them is how a console rate-limits the estate it is
+   * meant to be watching.
+   *
+   * It cannot throw and it cannot take the route down: every failure inside
+   * `readAws` becomes an arm of `AwsRead`, and a shape whose region is
+   * unresolved never leaves the process at all — it comes back UNCONFIGURED
+   * naming what is missing. Nothing here is a mutation: the Price List is a
+   * public catalogue, and reading it moves no money and provisions nothing.
+   */
+  const rates = await pricingReadings()
+
+  /*
    * The build this console is running. Present when the image was stamped (the
    * Dockerfile bakes `DEPLOYMENT_ID` in, because `next.config.ts` needs the same
    * value at build and at run time); absent locally. Absent is SAID, not hidden
@@ -295,6 +332,15 @@ export default async function CostPage() {
 
       {/* ── 3. Is anything running away ────────────────────────────────── */}
       <CostBudgets readings={budgets} />
+
+      {/* ── What a change would cost, at the published rate ───────────────
+          Between the readings and the policy, because that is where it is used:
+          the panels above say what has been spent, the table below says what
+          needs approving, and this is the only figure on the page that says what
+          a change WOULD cost. Cost Explorer cannot answer it — it reports
+          consumption — so the rate comes from AWS's own published price list
+          through `lib/aws/pricing.ts`. STUDIO-070-004 (Pricing adapter). */}
+      <CostRates readings={rates} />
 
       {/* ── What a new commitment needs ──────────────────────────────────
           Shown whatever the reads returned, because they govern what a plan may

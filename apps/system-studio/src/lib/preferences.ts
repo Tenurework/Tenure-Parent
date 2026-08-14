@@ -91,6 +91,103 @@ export function resolveColorScheme(preference: ColorScheme, deviceIsDark: boolea
 }
 
 /**
+ * STUDIO-030-005 — "persist only as operator preference".
+ *
+ * The second clause of the density item, and it is a constraint on WHERE a
+ * choice may be written, not only on which control writes it. Density is one
+ * operator's eyesight and one operator's screen: it is not a property of the
+ * tenant, so it may not reach the tenant registry, a manifest, an audit entry
+ * or any other server-side record. `localStorage`, on the operator's own
+ * device, is the whole of the store — there is deliberately no cookie, because
+ * a cookie is sent to the server on every request and would put the preference
+ * in the one place this clause forbids.
+ *
+ * Which makes the store fallible, and it has to be treated as such:
+ *
+ *   * Reading `window.localStorage` THROWS — it does not return null — when the
+ *     browser is blocking site data (Safari private browsing, and Chrome with
+ *     "Block third-party cookies" on a site the operator has denied). The
+ *     pre-paint script has always caught that; `PreferencesMenu` had no guard,
+ *     so on such a browser its mount effect threw, and an exception thrown from
+ *     an effect unmounts the tree that contains it. The masthead renders
+ *     `<PreferencesMenu />` on EVERY route, so the failure was not a lost
+ *     preference — it was the console.
+ *   * A write can fail on its own (quota, or a store that is readable and not
+ *     writable). Failing to remember a preference must cost the preference and
+ *     nothing else, so `writePreference` reports it rather than throwing, and
+ *     the menu says so.
+ *
+ * These take the store as an argument so both outcomes are testable without a
+ * browser that can be persuaded to deny one.
+ */
+export interface PreferenceStore {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+}
+
+/** Never read. Only used to prove the store answers before it is trusted. */
+const STORE_PROBE_KEY = "tenure-studio-storage-probe"
+
+/**
+ * The operator's own store, or `null` when this browser will not give one up.
+ *
+ * `host` is the window by default and an argument for the tests: a store can
+ * fail at the property access (a throwing getter) or at first use, and both
+ * have to end as `null` rather than as an exception.
+ */
+export function preferenceStore(
+  host: { localStorage?: PreferenceStore } = globalThis as { localStorage?: PreferenceStore },
+): PreferenceStore | null {
+  try {
+    const store = host.localStorage
+    if (!store) return null
+    // A read, not a write: probing with `setItem` would leave a key behind on
+    // every load, and the failure being guarded against here is access itself.
+    store.getItem(STORE_PROBE_KEY)
+    return store
+  } catch {
+    return null
+  }
+}
+
+/**
+ * A stored preference, if it is one of the values this console accepts.
+ *
+ * An unknown value is the default rather than an error: the keys are readable
+ * and editable by anyone with devtools, and a typo there must not be able to
+ * put the document into a state the stylesheet has no rules for.
+ */
+export function readPreference<T extends string>(
+  store: PreferenceStore | null,
+  key: string,
+  allowed: readonly T[],
+  fallback: T,
+): T {
+  if (!store) return fallback
+  try {
+    const value = store.getItem(key)
+    return allowed.includes(value as T) ? (value as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+/** Whether the choice will survive the tab. `false` is a fact for the operator, not an error. */
+export function writePreference(
+  store: PreferenceStore | null,
+  key: string,
+  value: string,
+): boolean {
+  if (!store) return false
+  try {
+    store.setItem(key, value)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
  * The attributes the stylesheet keys on, for a resolved set of preferences.
  *
  * A value of `null` means "remove the attribute": light, comfortable, full

@@ -6,6 +6,9 @@ import {
   DEFAULT_PREFERENCES,
   STORAGE_KEYS,
   documentAttributes,
+  preferenceStore,
+  readPreference,
+  writePreference,
   type AccessibilityPreference,
   type ColorScheme,
   type Density,
@@ -73,10 +76,17 @@ function apply(preferences: Preferences) {
 }
 
 function readStored(): Preferences {
-  const read = <T extends string>(key: string, allowed: readonly T[], fallback: T): T => {
-    const value = window.localStorage.getItem(key)
-    return allowed.includes(value as T) ? (value as T) : fallback
-  }
+  /*
+   * STUDIO-030-005. Through `readPreference`, and the store through
+   * `preferenceStore()`, because reading `window.localStorage` THROWS rather
+   * than returning null on a browser that is blocking site data. This function
+   * runs from a mount effect, and an exception out of an effect unmounts the
+   * tree it is in — the masthead renders this menu on every route, so the cost
+   * of the missing guard was the console, not a preference.
+   */
+  const store = preferenceStore()
+  const read = <T extends string>(key: string, allowed: readonly T[], fallback: T): T =>
+    readPreference(store, key, allowed, fallback)
   return {
     colorScheme: read(STORAGE_KEYS.colorScheme, ["system", "light", "dark"] as const, "system"),
     density: read(STORAGE_KEYS.density, ["comfortable", "compact"] as const, "comfortable"),
@@ -141,11 +151,20 @@ export function PreferencesMenu() {
   // which React resolves by discarding one of them without saying so.
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES)
   const [open, setOpen] = useState(false)
+  /*
+   * STUDIO-030-005. Whether the operator's own device will REMEMBER a choice.
+   * Starts true because the server-rendered markup cannot know, and is
+   * corrected on mount from the store itself. It is not the same question as
+   * whether a choice applies — a denied store costs the memory of a preference
+   * and nothing else.
+   */
+  const [persisted, setPersisted] = useState(true)
 
   useEffect(() => {
     const stored = readStored()
     setPreferences(stored)
     apply(stored)
+    setPersisted(preferenceStore() !== null)
   }, [])
 
   useEffect(() => {
@@ -180,8 +199,15 @@ export function PreferencesMenu() {
   const set = <K extends keyof Preferences>(key: K, value: Preferences[K]) => {
     const next = { ...preferences, [key]: value }
     setPreferences(next)
+    // Applied BEFORE it is stored, and deliberately: the choice is the
+    // operator's whether or not this browser will remember it, and a bare
+    // `localStorage.setItem` here threw on a store that refuses writes — from
+    // inside an event handler, which React escalates to the error boundary.
     apply(next)
-    window.localStorage.setItem(STORAGE_KEYS[key], value)
+    // STUDIO-030-005. The operator's own device is the entire store: no cookie
+    // (which the server would receive on every request), no registry write, no
+    // manifest field.
+    setPersisted(writePreference(preferenceStore(), STORAGE_KEYS[key], value))
   }
 
   return (
@@ -245,6 +271,18 @@ export function PreferencesMenu() {
           options={ACCESSIBILITY_OPTIONS}
           onChange={(value) => set("increasedContrast", value)}
         />
+        {/*
+          STUDIO-030-005. Shown only when this browser is blocking site data,
+          which is the one case where a choice made here will not survive the
+          tab. Saying so is the honest half of "persist only as operator
+          preference": there is no server-side copy to fall back on, by design.
+        */}
+        {!persisted && (
+          <p className="pref-hint" role="status">
+            This browser is not letting the console remember your choices, so they apply to this
+            tab only. Nothing about them is sent to the server either way.
+          </p>
+        )}
       </div>}
     </details>
   )

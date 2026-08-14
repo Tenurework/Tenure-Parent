@@ -116,6 +116,85 @@ test.describe("the security posture surface", () => {
     await expect(table.getByText("guardduty:ListDetectors", { exact: true }).first()).toBeVisible()
   })
 
+  /* ── the two readers that reached no screen until now ──────────────────── */
+
+  test("GuardDuty is read directly, and no detector is ever shown as enabled", async ({ page }) => {
+    await openSecurity(page)
+
+    // The card exists at all — which is the whole claim. `lib/aws/guardduty.ts`
+    // was a tested module with a capability and an IAM grant that no page
+    // imported, so nothing it read reached an operator.
+    await expect(page.getByRole("heading", { name: "Threat detection — GuardDuty" })).toBeVisible()
+
+    const body = await page.locator("body").innerText()
+    // `guardduty:ListDetectors` lists a SUSPENDED detector exactly as it lists a
+    // running one, and `guardduty:GetDetector` is not a capability this build
+    // holds — so the page says so rather than implying threat detection is on.
+    expect(body).toContain("guardduty:GetDetector")
+    expect(body).toContain("Why no detector on this page is ever shown as enabled")
+    // Every protection plan, named. "Some data sources may be off" is not a
+    // sentence anybody can act on.
+    for (const plan of ["S3 Protection", "EKS Protection", "Malware Protection", "RDS Protection", "Lambda Protection"]) {
+      expect(body, plan).toContain(plan)
+    }
+  })
+
+  test("AWS Config is read, and the recorder question is stated rather than assumed", async ({
+    page,
+  }) => {
+    await openSecurity(page)
+
+    await expect(
+      page.getByRole("heading", { name: "Configuration compliance — AWS Config" }),
+    ).toBeVisible()
+
+    const body = await page.locator("body").innerText()
+    // A rule can only evaluate a resource type the recorder is recording, and
+    // neither capability that would answer it is in this engine's registry.
+    expect(body).toContain("RECORDER UNKNOWN")
+    expect(body).toContain("config:DescribeConfigurationRecorders")
+    expect(body).toContain("config:DescribeConfigurationRecorderStatus")
+    // And INSUFFICIENT_DATA is named as what it is, wherever it appears.
+    expect(body).toContain("INSUFFICIENT_DATA")
+  })
+
+  test("both new controls are listed among the ones not answering", async ({ page }) => {
+    await openSecurity(page)
+
+    const table = page.locator("table", {
+      has: page.locator("caption", { hasText: "Controls that are not answering" }),
+    })
+    await expect(table).toBeVisible()
+
+    // Two rows that did not exist before these readers were wired: neither is a
+    // placeholder, and neither can be answered by anything in this build.
+    for (const control of [
+      "GuardDuty detector status and protection plans",
+      "Config recorder — is anything being recorded",
+    ]) {
+      await expect(table.getByText(control, { exact: true })).toBeVisible()
+    }
+  })
+
+  test("with no AWS reachable, neither new card claims a clean control", async ({ page }) => {
+    await openSecurity(page)
+
+    // The badge beside each card's headline is the summary, and in this
+    // environment — where every read lands in a valueless arm — neither may be
+    // the reassuring word. `Compliant` and an enabled detector are exactly what a
+    // naive page prints when a read returns nothing.
+    const guard = page.locator(".md3-card", {
+      has: page.getByRole("heading", { name: "Threat detection — GuardDuty" }),
+    })
+    const config = page.locator(".md3-card", {
+      has: page.getByRole("heading", { name: "Configuration compliance — AWS Config" }),
+    })
+    await expect(guard.locator(".md3-badge").first()).toHaveText(/No detector|Not readable|Status unverified/)
+    await expect(config.locator(".md3-badge").first()).toHaveText(
+      /Not readable|No verdict readable|No rules|Nothing evaluated|failing|Partly evaluated|Compliant in part/,
+    )
+  })
+
   test("the verdict never prints a clean bill of health over a gap", async ({ page }) => {
     await openSecurity(page)
 

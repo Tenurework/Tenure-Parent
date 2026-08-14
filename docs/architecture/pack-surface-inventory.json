@@ -292,6 +292,16 @@
     {
       "experience": "deployer",
       "app": "apps/system-studio",
+      "kind": "api",
+      "url": "/api/export",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/system-studio/src/app/api/export/route.ts"
+    },
+    {
+      "experience": "deployer",
+      "app": "apps/system-studio",
       "kind": "page",
       "url": "/",
       "methods": [],

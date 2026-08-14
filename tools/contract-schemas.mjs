@@ -121,6 +121,47 @@ export const CONTROL_PLANE_ROUTES = [
       'is nothing" and "nothing was connected to look at" are opposite facts about a fleet\'s bill.',
     query: [],
   },
+
+  /*
+   * The estate reads. Eleven surfaces added to `SURFACES` when the readers were
+   * wired to pages; because `/api/aws/[surface]` is one dynamic route that
+   * serves every key of that table, they became HTTP endpoints the same moment
+   * — and an OpenAPI document that omits an endpoint the router serves is the
+   * same fiction as one that describes an endpoint it does not. The test reads
+   * `SURFACES` out of `result.ts` and compares, so adding a reader without
+   * describing it here reds.
+   *
+   * All are read-only, take the generic `limit`/`cursor`/`format` the route
+   * parses for every surface (`slug` is operations-only), and share one
+   * response contract worth stating once: a refused, throttled or unconfigured
+   * read never renders as an empty list. `firstValueless` returns before
+   * `items` exists at all, so the body carries no items key rather than an
+   * empty one — "nobody looked" and "we looked and found nothing" stay
+   * different answers over HTTP exactly as they do on the page.
+   */
+  ...[
+    ['cdn', 'Edge distributions and the origins they front.'],
+    ['certificates', 'Certificates, their validation state and their expiry.'],
+    ['compliance', 'Config rules and their verdicts.'],
+    ['dashboards', 'The dashboards this account has, and what they watch.'],
+    ['dns', 'Hosted zones, their records and the takeover risk in them.'],
+    ['guardduty', 'Whether anything is watching, and what it found.'],
+    ['logs', 'Log groups, their retention and their encryption.'],
+    ['organization', 'The accounts in the Organization.'],
+    ['pricing', 'List prices for the shapes a tenant can be given.'],
+    ['quotas', 'Applied quotas and the headroom left in them.'],
+    ['waf', 'Web ACLs and what they are actually attached to.'],
+  ].map(([surface, summary]) => ({
+    surface,
+    path: `/api/aws/${surface}`,
+    methods: ['get'],
+    summary,
+    description:
+      `${summary} Read-only. A read that was refused, throttled or never configured answers with the ` +
+      `reason rather than an empty list, so absence of items and absence of an answer are never the ` +
+      `same response.`,
+    query: ['limit', 'cursor', 'format'],
+  })),
 ]
 
 /** The problem types the routes can return, keyed as `problem.ts` keys them. */

@@ -29,10 +29,10 @@ unmet rather than approximated from source.
 | providers with any egress call in code | 1 |
 | providers with a client-registration environment name | 1 |
 | providers with a logo asset | 0 |
-| image assets in the whole repository | 2 |
+| image assets in the whole repository | 3 |
 | declared OAuth redirect paths | 24 |
 | — served by a route file | 0 |
-| HTTP routes in both apps | 28 |
+| HTTP routes in both apps | 29 |
 | Relay tool registrations | 1 |
 | — bound to an external provider | 0 |
 | sync/index surfaces named in the tree | 21 |
@@ -125,6 +125,7 @@ set, so the set is printed rather than summarised.
 
 | asset |
 | --- |
+| `apps/system-studio/public/icon.svg` |
 | `apps/web/src/app/favicon.ico` |
 | `apps/web/src/app/icon.svg` |
 
@@ -137,6 +138,7 @@ with the route that would serve it.
 | --- | --- | --- |
 | `/api/auth/[...nextauth]` | GET, POST | `apps/system-studio/src/app/api/auth/[...nextauth]/route.ts` |
 | `/api/aws/[surface]` | GET, POST | `apps/system-studio/src/app/api/aws/[surface]/route.ts` |
+| `/api/export` | GET | `apps/system-studio/src/app/api/export/route.ts` |
 | `/api/admin/directory` | GET | `apps/web/src/app/api/admin/directory/route.ts` |
 | `/api/ai/chat` | POST | `apps/web/src/app/api/ai/chat/route.ts` |
 | `/api/ai/draft` | POST | `apps/web/src/app/api/ai/draft/route.ts` |
@@ -278,7 +280,7 @@ Names only — no value is read.
 | `NEXT_IGNORE_TYPE_ERRORS` | `apps/web/next.config.ts` |
 | `NEXT_RUNTIME` | `apps/web/src/instrumentation.ts` |
 | `NEXT_STANDALONE` | `apps/web/next.config.ts` |
-| `NODE_ENV` | `apps/web/scripts/roster-source.mjs` |
+| `NODE_ENV` | `apps/system-studio/src/app/signin/page.tsx` |
 | `OKTA_CLIENT_ID` | `apps/web/src/lib/auth.ts` |
 | `OKTA_GRANTED_SCOPES` | `apps/web/src/app/(app)/settings/page.tsx` |
 | `OKTA_ISSUER` | `apps/web/src/lib/auth.ts` |
@@ -291,7 +293,7 @@ Names only — no value is read.
 | `PLATFORM_OPERATORS` | `apps/system-studio/e2e/api-contract.spec.ts` |
 | `PLATFORM_OPERATOR_SECRET` | `apps/system-studio/e2e/adoption.spec.ts` |
 | `PLATFORM_RECONCILE_SECRET` | `apps/system-studio/src/lib/deliver.test.ts` |
-| `PLAYWRIGHT_BASE_URL` | `apps/system-studio/playwright.config.ts` |
+| `PLAYWRIGHT_BASE_URL` | `apps/system-studio/e2e/layout.spec.ts` |
 | `PLAYWRIGHT_BROWSERS_PATH` | `apps/web/e2e/visual-baselines.spec.ts` |
 | `RELEASE_SIGNING_KEY_ID` | `packages/platform-config/src/build-system.ts` |
 | `RELEASE_SIGNING_SECRET` | `packages/platform-config/src/build-system.ts` |
@@ -423,7 +425,7 @@ _None._
 - **24 providers are declared; 1 is called.** Called: anthropic.
 - **1 of 24 providers has a client-registration environment name.** An authorization profile exists for 24 pack rows; a profile describes a flow, and without a client id there is no application for the flow to run against.
 - **0 of 24 declared OAuth redirect paths are served by a route.** A redirect no route serves cannot complete an authorization, so no declared pack can be authorized today.
-- **0 of 24 providers have a logo asset**, out of 2 image assets in the repository. Invariant 3 forbids reading availability off a logo; today there is no logo to misread.
+- **0 of 24 providers have a logo asset**, out of 3 image assets in the repository. Invariant 3 forbids reading availability off a logo; today there is no logo to misread.
 - **1 Relay tool registration(s) exist: `search.corpus`**, all read-only, and none is bound to an external provider. There is no external-action tool.
 - **0 of 21 sync/index surfaces name a provider egress host.** The rest are Tenure-internal, which is what makes "sync" in a filename not evidence of a connector.
 - **0 public integration claim(s) survive in user-visible text.** `tests/architecture/no-uncertified-provider-claims.test.mjs` and `tests/architecture/no-overstated-connectors.test.mjs` are the guards that keep this number where it is; this inventory counts it, it does not enforce it.

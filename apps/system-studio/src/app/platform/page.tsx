@@ -9,8 +9,16 @@ import { authorizeCommand } from "@/lib/authorize"
 import { FleetMisconfigured, fleet, primeEstate } from "@/lib/cells"
 import { operatorConfigProblems } from "@/lib/operators"
 import truth from "@/generated/platform-truth.json"
-import { ALL_CAPABILITIES, IDENTITY_REFRESH_MS, minimumStatementText } from "@/lib/aws/capabilities"
+import { ALL_CAPABILITIES, CAPABILITIES, IDENTITY_REFRESH_MS, minimumStatementText } from "@/lib/aws/capabilities"
 import { identityHeadline, resolveIdentity } from "@/lib/aws/identity"
+import { organizationSurface } from "@/lib/aws/organization"
+import {
+  DEFAULT_QUOTA_NOT_READABLE,
+  QUOTA_PRESSURE_FRACTION,
+  describeQuotaPressure,
+  quotaReadings,
+  type QuotaPressure,
+} from "@/lib/aws/quotas"
 import {
   Badge,
   ButtonLink,
@@ -20,9 +28,11 @@ import {
   EmptyState,
   KeyValue,
   ProgressIndicator,
+  StaleIndicator,
   UnknownState as AwsUnknownState,
   formatAge,
   type BadgeTone,
+  type UnknownRead,
 } from "@/components/md3"
 import {
   DegradedState,
@@ -33,6 +43,8 @@ import {
 } from "@/components/states"
 
 import {
+  ORGANIZATION_WORD,
+  PRESSURE_WORD,
   VERDICT_WORD,
   buildProvenance,
   customerTenantsOnly,
@@ -41,8 +53,16 @@ import {
   engineAnswer,
   maskAccountId,
   maskArn,
+  maskUnknownRead,
+  orgAccountRows,
+  organizationAnswer,
+  quotaCoverage,
+  quotaRows,
   refusedReads,
+  unknownArm,
+  unreadableQuotas,
   type EngineVerdict,
+  type OrganizationAnswer,
 } from "./engine-answer"
 import styles from "./platform.module.css"
 
@@ -62,7 +82,14 @@ export const dynamic = "force-dynamic"
  *   4. what it may read, and what it was refused, with the IAM statement that
  *      would grant each refusal. This is the most valuable panel here: it is the
  *      console naming precisely what it cannot see;
- *   5. the ledger's real progress, which is the engine's own build-out.
+ *   5. the ceilings it provisions into — the applied Service Quotas for every
+ *      step of tenant creation, and what is left of each;
+ *   6. whether this estate is one AWS account or many, read live rather than
+ *      taken from a boolean a refused call produced;
+ *   7. the ledger's real progress, which is the engine's own build-out.
+ *
+ * Panels 5 and 6 are live AWS reads and are grouped with 3 and 4 for that
+ * reason: everything from 7 down is compiled or resolved from this build.
  *
  * Everything after that is apparatus. It is still on the page, it is still
  * dated, and `docs/architecture/studio-information-architecture.md` is the
@@ -302,6 +329,64 @@ export default async function PlatformPage() {
    * statement, and the other nine cards still render.
    */
   const identity = await resolveIdentity()
+
+  /*
+   * ── And the two things about itself it could not previously say ──────────
+   *
+   * `quotas.ts` and `organization.ts` are real, tested readers, each with a
+   * capability and an IAM grant, and until this render neither reached a
+   * screen: `quotaReadings` fed `estateInventory` only as a coverage SIGNAL —
+   * a section state, never a single applied value — and `organizationSurface`
+   * was called from nothing at all. That is the same reachability failure this
+   * page's own first paragraph is about.
+   *
+   * Both are awaited here rather than inside their cards, together, because
+   * they are independent reads and serialising them would add the slower one's
+   * latency to the faster one's for nothing. Neither throws: `quotaReadings`
+   * returns `AwsRead`s per target and `organizationSurface` catches the one
+   * exception that is an answer (`AWSOrganizationsNotInUseException`), so this
+   * console still boots with no AWS credentials at all — every arm below is a
+   * rendered state rather than a crash.
+   */
+  const [quotas, organization] = await Promise.all([quotaReadings(), organizationSurface()])
+
+  /*
+   * The account, region and partition this render resolved, or null.
+   *
+   * Passed into both cards so a refusal can name where it was refused, and —
+   * the part that matters — so the account id can be MASKED before it reaches
+   * `UnknownState`, which renders what it is given. `e2e/platform.spec.ts`
+   * fails this whole page on twelve consecutive digits anywhere in its text.
+   */
+  const identityFacts =
+    identity.state === "ACTUAL" || identity.state === "STALE"
+      ? {
+          accountId: identity.value.accountId,
+          region: identity.value.region,
+          partition: identity.value.partition,
+        }
+      : null
+
+  /*
+   * Every refusal that reaches `UnknownState` from this render goes through
+   * here first.
+   *
+   * `UnknownState` renders the account and the principal it is given, which is
+   * correct — deciding what a page may publish is not a presentational
+   * component's business. The decision belongs to the page, and this is it: one
+   * call site per card would be two places for the mask to be forgotten, and
+   * the one that is forgotten is the one that prints twelve digits in
+   * production while CI, which has no credentials and therefore no account id,
+   * stays green.
+   */
+  const masked = (read: UnknownRead): UnknownRead =>
+    maskUnknownRead(read, identityFacts?.accountId ?? null)
+
+  const ceilings = quotaRows(quotas)
+  const ceilingsUnread = unreadableQuotas(quotas, identityFacts?.accountId ?? null)
+  const coverage = quotaCoverage(quotas)
+  const org = organizationAnswer(organization.organization, identityFacts)
+  const orgAccountsUnknown = unknownArm(organization.accounts)
 
   const provenance = buildProvenance({
     runningCommit: buildCommit,
@@ -683,9 +768,306 @@ export default async function PlatformPage() {
         </div>
       </Card>
 
+      {/* ── The ceilings ──────────────────────────────────────────────────
+        STUDIO-120-011, the read half of it.
+
+        A distribution engine that provisions a tenant stack — a VPC, security
+        groups and their rules, an ECS service, an ALB and its target groups, an
+        RDS instance, a CloudFront distribution, an ACM certificate, a Lambda
+        concurrency reservation, a Cognito pool and an SES allowance — meets an
+        account or regional ceiling on every one of those. Until this card
+        existed the only way this platform discovered one was a `LimitExceeded`
+        in the middle of a provisioning run with a half-created tenant behind
+        it. `quotas.ts` has asked AWS since it was written; nothing rendered the
+        answer.
+
+        Two things this card is careful about, and both are the reader's rules
+        rather than this page's:
+
+          * an applied value never appears without "against the AWS default:
+            not known" beside it, because the default is not in any response
+            this engine may fetch and a value printed alone reads as the
+            default;
+          * a quota with no usage number prints "usage not known", never a
+            headroom. A lower bound on usage is an upper bound on headroom, and
+            only the upper bound is safe to show — "at most 1 VPC left" is a
+            sentence an operator acts on.
+      */}
+      <Card
+        headline="The ceilings this engine provisions into"
+        headerAside={
+          <Badge
+            tone={PRESSURE_TONE[quotas.pressure.kind]}
+            title="Whether any quota this estate provisions into is near its applied value"
+          >
+            {PRESSURE_WORD[quotas.pressure.kind]}
+          </Badge>
+        }
+        supportingText={`Read live from Service Quotas on this render: ${coverage.targets} quotas across ${quotas.services.length} service codes, chosen because each one bounds a step of tenant provisioning. A quota is a limit rather than a resource, so nothing here is an inventory — it is the room this platform has left to grow.`}
+      >
+        <div className={styles.stack}>
+          <p className={`${styles.line} md3-body-medium`}>
+            {describeQuotaPressure(quotas.pressure)}
+          </p>
+          <p className={`${styles.line} md3-body-medium`}>{coverage.sentence}</p>
+
+          <KeyValue
+            ariaLabel="How this reading was taken, and what it cannot say"
+            items={[
+              {
+                key: "raised",
+                term: "Whether these values were raised from the AWS default",
+                // Never "no". The one field on this card that is a statement
+                // about this engine's own permissions rather than about AWS.
+                value: `Not known. ${DEFAULT_QUOTA_NOT_READABLE.why} Grant ${DEFAULT_QUOTA_NOT_READABLE.iamAction} and add it to the capability registry to answer it.`,
+              },
+              {
+                key: "calls",
+                term: "How it was read",
+                value: `${quotas.services.length} servicequotas:ListServiceQuotas calls, one per service code, with ${quotas.individualReads} individual servicequotas:GetServiceQuota call${quotas.individualReads === 1 ? "" : "s"} for targets a listing did not carry.`,
+                asOf: { at: quotas.asOf, cadenceMs: quotas.refreshMs.listing },
+              },
+              {
+                key: "pressure",
+                term: "What counts as pressure",
+                value: `${Math.round(QUOTA_PRESSURE_FRACTION * 100)}% of the applied value, measured against a usage number where there is one. It is the reader's own constant, not a threshold typed on this page.`,
+              },
+            ]}
+          />
+
+          <DataTable
+            caption="Every quota that bounds tenant provisioning, and what is left of it"
+            columns={[
+              {
+                key: "quota",
+                header: "Quota",
+                cell: (row) => (
+                  <div className={styles.cell}>
+                    <span>{row.quotaName}</span>
+                    <span className={styles.identifier}>
+                      {row.serviceCode}/{row.quotaCode}
+                    </span>
+                    <span>Running out of it means {row.bounds}.</span>
+                  </div>
+                ),
+              },
+              {
+                key: "applied",
+                header: "Applied value",
+                cell: (row) => (
+                  <div className={styles.cell}>
+                    <span>{row.applied}</span>
+                    <span>{row.raised}</span>
+                    {row.truncated ? <span>Service listing {row.truncated}</span> : null}
+                    <span>Resolved via {row.provenance}.</span>
+                    <StaleIndicator
+                      asOf={row.asOf}
+                      cadenceMs={row.refreshMs}
+                      label={`the applied value of ${row.quotaName}`}
+                    />
+                  </div>
+                ),
+              },
+              { key: "scope", header: "Scope", cell: (row) => row.scope },
+              { key: "usage", header: "In use", cell: (row) => row.usage },
+              { key: "headroom", header: "Headroom", cell: (row) => row.headroom },
+              { key: "owner", header: "Owned by", cell: (row) => row.attribution },
+            ]}
+            rows={ceilings}
+            rowKey={(row) => row.key}
+            empty={
+              <EmptyState
+                headline="No applied value was read on this render"
+                description="Not an estate with no ceilings — every quota this platform provisions into still exists and still bounds a provisioning run. The reads that would have said what they are did not answer, and each one is named below with the principal, the action and the statement that would grant it."
+              />
+            }
+          />
+
+          {/*
+            One block per way a read failed, not one per target: a denied
+            listing for `vpc` is a single missing grant that answers for every
+            `vpc` quota, and printing it three times would report three
+            problems. `unreadableQuotas` groups on the service, the state AND
+            the capability, so a denied listing and an errored individual
+            fallback stay two blocks with two different remedies.
+          */}
+          {ceilingsUnread.map((group) => (
+            <AwsUnknownState key={group.key} what={group.what} read={group.read} />
+          ))}
+
+          <Provenance
+            asOf={
+              <>
+                this render — a live <code className={styles.identifier}>servicequotas:ListServiceQuotas</code>{" "}
+                per service code, re-read at most every{" "}
+                {formatAge(quotas.refreshMs.listing)}. Nothing on this card comes from the
+                snapshot.
+              </>
+            }
+            unknown={
+              <>
+                the AWS default behind every one of these values, so whether any of them was
+                raised; and exact usage for the{" "}
+                {coverage.usageUnknown} quota{coverage.usageUnknown === 1 ? "" : "s"} whose
+                consumption is a CloudWatch metric this engine holds no{" "}
+                <code className={styles.identifier}>cloudwatch:GetMetricData</code> capability to
+                read. Where a usage number comes from the tag index it counts only resources
+                carrying at least one tag, so it is a lower bound on usage and the headroom beside
+                it is an upper bound — never a remainder.
+              </>
+            }
+          />
+        </div>
+      </Card>
+
+      {/* ── The Organization ──────────────────────────────────────────────
+        STUDIO-010-001 and STUDIO-010-002, read live rather than asserted.
+
+        The estate card below still renders this from the compiled snapshot,
+        where the boolean came from a CI script whose `describe-organization`
+        call was DENIED and whose helper turned the denial into a falsy value —
+        the console told operators there was no Organization on the strength of
+        not being allowed to ask. `organization.ts` has three states and no arm
+        that permits that collapse, and this is the card that renders them.
+
+        The estate here genuinely has no Organization, and that is a real
+        answer with consequences rather than an empty table: `organizationAnswer`
+        carries them, because "not in use" printed alone is technically correct
+        and tells an operator nothing they can act on.
+      */}
+      <Card
+        headline="Whether this estate has an AWS Organization"
+        headerAside={
+          <Badge
+            tone={ORGANIZATION_TONE[org.kind]}
+            title="What organizations:DescribeOrganization answered on this render"
+          >
+            {ORGANIZATION_WORD[org.kind]}
+          </Badge>
+        }
+        supportingText="One account or many is the fact every account-scoped statement on this console rests on, and it is the fact three requirements in the account-topology group are graded against. Read live here; the estate card below is the compiled snapshot of the same question and says so."
+      >
+        <div className={styles.stack}>
+          <p className={`${styles.line} md3-body-medium`}>{org.sentence}</p>
+
+          {org.kind === "in-use" ? (
+            <>
+              <KeyValue
+                ariaLabel="The Organization this account manages"
+                items={[
+                  {
+                    key: "id",
+                    term: "Organization",
+                    value: <code className={styles.identifier}>{org.organizationId}</code>,
+                    asOf: {
+                      at: org.asOf,
+                      cadenceMs: CAPABILITIES["organizations:DescribeOrganization"].refreshMs,
+                    },
+                  },
+                  {
+                    key: "management",
+                    term: "Management account",
+                    value: <code className={styles.identifier}>{org.managementAccountId}</code>,
+                  },
+                  {
+                    key: "arn",
+                    term: "Management account ARN",
+                    value: <code className={styles.identifier}>{org.managementAccountArn}</code>,
+                  },
+                  { key: "features", term: "Feature set", value: org.featureSet },
+                ]}
+              />
+              {orgAccountsUnknown ? (
+                // The Organization answered and the account list did not. Two
+                // reads, two grants, and the second one's failure is not
+                // allowed to render as an Organization with no accounts.
+                <AwsUnknownState
+                  what="the accounts in this Organization"
+                  read={masked(orgAccountsUnknown)}
+                />
+              ) : (
+                <DataTable
+                  caption="Every account in this Organization"
+                  columns={[
+                    {
+                      key: "id",
+                      header: "Account",
+                      cell: (row) => <span className={styles.identifier}>{row.id}</span>,
+                    },
+                    { key: "name", header: "Name", cell: (row) => row.name },
+                    { key: "status", header: "Status", cell: (row) => row.status },
+                  ]}
+                  rows={
+                    organization.accounts.state === "ACTUAL" ||
+                    organization.accounts.state === "STALE"
+                      ? orgAccountRows(organization.accounts.value)
+                      : []
+                  }
+                  rowKey={(row) => row.key}
+                  empty={
+                    <EmptyState
+                      headline="Organizations answered with no accounts"
+                      description="A real absence and a strange one: an Organization exists and contains no account, not even the management account that created it. This is the EMPTY reading, not a refusal — the refusal has its own block and does not reach here."
+                    />
+                  }
+                />
+              )}
+            </>
+          ) : org.kind === "none" ? (
+            <>
+              <ul className="md3-body-medium">
+                {org.consequences.map((consequence) => (
+                  <li key={consequence}>{consequence}</li>
+                ))}
+              </ul>
+              {/*
+                And the account read that was never made, rendered as the
+                UNCONFIGURED reading it is rather than as an empty table. The
+                distinction is the whole point of `AwsRead`: "there is no
+                Organization to list accounts from" is a different sentence from
+                "this Organization has no accounts", and only one of them is
+                true here.
+              */}
+              {orgAccountsUnknown ? (
+                <AwsUnknownState
+                  what="the accounts in this Organization"
+                  read={masked(orgAccountsUnknown)}
+                />
+              ) : null}
+            </>
+          ) : (
+            <AwsUnknownState
+              what="whether this estate has an AWS Organization"
+              read={org.read}
+            />
+          )}
+
+          <Provenance
+            asOf={
+              <>
+                this render — a live{" "}
+                <code className={styles.identifier}>organizations:DescribeOrganization</code>, re-read
+                at most every{" "}
+                {formatAge(CAPABILITIES["organizations:DescribeOrganization"].refreshMs)}.
+              </>
+            }
+            unknown={
+              <>
+                the roots and the organizational units. This engine declares no{" "}
+                <code className={styles.identifier}>organizations:ListRoots</code> capability, so
+                the OU hierarchy STUDIO-010-003 asks for is not read at all — an empty root list
+                here would be the absence of a read rather than a reading of an absence, and none
+                is rendered for that reason. Whether workloads are kept OUT of a management
+                account is a separate verdict; <Link href="/platform/estate">Estate</Link> reads it.
+              </>
+            }
+          />
+        </div>
+      </Card>
+
       {/* ── The programme ─────────────────────────────────────────────────
-        The engine's own build-out, and the last of the five panels that answer
-        the question at the top. Everything after this card is apparatus.
+        The engine's own build-out, and the last of the panels that answer the
+        question at the top. Everything after this card is apparatus.
       */}
       <Card
         headline="Where the programme stands"
@@ -893,10 +1275,25 @@ export default async function PlatformPage() {
             ]}
             rows={[
               {
+                /*
+                 * The one row on this page that used to state a fact it had not
+                 * read. `estate.organizationInUse` is written by
+                 * `tools/aws-inventory.mjs`, whose own note says "Organizations
+                 * not in use, OR not visible to this principal" — the collector
+                 * cannot tell those apart, and the falsy value it writes for
+                 * both was rendered here as "not in use — a single-account
+                 * estate". The console asserted an answer on the strength of
+                 * not being allowed to ask.
+                 *
+                 * The boolean is still shown, because it is what the snapshot
+                 * carries and this card is the snapshot. What changed is that
+                 * it no longer speaks for AWS: the live three-state read is in
+                 * the card above and it is the one that distinguishes them.
+                 */
                 fact: "AWS Organization",
                 state: estate.organizationInUse
-                  ? "in use"
-                  : "not in use — a single-account estate",
+                  ? "in use, according to the snapshot"
+                  : "the snapshot records no Organization — but its collector cannot tell that from a refused call, and it recorded organizations:DescribeOrganization as refused. See the live read above, which distinguishes the two.",
               },
               {
                 fact: "OIDC providers",
@@ -1458,6 +1855,39 @@ const BUILD_TONE: Readonly<Record<ReturnType<typeof buildProvenance>["verdict"],
   MATCHED: "ok",
   DRIFTED: "bad",
   UNSTAMPED: "warn",
+}
+
+/**
+ * And the quota pressure state's.
+ *
+ * `no-usage-known` is `warn` rather than `ok` deliberately, and it is the arm
+ * this estate is actually in for most of its ceilings. Quotas were read and not
+ * one of them was compared against a usage number: nothing was established, and
+ * a green pill over "nothing was established" is the reassurance defect this
+ * whole page is built against. `clear` is the only arm that earns `ok`, and the
+ * reader only reaches it when at least one quota really was compared.
+ */
+const PRESSURE_TONE: Readonly<Record<QuotaPressure["kind"], BadgeTone>> = {
+  unknown: "bad",
+  "no-usage-known": "warn",
+  clear: "ok",
+  "at-risk": "bad",
+}
+
+/**
+ * And the Organization answer's.
+ *
+ * `none` is `info`, not `warn`. A single-account estate is a legitimate answer
+ * to STUDIO-010-001 — its own sentence ends "as justified by actual scale" —
+ * and colouring it as a problem would push an operator to create eleven
+ * accounts a pilot does not need. `unknown` is `bad` for the opposite reason:
+ * it is the state in which the console cannot tell the two apart, which is
+ * exactly the defect this card was built to end.
+ */
+const ORGANIZATION_TONE: Readonly<Record<OrganizationAnswer["kind"], BadgeTone>> = {
+  "in-use": "ok",
+  none: "info",
+  unknown: "bad",
 }
 
 /**

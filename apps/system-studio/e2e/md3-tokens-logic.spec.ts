@@ -18,7 +18,13 @@ import path from "path"
  * console has no tenant-database client) is untouched.
  */
 import { blockAt, paletteOf, resolveToken } from "../../web/src/lib/a11y/css-declarations.mjs"
-import { AA_THRESHOLD, composite, contrastRatio, parseColor } from "../../web/src/lib/a11y/contrast"
+import {
+  AA_THRESHOLD,
+  composite,
+  contrastRatio,
+  parseColor,
+  relativeLuminance,
+} from "../../web/src/lib/a11y/contrast"
 
 /**
  * STUDIO — the Material 3 foundation, measured rather than described.
@@ -252,20 +258,32 @@ test.describe("the token set is complete", () => {
   /**
    * The scrim, which `Dialog` is the first thing in this console to render.
    *
-   * Three properties, and each of them is a defect that has shipped somewhere:
+   * Four properties, and each of them is a defect that has shipped somewhere:
    *
    *   * it is TRANSLUCENT. An opaque scrim is not a scrim, it is a page, and the
    *     dialog above it loses the context it was drawn over.
    *   * it is not so light that it fails to separate. Below about a fifth the
    *     panel stops reading as lifted and the content behind it stays the thing
    *     the eye lands on.
-   *   * its colour is not pure black. `preferences.spec.ts` reads every rendered
-   *     background looking for `rgb(0, 0, 0)`, so the one token whose entire job
-   *     is to darken the page is also the one that could red that assertion —
-   *     and only while a dialog happened to be open, which is the hardest
-   *     version of that failure to reproduce.
+   *   * it is not pure WHITE, which would lighten the page it is meant to dim.
+   *   * it DOES ITS JOB — measured, not assumed: composited over the brightest
+   *     surface the theme has, it must cut that surface's relative luminance by
+   *     at least half.
+   *
+   * ## What this replaces, and why the replacement is the stronger rule
+   *
+   * This assertion used to require the scrim's colour not be pure black,
+   * because `preferences.spec.ts` read every rendered background looking for
+   * `rgb(0, 0, 0)`. That was a correct rule about the OLD palette and is the
+   * wrong rule for this one: the dark theme's base surface IS #000 now, so a
+   * green-charcoal scrim was a TINT over black rather than a dimming of it, and
+   * the prohibition would have forced exactly that.
+   *
+   * Alpha alone is not a substitute — `rgba(250, 250, 250, 0.62)` is 62% opaque
+   * and makes the page brighter. So the colour constraint was not dropped, it
+   * was replaced with the property the old one was a proxy for.
    */
-  test("the scrim is translucent, dark enough to separate, and is not pure black", () => {
+  test("the scrim is translucent, is not pure white, and halves the page's luminance", () => {
     for (const theme of ["light", "dark"] as const) {
       const raw = value(theme, "--md-sys-color-scrim")
       const parsed = parseColor(raw)
@@ -274,13 +292,22 @@ test.describe("the token set is complete", () => {
       expect(parsed.a, `${theme} scrim is opaque`).toBeLessThan(1)
       expect(parsed.a, `${theme} scrim is too faint to separate`).toBeGreaterThanOrEqual(0.2)
       expect(
-        parsed.r === 0 && parsed.g === 0 && parsed.b === 0,
-        `${theme} scrim is pure black, which preferences.spec.ts fails on`,
-      ).toBe(false)
-      expect(
         parsed.r === 255 && parsed.g === 255 && parsed.b === 255,
         `${theme} scrim is pure white`,
       ).toBe(false)
+
+      // The brightest thing the scrim can be drawn over, which is the hardest
+      // case: if it dims that by half it dims everything below it by more.
+      const brightest = parseColor(value(theme, "--md-sys-color-surface-bright"))
+      expect(brightest, `${theme} surface-bright is not a colour this audit can measure`).not.toBeNull()
+      if (!brightest) continue
+      const before = relativeLuminance(brightest)
+      const after = relativeLuminance(composite(parsed, brightest))
+      expect(
+        after / before,
+        `${theme} scrim leaves surface-bright at ${((after / before) * 100).toFixed(1)}% of its ` +
+          `luminance — it is a tint, not a scrim`,
+      ).toBeLessThanOrEqual(0.5)
     }
   })
 
@@ -543,6 +570,200 @@ test.describe("every declared pair clears its WCAG 2.2 AA threshold", () => {
       expect(failures).toEqual([])
     })
   }
+})
+
+/* ── OLED black, and what has to be true because of it ────────────────────── */
+
+/**
+ * STUDIO-030-002, as the product owner has directed it.
+ *
+ * The clause in the Bible reads "no pure-black glare". The owner has directed an
+ * OLED-black dark theme and that overrides the clause — the override is recorded
+ * in the execution ledger, not hidden here. What is NOT waived is the concern
+ * behind it, and this block is where that concern is turned into arithmetic:
+ *
+ *   * the base really is #000, so the instruction is pinned rather than merely
+ *     permitted — a palette that drifts back to a near-black charcoal reds;
+ *   * no surface, content colour or boundary carries a hue, because "the green
+ *     is the accent and the mark, nothing else" is the other half of the
+ *     instruction and a green-tinted grey is the failure that is hardest to see
+ *     in a screenshot and trivial to see in a hex code;
+ *   * no foreground is pure WHITE — 21:1 on #000 is where halation and smearing
+ *     actually come from, and it is the half of "no pure-black glare" that
+ *     survives intact;
+ *   * every adjacent container step is measurably distinct, because at #000 a
+ *     drop shadow has no darker pixels to work with and the container ladder is
+ *     the ONLY thing left carrying elevation.
+ */
+
+const CONTAINER_RAMP = [
+  "surface-container-lowest",
+  "surface-container-low",
+  "surface-container",
+  "surface-container-high",
+  "surface-container-highest",
+]
+
+/** The four roles that are the OLED base itself. */
+const BASE_ROLES = ["background", "surface", "surface-dim", "surface-container-lowest"]
+
+/**
+ * Roles that must carry NO hue in dark: r = g = b.
+ *
+ * Surfaces, the two content colours, both boundaries, the inverse pair, and the
+ * whole secondary family — secondary is the tonal button and the selected chip,
+ * which are surface-like fills, and a second green family beside `primary` is
+ * how a console reads as tinted while every token is individually defensible.
+ *
+ * Deliberately NOT here: `primary` (the accent and the mark, which is the ONE
+ * green), and the status families — `error`, `warning`, `success`, `tertiary`
+ * carry hue because hue is part of what they mean.
+ */
+const NEUTRAL_IN_DARK = [
+  ...BASE_ROLES,
+  "surface-bright",
+  "surface-container-low",
+  "surface-container",
+  "surface-container-high",
+  "surface-container-highest",
+  "surface-variant",
+  "on-background",
+  "on-surface",
+  "on-surface-variant",
+  "outline",
+  "outline-variant",
+  "secondary",
+  "on-secondary",
+  "secondary-container",
+  "on-secondary-container",
+  "inverse-surface",
+  "inverse-on-surface",
+]
+
+/** Every role a glyph is ever painted in, in any theme. */
+const FOREGROUND_ROLES = [
+  "on-background",
+  "on-surface",
+  "on-surface-variant",
+  "on-primary",
+  "on-primary-container",
+  "on-secondary",
+  "on-secondary-container",
+  "on-tertiary",
+  "on-tertiary-container",
+  "on-error",
+  "on-error-container",
+  "on-warning",
+  "on-warning-container",
+  "on-success",
+  "on-success-container",
+  "inverse-on-surface",
+  "inverse-primary",
+  "primary",
+  "secondary",
+  "tertiary",
+  "error",
+  "warning",
+  "success",
+]
+
+const DARK_THEMES = ["dark", "dark-contrast"] as const
+
+/** The step between two adjacent containers, below which two panels smear. */
+const RAMP_STEP_MINIMUM = 1.12
+
+test.describe("the dark theme is OLED black, neutral, and separates without shadow", () => {
+  test("the base surface is pure black, in both dark variants", () => {
+    for (const theme of DARK_THEMES) {
+      for (const name of BASE_ROLES) {
+        expect(
+          value(theme, role(name)).toLowerCase(),
+          `${theme} ${name} is not the OLED base the product owner directed`,
+        ).toBe("#000000")
+      }
+    }
+  })
+
+  test("no surface, content colour or boundary carries a hue", () => {
+    const tinted: string[] = []
+    for (const theme of DARK_THEMES) {
+      for (const name of NEUTRAL_IN_DARK) {
+        const raw = value(theme, role(name))
+        const parsed = parseColor(raw)
+        expect(parsed, `${theme} ${name} (${raw}) is not a colour this audit can measure`).not.toBeNull()
+        if (!parsed) continue
+        if (!(parsed.r === parsed.g && parsed.g === parsed.b)) {
+          tinted.push(`${theme} ${name} = ${raw}`)
+        }
+      }
+    }
+    expect(
+      tinted,
+      "A tinted grey. The surfaces are neutral and the green is the accent and the mark — a " +
+        "green-charcoal surface is the defect the operator named, and it is invisible in a " +
+        "screenshot and obvious in a hex code.",
+    ).toEqual([])
+  })
+
+  test("no foreground is pure white, in any theme", () => {
+    // The half of "no pure-black glare" that survives the override intact.
+    // #ffffff on #000 is 21:1, which is where halation and the smearing of
+    // adjacent glyphs actually come from on an OLED panel.
+    const glaring: string[] = []
+    for (const theme of THEME_NAMES) {
+      for (const name of FOREGROUND_ROLES) {
+        const raw = value(theme, role(name))
+        const parsed = parseColor(raw)
+        if (!parsed) continue
+        if (parsed.r === 255 && parsed.g === 255 && parsed.b === 255) {
+          glaring.push(`${theme} ${name} = ${raw}`)
+        }
+      }
+    }
+    expect(glaring).toEqual([])
+  })
+
+  test("every adjacent container step is visibly distinct at #000", () => {
+    // At #000 elevation cannot come from a shadow, so it comes from this ladder
+    // and nothing else. Two steps that measure the same are two panels the
+    // operator cannot tell apart, and nothing else in the suite would say so.
+    const failures: string[] = []
+    for (const theme of DARK_THEMES) {
+      for (let i = 1; i < CONTAINER_RAMP.length; i++) {
+        const lower = value(theme, role(CONTAINER_RAMP[i - 1]))
+        const upper = value(theme, role(CONTAINER_RAMP[i]))
+        const ratio = contrastRatio(upper, lower)
+        if (ratio < RAMP_STEP_MINIMUM) {
+          failures.push(
+            `${theme}: ${CONTAINER_RAMP[i - 1]} (${lower}) → ${CONTAINER_RAMP[i]} (${upper}) = ` +
+              `${ratio.toFixed(3)}:1, needs ${RAMP_STEP_MINIMUM}:1`,
+          )
+        }
+      }
+    }
+    expect(failures).toEqual([])
+  })
+
+  test("the container ladder climbs in one direction, in every theme", () => {
+    // Direction differs by theme — on paper the containers get DARKER as they
+    // rise, on black they get LIGHTER — but a ladder that reverses halfway is a
+    // ladder whose steps mean nothing, and equal steps are caught here too in
+    // the themes the ratio floor above does not cover.
+    for (const theme of THEME_NAMES) {
+      const luminances = CONTAINER_RAMP.map((name) => {
+        const parsed = parseColor(value(theme, role(name)))
+        expect(parsed, `${theme} ${name} is not a colour this audit can measure`).not.toBeNull()
+        return relativeLuminance(parsed!)
+      })
+      const rising = luminances.every((l, i) => i === 0 || l > luminances[i - 1])
+      const falling = luminances.every((l, i) => i === 0 || l < luminances[i - 1])
+      expect(
+        rising || falling,
+        `${theme} container ladder is not strictly monotonic: ` +
+          CONTAINER_RAMP.map((n, i) => `${n}=${luminances[i].toFixed(4)}`).join(", "),
+      ).toBe(true)
+    }
+  })
 })
 
 /* ── The state layer ──────────────────────────────────────────────────────── */

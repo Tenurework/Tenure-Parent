@@ -153,4 +153,20 @@ export const PLATFORM_PANELS: readonly PlatformPanel[] = [
     what: "The suites this repository runs and what each is for. A build report.",
     covered: [],
   },
+
+  // The two live estate readings on this page. Unlike everything above them
+  // they are read from AWS on the render rather than compiled into the build,
+  // which is why neither is `covered` by another surface: no operator page
+  // answers either question yet, so quarantining them would delete the answer
+  // rather than move it.
+  {
+    headline: "The ceilings this engine provisions into",
+    what: "Applied service quotas and the headroom left in them, read live via quotaReadings() and rendered through quotaRows / unreadableQuotas / quotaCoverage. A quota that could not be read is listed as unread, never as headroom.",
+    covered: [],
+  },
+  {
+    headline: "Whether this estate has an AWS Organization",
+    what: "Whether this account sits in an Organization and which accounts it holds, read live via organizationSurface() and rendered through organizationAnswer / orgAccountRows. A refused read says so; it does not report a standalone account.",
+    covered: [],
+  },
 ]

@@ -15,6 +15,10 @@ import {
 } from "@/components/md3"
 import { auth } from "@/lib/auth"
 import { networkReadings } from "@/lib/aws/network"
+import { cdnReadings, describeTlsFloor, describeTruncation } from "@/lib/aws/cdn"
+import { certificateReadings } from "@/lib/aws/certificates"
+import { describePagination, describeZoneAttribution, dnsReadings } from "@/lib/aws/dns"
+import { WAF_REMEDY, describeCoverage, wafReadings } from "@/lib/aws/waf"
 import {
   describeScheme,
   describeServingState,
@@ -40,6 +44,7 @@ import {
   scopeSentence,
   statedAsOf,
   unknownArm,
+  type Fact,
   type OpenPath,
   type PlaintextListenerRow,
   type SubnetRow,
@@ -47,6 +52,12 @@ import {
   type UnhealthyTargetRow,
   type VpcRow,
 } from "./answer"
+import {
+  edgeAnswer,
+  unknownLegs,
+  type CertificateRow,
+  type EdgeChain,
+} from "./edge"
 
 export const dynamic = "force-dynamic"
 
@@ -137,6 +148,21 @@ export default async function NetworkPage() {
   const balancers = await loadBalancerReadings()
   const answer = networkAnswer(network, balancers)
 
+  /*
+    The edge, from four more readers that until now reached no screen at all.
+    Read in parallel because they share nothing but the identity call, and each
+    one degrades on its own: a refused `wafv2:ListWebACLs` leaves the DNS chain
+    intact and is never rendered as "no WAF is attached", which would be this
+    console inventing a finding.
+  */
+  const [cdn, dns, certificates, waf] = await Promise.all([
+    cdnReadings(),
+    dnsReadings(),
+    certificateReadings(),
+    wafReadings(),
+  ])
+  const edge = edgeAnswer(cdn, dns, certificates, waf)
+
   const identity = network.identity
   const known = identity.state === "ACTUAL" || identity.state === "STALE" ? identity.value : null
 
@@ -166,6 +192,12 @@ export default async function NetworkPage() {
   const routeTablesUnknown = unknownArm(network.routeTables)
   const vpcsUnknown = unknownArm(network.vpcs)
   const loadBalancersUnknown = unknownArm(balancers.loadBalancers)
+
+  const distributionsUnknown = unknownArm(cdn.distributions)
+  const zonesUnknown = unknownArm(dns.zones)
+  const certificatesUnknown = unknownArm(certificates.certificates)
+  const wafRegionalUnknown = unknownArm(waf.regional)
+  const wafCloudFrontUnknown = unknownArm(waf.cloudfront)
 
   /* ── the tables, as data ───────────────────────────────────────────────── */
 
@@ -564,6 +596,314 @@ export default async function NetworkPage() {
 
   const loadBalancers = hasValue(balancers.loadBalancers) ? balancers.loadBalancers.value : []
 
+  /* ── the edge chain, as a table whose ROW is the chain ─────────────────── */
+
+  /**
+   * One path from a hostname to an origin, with every leg in its own column.
+   *
+   * This is the whole argument of the edge section: four tables cannot say why a
+   * hostname is dark, because the answer lives in the JOIN. A row here reads
+   * left to right the way a request travels — DNS record, distribution,
+   * certificate, web ACL, origin — and every cell that could not be read says so
+   * in words rather than being blank, because a blank cell in a chain is read as
+   * a leg that is fine.
+   */
+  const chainColumns: readonly DataColumn<EdgeChain>[] = [
+    {
+      key: "severity",
+      header: "Severity",
+      cell: (chain) => (
+        <div className={styles.cell}>
+          {chain.severity === null ? (
+            <Badge tone={unknownLegs(chain).length > 0 ? "warn" : "ok"}>
+              {unknownLegs(chain).length > 0 ? "not established" : "no break"}
+            </Badge>
+          ) : (
+            <SeverityChip severity={chain.severity}>{chain.severity}</SeverityChip>
+          )}
+          {unknownLegs(chain).length > 0 ? (
+            <span className="md3-body-small">
+              {unknownLegs(chain).join(", ")} unread — this row is not a clean bill
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: "dns",
+      header: "1. DNS",
+      cell: (chain) => (
+        <div className={styles.cell}>
+          <span className={styles.identifier}>{chain.host ?? "no alternate domain name"}</span>
+          <span className="md3-body-small">
+            {chain.dns.kind === "resolves"
+              ? `${chain.dns.recordType} by ${chain.dns.via} in ${chain.dns.zoneName} — resolves to this distribution`
+              : chain.dns.kind === "dangling"
+                ? `DANGLING — points at ${chain.dns.target}, which this account does not own`
+                : chain.dns.kind === "elsewhere"
+                  ? `points at ${chain.dns.target} — ${chain.dns.what}`
+                  : chain.dns.kind === "no-record"
+                    ? `no address record in ${chain.dns.zoneName}`
+                    : chain.dns.kind === "no-zone"
+                      ? "no hosted zone here covers it"
+                      : chain.dns.kind === "no-alias"
+                        ? "reached only at its own CloudFront domain"
+                        : `unknown — ${chain.dns.why}`}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "distribution",
+      header: "2. Distribution",
+      cell: (chain) => (
+        <div className={styles.cell}>
+          <span className={styles.identifier}>{chain.distributionId}</span>
+          <span className={`md3-body-small ${styles.identifier}`}>
+            {chain.distributionDomain ?? "no domain name reported"}
+          </span>
+          <span className="md3-body-small">
+            {chain.enabled === null
+              ? "enabled state not reported"
+              : chain.enabled
+                ? `enabled, ${chain.status ?? "status not reported"}`
+                : "DISABLED — it serves nothing"}
+          </span>
+          {chain.tls === null ? null : (
+            <span className="md3-body-small">{describeTlsFloor(chain.tls)}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "certificate",
+      header: "3. Certificate",
+      cell: (chain) => (
+        <div className={styles.cell}>
+          {chain.certificate.kind === "acm" ? (
+            <>
+              <span className={styles.identifier}>{chain.certificate.domainName}</span>
+              <span className="md3-body-small">
+                {chain.certificate.status} — {chain.certificate.expiry}
+              </span>
+              <span className="md3-body-small">{chain.certificate.validation}</span>
+            </>
+          ) : chain.certificate.kind === "cloudfront-default" ? (
+            <span className="md3-body-small">{chain.certificate.why}</span>
+          ) : chain.certificate.kind === "iam" ? (
+            <span className="md3-body-small">{chain.certificate.why}</span>
+          ) : chain.certificate.kind === "not-in-listing" ? (
+            <>
+              <span className={styles.identifier}>{chain.certificate.arn}</span>
+              <span className="md3-body-small">{chain.certificate.why}</span>
+            </>
+          ) : (
+            <span className="md3-body-small">Unknown — {chain.certificate.why}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "waf",
+      header: "4. Web ACL",
+      cell: (chain) => (
+        <div className={styles.cell}>
+          {chain.waf.kind === "attached" ? (
+            <>
+              <span className={styles.identifier}>
+                {chain.waf.name ?? chain.waf.webAclId}
+              </span>
+              <span className="md3-body-small">
+                {chain.waf.blocking === null
+                  ? "attached — whether any rule blocks was not readable"
+                  : chain.waf.blocking
+                    ? "attached, and at least one rule blocks"
+                    : "attached, and NOT ONE rule blocks"}
+              </span>
+            </>
+          ) : chain.waf.kind === "none" ? (
+            <span className="md3-body-small">NO WEB ACL — {chain.waf.why}</span>
+          ) : chain.waf.kind === "classic" ? (
+            <span className="md3-body-small">WAF Classic {chain.waf.id} — {chain.waf.why}</span>
+          ) : (
+            <span className="md3-body-small">Unknown — {chain.waf.why}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "origin",
+      header: "5. Origin",
+      cell: (chain) => (
+        <div className={styles.cell}>
+          {chain.origin.kind === "unknown" ? (
+            <span className="md3-body-small">Unknown — {chain.origin.why}</span>
+          ) : (
+            <>
+              <span className={styles.identifier}>{chain.origin.origins.join(", ")}</span>
+              <span className="md3-body-small">
+                {chain.origin.kind === "encrypted"
+                  ? "TLS from the edge to the origin"
+                  : chain.origin.why}
+              </span>
+            </>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "break",
+      header: "Where it breaks",
+      cell: (chain) => (
+        <div className={styles.cell}>
+          {chain.breaks.length === 0 ? (
+            <span className="md3-body-small">
+              {unknownLegs(chain).length > 0
+                ? "No break was established, and this chain has a leg nobody read."
+                : "Every leg was read and none of them is broken."}
+            </span>
+          ) : (
+            chain.breaks.map((brk) => (
+              <span key={brk.code} className="md3-body-small">
+                {brk.leg}: {brk.detail}
+              </span>
+            ))
+          )}
+          {chain.invalidationsInFlight.length > 0 ? (
+            <span className="md3-body-small">
+              Cache purge still running: {chain.invalidationsInFlight.join(", ")} — the edge is
+              legitimately still serving the previous objects.
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+  ]
+
+  /** One certificate, ranked by the NUMBER of days it has left. */
+  const certificateColumns: readonly DataColumn<CertificateRow>[] = [
+    {
+      key: "severity",
+      header: "Severity",
+      cell: (row) => <SeverityChip severity={row.severity}>{row.severity}</SeverityChip>,
+    },
+    {
+      key: "days",
+      header: "Days remaining",
+      cell: (row) => (
+        <div className={styles.cell}>
+          {/*
+            The number, on its own, because the table ranks by it. Null is never
+            drawn as 0 — a certificate nobody measured must not sort into the
+            comfortable end of this table and must not read as "expires today".
+          */}
+          <span className="md3-title-medium">
+            {row.daysRemaining === null ? "not read" : row.daysRemaining}
+          </span>
+          <span className="md3-body-small">{row.expiry}</span>
+        </div>
+      ),
+    },
+    {
+      key: "certificate",
+      header: "Certificate",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <span>{row.domainName}</span>
+          <span className={`md3-body-small ${styles.identifier}`}>{row.arn}</span>
+          <span className="md3-body-small">{row.attribution}</span>
+        </div>
+      ),
+    },
+    {
+      key: "validation",
+      header: "Validation",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <span>
+            {row.status} — {row.validation}
+          </span>
+          {/*
+            The exact record ACM is waiting for. This is the cell that ends a
+            stalled tenant provision, so it is printed verbatim rather than
+            summarised, and an absent one says so rather than rendering blank.
+          */}
+          {row.waiting.map((wait) => (
+            <span key={wait.domain} className={`md3-body-small ${styles.identifier}`}>
+              {wait.record.kind === "cname"
+                ? `${wait.domain}: create ${wait.record.type} ${wait.record.name} → ${wait.record.value}`
+                : `${wait.domain}: ${wait.record.why}`}
+            </span>
+          ))}
+        </div>
+      ),
+    },
+    {
+      key: "renewal",
+      header: "Renewal",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <span>{row.renewal}</span>
+          <span className="md3-body-small">
+            {row.inUseBy.length === 0
+              ? "attached to nothing this read returned — which is half of why a renewal goes ineligible"
+              : `in use by ${row.inUseBy.length} resource(s)`}
+          </span>
+        </div>
+      ),
+    },
+  ]
+
+  const takeoverColumns: readonly DataColumn<(typeof edge.takeovers)[number]>[] = [
+    {
+      key: "severity",
+      header: "Severity",
+      cell: () => <SeverityChip severity="critical">critical</SeverityChip>,
+    },
+    {
+      key: "record",
+      header: "Record",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <span className={styles.identifier}>{row.recordName}</span>
+          <span className="md3-body-small">
+            {row.recordType} in {row.zoneName}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "target",
+      header: "Points at",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <span className={styles.identifier}>{row.target}</span>
+          <span className="md3-body-small">this account does not own it</span>
+        </div>
+      ),
+    },
+    {
+      key: "why",
+      header: "What it means",
+      cell: (row) => <div className={styles.cell}>{row.why}</div>,
+    },
+  ]
+
+  const zones = hasValue(dns.zones) ? dns.zones.value : []
+
+  /** What the four edge reads answered, appended to the page's provenance. */
+  const edgeProvenance: readonly Fact[] = [
+    { label: "Distributions read", value: cdn.distributions.state },
+    { label: "Hosted zones read", value: dns.zones.state },
+    { label: "Certificates read", value: certificates.certificates.state },
+    { label: "Web ACLs read (REGIONAL)", value: waf.regional.state },
+    { label: "Web ACLs read (CLOUDFRONT)", value: waf.cloudfront.state },
+    { label: "CDN as of", value: cdn.asOf },
+    { label: "DNS as of", value: dns.asOf },
+    { label: "Certificates as of", value: certificates.asOf },
+    { label: "WAF as of", value: waf.asOf },
+  ]
+
   return (
     <div className={styles.page}>
       <header className={styles.lead}>
@@ -714,6 +1054,347 @@ export default async function NetworkPage() {
               ) : null}
             </>
           )}
+        </div>
+      </Card>
+
+      {/* 2a — the takeover. First in the edge section, because a record pointing
+          at a name somebody else can register outranks everything below it. */}
+      <Card
+        headline="Records pointing at names this account does not own"
+        headerAside={
+          <Badge tone={edge.takeovers.length > 0 ? "bad" : hasValue(dns.zones) ? "ok" : "warn"}>
+            {edge.takeovers.length > 0
+              ? `${edge.takeovers.length} takeover risk`
+              : dns.takeover.kind === "unknown"
+                ? "not established"
+                : "none found"}
+          </Badge>
+        }
+        supportingText={statedAsOf(
+          "A record aliasing a resource this account cannot enumerate is a subdomain takeover: the target is re-registrable and the record keeps sending this estate's users at it. Dangling is reachable only from an ownership index that ANSWERED and was walked to the end — a refused cloudfront:ListDistributions is reported as unverifiable, never as dangling",
+          dns.asOf,
+        )}
+      >
+        <div className={styles.stack}>
+          {zonesUnknown ? <UnknownState what="the hosted zones" read={zonesUnknown} /> : null}
+
+          <DataTable
+            caption={`Dangling records — ${asOf(dns.asOf)}`}
+            columns={takeoverColumns}
+            rows={edge.takeovers}
+            rowKey={(row) => row.key}
+            empty={
+              <EmptyState
+                headline={
+                  dns.takeover.kind === "clear"
+                    ? "Every pointer that could be checked resolves to something this account owns"
+                    : "No takeover was established, and none was ruled out"
+                }
+                description={
+                  dns.takeover.kind === "clear"
+                    ? `${dns.takeover.pointersChecked} pointer(s) were matched against the CloudFront and load balancer listings and every one of them was found. ${
+                        dns.takeover.unverified.length > 0
+                          ? `${dns.takeover.unverified.length} pointer(s) could NOT be checked and are named in the zone table below — "clear" here does not cover them.`
+                          : "No pointer was left unchecked."
+                      }`
+                    : dns.takeover.kind === "unknown"
+                      ? dns.takeover.why
+                      : "The zone records were not read to a point where an absence could be claimed."
+                }
+              />
+            }
+          />
+        </div>
+      </Card>
+
+      {/* 2b — the chain. The join four separate tables cannot make. */}
+      <Card
+        headline="The edge chain, hostname to origin"
+        headerAside={<Badge tone={edge.lead.tone}>{edge.lead.verdict}</Badge>}
+        supportingText={statedAsOf(
+          "One row per hostname, read left to right the way a request travels: the Route 53 record, the CloudFront distribution it aliases, that distribution's certificate and its expiry, the web ACL in front of it, and how the edge reaches the origin. A broken edge is a chain, and a cell that could not be read says so rather than being blank",
+          cdn.asOf,
+        )}
+        actions={
+          <StaleIndicator
+            asOf={cdn.asOf}
+            cadenceMs={cdn.refreshMs.distributions}
+            label="Distributions"
+          />
+        }
+      >
+        <div className={styles.stack}>
+          <p className="md3-body-medium">{edge.lead.because}</p>
+
+          {/*
+            Each of the four reads, through the shared primitive, in the place a
+            reassuring default would otherwise have gone. A refused
+            wafv2:ListWebACLs and a WAF that genuinely is not in use are opposite
+            facts and they must not look the same.
+          */}
+          {distributionsUnknown ? (
+            <UnknownState what="the CloudFront distributions" read={distributionsUnknown} />
+          ) : null}
+          {zonesUnknown ? <UnknownState what="the Route 53 hosted zones" read={zonesUnknown} /> : null}
+          {certificatesUnknown ? (
+            <UnknownState what="the ACM certificates" read={certificatesUnknown} />
+          ) : null}
+          {wafRegionalUnknown ? (
+            <UnknownState what="the REGIONAL web ACLs" read={wafRegionalUnknown} />
+          ) : null}
+          {wafCloudFrontUnknown ? (
+            <UnknownState what="the CLOUDFRONT web ACLs" read={wafCloudFrontUnknown} />
+          ) : null}
+
+          {cdn.truncation.kind === "truncated" ? (
+            <p className="md3-body-medium">
+              The distribution walk stopped at its page cap.{describeTruncation(cdn.truncation)} An
+              absence of chains below is therefore not an absence of distributions.
+            </p>
+          ) : null}
+
+          <DataTable
+            caption={`Chains from a hostname to an origin, worst first — ${asOf(cdn.asOf)}`}
+            columns={chainColumns}
+            rows={edge.chains}
+            rowKey={(chain) => chain.key}
+            empty={
+              <EmptyState
+                headline={
+                  edge.verdict.kind === "no-edge"
+                    ? "No CloudFront distribution in this account"
+                    : "No chain is drawn"
+                }
+                description={
+                  edge.verdict.kind === "no-edge"
+                    ? edge.verdict.why
+                    : `${edge.lead.because} No row here is not a chain that holds; it is the absence of a reading. The panels above name what would have to be granted.`
+                }
+              />
+            }
+          />
+        </div>
+      </Card>
+
+      {/* 2c — certificates, ranked by the number of days they have left. */}
+      <Card
+        headline="Certificates, soonest to expire first"
+        headerAside={
+          <Badge
+            tone={
+              certificates.stuckValidation.kind === "stuck"
+                ? "bad"
+                : hasValue(certificates.certificates)
+                  ? certificates.renewalRisk.kind === "at-risk"
+                    ? "warn"
+                    : "ok"
+                  : "warn"
+            }
+          >
+            {certificates.stuckValidation.kind === "stuck"
+              ? `${certificates.stuckValidation.stuck.length} stuck`
+              : certificates.certificates.state === "EMPTY"
+                ? "none issued"
+                : hasValue(certificates.certificates)
+                  ? `${certificates.certificates.value.length} read`
+                  : certificates.certificates.state}
+          </Badge>
+        }
+        supportingText={statedAsOf(
+          "Days remaining is a signed NUMBER and is what this table ranks by, so an already-expired certificate sorts ahead of one with a day left and a certificate whose expiry was never read sorts LAST and says so rather than showing a zero. A certificate at PENDING_VALIDATION is the commonest cause of a tenant provision that stalls with no error, and the exact record ACM is waiting for is printed beside it",
+          certificates.asOf,
+        )}
+        actions={
+          <StaleIndicator
+            asOf={certificates.asOf}
+            cadenceMs={certificates.refreshMs.detail}
+            label="Certificate detail"
+          />
+        }
+      >
+        <div className={styles.stack}>
+          {certificatesUnknown ? (
+            <UnknownState what="the certificate listing" read={certificatesUnknown} />
+          ) : null}
+
+          {certificates.stuckValidation.kind === "stuck" ? (
+            <p className="md3-body-medium">
+              {certificates.stuckValidation.stuck.length} certificate(s) are waiting for a
+              validation record. Until the record exists ACM does not issue, the distribution
+              cannot present it, and a provisioning run waiting on it does not finish. Creating the
+              CNAME below is the whole remedy.
+            </p>
+          ) : null}
+
+          <DataTable
+            caption={`Certificates, ranked by days remaining — ${asOf(certificates.asOf)}`}
+            columns={certificateColumns}
+            rows={edge.certificates}
+            rowKey={(row) => row.key}
+            empty={
+              <EmptyState
+                headline={
+                  certificates.certificates.state === "EMPTY"
+                    ? "acm:ListCertificates answered and this account and region hold none"
+                    : "No certificate table"
+                }
+                description={
+                  certificates.certificates.state === "EMPTY"
+                    ? "That is a successful read returning nothing, which is a fact about the estate. It covers this region only: a certificate a CloudFront distribution presents lives in us-east-1 whatever region this console runs in, and this listing does not reach it."
+                    : "The certificate listing did not answer, so this console knows of no expiring certificate and of no absence of one. The panel above names what would have to be granted."
+                }
+              />
+            }
+          />
+        </div>
+      </Card>
+
+      {/* 2d — WAF, where an empty table and a refusal must not look the same. */}
+      <Card
+        headline="What sits in front of this estate"
+        headerAside={
+          <Badge
+            tone={
+              waf.coverage.kind === "unknown"
+                ? "warn"
+                : waf.coverage.kind === "protected"
+                  ? "ok"
+                  : waf.coverage.kind === "no-targets"
+                    ? "neutral"
+                    : "bad"
+            }
+          >
+            {waf.coverage.kind}
+          </Badge>
+        }
+        supportingText={statedAsOf(
+          "WAFv2 not being in use and wafv2:ListWebACLs being refused are opposite facts and are rendered differently: the first is a finding with what it would take to close it, the second is an Unknown panel carrying the principal, the action and a pasteable statement. Neither is an empty table",
+          waf.asOf,
+        )}
+      >
+        <div className={styles.stack}>
+          {/*
+            The verdict in the reader's own words. `describeCoverage` is the
+            production sentence and the tests assert on it, so rewording it here
+            would move the claim off the path anything checks.
+          */}
+          <p className="md3-body-medium">{describeCoverage(waf.coverage)}</p>
+
+          {waf.coverage.kind === "no-web-acl-exists" ? (
+            <>
+              <p className="md3-body-medium">
+                Both scopes answered. This is not an empty table meaning nothing is wrong — it is a
+                finding: no web ACL exists in either the REGIONAL or the CLOUDFRONT catalogue, so
+                every request that resolves this estate reaches an origin unfiltered.
+              </p>
+              <p className="md3-body-medium">{WAF_REMEDY}</p>
+            </>
+          ) : null}
+
+          {wafRegionalUnknown ? (
+            <UnknownState what="the REGIONAL web ACL catalogue" read={wafRegionalUnknown} />
+          ) : null}
+          {wafCloudFrontUnknown ? (
+            <UnknownState what="the CLOUDFRONT web ACL catalogue" read={wafCloudFrontUnknown} />
+          ) : null}
+
+          {waf.protection.length > 0 ? (
+            <dl className={styles.facts}>
+              {waf.protection.map((row) => (
+                <Fragment key={row.target.arn}>
+                  <dt>{row.target.name}</dt>
+                  <dd>
+                    {row.association.state === "EMPTY"
+                      ? "nothing is attached — a read that answered and found none"
+                      : row.association.state === "ACTUAL" || row.association.state === "STALE"
+                        ? row.association.value.kind === "web-acl"
+                          ? `web ACL ${row.association.value.name ?? row.association.value.arn}`
+                          : `WAF Classic ${row.association.value.id}`
+                        : `not established — ${row.association.state}`}
+                  </dd>
+                </Fragment>
+              ))}
+            </dl>
+          ) : null}
+        </div>
+      </Card>
+
+      {/* 2e — the deploy-visibility answer. */}
+      <Card
+        headline="Cache purges still running"
+        headerAside={
+          <Badge tone={edge.invalidations.length > 0 ? "warn" : hasValue(cdn.distributions) ? "ok" : "warn"}>
+            {edge.invalidations.length} in flight
+          </Badge>
+        }
+        supportingText={statedAsOf(
+          "An invalidation that is still InProgress means the edge is legitimately serving the previous objects, and redeploying does not make it finish sooner. This is the usual reason a change that went out is not visible",
+          cdn.asOf,
+        )}
+      >
+        <div className={styles.stack}>
+          {edge.invalidations.length === 0 ? (
+            <p className="md3-body-medium">
+              {hasValue(cdn.distributions)
+                ? "No distribution that answered has an invalidation still InProgress. A change that went out and is not visible is not being held by a cache purge."
+                : "No purge is listed, and none is ruled out: the distribution listing did not answer, so this console cannot say whether one is running."}
+            </p>
+          ) : (
+            edge.invalidations.map((row) => (
+              <p key={row.distributionId} className="md3-body-medium">
+                <span className={styles.identifier}>{row.distributionId}</span> — {row.why}
+              </p>
+            ))
+          )}
+        </div>
+      </Card>
+
+      {/* 2f — the zones the chain was drawn from. */}
+      <Card
+        headline="Hosted zones"
+        headerAside={
+          <Badge tone={hasValue(dns.zones) ? "info" : dns.zones.state === "EMPTY" ? "neutral" : "warn"}>
+            {hasValue(dns.zones) ? `${zones.length} read` : dns.zones.state}
+          </Badge>
+        }
+        supportingText={statedAsOf(
+          "Route 53 is global and no region is printed for a zone. Whether the REGISTRAR delegates to these name servers cannot be read from AWS at all for a domain held elsewhere, so it is stated as not readable rather than assumed to match",
+          dns.asOf,
+        )}
+      >
+        <div className={styles.stack}>
+          {zonesUnknown ? <UnknownState what="the hosted zones" read={zonesUnknown} /> : null}
+
+          {dns.zones.state === "EMPTY" ? (
+            <EmptyState
+              headline="route53:ListHostedZones answered and this account holds no zone"
+              description="A successful read returning nothing. Every hostname this estate serves therefore has its DNS somewhere else, and nothing on this page can check those records."
+            />
+          ) : null}
+
+          {zones.map((zone) => (
+            <div key={zone.id} className={styles.stack}>
+              <h3 className="md3-title-medium">
+                {zone.name} <span className={styles.identifier}>{zone.id}</span>
+              </h3>
+              <p className="md3-body-medium">
+                {zone.privateZone ? "Private zone" : "Public zone"} ·{" "}
+                {describeZoneAttribution(zone.attribution)} ·{" "}
+                {zone.declaredRecordCount === null
+                  ? "record count not reported by AWS"
+                  : `${zone.declaredRecordCount} record(s) declared by AWS`}{" "}
+                · {describePagination(zone.pagination)}
+              </p>
+              {zone.delegation.kind === "nameservers" ? (
+                <p className="md3-body-medium">
+                  Name servers: {zone.delegation.nameservers.join(", ")}.{" "}
+                  {zone.delegation.registrar.why}
+                </p>
+              ) : (
+                <p className="md3-body-medium">{zone.delegation.why}</p>
+              )}
+            </div>
+          ))}
         </div>
       </Card>
 
@@ -942,7 +1623,7 @@ export default async function NetworkPage() {
       >
         <div className={styles.stack}>
           <dl className={styles.facts}>
-            {provenance.map((fact) => (
+            {[...provenance, ...edgeProvenance].map((fact) => (
               <Fragment key={fact.label}>
                 <dt>{fact.label}</dt>
                 <dd className={styles.identifier}>{fact.value}</dd>
@@ -987,6 +1668,24 @@ export default async function NetworkPage() {
               <p className="md3-body-medium">
                 Classic load balancers, and load balancer attributes — which is where access
                 logging lives. Neither is in the capability registry.
+              </p>
+              <p className="md3-body-medium">
+                A web ACL&rsquo;s rules, for any ACL that is not associated with a resource this
+                console can read. wafv2:GetWebACL is not in the capability registry, so an ACL that
+                is attached is reported as attached and never as &ldquo;protecting&rdquo; — those
+                are two different claims and only one of them was read.
+              </p>
+              <p className="md3-body-medium">
+                The registrar&rsquo;s delegation. route53domains:GetDomainDetail is not in the
+                capability registry, and it would only answer for a domain registered through Route
+                53 Domains in this same account anyway. The name servers on this page are what
+                Route 53 assigned, not what the registrar publishes.
+              </p>
+              <p className="md3-body-medium">
+                Certificates in any region but this one. acm:ListCertificates is regional, and a
+                CloudFront distribution&rsquo;s certificate lives in us-east-1 whatever region this
+                console runs in — so a certificate ARN this listing does not contain is reported as
+                not in the listing, with both regions named, and never as a missing certificate.
               </p>
             </div>
           </details>

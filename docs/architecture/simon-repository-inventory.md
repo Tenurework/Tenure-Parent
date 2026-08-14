@@ -65,18 +65,18 @@ Observed at **2026-08-14**. Source pinned to `3504b173828f0da18171f6dadab4ebfbfb
 | Releases | none |
 | Deployment environments | `aws-read` `engine-production` |
 | Open pull requests | none open |
-| Commits on the recorded head | 425 |
+| Commits on the recorded head | 432 |
 | Oldest commit | `abf30691f829` (2026-07-10) |
-| Newest commit | `a76d4607ec91` (2026-08-14) |
+| Newest commit | `3a5753d6ddc2` (2026-08-14) |
 | Contributors | 4 — Claude, Monorepo Migration, satvikOS, verification |
 | Tracked files | 1457 |
-| Working tree | checked out on `HEAD`, 2 dirty path(s) at 2026-08-14 |
+| Working tree | checked out on `main`, 120 dirty path(s) at 2026-08-14 |
 
 | Branch | Commit |
 | --- | --- |
 | `fix/canonical-digest` | `eb16bfca4d01` |
 | `fix/e2e-retired-credential-card` | `a121a640fcc8` |
-| `main` | `54b3c3d4a532` |
+| `main` | `3a5753d6ddc2` |
 | `platform/reconcile-endpoint` | `0c1a1811eb56` |
 | `platform/reconcile-secret` | `0ae1a96cf71c` |
 | `platform/schema-version` | `e3f609dffae6` |

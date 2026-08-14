@@ -13,10 +13,33 @@ import {
   type UnknownRead,
 } from "@/components/md3"
 import {
+  complianceReadings,
+  describeAggregationReading,
+  describeComplianceAttribution,
+  describeComplianceHealth,
+  describeComplianceTruncation,
+  describeConfigRule,
+  describeEnablement,
+  describeRecorder,
+  describeRuleHealth,
+  describeRuleScope,
+  type ConfigRuleReading,
+} from "@/lib/aws/compliance"
+import {
   securityFindings,
   SEVERITY_SLA_HOURS,
   type SecurityFinding,
 } from "@/lib/aws/findings"
+import {
+  DETECTOR_CONFIGURATION_NOT_READABLE,
+  describeDetectorConfiguration,
+  describeGuardDutyAttribution,
+  describeGuardDutyPosture,
+  describePageBound,
+  guardDutyCoverage,
+  guardDutyReadings,
+  type DetectorReading,
+} from "@/lib/aws/guardduty"
 import { iamPosture } from "@/lib/aws/iam"
 import type { AwsRead } from "@/lib/aws/read"
 import { describeAttribution } from "@/lib/aws/tags"
@@ -40,15 +63,24 @@ import {
   CHIP_SEVERITY,
   CONTROL_TONE,
   CONTROL_WORDS,
+  RULE_HEALTH_TONE,
+  RULE_HEALTH_WORDS,
+  UNSTATED_SEVERITY_WORD,
+  complianceBadge,
   controlsFor,
+  controlsFromCompliance,
+  controlsFromGuardDuty,
   controlsFromIam,
   controlsFromSources,
   coverageByQuestion,
   covering,
+  exposuresFromConfigRules,
   exposuresFromFindings,
+  exposuresFromGuardDuty,
   exposuresFromKeys,
   exposuresFromWildcards,
   gaps,
+  guardDutyBadge,
   postureVerdict,
   rankExposures,
   type ControlRow,
@@ -153,6 +185,17 @@ export default async function SecurityPage() {
 
   const surface = await securityFindings()
   const iam = await iamPosture()
+  /*
+   * The two dark readers, read together.
+   *
+   * Both were real, tested modules with a capability and an IAM grant that no
+   * page imported, so the work they do reached no screen. They are read in
+   * parallel with each other because neither depends on the other's answer and
+   * both resolve their own identity; they are read AFTER the two above because
+   * an operator waiting on this page should get the Security Hub answer no later
+   * than they did before this card existed.
+   */
+  const [guard, config] = await Promise.all([guardDutyReadings(), complianceReadings()])
 
   const identity = surface.identity
   const known = identity.state === "ACTUAL" || identity.state === "STALE" ? identity.value : null
@@ -168,15 +211,53 @@ export default async function SecurityPage() {
    * neither would draw a table headed "what this console found" from an estate
    * nobody was allowed to look at, which reads as "there is nothing".
    */
-  const answered = hubAnswered || iamAnswered
+  const guardAnswered = readAnswered(guard.detectors.state)
+  const configAnswered = readAnswered(config.rules.state)
+  const answered = hubAnswered || iamAnswered || guardAnswered || configAnswered
 
   const hubLead = leadAnswer(surface.read.state, surface.findings, surface.sources)
   const counts = countBySeverity(surface.findings)
   const reporting = answeredSources(surface.sources)
 
+  /* ── the two dark readers, narrowed ─────────────────────────────────────
+   *
+   * `AwsRead` has no arm carrying an optional value, so these narrowings are the
+   * only way to a `T` — and the `[]` fallbacks below are NOT the reassuring
+   * default this console refuses. A refused detector listing is carried into the
+   * page by `guard.detectors` itself, which is rendered through `UnknownState`
+   * and drives `guardDutyCoverage` into its `UNREADABLE` arm; the empty array is
+   * only ever the row source for a table that is not drawn in that case.
+   */
+  const detectors: readonly DetectorReading[] =
+    guard.detectors.state === "ACTUAL" || guard.detectors.state === "STALE"
+      ? guard.detectors.value
+      : []
+  const guardFindings = detectors.flatMap((detector) =>
+    detector.findings.state === "ACTUAL" || detector.findings.state === "STALE"
+      ? detector.findings.value
+      : [],
+  )
+  const configRules: readonly ConfigRuleReading[] =
+    config.rules.state === "ACTUAL" || config.rules.state === "STALE" ? config.rules.value : []
+
+  const guardCoverage = guardDutyCoverage(guard)
+
   const controls = controlsFor([
     ...controlsFromSources(surface.sources),
     ...controlsFromIam(iam.read.state, iam.posture),
+    // GuardDuty's own two rows: the detector listing's coverage, which the reader
+    // itself derives, and the status-and-protection-plans question no capability
+    // in this build can ask. The first displaces the `guardduty::detectors`
+    // placeholder by key; the second is a row that was never even declared.
+    ...controlsFromGuardDuty(guardCoverage, DETECTOR_CONFIGURATION_NOT_READABLE),
+    // Config's two: the rule verdicts, and whether the recorder those verdicts
+    // depend on is recording anything at all.
+    ...controlsFromCompliance(config, {
+      enablement: describeEnablement(config.enablement),
+      health: describeComplianceHealth(config.health),
+      recorder: describeRecorder(config.enablement.recorder),
+      truncation: describeComplianceTruncation(config.truncation),
+    }),
   ])
   const notChecking = gaps(controls)
   const checking = covering(controls)
@@ -186,6 +267,19 @@ export default async function SecurityPage() {
     ...exposuresFromFindings(surface.findings, (finding) => describeAttribution(finding.affects)),
     ...exposuresFromWildcards(iam.posture?.wildcards ?? []),
     ...exposuresFromKeys(iam.posture?.longLivedKeys ?? []),
+    // GuardDuty read DIRECTLY, not through Security Hub's aggregation: a finding
+    // type is carried verbatim, and a finding AWS stated no severity for is
+    // ranked first rather than filed as informational.
+    ...exposuresFromGuardDuty(guardFindings, {
+      describeAttribution: (finding) => describeGuardDutyAttribution(finding.attribution),
+      slaHours: SEVERITY_SLA_HOURS,
+      // The reader's own `asOf`, so every age on the page is measured from the
+      // instant that load was assembled rather than from four different clocks.
+      now: new Date(guard.asOf),
+    }),
+    // Only the rules that are FAILING. A rule at INSUFFICIENT_DATA is a hole and
+    // is counted by the control row above, never as something that was found.
+    ...exposuresFromConfigRules(configRules, describeConfigRule),
   ])
 
   const verdict = postureVerdict({ controls, exposures })
@@ -212,6 +306,27 @@ export default async function SecurityPage() {
 
   const hubUnknown = unknownArm(surface.read)
   const iamUnknown = unknownArm(iam.read)
+  const detectorsUnknown = unknownArm(guard.detectors)
+  const rulesUnknown = unknownArm(config.rules)
+  const aggregationUnknown = unknownArm(config.aggregation)
+  /*
+   * The per-detector reads, each under its OWN action.
+   *
+   * `guarduty:ListFindings` and `guardduty:GetFindings` are separate IAM actions
+   * and the reader keeps them apart, so a role granted the first and not the
+   * second gets the statement it is actually missing. One panel per refused read,
+   * named by detector, rather than one panel for "GuardDuty".
+   */
+  const detectorUnknowns = detectors.flatMap((detector) => {
+    const ids = unknownArm(detector.findingIds)
+    const findings = unknownArm(detector.findings)
+    return [
+      ...(ids ? [{ key: `${detector.detectorId}::ids`, what: `detector ${detector.detectorId}'s finding ids`, read: ids }] : []),
+      ...(findings
+        ? [{ key: `${detector.detectorId}::findings`, what: `detector ${detector.detectorId}'s findings`, read: findings }]
+        : []),
+    ]
+  })
 
   /* ── the two tables, as data ─────────────────────────────────────────── */
 
@@ -286,13 +401,26 @@ export default async function SecurityPage() {
       header: "Severity",
       cell: (exposure) => (
         <div className={styles.cell}>
-          <SeverityChip severity={CHIP_SEVERITY[exposure.severity]}>
-            {exposure.severity}
-          </SeverityChip>
+          {/*
+            A row with no severity is not given one. `SeverityChip` takes the
+            five-word vocabulary and nothing else, so an unstated row renders as
+            a badge carrying the WORD — Bible §26.3.2 — rather than borrowing the
+            informational chip, which is how a rank nobody measured becomes the
+            quietest one on the page.
+          */}
+          {exposure.severity === "UNSTATED" ? (
+            <Badge tone="bad">{UNSTATED_SEVERITY_WORD}</Badge>
+          ) : (
+            <SeverityChip severity={CHIP_SEVERITY[exposure.severity]}>
+              {exposure.severity}
+            </SeverityChip>
+          )}
           <span className="md3-body-small">
             {exposure.severitySource === "product"
               ? "the product's own label"
-              : "this console's classification"}
+              : exposure.severitySource === "console"
+                ? "this console's classification"
+                : "its source stated none, and this console will not assign one"}
           </span>
           {exposure.pastSla ? <span className="md3-body-small">past SLA</span> : null}
         </div>
@@ -334,9 +462,14 @@ export default async function SecurityPage() {
           <span className="md3-body-small">
             {exposure.ageHours === null
               ? "its source carries no first-observed time"
-              : Number.isFinite(SEVERITY_SLA_HOURS[exposure.severity])
-                ? `of ${SEVERITY_SLA_HOURS[exposure.severity]}h allowed`
-                : "no limit"}
+              : exposure.severity === "UNSTATED"
+                ? // No severity means no allowance. Printing the CRITICAL limit
+                  // here would be an SLA this console invented for a row it just
+                  // said it could not rank.
+                  "no allowance applies — its severity was never stated"
+                : Number.isFinite(SEVERITY_SLA_HOURS[exposure.severity])
+                  ? `of ${SEVERITY_SLA_HOURS[exposure.severity]}h allowed`
+                  : "no limit"}
           </span>
         </div>
       ),
@@ -345,6 +478,121 @@ export default async function SecurityPage() {
       key: "remedy",
       header: "Remedy",
       cell: (exposure) => <div className={styles.cell}>{exposure.remedy}</div>,
+    },
+  ]
+
+  /**
+   * One GuardDuty detector.
+   *
+   * The status column is the one that matters and it never says "enabled". AWS
+   * returns a detector's status from `guardduty:GetDetector` and that capability
+   * is not in this engine's registry, so `ListDetectors` listing an id proves a
+   * detector EXISTS and proves nothing about whether it is running. The column
+   * carries the reader's own sentence for that, verbatim.
+   */
+  const detectorColumns: readonly DataColumn<DetectorReading>[] = [
+    {
+      key: "detector",
+      header: "Detector",
+      cell: (detector) => (
+        <div className={styles.cell}>
+          <span className={styles.identifier}>{detector.detectorId}</span>
+          <span className={`md3-body-small ${styles.identifier}`}>
+            {detector.arn ?? "no ARN — identity is unresolved"}
+          </span>
+          <span className="md3-body-small">
+            {describeGuardDutyAttribution(detector.attribution)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status and protection plans",
+      cell: (detector) => (
+        <div className={styles.cell}>
+          <Badge tone="warn">Not verified</Badge>
+          <span className="md3-body-small">
+            {describeDetectorConfiguration(detector.configuration)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "findings",
+      header: "Findings read",
+      cell: (detector) => (
+        <div className={styles.cell}>
+          <span>
+            {detector.findings.state === "ACTUAL" || detector.findings.state === "STALE"
+              ? `${detector.findings.value.length} read`
+              : detector.findings.state === "EMPTY"
+                ? "none — the listing answered and this detector holds no finding"
+                : `not read — ${detector.findings.state}`}
+          </span>
+          <span className="md3-body-small">{describePageBound(detector.idPages)}</span>
+          {detector.unhydrated.length > 0 ? (
+            <span className="md3-body-small">
+              {detector.unhydrated.length} finding id(s) were listed and not returned by
+              guardduty:GetFindings, so this count is a floor
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+  ]
+
+  /**
+   * One AWS Config rule.
+   *
+   * `INSUFFICIENT_DATA` gets its own word — "Evaluated nothing" — and a tone that
+   * is not the passing one, which is the entire reason this table is on the page:
+   * that rule reports no non-compliant resource, exactly like a rule that passed.
+   */
+  const ruleColumns: readonly DataColumn<ConfigRuleReading>[] = [
+    {
+      key: "rule",
+      header: "Rule",
+      cell: (rule) => (
+        <div className={styles.cell}>
+          <span className={styles.identifier}>{rule.name}</span>
+          <span className={`md3-body-small ${styles.identifier}`}>
+            {rule.sourceIdentifier ?? "source identifier unstated"}
+          </span>
+          <span className="md3-body-small">
+            {rule.owner ?? "owner unstated"} · {rule.ruleState ?? "rule state unstated"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "verdict",
+      header: "What it is doing",
+      cell: (rule) => (
+        <div className={styles.cell}>
+          <Badge tone={RULE_HEALTH_TONE[rule.health.kind]}>
+            {RULE_HEALTH_WORDS[rule.health.kind]}
+          </Badge>
+          <span className="md3-body-small">{describeRuleHealth(rule.health)}</span>
+        </div>
+      ),
+    },
+    {
+      key: "scope",
+      header: "Over what",
+      cell: (rule) => (
+        <div className={styles.cell}>
+          <span>{describeRuleScope(rule.scope)}</span>
+          <span className="md3-body-small">
+            {rule.evaluationModes.length === 0
+              ? "evaluation mode unstated"
+              : `evaluation ${rule.evaluationModes.join("+")}`}
+          </span>
+          <span className="md3-body-small">
+            {describeComplianceAttribution(rule.attribution)}
+          </span>
+        </div>
+      ),
     },
   ]
 
@@ -412,19 +660,34 @@ export default async function SecurityPage() {
           </dl>
 
           {/*
-            The severity breakdown of the Security Hub half, and only when that
-            read answered. A row of zeroes under a refused read is a set of
-            counts nobody measured.
+            The severity breakdown of the Security Hub half, and only when THAT
+            read answered — `hubAnswered`, never the page-wide `answered`, which
+            is now true when any of four reads came back. A row of zeroes under a
+            refused Security Hub read is a set of counts nobody measured, and it
+            would be one this page drew because a different reader answered.
           */}
           {answered ? (
-            <div className={styles.row}>
-              {SEVERITY_RANK.map((severity) => (
-                <Chip key={severity}>
-                  <span>{severity}</span>
-                  <span>{counts[severity]}</span>
-                </Chip>
-              ))}
-            </div>
+            hubAnswered ? (
+              <div className={styles.row}>
+                {SEVERITY_RANK.map((severity) => (
+                  <Chip key={severity}>
+                    <span>{severity}</span>
+                    <span>{counts[severity]}</span>
+                  </Chip>
+                ))}
+              </div>
+            ) : (
+              /*
+                Something answered, and it was not Security Hub. The counts are
+                its counts, so they are not drawn as zeroes under a read that was
+                refused — the sentence says which reader is silent instead.
+              */
+              <p className="md3-body-medium">
+                No severity breakdown is drawn: the Security Hub read came back{" "}
+                {surface.read.state}, so these counts would be zeroes nobody measured. What the
+                other readers found is in the ranked list below.
+              </p>
+            )
           ) : null}
 
           {/*
@@ -440,6 +703,12 @@ export default async function SecurityPage() {
           ) : null}
           {iamUnknown ? (
             <UnknownState what="this account's IAM policies and access keys" read={iamUnknown} />
+          ) : null}
+          {detectorsUnknown ? (
+            <UnknownState what="the GuardDuty detector listing" read={detectorsUnknown} />
+          ) : null}
+          {rulesUnknown ? (
+            <UnknownState what="the AWS Config rule listing" read={rulesUnknown} />
           ) : null}
         </div>
       </Card>
@@ -481,8 +750,8 @@ export default async function SecurityPage() {
         }
         supportingText={statedAsOf(
           answered
-            ? "Worst severity first, then whatever is past its allowance, then oldest. Security Hub severities are the product's own label and never a guess from a numeric score; the IAM rows are this console's classification and say so in the row"
-            : "Not shown, because neither read answered",
+            ? "A row whose severity its source never stated comes first, then worst severity, then whatever is past its allowance, then oldest. Security Hub and GuardDuty severities are the product's own label and never a guess from a numeric score; the IAM rows are this console's classification and say so in the row; a failing Config rule carries no severity from AWS at all and is never given one here"
+            : "Not shown, because not one of the four reads answered",
           surface.asOf,
         )}
       >
@@ -501,7 +770,7 @@ export default async function SecurityPage() {
                 empty={
                   <EmptyState
                     headline="Nothing found by the controls that are checking"
-                    description={`Security Hub answered from ${reporting.length} of ${surface.sources.length} sources and returned nothing, and this console's own IAM sweep found no wildcard and no long-lived key. This is an absence of findings from the controls that ran, and the card above it is what says how many did not run.`}
+                    description={`Security Hub answered from ${reporting.length} of ${surface.sources.length} sources and returned nothing; this console's own IAM sweep found no wildcard and no long-lived key; GuardDuty ${describeGuardDutyPosture(guard.posture)}; and AWS Config ${describeComplianceHealth(config.health)} This is an absence of findings from the controls that ran, and the card above it is what says how many did not run.`}
                   />
                 }
               />
@@ -528,15 +797,170 @@ export default async function SecurityPage() {
               could not look at.
             */
             <p className="md3-body-medium">
-              No table is drawn. Neither the Security Hub read nor the IAM read answered, so this
-              console knows of no exposure and of no absence of one; the panels in the card above
-              name what would have to be granted for that to change.
+              No table is drawn. Not one of the four reads answered — Security Hub, this account&rsquo;s
+              IAM, the GuardDuty detector listing and the AWS Config rule listing — so this console
+              knows of no exposure and of no absence of one; the panels in the card above name what
+              would have to be granted for that to change.
             </p>
           )}
         </div>
       </Card>
 
-      {/* 4 — and what IS checking, so the list above can be read against it. */}
+      {/* 4 — threat detection, read from GuardDuty itself rather than aggregated. */}
+      <Card
+        headline="Threat detection — GuardDuty"
+        headerAside={
+          <Badge tone={guardDutyBadge(guard.posture).tone}>{guardDutyBadge(guard.posture).word}</Badge>
+        }
+        supportingText={statedAsOf(
+          "Read directly through guardduty:ListDetectors, not through Security Hub — a disabled detector aggregates as a product with no findings, which is indistinguishable there from a quiet account",
+          guard.asOf,
+        )}
+      >
+        <div className={styles.stack}>
+          {/*
+            The reader's own sentence for the top-line answer. It says "detectors
+            exist" and never "threat detection is on", and it carries the caveat
+            that has to travel with any count below it.
+          */}
+          <p className="md3-body-medium">{describeGuardDutyPosture(guard.posture)}</p>
+
+          {/*
+            Findings by severity band, in AWS's own vocabulary, and only when the
+            detector listing answered. UNRANKED is a band this console added and
+            is FIRST, above CRITICAL: a finding whose severity AWS did not state
+            is one somebody has to look at.
+          */}
+          {guard.posture.kind === "detectors-present" ? (
+            <div className={styles.row}>
+              {guard.posture.severityCounts.map((count) => (
+                <Chip key={count.band}>
+                  <span>{count.band}</span>
+                  <span>{count.count}</span>
+                </Chip>
+              ))}
+            </div>
+          ) : null}
+
+          <DataTable
+            caption={`GuardDuty detectors in this region — ${asOf(guard.asOf)}`}
+            columns={detectorColumns}
+            rows={detectors}
+            rowKey={(detector) => detector.detectorId}
+            empty={
+              /*
+                Deliberately not "no findings". `postureOf` turns an EMPTY
+                detector listing into the `not-enabled` arm, and that arm is a
+                FINDING with a remedy and a cost — the row above this table is
+                where it is stated, and this empty state points at it rather than
+                repeating it in weaker words.
+              */
+              <EmptyState
+                headline={
+                  guard.detectors.state === "EMPTY"
+                    ? "No detector exists in this region"
+                    : "No detector table is drawn"
+                }
+                description={
+                  guard.detectors.state === "EMPTY"
+                    ? "guardduty:ListDetectors answered, and there is none. Nothing is analysing this account's CloudTrail management events, VPC flow logs or DNS queries for a compromise, and every empty finding list on this page is explained by that rather than by a quiet account."
+                    : "The detector listing did not answer, so this console does not know whether anything is watching this account. That is not the same as nothing being wrong; the panel below names what would have to be granted."
+                }
+              />
+            }
+          />
+
+          {detectorsUnknown ? (
+            <UnknownState what="the GuardDuty detector listing" read={detectorsUnknown} />
+          ) : null}
+          {detectorUnknowns.map((entry) => (
+            <UnknownState key={entry.key} what={entry.what} read={entry.read} />
+          ))}
+
+          <details className={styles.disclosure}>
+            <summary className="md3-label-large">
+              Why no detector on this page is ever shown as enabled
+            </summary>
+            <p className="md3-body-medium">
+              {describeDetectorConfiguration(DETECTOR_CONFIGURATION_NOT_READABLE)}
+            </p>
+          </details>
+        </div>
+      </Card>
+
+      {/* 5 — configuration compliance, and whether anything is being recorded. */}
+      <Card
+        headline="Configuration compliance — AWS Config"
+        headerAside={
+          <Badge tone={complianceBadge(config.health, config.truncation).tone}>
+            {complianceBadge(config.health, config.truncation).word}
+          </Badge>
+        }
+        supportingText={statedAsOf(
+          "Every rule's own verdict, and whether the configuration recorder those verdicts depend on is recording anything at all. A rule reporting COMPLIANT over a resource type nothing records has checked nothing",
+          config.asOf,
+        )}
+      >
+        <div className={styles.stack}>
+          <p className="md3-body-medium">{describeComplianceHealth(config.health)}</p>
+
+          {/*
+            The recorder question, above the rule table rather than under it.
+            Every verdict below is conditional on this answer, and this engine
+            does not hold the two capabilities that would give it — so it is
+            stated as a named unknown with the exact actions that would close it,
+            never assumed to be on.
+          */}
+          <dl className={styles.facts}>
+            <Fragment key="recorder">
+              <dt>Recorder</dt>
+              <dd>{describeRecorder(config.enablement.recorder)}</dd>
+            </Fragment>
+            <Fragment key="enablement">
+              <dt>Config in this account</dt>
+              <dd>{describeEnablement(config.enablement)}</dd>
+            </Fragment>
+            <Fragment key="aggregation">
+              <dt>Aggregation</dt>
+              <dd>{describeAggregationReading(config.aggregation)}</dd>
+            </Fragment>
+            <Fragment key="truncation">
+              <dt>Listing</dt>
+              <dd>{describeComplianceTruncation(config.truncation)}</dd>
+            </Fragment>
+          </dl>
+
+          <DataTable
+            caption={`AWS Config rules and their verdicts — ${asOf(config.asOf)}`}
+            columns={ruleColumns}
+            rows={configRules}
+            rowKey={(rule) => rule.name}
+            empty={
+              <EmptyState
+                headline={
+                  config.rules.state === "EMPTY"
+                    ? "No Config rule exists in this account"
+                    : "No rule table is drawn"
+                }
+                description={
+                  config.rules.state === "EMPTY"
+                    ? "config:DescribeConfigRules answered and returned nothing. No rule is evaluating anything in this account, so no rule can report a failure — which is why this reads as a finding here rather than as an empty table."
+                    : "The rule listing did not answer, so this console knows of no rule and of no absence of one. An empty table here would be the single most dangerous thing this surface could say."
+                }
+              />
+            }
+          />
+
+          {rulesUnknown ? (
+            <UnknownState what="the AWS Config rule listing" read={rulesUnknown} />
+          ) : null}
+          {aggregationUnknown ? (
+            <UnknownState what="the Config aggregator listing" read={aggregationUnknown} />
+          ) : null}
+        </div>
+      </Card>
+
+      {/* 6 — and what IS checking, so the list above can be read against it. */}
       <Card
         headline="Checking"
         headerAside={
@@ -563,7 +987,7 @@ export default async function SecurityPage() {
         />
       </Card>
 
-      {/* 5 — the provenance. */}
+      {/* 7 — the provenance. */}
       <Card
         headline="Where this reading came from"
         supportingText={statedAsOf(
@@ -596,6 +1020,40 @@ export default async function SecurityPage() {
             <Fragment key="iam-scope">
               <dt>IAM scope</dt>
               <dd>{iam.scope.detail}</dd>
+            </Fragment>
+            <Fragment key="guardduty-read">
+              <dt>GuardDuty read</dt>
+              <dd className={styles.identifier}>
+                guardduty:ListDetectors, then guardduty:ListFindings and guardduty:GetFindings per
+                detector
+              </dd>
+            </Fragment>
+            <Fragment key="guardduty-answer">
+              <dt>GuardDuty answer</dt>
+              <dd className={styles.identifier}>
+                {guard.detectors.state} · detectors refreshed every{" "}
+                {Math.round(guard.refreshMs.detectors / 1000)}s, findings every{" "}
+                {Math.round(guard.refreshMs.findings / 1000)}s · {describePageBound(guard.detectorPages)}
+              </dd>
+            </Fragment>
+            <Fragment key="config-read">
+              <dt>Config read</dt>
+              <dd className={styles.identifier}>
+                config:DescribeConfigRules, then config:DescribeComplianceByConfigRule in batches,
+                and config:DescribeConfigurationAggregators
+              </dd>
+            </Fragment>
+            <Fragment key="config-answer">
+              <dt>Config answer</dt>
+              <dd className={styles.identifier}>
+                {config.rules.state} · rules refreshed every{" "}
+                {Math.round(config.refreshMs.rules / 1000)}s, verdicts every{" "}
+                {Math.round(config.refreshMs.compliance / 1000)}s
+              </dd>
+            </Fragment>
+            <Fragment key="config-recorder">
+              <dt>Config recorder</dt>
+              <dd>{describeRecorder(config.enablement.recorder)}</dd>
             </Fragment>
           </dl>
 

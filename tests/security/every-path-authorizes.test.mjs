@@ -328,6 +328,12 @@ const AUTHENTICATION_ONLY = {
     "Records whether a named approver is Tenure staff on a four-eyes step. Not a gate on the " +
     "caller — the caller was decided by the command gate — but a fact about a third party " +
     "written into the evidence.",
+  "app/api/export/route.ts":
+    "The 401 half only: no operator session at all means there is nothing to decide about yet, " +
+    "and answering that with a 403 would tell an anonymous caller which surfaces exist. What " +
+    "may actually be exported is decided per surface by `authorizeCommand`, which the route " +
+    "calls for every one it is asked for — so this is the authentication half sitting in front " +
+    "of a real authorization gate, not standing in for one.",
 }
 
 /**
