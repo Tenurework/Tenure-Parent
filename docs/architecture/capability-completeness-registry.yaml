@@ -29,10 +29,10 @@ by_prefix:
   TTES: 34
   WRK: 88
 by_status:
-  BLOCKED_EXTERNAL: 28
-  FAIL: 2001
+  BLOCKED_EXTERNAL: 29
+  FAIL: 1999
   NOT_APPLICABLE: 1
-  PASS: 235
+  PASS: 236
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -3670,10 +3670,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-010: Tenure-owned landing zone"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Define SCPs/guardrails for region restrictions, public resource prevention, disabling security services, leaving organization, root use, unapproved IAM escalation, and required evidence—tested for operational safety."
   - id: "GE-010-006"
     prefix: GE
@@ -18520,10 +18520,10 @@ requirements:
     prefix: STUDIO
     source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
     section: "11.2 Stack layers"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Ensure retry of any step or complete tenant launch creates no duplicate account, domain, certificate, pool, client, database, bucket, key, queue, topic, event rule, index, knowledge base, secret, invitation, ledger entry, or billable commitment."
   - id: "STUDIO-070-007"
     prefix: STUDIO

@@ -343,7 +343,7 @@ documents:
     superseded_by: null
     supersedes:
       - Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
-    sha256: "97042ba1031225b3677b692386ab3b3ba0f4ca9289129b157b4176c4826a0c93"
+    sha256: "54fb7081991fab6f7e32a80950c24946cf9c9f4cd0e2280cc41efb710ccb90bb"
     bytes: 67283
     aliases: []
     requirement_prefixes:

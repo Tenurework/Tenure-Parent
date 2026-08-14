@@ -239,7 +239,7 @@ The visual identity must use:
 
 - [ ] STUDIO-030-001 — Create one token source for color, typography, spacing, radii, borders, elevation, motion, charts, density, and focus across every System Studio surface.
 - [ ] STUDIO-030-002 — Implement forest-green light/dark palettes with measured contrast, no muddy brown/gold legacy theme, no pure-black glare, and no low-contrast gray-on-gray critical text.
-- [x] STUDIO-030-003 — Build accessible primitives for button, link, input, select, combobox, command menu, dialog, drawer, tooltip, popover, tabs, accordion, menu, toast, table, tree, code/diff, date/time, stepper, file upload, chart, and status.
+- [ ] STUDIO-030-003 — Build accessible primitives for button, link, input, select, combobox, command menu, dialog, drawer, tooltip, popover, tabs, accordion, menu, toast, table, tree, code/diff, date/time, stepper, file upload, chart, and status.
 - [ ] STUDIO-030-004 — Make destructive controls visually and spatially distinct; never place irreversible tenant/account/key deletion next to ordinary actions.
 - [x] STUDIO-030-005 — Implement comfortable and compact density modes without information loss, and persist only as operator preference.
 - [ ] STUDIO-030-006 — Implement skeleton, empty, no-permission, stale, partial, error, retrying, offline, degraded, and conflict states for every asynchronous surface.

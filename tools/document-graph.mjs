@@ -434,7 +434,25 @@ export function ledgerStatuses() {
     // neighbouring id — must not be read as a status.
     const entries = text.split(/\n(?=- \[[ xX]\] \*\*)/)
     for (const entry of entries) {
-      const id = entry.match(/^- \[[ xX]\] \*\*([A-Z]{2,8}-\d{3}-\d{3}|[A-Z]{2,8}-GATE-\d+)\*\*/)?.[1]
+      // `\b`, not `\*\*`. The id does not always end the bold run: seventeen
+      // rows across two ledgers qualify it inside the emphasis, as in
+      // `**STUDIO-070-006 (AWS Config compliance adapter)**`, which is a
+      // reasonable thing to write when one requirement is closed by several
+      // lanes. Requiring the closing asterisks immediately after the digits
+      // matched none of them, so those entries got no id, their `Status:` line
+      // was never read, and the requirement fell through to FAIL.
+      //
+      // Eight of the seventeen recorded PASS — GE-042-004, STUDIO-070-004 and
+      // STUDIO-070-006 — so proven work was being reported as not done, which is
+      // the exact defect this registry exists to prevent, pointing the other way.
+      // It is the same shape as the `Status: **BLOCKED_EXTERNAL**` bug below:
+      // a pattern that assumed one way of writing a thing that is written two
+      // ways.
+      //
+      // `\b` after `\d{3}` cannot over-match: an id followed by another digit
+      // has no word boundary there, so `STUDIO-070-0061` still fails to parse
+      // rather than silently reading as `STUDIO-070-006`.
+      const id = entry.match(/^- \[[ xX]\] \*\*([A-Z]{2,8}-\d{3}-\d{3}|[A-Z]{2,8}-GATE-\d+)\b/)?.[1]
       if (!id) continue
       // `Status: **BLOCKED_EXTERNAL**` — eleven entries bold it, and a pattern
       // that only matched bare uppercase read every one of them as FAIL. That
