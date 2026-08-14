@@ -200,14 +200,29 @@ variable "attach_studio_domain" {
     Bind the certificate and the alias to the distribution.
 
     FALSE until ACM reports the certificate ISSUED. Attaching an unvalidated
-    certificate fails the apply, and `tenurework.com` is held at Vercel rather
-    than Route 53, so the validation CNAME is added by a human — which is a step
-    Terraform cannot wait on without blocking forever.
+    certificate fails the apply.
+
+    Two applies, never one. No Route 53 hosted zone for `tenurework.com` is
+    declared by either stack — `grep -rn "aws_route53_zone" infrastructure/`
+    finds none — so the validation CNAME is published by a person, and Terraform
+    cannot wait on a record it is not writing without blocking forever. `acm.tf`
+    says what it would take to change that and why it has not been changed.
 
     Flipping this also moves the auth URLs: Cognito's callback and logout URLs
     and the task's AUTH_URL/NEXTAUTH_URL. All four move together or sign-in
     breaks, which is why they read from one place.
+
+    TRUE since 2026-08-14. ACM reports the certificate ISSUED and the domain's
+    validation status SUCCESS, read from the account rather than assumed:
+
+      STUDIO_CERT_STATUS=ISSUED
+      STUDIO_CERT_VALIDATION=SUCCESS helm.tenurework.com
+
+    Run `Studio Domain Status` to re-check at any time; it reads without an
+    apply. The CloudFront distribution keeps answering on its own hostname as
+    well, because `studio_auth_hosts` deliberately keeps BOTH in Cognito while
+    DNS propagates — nobody is locked out by the switch.
   EOT
   type        = bool
-  default     = false
+  default     = true
 }
