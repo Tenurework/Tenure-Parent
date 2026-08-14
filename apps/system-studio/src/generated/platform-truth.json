@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "3a5753d",
+  "commit": "c40dfe7",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 244,
@@ -1763,7 +1763,7 @@
     ],
     "totalItems": 2265,
     "totalGates": 181,
-    "decided": 264,
+    "decided": 266,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -2134,7 +2134,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 5
+        "done": 6
       },
       {
         "phase": "GE · GE-011: GitHub Actions OIDC",
@@ -3982,7 +3982,7 @@
         "source": "STUDIO",
         "items": 11,
         "gates": 1,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "STUDIO · Security, operations, and cost",
