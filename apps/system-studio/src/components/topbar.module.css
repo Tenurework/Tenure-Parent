@@ -74,9 +74,27 @@
   min-block-size: var(--tap);
 }
 
+/*
+ * "System Studio" — the qualifier that sits immediately after the wordmark
+ * `components/md3/Logo` draws, inside the same `.home` link.
+ *
+ * The weight was 680 and is now 600, which is the weight the brand sets on the
+ * word "Tenure" (`font-semibold`, `apps/web/src/components/brand/TenureLogo`).
+ *
+ * What it buys: the two halves of the masthead read as one lockup. While the
+ * wordmark was drawn as monoline strokes the qualifier's weight was beside the
+ * point, but the word is now real type at 600 — and 680 next to it made the
+ * qualifier the heaviest text on the bar and the BRAND the lighter of the two,
+ * which is backwards. The hierarchy is carried by size instead: the wordmark is
+ * 0.85 x the 22px mark (18.7px) and this is `label-large` (13.1px).
+ *
+ * 680 was also a weight no face on the stack has. Segoe UI, which is what
+ * `--md-sys-type-font` resolves to on Windows, ships 400/600/700 — so 680
+ * rendered as Bold and the intended "just past semibold" never existed.
+ */
 .product {
   font-size: var(--md-sys-typescale-label-large-size);
-  font-weight: 680;
+  font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }

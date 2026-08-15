@@ -9,26 +9,38 @@ import { Logo, LOGO_ICONS, LOGO_ICON_PATH } from "./Logo"
 /**
  * The mark, proven as an asset rather than described as one.
  *
- * Four things have to be true, and each of them is the kind of thing that
+ * Five things have to be true, and each of them is the kind of thing that
  * silently stops being true:
  *
  *   1. It is vector markup in the page — an `<svg>`, not an `<img>` and not a
  *      word in a pill.
- *   2. It carries no colour value. The theme decides what green is; a literal
+ *   2. **The wordmark is the WORD.** The word "Tenure", as text, set in the
+ *      product's own type at the tenant application's proportion, weight and
+ *      tracking. It was drawn as `<path>` outlines once — a monoline capital
+ *      nobody at Tenure drew — and the whole point of the assertions below is
+ *      that going back to that reds the build on the day it is written rather
+ *      than at the next brand review.
+ *   3. It carries no colour value. The theme decides what green is; a literal
  *      here is a pair the contrast audit cannot see, on the one element that
  *      appears on every route.
- *   3. Its accessible name is correct for the shape it is in. Standing alone as
+ *   4. Its accessible name is correct for the shape it is in. Standing alone as
  *      the link to home it must have one; sitting beside a visible "Tenure" it
  *      must have none, because a name in that position is read aloud as
  *      "Tenure Tenure".
- *   4. It is the SAME rosette as the product's, and the favicon is the same
- *      rosette again.
+ *   5. It is the SAME rosette as the product's — imported, not copied — and the
+ *      favicon is the same rosette again.
  *
  * `e2e/md3-tokens-logic.spec.ts` already refuses a literal colour anywhere in
  * `components/md3`, and this file repeats a narrower version of that check
  * rather than relying on it: that spec needs a built server, this runs in jest,
  * and the check that runs on every unit run is the one that catches the edit on
  * the day it is made.
+ *
+ * The cross-application half — that the console's proportions are the tenant
+ * application's proportions — is in
+ * `tests/architecture/brand-mark-is-one-mark.test.mjs`, because it has to read
+ * a file in the other app and nothing under `apps/system-studio/src` may reach
+ * into `apps/web` (`tests/architecture/shell-separation.test.mjs`).
  *
  * Assertions carry no message argument on purpose — jest's `expect` takes one
  * argument, unlike the Playwright `expect` used across `e2e/`. Where a bare
@@ -137,21 +149,6 @@ describe("the mark is vector markup in the page", () => {
     }
   })
 
-  test("the lockup draws the word, the glyph does not", () => {
-    const lockup = renderToStaticMarkup(<Logo />)
-    const glyph = renderToStaticMarkup(<Logo mark />)
-
-    // The T's crossbar and stem — the first letterform, present only in the lockup.
-    expect(lockup).toContain("M0 8H13M6.5 8V24")
-    expect(glyph).not.toContain("M0 8H13M6.5 8V24")
-
-    // Six letters plus six petals, against six petals alone.
-    expect({
-      lockup: (lockup.match(/<path/g) ?? []).length,
-      glyph: (glyph.match(/<path/g) ?? []).length,
-    }).toEqual({ lockup: 12, glyph: 6 })
-  })
-
   test("both dimensions are attributes, and the aspect follows the box", () => {
     // Not left to CSS: an `<svg>` with no intrinsic size lays out at 300x150
     // until the stylesheet arrives, which is a masthead-height jump on every
@@ -162,10 +159,172 @@ describe("the mark is vector markup in the page", () => {
     expect(glyph).toContain('viewBox="0 0 32 32"')
 
     const lockup = renderToStaticMarkup(<Logo size={24} />)
-    expect(lockup).toContain('viewBox="0 0 136 32"')
+    // 32 (the mark) + 12.8 (the gap) + 79.2 (the word's pinned advance).
+    expect(lockup).toContain('viewBox="0 0 124 32"')
     expect(lockup).toContain('height="24"')
-    // 24 * 136/32 = 102.
-    expect(lockup).toContain('width="102"')
+    // 24 * 124/32 = 93.
+    expect(lockup).toContain('width="93"')
+  })
+})
+
+/* ── The wordmark, which is the reason this file was rewritten ─────────────── */
+
+describe("the wordmark is the word, not a drawing of it", () => {
+  /**
+   * The mutation this whole block exists to catch: somebody replaces the
+   * `<text>` element with `<path d="M0 8H13M6.5 8V24" …>` letterforms again.
+   * Each assertion below fails on its own when that happens, and they fail for
+   * different reasons — the word disappears from the text content, the path
+   * count climbs past the six petals, and the type properties vanish.
+   */
+
+  test("the lockup contains the word Tenure as text content", () => {
+    const lockup = renderToStaticMarkup(<Logo />)
+    expect(lockup).toContain("<text")
+    // The word, inside the element, as the string a reader would select and
+    // copy. `>Tenure<` rather than a bare `includes("Tenure")`, which an
+    // `aria-label` would satisfy while the artwork stayed drawn.
+    expect(lockup).toContain(">Tenure</text>")
+    expect(lockup.match(/<text\b/g) ?? []).toHaveLength(1)
+  })
+
+  test("the lockup draws SIX paths — the petals, and no letterforms", () => {
+    // The rosette is six petals. Every additional `<path>` in this element is a
+    // letter somebody drew, which is exactly what was here before.
+    const lockup = renderToStaticMarkup(<Logo />)
+    const glyph = renderToStaticMarkup(<Logo mark />)
+    expect({
+      lockup: (lockup.match(/<path/g) ?? []).length,
+      glyph: (glyph.match(/<path/g) ?? []).length,
+    }).toEqual({ lockup: 6, glyph: 6 })
+
+    // Belt and braces on the same fact from the other end: the only `d`
+    // attribute in either form is the shared petal.
+    const dValues = (markup: string) => [...markup.matchAll(/\sd="([^"]*)"/g)].map((m) => m[1])
+    expect(new Set(dValues(lockup))).toEqual(new Set([PETAL]))
+    expect(new Set(dValues(glyph))).toEqual(new Set([PETAL]))
+  })
+
+  test("the source declares no letterform path data at all", () => {
+    /*
+      The render assertions above are defeated by one specific edit: drawing the
+      letters as a single `<path>` with a compound `d`, which keeps the count at
+      six only if the petals are also merged — but more simply, by drawing them
+      into `public/` or into a sibling and importing them. This reads the source
+      and refuses SVG path data written in this file, in any quantity.
+
+      `PETAL` is imported rather than declared here, so a path-data literal in
+      this file is by definition something new.
+    */
+    const source = code(LOGO_SOURCE)
+    const literals = [...source.matchAll(/"([^"]*)"/g)].map((m) => m[1])
+    const pathData = literals.filter((s) => /^[Mm]\s*-?[\d.]/.test(s))
+    expect(pathData).toEqual([])
+  })
+
+  test("the word is set in the product's own type, at the brand's proportion", () => {
+    const lockup = renderToStaticMarkup(<Logo />)
+
+    // The type stack `globals.css` sets on `body` — the same face the tenant
+    // application's wordmark span inherits. Named as a token, not a family, so
+    // one change of stack moves both.
+    expect(lockup).toContain('font-family="var(--md-sys-type-font)"')
+
+    // 0.85x the mark, which is `TenureWordmark`'s `fontSize: size * 0.85`
+    // expressed in the mark's 32-unit grid: 0.85 x 32 = 27.2.
+    expect(lockup).toContain('font-size="27.2"')
+    // Tailwind `font-semibold` and `tracking-tight`, which is what the tenant
+    // component sets on the word.
+    expect(lockup).toContain('font-weight="600"')
+    expect(lockup).toContain('letter-spacing="-0.025em"')
+  })
+
+  test("the word's advance is pinned, so the box fits it on every machine", () => {
+    /*
+      This console loads no webfont, so `--md-sys-type-font` resolves to a
+      different face per platform and the word's natural advance differs with
+      it: measured in Chromium at 27.2 units, semibold, at this tracking —
+      Segoe UI 78.8, Roboto 77.5, Arial 84.6. A box cut for the narrowest clips
+      the widest, and `e2e/layout.spec.ts` would see the overflow on one runner
+      and not another.
+
+      `textLength` pins the advance and `lengthAdjust="spacing"` reaches it by
+      adjusting the gaps between glyphs rather than the glyphs — the letterforms
+      are the face's own, undistorted.
+    */
+    const lockup = renderToStaticMarkup(<Logo />)
+    expect(lockup).toContain('textLength="79.2"')
+    expect(lockup).toContain('lengthAdjust="spacing"')
+
+    // And the box closes exactly on it: the word starts at 44.8 and the pinned
+    // advance is 79.2, so the viewBox is 124 wide with no trailing slack. Slack
+    // here is a gap between the mark and whatever the caller puts beside it that
+    // nothing in a stylesheet can see.
+    const x = /<text[^>]*\sx="([\d.]+)"/.exec(lockup)?.[1]
+    const length = /<text[^>]*textLength="([\d.]+)"/.exec(lockup)?.[1]
+    const viewBox = /viewBox="0 0 ([\d.]+) 32"/.exec(lockup)?.[1]
+    expect({ x, length, viewBox }).toEqual({ x: "44.8", length: "79.2", viewBox: "124" })
+    expect(Number(x) + Number(length)).toBe(Number(viewBox))
+  })
+
+  test("the word is pinned left-to-right, so the lockup does not mirror", () => {
+    /*
+      The console flips `dir` to `rtl` on request (STUDIO-030-007,
+      `app/layout.tsx`), `direction` inherits into SVG, and in an RTL context
+      `text-anchor: start` means the RIGHT edge — so a `<text x="44.8">` with no
+      direction of its own renders LEFTWARDS from there.
+
+      Measured in Chromium with `dir="rtl"` on the document: the word's box goes
+      from 44.8…124.8 to -34.4…45.6. That is the letters drawn on top of the
+      rosette with the first three clipped off the left of the viewBox — a
+      screenshot reading "ure" over the mark.
+
+      `e2e/layout.spec.ts` runs an RTL pass over every route and would NOT catch
+      it: that detector reports text drawn over TEXT, and this is text drawn
+      over a graphic. This assertion is the one that does.
+
+      It is also the one property the drawn letterforms had for free, which is
+      why it is asserted rather than assumed.
+    */
+    expect(renderToStaticMarkup(<Logo />)).toContain('direction="ltr"')
+  })
+
+  test("the masthead's qualifier does not out-weigh the wordmark beside it", () => {
+    /*
+      `TopBar` renders this component and then, inside the same link, a
+      `<span class="product">System Studio</span>`. The two are read as one
+      lockup, so the qualifier may not be heavier than the brand.
+
+      It was: `.product` carried `font-weight: 680` while the word was drawn as
+      monoline strokes with no weight at all, and the moment the word became
+      real type at 600 the qualifier became the heaviest text on the bar and the
+      BRAND the lighter of the two. The hierarchy belongs to size — the wordmark
+      is 0.85x a 22px mark, the qualifier is `label-large` — not to weight.
+
+      Read from the stylesheet rather than asserted in it, because the number
+      that matters is the RELATIONSHIP between two files.
+    */
+    const css = fs.readFileSync(path.join(HERE, "..", "topbar.module.css"), "utf8")
+    const rule = /\.product\s*\{[^}]*\}/.exec(css)?.[0]
+    expect(typeof rule).toBe("string")
+    const qualifier = Number(/font-weight:\s*(\d+)/.exec(rule!)?.[1])
+    const wordmark = Number(
+      /font-weight="(\d+)"/.exec(renderToStaticMarkup(<Logo />))?.[1],
+    )
+    // Two failed reads would both be NaN, and NaN comparisons are silently
+    // false rather than loudly wrong.
+    expect({ qualifier: Number.isFinite(qualifier), wordmark: Number.isFinite(wordmark) }).toEqual({
+      qualifier: true,
+      wordmark: true,
+    })
+    expect(qualifier).toBeLessThanOrEqual(wordmark)
+  })
+
+  test("the glyph is the mark alone — no word, and no room reserved for one", () => {
+    const glyph = renderToStaticMarkup(<Logo mark />)
+    expect(glyph).not.toContain("<text")
+    expect(glyph).not.toContain("Tenure</")
+    expect(glyph).toContain('viewBox="0 0 32 32"')
   })
 })
 
@@ -181,9 +340,14 @@ describe("the mark carries no colour of its own", () => {
     // The complement of the check above, and the one that actually matters: a
     // component with NO fill at all also renders no colour value — and renders
     // black. These assert the tokens are the thing being asked for.
+    //
+    // The pairing is the tenant application's: the rosette takes the primary
+    // green, the word takes the surface's own foreground. Which step of the
+    // green ramp `primary` carries is `globals.css`'s decision, where the
+    // contrast audit can read it.
     const lockup = renderToStaticMarkup(<Logo />)
     expect(lockup).toContain('fill="var(--md-sys-color-primary)"')
-    expect(lockup).toContain('stroke="var(--md-sys-color-on-surface)"')
+    expect(lockup).toContain('fill="var(--md-sys-color-on-surface)"')
     expect(renderToStaticMarkup(<Logo mark />)).toContain('fill="var(--md-sys-color-primary)"')
   })
 
@@ -251,15 +415,46 @@ describe("the accessible name is correct for the shape the mark is in", () => {
 })
 
 describe("it is the same rosette everywhere", () => {
+  test("this file imports the shared petal rather than declaring one", () => {
+    /*
+      The other half of "one mark": `tests/architecture/brand-mark-is-one-mark
+      .test.mjs` guards `components/brand/TenureLogo.tsx` against its twin in
+      `apps/web`, and that guard only covers this component while this component
+      IMPORTS from it. A `const PETAL = "M16 16 C …"` pasted into this file
+      would render an identical rosette today, sit outside the guard, and drift
+      the first time the brand file is edited.
+
+      Asserted on the source rather than on the render, because a copied string
+      renders exactly the same markup as an imported one — which is precisely
+      why the copy would survive review.
+    */
+    const source = code(LOGO_SOURCE)
+    expect(/import\s*\{[^}]*\bPETAL\b[^}]*\}\s*from\s*["']\.\.\/brand\/TenureLogo["']/.test(source)).toBe(
+      true,
+    )
+    // And it is not ALSO declared here, shadowing the import.
+    expect(/\bconst\s+PETAL\b/.test(source)).toBe(false)
+  })
+
   test("the component draws the guarded petal, six times, about the guarded centre", () => {
-    // PETAL is imported, not copied:
-    // tests/architecture/brand-mark-is-one-mark.test.mjs guards that string
-    // against apps/web's copy, and a third literal written out here would be a
-    // copy that guard does not know exists.
     expect(PETAL.length).toBeGreaterThan(20)
     const markup = renderToStaticMarkup(<Logo mark />)
     expect(markup.split(PETAL).length - 1).toBe(6)
     expect(ROTATIONS.filter((r) => markup.includes(`rotate(${r} 16 16)`))).toEqual(ROTATIONS)
+  })
+
+  test("the lockup draws it at 1:1, the way the tenant's wordmark does", () => {
+    /*
+      `TenureWordmark` renders `<TenureLogo size={size} />` — the rosette
+      occupying its whole 32-unit box, unscaled. The lockup here does the same,
+      so the mark stands 1.32x the cap height beside the word exactly as it does
+      in the product. The lone glyph keeps its 1.12 fill scale, which is the
+      optical padding a mark standing by itself in a rail wants.
+    */
+    const lockup = renderToStaticMarkup(<Logo />)
+    const glyph = renderToStaticMarkup(<Logo mark />)
+    expect(lockup).not.toContain("scale(")
+    expect(glyph).toContain("translate(16 16) scale(1.12) translate(-16 -16)")
   })
 
   test("the favicon is that rosette and not a second drawing of it", () => {

@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from "react"
 
 import { auth } from "@/lib/auth"
+import { LiveRegion } from "@/components/LiveRegion"
 import {
   Badge,
   Card,
@@ -32,6 +33,8 @@ import {
   logGroupReadings,
   type LogGroupReading,
 } from "@/lib/aws/logs"
+import { describeRead } from "@/lib/aws/read"
+import { seedValue } from "@/lib/aws/refresh"
 import { isOperator, operatorConfigProblems } from "@/lib/operators"
 
 import {
@@ -229,6 +232,25 @@ export default async function HealthPage() {
     dashboardsReadState: dashboards.dashboards.state,
     logsReadState: logs.groups.state,
   })
+
+  /*
+   * STUDIO-140-007 — the loop this page did not have.
+   *
+   * "Is anything broken right now" is a question about NOW, and until this the
+   * page answered it once and then froze: the reads above ran during this
+   * render, and nothing re-ran them until a human pressed reload. An operator
+   * watching a deploy was reading a screen that had stopped moving without
+   * saying so.
+   *
+   * Log groups are the surface wired first, because `logs:DescribeLogGroups` is
+   * the one read on this page that `/api/aws/<surface>` also serves — the same
+   * capability, so the same `refreshMs`, so the number the browser polls for
+   * cannot disagree with `logs.refreshMs.groups` printed beside it. Two minutes
+   * is that capability's own argument, and it is the fastest cadence in this
+   * page's set, which is what makes it the honest one to poll.
+   */
+  const logsSeed = seedValue(logs.groups)
+  const logsBecause = logsSeed === null ? describeRead(logs.groups, "the log group inventory") : null
 
   const alarmsUnknown = unknownArm(surface.read)
   const eventsUnknown = unknownArm(aws.events)
@@ -819,6 +841,25 @@ export default async function HealthPage() {
         )}
       >
         <div className={styles.stack}>
+          {/*
+            The block that keeps up, above the tables that do not.
+
+            It polls `/api/aws/logs` on the interval that surface states on its
+            own responses, stops while this tab is hidden, and on a failed
+            refresh leaves the last good count standing — marked stale, with the
+            instant it was true — rather than blanking it. It is rendered
+            whatever the server read did: when that read was refused there is no
+            seed, the region says so in the reader's own words, and the first
+            successful poll is what puts a number there.
+          */}
+          <LiveRegion
+            surface="logs"
+            noun="log group"
+            what="Log groups"
+            seed={logsSeed}
+            seedBecause={logsBecause}
+          />
+
           {logsUnknown ? (
             <UnknownState read={logsUnknown} what="the log groups in this account" />
           ) : (

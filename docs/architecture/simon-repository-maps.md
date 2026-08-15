@@ -38,7 +38,7 @@ checks the roll-ups add up to the file lists they came from.
 | `.github/workflows` | 18 |
 | `Tier1` | 13 |
 | `Tier1/extracted` | 11 |
-| `apps/system-studio` | 304 |
+| `apps/system-studio` | 360 |
 | `apps/web` | 494 |
 | `blueprints` | 5 |
 | `blueprints/corporate-divisions` | 1 |
@@ -73,12 +73,12 @@ checks the roll-ups add up to the file lists they came from.
 | `packages/releases` | 5 |
 | `packages/workflow` | 5 |
 | `tests` | 1 |
-| `tests/architecture` | 57 |
-| `tests/security` | 36 |
+| `tests/architecture` | 58 |
+| `tests/security` | 37 |
 | `tools` | 32 |
 | `tools/dev` | 4 |
-| `tools/loop` | 49 |
-| **total** | **1457** |
+| `tools/loop` | 53 |
+| **total** | **1519** |
 
 ## Workspace and package map
 
@@ -162,22 +162,23 @@ digraph modules {
 }
 ```
 
-#### Target — 85 area edge(s) over 1145 source file(s), 703 builtin import(s), 47 unresolved relative, 4 unresolved alias
+#### Target — 86 area edge(s) over 1201 source file(s), 723 builtin import(s), 2 unresolved relative, 4 unresolved alias
 
 ```
 digraph modules {
+  "apps/system-studio/e2e" -> "apps/system-studio/src/components" [label="4"]
   "apps/system-studio/e2e" -> "apps/system-studio/src/generated" [label="1"]
-  "apps/system-studio/e2e" -> "apps/system-studio/src/lib" [label="32"]
+  "apps/system-studio/e2e" -> "apps/system-studio/src/lib" [label="33"]
   "apps/system-studio/e2e" -> "apps/web/src/lib" [label="1"]
   "apps/system-studio/e2e" -> "modules" [label="1"]
   "apps/system-studio/e2e" -> "packages/configuration/src" [label="4"]
   "apps/system-studio/e2e" -> "packages/contracts/src" [label="1"]
   "apps/system-studio/e2e" -> "packages/finops/src" [label="1"]
   "apps/system-studio/e2e" -> "packages/platform-config/src" [label="3"]
-  "apps/system-studio/e2e" -> "packages/provisioning/src" [label="1"]
-  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="45"]
+  "apps/system-studio/e2e" -> "packages/provisioning/src" [label="2"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="59"]
   "apps/system-studio/src/app" -> "apps/system-studio/src/generated" [label="1"]
-  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="244"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="275"]
   "apps/system-studio/src/app" -> "blueprints" [label="8"]
   "apps/system-studio/src/app" -> "modules" [label="7"]
   "apps/system-studio/src/app" -> "packages/audit/src" [label="3"]
@@ -187,8 +188,8 @@ digraph modules {
   "apps/system-studio/src/app" -> "packages/organization-model/src" [label="1"]
   "apps/system-studio/src/app" -> "packages/platform-config/src" [label="8"]
   "apps/system-studio/src/app" -> "packages/provisioning/src" [label="6"]
-  "apps/system-studio/src/components" -> "apps/system-studio/src/lib" [label="4"]
-  "apps/system-studio/src/components" -> "packages/provisioning/src" [label="3"]
+  "apps/system-studio/src/components" -> "apps/system-studio/src/lib" [label="9"]
+  "apps/system-studio/src/components" -> "packages/provisioning/src" [label="4"]
   "apps/system-studio/src/lib" -> "apps/system-studio/src/app" [label="2"]
   "apps/system-studio/src/lib" -> "apps/system-studio/src/components" [label="5"]
   "apps/system-studio/src/lib" -> "blueprints" [label="1"]
@@ -267,7 +268,7 @@ transitive dependency that hoisted it is removed.
 | `apps/web` | `@eslint/eslintrc` | 1 | **no** |
 | `apps/web/src/lib` | `server-only` | 10 | **no** |
 
-#### Target — 104 area/package pair(s), 40 undeclared
+#### Target — 105 area/package pair(s), 41 undeclared
 
 | Area | Package | Imports | Declared |
 | --- | --- | ---: | --- |
@@ -304,6 +305,7 @@ transitive dependency that hoisted it is removed.
 | `packages/releases/src` | `@tenure/configuration` | 1 | **no** |
 | `packages/releases/src` | `@tenure/contracts` | 1 | **no** |
 | `tests/architecture` | `@tenure/blueprints` | 1 | **no** |
+| `tests/architecture` | `tailwindcss` | 1 | **no** |
 | `tests/architecture` | `typescript` | 1 | **no** |
 | `tests/architecture` | `x` | 3 | **no** |
 | `tests/architecture` | `z` | 1 | **no** |

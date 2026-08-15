@@ -1,0 +1,33 @@
+/*
+ * Geometry for `LiveRegion`, and nothing else.
+ *
+ * The same rule the route modules carry: only flow direction, gap, wrapping and
+ * the wrapping a line full of identifiers needs. No colour, no size, no weight,
+ * no radius — those are the token layer's answers, `components/md3` is how a
+ * surface asks for them, and a page that sets its own is a page
+ * `e2e/md3-tokens-logic.spec.ts` cannot audit for contrast.
+ *
+ * Every line in this region carries content that does not break at spaces: an
+ * ISO instant, `x-aws-refresh-ms`, `/api/aws/cloudfront`, a problem document's
+ * detail sentence with a capability id in it. `e2e/layout.spec.ts` measures this
+ * console at 320 CSS pixels, so `min-inline-size: 0` and `overflow-wrap` are not
+ * decoration here — without them this block is what makes the page scroll
+ * sideways.
+ */
+
+.region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The label and its status words. Wraps rather than widening the page. */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}

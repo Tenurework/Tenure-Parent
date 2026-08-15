@@ -4,17 +4,30 @@
  * ── The palette ────────────────────────────────────────────────────────────
  *
  * Material Design 3, translated for the Tenure control plane rather than copied
- * from a consumer app. The seed is Tenure forest green; the surface ladder is
- * cool and low-glare; every component below reads from semantic roles instead
- * of one-off colours. The old `--bg`/`--surface` names stay as aliases because
- * they are the product contract the architecture inventory reads.
+ * from a consumer app. The accent is the Tenure forest ramp — the real one, from
+ * `apps/web/src/app/globals.css` — and the surfaces are neutral in both themes;
+ * every component below reads from semantic roles instead of one-off colours.
+ * The old `--bg`/`--surface` names stay as aliases because they are the product
+ * contract the architecture inventory reads.
  *
  * Status is carried by weight and a *muted* tint, never by a saturated colour.
  * A console where the eye is pulled to whatever is reddest stops being read.
+ *
+ * ## The accent is the brand's, and it is not this file's to invent
+ *
+ * This console shipped for a while on `#12cc7e`, described in its own comment as
+ * a "deep forest green". That value appears nowhere in Tenure. It was invented
+ * here, and the product owner has said so.
+ *
+ * Every green below is now a verbatim step of the ramp in
+ * `apps/web/src/app/globals.css`, and `md3-tokens-logic.spec.ts` reads that file
+ * and fails on any green role whose value is not one of its steps — so the next
+ * hand-mixed accent reds the build rather than shipping with a paragraph
+ * describing it.
  */
 
 /*
- * The reference ramp: tones of the seed, with no meaning attached.
+ * The reference ramp: steps of the brand's forest ramp, with no meaning attached.
  *
  * Material's two layers, kept as two layers. `--md-ref-*` says what a colour IS
  * and `--md-sys-*` says what it is FOR, and the arrows below are what makes that
@@ -27,22 +40,45 @@
  * `--md-ref-primary-40` was the eighth and is gone. It was the one tone no role
  * ever resolved to, which in a two-layer system means it was not a reference —
  * it was a colour nobody had decided the use of.
+ *
+ * The Material tone NUMBERS are kept as names; the VALUES are the brand's steps,
+ * named beside each one so the mapping is checkable rather than asserted:
+ *
+ *   -10 = --tenure-forest-950   -80 = --tenure-forest-200
+ *   -30 = --tenure-forest-850   -90 = --tenure-forest-50
+ *
+ * `--md-ref-primary-30` is `#115e3d` and NOT `#198052`, which is the tenant
+ * app's `--primary`. That is deliberate and measured. `#198052` was chosen for
+ * WHITE ON GREEN and clears 4.94:1 there; as a text-button LABEL it has to clear
+ * 4.5:1 on the darkest step of this console's paper ladder
+ * (`surface-container-highest`, #e6e4dd) and measures 3.88:1 — it fails. The
+ * next two steps down, forest-800 `#0f6b42`, clears at rest (5.15:1) and fails
+ * hovered (4.37:1, the 12% state layer moves the ground toward the label).
+ * forest-850 `#115e3d` clears both: 6.13:1 at rest, 5.14:1 hovered. The contrast
+ * audit that darkened `#1c8c5a` to `#198052` is extended here, not undone —
+ * `on-primary` on `#115e3d` is 7.47:1 and pure white is 7.80:1, safer than the value that audit produced.
  */
 :root {
-  --md-ref-primary-10: #062117;
-  --md-ref-primary-30: #0b5c3d;
-  --md-ref-primary-80: #7fd6aa;
-  --md-ref-primary-90: #c3eed8;
-  --md-ref-secondary-40: #47665a;
+  --md-ref-primary-10: #06130c;
+  --md-ref-primary-30: #115e3d;
+  --md-ref-primary-80: #6ee7b7;
+  --md-ref-primary-90: #e4f2ea;
+  /*
+   * Neutral, not a green-grey. `#47665a` was a second green family beside the
+   * accent — the failure the dark theme's `secondary` was already neutralised to
+   * avoid — and on the warm paper below it read muddy rather than quiet.
+   * `--tenure-slate-700`.
+   */
+  --md-ref-secondary-40: #454a53;
   --md-ref-tertiary-40: #3c6370;
   --md-sys-color-primary: var(--md-ref-primary-30);
-  --md-sys-color-on-primary: #f7fff9;
+  --md-sys-color-on-primary: #f7fbf8;
   --md-sys-color-primary-container: var(--md-ref-primary-90);
   --md-sys-color-on-primary-container: var(--md-ref-primary-10);
   --md-sys-color-secondary: var(--md-ref-secondary-40);
-  --md-sys-color-on-secondary: #f7fff9;
-  --md-sys-color-secondary-container: #d3e5db;
-  --md-sys-color-on-secondary-container: #10251c;
+  --md-sys-color-on-secondary: #f8f8f7;
+  --md-sys-color-secondary-container: #e2e0da;
+  --md-sys-color-on-secondary-container: #2c3038;
   --md-sys-color-tertiary: var(--md-ref-tertiary-40);
   --md-sys-color-on-tertiary: #f7fdff;
   --md-sys-color-tertiary-container: #cbe6ef;
@@ -63,44 +99,97 @@
   --md-sys-color-on-warning: #fffcf3;
   --md-sys-color-warning-container: #f4e6c2;
   --md-sys-color-on-warning-container: #241a00;
-  --md-sys-color-success: #246b45;
-  --md-sys-color-on-success: #f7fff9;
-  --md-sys-color-success-container: #c8e9d4;
-  --md-sys-color-on-success-container: #052314;
-  --md-sys-color-background: #f4f7f3;
-  --md-sys-color-on-background: #17231d;
-  --md-sys-color-surface: #fbfdf8;
-  --md-sys-color-surface-dim: #dce4de;
-  --md-sys-color-surface-bright: #fbfdf8;
-  --md-sys-color-surface-container-lowest: #fdfefb;
-  --md-sys-color-surface-container-low: #f0f5ef;
-  --md-sys-color-surface-container: #e9f0ea;
-  --md-sys-color-surface-container-high: #e2ebe4;
-  --md-sys-color-surface-container-highest: #dbe5dd;
-  --md-sys-color-surface-variant: #dfe7e1;
-  --md-sys-color-on-surface: #17231d;
-  --md-sys-color-on-surface-variant: #485950;
-  --md-sys-color-outline: #718178;
-  --md-sys-color-outline-variant: #c7d1ca;
+  /* Success is the forest ramp too, at different steps from the accent.
+   *
+   * These were #246b45 / #f7fff9 / #c8e9d4 / #052314 — four greens in no Tenure
+   * palette, mixed to sit near the brand without being it. The refuter caught
+   * the claim "every green is a verbatim step of the ramp" as false on exactly
+   * this family, and it was.
+   *
+   * The brand had already answered it: `apps/web/src/app/globals.css` declares
+   * `--success: var(--tenure-forest-650)`, `--success-text: forest-750`,
+   * `--success-light: forest-50`. So success and the accent are the same hue
+   * separated by STEP, which is the decision the invented values were avoiding —
+   * and avoiding it produced two greens that differ by too little to read as
+   * deliberate and too much to read as the same. */
+  /* forest-750, which is the brand's `--success-text`, NOT its `--success`.
+   * The brand's `--success` (forest-650 #1c8c5a) is a FILL in the tenant app; in
+   * this console the role is read as a glyph, and forest-650 measures 3.34:1 on
+   * the darkest paper step against a 4.5:1 floor. The brand keeps a separate
+   * foreground value for exactly that reason and this is it — 5.72:1 on the same
+   * step. Same lesson as the accent: the ramp is the brand, the rung is a
+   * measurement. */
+  --md-sys-color-success: #14724a;
+  --md-sys-color-on-success: #f7fbf8; /* as on-primary: not pure white, see the glare rule */
+  --md-sys-color-success-container: #e4f2ea; /* forest-50, the brand's --success-light */
+  --md-sys-color-on-success-container: #14724a; /* forest-750, the brand's --success-text */
+  /*
+   * ── The paper ────────────────────────────────────────────────────────────
+   *
+   * The tenant application's palette, not a green-tinted invention of this
+   * file's. Every neutral below is a step of the `--tenure-paper-*` /
+   * `--tenure-slate-*` / `--tenure-ink-*` ramps in
+   * `apps/web/src/app/globals.css`, so an operator moving between the product
+   * and the console is looking at one paper rather than two that nearly match.
+   *
+   * The previous set (`#f4f7f3`, `#fbfdf8`, `#dbe5dd` …) was a green-tinted
+   * white — the same defect the dark theme had, where the SURFACES carried the
+   * hue and the accent was left to carry none of it.
+   *
+   * `background` is the page, `surface-container-low` is the card, and the card
+   * is BRIGHTER than the page: on paper the ladder rises toward white while the
+   * containers below it get dimmer as they get heavier, which is why the ramp
+   * runs from `#fdfcfa` down to `#e6e4dd` rather than up.
+   */
+  --md-sys-color-background: #f1f0ea;
+  --md-sys-color-on-background: #191a1c;
+  --md-sys-color-surface: #fbfaf7;
+  /* The rail. `.console-rail` paints this: one step dimmer than the page, which
+     is the relationship the tenant app's side nav has to its own canvas. */
+  --md-sys-color-surface-dim: #ecebe5;
+  --md-sys-color-surface-bright: #fdfcfa;
+  --md-sys-color-surface-container-lowest: #fdfcfa;
+  --md-sys-color-surface-container-low: #fbfaf7;
+  --md-sys-color-surface-container: #f4f3ed;
+  --md-sys-color-surface-container-high: #edece5;
+  --md-sys-color-surface-container-highest: #e6e4dd;
+  --md-sys-color-surface-variant: #ecebe5;
+  --md-sys-color-on-surface: #191a1c;
+  --md-sys-color-on-surface-variant: #565b62;
+  /*
+   * `--tenure-slate-500`, and it moved from `#7f8794` because 1.4.11 is a
+   * threshold rather than a wish: `#7f8794` measured 2.85:1 against the darkest
+   * step of the paper ladder (#e6e4dd) — under the 3:1 an outlined control's
+   * border has to clear — while measuring 3.53:1 on the brightest. A border
+   * that is legible on the card and not in the dialog is the border of a
+   * control somebody cannot find. `#6b7280` is 3.80:1 on the darkest step.
+   */
+  --md-sys-color-outline: #6b7280;
+  --md-sys-color-outline-variant: #cbc9c1;
   /*
    * The inverse trio. Used where a surface has to read as NOT part of the page —
    * a snackbar, a hovercard over a table. Declared rather than improvised,
    * because the improvisation is always "invert the two you can remember", and
    * the inverse of a green-tinted paper is not a green-tinted charcoal.
    */
-  --md-sys-color-inverse-surface: #2b342e;
-  --md-sys-color-inverse-on-surface: #eff5f0;
+  --md-sys-color-inverse-surface: #2c3038;
+  --md-sys-color-inverse-on-surface: #f1f0ea;
   --md-sys-color-inverse-primary: var(--md-ref-primary-80);
-  --md-sys-color-scrim: rgba(13, 24, 18, 0.42);
-  --md-sys-state-hover: rgba(11, 92, 61, 0.08);
-  --md-sys-state-focus: rgba(11, 92, 61, 0.14);
-  --md-sys-state-pressed: rgba(11, 92, 61, 0.16);
+  /* Ink, not a green-charcoal. A scrim's job is to dim the page, and a tinted
+     one tints it as well; this cuts `surface-bright` to 34.3% of its luminance. */
+  --md-sys-color-scrim: rgba(23, 24, 26, 0.42);
+  --md-sys-state-hover: rgba(17, 94, 61, 0.08);
+  --md-sys-state-focus: rgba(17, 94, 61, 0.14);
+  --md-sys-state-pressed: rgba(17, 94, 61, 0.16);
   --md-sys-elevation-0: none;
-  --md-sys-elevation-1: 0 1px 2px rgba(25, 44, 34, 0.09), 0 1px 3px rgba(25, 44, 34, 0.07);
-  --md-sys-elevation-2: 0 2px 6px rgba(25, 44, 34, 0.11), 0 1px 3px rgba(25, 44, 34, 0.08);
-  --md-sys-elevation-3: 0 4px 10px rgba(25, 44, 34, 0.12), 0 1px 3px rgba(25, 44, 34, 0.09);
-  --md-sys-elevation-4: 0 8px 16px rgba(25, 44, 34, 0.13), 0 2px 4px rgba(25, 44, 34, 0.1);
-  --md-sys-elevation-5: 0 12px 24px rgba(25, 44, 34, 0.15), 0 4px 6px rgba(25, 44, 34, 0.11);
+  /* Ink shadows (`--tenure-ink-900`). The old ones were mixed on `rgb(25,44,34)`
+     — a green — so every raised panel cast a faintly green shadow onto paper
+     that is warm. Same alphas: the depth was right, the hue was not. */
+  --md-sys-elevation-1: 0 1px 2px rgba(23, 24, 26, 0.09), 0 1px 3px rgba(23, 24, 26, 0.07);
+  --md-sys-elevation-2: 0 2px 6px rgba(23, 24, 26, 0.11), 0 1px 3px rgba(23, 24, 26, 0.08);
+  --md-sys-elevation-3: 0 4px 10px rgba(23, 24, 26, 0.12), 0 1px 3px rgba(23, 24, 26, 0.09);
+  --md-sys-elevation-4: 0 8px 16px rgba(23, 24, 26, 0.13), 0 2px 4px rgba(23, 24, 26, 0.1);
+  --md-sys-elevation-5: 0 12px 24px rgba(23, 24, 26, 0.15), 0 4px 6px rgba(23, 24, 26, 0.11);
   --md-sys-shape-xs: var(--md-sys-shape-corner-extra-small);
   --md-sys-shape-sm: var(--md-sys-shape-corner-small);
   --md-sys-shape-md: var(--md-sys-shape-corner-medium);
@@ -123,49 +212,75 @@
 }
 
 /*
- * ── Dark — OLED black, neutral surfaces, one green ─────────────────────────
+ * ── Dark — the near-black neutral family, one green ────────────────────────
  *
  * Independently art-directed, not an inversion.
  *
- * ## The base is #000000, and that is a deliberate deviation
+ * ## The base moved off #000000, and that is the point of this change
  *
- * STUDIO-030-002 says "no pure-black glare". The product owner has directed an
- * OLED-black dark theme, and that instruction overrides the clause; the
- * override is recorded in the execution ledger rather than pretended away.
+ * The product owner asked for the near-black neutral greys rather than OLED
+ * black. The family this is built on, and what each value paints here:
  *
- * The CONCERN behind the clause is real and is answered here rather than
- * dismissed. Two things go wrong at #000 and both are structural:
+ *   #212121  the page              `background` / `surface` — what `body` paints
+ *   #171717  the rail             `surface-dim` — `.console-rail`, the header band
+ *   #0d0d0d  the deepest well     `surface-container-lowest` — tables, inputs
+ *   #2f2f2f  raised               the middle of the container ladder
+ *   #424242  hover / brightest    `surface-bright`, `surface-container-highest`
+ *   #ececec  primary text         `on-surface`, `on-background`
+ *   #b4b4b4  secondary text       `on-surface-variant`
  *
- *   1. Shadow stops working. A drop shadow is darker pixels, and there are no
- *      darker pixels than #000, so elevation cannot be carried by
- *      `--md-sys-elevation-*` alone. Elevation is therefore carried by the
- *      CONTAINER LADDER, and every adjacent step is spaced so that it is
- *      measurably distinct: #000 → #151515 → #222222 → #2d2d2d → #363636, which
- *      is 1.150 / 1.148 / 1.155 / 1.140 : 1. `md3-tokens-logic.spec.ts` asserts
- *      each adjacent step clears 1.12:1 and `preferences.spec.ts` re-measures
- *      the same five tokens on the rendered page, so a ramp that collapses
- *      reds the build instead of quietly smearing two panels together.
- *   2. Adjacent panels smear. So `.md3-surface` draws a hairline in
- *      `outline-variant` (#4a4a4a — 2.37:1 on the base) by default rather than
- *      only when asked, and `data-outlined` now means the STRONGER boundary.
+ * Those are read off a rendered product, not a published token file, so they are
+ * accurate to a shade and not to a certificate. Two of them moved and the
+ * reasons are recorded where they moved. The rest are verbatim.
  *
- * ## The surfaces are neutral. The green is the accent and the mark.
+ * ## Elevation is carried by SHADOW now, and the ladder is retuned for grey
+ *
+ * At #000 a drop shadow has no darker pixels to draw with, so the container
+ * ladder was the only carrier of elevation and was spaced to do that whole job
+ * alone. On #212121 both are available again, and the decision is: **shadow
+ * carries elevation, the ladder separates planes.** So
+ *
+ *   * `--md-sys-elevation-*` alphas went UP (0.32 → 0.44 at level 1 and so on
+ *     below), because a shadow that was nominal at #000 has to be real at
+ *     #212121: 0.32 black over the page reads 1.119:1 against it and 0.44 reads
+ *     1.159:1 — the difference between an edge you infer and one you see;
+ *   * the ladder is retuned rather than inherited. It runs
+ *     #0d0d0d → #292929 → #323232 → #3a3a3a → #424242, which is
+ *     1.336 / 1.135 / 1.127 / 1.132 : 1 — every adjacent step still clears the
+ *     1.12:1 `md3-tokens-logic.spec.ts` demands, and `preferences.spec.ts`
+ *     re-measures the same five tokens on the rendered page.
+ *
+ * The page (#212121) sits BETWEEN rung one and rung two, which is Material 3's
+ * own shape for a dark theme and is what makes both directions available from
+ * one page: a card (`surface-container-low`, #292929) reads lifted, a table body
+ * or a text input (`surface-container-lowest`, #0d0d0d) reads recessed.
+ *
+ * ## The surfaces are neutral. The green is the accent, and it is the brand's.
  *
  * Every surface, every content colour and both outlines are pure greys — r = g
- * = b, asserted rather than intended. The previous palette tinted the whole
- * console green (`--md-sys-color-on-surface-variant: #edf7f0`) and then used a
- * pale mint (#9bdcba, 48% saturation) as the accent, which is the wrong way
- * round: the surfaces read as green and the green read as washed out.
+ * = b, asserted rather than intended.
  *
- * `--md-sys-color-primary` is #12cc7e — hue 155°, 84% saturation, 43% lightness.
- * It is as deep as WCAG 2.2 AA permits a colour that is used as TEXT to be: it
- * measures 5.73:1 on `surface-container-highest` and 4.67:1 there again with a
- * 12% state layer composited on top, against a 4.5:1 requirement. A deeper
- * forest green cannot be legible text on a dark surface — luminance is what
- * contrast is made of — so the genuinely deep tone lives where it can be a FILL
- * rather than a glyph: `primary-container` (#0b3b28) is the masthead mark and
- * the current tab, and `inverse-primary` (#0d5638) is the accent on an inverse
- * surface.
+ * `--md-sys-color-primary` is #6ee7b7 = `--tenure-forest-200`, verbatim off the
+ * ramp in `apps/web/src/app/globals.css`. It replaces #12cc7e, which was
+ * invented here and is in no Tenure palette.
+ *
+ * Which STEP is a measurement, not a taste. The binding pair is a text button's
+ * label on the brightest container with the 12% hover layer composited under it
+ * (`surface-container-highest`, #424242), where 4.5:1 is required:
+ *
+ *   forest-350 #34d399   4.24:1   fails
+ *   forest-300 #56d199   4.23:1   fails
+ *   forest-200 #6ee7b7   5.08:1   clears
+ *
+ * The two mid steps fail for the same reason a brighter green does not always
+ * help: the state layer IS the label's own colour, so raising the label raises
+ * the ground under it too. forest-200 is the step the ramp provides for this.
+ *
+ * The deeper end of the same ramp lives where green is a FILL rather than a
+ * glyph — luminance is what contrast is made of, and #198052 as a foreground on
+ * #212121 is 3.26:1. So `primary-container` is #115e3d (`--tenure-forest-850`,
+ * the masthead mark and the current tab) and `inverse-primary` is #0f6b42
+ * (`--tenure-forest-800`, the accent on the light inverse surface).
  *
  * Every pair below was computed, not eyeballed, and the suite computes them
  * again: `md3-tokens-logic.spec.ts` for the token set and `preferences.spec.ts`
@@ -173,10 +288,10 @@
  * by a rule nobody remembered.
  */
 :root[data-theme="dark"] {
-  --md-sys-color-primary: #12cc7e;
-  --md-sys-color-on-primary: #00120a;
-  --md-sys-color-primary-container: #0b3b28;
-  --md-sys-color-on-primary-container: #b6ecd0;
+  --md-sys-color-primary: #6ee7b7;
+  --md-sys-color-on-primary: #06130c;
+  --md-sys-color-primary-container: #115e3d;
+  --md-sys-color-on-primary-container: #6ee7b7;
   /*
    * Neutral, not a green-grey. Secondary is the tonal button and the selected
    * chip — a surface-like fill — and "only the logo and the accent are green"
@@ -185,13 +300,25 @@
    */
   --md-sys-color-secondary: #c4c4c4;
   --md-sys-color-on-secondary: #1a1a1a;
-  --md-sys-color-secondary-container: #2e2e2e;
-  --md-sys-color-on-secondary-container: #e0e0e0;
+  /* #2e2e2e sat BELOW the page once the page stopped being #000: a tonal button
+     that recesses reads disabled. #3a3a3a is the ladder's `high` step, so a
+     tonal button and a raised panel are the same plane rather than two. */
+  --md-sys-color-secondary-container: #3a3a3a;
+  --md-sys-color-on-secondary-container: #ececec;
   --md-sys-color-tertiary: #8fc7dd;
   --md-sys-color-on-tertiary: #06222c;
   --md-sys-color-tertiary-container: #123844;
   --md-sys-color-on-tertiary-container: #c3e8f3;
-  --md-sys-color-error: #f19a9d;
+  /*
+   * #f19a9d moved to #f7b8ba, and the reason is the ladder above rather than
+   * anything about red. `error` is a danger TEXT BUTTON's label as well as a
+   * paragraph, so it is audited with the 12% state layer under it, and the top
+   * of the ladder rose from #363636 to #424242 when the base stopped being
+   * black. On #424242 hovered, #f19a9d measures 3.85:1 against a 4.5:1 floor;
+   * #f7b8ba measures 4.67:1. It sits alongside Material 3's own dark error
+   * (#ffb4ab) rather than away from it, and at rest on the page it is 9.60:1.
+   */
+  --md-sys-color-error: #f7b8ba;
   --md-sys-color-on-error: #3b0d10;
   --md-sys-color-error-container: #5a2225;
   --md-sys-color-on-error-container: #ffdad9;
@@ -199,55 +326,103 @@
   --md-sys-color-on-warning: #2b2200;
   --md-sys-color-warning-container: #4d3d08;
   --md-sys-color-on-warning-container: #f6e6bf;
-  --md-sys-color-success: #8ed3a8;
-  --md-sys-color-on-success: #042313;
-  --md-sys-color-success-container: #16402b;
-  --md-sys-color-on-success-container: #c8e9d4;
+  /* The dark half of the same correction. Was #8ed3a8 / #042313 / #16402b /
+   * #c8e9d4 — none of them Tenure values. The brand's dark block declares
+   * `--success: var(--tenure-forest-500)` and `--success-text: forest-300`.
+   *
+   * `success` takes forest-300 rather than forest-500 because these tokens are
+   * read as GLYPHS on the page background: forest-500 #2bb673 measures 4.31:1 on
+   * #212121, under the 4.5:1 floor, while forest-300 #56d199 measures 7.24:1.
+   * The brand's dark `--success` is a fill in the tenant app and a foreground
+   * here, which is the same reason the accent takes a lighter step than #198052.
+   * The ramp is the brand; which rung is a contrast measurement. */
+  --md-sys-color-success: #56d199; /* forest-300, the brand's dark --success-text */
+  --md-sys-color-on-success: #06130c; /* forest-950, as on-primary */
+  /* forest-900, not forest-800. The badge is green-on-green — forest-200 on the
+   * fill — and on forest-800 that measures 4.30:1 against a 4.5:1 floor, which
+   * the token audit caught. forest-900 takes the same pair to 6.14:1 while still
+   * reading as a fill on the page (1.72:1) and staying distinguishable from
+   * primary-container forest-850 (1.20:1). Going the other way — lightening the
+   * glyph to forest-50 — would have cleared the floor too, and made the badge
+   * white-on-green, which is what the ACCENT looks like. A success badge that
+   * looks like a primary button is a worse answer than a darker fill. */
+  --md-sys-color-success-container: #0f5132;
+  --md-sys-color-on-success-container: #6ee7b7; /* forest-200 */
   /*
-   * The OLED base. Four roles resolve to the same #000000 on purpose — the page,
-   * the default surface, the dim surface and the lowest container are all "the
-   * black the panel is drawn on", and giving three of them a near-black of their
-   * own would be three steps of a ladder nobody can see.
+   * The page. #212121, verbatim, and `background` and `surface` are the same
+   * value because they are the same plane — what `body` paints and what `main`
+   * shows through.
+   *
+   * `surface-dim` is the RAIL (#171717) rather than a fourth copy of the base,
+   * and `.console-rail` paints it: the reference family's sidebar is a step
+   * DOWN from the page, and this is the token whose name already meant that.
+   * `surface-variant` — the table's header band — is the same darker plane, for
+   * the same reason: a header is a well, not a card.
    */
-  --md-sys-color-background: #000000;
-  --md-sys-color-on-background: #e8e8e8;
-  --md-sys-color-surface: #000000;
-  --md-sys-color-surface-dim: #000000;
-  --md-sys-color-surface-bright: #3c3c3c;
-  --md-sys-color-surface-container-lowest: #000000;
-  --md-sys-color-surface-container-low: #151515;
-  --md-sys-color-surface-container: #222222;
-  --md-sys-color-surface-container-high: #2d2d2d;
-  --md-sys-color-surface-container-highest: #363636;
-  --md-sys-color-surface-variant: #262626;
-  /* Not #ffffff. A pure-white glyph on #000 is 21:1 and smears — the halation
-     the "no pure-black glare" clause is really about. #e8e8e8 is 17.14:1 on the
-     base and 9.86:1 on the highest container. */
-  --md-sys-color-on-surface: #e8e8e8;
-  --md-sys-color-on-surface-variant: #b8b8b8;
-  --md-sys-color-outline: #8f8f8f;
-  --md-sys-color-outline-variant: #4a4a4a;
-  --md-sys-color-inverse-surface: #e8e8e8;
-  --md-sys-color-inverse-on-surface: #141414;
-  --md-sys-color-inverse-primary: #0d5638;
+  --md-sys-color-background: #212121;
+  --md-sys-color-on-background: #ececec;
+  --md-sys-color-surface: #212121;
+  --md-sys-color-surface-dim: #171717;
+  --md-sys-color-surface-bright: #424242;
+  --md-sys-color-surface-container-lowest: #0d0d0d;
+  --md-sys-color-surface-container-low: #292929;
+  --md-sys-color-surface-container: #323232;
+  --md-sys-color-surface-container-high: #3a3a3a;
+  --md-sys-color-surface-container-highest: #424242;
+  --md-sys-color-surface-variant: #171717;
+  /* #ececec, the family's primary text, and it is not #ffffff on purpose: a
+     pure-white glyph is where halation and the smearing of adjacent glyphs come
+     from, and that half of "no pure-black glare" survives the base moving. It
+     is 13.63:1 on the page and 8.51:1 on the brightest container. */
+  --md-sys-color-on-surface: #ececec;
+  --md-sys-color-on-surface-variant: #b4b4b4;
   /*
-   * Pure black, now, and deliberately. The scrim's whole job is to darken the
-   * page behind a dialog, and on a theme whose base surface IS #000 a
-   * green-charcoal scrim was a tint over black rather than a dimming of it.
-   * `md3-tokens-logic.spec.ts` no longer forbids the colour — it measures the
-   * WORK: the scrim must cut the brightest surface's luminance by at least half
-   * (this one cuts it to 12.2%), stay translucent, and never be pure white.
+   * #8f8f8f moved to #9a9a9a. `outline` is a control's border — WCAG 2.2 AA
+   * 1.4.11, 3:1 — and the brightest surface it has to be visible against rose
+   * from #363636 to #424242, where #8f8f8f measures 3.108:1. That clears, but by
+   * a hundredth; #9a9a9a measures 3.57:1 and is a margin rather than a
+   * coincidence.
+   *
+   * `outline-variant` is the hairline, and #4a4a4a does NOT clear on the new
+   * ladder: 1.13:1 on #424242 against this file's 1.2:1 floor for a boundary
+   * that still has to be visible. The reference family draws its hairline as
+   * rgba(255,255,255,0.10), which is #373737 over the page but #555555 over the
+   * hover plane — a single opaque token cannot be both, so it is set for the
+   * brightest surface it can land on and reads as a slightly firmer hairline
+   * than 10% white on the page (2.06:1 there, 1.29:1 on #424242).
+   */
+  --md-sys-color-outline: #9a9a9a;
+  --md-sys-color-outline-variant: #525252;
+  --md-sys-color-inverse-surface: #ececec;
+  --md-sys-color-inverse-on-surface: #212121;
+  --md-sys-color-inverse-primary: #0f6b42;
+  /*
+   * Pure black, and still deliberately. The scrim's whole job is to darken the
+   * page behind a dialog; a tinted one tints it as well. Now that the base is
+   * grey it also has more to do, and it does it — `md3-tokens-logic.spec.ts`
+   * measures the WORK rather than the colour: the scrim must cut the brightest
+   * surface's luminance by at least half (this one cuts it to 11.5%), stay
+   * translucent, and never be pure white.
    */
   --md-sys-color-scrim: rgba(0, 0, 0, 0.72);
-  --md-sys-state-hover: rgba(18, 204, 126, 0.1);
-  --md-sys-state-focus: rgba(18, 204, 126, 0.16);
-  --md-sys-state-pressed: rgba(18, 204, 126, 0.18);
+  --md-sys-state-hover: rgba(110, 231, 183, 0.1);
+  --md-sys-state-focus: rgba(110, 231, 183, 0.16);
+  --md-sys-state-pressed: rgba(110, 231, 183, 0.18);
   --md-sys-elevation-0: none;
-  --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.22);
-  --md-sys-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.36), 0 1px 3px rgba(0, 0, 0, 0.28);
-  --md-sys-elevation-3: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --md-sys-elevation-4: 0 8px 18px rgba(0, 0, 0, 0.44), 0 2px 4px rgba(0, 0, 0, 0.32);
-  --md-sys-elevation-5: 0 12px 26px rgba(0, 0, 0, 0.48), 0 4px 6px rgba(0, 0, 0, 0.34);
+  /*
+   * Deeper than they were, because they are now the thing carrying elevation.
+   * At #000 these alphas were nominal — a black shadow on black is nothing at
+   * any opacity — so they were never tuned against a surface that could show
+   * them. Measured on the page (#212121): level 1 was 1.119:1 against it at
+   * 0.32 and is 1.159:1 at 0.44; level 5 was 1.171:1 at 0.48 and is 1.205:1 at
+   * 0.60. The ratios climb monotonically with the level, which is the only
+   * property a five-step shadow ramp actually owes anybody.
+   */
+  --md-sys-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.44), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --md-sys-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.48), 0 1px 3px rgba(0, 0, 0, 0.34);
+  --md-sys-elevation-3: 0 4px 12px rgba(0, 0, 0, 0.52), 0 1px 3px rgba(0, 0, 0, 0.36);
+  --md-sys-elevation-4: 0 8px 18px rgba(0, 0, 0, 0.56), 0 2px 4px rgba(0, 0, 0, 0.38);
+  --md-sys-elevation-5: 0 12px 26px rgba(0, 0, 0, 0.6), 0 4px 6px rgba(0, 0, 0, 0.4);
   --bg: var(--md-sys-color-background);
   --surface: var(--md-sys-color-surface-container-low);
   --surface-2: var(--md-sys-color-surface-container);
@@ -480,18 +655,25 @@
  * toward `--text` and makes structure explicit.
  */
 :root[data-contrast="more"] {
-  --md-sys-color-on-surface-variant: #26382f;
-  --md-sys-color-outline: #43554b;
-  --md-sys-color-outline-variant: #87988e;
+  /*
+   * Neutral, like the paper it sits on. The three values here were green-greys
+   * (#26382f, #43554b, #87988e) chosen for the green-tinted surfaces this theme
+   * no longer has, which put a tint into the one place a reader who has asked
+   * for MORE contrast is looking hardest. `--tenure-slate-800` / `-600` / `-450`
+   * instead: secondary text goes 5.38:1 → 10.40:1 on the darkest paper step,
+   * the control border 3.80:1 → 5.38:1, the hairline 1.30:1 → 2.85:1.
+   */
+  --md-sys-color-on-surface-variant: #2c3038;
+  --md-sys-color-outline: #565b62;
+  --md-sys-color-outline-variant: #7f8794;
   --muted: var(--md-sys-color-on-surface-variant);
   --border: var(--md-sys-color-outline-variant);
   --border-strong: var(--md-sys-color-outline);
 }
 /*
- * Neutral, like the surfaces it sits on. #edf7f0 was a green-tinted white here,
- * which put the tint back into the one place a reader who has asked for MORE
- * contrast is looking hardest. #e0e0e0 is 8.36:1 on the brightest surface it can
- * land on and 18.5:1 on the base.
+ * Neutral, like the surfaces it sits on. #e0e0e0 is 7.61:1 on the brightest
+ * surface it can land on (#424242) and 12.20:1 on the page — against #b4b4b4's
+ * 4.85:1 and 7.77:1, which is what "more" has to mean to be worth a control.
  */
 :root[data-theme="dark"][data-contrast="more"] {
   --md-sys-color-on-surface-variant: #e0e0e0;
@@ -773,7 +955,15 @@ legend {
   padding-block: var(--space-4);
   padding-inline: var(--space-3);
   border-block-end: 1px solid var(--border);
-  background: var(--md-sys-color-surface-container-low);
+  /*
+   * `surface-dim`, not `surface-container-low`. A colour repoint, not a layout
+   * one: `surface-container-low` is also every card's fill, and on the neutral
+   * family the rail and the card sit on opposite sides of the page — the rail
+   * one step DOWN (#171717), the card one step up (#292929). One token cannot
+   * be both, and `surface-dim` is the role whose name already means "the plane
+   * below the page".
+   */
+  background: var(--md-sys-color-surface-dim);
   --console-nav-offset: calc(var(--topbar-block-size) + 2 * var(--space-4));
 }
 
@@ -2361,12 +2551,12 @@ fieldset.destructive .chip {
   color: var(--md-sys-color-on-surface);
   background: var(--md-sys-color-surface-container-low);
   /*
-     A hairline by default, not `transparent`. On the OLED dark theme the base
-     surface is #000 and a drop shadow has no darker pixels to work with, so
-     elevation cannot separate two adjacent panels — without an edge they smear
-     into one another, which is the real content of STUDIO-030-002's
-     "no pure-black glare" clause. The width is unchanged (it was already a 1px
-     transparent border), so nothing reflows.
+     A hairline by default, not `transparent`. It was added when the dark base
+     was #000 and a drop shadow had no darker pixels to work with; it stays now
+     that the base is #212121 and shadow works again, because the card sits one
+     ladder step above the page (1.107:1 — a step you infer) and an edge is what turns that into a
+     boundary rather than a gradient. The width is unchanged (it was already a
+     1px transparent border), so nothing reflows.
   */
   border: 1px solid var(--md-sys-color-outline-variant);
   min-inline-size: 0;

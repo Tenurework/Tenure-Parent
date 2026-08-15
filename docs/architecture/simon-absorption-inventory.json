@@ -6,7 +6,7 @@
     "SIMON-000-002",
     "SIMON-000-003"
   ],
-  "observed_at": "2026-08-14",
+  "observed_at": "2026-08-15",
   "source": {
     "role": "source — the Simon OSE pilot application being absorbed",
     "remote": {
@@ -1224,7 +1224,7 @@
       "tags": []
     },
     "checked_out_branch": "main",
-    "head_commit": "3a5753d6ddc28d9f7eae160d0e3dd1d70929e73d",
+    "head_commit": "2a03c89239b557f61f4e9377887d50d9a943ee8f",
     "branches": [
       {
         "ref": "fix/canonical-digest",
@@ -1236,7 +1236,7 @@
       },
       {
         "ref": "main",
-        "commit": "3a5753d6ddc28d9f7eae160d0e3dd1d70929e73d"
+        "commit": "2a03c89239b557f61f4e9377887d50d9a943ee8f"
       },
       {
         "ref": "platform/reconcile-endpoint",
@@ -1270,11 +1270,11 @@
     "remote_branches": [
       {
         "ref": "origin",
-        "commit": "3a5753d6ddc28d9f7eae160d0e3dd1d70929e73d"
+        "commit": "2a03c89239b557f61f4e9377887d50d9a943ee8f"
       },
       {
         "ref": "origin/main",
-        "commit": "3a5753d6ddc28d9f7eae160d0e3dd1d70929e73d"
+        "commit": "2a03c89239b557f61f4e9377887d50d9a943ee8f"
       },
       {
         "ref": "origin/wip/studio-program-20260813",
@@ -1283,8 +1283,8 @@
     ],
     "local_tags": [],
     "history": {
-      "commits": 432,
-      "newest_commit": "3a5753d6ddc28d9f7eae160d0e3dd1d70929e73d",
+      "commits": 439,
+      "newest_commit": "2a03c89239b557f61f4e9377887d50d9a943ee8f",
       "newest_commit_date": "2026-08-14",
       "oldest_commit": "abf30691f8299414de6b115f4d40c8084049a0f4",
       "oldest_commit_date": "2026-07-10",
@@ -1295,7 +1295,7 @@
         "verification"
       ]
     },
-    "tracked_files": 1457,
+    "tracked_files": 1519,
     "files": [
       ".dockerignore",
       ".gitattributes",
@@ -1379,6 +1379,7 @@
       "apps/system-studio/e2e/auth-mode-logic.spec.ts",
       "apps/system-studio/e2e/authorize-logic.spec.ts",
       "apps/system-studio/e2e/aws-unknown-is-not-absent.spec.ts",
+      "apps/system-studio/e2e/breadcrumbs.spec.ts",
       "apps/system-studio/e2e/commands-logic.spec.ts",
       "apps/system-studio/e2e/commands.spec.ts",
       "apps/system-studio/e2e/compute-page-logic.spec.ts",
@@ -1388,7 +1389,9 @@
       "apps/system-studio/e2e/console-index.spec.ts",
       "apps/system-studio/e2e/cost.spec.ts",
       "apps/system-studio/e2e/data-surface.spec.ts",
+      "apps/system-studio/e2e/destructive-separation.spec.ts",
       "apps/system-studio/e2e/diagnose.spec.ts",
+      "apps/system-studio/e2e/export.spec.ts",
       "apps/system-studio/e2e/fleet-filter-logic.spec.ts",
       "apps/system-studio/e2e/fleet-health-logic.spec.ts",
       "apps/system-studio/e2e/fleet-surface.spec.ts",
@@ -1396,6 +1399,7 @@
       "apps/system-studio/e2e/high-risk-fails-closed.spec.ts",
       "apps/system-studio/e2e/identity-surface.spec.ts",
       "apps/system-studio/e2e/layout.spec.ts",
+      "apps/system-studio/e2e/md3-primitives-logic.spec.ts",
       "apps/system-studio/e2e/md3-tokens-logic.spec.ts",
       "apps/system-studio/e2e/messaging-page-logic.spec.ts",
       "apps/system-studio/e2e/network-surface.spec.ts",
@@ -1414,11 +1418,14 @@
       "apps/system-studio/e2e/states-logic.spec.ts",
       "apps/system-studio/e2e/tenant-page-logic.spec.ts",
       "apps/system-studio/e2e/tenant-surface.spec.ts",
+      "apps/system-studio/e2e/topbar.spec.ts",
       "apps/system-studio/next.config.ts",
       "apps/system-studio/package.json",
       "apps/system-studio/playwright.config.ts",
+      "apps/system-studio/public/icon.svg",
       "apps/system-studio/src/app/api/auth/[...nextauth]/route.ts",
       "apps/system-studio/src/app/api/aws/[surface]/route.ts",
+      "apps/system-studio/src/app/api/export/route.ts",
       "apps/system-studio/src/app/console-index/answer.test.ts",
       "apps/system-studio/src/app/console-index/answer.ts",
       "apps/system-studio/src/app/console-index/console-index.module.css",
@@ -1438,10 +1445,13 @@
       "apps/system-studio/src/app/platform/cost/CostAnswer.tsx",
       "apps/system-studio/src/app/platform/cost/CostAttribution.tsx",
       "apps/system-studio/src/app/platform/cost/CostBudgets.tsx",
+      "apps/system-studio/src/app/platform/cost/CostRates.tsx",
       "apps/system-studio/src/app/platform/cost/CostReportView.tsx",
       "apps/system-studio/src/app/platform/cost/cost-citation.test.tsx",
       "apps/system-studio/src/app/platform/cost/cost-decisions.test.ts",
       "apps/system-studio/src/app/platform/cost/cost-decisions.ts",
+      "apps/system-studio/src/app/platform/cost/cost-rates.test.tsx",
+      "apps/system-studio/src/app/platform/cost/cost-rates.ts",
       "apps/system-studio/src/app/platform/cost/cost.module.css",
       "apps/system-studio/src/app/platform/cost/page.tsx",
       "apps/system-studio/src/app/platform/data/answer.test.ts",
@@ -1463,6 +1473,7 @@
       "apps/system-studio/src/app/platform/health/answer.ts",
       "apps/system-studio/src/app/platform/health/health.module.css",
       "apps/system-studio/src/app/platform/health/page.tsx",
+      "apps/system-studio/src/app/platform/health/watch.ts",
       "apps/system-studio/src/app/platform/identity/doors.test.ts",
       "apps/system-studio/src/app/platform/identity/doors.ts",
       "apps/system-studio/src/app/platform/identity/identity.module.css",
@@ -1473,16 +1484,26 @@
       "apps/system-studio/src/app/platform/messaging/reach.ts",
       "apps/system-studio/src/app/platform/network/answer.test.ts",
       "apps/system-studio/src/app/platform/network/answer.ts",
+      "apps/system-studio/src/app/platform/network/edge.test.ts",
+      "apps/system-studio/src/app/platform/network/edge.ts",
       "apps/system-studio/src/app/platform/network/network.module.css",
       "apps/system-studio/src/app/platform/network/page.tsx",
       "apps/system-studio/src/app/platform/page.tsx",
       "apps/system-studio/src/app/platform/platform.module.css",
       "apps/system-studio/src/app/platform/security/answer.ts",
+      "apps/system-studio/src/app/platform/security/dark-readers.test.ts",
       "apps/system-studio/src/app/platform/security/page.tsx",
       "apps/system-studio/src/app/platform/security/posture.test.ts",
       "apps/system-studio/src/app/platform/security/posture.ts",
       "apps/system-studio/src/app/platform/security/security.module.css",
+      "apps/system-studio/src/app/platform/security/wiring.test.ts",
+      "apps/system-studio/src/app/signin/Announce.tsx",
+      "apps/system-studio/src/app/signin/RetryCountdown.tsx",
+      "apps/system-studio/src/app/signin/SignInSubmit.tsx",
+      "apps/system-studio/src/app/signin/attempts.ts",
       "apps/system-studio/src/app/signin/page.tsx",
+      "apps/system-studio/src/app/signin/signin-state.ts",
+      "apps/system-studio/src/app/signin/signin.module.css",
       "apps/system-studio/src/app/tenants/AdoptForm.tsx",
       "apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx",
       "apps/system-studio/src/app/tenants/[slug]/configuration/ConfigurationEditor.tsx",
@@ -1514,6 +1535,8 @@
       "apps/system-studio/src/app/tenants/new/quote.test.tsx",
       "apps/system-studio/src/app/tenants/new/quote.ts",
       "apps/system-studio/src/app/tenants/page.tsx",
+      "apps/system-studio/src/components/AccountMenu.tsx",
+      "apps/system-studio/src/components/Breadcrumbs.tsx",
       "apps/system-studio/src/components/CommandPalette.tsx",
       "apps/system-studio/src/components/DeploymentPanel.tsx",
       "apps/system-studio/src/components/EvidencePanel.tsx",
@@ -1522,29 +1545,60 @@
       "apps/system-studio/src/components/OfflineBanner.tsx",
       "apps/system-studio/src/components/PreferencesMenu.tsx",
       "apps/system-studio/src/components/TagCompliancePanel.tsx",
+      "apps/system-studio/src/components/TopBar.tsx",
       "apps/system-studio/src/components/brand/TenureLogo.tsx",
+      "apps/system-studio/src/components/breadcrumbs.module.css",
+      "apps/system-studio/src/components/md3/Accordion.tsx",
       "apps/system-studio/src/components/md3/Badge.tsx",
       "apps/system-studio/src/components/md3/Button.tsx",
       "apps/system-studio/src/components/md3/Card.tsx",
+      "apps/system-studio/src/components/md3/Chart.tsx",
       "apps/system-studio/src/components/md3/Chip.tsx",
+      "apps/system-studio/src/components/md3/Code.tsx",
+      "apps/system-studio/src/components/md3/Combobox.tsx",
+      "apps/system-studio/src/components/md3/DangerZone.test.tsx",
+      "apps/system-studio/src/components/md3/DangerZone.tsx",
       "apps/system-studio/src/components/md3/DataTable.tsx",
+      "apps/system-studio/src/components/md3/DateTimeField.tsx",
       "apps/system-studio/src/components/md3/Dialog.tsx",
+      "apps/system-studio/src/components/md3/Drawer.tsx",
       "apps/system-studio/src/components/md3/EmptyState.tsx",
       "apps/system-studio/src/components/md3/Field.tsx",
+      "apps/system-studio/src/components/md3/FileUpload.tsx",
       "apps/system-studio/src/components/md3/KeyValue.tsx",
+      "apps/system-studio/src/components/md3/Logo.test.tsx",
+      "apps/system-studio/src/components/md3/Logo.tsx",
+      "apps/system-studio/src/components/md3/Menu.tsx",
+      "apps/system-studio/src/components/md3/ModalDialog.tsx",
+      "apps/system-studio/src/components/md3/Popover.tsx",
+      "apps/system-studio/src/components/md3/Primitives.test.tsx",
+      "apps/system-studio/src/components/md3/PrimitivesMarkup.test.tsx",
       "apps/system-studio/src/components/md3/ProgressIndicator.tsx",
       "apps/system-studio/src/components/md3/Select.tsx",
       "apps/system-studio/src/components/md3/SeverityChip.tsx",
       "apps/system-studio/src/components/md3/Snackbar.tsx",
       "apps/system-studio/src/components/md3/StaleIndicator.tsx",
+      "apps/system-studio/src/components/md3/Stepper.tsx",
       "apps/system-studio/src/components/md3/Surface.tsx",
       "apps/system-studio/src/components/md3/Switch.tsx",
       "apps/system-studio/src/components/md3/Tabs.tsx",
       "apps/system-studio/src/components/md3/TextField.tsx",
+      "apps/system-studio/src/components/md3/ToastRegion.tsx",
+      "apps/system-studio/src/components/md3/Tooltip.tsx",
+      "apps/system-studio/src/components/md3/Tree.tsx",
       "apps/system-studio/src/components/md3/UnknownState.tsx",
       "apps/system-studio/src/components/md3/aws-outcomes.test.tsx",
+      "apps/system-studio/src/components/md3/chart-model.ts",
+      "apps/system-studio/src/components/md3/datetime.ts",
+      "apps/system-studio/src/components/md3/diff.ts",
+      "apps/system-studio/src/components/md3/files.ts",
+      "apps/system-studio/src/components/md3/hooks.ts",
       "apps/system-studio/src/components/md3/index.ts",
+      "apps/system-studio/src/components/md3/interaction.ts",
+      "apps/system-studio/src/components/md3/primitives.css",
+      "apps/system-studio/src/components/nav.module.css",
       "apps/system-studio/src/components/states.tsx",
+      "apps/system-studio/src/components/topbar.module.css",
       "apps/system-studio/src/generated/platform-truth.json",
       "apps/system-studio/src/lib/adopt.test.ts",
       "apps/system-studio/src/lib/adopt.ts",
@@ -1599,6 +1653,8 @@
       "apps/system-studio/src/lib/aws/eventbridge.test.ts",
       "apps/system-studio/src/lib/aws/eventbridge.ts",
       "apps/system-studio/src/lib/aws/expected-alarms.ts",
+      "apps/system-studio/src/lib/aws/export.test.ts",
+      "apps/system-studio/src/lib/aws/export.ts",
       "apps/system-studio/src/lib/aws/findings.test.ts",
       "apps/system-studio/src/lib/aws/findings.ts",
       "apps/system-studio/src/lib/aws/guardduty.test.ts",
@@ -2575,6 +2631,7 @@
       "packages/workflow/src/index.ts",
       "packages/workflow/src/workflow.test.ts",
       "pay5.json",
+      "tests/architecture/a-ticked-box-is-a-passing-requirement.test.mjs",
       "tests/architecture/anl-analytics-inventory.test.mjs",
       "tests/architecture/anl-single-metric-definition.test.mjs",
       "tests/architecture/authorizing-routes-are-dynamic.test.mjs",
@@ -2666,6 +2723,7 @@
       "tests/security/provider-secrets-go-through-the-broker.test.mjs",
       "tests/security/repository-hygiene.test.mjs",
       "tests/security/studio-auth-cognito.test.mjs",
+      "tests/security/studio-domain.test.mjs",
       "tests/security/studio-task-role-is-narrow.test.mjs",
       "tests/security/workflow-drift.test.mjs",
       "tests/simon-absorption-inventory.test.mjs",
@@ -2695,6 +2753,7 @@
       "tools/loop/aws-bridge-integrate.mjs",
       "tools/loop/aws-bridge-services.mjs",
       "tools/loop/aws-bridge-tabs.mjs",
+      "tools/loop/aws-live.mjs",
       "tools/loop/batch-gate.mjs",
       "tools/loop/bible-watch.mjs",
       "tools/loop/cluster-workflow.mjs",
@@ -2706,8 +2765,11 @@
       "tools/loop/plan-waves.mjs",
       "tools/loop/queue-groups.json",
       "tools/loop/queue-workflow.mjs",
+      "tools/loop/studio-brand.mjs",
       "tools/loop/studio-e2e-repair.mjs",
       "tools/loop/studio-program.mjs",
+      "tools/loop/studio-scale.mjs",
+      "tools/loop/studio-ux.mjs",
       "tools/loop/surveyed-PAY-1.json",
       "tools/loop/surveyed-PAY-2.json",
       "tools/loop/surveyed-PAY-3.json",
@@ -3108,7 +3170,7 @@
       },
       {
         "area": "apps/system-studio",
-        "files": 304
+        "files": 360
       },
       {
         "area": "apps/web",
@@ -3248,11 +3310,11 @@
       },
       {
         "area": "tests/architecture",
-        "files": 57
+        "files": 58
       },
       {
         "area": "tests/security",
-        "files": 36
+        "files": 37
       },
       {
         "area": "tools",
@@ -3264,15 +3326,20 @@
       },
       {
         "area": "tools/loop",
-        "files": 49
+        "files": 53
       }
     ],
     "import_graph": {
-      "code_files": 1145,
-      "builtin_imports": 703,
-      "unresolved_relative_specifiers": 47,
+      "code_files": 1201,
+      "builtin_imports": 723,
+      "unresolved_relative_specifiers": 2,
       "unresolved_alias_specifiers": 4,
       "internal_edges": [
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "apps/system-studio/src/components",
+          "imports": 4
+        },
         {
           "from": "apps/system-studio/e2e",
           "to": "apps/system-studio/src/generated",
@@ -3281,7 +3348,7 @@
         {
           "from": "apps/system-studio/e2e",
           "to": "apps/system-studio/src/lib",
-          "imports": 32
+          "imports": 33
         },
         {
           "from": "apps/system-studio/e2e",
@@ -3316,12 +3383,12 @@
         {
           "from": "apps/system-studio/e2e",
           "to": "packages/provisioning/src",
-          "imports": 1
+          "imports": 2
         },
         {
           "from": "apps/system-studio/src/app",
           "to": "apps/system-studio/src/components",
-          "imports": 45
+          "imports": 59
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3331,7 +3398,7 @@
         {
           "from": "apps/system-studio/src/app",
           "to": "apps/system-studio/src/lib",
-          "imports": 244
+          "imports": 275
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3381,12 +3448,12 @@
         {
           "from": "apps/system-studio/src/components",
           "to": "apps/system-studio/src/lib",
-          "imports": 4
+          "imports": 9
         },
         {
           "from": "apps/system-studio/src/components",
           "to": "packages/provisioning/src",
-          "imports": 3
+          "imports": 4
         },
         {
           "from": "apps/system-studio/src/lib",
@@ -3715,7 +3782,7 @@
         {
           "from": "apps/system-studio/e2e",
           "package": "@playwright/test",
-          "imports": 42,
+          "imports": 47,
           "declared": true
         },
         {
@@ -3733,13 +3800,13 @@
         {
           "from": "apps/system-studio/src/app",
           "package": "react",
-          "imports": 17,
+          "imports": 20,
           "declared": true
         },
         {
           "from": "apps/system-studio/src/app",
           "package": "react-dom",
-          "imports": 5,
+          "imports": 7,
           "declared": true
         },
         {
@@ -3751,19 +3818,19 @@
         {
           "from": "apps/system-studio/src/components",
           "package": "next",
-          "imports": 5,
+          "imports": 12,
           "declared": true
         },
         {
           "from": "apps/system-studio/src/components",
           "package": "react",
-          "imports": 21,
+          "imports": 38,
           "declared": true
         },
         {
           "from": "apps/system-studio/src/components",
           "package": "react-dom",
-          "imports": 1,
+          "imports": 7,
           "declared": true
         },
         {
@@ -4278,6 +4345,12 @@
         },
         {
           "from": "tests/architecture",
+          "package": "tailwindcss",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "tests/architecture",
           "package": "typescript",
           "imports": 1,
           "declared": false
@@ -4575,20 +4648,20 @@
       },
       {
         "capability": "Frontend components",
-        "matches": 119,
+        "matches": 142,
         "evidence": [
+          "apps/system-studio/src/components/AccountMenu.tsx",
+          "apps/system-studio/src/components/Breadcrumbs.tsx",
           "apps/system-studio/src/components/CommandPalette.tsx",
           "apps/system-studio/src/components/DeploymentPanel.tsx",
           "apps/system-studio/src/components/EvidencePanel.tsx",
-          "apps/system-studio/src/components/Launcher.tsx",
-          "apps/system-studio/src/components/Nav.tsx",
-          "apps/system-studio/src/components/OfflineBanner.tsx"
+          "apps/system-studio/src/components/Launcher.tsx"
         ],
         "pattern": "/\\/src\\/components\\/.*\\.tsx$/"
       },
       {
         "capability": "Styles",
-        "matches": 18,
+        "matches": 23,
         "evidence": [
           "apps/system-studio/src/app/console-index/console-index.module.css",
           "apps/system-studio/src/app/globals.css",
@@ -4610,14 +4683,14 @@
       },
       {
         "capability": "HTTP API handlers",
-        "matches": 28,
+        "matches": 29,
         "evidence": [
           "apps/system-studio/src/app/api/auth/[...nextauth]/route.ts",
           "apps/system-studio/src/app/api/aws/[surface]/route.ts",
+          "apps/system-studio/src/app/api/export/route.ts",
           "apps/web/src/app/api/admin/directory/route.ts",
           "apps/web/src/app/api/ai/chat/route.ts",
-          "apps/web/src/app/api/ai/draft/route.ts",
-          "apps/web/src/app/api/attachment/[id]/content/route.ts"
+          "apps/web/src/app/api/ai/draft/route.ts"
         ],
         "pattern": "/\\/src\\/app\\/api\\/.*\\/route\\.ts$/"
       },
@@ -4787,20 +4860,20 @@
       },
       {
         "capability": "Unit tests",
-        "matches": 384,
+        "matches": 395,
         "evidence": [
           "apps/system-studio/src/app/console-index/answer.test.ts",
           "apps/system-studio/src/app/platform/audit/entries.test.ts",
           "apps/system-studio/src/app/platform/compute/compute-answer.test.ts",
           "apps/system-studio/src/app/platform/cost/cost-citation.test.tsx",
           "apps/system-studio/src/app/platform/cost/cost-decisions.test.ts",
-          "apps/system-studio/src/app/platform/data/answer.test.ts"
+          "apps/system-studio/src/app/platform/cost/cost-rates.test.tsx"
         ],
         "pattern": "/\\.(test|itest)\\.(ts|tsx|mjs|js)$/"
       },
       {
         "capability": "End-to-end tests",
-        "matches": 77,
+        "matches": 82,
         "evidence": [
           "apps/system-studio/e2e/adoption.spec.ts",
           "apps/system-studio/e2e/api-contract.spec.ts",
@@ -4825,7 +4898,7 @@
         "pattern": "/^\\.github\\/workflows\\/.*\\.ya?ml$/"
       }
     ],
-    "working_tree_dirty_paths": 120
+    "working_tree_dirty_paths": 21
   },
   "relationship": {
     "merge_base": "d20d40d7846fc434b539f80cae8e437b750055ed",

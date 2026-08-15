@@ -31,9 +31,23 @@ async function signIn(page: Page) {
   await page.getByLabel("Operator secret").fill(SECRET)
   await page.getByRole("button", { name: "Sign in" }).click()
   await page.waitForLoadState("networkidle")
-  // The click settles on /api/auth/callback/operator, which returns no HTML, so
-  // every locator after it would search an empty document.
-  await page.goto("/")
+  // The click settles through a redirect chain that returns no HTML of its own,
+  // so every locator after it would search an empty document — hence the goto.
+  //
+  // And the goto is retried until the SIGNED-IN shell is there, which is not
+  // belt and braces. A `goto` issued while that chain is still in flight
+  // resolves to wherever the chain lands, which is `/signin`: the session
+  // cookie is set, the operator is signed in, and the page under the test is
+  // the signed-out one. Measured on this harness, that happened on roughly half
+  // of runs. Every test in this file then ran against a console with no rail,
+  // no navigation and none of the surfaces it exists to measure — and passed,
+  // because an audit of what is on screen cannot tell that the wrong thing is.
+  await expect(async () => {
+    await page.goto("/")
+    await expect(page.locator('.console-shell[data-shell="console"]')).toBeAttached({
+      timeout: 2_000,
+    })
+  }).toPass({ timeout: 30_000 })
   await page.waitForLoadState("networkidle")
 }
 
@@ -399,33 +413,39 @@ for (const theme of ["light", "dark"] as const) {
 }
 
 /**
- * The extremes, measured on the rendered page — rewritten for the OLED palette.
+ * The extremes, measured on the rendered page — rewritten for the neutral family.
  *
  * ## What this replaces, and why the replacement is at least as strong
  *
- * This used to be one test per theme asserting `${theme} uses neither pure black
- * nor pure white`. That was a correct rule about the OLD palette — green-charcoal
- * surfaces and softened text — and STUDIO-030-002 said so in the words "no
- * pure-black glare".
+ * The version before this one asserted the dark theme's base **was** `#000000`,
+ * positively, because an OLED-black theme had been directed and a palette
+ * drifting back to a charcoal was the failure worth catching.
  *
- * The product owner has since directed an OLED-black dark theme. So the rule is
- * now split rather than relaxed, and each half is asserted where it is true:
+ * The product owner has since asked for the near-black neutral greys instead.
+ * The assertion is therefore re-pointed, not loosened — it still pins an exact
+ * value on the rendered page, it is simply a different one:
  *
  *   * **light** keeps the original rule in full — neither extreme, anywhere.
- *   * **dark** must BE pure black at the base. That is asserted positively:
- *     a palette that drifts back to a near-black charcoal reds this, which the
- *     old test could never have caught because a charcoal was what it wanted.
- *   * **pure white as a foreground is forbidden in both themes.** 21:1 on #000
- *     is where halation and smearing between adjacent glyphs come from, and it
- *     is the half of "no pure-black glare" that survives the override intact.
- *   * **pure black as a foreground is forbidden in both themes**, which the old
- *     test also forbade and which nothing else would catch.
- *   * and because elevation cannot come from a shadow at #000, the container
- *     ladder is measured on the live document: five tokens, four adjacent steps,
- *     each of which has to clear 1.12:1 or two panels smear into one another.
+ *   * **dark** must be `rgb(33, 33, 33)` at the base and `rgb(23, 23, 23)` at the
+ *     rail. Two values rather than one, because the family's page and its rail
+ *     are different planes and a palette that collapses them renders a console
+ *     with no sidebar — which every ratio in this file would happily allow.
+ *   * **pure black is now forbidden as an opaque background too.** It was
+ *     required before; it is banned now, and the alpha check is what keeps the
+ *     scrim (`rgba(0, 0, 0, 0.72)`, which is a translucent film over the page and
+ *     not a surface) out of the ban.
+ *   * **pure white as a foreground is forbidden in both themes.** 21:1 is where
+ *     halation and smearing between adjacent glyphs come from, and that is as
+ *     true at #212121 as it was at #000.
+ *   * **pure black as a foreground is forbidden in both themes**, unchanged.
+ *   * the container ladder is measured on the live document: five tokens, four
+ *     adjacent steps, each of which has to clear 1.12:1 or two panels smear into
+ *     one another. Shadow carries elevation now that the base is grey and there
+ *     are darker pixels to draw with — the ladder's job is separating adjacent
+ *     PLANES, which no shadow does, so the floor is unchanged.
  *
- * Nothing was deleted. The one clause that changed is "no pure-black
- * background", and it changed to a stricter statement about the same tokens.
+ * Nothing was deleted. Two clauses got stricter (the base is two pinned values,
+ * and black went from required to banned as a surface) and none got weaker.
  */
 
 /** Backgrounds and text colours as the browser actually computed them. */
@@ -451,12 +471,24 @@ async function renderedExtremes(page: Page) {
       const [r, g, b] = (c.match(/\d+/g) ?? []).slice(0, 3).map(Number)
       return r === v && g === v && b === v
     }
+    // A surface, as opposed to a film drawn over one. `rgba(0, 0, 0, 0.72)` is
+    // the scrim: it is a translucent dimming of the page behind a dialog, and
+    // banning it as "a pure-black background" would ban the one thing in the
+    // palette that is SUPPOSED to be pure black.
+    const opaque = (c: string) => {
+      const m = c.match(/rgba\(([^)]+)\)/)
+      if (!m) return true
+      const parts = m[1].split(",").map((v) => parseFloat(v))
+      return !(parts.length === 4 && parts[3] < 1)
+    }
+    const rail = document.querySelector(".console-rail")
     return {
-      blackBackgrounds: [...backgrounds].filter((c) => is(c, 0)),
+      blackBackgrounds: [...backgrounds].filter((c) => is(c, 0) && opaque(c)),
       whiteBackgrounds: [...backgrounds].filter((c) => is(c, 255)),
       blackForegrounds: [...foregrounds].filter((c) => is(c, 0)),
       whiteForegrounds: [...foregrounds].filter((c) => is(c, 255)),
       bodyBackground: getComputedStyle(document.body).backgroundColor,
+      railBackground: rail ? getComputedStyle(rail).backgroundColor : null,
     }
   })
 }
@@ -472,24 +504,37 @@ test("light uses neither pure black nor pure white", async ({ page }) => {
   expect(seen.whiteForegrounds).toEqual([])
 })
 
-test("dark is pure black at the base, and pure black is never a glyph", async ({ page }) => {
+test("dark is the neutral family at the base, and neither extreme is a glyph", async ({ page }) => {
   await signIn(page)
   await choose(page, "colorScheme", "dark")
 
+  // Wait, THEN measure. `renderedExtremes` is one `page.evaluate` — it samples
+  // once and does not retry, so a rail that has not painted yet reads as a rail
+  // that is not there, and the assertion below fails on a race rather than on a
+  // palette. `toBeVisible` is the half that retries.
+  await expect(page.locator(".console-rail")).toBeVisible()
+
   const seen = await renderedExtremes(page)
-  // Positive: the OLED base actually reached the page. A palette that quietly
-  // drifted back to #101813 would pass every ratio in this file and fail here.
-  expect(seen.bodyBackground, "the dark theme's base surface is not pure black").toBe("rgb(0, 0, 0)")
-  expect(seen.blackBackgrounds.length, "pure black is declared but nothing renders it").toBeGreaterThan(0)
-  // Negative, and unchanged in force: black is a SURFACE here, never a glyph.
-  expect(seen.blackForegrounds, "pure black text on an OLED-black theme").toEqual([])
+  // Positive, and on the two planes rather than one. A palette that drifted to
+  // some other near-black would pass every ratio in this file and fail here;
+  // so would one that painted the rail and the page the same colour.
+  expect(seen.bodyBackground, "the dark theme's page is not #212121").toBe("rgb(33, 33, 33)")
+  expect(seen.railBackground, "the rail is not the plane below the page (#171717)").toBe(
+    "rgb(23, 23, 23)",
+  )
+  // Negative, and stricter than it was: pure black used to be REQUIRED as the
+  // base and is now banned as any opaque surface. The scrim is exempt by alpha,
+  // not by name.
+  expect(seen.blackBackgrounds, "an opaque pure-black surface on a near-black theme").toEqual([])
+  expect(seen.blackForegrounds, "pure black text on a dark theme").toEqual([])
   expect(seen.whiteForegrounds, "pure white text is the glare half of the clause").toEqual([])
   expect(seen.whiteBackgrounds).toEqual([])
 })
 
 test("the dark container ladder is visibly stepped on the rendered page", async ({ page }) => {
-  // Elevation at #000 cannot come from a shadow — there are no darker pixels —
-  // so the container ladder is the only thing separating two adjacent panels.
+  // Shadow carries elevation now that the base is #212121 and there are darker
+  // pixels to draw with. What a shadow cannot do is separate two adjacent
+  // PLANES, so the ladder still has to be stepped and the floor is unchanged.
   // Measured on the live document rather than on the stylesheet, because a
   // token can be correct and still be overridden by a rule nobody remembered.
   await signIn(page)

@@ -51,10 +51,10 @@ export function TenureLogo({
       viewBox="0 0 32 32"
       fill={color}
       className={className}
-      // Decorative wherever it appears beside the word "Tenure"; the wordmark
-      // below carries the accessible name. A lone mark that needs a name should
-      // be given one by its caller rather than by this component asserting one
-      // it cannot know is correct.
+      // Decorative: this is the mark alone, and wherever it appears the word
+      // "Tenure" is beside it. A lone mark that needs a name should be given one
+      // by its caller rather than by this component asserting one it cannot know
+      // is correct — which is what `../md3/Logo.tsx` does, from `PETAL` above.
       aria-hidden
     >
       {[0, 60, 120, 180, 240, 300].map((r) => (
@@ -64,26 +64,25 @@ export function TenureLogo({
   )
 }
 
-/**
- * The mark and the word, for the console masthead.
+/*
+ * ## There is no wordmark in this file, and that is the change
  *
- * `Tenure Studio` rather than `Tenure`: this is the deployment engine, and an
- * operator with both open should never have to look twice to see which one they
- * are about to advance a tenant in.
+ * A `TenureStudioWordmark` used to live here: the rosette beside the words
+ * "Tenure Studio", at 0.82x the mark, inside `.brand-wordmark` and
+ * `.brand-wordmark-text`. Three things were wrong with it and all three are the
+ * same kind of wrong.
+ *
+ *   * No stylesheet in this console declares either of those class names, so it
+ *     rendered as unstyled inline text with no gap, no weight and no tracking.
+ *   * Nothing imported it. It had never been on a screen, which is why nobody
+ *     had noticed the first point.
+ *   * Its proportion was 0.82 where the brand's is 0.85, and its word was
+ *     "Tenure Studio" where the brand's is "Tenure" — a second, quietly
+ *     different wordmark sitting one directory away from the real one. Two
+ *     wordmarks is how a console ends up with the almost-right one.
+ *
+ * The console's wordmark is `../md3/Logo.tsx`, which imports `PETAL` from here
+ * and sets the word in the product's own type at the tenant app's proportion,
+ * weight and tracking. This file is the geometry the two apps share, and only
+ * that.
  */
-export function TenureStudioWordmark({
-  size = 22,
-  color = "var(--md-sys-color-primary)",
-}: {
-  size?: number
-  color?: string
-}) {
-  return (
-    <span className="brand-wordmark">
-      <TenureLogo size={size} color={color} />
-      <span className="brand-wordmark-text" style={{ fontSize: size * 0.82 }}>
-        Tenure <span className="brand-wordmark-qualifier">Studio</span>
-      </span>
-    </span>
-  )
-}

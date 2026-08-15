@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth"
+import { LiveRegion } from "@/components/LiveRegion"
 import { TagCompliancePanel } from "@/components/TagCompliancePanel"
 import {
   Badge,
@@ -20,6 +21,8 @@ import { identityHeadline } from "@/lib/aws/identity"
 import { estateInventory, estateLines, type EstateResource } from "@/lib/aws/inventory"
 import { centralizationPosture, type PostureRow } from "@/lib/aws/posture"
 import { reconcileTopology, type TopologyVerdict } from "@/lib/aws/topology"
+import { describeRead } from "@/lib/aws/read"
+import { seedValue } from "@/lib/aws/refresh"
 import { describeAttribution } from "@/lib/aws/tags"
 import { renderComparison } from "@/lib/revisions"
 import { isOperator, mayAct, operatorConfigProblems, roleOf } from "@/lib/operators"
@@ -157,6 +160,29 @@ export default async function EstatePage() {
     reference: "estate reconciliation",
   })
   const refused = irreversibleEntries(reconcile.diff)
+
+  /*
+   * STUDIO-140-007 — the one surface on this page that does not go frozen.
+   *
+   * Everything above is a snapshot: `estateInventory()` ran once, during this
+   * render, and nothing re-runs it until a human presses reload. Edge
+   * distributions are the surface picked to close that loop first, because they
+   * are the one inventory line on this page that `/api/aws/<surface>` also
+   * serves — `cloudfront:ListDistributions` is `readings.distributions` here and
+   * `SURFACES.cdn` there, ONE capability with ONE cadence, so the number the
+   * browser polls for and the number this render printed cannot come from two
+   * different opinions about how often a distribution changes.
+   *
+   * The seed is this render's own read, so the first paint is exactly what it
+   * was before this loop existed. The client replaces it only on a SUCCESSFUL
+   * poll; a refused one leaves it standing, marked stale, with the instant it
+   * was true.
+   */
+  const cdnSeed = seedValue(readings.distributions)
+  const cdnBecause =
+    cdnSeed === null
+      ? describeRead(readings.distributions, "the edge distribution inventory")
+      : null
 
   const posture = await centralizationPosture()
   const { identity, organization, management } = posture
@@ -606,6 +632,23 @@ export default async function EstatePage() {
                   ? `tag:GetResources answered successfully and returned no tagged resources, as of ${readings.tagged.asOf}. That is a real absence.`
                   : `The tag index could not be read (${readings.tagged.state}), so no resource below carries an attribution this console is confident in.`}
           </p>
+
+          {/*
+            The one block on this page that keeps up on its own.
+
+            Everything around it is dated `requestedAt` and will still say that
+            in an hour. This says when it was last refreshed, whether the last
+            attempt worked, and at what interval — and the interval is the
+            surface's own, arriving on its own responses, not a number chosen
+            here. See `components/LiveRegion.tsx`.
+          */}
+          <LiveRegion
+            surface="cdn"
+            noun="edge distribution"
+            what="Edge distributions"
+            seed={cdnSeed}
+            seedBecause={cdnBecause}
+          />
 
           {services.length === 0 ? (
             <EmptyState

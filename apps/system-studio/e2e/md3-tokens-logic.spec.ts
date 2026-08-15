@@ -593,28 +593,29 @@ test.describe("every declared pair clears its WCAG 2.2 AA threshold", () => {
   }
 })
 
-/* ── OLED black, and what has to be true because of it ────────────────────── */
+/* ── The near-black neutral family, and what has to be true because of it ─── */
 
 /**
- * STUDIO-030-002, as the product owner has directed it.
+ * The dark theme the product owner asked for, pinned as arithmetic.
  *
- * The clause in the Bible reads "no pure-black glare". The owner has directed an
- * OLED-black dark theme and that overrides the clause — the override is recorded
- * in the execution ledger, not hidden here. What is NOT waived is the concern
- * behind it, and this block is where that concern is turned into arithmetic:
+ * The console shipped an OLED-black dark theme with an invented `#12cc7e`
+ * accent. The owner has asked for the near-black neutral greys instead, and for
+ * the real Tenure green. So this block asserts the new instruction the way the
+ * old one was asserted — positively, on the values themselves — rather than
+ * relaxing into "some dark colour":
  *
- *   * the base really is #000, so the instruction is pinned rather than merely
- *     permitted — a palette that drifts back to a near-black charcoal reds;
+ *   * the base planes really are the family's values, so a palette that drifts
+ *     back toward black (or toward a charcoal nobody chose) reds;
  *   * no surface, content colour or boundary carries a hue, because "the green
- *     is the accent and the mark, nothing else" is the other half of the
- *     instruction and a green-tinted grey is the failure that is hardest to see
- *     in a screenshot and trivial to see in a hex code;
- *   * no foreground is pure WHITE — 21:1 on #000 is where halation and smearing
- *     actually come from, and it is the half of "no pure-black glare" that
- *     survives intact;
- *   * every adjacent container step is measurably distinct, because at #000 a
- *     drop shadow has no darker pixels to work with and the container ladder is
- *     the ONLY thing left carrying elevation.
+ *     is the accent and nothing else" is the other half of the instruction and a
+ *     green-tinted grey is the failure that is hardest to see in a screenshot
+ *     and trivial to see in a hex code;
+ *   * no foreground is pure WHITE — 21:1 is where halation and the smearing of
+ *     adjacent glyphs come from, and that is true on #212121 as it was on #000;
+ *   * every adjacent container step is measurably distinct. Shadow carries
+ *     elevation now that there are darker pixels to draw with, but the ladder is
+ *     what separates two adjacent PLANES, and a ladder tuned for black sitting
+ *     on grey is the specific thing this asserts against.
  */
 
 const CONTAINER_RAMP = [
@@ -625,8 +626,25 @@ const CONTAINER_RAMP = [
   "surface-container-highest",
 ]
 
-/** The four roles that are the OLED base itself. */
-const BASE_ROLES = ["background", "surface", "surface-dim", "surface-container-lowest"]
+/**
+ * The planes the dark theme is built on, and the value each one must be.
+ *
+ * This replaces a test that required four roles to be exactly `#000000`. That
+ * test was right about the palette it was written for and is the wrong shape for
+ * this one — the roles no longer share a value, because the page, the rail and
+ * the deepest well are three different planes rather than three names for the
+ * black underneath everything. Pinning the three values separately is strictly
+ * more than the old assertion checked, not less: it catches a drift in any one
+ * of them, and it catches the page and the rail collapsing back into each other.
+ */
+const BASE_PLANES: [string, string][] = [
+  ["background", "#212121"],
+  ["surface", "#212121"],
+  ["surface-dim", "#171717"],
+  ["surface-container-lowest", "#0d0d0d"],
+]
+
+const BASE_ROLES = BASE_PLANES.map(([name]) => name)
 
 /**
  * Roles that must carry NO hue in dark: r = g = b.
@@ -693,15 +711,28 @@ const DARK_THEMES = ["dark", "dark-contrast"] as const
 /** The step between two adjacent containers, below which two panels smear. */
 const RAMP_STEP_MINIMUM = 1.12
 
-test.describe("the dark theme is OLED black, neutral, and separates without shadow", () => {
-  test("the base surface is pure black, in both dark variants", () => {
+test.describe("the dark theme is the neutral family, neutral throughout, and stepped", () => {
+  test("the base planes are the family's values, in both dark variants", () => {
     for (const theme of DARK_THEMES) {
-      for (const name of BASE_ROLES) {
+      for (const [name, expected] of BASE_PLANES) {
         expect(
           value(theme, role(name)).toLowerCase(),
-          `${theme} ${name} is not the OLED base the product owner directed`,
-        ).toBe("#000000")
+          `${theme} ${name} is not the near-black neutral the product owner asked for`,
+        ).toBe(expected)
       }
+    }
+  })
+
+  test("the page, the rail and the deepest well are three planes, not one", () => {
+    // The property the four-way `#000000` equality used to give for free and
+    // this palette has to state: three of the roles above are DIFFERENT, and a
+    // future edit that collapses the rail into the page would otherwise satisfy
+    // every ratio in this file while deleting the rail.
+    for (const theme of DARK_THEMES) {
+      const planes = ["background", "surface-dim", "surface-container-lowest"].map((n) =>
+        value(theme, role(n)).toLowerCase(),
+      )
+      expect(new Set(planes).size, `${theme}: ${planes.join(", ")}`).toBe(3)
     }
   })
 
@@ -744,10 +775,13 @@ test.describe("the dark theme is OLED black, neutral, and separates without shad
     expect(glaring).toEqual([])
   })
 
-  test("every adjacent container step is visibly distinct at #000", () => {
-    // At #000 elevation cannot come from a shadow, so it comes from this ladder
-    // and nothing else. Two steps that measure the same are two panels the
-    // operator cannot tell apart, and nothing else in the suite would say so.
+  test("every adjacent container step is visibly distinct", () => {
+    // Shadow carries elevation now — #212121 has darker pixels below it and
+    // `--md-sys-elevation-*` was deepened to use them. The ladder's job is to
+    // separate two adjacent PLANES, which a shadow does not do: two steps that
+    // measure the same are two panels the operator cannot tell apart, and
+    // nothing else in the suite would say so. The floor is unchanged from the
+    // OLED palette on purpose — the ladder got a second carrier, not a pardon.
     const failures: string[] = []
     for (const theme of DARK_THEMES) {
       for (let i = 1; i < CONTAINER_RAMP.length; i++) {
@@ -763,6 +797,51 @@ test.describe("the dark theme is OLED black, neutral, and separates without shad
       }
     }
     expect(failures).toEqual([])
+  })
+
+  /**
+   * The other carrier of elevation, now that there is one.
+   *
+   * At #000 a drop shadow is nothing at any opacity — there are no darker pixels
+   * — so the elevation ramp was five declarations nothing could check and
+   * nothing did. The decision recorded in `globals.css` is that on #212121
+   * SHADOW carries elevation and the container ladder separates planes, and this
+   * is that decision as arithmetic rather than as a paragraph:
+   *
+   *   * the ramp deepens monotonically, or a "level" is not a level;
+   *   * and level 1 — the shallowest, the one a card gets — actually darkens the
+   *     page it sits on. 1.15:1 is the floor because that is roughly where an
+   *     edge stops being something the eye infers from the geometry; the ramp as
+   *     written measures 1.159:1 there.
+   *
+   * The alpha of the FIRST shadow in each declaration is the one measured: it is
+   * the ambient layer, the wider and softer of the two, and it is what a viewer
+   * reads as depth.
+   */
+  test("the dark elevation ramp deepens, and level 1 is visible on the page", () => {
+    const alphaOf = (level: number) => {
+      const raw = value("dark", `--md-sys-elevation-${level}`)
+      const match = raw.match(/rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*([\d.]+)\s*\)/)
+      expect(match, `elevation-${level} is not a black shadow this audit can measure: ${raw}`).not.toBeNull()
+      return parseFloat(match![1])
+    }
+
+    const alphas = [1, 2, 3, 4, 5].map(alphaOf)
+    for (let i = 1; i < alphas.length; i++) {
+      expect(alphas[i], `elevation-${i + 1} (${alphas[i]}) is not deeper than elevation-${i} (${alphas[i - 1]})`).toBeGreaterThan(
+        alphas[i - 1],
+      )
+    }
+
+    const page = parseColor(value("dark", role("background")))
+    expect(page).not.toBeNull()
+    const shadowed = composite({ r: 0, g: 0, b: 0, a: alphas[0] }, page!)
+    const ratio = contrastRatio(page!, shadowed)
+    expect(
+      ratio,
+      `a level-1 shadow leaves the page at ${ratio.toFixed(3)}:1 — an edge nobody can see, which ` +
+        `is what every one of these five declarations was worth while the base was #000`,
+    ).toBeGreaterThanOrEqual(1.15)
   })
 
   test("the container ladder climbs in one direction, in every theme", () => {
@@ -784,6 +863,89 @@ test.describe("the dark theme is OLED black, neutral, and separates without shad
           CONTAINER_RAMP.map((n, i) => `${n}=${luminances[i].toFixed(4)}`).join(", "),
       ).toBe(true)
     }
+  })
+})
+
+/* ── The green is the brand's, and this file is not allowed to invent one ─── */
+
+/**
+ * The guard that would have stopped `#12cc7e`.
+ *
+ * The console shipped an accent described in its own comment as a "deep forest
+ * green" which appears in no Tenure palette — an agent mixed it while building
+ * the OLED theme, every contrast assertion in this file passed on it, and the
+ * product owner is the thing that eventually caught it. Nothing here could have:
+ * the audit measured whether the colour was LEGIBLE, and it was.
+ *
+ * So the ramp is read out of the tenant application — the source of truth, in
+ * this same repository — and every role whose job is to be the brand green has
+ * to BE one of its steps. A ratio cannot express "this is the right green"; set
+ * membership can.
+ *
+ * The tenant's stylesheet is read rather than copied for the same reason
+ * `css-declarations.mjs` is imported rather than reimplemented above: a second
+ * copy of the ramp is a second thing to update and a second thing to be wrong.
+ */
+const BRAND_CSS = fs.readFileSync(
+  path.join(STUDIO, "..", "web", "src", "app", "globals.css"),
+  "utf8",
+)
+
+const FOREST_RAMP = new Map(
+  [...BRAND_CSS.matchAll(/(--tenure-forest-\d+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/g)].map((m) => [
+    m[2].toLowerCase(),
+    m[1],
+  ]),
+)
+
+/**
+ * The roles that ARE the brand green, in every theme.
+ *
+ * Not "every role that contains green": `on-primary` is a near-black in dark and
+ * a near-white in light, and both are correct. These three are the ones whose
+ * whole purpose is to be the accent — as a glyph (`primary`), as a fill
+ * (`primary-container`), and as the accent on an inverted surface
+ * (`inverse-primary`).
+ */
+const GREEN_ROLES = ["primary", "primary-container", "inverse-primary"]
+
+test.describe("every green is a step of the Tenure forest ramp", () => {
+  test("the ramp was actually read", () => {
+    // An absence check against an empty set passes on every input, and the
+    // failure mode is silent: a moved file, a renamed token, and this whole
+    // describe block becomes decoration.
+    expect(FOREST_RAMP.size, "the tenure forest ramp was not found in apps/web").toBeGreaterThanOrEqual(14)
+    expect([...FOREST_RAMP.keys()], "the ramp read does not contain --primary's value").toContain(
+      "#198052",
+    )
+  })
+
+  for (const theme of THEME_NAMES) {
+    test(theme, () => {
+      const invented: string[] = []
+      for (const name of GREEN_ROLES) {
+        const raw = value(theme, role(name)).toLowerCase()
+        if (!FOREST_RAMP.has(raw)) invented.push(`${role(name)} = ${raw}`)
+      }
+      expect(
+        invented,
+        "A green that is in no Tenure palette. Pick a STEP of the ramp in " +
+          "apps/web/src/app/globals.css — that is what the ramp is for, and it is what " +
+          "distinguishes using the brand from mixing a colour that looks like it.",
+      ).toEqual([])
+    })
+  }
+
+  test("the invented accent is declared nowhere in the console", () => {
+    // Every stylesheet, not just `globals.css` — a module stylesheet is exactly
+    // where a colour someone was told to stop using would reappear.
+    //
+    // Comments are stripped first, and that is the difference between a rule and
+    // a taboo: the paragraph in `globals.css` explaining what `#12cc7e` was and
+    // why it went is the record of the decision, and a test that forbade the
+    // record would delete the only reason the next reader has not to remix it.
+    const declarations = allStylesheets.replace(/\/\*[\s\S]*?\*\//g, "").toLowerCase()
+    expect(declarations).not.toContain("#12cc7e")
   })
 })
 
@@ -1095,7 +1257,10 @@ const DECLARED_NOT_REFERENCED = new Map([
   ["--md-sys-color-on-success", "the filled half of the success family. Only the container half is used"],
   ["--md-sys-color-tertiary", "declared for its container and its on-colour; nothing is filled tertiary yet"],
   ["--md-sys-color-surface-bright", "Material's brightest surface. This console's ladder is the containers"],
-  ["--md-sys-color-surface-dim", "Material's dimmest surface. Same"],
+  // `--md-sys-color-surface-dim` was here and is gone: `.console-rail` paints it
+  // now. The rail is the plane BELOW the page in the neutral family, which is
+  // what this role has always meant and what nothing in the console had ever
+  // needed while the page was #000 and there was nothing below it.
   ["--md-sys-state-pressed", "the pre-composited pressed layer. New work uses the opacity token instead"],
   ["--md-sys-type-mono", "declared before the one monospace rule that exists, which spells its own stack"],
   ["--surface", "product contract: SHARED_TOKENS and the architecture inventory read this name"],
@@ -1125,7 +1290,8 @@ test("no token is declared without either a consumer or a recorded reason", () =
       "DECLARED_NOT_REFERENCED with the reason it exists anyway.",
   ).toEqual([])
 
-  // A cap rather than an exact match, so referencing one of the recorded twelve
-  // does not red a test. It may only fall.
-  expect(DECLARED_NOT_REFERENCED.size).toBeLessThanOrEqual(12)
+  // A cap rather than an exact match, so referencing one of the recorded eleven
+  // does not red a test. It may only fall — and it just did, from twelve, when
+  // the rail started painting `surface-dim`.
+  expect(DECLARED_NOT_REFERENCED.size).toBeLessThanOrEqual(11)
 })
