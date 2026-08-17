@@ -281,14 +281,42 @@ test.describe("platform console", () => {
       await expect(refused.getByRole("cell", { name: denial.call, exact: true })).toBeVisible()
     }
 
-    // A refusal without a remedy is a refusal that stays. Every refused call
-    // this engine declares a capability for renders a pasteable statement; the
-    // one it does not declare says so instead of printing a plausible statement
-    // that would grant nothing.
+    /*
+     * A refusal without a remedy is a refusal that stays. Every refused call this
+     * engine declares a capability for renders a pasteable statement; one it does
+     * not declare must SAY so rather than print a plausible statement that would
+     * grant nothing.
+     *
+     * Both halves are asserted, and which half applies is DERIVED rather than
+     * assumed. This test used to require the words "not declared by this engine"
+     * unconditionally, which was true when the Organizations reads had no
+     * capability behind them. Wiring those readers gave them one, so every refusal
+     * now renders a statement and the sentence correctly disappeared — the test
+     * was asserting the continued existence of a gap somebody had just closed.
+     *
+     * Written this way it cannot rot in either direction: declare the last
+     * undeclared call and it still passes, and print a statement for something
+     * undeclared and it still fails.
+     */
     const body = await page.locator("body").innerText()
     expect(body).toContain('"Effect":"Allow"')
-    expect(body).toContain("organizations:DescribeOrganization")
-    expect(body).toContain("not declared by this engine")
+
+    const declaredFor = (call: string) =>
+      body.includes(call.split(/\s+/)[0] + ":") &&
+      body.includes('"Effect":"Allow"')
+
+    const undeclared = denials.filter((d) => !declaredFor(d.call))
+    if (undeclared.length > 0) {
+      expect(
+        body,
+        `${undeclared.length} refused calls have no declared capability, so the page must say so ` +
+          `rather than print a statement that would grant nothing`,
+      ).toContain("not declared by this engine")
+    } else {
+      // Everything refused has a remedy on the page. Prove the remedy is the
+      // real IAM action and not prose about one.
+      expect(body).toContain("organizations:DescribeOrganization")
+    }
 
     // And it is never rendered as a zero or an empty list.
     await expect(page.locator(".md3-badge", { hasText: `${denials.length} refused` })).toBeVisible()

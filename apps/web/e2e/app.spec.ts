@@ -56,11 +56,28 @@ test.describe("dashboard + navigation", () => {
   test("OSE director sees the dashboard with live KPI tiles", async ({ page }) => {
     await signIn(page, "Dana Whitfield")
     await expect(page.getByRole("heading", { name: "OSE Dashboard" })).toBeVisible()
-    await expect(page.getByText("Pending Approvals")).toBeVisible()
-    await expect(page.getByText("Upcoming Events")).toBeVisible()
-    await expect(page.getByText("Unread Messages")).toBeVisible()
-    await expect(page.getByText("Active Members", { exact: true })).toBeVisible()
-    await expect(page.getByText("Enrolled Clubs")).toBeVisible()
+
+    /*
+     * `.first()`, because a tile's label legitimately appears twice now.
+     *
+     * GE-143-033 gave `Sparkline` an accessible name that says what the series is
+     * OF — the SVG is `role="img"` with an `aria-label`, and the same sentence is
+     * in a `<title>` so it reaches hover as well as assistive technology. On a KPI
+     * tile that sentence begins with the tile's own label, so "Pending Approvals"
+     * is now both the visible caption and the first words of the chart's
+     * description, and a bare `getByText` is a strict-mode violation on two
+     * matches.
+     *
+     * The duplication is deliberate: a chart reached on its own has to name its
+     * own subject, and the alternative — an unlabelled image beside a number — is
+     * the defect that requirement is about. What this test is asserting is that
+     * the tile is on the page, so it takes the first match and says why.
+     */
+    await expect(page.getByText("Pending Approvals").first()).toBeVisible()
+    await expect(page.getByText("Upcoming Events").first()).toBeVisible()
+    await expect(page.getByText("Unread Messages").first()).toBeVisible()
+    await expect(page.getByText("Active Members", { exact: true }).first()).toBeVisible()
+    await expect(page.getByText("Enrolled Clubs").first()).toBeVisible()
   })
 
   test("long panels cap their list behind a See-all overlay", async ({ page }) => {
