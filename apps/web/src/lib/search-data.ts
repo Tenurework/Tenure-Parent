@@ -127,6 +127,11 @@ async function buildSearchCorpus(userId: string): Promise<SearchDoc[]> {
         // omitting a classification column silently reclassifies every row.
         type: true,
         sensitivity: true,
+        // Who wrote it. `canSeeMemoryCard` exempts a card's author from the seat
+        // inheritance rules, and it cannot do that with a column it was not given
+        // — omitting this hides a writer's own card from her own search, which is
+        // the defect `search-reports.spec.ts` caught.
+        authorId: true,
       },
     }),
     db.document.findMany({

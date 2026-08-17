@@ -19,6 +19,24 @@ export function canSeeMemoryCard(
   if (!card.roleId) return true
   if (isOse(ctx, org.institutionId)) return true
 
+  /*
+   * You can always see what you wrote.
+   *
+   * This is above the seat rules on purpose, because it is not a seat question.
+   * When the handoff window below was tightened so an INCOMING holder no longer
+   * inherits the seat's `CREDENTIAL` cards — correct, and the point of
+   * HCM-040-003 — it also stopped an officer whose seat row is SHADOW from seeing
+   * a credential card SHE HAD JUST WRITTEN. `search-reports.spec.ts` caught it:
+   * she saved "Bank portal …" and her own search returned nothing.
+   *
+   * Inheritance and authorship are different questions. What transfers to a
+   * successor is decided per card by `seat-memory-boundary.ts`; what you can read
+   * because you are its author is not inheritance at all. Withholding a card from
+   * its writer protects nobody — she typed the secret — and it silently deletes
+   * her own work from every surface that reads through this function.
+   */
+  if (card.authorId && card.authorId === ctx.userId) return true
+
   const holdsSeatNow = ctx.orgRoles.some(
     (r) => r.roleId === card.roleId && r.status === "ACTIVE"
   )

@@ -81,6 +81,17 @@ export interface SeatMemoryCard {
   type: MemoryRecordType
   /** `MemoryRecord.sensitivity` — a free `String` column, ranked, never trusted. */
   sensitivity: string | null
+  /**
+   * Who wrote it. `MemoryRecord.authorId`, nullable because older rows have none.
+   *
+   * Carried so that the inheritance rules below cannot hide a card from the
+   * person who created it. Tightening the handoff window did exactly that: an
+   * officer whose seat row is SHADOW wrote a CREDENTIAL card and then could not
+   * find it in her own search, because CREDENTIAL is precisely what does NOT
+   * transfer to an incoming holder. The rule was right about inheritance and
+   * wrong about authorship — what you wrote is not something you inherit.
+   */
+  authorId?: string | null
 }
 
 /** Where one card stands in relation to the seat, before its label is read. */

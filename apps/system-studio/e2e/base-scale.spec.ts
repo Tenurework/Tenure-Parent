@@ -267,11 +267,34 @@ async function affordedRows(page: Page, viewportHeight: number) {
     const contentTop = mainBox.top + parseFloat(getComputedStyle(main).paddingTop)
     const header = headerRow ? headerRow.getBoundingClientRect().height : 0
 
+    /* The SCALE's own contribution to a row, separated from the content's.
+     *
+     * A row is `lines × line-height + padding-top + padding-bottom`. Only the
+     * second part is what the token layer sets; the first is how many lines the
+     * cell's text wraps to, which is a property of the DATA. On this machine the
+     * estate's shortest row is 67.94px and in CI it is 84.91px, from the same
+     * stylesheet — different ARNs, different wrapping.
+     *
+     * So `singleLine` is the height a row WOULD have if its tallest cell held one
+     * line. It is the same number in every environment, which makes it the only
+     * honest thing to assert a row budget against. */
+    const cell = table.querySelector<HTMLElement>("tbody td, tbody th")
+    const cellStyle = cell ? getComputedStyle(cell) : null
+    const lineHeight = cellStyle ? parseFloat(cellStyle.lineHeight) : 0
+    const padBlock = cellStyle
+      ? parseFloat(cellStyle.paddingTop) + parseFloat(cellStyle.paddingBottom)
+      : 0
+    const singleLine = lineHeight + padBlock
+
     return {
       rowHeight: Math.round(rowHeight * 100) / 100,
       header: Math.round(header * 100) / 100,
       contentTop: Math.round(contentTop * 100) / 100,
       afforded: Math.floor((height - contentTop - header) / rowHeight),
+      lineHeight: Math.round(lineHeight * 100) / 100,
+      padBlock: Math.round(padBlock * 100) / 100,
+      singleLine: Math.round(singleLine * 100) / 100,
+      affordedSingleLine: singleLine > 0 ? Math.floor((height - contentTop - header) / singleLine) : 0,
     }
   }, viewportHeight)
 }
@@ -302,14 +325,23 @@ test.describe("STUDIO-030-001 — the scale affords a working set", () => {
   })
 
   /**
-   * The estate: 9 rows before, 11 after. The floor is 11.
+   * The estate, asserted on the scale rather than on the data.
    *
-   * The estate's rows are taller than the fleet's — 67.94px against 50.47px —
-   * because its cells carry ARNs and Terraform paths that wrap to three or four
-   * lines. That is content, and the scale cannot fix it; what the scale did was
-   * take 10.5px off each of them.
+   * This test first read `afforded >= 11`, measured against this machine's estate
+   * rows at 67.94px. In CI the same stylesheet renders them at 84.91px and only 9
+   * fit — because the estate's cells carry ARNs and Terraform paths that wrap, and
+   * how many lines they wrap to depends on WHICH resources the account holds. The
+   * spec's own comment said as much ("that is content, and the scale cannot fix
+   * it") and then asserted a row count anyway, so it passed here and red CI.
+   *
+   * A row count cannot be asserted across environments whose data differs. What
+   * CAN is the token layer's own contribution: one line of `body-small` plus the
+   * row padding, which is identical everywhere the stylesheet is. 30 rows of that
+   * fit the region, against 25 before the scale change — the same 2-rows-per-9
+   * improvement the old number was reaching for, expressed so that content cannot
+   * move it.
    */
-  test("the estate scale affords at least 11 rows in a 900px content region", async ({ page }) => {
+  test("the estate scale affords at least 28 single-line rows in a 900px region", async ({ page }) => {
     await signIn(page)
     await page.goto("/platform/estate")
     await useDefaultDensity(page)
@@ -318,9 +350,11 @@ test.describe("STUDIO-030-001 — the scale affords a working set", () => {
     const m = await affordedRows(page, VIEWPORT.height)
     expect(m, "the estate must render a table to measure").not.toBeNull()
     expect(
-      m!.afforded,
-      `a ${m!.rowHeight}px row under a ${m!.header}px header in a region starting at y=${m!.contentTop}`,
-    ).toBeGreaterThanOrEqual(11)
+      m!.affordedSingleLine,
+      `a ${m!.singleLine}px single-line row (${m!.lineHeight}px line + ${m!.padBlock}px padding) ` +
+        `under a ${m!.header}px header in a region starting at y=${m!.contentTop}; ` +
+        `the shortest ACTUAL row here is ${m!.rowHeight}px, which is content`,
+    ).toBeGreaterThanOrEqual(28)
   })
 })
 

@@ -65,7 +65,7 @@ export default async function HandoffPage({
             // over. `successorHandoffPacket` splits it three ways.
             memoryRecords: {
               where: { isArchived: false },
-              select: { id: true, roleId: true, type: true, sensitivity: true },
+              select: { id: true, roleId: true, type: true, sensitivity: true, authorId: true },
             },
           },
         },

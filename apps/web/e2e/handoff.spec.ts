@@ -13,7 +13,12 @@ test.describe("handoff packet", () => {
 
     // A board seat with its permanent position id and a knowledge count
     await expect(page.getByText("Position ID SCC-PRES")).toBeVisible()
-    await expect(page.getByText(/knowledge card/).first()).toBeVisible()
+    // "cards you inherit", not "knowledge cards". HCM-040-003 changed the words
+    // because it changed the number: the old count included the seat's login card
+    // and everything marked restricted, so it promised an incoming officer
+    // knowledge that was never going to be handed over. What the successor
+    // actually inherits is a different figure and now says so.
+    await expect(page.getByText(/cards? you inherit/i).first()).toBeVisible()
 
     // The handoff contact — who held the seat before, so a successor knows who to ask
     await expect(page.getByText(/Held it before/i).first()).toBeVisible()

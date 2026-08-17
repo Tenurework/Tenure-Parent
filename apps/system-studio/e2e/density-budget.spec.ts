@@ -122,9 +122,13 @@ import { operatorFor } from "./operator-identity"
  * an improvement unlosable. So the numbers below are ratcheted onto (B) where (B)
  * is a clean, reproducible measurement, and left at (A) where it is not:
  *
- *   - `ROWS_PER_FOLD` for `/platform/estate` is RATCHETED, 9 → 10. It is the
- *     headline property, (B) was measured on a from-scratch build, and compact
- *     still affords 12 — two rows of headroom above the floor.
+ *   - `ROWS_PER_FOLD` for `/platform/estate` was RATCHETED here, 9 → 10, and has
+ *     since been PUT BACK to 9. The reasoning above was sound on this machine and
+ *     wrong everywhere else: 10 is the COMPACT figure and the floor is asserted
+ *     against the comfortable render, which affords 9 on CI's font stack. See the
+ *     note on `ROWS_PER_FOLD` itself. `/platform/security` came down 4 → 3 for the
+ *     same reason. A ratchet raised onto one machine's font metrics is a red build
+ *     for everybody else, which is how a budget gets deleted rather than raised.
  *   - `TABLE_CHROME_CEILING_PX` is RATCHETED, 96 → 80, against a measured 58.
  *   - `SECTION_CHROME_CEILING_PX` (560) and `PREAMBLE_FOLD_CEILING` (3.5) are NOT
  *     ratcheted, and this is the one judgement call in the file. (B) supports 520
@@ -196,10 +200,31 @@ const VIEWPORT = { width: 1440, height: 900 }
  *    fifth needs 922px. Compact fits 5, so this is the number with the most
  *    headroom and the least urgency.
  */
+/*
+ * The floors, and why two of them came DOWN from where this file first set them.
+ *
+ * `/platform/estate` was 10 and `/platform/security` was 4. Both red CI at 9 and 3
+ * while passing here, and the cause is written a few paragraphs below in this
+ * file's own words: "CI is Linux/FreeType and this was measured on
+ * Windows/DirectWrite, a difference `layout.spec.ts` has already been bitten by."
+ * That hazard was anticipated for the chrome CEILINGS, which were given 22px of
+ * margin for exactly this reason, and then not applied to the row COUNTS.
+ *
+ * There is a second reason, and it is the sharper one. The run summary reads
+ * `/platform/estate: 9 → 10 rows/fold` — 9 comfortable, 10 compact. The floor was
+ * set to 10, the compact figure, and is asserted against the COMFORTABLE render.
+ * It happened to hold on this machine because a font-metric difference bought a
+ * row; it is off by one density everywhere else.
+ *
+ * So: 9 and 3, which is what the comfortable density actually affords on both
+ * platforms. Still a ratchet — a regression in the row scale drops these — and
+ * `compact affords at least as many as comfortable` is asserted separately, which
+ * is where the 10 and the 4 are now checked rather than assumed.
+ */
 const ROWS_PER_FOLD: Record<string, number> = {
-  "/platform/estate": 10,
+  "/platform/estate": 9,
   "/tenants": 3,
-  "/platform/security": 4,
+  "/platform/security": 3,
 }
 
 /**
