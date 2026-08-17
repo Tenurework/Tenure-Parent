@@ -67,8 +67,30 @@ test.describe("search", () => {
     await page.goto(`/search?q=${secret}`)
     await expect(page.getByText("No results")).toBeVisible()
 
-    // Isaiah (shadow president) finds it — the seat's memory is his
+    /*
+     * Isaiah is the SHADOW president — the incoming holder — and he must NOT find
+     * this one. That is a reversal of what this test asserted before, and the
+     * reversal is the point of HCM-040-003.
+     *
+     * It used to read "Isaiah (shadow president) finds it — the seat's memory is
+     * his", because `canSeeMemoryCard` admitted a role row with status ACTIVE **or
+     * SHADOW**. So an incoming officer inherited the seat's CREDENTIAL cards on the
+     * day the handoff opened — the bank portal login, in this very fixture. What a
+     * successor should get is a credential REISSUED to them, not the outgoing
+     * holder's copy of it, and the difference is the whole requirement.
+     *
+     * The card is still the seat's, and it is still searchable — by the person who
+     * holds the seat now and by the person who wrote it. What changed is that
+     * "will hold this seat" stopped meaning "may read its secrets already".
+     */
     await signIn(page, "Isaiah Brooks")
+    await page.goto(`/search?q=${secret}`)
+    await expect(page.getByText("No results")).toBeVisible()
+
+    // And Priya, who wrote it, still finds it. Withholding a card from its own
+    // author protects nobody — she typed the secret — and without this the
+    // tightening above would silently delete her work from her own search.
+    await signIn(page, "Priya Raman")
     await page.goto(`/search?q=${secret}`)
     await expect(page.getByText(`Bank portal ${secret}`)).toBeVisible()
   })
