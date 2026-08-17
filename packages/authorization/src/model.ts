@@ -100,6 +100,34 @@ export interface Delegation {
   permissions?: readonly string[]
   effectiveFrom: ISODate
   effectiveTo?: ISODate | null
+  /**
+   * GE-053-003 — where the borrowed authority applies.
+   *
+   * Absent means "wherever the delegator's own grants reach", which is the
+   * intersection rule doing its job. Present narrows it further, and can only
+   * narrow: the delegate still needs the delegator to hold the permission at a
+   * scope covering the resource, so a delegation scoped to a unit the delegator
+   * has no authority in confers nothing.
+   *
+   * This exists because "cannot exceed source scope" and "is bounded to one
+   * unit" are different guarantees. A department head covering for a director
+   * for a fortnight should be able to be given the one division they are
+   * covering, not the whole company the director runs — and before this field
+   * there was no way to write that down, so every delegation was as wide as its
+   * source.
+   */
+  scope?: GrantScope
+  /**
+   * GE-053-003 — the specific resources it applies to, by `ResourceRef.id`.
+   *
+   * Absent means any resource the scope above covers. Present is the tightest
+   * bound the model has: a delegation to decide *this* request and nothing else,
+   * which is what a recusal hand-off actually is.
+   *
+   * A request with no resource can never satisfy this. "We could not tell which
+   * resource" is not "the one that was delegated".
+   */
+  resourceIds?: readonly string[]
 }
 
 /** Attributes a condition can read. Deliberately plain data. */
@@ -194,6 +222,26 @@ export const DENY_REASONS = [
   "SEPARATION_OF_DUTIES",
   "DELEGATION_NOT_EFFECTIVE",
   "ASSURANCE_TOO_LOW",
+  /**
+   * GE-053-003. An effective delegation would have conferred it, and the
+   * permission is one the catalog declares non-delegable. Distinct from
+   * NO_ROLE_GRANTING because the answer support has to give is different: the
+   * delegation is real and the authority is not borrowable.
+   */
+  "DELEGATION_NOT_PERMITTED",
+  /**
+   * GE-053-003. The delegation itself is narrower than the authority behind it
+   * — a different unit, or a different resource. Distinct from OUT_OF_SCOPE,
+   * which is about the delegator's own reach.
+   */
+  "DELEGATION_OUT_OF_SCOPE",
+  /**
+   * GE-053-001. A deny policy could not be evaluated — its condition threw, or
+   * answered with something that is not a boolean. "We could not look" is not
+   * "we looked and found nothing", and a policy engine that cannot tell the two
+   * apart allows whatever it failed to check.
+   */
+  "POLICY_INDETERMINATE",
 ] as const
 
 export type DenyReason = (typeof DENY_REASONS)[number]

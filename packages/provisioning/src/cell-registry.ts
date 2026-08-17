@@ -453,18 +453,34 @@ function recommendationFor(input: {
  * successes as well as refusals, because a recommendation that only appears
  * after a refusal appears too late to act on.
  */
+/**
+ * Whether this cell may legally hold a tenant with these allowed regions.
+ *
+ * Extracted from `choosePlacement` so the placement policy's `allowed-regions`
+ * gate (GE-101-001) asks the same question with the same code. A second copy of
+ * a residency predicate is the defect worth avoiding here: two implementations
+ * that disagree by one operator disagree about where a tenant's data may live,
+ * and only one of them is the one placement actually used.
+ *
+ * An empty `allowedRegions` is false, never "anywhere". A tenant that has
+ * declared no residency has not declared that every region is acceptable.
+ */
+export function cellHoldsResidency(
+  cell: CellRecord,
+  allowedRegions: readonly string[],
+): boolean {
+  // The cell's region must be among the tenant's allowed regions — that is the
+  // real test, because the tenant's data ends up in the cell's region — and the
+  // cell must itself be permitted to hold data in the region it runs in.
+  return allowedRegions.includes(cell.region) && cell.residencyZones.includes(cell.region)
+}
+
 export function choosePlacement(
   cells: readonly CellRecord[],
   tenant: { residency: readonly string[]; environment: CellRecord["environment"] },
 ): PlacementDecision {
   const inResidency = cells.filter(
-    (c) =>
-      c.environment === tenant.environment &&
-      // Every region the tenant is allowed in must be one this cell may hold,
-      // OR the cell's region must be among the tenant's allowed regions. The
-      // second is the real test: the tenant's data ends up in the cell's region.
-      tenant.residency.includes(c.region) &&
-      c.residencyZones.includes(c.region),
+    (c) => c.environment === tenant.environment && cellHoldsResidency(c, tenant.residency),
   )
 
   const healthy = inResidency.filter((c) => PLACEABLE.has(c.health))

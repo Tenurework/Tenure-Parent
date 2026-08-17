@@ -266,9 +266,16 @@ export function FinanceDashboard({
                           formatCents(projCents)
                         )}
                       </td>
+                      {/* GE-143-012: financial polarity is a protected meaning,
+                          so the positive side is --success-text rather than the
+                          brand accent. It was the accent, and an institution
+                          whose accent is a maroon therefore shipped a table
+                          where under budget and over budget were both red — a
+                          sign error the contrast gate cannot see, because both
+                          colours pass it. */}
                       <td
                         className={`px-3 py-2.5 text-right ${
-                          variance < 0 ? "text-[--error]" : "text-[--primary]"
+                          variance < 0 ? "text-[--error]" : "text-[--success-text]"
                         }`}
                       >
                         {variance < 0 ? "-" : ""}
@@ -435,8 +442,10 @@ function SummaryCard({
   tone?: "neutral" | "good" | "bad"
   icon?: IconType
 }) {
+  // GE-143-012, same reason as the variance column: `good` and `bad` are a
+  // polarity, so both sides come from the status palette a tenant cannot set.
   const color =
-    tone === "good" ? "text-[--primary]" : tone === "bad" ? "text-[--error]" : "text-text-1"
+    tone === "good" ? "text-[--success-text]" : tone === "bad" ? "text-[--error]" : "text-text-1"
   return (
     <Card>
       <div className="flex items-center justify-between">

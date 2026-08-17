@@ -74,7 +74,7 @@ interface Message {
   /** Matching rows an answer may not rest on, with the state that disqualified each. */
   withheld?: Withheld[]
   aiEnabled?: boolean
-  /** Which of the five refusal/answer outcomes produced this turn. */
+  /** Which of the six refusal/answer outcomes produced this turn. */
   outcome?: RelayOutcome
   /** The question this turn was answering, kept so a refusal can resume it. */
   askedAbout?: string

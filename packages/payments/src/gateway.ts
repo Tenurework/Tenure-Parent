@@ -1,5 +1,13 @@
 import { PROVIDER_MODES } from "./api-version"
 import type { ProviderMode } from "./external-reference"
+import {
+  APPROVED_DISCLOSURE_PHRASE,
+  PROHIBITED_CLAIM_RULES,
+  describeFinding,
+  scanProhibitedClaims,
+  type ProhibitedClaimFinding,
+  type ProhibitedClaimRule,
+} from "./prohibited-claims"
 import { classifyRequest, type RefusalDecision } from "./refusal"
 import {
   partyFor,
@@ -17,6 +25,24 @@ export {
   type RefusalDecision,
   type ResponsibilityConfig,
   type ResponsibilityParty,
+}
+
+/**
+ * PAY-000-004 — re-exported here, on the CLIENT-SAFE subpath, deliberately.
+ *
+ * The two surfaces that have to run the rules at request time are a merchant
+ * disclosure (below) and a Relay reply (`apps/web/src/components/ai/relay-reply.ts`),
+ * and the second is a client module. The rules are pure — no filesystem, no
+ * crypto — so they belong on this side of the split rather than behind the
+ * package root, which reaches `node:fs` through the capability registry.
+ */
+export {
+  APPROVED_DISCLOSURE_PHRASE,
+  PROHIBITED_CLAIM_RULES,
+  describeFinding,
+  scanProhibitedClaims,
+  type ProhibitedClaimFinding,
+  type ProhibitedClaimRule,
 }
 
 /**
@@ -122,6 +148,29 @@ export function describeMerchant(input: MerchantDescriptorInput): MerchantDescri
                 ? " Processing fees are passed to the payer."
                 : ` Processing fees are borne by the ${feePayer.toLowerCase()}.`)
         : `${merchantOfRecord} is recorded as the seller for this payment.`
+
+  // PAY-000-004. The sentence is generated, and one of its inputs is not:
+  // `legalName` is whatever the tenant registered. A club whose registered legal
+  // name happens to contain one of Bible §2's forbidden phrases would have this
+  // surface print it on a receipt, from data, with no code change anybody could
+  // review. So the generated sentence is scanned before it is returned, and a
+  // finding becomes a blocker and REPLACES the disclosure — not a warning
+  // alongside it, because a warning beside the wrong sentence still ships the
+  // wrong sentence.
+  const claims = scanProhibitedClaims(disclosure)
+  if (claims.length > 0) {
+    for (const finding of claims) blockers.push(`prohibited-claim-${describeFinding(finding)}`)
+    return {
+      legalName: input.legalName,
+      statementDescriptor: descriptor,
+      merchantOfRecord,
+      disclosure:
+        `No merchant disclosure can be shown for this payment: the generated sentence contains ` +
+        `product copy Bible §2 prohibits (${claims.map((f) => f.ruleId).join(", ")}). ` +
+        `Where a disclosure is required the approved phrasing is "${APPROVED_DISCLOSURE_PHRASE}".`,
+      blockers,
+    }
+  }
 
   return {
     legalName: input.legalName,

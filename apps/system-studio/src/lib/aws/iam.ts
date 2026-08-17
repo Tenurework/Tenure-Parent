@@ -568,6 +568,25 @@ export interface IamPrincipal {
   attachedPolicies: readonly AttachedPolicyRef[]
   inlinePolicyNames: readonly string[]
   hasPermissionsBoundary: boolean
+  /**
+   * WHICH boundary, not merely whether there is one.
+   *
+   * `hasPermissionsBoundary` answers a different question and both are needed:
+   * STUDIO-010-005 declares a specific boundary per control-plane role, and "a
+   * boundary is attached" is satisfied by the wrong boundary. Null means none is
+   * attached — the same fact the boolean carries as `false`, kept as a separate
+   * field rather than a second source of truth because a reconciliation that
+   * compares names needs the name.
+   */
+  permissionsBoundaryArn: string | null
+  /**
+   * The trust policy — who may assume this role, and under what conditions.
+   *
+   * `null` for a user: a user is signed into, not assumed, and there is no
+   * document to report as unreadable. `GetAccountAuthorizationDetails` already
+   * returns this for every role, so surfacing it costs no call and no grant.
+   */
+  assumeRolePolicy: PolicyDocumentRead | null
   wildcards: readonly IamWildcard[]
   /** Roles only. Null means AWS reports no use in its tracking period. */
   lastUsedAt: string | null
@@ -820,6 +839,8 @@ async function collect(
       })),
       inlinePolicyNames: (detail.RolePolicyList ?? []).map((p) => p.PolicyName ?? "(unnamed)"),
       hasPermissionsBoundary: Boolean(detail.PermissionsBoundary?.PermissionsBoundaryArn),
+      permissionsBoundaryArn: detail.PermissionsBoundary?.PermissionsBoundaryArn ?? null,
+      assumeRolePolicy: decodePolicyDocument(detail.AssumeRolePolicyDocument),
       wildcards: found.wildcards,
       lastUsedAt: isoOf(detail.RoleLastUsed?.LastUsedDate),
       accessKeys: null,
@@ -896,6 +917,10 @@ async function collect(
       })),
       inlinePolicyNames: (detail.UserPolicyList ?? []).map((p) => p.PolicyName ?? "(unnamed)"),
       hasPermissionsBoundary: Boolean(detail.PermissionsBoundary?.PermissionsBoundaryArn),
+      permissionsBoundaryArn: detail.PermissionsBoundary?.PermissionsBoundaryArn ?? null,
+      // A user is signed into, not assumed. Null rather than UNREADABLE: there
+      // is no document, which is not the same as one that would not parse.
+      assumeRolePolicy: null,
       wildcards: found.wildcards,
       lastUsedAt: null,
       accessKeys: keys,

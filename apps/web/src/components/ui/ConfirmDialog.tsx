@@ -10,7 +10,9 @@ import {
 import { useFormStatus } from "react-dom"
 import { Loader2 } from "@/components/ui/icons"
 import { Button, type ButtonProps } from "@/components/ui/Button"
+import { DestructivePreviewPanel } from "@/components/ui/DestructivePreview"
 import { Overlay } from "@/components/ui/Overlay"
+import type { DestructivePreview } from "@/components/ui/destructive-preview"
 
 /**
  * The product-wide confirmation primitive for destructive / consequential
@@ -46,6 +48,14 @@ export interface ConfirmDialogProps {
   requireText?: string
   /** Optional slot to show what will happen / the blast radius. */
   details?: ReactNode
+  /**
+   * GE-143-025 — the standardized blast radius: nine disclosures in one shape,
+   * rendered identically wherever a destructive or cross-organization action is
+   * confirmed. Prefer this over `details`, which is free prose a caller writes
+   * and nothing can check. Both may be supplied while surfaces migrate;
+   * `destructive-preview.ts` carries the register of the ones that have not.
+   */
+  preview?: DestructivePreview
   onConfirm: () => void
   busy?: boolean
 }
@@ -60,6 +70,7 @@ export function ConfirmDialog({
   variant = "default",
   requireText,
   details,
+  preview,
   onConfirm,
   busy = false,
 }: ConfirmDialogProps) {
@@ -108,6 +119,8 @@ export function ConfirmDialog({
     >
       <div className="space-y-4">
         <div className="text-sm leading-relaxed text-text-2">{description}</div>
+
+        {preview && <DestructivePreviewPanel preview={preview} />}
 
         {details && (
           <div className="rounded-md border border-border bg-base px-4 py-3 text-[13px] leading-relaxed text-text-2">
@@ -160,6 +173,8 @@ export interface ConfirmSubmitProps {
   variant?: ConfirmVariant
   requireText?: string
   details?: ReactNode
+  /** GE-143-025 — the standardized blast radius. See ConfirmDialogProps. */
+  preview?: DestructivePreview
 
   // Trigger. Provide `triggerClassName` for a bare styled <button> (to match a
   // bespoke row control) or omit it to render the shared Button.
@@ -193,6 +208,7 @@ export function ConfirmSubmit({
   variant = "danger",
   requireText,
   details,
+  preview,
   children,
   triggerClassName,
   triggerVariant = "destructive",
@@ -279,6 +295,7 @@ export function ConfirmSubmit({
         variant={variant}
         requireText={requireText}
         details={details}
+        preview={preview}
         onConfirm={handleConfirm}
         busy={busy}
       />

@@ -153,6 +153,7 @@ export {
   DEFAULT_WARN_FRACTION,
   admissionLimit,
   cellHeadroom,
+  cellHoldsResidency,
   cellReserve,
   choosePlacement,
   isCellHot,
@@ -338,3 +339,60 @@ export {
   type PoolStrategyConfig,
   type PoolTenant,
 } from "./pool-strategy"
+
+/**
+ * GE-101-001 / GE-101-002 / GE-101-003. The placement policy — the eleven axes
+ * the Bible names, the five shapes behind one contract, and the override that
+ * may not waive a boundary or a gate nobody could check.
+ *
+ * Exported beside `choosePlacement` because they are two halves of one
+ * decision: the policy says which cells a contract permits, `choosePlacement`
+ * picks one of those and owns the capacity refusal. A caller reaching for one
+ * without the other places a tenant on unchecked ground or reports "policy
+ * refused" where "the cells are full" is the sentence an operator can act on.
+ */
+export {
+  GATES_ENFORCED_BY_ADMISSION,
+  OVERRIDABLE_GATES,
+  PLACEMENT_GATES,
+  PLACEMENT_POLICY_VERSION,
+  evaluateCell,
+  evaluatePlacementPolicy,
+  explain,
+  placementConfigVersion,
+} from "./placement-policy"
+export type {
+  AppliedOverride,
+  CellPlacementFacts,
+  CellPolicyEvaluation,
+  GateResult,
+  GateVerdict,
+  PlacementGate,
+  PlacementPolicyDecision,
+  PlacementRequest,
+  PolicyInput,
+} from "./placement-policy"
+
+export {
+  PLACEMENT_ADAPTERS,
+  PLACEMENT_ADAPTER_TABLE,
+  PLACEMENT_RESOURCES,
+  adapterFor,
+} from "./placement-adapters"
+export type {
+  AdapterSelection,
+  PlacementAdapter,
+  PlacementAdapterId,
+  PlacementResource,
+  PlannedResource,
+  ResourceSharing,
+} from "./placement-adapters"
+
+export {
+  MIN_OVERRIDE_REASON,
+  OVERRIDE_CHANGE_CLASS,
+  OverrideRefused,
+  applyOverride,
+  overrideProblems,
+} from "./placement-override"
+export type { OverrideApproval, OverrideProblem, OverrideRefusal, OverrideRequest } from "./placement-override"

@@ -230,6 +230,14 @@ resource "aws_iam_role_policy" "studio_estate_read" {
         Action = [
           "organizations:DescribeOrganization",
           "organizations:ListAccounts",
+          # STUDIO-010-003. An account list cannot say whether an account is
+          # governed: a service control policy is attached to an ORGANIZATIONAL
+          # UNIT and inherited by everything under it, so the unit an account
+          # sits in is the guardrail set it has. All three are List actions on an
+          # account-scoped API with no resource-level permissions.
+          "organizations:ListRoots",
+          "organizations:ListOrganizationalUnitsForParent",
+          "organizations:ListPoliciesForTarget",
           "cloudtrail:DescribeTrails",
           "cloudtrail:LookupEvents",
           "config:DescribeConfigurationAggregators",

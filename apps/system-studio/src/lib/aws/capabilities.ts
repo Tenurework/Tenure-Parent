@@ -545,6 +545,27 @@ export const CAPABILITIES = {
     surface: "organization",
     reads: "every account in the organization, to reconcile against the declared topology",
   },
+  "organizations:ListRoots": {
+    iamActions: ["organizations:ListRoots"],
+    resource: "*",
+    refreshMs: ORGANIZATION_REFRESH_MS,
+    surface: "organization",
+    reads: "the Organization root every organizational unit hangs from",
+  },
+  "organizations:ListOrganizationalUnitsForParent": {
+    iamActions: ["organizations:ListOrganizationalUnitsForParent"],
+    resource: "*",
+    refreshMs: ORGANIZATION_REFRESH_MS,
+    surface: "organization",
+    reads: "the organizational units that actually exist, and which parent each hangs from — the parent is what decides the guardrails it inherits",
+  },
+  "organizations:ListPoliciesForTarget": {
+    iamActions: ["organizations:ListPoliciesForTarget"],
+    resource: "*",
+    refreshMs: ORGANIZATION_REFRESH_MS,
+    surface: "organization",
+    reads: "the service control policies attached at an organizational unit, so a declared guardrail can be told from an assumed one",
+  },
   "tag:GetResources": {
     iamActions: ["tag:GetResources"],
     resource: "*",

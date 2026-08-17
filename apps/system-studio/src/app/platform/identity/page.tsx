@@ -22,6 +22,11 @@ import {
   describePasswordPolicy,
   type OperatorReading,
 } from "@/lib/aws/cognito"
+import {
+  reconcileDeploymentRoles,
+  roleSummary,
+  type RoleVerdict,
+} from "@/lib/aws/deployment-roles"
 import { iamPosture, type IamAccessKey, type IamWildcard } from "@/lib/aws/iam"
 import {
   describeKeyAttribution,
@@ -166,6 +171,16 @@ export default async function IdentityPage() {
 
   const identity = cognito.identity
   const known = identity.state === "ACTUAL" || identity.state === "STALE" ? identity.value : null
+
+  /*
+   * STUDIO-010-005. The eight roles this control plane's authority is split
+   * across, against the roles the account actually holds. Reconciled from the
+   * IAM read already taken above — no second call, no second grant — because
+   * the question "does a separate deploy-production role exist, and is it capped
+   * by a boundary" is answered by the same sweep that finds a wildcard.
+   */
+  const controlPlaneRoles = reconcileDeploymentRoles({ posture: iam.read })
+  const roleRollup = roleSummary(controlPlaneRoles)
 
   const admins = administratorCount(cognito, iam)
   const guards = allGuards({ cognito, iam, analyzer, keys: kms, secrets })
@@ -377,6 +392,86 @@ export default async function IdentityPage() {
   ]
 
   /** One wildcard grant, worst kind first. */
+  const controlPlaneRoleColumns: readonly DataColumn<RoleVerdict>[] = [
+    {
+      key: "role",
+      header: "Control-plane role",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <span className={styles.identifier}>{row.role.roleName}</span>
+          <span className="md3-body-small">
+            {row.role.environment === "none" ? "reads only" : `may act on ${row.role.environment}`} ·{" "}
+            {row.role.maxSessionSeconds / 60} minute sessions ·{" "}
+            {row.role.requiresMfa ? "second factor required" : "no second factor required"}
+          </span>
+          <span className="md3-body-small">{row.role.purpose}</span>
+        </div>
+      ),
+    },
+    {
+      key: "presence",
+      header: "In this account",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <Badge tone={row.presence.state === "PRESENT" ? "info" : "warn"}>
+            {row.presence.state.toLowerCase()}
+          </Badge>
+          {row.presence.state === "UNREAD" && roleRollup.unread !== controlPlaneRoles.length ? (
+            <span className="md3-body-small">{row.presence.because}</span>
+          ) : null}
+          {row.wildcards > 0 ? (
+            <span className="md3-body-small">
+              {row.wildcards} wildcard statement{row.wildcards === 1 ? "" : "s"} on its own policies
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: "boundary",
+      header: "Permissions boundary",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <span className="md3-body-medium">
+            {row.boundary.state === "DECLARED_BOUNDARY"
+              ? row.role.permissionsBoundary
+              : row.boundary.state === "OTHER_BOUNDARY"
+                ? `capped by something else — ${row.boundary.arn}`
+                : row.boundary.state === "NO_BOUNDARY"
+                  ? "nothing caps this role"
+                  : `not read — ${row.boundary.because}`}
+          </span>
+          <span className="md3-body-small">declared: {row.role.permissionsBoundary}</span>
+        </div>
+      ),
+    },
+    {
+      key: "session",
+      header: "Session tags and trust",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <span className="md3-body-medium">{row.role.sessionTags.join(", ")}</span>
+          <span className="md3-body-small">
+            {row.sessionTags.state === "CANNOT_BE_TAGGED"
+              ? `cannot be tagged — ${row.sessionTags.because}`
+              : row.sessionTags.state === "KEYS_UNVERIFIABLE"
+                ? "tagging is permitted; which keys are demanded is not readable from this call"
+                : `not read — ${row.sessionTags.because}`}
+          </span>
+          <span className="md3-body-small">
+            {row.trust.state === "TRUSTS_EVERYONE"
+              ? "its trust policy names * as a principal"
+              : row.trust.state === "UNCONDITIONAL"
+                ? "assumable with no condition on the statement"
+                : row.trust.state === "CONDITIONED"
+                  ? `trusted principals: ${row.trust.principals.join(", ") || "none named"}`
+                  : `trust not read — ${row.trust.because}`}
+          </span>
+        </div>
+      ),
+    },
+  ]
+
   const wildcardColumns: readonly DataColumn<IamWildcard>[] = [
     {
       key: "kind",
@@ -1085,6 +1180,39 @@ export default async function IdentityPage() {
             />
           }
         />
+      </Card>
+
+      {/* 7b — STUDIO-010-005: the split of AWS authority this console declares. */}
+      <Card
+        headline="How AWS authority is split"
+        id="control-plane-roles"
+        headerAside={
+          <Badge
+            tone={roleRollup.present === controlPlaneRoles.length ? "info" : "warn"}
+            title="The declared control-plane roles, against the roles this account holds"
+          >
+            {controlPlaneRoles.length} declared roles
+          </Badge>
+        }
+        supportingText="One role that can read the estate, plan a change and apply it to production is one credential whose theft is the whole platform. These eight are the split, each capped by a permissions boundary and each demanding session tags, so an action is attributable to a change and a person rather than to a role forty jobs share."
+      >
+        <div className={styles.stack}>
+          <p className="md3-body-medium" data-testid="control-plane-role-summary">
+            {roleRollup.headline}
+          </p>
+          <DataTable
+            caption="Declared control-plane roles, their boundaries, their session tags and who may assume them"
+            columns={controlPlaneRoleColumns}
+            rows={controlPlaneRoles}
+            rowKey={(row) => row.role.key}
+            empty={
+              <EmptyState
+                headline="No control-plane role is declared"
+                description="This build declares no split of AWS authority, so there is nothing for a live IAM read to be reconciled against."
+              />
+            }
+          />
+        </div>
       </Card>
 
       {/* 8 — the provenance. */}

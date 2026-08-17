@@ -284,6 +284,8 @@ const principal = (over: Partial<IamPrincipal> = {}): IamPrincipal => ({
   attachedPolicies: [],
   inlinePolicyNames: [],
   hasPermissionsBoundary: false,
+  permissionsBoundaryArn: null,
+  assumeRolePolicy: null,
   wildcards: [],
   lastUsedAt: null,
   accessKeys: null,

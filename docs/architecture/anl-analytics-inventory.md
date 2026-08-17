@@ -133,6 +133,7 @@ therefore "whatever the caller passes".
 | `apps/web/src/components/charts/index.ts` | `presentation` | The kit's public surface. Inline SVG only; no chart library. |
 | `apps/web/src/components/charts/ChartFrame.tsx` | `presentation` | The shared frame: title, question, source, as-of, unit, filters, accessible table, CSV. |
 | `apps/web/src/components/charts/chart-table.ts` | `presentation` | The table and the CSV behind a chart, built from the same values the mark is handed. |
+| `apps/web/src/components/charts/chart-integrity.ts` | `presentation` | GE-143-033's prohibition register and the scale disclosure a truncated-axis mark has to say out loud. Reads no data: it takes the values a mark was already handed and returns the sentence about the scale that mark drew. |
 | `apps/web/src/components/charts/ChartEmpty.tsx` | `presentation` | The empty state a mark falls back to. |
 | `apps/web/src/components/charts/ChartLegend.tsx` | `presentation` | Legend, present whenever a chart carries two or more series. |
 | `apps/web/src/components/charts/ChartTooltip.tsx` | `presentation` | The one floating tooltip every mark uses. |

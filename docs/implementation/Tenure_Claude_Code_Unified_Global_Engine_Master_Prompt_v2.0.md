@@ -356,13 +356,13 @@ Use this evidence shape:
 
 ### GE-053: Authorization tests
 
-- [ ] GE-053-001 — Unknown action/resource/condition denies by default.
+- [x] GE-053-001 — Unknown action/resource/condition denies by default.
 - [ ] GE-053-002 — Assignment effective boundaries, title/org changes, vacancy, former/alumni, and historical no-authority behavior pass.
-- [ ] GE-053-003 — Delegation cannot exceed source authority, scope, time, resource, action, or non-delegable rules.
+- [x] GE-053-003 — Delegation cannot exceed source authority, scope, time, resource, action, or non-delegable rules.
 - [ ] GE-053-004 — Multi-seat and multi-tenant authority remains isolated; switching context rotates/revalidates session.
 - [ ] GE-053-005 — Terminology changes do not change semantic permission behavior.
 - [ ] GE-053-006 — Membership/assignment/policy/delegation revocation invalidates access and caches immediately.
-- [ ] GE-053-007 — Tenant A/B cross-tenant tests deny every organization/seat/membership/delegation/policy path.
+- [x] GE-053-007 — Tenant A/B cross-tenant tests deny every organization/seat/membership/delegation/policy path.
 
 ### Phase 5 gate
 
@@ -655,8 +655,8 @@ Use this evidence shape:
 
 ### GE-101: Placement engine
 
-- [ ] GE-101-001 — Implement policy evaluation for partition, allowed regions, latency, classification, regulation/contract, isolation tier, service/model availability, capacity, KMS, DR, and cost.
-- [ ] GE-101-002 — Implement pooled, bridge, silo, dedicated Tenure account, and regional/sovereign placement adapters behind one contract.
+- [x] GE-101-001 — Implement policy evaluation for partition, allowed regions, latency, classification, regulation/contract, isolation tier, service/model availability, capacity, KMS, DR, and cost.
+- [x] GE-101-002 — Implement pooled, bridge, silo, dedicated Tenure account, and regional/sovereign placement adapters behind one contract.
 - [ ] GE-101-003 — Emit explainable placement decision with policy/config version and approved operator override workflow.
 - [x] GE-101-004 — Implement cell capacity admission, quota thresholds, shard/new-cell/account-vend recommendations, and onboarding block before exhaustion.
 

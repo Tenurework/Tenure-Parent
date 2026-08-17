@@ -20,6 +20,11 @@ import { irreversibleEntries, resourceChangeDiff } from "@/lib/aws/drift"
 import { identityHeadline } from "@/lib/aws/identity"
 import { estateInventory, estateLines, type EstateResource } from "@/lib/aws/inventory"
 import { centralizationPosture, type PostureRow } from "@/lib/aws/posture"
+import {
+  organizationalUnitSurface,
+  unitSummary,
+  type UnitVerdict,
+} from "@/lib/aws/organization-units"
 import { reconcileTopology, type TopologyVerdict } from "@/lib/aws/topology"
 import { describeRead } from "@/lib/aws/read"
 import { seedValue } from "@/lib/aws/refresh"
@@ -203,6 +208,16 @@ export default async function EstatePage() {
         : undefined,
   })
   const topologyRollup = topologySummary(topology)
+
+  /*
+   * STUDIO-010-003. The account list above says which accounts exist; this says
+   * whether they are GOVERNED. A service control policy is attached to an
+   * organizational unit and inherited by everything under it, so the unit an
+   * account sits in is the guardrail set it has — and a unit under the wrong
+   * parent inherits the wrong one while looking, in a list of names, correct.
+   */
+  const { verdicts: units } = await organizationalUnitSurface()
+  const unitRollup = unitSummary(units)
 
   const link =
     mayOpenConsole && partition && region
@@ -426,6 +441,74 @@ export default async function EstatePage() {
       },
     },
     { key: "purpose", header: "Purpose", cell: (row) => row.role.purpose },
+  ]
+
+  const unitColumns: readonly DataColumn<UnitVerdict>[] = [
+    {
+      key: "unit",
+      header: "Organizational unit",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <span className={styles.identifier}>{row.unit.name}</span>
+          <span className="md3-body-small">
+            {row.unit.parent === null ? "under the Organization root" : `under ${row.unit.parent}`}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "presence",
+      header: "Verdict",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <Badge
+            tone={
+              row.presence.state === "PRESENT"
+                ? "info"
+                : row.presence.state === "UNREAD"
+                  ? "warn"
+                  : "warn"
+            }
+            title="Whether the declared unit exists, and whether it is where the hierarchy puts it"
+          >
+            {row.presence.state.toLowerCase()}
+          </Badge>
+          {/* The reason, printed per row only when the rows do not all share
+              one — when every row is unread the card says it once, above. */}
+          {row.presence.state === "UNREAD" && unitRollup.unread !== units.length ? (
+            <span className="md3-body-small">{row.presence.because}</span>
+          ) : null}
+          {row.presence.state === "MISPLACED" ? (
+            <span className="md3-body-small">
+              found under {row.presence.observedParentId}, declared under{" "}
+              {row.presence.expectedParentId || "a unit that does not exist either"} — it therefore
+              inherits a different guardrail set from the declared one
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: "guardrails",
+      header: "Inherited guardrails",
+      cell: (row) => (
+        <div className={styles.cell}>
+          <span className="md3-body-medium">
+            {row.effective.length} in force · {row.deniedActions} actions denied
+          </span>
+          <span className="md3-body-small">
+            {row.effective.map((guardrail) => guardrail.id).join(", ")}
+          </span>
+          <span className="md3-body-small">
+            {row.guardrails.state === "ATTACHED"
+              ? `attached here: ${row.guardrails.policies.join(", ")}`
+              : row.guardrails.state === "NONE_ATTACHED"
+                ? "nothing attached at this unit — everything above is inherited"
+                : `attachments not read — ${row.guardrails.because}`}
+          </span>
+        </div>
+      ),
+    },
   ]
 
   const refusedColumns: readonly DataColumn<(typeof refused)[number]>[] = [
@@ -1000,6 +1083,39 @@ export default async function EstatePage() {
               <EmptyState
                 headline="No account role is declared"
                 description="This build declares no account topology, so there is nothing for a live Organization read to be reconciled against."
+              />
+            }
+          />
+        </div>
+      </Card>
+
+      {/* ── Organizational units and inherited guardrails ─────────────── */}
+      <Card
+        headline="Organizational units and inherited guardrails"
+        id="organizational-units"
+        headerAside={
+          <Badge
+            tone={unitRollup.present === units.length ? "info" : "warn"}
+            title="The declared unit hierarchy, against the units that actually exist"
+          >
+            {units.length} declared units
+          </Badge>
+        }
+        supportingText="A service control policy is attached to an organizational unit and inherited by everything under it, so the unit an account sits in is the guardrail set it has. An account list cannot show that, and a unit under the wrong parent inherits the wrong guardrails while reading, in a list of names, as correct."
+      >
+        <div className={styles.stack}>
+          <p className="md3-body-medium" data-testid="organizational-unit-summary">
+            {unitRollup.headline}
+          </p>
+          <DataTable
+            caption="Declared organizational units, where each one belongs, and the guardrails in force at it"
+            columns={unitColumns}
+            rows={units}
+            rowKey={(row) => row.unit.key}
+            empty={
+              <EmptyState
+                headline="No organizational unit is declared"
+                description="This build declares no unit hierarchy, so there is nothing for a live Organization read to be reconciled against."
               />
             }
           />

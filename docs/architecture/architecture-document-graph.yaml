@@ -6,13 +6,13 @@
 # duplicate upload cannot double-count the requirements it states.
 
 generated_from: tools/document-graph.mjs
-document_count: 51
+document_count: 52
 alias_count: 6
 requirement_statements: 3850
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
 authorities: 21
-references: 30
+references: 31
 documents:
   - id: "anl-analytics-inventory"
     title: "Analytics inventory — every dashboard, report, chart and client-side metric"
@@ -22,14 +22,15 @@ documents:
     family: "anl-analytics-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "136c74d71b86631d3ee7382fd176123ed8fbc906f0d0dcf9c197b371d5649862"
-    bytes: 19060
+    sha256: "3b71f09dbce3e1ed8fc722ec27b6700099a2302177d81f4bec5d938d7d81bd22"
+    bytes: 19355
     aliases: []
     requirement_prefixes:
       - ANL
+      - GE
       - PAY
     states_requirements: 0
-    mentions_requirement_ids: 6
+    mentions_requirement_ids: 7
   - id: "anl-analytics-limitations"
     title: Analytics limitations and blocked sources — what the numbers cannot do
     version: unversioned
@@ -140,13 +141,14 @@ documents:
     family: "fin-finance-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: f1edffcf4600f425d9c41e506395da773d048201c7420bf4a32e02a3875f37d2
-    bytes: 22048
+    sha256: "159c6051b1a38e08b93b77b6734a7eea96a1ec03cf646340c05e049e0ec1e217"
+    bytes: 25146
     aliases: []
     requirement_prefixes:
       - FIN
+      - PAY
     states_requirements: 0
-    mentions_requirement_ids: 5
+    mentions_requirement_ids: 6
   - id: "hcm-capability-matrix"
     title: "People Cloud — supported capability, jurisdiction and provider matrix"
     version: unversioned
@@ -185,8 +187,8 @@ documents:
     family: "int-connector-write-boundary"
     superseded_by: null
     supersedes: []
-    sha256: "38edf22a0eb4170b6ea44b311c9325d85514eef5f57216c8d7ac3a2be0d45ff3"
-    bytes: 6948
+    sha256: "6ea0698853deebfd16e255142fd6f6616662eea30376beef175c8d0ab45114d5"
+    bytes: 7041
     aliases: []
     requirement_prefixes: []
     states_requirements: 0
@@ -458,7 +460,7 @@ documents:
     family: Tenure_Claude_Code_Global_Engine_Execution_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: "51137868acb54699eef20bad955efcd1520db71565ca13667be1f12491a255d6"
+    sha256: d83e2fe55d2c4a79fe0adcb3653488f6e6a2e4852aad7bd8398eb717cd4842a0
     bytes: 115086
     aliases: []
     requirement_prefixes:
@@ -473,7 +475,7 @@ documents:
     family: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: "34178dba7c328492460fd65c0573c2d9acec3153c124a150fccdfe8d02e0a4ca"
+    sha256: ce2b657a1bc069d5812ac28501e476453970e1c8fc3a8ec97dba5f1a7f212363
     bytes: 162330
     aliases: []
     requirement_prefixes:
@@ -512,6 +514,21 @@ documents:
       - STUDIO
     states_requirements: 167
     mentions_requirement_ids: 167
+  - id: "bounded-contexts"
+    title: Payments bounded contexts — ownership and dependencies
+    version: unversioned
+    canonical_path: "docs/payments/bounded-contexts.md"
+    role: reference
+    family: "bounded-contexts"
+    superseded_by: null
+    supersedes: []
+    sha256: "4005d810cf50b0c1697d9c11b21d29218e49b41845a356850ac20fe7c44339ac"
+    bytes: 9477
+    aliases: []
+    requirement_prefixes:
+      - PAY
+    states_requirements: 0
+    mentions_requirement_ids: 1
   - id: "payment-authority-and-regulatory-boundary"
     title: Payment authority and regulatory boundary
     version: unversioned

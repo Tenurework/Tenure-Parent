@@ -268,6 +268,22 @@ export const CLAIM_TERMS = [
  * automatable and it is not optional.
  */
 export const CLAIM_VERDICTS = {
+  "packages/payments/src/limits.ts|legal entity": {
+    verdict: "SCOPED",
+    note: "One sentence of a doc comment on `recipientKey`, explaining that `null` means a movement between two dimensions of ONE legal entity rather than a payment to somebody. It names the boundary the null case sits inside; it does not claim this package models legal entities, and nothing here holds one. PAY-000-004.",
+  },
+  "packages/payments/src/prohibited-claims.ts|legal entity": {
+    verdict: "TRUE",
+    note: "Not a capability claim at all — it is the REASON a claim is forbidden. The rule refuses the sentence 'Tenure is the merchant of record' on the ground that the tenant's legal entity is the merchant by default (pay-adr-0001), and `describeMerchant` resolves the actual party. The code asserts the arrangement it describes and enforces it by refusing the opposite.",
+  },
+  "packages/payments/src/prohibited-claims.test.ts|legal entity": {
+    verdict: "TRUE",
+    note: "The test that proves the rule above fires, using the sentence 'Tenure is not the merchant of record; the tenant legal entity is.' Same subject, and it is exercised rather than asserted.",
+  },
+  "packages/payments/src/prohibited-claims.ts|subledger": {
+    verdict: "SCOPED",
+    note: "Used twice, both times to LIMIT what the word may be taken to mean: 'the only balance Tenure computes is an internal subledger figure' (so it must not be called the reader's balance) and 'Tenure's subledger is evidence beside the provider's records, never instead of them'. What exists underneath is real but small — `buildJournal` (posting.ts) refuses an unbalanced journal and posts against four named accounts — which is a bookkeeping mechanism, not an ERP subledger with per-entity books or a period close. SCOPED rather than TRUE because the machinery is narrower than the word, and rather than OVERSTATED because these sentences exist precisely to stop it being presented as money or as authoritative.",
+  },
   "apps/web/src/app/(app)/admin/payments/page.tsx|legal entity": {
     verdict: "SCOPED",
     note: "A column and a subtitle on the funds-flow screen. The legal entity is a FIELD on PaymentsFundsFlowConfig used to choose a charge model, not a modelled entity that owns a ledger. FIN-000-002.",

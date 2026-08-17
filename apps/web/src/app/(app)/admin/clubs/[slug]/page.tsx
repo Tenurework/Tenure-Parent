@@ -39,6 +39,11 @@ export default async function AdminClubDetailPage({
     const org = await db.organization.findUnique({
       where: { slug },
       include: {
+        // GE-143-025 — the tenant a destructive preview has to name. Selected on
+        // the query the page already makes rather than fetched separately: a
+        // preview that says "this tenant" and cannot name it is the disclosure
+        // failing, and an extra round-trip per render is not the price of it.
+        institution: { select: { name: true } },
         roles: {
           orderBy: [{ seat: { seatOrder: "asc" } }, { scope: "asc" }],
           include: {
@@ -162,6 +167,62 @@ export default async function AdminClubDetailPage({
                         title={`Delete the ${role.name} seat?`}
                         description={`This permanently removes the ${role.name} seat from ${org.name}. It carries no assignments, holders, or memory, so no history is lost — but the seat and its position ID are gone for good and can't be recreated with the same ID.`}
                         details={`Type the seat name to confirm you mean this exact seat.`}
+                        preview={{
+                          target: {
+                            known: {
+                              kind: "board seat",
+                              label: role.name,
+                              identifier: role.seat?.positionCode
+                                ? `position ID ${role.seat.positionCode}`
+                                : `role ${role.id}`,
+                            },
+                          },
+                          scope: {
+                            known: {
+                              tenant: org.institution.name,
+                              organization: org.name,
+                              seat: role.name,
+                              crossOrganization: false,
+                            },
+                          },
+                          // Counted, not asserted: the same `_count` the page
+                          // used to decide the control may be shown at all. It
+                          // is always 0 here, and it says so as a measurement
+                          // rather than as a blank.
+                          affected: {
+                            known: {
+                              count:
+                                role._count.assignments +
+                                role._count.holdings +
+                                role._count.memoryRecords,
+                              noun: "attached record",
+                            },
+                          },
+                          downstream: { known: [] },
+                          approvals: { known: [] },
+                          recovery: {
+                            known: {
+                              kind: "irreversible",
+                              why: "The seat row is deleted outright. A new seat can be created, but not with this position ID.",
+                            },
+                          },
+                          retention: {
+                            known:
+                              "Nothing is retained: the seat carries no assignments, holdings or memory records, so no history is placed beyond reach and no legal hold is affected.",
+                          },
+                          cost: { known: null },
+                          // True, and uncomfortable. `adminDeleteSeat` resolves
+                          // the seat, checks `seat.manage` and calls
+                          // `db.role.delete` — it writes no audit event. Saying
+                          // so is the disclosure; adding the write is the audit
+                          // family's item, not this one's.
+                          audit: {
+                            known: {
+                              kind: "not-recorded",
+                              why: "adminDeleteSeat writes no audit event; the capability check is recorded, the deletion is not.",
+                            },
+                          },
+                        }}
                         requireText={role.name}
                         confirmLabel="Delete seat"
                         variant="danger"

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db"
+import { liveDelegations } from "@/lib/authz/delegation-expiry"
 import { getUserContext, type UserContext } from "@/lib/rbac"
 
 /**
@@ -16,10 +17,17 @@ export async function effectiveApprovalContext(
   ctx: UserContext,
   institutionId: string
 ): Promise<{ ctx: UserContext; delegators: { id: string; name: string }[] }> {
-  const delegations = await db.approvalDelegation.findMany({
+  const granted = await db.approvalDelegation.findMany({
     where: { toUserId: userId, revokedAt: null, institutionId },
     include: { fromUser: { select: { id: true, name: true, email: true } } },
   })
+  // PAY-150-008. `revokedAt: null` is "nobody withdrew it", which is not the
+  // same as "it is still in force". Bible §17 requires delegation with an
+  // expiry, and until this filter existed the authority a president lent for a
+  // week in September was still lent in June. `liveDelegations` applies the
+  // maximum lifetime — and refuses a row it cannot date rather than treating an
+  // unreadable grant date as a recent one.
+  const delegations = liveDelegations(granted)
   if (delegations.length === 0) return { ctx, delegators: [] }
 
   const institutionRoles = [...ctx.institutionRoles]

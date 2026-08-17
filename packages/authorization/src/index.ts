@@ -99,6 +99,8 @@ export type {
 } from "./break-glass"
 
 export {
+  NON_DELEGABLE_PERMISSIONS,
+  isDelegable,
   PERMISSIONS,
   PERMISSION_DOMAINS,
   PERMISSION_ACTIONS,

@@ -74,6 +74,14 @@ const DOMAINS = [
 
       'apps/web/src/lib/auth.ts',
       'apps/web/src/lib/auth-session-lifetime.test.ts',
+      // IER-040-004/005. What a roster workbook has to be before a parser sees
+      // it: configured formats only, no macros or active content, and file,
+      // sheet, row, column, cell and decompression limits enforced. It sits with
+      // identity because a roster is how this product learns who someone is —
+      // the admission check is the first gate on that, not a general file
+      // utility. The prefix covers `__fixtures__/`, which holds a ZIP writer
+      // deliberately able to lie so the decompression limit can be proven.
+      'apps/web/src/lib/ingestion/',
       // The cell's own identity connections, described as registry records so
       // provider selection goes through the same checks a tenant's will.
       'apps/web/src/lib/auth-connections',

@@ -269,8 +269,21 @@ const DELIBERATELY_SHARED: Readonly<Record<string, readonly Capability[]>> = {
     "kms:ListKeys",
     "route53:ListHostedZones",
   ],
-  /** The organization and its accounts are one structure read twice. */
-  ORGANIZATION_REFRESH_MS: ["organizations:DescribeOrganization", "organizations:ListAccounts"],
+  /**
+   * The organization, its accounts, its unit hierarchy and the policies attached
+   * to that hierarchy are one structure read five ways. They move together
+   * because they move for one reason: somebody vends, moves or closes an
+   * account, which changes the account list and the unit an account sits under
+   * in the same act. Reading the units on a faster clock than the accounts would
+   * produce a page that shows a unit an account has already left.
+   */
+  ORGANIZATION_REFRESH_MS: [
+    "organizations:DescribeOrganization",
+    "organizations:ListAccounts",
+    "organizations:ListRoots",
+    "organizations:ListOrganizationalUnitsForParent",
+    "organizations:ListPoliciesForTarget",
+  ],
   /** Both answer "does this reference still name something", and gate a run. */
   SECRET_REF_REFRESH_MS: ["secretsmanager:DescribeSecret", "ssm:DescribeParameters"],
   /** SES provisioning-time configuration: it changes when Terraform runs. */

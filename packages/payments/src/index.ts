@@ -146,6 +146,28 @@ export {
   type RefusalVerdict,
 } from "./refusal"
 
+/**
+ * PAY-200-004 — rate, velocity, amount, recipient, account and tenant limits,
+ * and the fail-closed answer when the history behind them cannot be read.
+ *
+ * Named `movementLimits` rather than exported as a bare `evaluate`: `evaluate`
+ * is a word four packages would each want, and a limit decision is not the kind
+ * of thing a reader should have to trace an import to identify.
+ */
+export {
+  DEFAULT_MOVEMENT_LIMITS,
+  LIMIT_NAMES,
+  evaluate as evaluateMovementLimits,
+  observationWindows,
+  type LimitBreach,
+  type LimitDecision,
+  type LimitName,
+  type LimitObservations,
+  type LimitVerdict,
+  type LimitedMovement,
+  type MovementLimitPolicy,
+} from "./limits"
+
 /** PAY-140-002 — the pinned provider API version and the events read under it. */
 export {
   ApiVersionError,
@@ -173,6 +195,22 @@ export {
   type SignatureFailure,
   type SignatureResult,
 } from "./webhook"
+
+/**
+ * PAY-000-004 — the product copy Bible §2 forbids, as rules something runs.
+ *
+ * Also on the client-safe `@tenure/payments/gateway` subpath, which is the one
+ * `relay-reply.ts` takes; this export is for server surfaces that already hold
+ * the package root.
+ */
+export {
+  APPROVED_DISCLOSURE_PHRASE,
+  PROHIBITED_CLAIM_RULES,
+  describeFinding,
+  scanProhibitedClaims,
+  type ProhibitedClaimFinding,
+  type ProhibitedClaimRule,
+} from "./prohibited-claims"
 
 /** PAY-020-002 — the provider-neutral port. Also at `@tenure/payments/gateway`. */
 export {

@@ -70,7 +70,13 @@ function LiveTile({ label, value, tone }: { label: string; value: number; tone?:
     }
   }, [value])
 
-  const accent = tone === "warn" && value > 0 ? "var(--warning)" : "var(--primary)"
+  // GE-143-012. The flash border says "this number just moved"; on a `warn`
+  // tile with a non-zero value it also says "and it needs attention". Those two
+  // are alternatives, so the ordinary one cannot be the brand accent: an
+  // institution whose accent is an amber would flash both cases the same colour
+  // and the warning would stop being one. --accent is the platform's secondary
+  // accent, which tenant branding does not reach.
+  const accent = tone === "warn" && value > 0 ? "var(--warning)" : "var(--accent)"
   return (
     <div
       className="rounded-lg border bg-surface px-3.5 py-2.5 transition-colors duration-slow"

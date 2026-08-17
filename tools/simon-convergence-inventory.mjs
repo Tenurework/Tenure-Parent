@@ -60,6 +60,7 @@
  *        node tools/simon-convergence-inventory.mjs --check   (docs vs snapshot)
  */
 import { execFileSync } from 'node:child_process'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -198,6 +199,26 @@ export const ASSUMPTION_PROBES = [
     why: 'the six-step OSE workflow must be data, so future variants need no code change',
   },
   {
+    id: 'approval-chain-symbol',
+    kind: 'workflow',
+    // `ApprovalStep` the model, `approvalStep` the Prisma delegate, and the two
+    // delegation/transfer models the chain hangs off. All four are declared
+    // names, so this is a closed set and may print what it matched.
+    pattern: /\b(?:[Aa]pprovalStep|[Aa]pprovalDelegation|[Aa]pprovalChain|[Rr]oleTransfer)\b/g,
+    reveal: 'literal',
+    why: 'the approval chain is a code-declared model — a tenant adding a step needs a migration, not configuration',
+  },
+  {
+    id: 'sla-threshold',
+    kind: 'workflow',
+    // `SLA_ATTENTION_DAYS = 3` / `SLA_OVERDUE_DAYS = 6` in the pilot's
+    // `apps/web/src/lib/approvals-sla.ts` are the workflow's escalation clock
+    // written into code, where no tenant can move them.
+    pattern: /\bSLA_[A-Z][A-Z0-9_]*\b|\b[Ss]la(?:Hours|Days|Level|Color|Threshold)\b|\b[Ee]scalat(?:e|es|ed|ing|ion|ions)\b/g,
+    reveal: 'literal',
+    why: 'an SLA or escalation threshold in code is a workflow policy a tenant cannot re-set',
+  },
+  {
     id: 'domain-literal',
     kind: 'domain',
     // Not preceded by `@` or by an identifier character, so this cannot capture
@@ -251,6 +272,143 @@ export const PATH_PROBES = [
   },
 ]
 
+// ══════════ the declared vocabulary, parsed once and used by -004 and -005 ══════════
+
+export const SCHEMA_FILE = /(^|\/)schema\.prisma$/
+
+/**
+ * The models and enums a Prisma schema declares, with their members.
+ *
+ * ONE parser, deliberately. SIMON-000-004 needs the enum MEMBERS (a role name
+ * is an assumption wherever it appears, and a closed list of six hand-written
+ * names missed the three the pilot actually declares). SIMON-000-005 needs the
+ * model and enum NAMES with their members (the same enum name carrying
+ * different members across the two repositories is "the same name with
+ * different semantics", and the first version of that comparison could not see
+ * it because it only read JS/TS exports). Those are the same parse at two
+ * zooms, and this repository already carries a note about what having two
+ * parsers of one thing cost.
+ *
+ * Textual, like every other scan here: it reads declarations, it does not
+ * validate the schema. `///` doc comments and `//` trailing comments are
+ * stripped before members are read, which is why a commented-out member does
+ * not become vocabulary.
+ */
+export function parsePrismaSchema(text) {
+  const src = text.split('\r\n').join('\n')
+  const lines = src.split('\n')
+  const models = []
+  const enums = []
+  let block = null
+  lines.forEach((raw, i) => {
+    const line = raw.replace(/\/\/.*$/, '').trim()
+    if (block) {
+      if (line.startsWith('}')) {
+        block.kind === 'enum' ? enums.push(block.out) : models.push(block.out)
+        block = null
+        return
+      }
+      if (block.kind === 'enum') {
+        const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*$/)
+        if (m) block.out.members.push(m[1])
+      } else {
+        const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s+[A-Za-z_[]/)
+        if (m && !line.startsWith('@@')) block.out.members.push(m[1])
+      }
+      return
+    }
+    const m = line.match(/^(model|enum)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{/)
+    if (m) block = { kind: m[1], out: { name: m[2], line: i + 1, members: [] } }
+  })
+  return { models, enums }
+}
+
+/**
+ * Which declared enums are tenant vocabulary, and which assumption they are.
+ *
+ * The point of deriving instead of hand-listing: the first version of
+ * `role-constant` was six names typed from memory, two of which occur nowhere
+ * in either tree, and it omitted every member of `enum InstitutionRole` and
+ * `enum RoleScope` — so 107 occurrences of `OSE_DIRECTOR`/`OSE_STAFF`/
+ * `OSE_ADVISOR` in the source tree and 192 in this one were located by nothing,
+ * and `tenant-token` could not cover for it because `\bOSE\b` does not match
+ * `OSE_DIRECTOR` (`_` is a word character). A vocabulary read out of the
+ * schemas cannot go stale that way: a role added to the schema is in the probe
+ * on the next run.
+ */
+export const VOCABULARY_ENUMS = [
+  {
+    probe: 'role-enum-member',
+    kind: 'role',
+    select: /(?:Role|Scope)$/,
+    why: 'a role name the schema declares is an authorization assumption wherever it appears in code',
+  },
+  {
+    probe: 'workflow-state-member',
+    kind: 'workflow',
+    select: /Status$/,
+    why: 'a workflow state written into code is a workflow shape no tenant can vary',
+  },
+  {
+    probe: 'org-category-member',
+    kind: 'club',
+    select: /Category$/,
+    why: 'how the tenant classifies its organisations is tenant configuration; `COMMUNITY`/`SOCIAL` are Simon’s categories, not the platform’s',
+  },
+]
+
+// The selector suffixes are chosen against the requirement's own nouns —
+// `Role`/`Scope` for "role", `Status` for "workflow", `Category` for "club" —
+// and not against every enum in the schema. `Kind`, `Type` and `Audience` are
+// structural discriminators the requirement does not name, so they are left out
+// deliberately rather than by omission.
+
+/**
+ * The derived probes, and the declarations they were derived from.
+ *
+ * The vocabulary is the UNION of both trees' declarations and the same probes
+ * run over both sides, so a role this repository declares and the pilot does
+ * not is still located in the pilot if it appears there, and vice versa. Every
+ * member carries the side, file, line and enum it came from, so the guard test
+ * re-derives the member list from the recorded declarations instead of trusting
+ * the pattern.
+ */
+export function deriveVocabulary(sides) {
+  const declarations = []
+  for (const { side, files, contentOf } of sides) {
+    for (const f of files.filter((x) => SCHEMA_FILE.test(x)).sort(byCodepoint)) {
+      const text = contentOf(f)
+      if (!text) continue
+      for (const e of parsePrismaSchema(text).enums) {
+        const spec = VOCABULARY_ENUMS.find((v) => v.select.test(e.name))
+        if (!spec) continue
+        declarations.push({ side, file: f, line: e.line, enum: e.name, probe: spec.probe, members: [...e.members].sort(byCodepoint) })
+      }
+    }
+  }
+  return VOCABULARY_ENUMS.map((spec) => {
+    const mine = declarations.filter((d) => d.probe === spec.probe)
+    const members = [...new Set(mine.flatMap((d) => d.members))].sort(byCodepoint)
+    return {
+      id: spec.probe,
+      kind: spec.kind,
+      derived: true,
+      reveal: 'literal',
+      why: spec.why,
+      selector: String(spec.select),
+      members,
+      declarations: mine,
+      // A closed set that the document prints in full: no reason to cap it, and
+      // capping it would hide whether a declared name was located where it is
+      // declared, which is the coverage claim this probe exists to make.
+      tokenCap: members.length,
+      // Sorted, so the alternation is a function of the member SET and two runs
+      // cannot produce two different patterns.
+      pattern: members.length ? new RegExp(`\\b(?:${members.join('|')})\\b`, 'g') : /(?!)/g,
+    }
+  }).filter((p) => p.members.length > 0)
+}
+
 /**
  * The hiding places the requirement names, in the order it names them.
  *
@@ -298,6 +456,17 @@ const lineAt = (starts, offset) => {
   return lo + 1
 }
 
+/**
+ * How many distinct tokens one (file, probe) group may print.
+ *
+ * A file mentioning the tenant four hundred times produces one row with four
+ * hundred LINE NUMBERS and eight tokens, because the four hundred tokens are
+ * the same handful of words and printing them is noise. The exception is a probe
+ * whose whole vocabulary is a closed list printed in the same document a few
+ * sections up: capping those loses the only thing the cap was never meant to
+ * cost, which is the ability to check that a declared name was actually located
+ * where it is declared. Such a probe declares its own `tokenCap`.
+ */
 const TOKEN_CAP = 8
 
 /**
@@ -309,7 +478,7 @@ const TOKEN_CAP = 8
  * row with four hundred line numbers instead of four hundred rows, and nothing
  * about where it is is lost.
  */
-export function scanAssumptions(files, contentOf) {
+export function scanAssumptions(files, contentOf, derivedProbes = []) {
   const skipped = []
   const scanned = []
   for (const f of files) {
@@ -346,7 +515,7 @@ export function scanAssumptions(files, contentOf) {
     if (text === null || text === undefined) continue
     const flat = text.split('\r\n').join('\n')
     const starts = lineIndex(flat)
-    for (const probe of ASSUMPTION_PROBES) {
+    for (const probe of [...ASSUMPTION_PROBES, ...derivedProbes]) {
       const re = new RegExp(probe.pattern.source, probe.pattern.flags.includes('g') ? probe.pattern.flags : `${probe.pattern.flags}g`)
       const lines = new Set()
       const tokens = new Set()
@@ -367,7 +536,7 @@ export function scanAssumptions(files, contentOf) {
         in_path: false,
         hits,
         lines: [...lines].sort((a, b) => a - b),
-        tokens: [...tokens].sort(byCodepoint).slice(0, TOKEN_CAP),
+        tokens: [...tokens].sort(byCodepoint).slice(0, probe.tokenCap ?? TOKEN_CAP),
       })
     }
   }
@@ -375,7 +544,7 @@ export function scanAssumptions(files, contentOf) {
   groups.sort((a, b) => byCodepoint(a.file, b.file) || byCodepoint(a.probe, b.probe))
 
   const total = groups.reduce((n, g) => n + g.hits, 0)
-  const byKind = [...new Set([...ASSUMPTION_PROBES, ...PATH_PROBES].map((p) => p.kind))].map((kind) => {
+  const byKind = [...new Set([...ASSUMPTION_PROBES, ...PATH_PROBES, ...derivedProbes].map((p) => p.kind))].map((kind) => {
     const mine = groups.filter((g) => g.kind === kind)
     return {
       kind,
@@ -642,6 +811,224 @@ export function compareConcepts(sourceModules, targetModules) {
   }
 }
 
+// ═══════════ SIMON-000-005, second half — the data model's own vocabulary ═══════════
+
+/**
+ * The concepts the two schemas declare, compared by name AND by members.
+ *
+ * The export comparison above reads JS/TS modules only, and the first version of
+ * this requirement stopped there — so the divergence that matters most in a
+ * financial ledger was invisible: `enum LedgerKind` exists in BOTH
+ * `apps/web/prisma/schema.prisma` files with different members (the pilot has
+ * SPEND/REIMBURSEMENT/ADJUSTMENT; this repository adds RECEIPT and REVERSAL).
+ * That is the textbook "same name, different semantics", it is the same
+ * divergence the `deleteLedgerEntry` / `reverseLedgerEntry` pair points at, and
+ * no amount of reading `export` statements finds it.
+ *
+ * Three findings, at three strengths, the same discipline as the export side:
+ *
+ *   same_name_different_members  DECIDED. Two member lists differ.
+ *   one_sided                    DECIDED. A model or enum only one tree has.
+ *   cross_name_candidates        CANDIDATE. Two DIFFERENTLY-named concepts that
+ *                                share a name token and overlap in shape. This
+ *                                is the half the requirement asks for that a
+ *                                Jaccard over shared export NAMES structurally
+ *                                cannot answer: a rename has no shared name.
+ */
+export function compareSchemaConcepts(sourceSchemas, targetSchemas) {
+  const index = (schemas) => {
+    const out = new Map()
+    for (const { file, parsed } of schemas) {
+      for (const kind of ['models', 'enums']) {
+        for (const d of parsed[kind]) {
+          const key = `${kind === 'models' ? 'model' : 'enum'} ${d.name}`
+          if (!out.has(key)) {
+            out.set(key, { kind: kind === 'models' ? 'model' : 'enum', name: d.name, file, line: d.line, members: [...d.members].sort(byCodepoint) })
+          }
+        }
+      }
+    }
+    return out
+  }
+  const s = index(sourceSchemas)
+  const t = index(targetSchemas)
+
+  const sameNameDifferentMembers = []
+  let identical = 0
+  for (const key of [...s.keys()].sort(byCodepoint)) {
+    if (!t.has(key)) continue
+    const a = s.get(key)
+    const b = t.get(key)
+    const onlySource = a.members.filter((m) => !b.members.includes(m))
+    const onlyTarget = b.members.filter((m) => !a.members.includes(m))
+    if (onlySource.length === 0 && onlyTarget.length === 0) {
+      identical += 1
+      continue
+    }
+    sameNameDifferentMembers.push({
+      declaration: a.kind,
+      name: a.name,
+      source_path: a.file,
+      source_line: a.line,
+      target_path: b.file,
+      target_line: b.line,
+      source_members: a.members.length,
+      target_members: b.members.length,
+      only_in_source: onlySource.slice(0, 12),
+      only_in_target: onlyTarget.slice(0, 12),
+      verdict: 'DECIDED — the same declared name carries different members on the two sides',
+    })
+  }
+
+  const oneSided = []
+  for (const key of [...s.keys()].sort(byCodepoint)) {
+    if (t.has(key)) continue
+    const a = s.get(key)
+    oneSided.push({ side: 'source only', declaration: a.kind, name: a.name, path: a.file, line: a.line, members: a.members.length, verdict: 'DECIDED — declared in the pilot and not here' })
+  }
+  for (const key of [...t.keys()].sort(byCodepoint)) {
+    if (s.has(key)) continue
+    const b = t.get(key)
+    oneSided.push({ side: 'target only', declaration: b.kind, name: b.name, path: b.file, line: b.line, members: b.members.length, verdict: 'DECIDED — declared here and not in the pilot' })
+  }
+
+  const candidates = []
+  for (const a of [...s.values()].sort((x, y) => byCodepoint(x.name, y.name))) {
+    for (const b of [...t.values()].sort((x, y) => byCodepoint(x.name, y.name))) {
+      if (a.kind !== b.kind) continue
+      if (a.name === b.name) continue
+      const shared = sharedNameTokens(a.name, b.name)
+      if (shared.length === 0) continue
+      const shape = jaccard(new Set(a.members), new Set(b.members))
+      if (shape < CROSS_NAME_SHAPE_JACCARD) continue
+      candidates.push({
+        declaration: a.kind,
+        source_name: a.name,
+        source_path: a.file,
+        target_name: b.name,
+        target_path: b.file,
+        shared_name_tokens: shared,
+        strength: strengthOf(shared),
+        shape_jaccard: Number(shape.toFixed(3)),
+        shared_members: a.members.filter((m) => b.members.includes(m)).slice(0, 8),
+        verdict: 'CANDIDATE — two differently-named declarations that share a word and overlap in shape',
+      })
+    }
+  }
+  candidates.sort(
+    (a, b) =>
+      b.shared_name_tokens.length - a.shared_name_tokens.length ||
+      b.shape_jaccard - a.shape_jaccard ||
+      byCodepoint(a.source_name, b.source_name) ||
+      byCodepoint(a.target_name, b.target_name),
+  )
+  // One row per unordered pair. Both trees declare `Budget` and `BudgetLine`, so
+  // the pair arrives twice — once as source-Budget/target-BudgetLine and once
+  // the other way round. That is one question, not two, and the same dedupe the
+  // export metric already applies for the same reason.
+  const seen = new Set()
+  const deduped = candidates.filter((c) => {
+    const key = [c.declaration, ...[c.source_name, c.target_name].sort(byCodepoint)].join('::')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+  candidates.length = 0
+  candidates.push(...deduped)
+
+  return {
+    source_declarations: s.size,
+    target_declarations: t.size,
+    identical_declarations: identical,
+    same_name_different_members: sameNameDifferentMembers,
+    one_sided: oneSided,
+    cross_name_candidates: candidates,
+    shape_threshold: CROSS_NAME_SHAPE_JACCARD,
+    minimum_token_length: CROSS_NAME_MIN_TOKEN,
+  }
+}
+
+/** camelCase, PascalCase and SCREAMING_SNAKE_CASE into lowercase words. */
+export const nameTokens = (name) =>
+  String(name)
+    .split(/[^A-Za-z0-9]+/)
+    .flatMap((part) => part.split(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/))
+    .map((w) => w.toLowerCase())
+    .filter(Boolean)
+
+export const CROSS_NAME_MIN_TOKEN = 5
+export const CROSS_NAME_SHAPE_JACCARD = 0.3
+
+/**
+ * The words two names share, counting only words long enough to be a concept.
+ *
+ * Two signals rather than one, because a single similarity score is what made
+ * the first attempt at this requirement useless. `ConflictRecord` and
+ * `ConflictDeclaration` share `conflict`; `deleteLedgerEntry` and
+ * `reverseLedgerEntry` share `ledger` and `entry`. Short words (`get`, `id`,
+ * `by`, `of`) are excluded because sharing one says nothing.
+ */
+export function sharedNameTokens(a, b) {
+  const at = new Set(nameTokens(a).filter((w) => w.length >= CROSS_NAME_MIN_TOKEN))
+  const bt = new Set(nameTokens(b).filter((w) => w.length >= CROSS_NAME_MIN_TOKEN))
+  return [...at].filter((w) => bt.has(w)).sort(byCodepoint)
+}
+
+/**
+ * How much of a signal one shared word is, stated rather than averaged away.
+ *
+ * `deleteLedgerEntry` / `reverseLedgerEntry` share TWO words, and it is one
+ * concept under two names. `canViewApproval` / `approvalDigest` share one, and
+ * they are two unrelated things that both mention approvals. Collapsing those
+ * into one list ranked by a single number is what made the first version of this
+ * table useless, so the strength is a column and the strong rows are reported in
+ * full while the weak ones are counted and sampled.
+ */
+export const strengthOf = (shared) => (shared.length >= 2 ? 'strong' : 'weak')
+
+/**
+ * Renamed exports: the same module on both sides, a name only the pilot has and
+ * a name only this repository has, and the two names are about the same thing.
+ *
+ * This is the requirement's "duplicate business concepts implemented under
+ * different names across repositories", at the granularity where absorption
+ * actually has to decide something. The pilot's
+ * `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts` exports
+ * `deleteLedgerEntry`; this repository's exports `reverseLedgerEntry`. Both are
+ * "correct a posted ledger entry", one erases the row and one posts an opposite
+ * entry, and a convergence that treats them as unrelated names loses the
+ * question.
+ */
+export function crossNameExportCandidates(sameNameRows) {
+  const rows = []
+  for (const row of sameNameRows) {
+    if (!row.same_path) continue
+    for (const a of row.only_in_source) {
+      for (const b of row.only_in_target) {
+        const shared = sharedNameTokens(a, b)
+        if (shared.length === 0) continue
+        rows.push({
+          module: row.basename,
+          path: row.source_path,
+          source_export: a,
+          target_export: b,
+          shared_name_tokens: shared,
+          strength: strengthOf(shared),
+          verdict: 'CANDIDATE — one concept under two names, or two concepts that share a noun',
+        })
+      }
+    }
+  }
+  rows.sort(
+    (x, y) =>
+      y.shared_name_tokens.length - x.shared_name_tokens.length ||
+      byCodepoint(x.path, y.path) ||
+      byCodepoint(x.source_export, y.source_export) ||
+      byCodepoint(x.target_export, y.target_export),
+  )
+  return rows
+}
+
 // ══════════════════════ SIMON-000-006 — disposition matrix ══════════════════════
 
 /**
@@ -656,9 +1043,61 @@ export function compareConcepts(sourceModules, targetModules) {
  * "we could not look" would be the exact defect this programme's central rule
  * names.
  */
+/**
+ * Whether the two trees hold the SAME FILE at a path they both have.
+ *
+ * Why this exists, in one sentence: the first version of SIMON-000-006 labelled
+ * 23 of 25 capabilities `PARENT_CANONICAL` from path presence alone — including
+ * `Database schema` (1 source path, 1 target path) and `Authorization` (2 and
+ * 14) — while the same snapshot proved the CONTENT diverges, so a pilot
+ * capability this repository does not actually hold read as "the parent is
+ * canonical". Path presence answers "is there a file there". It cannot answer
+ * "does the target hold the pilot's implementation", which is the only question
+ * an absorption disposition is for.
+ *
+ * Digests are over LF-normalised text, because one tree is read from git blobs
+ * and the other could be read from a Windows checkout, and a line ending is not
+ * a divergence. A path whose content either side would not yield is
+ * `undetermined` and NAMED, never quietly counted as identical — "we could not
+ * look" and "we looked and they match" are different answers.
+ */
+export const digestOf = (text) => crypto.createHash('sha256').update(text.split('\r\n').join('\n'), 'utf8').digest('hex').slice(0, 16)
+
+export function sharedContentDivergence(sourceFiles, targetFiles, srcContentOf, tgtContentOf, probes) {
+  const matched = new Set()
+  for (const p of probes) {
+    for (const f of sourceFiles) {
+      if (p.pattern.test(f) && !(p.exclude && p.exclude.test(f))) matched.add(f)
+    }
+  }
+  const inTarget = new Set(targetFiles)
+  const paths = []
+  const undetermined = []
+  for (const f of [...matched].sort(byCodepoint)) {
+    if (!inTarget.has(f)) continue
+    const a = srcContentOf(f)
+    const b = tgtContentOf(f)
+    if (a === null || a === undefined || b === null || b === undefined) {
+      undetermined.push({ path: f, ...unknown(`git diff --name-only <source-commit> <target-commit> -- ${f}`, `whether ${f} differs between the two trees`) })
+      continue
+    }
+    const sd = digestOf(a)
+    const td = digestOf(b)
+    paths.push({ path: f, source_sha256: sd, target_sha256: td, identical: sd === td })
+  }
+  return {
+    algorithm: 'sha256 over LF-normalised text, first 16 hex digits',
+    shared: paths.length,
+    divergent: paths.filter((p) => !p.identical).length,
+    identical: paths.filter((p) => p.identical).length,
+    undetermined,
+    paths,
+  }
+}
+
 export const DISPOSITIONS = [
-  { label: 'PARENT_CANONICAL', assignable: true, meaning: 'the target holds this capability and every source path for it' },
-  { label: 'MERGE_REQUIRED', assignable: true, meaning: 'both sides hold it and the source has paths the target does not' },
+  { label: 'PARENT_CANONICAL', assignable: true, meaning: 'the target holds every source path for this capability AND the same content at each of them' },
+  { label: 'MERGE_REQUIRED', assignable: true, meaning: 'both sides hold it and the source has paths the target lacks, or shared paths whose content differs' },
   { label: 'REIMPLEMENT_REQUIRED', assignable: true, meaning: 'the source holds it and the target’s probe matched nothing' },
   { label: 'UNKNOWN', assignable: true, meaning: 'neither side matched, or the label needs a judgement this evidence cannot make' },
   { label: 'SOURCE_SUPERIOR', assignable: false, meaning: 'a quality judgement — never auto-assigned' },
@@ -667,12 +1106,15 @@ export const DISPOSITIONS = [
   { label: 'DEPRECATE_AFTER_PROOF', assignable: false, meaning: 'requires the proof to exist first — never auto-assigned' },
 ]
 
-export function disposeCapability(sourceFiles, targetFiles, probe) {
+export function disposeCapability(sourceFiles, targetFiles, probe, divergence = new Map()) {
   const match = (files) => files.filter((f) => probe.pattern.test(f) && !(probe.exclude && probe.exclude.test(f))).sort(byCodepoint)
   const s = match(sourceFiles)
   const t = match(targetFiles)
   const tSet = new Set(t)
   const sourceOnly = s.filter((f) => !tSet.has(f))
+  const shared = s.filter((f) => tSet.has(f))
+  const divergent = shared.filter((f) => divergence.get(f)?.identical === false).sort(byCodepoint)
+  const unreadable = shared.filter((f) => !divergence.has(f)).sort(byCodepoint)
   let disposition
   let why
   if (s.length === 0 && t.length === 0) {
@@ -684,12 +1126,20 @@ export function disposeCapability(sourceFiles, targetFiles, probe) {
   } else if (s.length === 0) {
     disposition = 'PARENT_CANONICAL'
     why = 'only the target has paths for this capability'
-  } else if (sourceOnly.length === 0) {
-    disposition = 'PARENT_CANONICAL'
-    why = 'every source path for this capability is already present in the target tree at the same path'
-  } else {
+  } else if (sourceOnly.length > 0) {
     disposition = 'MERGE_REQUIRED'
-    why = `${sourceOnly.length} source path(s) for this capability are absent from the target tree`
+    why =
+      `${sourceOnly.length} source path(s) for this capability are absent from the target tree` +
+      (divergent.length ? `, and ${divergent.length} shared path(s) differ in content` : '')
+  } else if (divergent.length > 0) {
+    disposition = 'MERGE_REQUIRED'
+    why = `every source path is present in the target tree, but ${divergent.length} of ${shared.length} shared path(s) differ in content, so the target does not hold the source implementation`
+  } else if (unreadable.length > 0) {
+    disposition = 'UNKNOWN'
+    why = `every source path is present, but the content of ${unreadable.length} shared path(s) could not be compared, so "the same implementation" is unproven`
+  } else {
+    disposition = 'PARENT_CANONICAL'
+    why = `every source path for this capability is present in the target tree and all ${shared.length} shared path(s) are byte-identical after line-ending normalisation`
   }
   return {
     capability: probe.capability,
@@ -702,6 +1152,10 @@ export function disposeCapability(sourceFiles, targetFiles, probe) {
     target_matches: t.length,
     source_only: sourceOnly.length,
     source_only_paths: sourceOnly.slice(0, 6),
+    shared_paths: shared.length,
+    divergent_paths: divergent.length,
+    divergent_examples: divergent.slice(0, 4),
+    undetermined_paths: unreadable.length,
     disposition,
     why,
   }
@@ -1105,6 +1559,33 @@ export function collect() {
     return out
   }
 
+  const schemasOf = (files, contentOf) =>
+    files
+      .filter((f) => SCHEMA_FILE.test(f))
+      .sort(byCodepoint)
+      .flatMap((f) => {
+        const text = contentOf(f)
+        return text ? [{ file: f, parsed: parsePrismaSchema(text) }] : []
+      })
+
+  const vocabulary = deriveVocabulary([
+    { side: 'source', files: baseline.source.files, contentOf: src.contentOf },
+    { side: 'target', files: baseline.target.files, contentOf: tgt.contentOf },
+  ])
+
+  const sourceConcepts = codeOf(src.sha, baseline.source.files, src.contentOf)
+  const targetConcepts = codeOf(tgt.sha, baseline.target.files, tgt.contentOf)
+  const concepts = compareConcepts(sourceConcepts, targetConcepts)
+  concepts.schema = compareSchemaConcepts(
+    schemasOf(baseline.source.files, src.contentOf),
+    schemasOf(baseline.target.files, tgt.contentOf),
+  )
+  concepts.cross_name_candidates = crossNameExportCandidates(concepts.same_name_different_shape)
+  concepts.minimum_token_length = CROSS_NAME_MIN_TOKEN
+
+  const divergence = sharedContentDivergence(baseline.source.files, baseline.target.files, src.contentOf, tgt.contentOf, PROBES)
+  const divergenceIndex = new Map(divergence.paths.map((p) => [p.path, p]))
+
   return {
     schema: 1,
     generated_by: 'tools/simon-convergence-inventory.mjs',
@@ -1121,25 +1602,34 @@ export function collect() {
         'resolves to now, so the two artifacts describe the same two trees by construction.',
     },
     assumptions: {
-      probes: [...ASSUMPTION_PROBES, ...PATH_PROBES].map((p) => ({
+      probes: [...ASSUMPTION_PROBES, ...PATH_PROBES, ...vocabulary].map((p) => ({
         id: p.id,
         kind: p.kind,
         pattern: String(p.pattern),
         reveal: p.reveal,
         in_path: PATH_PROBES.includes(p),
+        derived: p.derived === true,
         why: p.why,
       })),
+      // The derived half, with its provenance, so the member list is re-derivable
+      // from the declarations rather than taken on trust from the pattern.
+      derived_vocabulary: vocabulary.map((v) => ({
+        probe: v.id,
+        kind: v.kind,
+        selector: v.selector,
+        pattern: String(v.pattern),
+        members: v.members,
+        declarations: v.declarations,
+      })),
       not_scanned: NOT_SCANNED.map((n) => ({ pattern: String(n.pattern), why: n.why })),
-      source: scanAssumptions(baseline.source.files, src.contentOf),
-      target: scanAssumptions(baseline.target.files, tgt.contentOf),
+      source: scanAssumptions(baseline.source.files, src.contentOf, vocabulary),
+      target: scanAssumptions(baseline.target.files, tgt.contentOf, vocabulary),
     },
-    concepts: compareConcepts(
-      codeOf(src.sha, baseline.source.files, src.contentOf),
-      codeOf(tgt.sha, baseline.target.files, tgt.contentOf),
-    ),
+    concepts,
     disposition: {
       legend: DISPOSITIONS,
-      capabilities: PROBES.map((p) => disposeCapability(baseline.source.files, baseline.target.files, p)),
+      content_divergence: divergence,
+      capabilities: PROBES.map((p) => disposeCapability(baseline.source.files, baseline.target.files, p, divergenceIndex)),
       packages: disposePackages(baseline.source.workspaces, baseline.target.workspaces),
     },
     import_risk: importRisk(baseline, src, tgt),
@@ -1227,7 +1717,33 @@ identifier a probe could not have enumerated in advance.`,
   r.push('| Probe | Assumption | Reveals | Pattern | Why it matters |')
   r.push('| --- | --- | --- | --- | --- |')
   for (const p of a.probes) {
-    r.push(`| ${code(p.id)} | ${p.kind} | ${p.reveal}${p.in_path ? ' (path)' : ''} | ${code(p.pattern)} | ${p.why} |`)
+    r.push(
+      `| ${code(p.id)} | ${p.kind} | ${p.reveal}${p.in_path ? ' (path)' : ''}${p.derived ? ' (derived)' : ''} | ${code(p.pattern)} | ${p.why} |`,
+    )
+  }
+  r.push('')
+
+  r.push('## The vocabulary that is read out of the schemas rather than typed here\n')
+  r.push(
+    'Three probes above are **derived**: their pattern is the alternation of every member of every\n' +
+      'enum whose name matches the selector, taken from both trees and applied to both. Hand-listing\n' +
+      'this vocabulary is what the first version of this scan did, and it missed the three roles the\n' +
+      'pilot actually declares — `\\bOSE\\b` does not match `OSE_DIRECTOR`, because `_` is a word\n' +
+      'character. A role added to the schema is in the probe on the next run instead.\n',
+  )
+  r.push('| Probe | Assumption | Enum selector | Members | Vocabulary |')
+  r.push('| --- | --- | --- | --- | --- |')
+  for (const v of a.derived_vocabulary ?? []) {
+    r.push(`| ${code(v.probe)} | ${v.kind} | ${code(v.selector)} | ${v.members.length} | ${list(v.members.slice(0, 14))} |`)
+  }
+  r.push('')
+  r.push('Every declaration the vocabulary came from:\n')
+  r.push('| Side | Enum | Declared at | Members | Probe |')
+  r.push('| --- | --- | --- | --- | --- |')
+  for (const v of a.derived_vocabulary ?? []) {
+    for (const d of v.declarations) {
+      r.push(`| ${d.side} | ${code(d.enum)} | ${code(d.file)}:${d.line} | ${list(d.members)} | ${code(d.probe)} |`)
+    }
   }
   r.push('')
 
@@ -1255,6 +1771,10 @@ identifier a probe could not have enumerated in advance.`,
       '- `aws-account-id` matches any bare twelve-digit run. An AWS account id has that shape and so\n' +
       '  do other things, so a hit there is a shape to look at, not an account. It is masked either\n' +
       '  way, which is why the ambiguity costs nothing.\n' +
+      '- The derived vocabulary is read from `schema.prisma` on each side, because that is where both\n' +
+      '  trees declare their roles and workflow states. A role or state that exists only as a bare\n' +
+      '  TypeScript string union, and never in the schema, is not in the vocabulary — the probe would\n' +
+      '  find it everywhere once it were declared, and until then this scan does not claim to.\n' +
       '- `domain-literal` prints the hostname it matched. A hostname is a public DNS name, not a\n' +
       '  credential, and every one this found is already committed in this repository — the CloudFront\n' +
       '  domain is in `README.md` and six workflows. Anything account-scoped is caught by\n' +
@@ -1308,6 +1828,89 @@ with.`,
     r.push('')
   }
 
+  const sc = c.schema
+  r.push('## The same declared name, different members — DECIDED\n')
+  r.push(
+    `The export tables above read JS/TS modules only. This one reads the two Prisma schemas: ` +
+      `${sc.source_declarations} declarations on the source side, ${sc.target_declarations} here, ` +
+      `${sc.identical_declarations} of them identical member-for-member. "Same name, different ` +
+      `semantics" in a data model is a schema fact, and no reading of \`export\` statements finds it.\n`,
+  )
+  if (sc.same_name_different_members.length === 0) r.push('None.\n')
+  else {
+    r.push('| Declaration | Name | Source | Target | Only in source | Only in target |')
+    r.push('| --- | --- | --- | --- | --- | --- |')
+    for (const x of sc.same_name_different_members) {
+      r.push(
+        `| ${x.declaration} | ${code(x.name)} | ${code(x.source_path)}:${x.source_line} | ` +
+          `${code(x.target_path)}:${x.target_line} | ${list(x.only_in_source)} | ${list(x.only_in_target)} |`,
+      )
+    }
+    r.push('')
+  }
+
+  r.push('## Declared on one side only — DECIDED\n')
+  const oneSided = sc.one_sided
+  r.push(
+    `${oneSided.filter((x) => x.side === 'source only').length} declarations exist in the pilot and not ` +
+      `here; ${oneSided.filter((x) => x.side === 'target only').length} exist here and not in the pilot. ` +
+      `A concept only one side has is either an absorption item or a rename, which is what the ` +
+      `candidate table below is for.\n`,
+  )
+  if (oneSided.length === 0) r.push('None.\n')
+  else {
+    r.push('| Side | Declaration | Name | Declared at | Members |')
+    r.push('| --- | --- | --- | --- | --- |')
+    for (const x of oneSided) r.push(`| ${x.side} | ${x.declaration} | ${code(x.name)} | ${code(x.path)}:${x.line} | ${x.members} |`)
+    r.push('')
+  }
+
+  r.push('## One concept, two names — CANDIDATE\n')
+  r.push(
+    `The half of this requirement a similarity score over shared export NAMES structurally cannot ` +
+      `answer: a rename has no shared name. Two signals are required instead — the two names must ` +
+      `share a word of at least ${c.minimum_token_length} letters, and their shapes must overlap. ` +
+      `For schema declarations that means member Jaccard ≥ ${sc.shape_threshold}; for module exports ` +
+      `it means the two names live in the same module at the same path, one on each side.\n`,
+  )
+  r.push(
+    'Two shared words is the **strong** signal and one is **weak**: `deleteLedgerEntry` and\n' +
+      '`reverseLedgerEntry` share `ledger` and `entry` and really are one concept under two names,\n' +
+      'while two exports that share only `approval` are usually two things that both mention\n' +
+      'approvals. Strong rows are listed in full; weak ones are counted and sampled, because a\n' +
+      'ranked single number is what made the first version of this table useless.\n',
+  )
+  const tier = (rows) => ({ strong: rows.filter((x) => x.strength === 'strong'), weak: rows.filter((x) => x.strength === 'weak') })
+
+  const st = tier(sc.cross_name_candidates)
+  r.push(`Schema declarations — ${st.strong.length} strong, ${st.weak.length} weak:\n`)
+  if (sc.cross_name_candidates.length === 0) r.push('None above the threshold.\n')
+  else {
+    r.push('| Strength | Declaration | Source name | Target name | Shared words | Member Jaccard | Shared members |')
+    r.push('| --- | --- | --- | --- | --- | --- | --- |')
+    for (const x of [...st.strong, ...st.weak.slice(0, 6)]) {
+      r.push(
+        `| ${x.strength} | ${x.declaration} | ${code(x.source_name)} | ${code(x.target_name)} | ${list(x.shared_name_tokens)} | ` +
+          `${x.shape_jaccard} | ${list(x.shared_members)} |`,
+      )
+    }
+    r.push('')
+  }
+  const et = tier(c.cross_name_candidates)
+  r.push(`Module exports, same path, one name on each side — ${et.strong.length} strong, ${et.weak.length} weak:\n`)
+  if (c.cross_name_candidates.length === 0) r.push('None.\n')
+  else {
+    r.push('| Strength | Module | Path | Source export | Target export | Shared words |')
+    r.push('| --- | --- | --- | --- | --- | --- |')
+    for (const x of [...et.strong, ...et.weak.slice(0, 6)]) {
+      r.push(
+        `| ${x.strength} | ${code(x.module)} | ${code(x.path)} | ${code(x.source_export)} | ${code(x.target_export)} | ` +
+          `${list(x.shared_name_tokens)} |`,
+      )
+    }
+    r.push('')
+  }
+
   r.push('## Different names, overlapping shape — CANDIDATE\n')
   r.push(
     `Differently-named module pairs, each side exporting at least ${c.minimum_exports} names of its ` +
@@ -1336,6 +1939,13 @@ with.`,
   r.push(
     '- The export scan is textual, like the baseline generator’s import scan. A name produced by a\n' +
       '  macro, a barrel re-export chain or a runtime assignment is invisible to it.\n' +
+      '- The schema comparison reads Prisma `model` and `enum` declarations. A concept that lives only\n' +
+      '  in a raw SQL migration and never reaches the schema is not compared here, and a member list\n' +
+      '  is a shape rather than a meaning: two enums can agree on every member and still be used for\n' +
+      '  different things.\n' +
+      '- A shared word is a hint, not a synonym. `deleteLedgerEntry` and `reverseLedgerEntry` share\n' +
+      '  `ledger` and `entry` AND are genuinely one concept under two names; two other exports could\n' +
+      '  share a noun and mean unrelated things. That is why every row here says CANDIDATE.\n' +
       '- The two repositories share history, so most same-named modules ARE the same module. That is\n' +
       '  why the decided tables report only the pairs that differ, and why the identical count is\n' +
       '  printed above rather than as rows.\n' +
@@ -1372,14 +1982,26 @@ wearing a label.`,
     return [...counts.entries()].sort((a, b) => byCodepoint(a[0], b[0])).map(([k, v]) => `${k} ${v}`).join(', ')
   }
 
+  const cd = s.content_divergence
+  r.push('## Whether the target holds the source’s implementation, not just a file at the path\n')
+  r.push(
+    `A disposition computed from path presence alone said \`PARENT_CANONICAL\` for a capability whose\n` +
+      `content diverges — which for an absorption is wrong in the one direction that matters, because\n` +
+      `it reads as "there is nothing to merge". Every path both trees carry and any capability probe\n` +
+      `matches is therefore digested on both sides: ${cd.shared} shared paths, ${cd.identical}\n` +
+      `identical, **${cd.divergent} divergent**, ${cd.undetermined.length} undetermined. Digest is\n` +
+      `${cd.algorithm}; a line ending is not a divergence, and a path neither side would yield is\n` +
+      `named rather than counted as agreement.\n`,
+  )
+
   r.push('## Capability by capability\n')
   r.push(`${s.capabilities.length} capabilities: ${tally(s.capabilities)}.\n`)
-  r.push('| Capability | Source | Target | Source-only | Disposition | Why | Source-only evidence |')
-  r.push('| --- | --- | --- | --- | --- | --- | --- |')
+  r.push('| Capability | Source | Target | Source-only | Shared | Divergent | Disposition | Why | Evidence |')
+  r.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |')
   for (const x of s.capabilities) {
     r.push(
-      `| ${x.capability} | ${x.source_matches} | ${x.target_matches} | ${x.source_only} | ${code(x.disposition)} | ` +
-        `${x.why} | ${list(x.source_only_paths)} |`,
+      `| ${x.capability} | ${x.source_matches} | ${x.target_matches} | ${x.source_only} | ${x.shared_paths} | ` +
+        `${x.divergent_paths} | ${code(x.disposition)} | ${x.why} | ${list([...x.source_only_paths, ...x.divergent_examples])} |`,
     )
   }
   r.push('')
@@ -1399,11 +2021,16 @@ wearing a label.`,
 
   r.push('## Honest limits\n')
   r.push(
-    '- A capability disposition is computed from PATHS, not from behaviour. `PARENT_CANONICAL` here\n' +
-      '  means the target tree holds every path the source probe matched — it does not mean the target\n' +
-      '  implementation is as good, and it never claims to.\n' +
-      '- The two repositories share history, which is why so many rows land on `PARENT_CANONICAL`:\n' +
-      '  the parent was branched from the pilot, so most source paths are literally present here.\n' +
+    '- A capability disposition is computed from PATHS and from CONTENT EQUALITY, not from behaviour.\n' +
+      '  `PARENT_CANONICAL` here means the target tree holds every path the source probe matched and\n' +
+      '  the same bytes at each of them. `MERGE_REQUIRED` on a content divergence does not say which\n' +
+      '  side is better or that anything is missing — it says the two files are not the same file, so\n' +
+      '  the question is open. Which side wins is `SIMON-010-001`.\n' +
+      '- Content equality is a digest comparison, so it cannot tell a reformat from a rewrite. A\n' +
+      '  divergence is a reason to read the diff, not a size.\n' +
+      '- The two repositories share history, which is why every capability has shared paths at all:\n' +
+      '  the parent was branched from the pilot, so most source paths are literally present here. What\n' +
+      '  the digests show is that being present is not the same as being unchanged.\n' +
       '- `SOURCE_SUPERIOR`, `CONFIG_ONLY`, `DATA_ONLY` and `DEPRECATE_AFTER_PROOF` are never assigned\n' +
       '  by this generator, and the guard test asserts that. Assigning one is `SIMON-010-001`’s job.\n',
   )
@@ -1606,7 +2233,15 @@ if (isMain) {
         `${d.concepts.same_symbol_different_kind.length} symbol-kind collisions, ` +
         `${d.concepts.candidate_synonyms_total} candidates`,
     )
-    console.log(`  disposition: ${d.disposition.capabilities.length} capabilities, ${d.disposition.packages.length} packages`)
+    console.log(
+      `  schema concepts: ${d.concepts.schema.same_name_different_members.length} same-name-different-members, ` +
+        `${d.concepts.schema.one_sided.length} one-sided, ` +
+        `${d.concepts.cross_name_candidates.filter((x) => x.strength === 'strong').length} strong rename candidates`,
+    )
+    console.log(
+      `  disposition: ${d.disposition.capabilities.length} capabilities, ${d.disposition.packages.length} packages, ` +
+        `${d.disposition.content_divergence.divergent}/${d.disposition.content_divergence.shared} shared paths divergent`,
+    )
     const v = d.import_risk.vulnerable_dependencies
     console.log(`  import risk: audit ${v.ok ? `${v.counts.total} advisories` : 'UNKNOWN'}`)
   }

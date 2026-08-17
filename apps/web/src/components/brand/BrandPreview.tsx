@@ -1,5 +1,6 @@
-import { brandingFor } from "@tenure/platform-config"
+import { brandingCss, brandingFor } from "@tenure/platform-config"
 
+import { guardBrandingCss } from "@/lib/a11y/brand-roles"
 import { THEME_SWATCHES, assessBrand, measuredRatios } from "@/lib/a11y/tenant-brand"
 
 /**
@@ -26,6 +27,14 @@ export function BrandPreview({ institutionSlug }: { institutionSlug: string }) {
   const requested = brandingFor(institutionSlug)
   const { accepted, rejections } = assessBrand(requested)
   const ratios = measuredRatios(accepted)
+
+  // GE-143-012 — the ROLE half of the same story, and the same call the shell
+  // layout makes on the same string, so what is explained here is what was
+  // actually dropped. A contrast rejection tells an administrator their colour
+  // was not legible; a role rejection tells them the property they aimed it at
+  // is not theirs. Empty in the normal case: `brandingCss` writes only accent
+  // properties today, and this is what keeps that true.
+  const roleRejections = guardBrandingCss(brandingCss(accepted)).rejections
 
   return (
     <div className="space-y-4">
@@ -89,13 +98,24 @@ export function BrandPreview({ institutionSlug }: { institutionSlug: string }) {
         of what branding can set: it is the only thing telling a keyboard user where they are.
       </p>
 
-      {rejections.length > 0 && (
+      {/* One list, both kinds. A contrast rejection says the colour was not
+          legible; a role rejection says the property was not the tenant's to
+          set. They are the same question for the person reading — "why does the
+          console not look like what I configured" — and two boxes would make
+          them look like two unrelated problems. */}
+      {(rejections.length > 0 || roleRejections.length > 0) && (
         <ul className="space-y-1.5 rounded-lg border border-border bg-subtle p-3 text-[13px] text-text-2">
           {rejections.map((rejection) => (
             <li key={`${rejection.token}-${rejection.against}`}>
               <span className="font-medium text-text-1">{rejection.refused}</span> was not applied to{" "}
               <code>{rejection.token}</code>: {rejection.ratio}:1 against {rejection.against}, below
               the {rejection.floor}:1 floor. Showing {rejection.fallback} instead.
+            </li>
+          ))}
+          {roleRejections.map((rejection) => (
+            <li key={rejection.property}>
+              <span className="font-medium text-text-1">{rejection.refused}</span> was not applied to{" "}
+              <code>{rejection.property}</code>: {rejection.explanation}
             </li>
           ))}
         </ul>

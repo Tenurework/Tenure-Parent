@@ -37,7 +37,7 @@ unmet rather than approximated from source.
 | — bound to an external provider | 0 |
 | sync/index surfaces named in the tree | 21 |
 | — naming a provider egress host | 0 |
-| environment variable names in source | 67 |
+| environment variable names in source | 72 |
 | public integration claims in user-visible text | 0 |
 
 ## 1. The twelve axes, per provider
@@ -251,8 +251,12 @@ Names only — no value is read.
 | `AWS_PARTITION` | `apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx` |
 | `AWS_REGION` | `apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx` |
 | `BUILD_COMMIT` | `apps/system-studio/e2e/platform.spec.ts` |
+| `CELL_COST_CURRENCY` | `apps/system-studio/src/lib/cells.ts` |
 | `CELL_ENGINE_VERSION` | `apps/system-studio/src/app/tenants/[slug]/page.tsx` |
-| `CELL_ID` | `apps/web/src/app/api/ai/ai-kill-switch.test.ts` |
+| `CELL_ID` | `apps/system-studio/src/lib/placement-wiring.test.ts` |
+| `CELL_ISOLATION_CLASSES` | `apps/system-studio/src/lib/placement-wiring.test.ts` |
+| `CELL_KMS_CMK_SUPPORTED` | `apps/system-studio/src/lib/placement-wiring.test.ts` |
+| `CELL_KMS_KEY_REGION` | `apps/system-studio/src/lib/cells.ts` |
 | `CELL_LAST_BACKUP_AT` | `apps/system-studio/src/lib/cells.ts` |
 | `CELL_MAX_TENANTS` | `apps/system-studio/src/lib/audit-ledger.test.ts` |
 | `CELL_RECONCILE_URL` | `apps/system-studio/src/lib/deliver.test.ts` |
@@ -305,6 +309,7 @@ Names only — no value is read.
 | `SEED_DESTRUCTIVE` | `apps/web/scripts/seed-guard.test.mjs` |
 | `TENANT_TABLE` | `apps/system-studio/e2e/adoption.spec.ts` |
 | `TENURE_UI_GALLERY` | `apps/web/playwright.config.ts` |
+| `TZ` | `apps/web/src/lib/ingestion/safe-workbook.test.ts` |
 
 The credential plane itself — every file whose path says credential, token,
 vault or secret, and the declared provider ids its code names. A MENTION is not

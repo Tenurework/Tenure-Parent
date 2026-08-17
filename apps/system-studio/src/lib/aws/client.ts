@@ -179,6 +179,9 @@ import {
 import {
   DescribeOrganizationCommand,
   ListAccountsCommand,
+  ListOrganizationalUnitsForParentCommand,
+  ListPoliciesForTargetCommand,
+  ListRootsCommand,
   OrganizationsClient,
 } from "@aws-sdk/client-organizations"
 import {
@@ -332,6 +335,35 @@ export function gateway(): AwsGateway {
         case "organizations:ListAccounts":
           if (!organizations) organizations = new OrganizationsClient({})
           return organizations.send(new ListAccountsCommand({ NextToken: str(input.NextToken) }))
+
+        // STUDIO-010-003. The OU hierarchy, which is where a service control
+        // policy is actually attached — `ListAccounts` cannot say whether an
+        // account is governed, only that it exists.
+        case "organizations:ListRoots":
+          if (!organizations) organizations = new OrganizationsClient({})
+          return organizations.send(new ListRootsCommand({ NextToken: str(input.NextToken) }))
+
+        case "organizations:ListOrganizationalUnitsForParent":
+          if (!organizations) organizations = new OrganizationsClient({})
+          return organizations.send(
+            new ListOrganizationalUnitsForParentCommand({
+              ParentId: str(input.ParentId),
+              NextToken: str(input.NextToken),
+            }),
+          )
+
+        case "organizations:ListPoliciesForTarget":
+          if (!organizations) organizations = new OrganizationsClient({})
+          return organizations.send(
+            new ListPoliciesForTargetCommand({
+              TargetId: str(input.TargetId),
+              // The only filter this console asks for. Fixed here rather than
+              // taken from the caller so a future reader cannot widen the read
+              // to tag policies by passing a string.
+              Filter: "SERVICE_CONTROL_POLICY",
+              NextToken: str(input.NextToken),
+            }),
+          )
 
         case "tag:GetResources":
           if (!tagging) tagging = new ResourceGroupsTaggingAPIClient({})

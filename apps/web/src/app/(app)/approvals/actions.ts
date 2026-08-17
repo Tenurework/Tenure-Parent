@@ -20,6 +20,8 @@ import {
   classifyRequest,
   postingFor,
 } from "@tenure/payments";
+import { fxEvidenceRecord } from "@tenure/finops";
+import { gateMoneyMovement } from "@/lib/payments/movement-gate";
 import { localizationFor } from "@tenure/platform-config";
 import {
   approvalAuthorityFor,
@@ -663,6 +665,11 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
       } | null
     )?.reimbursement;
     let reimbursementOps: Prisma.PrismaPromise<unknown>[] = [];
+    // PAY-190-002 / PAY-200-004. The conversion and the ceilings this posting
+    // was cleared against, recorded on the decision step below. Null when the
+    // decision posted nothing, which is not the same as a posting with no
+    // evidence.
+    let movementEvidence: Record<string, unknown> | null = null;
     if (
       target === "APPROVED" &&
       reimb?.budgetLineId &&
@@ -751,6 +758,69 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
           );
         }
 
+        // ── PAY-190-002 and PAY-200-004 — the currency, then the ceilings ────
+        //
+        // Two questions the path did not ask. The claim's currency was never
+        // compared with the LINE's: `amountCents` went into an entry denominated
+        // in `line.currency` whatever the requester filed it in, so a €100.00
+        // claim posted $100.00. And nothing bounded the amount, the tempo or the
+        // day's total, so two requests each under the approval ladder's ceiling
+        // summed to whatever their author chose.
+        //
+        // Both fail closed, and both refuse BEFORE the journal is built rather
+        // than after it is posted. `taxCents` is read here because the gate has
+        // to convert it with the same quote as the gross — converting the net
+        // separately would round twice and produce a journal that does not add
+        // up to the claim.
+        const taxCents = typeof reimb.taxCents === "number" ? reimb.taxCents : 0;
+        // The currency the request was FILED in, resolved once at the top of
+        // this function by the same parser authority was decided on — never
+        // re-read here, so the gate and the ladder cannot disagree about it.
+        const claimCurrency = money.currency.toUpperCase();
+        const gate = await gateMoneyMovement({
+          institutionId: approval.institutionId,
+          actorPrincipalId: userId,
+          // The person who fronted the cash is the person being paid back, and
+          // is therefore the subject the per-recipient ceiling sums over.
+          recipientKey: approval.submittedById,
+          accountKey: line.id,
+          presentmentMinorUnits: reimb.amountCents,
+          presentmentCurrency: claimCurrency,
+          presentmentTaxMinorUnits: taxCents,
+          settlementCurrency: line.currency,
+          declaredQuote:
+            (
+              approval.metadata as {
+                payment?: { fx?: Record<string, unknown> | null } | null;
+              } | null
+            )?.payment?.fx ?? null,
+        });
+
+        if (!gate.ok) {
+          await recordAuditEvent({
+            institutionId: approval.institutionId,
+            organizationId: approval.organizationId ?? undefined,
+            actor: { principalId: userId },
+            action: `Payments.${gate.gate}_REFUSED`,
+            resourceType: "ApprovalRequest",
+            resourceId: approval.id,
+            outcome: "DENY",
+            reason: `${gate.code}: ${gate.reason}`,
+            metadata: { gate: gate.gate, code: gate.code },
+          });
+          throw new Error(`This request cannot be posted: ${gate.reason}`);
+        }
+
+        movementEvidence = {
+          ...fxEvidenceRecord(gate.fx),
+          ...(gate.taxFx
+            ? { taxSettlementMinorUnits: gate.taxFx.settlement.minorUnits }
+            : {}),
+          limitsVerdict: gate.limits.verdict,
+          limitsCode: gate.limits.code,
+          limitsNotApplicable: gate.limits.notApplicable.join(","),
+        };
+
         // ── PAY-130-002 — a balanced journal, from an effective-dated template
         //
         // `postingFor` refuses when no revision is effective at `effectiveAt`
@@ -759,14 +829,16 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
         // budget line, and the payable to the member who fronted the cash. The
         // payable carries no `budgetLineId` — it is an organization-level
         // liability, and dimensioning it would double the line's actual.
+        //
+        // The amounts are the gate's SETTLEMENT figures, in `line.currency`,
+        // which for a same-currency claim are the filed ones to the unit.
         const effectiveAt = new Date();
-        const taxCents = typeof reimb.taxCents === "number" ? reimb.taxCents : 0;
         const journal = buildJournal(
           postingFor(REIMBURSEMENT_TEMPLATE, effectiveAt.toISOString()),
           {
-            gross: reimb.amountCents,
-            net: reimb.amountCents - taxCents,
-            tax: taxCents,
+            gross: gate.settlementGrossMinorUnits,
+            net: gate.settlementGrossMinorUnits - gate.settlementTaxMinorUnits,
+            tax: gate.settlementTaxMinorUnits,
           },
           { journalId: randomUUID(), effectiveAt: effectiveAt.toISOString() },
         );
@@ -873,6 +945,10 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
               // president's consent specific to an amount.
               payloadDigest: currentDigest,
               ...(onBehalfOf ? { onBehalfOf: onBehalfOf.id } : {}),
+              // PAY-190-002 / PAY-200-004. What the posted amount was converted
+              // from, at whose rate, and which ceilings cleared it. On the step
+              // rather than only in a log: this is the row a restatement reads.
+              ...(movementEvidence ? { movement: movementEvidence } : {}),
             },
             // PAY-030-005. WHICH policy this was decided against, and what
             // conferred the authority. `policySnapshot` above carries ad-hoc

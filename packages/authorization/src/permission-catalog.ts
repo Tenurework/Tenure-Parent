@@ -370,6 +370,59 @@ export const PERMISSIONS = [
  */
 export type PermissionKey = (typeof PERMISSIONS)[number]["key"]
 
+/**
+ * GE-053-003 — the permissions no delegation can carry.
+ *
+ * A delegation is already the intersection of what was delegated and what the
+ * delegator holds, which bounds *how much*. It says nothing about *what kind*,
+ * and there are authorities where borrowing is the whole problem rather than the
+ * amount:
+ *
+ *   - `org.delegation.grant` / `.revoke` — the authority to delegate, borrowed,
+ *     launders a bounded delegation into an unbounded one. The delegate writes
+ *     themselves a fresh delegation with a later end date and the original
+ *     bound is gone, with every write authorized.
+ *   - `admin.override.execute` — acting outside the ordinary gates is the
+ *     control of last resort, and its only real safeguard is that the recorded
+ *     actor is the person who holds it. Borrowed, the record names someone who
+ *     was never given it.
+ *   - `identity.membership.suspend` — removing every capability somebody has.
+ *   - `identity.connection.configure` — changing who the institution trusts to
+ *     say who people are. Delegating that delegates authentication itself.
+ *   - `config.release.promote` — putting configuration into an environment.
+ *
+ * Declared here rather than at the delegation, deliberately: whether an
+ * authority is borrowable is a property of the authority, the same everywhere,
+ * and a per-delegation flag would make it a property of whoever wrote the row.
+ *
+ * Kept to authorities where borrowing defeats a control rather than merely
+ * widening one. `finance.ledger.reverse` is *not* here — reversing a posting is
+ * an ordinary finance act, and a treasurer on leave whose deputy cannot correct
+ * a mistake is a control that costs more than it buys.
+ */
+export const NON_DELEGABLE_PERMISSIONS = [
+  "org.delegation.grant",
+  "org.delegation.revoke",
+  "admin.override.execute",
+  "identity.membership.suspend",
+  "identity.connection.configure",
+  "config.release.promote",
+] as const
+
+const NON_DELEGABLE: ReadonlySet<string> = new Set(NON_DELEGABLE_PERMISSIONS)
+
+/**
+ * May this permission be exercised through a delegation?
+ *
+ * An unknown key answers `true`, and that is not a hole: `decide()` refuses an
+ * unknown permission outright at the module gate, before delegation is ever
+ * consulted. Answering `false` here would be the same denial reported under the
+ * wrong reason, which is how support ends up explaining a typo as a policy.
+ */
+export function isDelegable(key: string): boolean {
+  return !NON_DELEGABLE.has(key)
+}
+
 const BY_KEY: ReadonlyMap<string, PermissionDefinition> = new Map(
   PERMISSIONS.map((p) => [p.key, p]),
 )

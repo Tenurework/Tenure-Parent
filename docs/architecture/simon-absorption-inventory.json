@@ -17,17 +17,36 @@
     "configured_url": "https://github.com/satvikOS/Tenure.git",
     "queried": {
       "queried_as": "satvikOS/Tenure",
-      "canonical_name": "Tenurework/Tenure",
-      "visibility": "PUBLIC",
-      "is_fork": false,
-      "default_branch": "main",
-      "open_pull_requests": [
-        {
-          "number": 45,
-          "head": "docs/runbook-readonly-route",
-          "title": "docs(runbook) + fix(platform-access): the read-only route, and the exit-code read that crashed"
-        }
-      ],
+      "canonical_name": {
+        "ok": false,
+        "unknown_because": "`gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
+        "command": "gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork",
+        "of": "satvikOS/Tenure repository"
+      },
+      "visibility": {
+        "ok": false,
+        "unknown_because": "`gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
+        "command": "gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork",
+        "of": "satvikOS/Tenure repository"
+      },
+      "is_fork": {
+        "ok": false,
+        "unknown_because": "`gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
+        "command": "gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork",
+        "of": "satvikOS/Tenure repository"
+      },
+      "default_branch": {
+        "ok": false,
+        "unknown_because": "`gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
+        "command": "gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork",
+        "of": "satvikOS/Tenure repository"
+      },
+      "open_pull_requests": {
+        "ok": false,
+        "unknown_because": "`gh pr list -R satvikOS/Tenure --state open --json number,title,headRefName` failed",
+        "command": "gh pr list -R satvikOS/Tenure --state open --json number,title,headRefName",
+        "of": "satvikOS/Tenure open pull requests"
+      },
       "releases": [],
       "environments": [],
       "tags": []
@@ -1262,11 +1281,36 @@
     "configured_url": "https://github.com/Tenurework/Tenure-Parent.git",
     "queried": {
       "queried_as": "Tenurework/Tenure-Parent",
-      "canonical_name": "Tenurework/Tenure-Parent",
-      "visibility": "PUBLIC",
-      "is_fork": false,
-      "default_branch": "main",
-      "open_pull_requests": [],
+      "canonical_name": {
+        "ok": false,
+        "unknown_because": "`gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
+        "command": "gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork",
+        "of": "Tenurework/Tenure-Parent repository"
+      },
+      "visibility": {
+        "ok": false,
+        "unknown_because": "`gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
+        "command": "gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork",
+        "of": "Tenurework/Tenure-Parent repository"
+      },
+      "is_fork": {
+        "ok": false,
+        "unknown_because": "`gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
+        "command": "gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork",
+        "of": "Tenurework/Tenure-Parent repository"
+      },
+      "default_branch": {
+        "ok": false,
+        "unknown_because": "`gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
+        "command": "gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork",
+        "of": "Tenurework/Tenure-Parent repository"
+      },
+      "open_pull_requests": {
+        "ok": false,
+        "unknown_because": "`gh pr list -R Tenurework/Tenure-Parent --state open --json number,title,headRefName` failed",
+        "command": "gh pr list -R Tenurework/Tenure-Parent --state open --json number,title,headRefName",
+        "of": "Tenurework/Tenure-Parent open pull requests"
+      },
       "releases": [],
       "environments": [
         "aws-read",
@@ -1275,11 +1319,11 @@
       "tags": []
     },
     "checked_out_branch": "main",
-    "head_commit": "cc4e5291da1ce948b2a2153dfbe8444bbb1528b7",
+    "head_commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace",
     "branches": [
       {
         "ref": "main",
-        "commit": "cc4e5291da1ce948b2a2153dfbe8444bbb1528b7"
+        "commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace"
       },
       {
         "ref": "wip/ier-killed-run-20260808",
@@ -1289,17 +1333,17 @@
     "remote_branches": [
       {
         "ref": "origin",
-        "commit": "cc4e5291da1ce948b2a2153dfbe8444bbb1528b7"
+        "commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace"
       },
       {
         "ref": "origin/main",
-        "commit": "cc4e5291da1ce948b2a2153dfbe8444bbb1528b7"
+        "commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace"
       }
     ],
     "local_tags": [],
     "history": {
-      "commits": 442,
-      "newest_commit": "cc4e5291da1ce948b2a2153dfbe8444bbb1528b7",
+      "commits": 445,
+      "newest_commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace",
       "newest_commit_date": "2026-08-17",
       "oldest_commit": "abf30691f8299414de6b115f4d40c8084049a0f4",
       "oldest_commit_date": "2026-07-10",
@@ -1310,7 +1354,7 @@
         "verification"
       ]
     },
-    "tracked_files": 1526,
+    "tracked_files": 1597,
     "files": [
       ".dockerignore",
       ".gitattributes",
@@ -1913,6 +1957,7 @@
       "apps/web/src/app/api/attachment/[id]/route.ts",
       "apps/web/src/app/api/auth/[...nextauth]/route.ts",
       "apps/web/src/app/api/calendar/event/[id]/route.ts",
+      "apps/web/src/app/api/calendar/ics/[token]/consent-route.test.ts",
       "apps/web/src/app/api/calendar/ics/[token]/route.ts",
       "apps/web/src/app/api/calendar/reschedule/route.ts",
       "apps/web/src/app/api/connections/opportunity/route.ts",
@@ -1935,6 +1980,7 @@
       "apps/web/src/app/api/search/route.ts",
       "apps/web/src/app/api/search/search-lifecycle.test.ts",
       "apps/web/src/app/api/templates/budget/route.ts",
+      "apps/web/src/app/api/templates/budget/target-spread.test.ts",
       "apps/web/src/app/apple-icon.tsx",
       "apps/web/src/app/design-contracts.test.ts",
       "apps/web/src/app/error.tsx",
@@ -1992,6 +2038,7 @@
       "apps/web/src/components/charts/Sparkline.tsx",
       "apps/web/src/components/charts/chart-table.test.ts",
       "apps/web/src/components/charts/chart-table.ts",
+      "apps/web/src/components/charts/cvd.test.ts",
       "apps/web/src/components/charts/cvd.ts",
       "apps/web/src/components/charts/format.ts",
       "apps/web/src/components/charts/hooks.ts",
@@ -2128,6 +2175,7 @@
       "apps/web/src/lib/connections/capability-resolution.ts",
       "apps/web/src/lib/connections/credential-broker.test.ts",
       "apps/web/src/lib/connections/credential-broker.ts",
+      "apps/web/src/lib/connections/pending-intent.test.ts",
       "apps/web/src/lib/connections/pending-intent.ts",
       "apps/web/src/lib/connections/selector-consent.test.ts",
       "apps/web/src/lib/connections/selector-consent.ts",
@@ -2142,6 +2190,7 @@
       "apps/web/src/lib/envelopes/limits.ts",
       "apps/web/src/lib/envelopes/pagination.ts",
       "apps/web/src/lib/finance-integrity.test.ts",
+      "apps/web/src/lib/finance-tie-out.test.ts",
       "apps/web/src/lib/finance.test.ts",
       "apps/web/src/lib/finance.ts",
       "apps/web/src/lib/forms/resource-form.test.ts",
@@ -2183,6 +2232,10 @@
       "apps/web/src/lib/partition-services.test.ts",
       "apps/web/src/lib/partition-services.ts",
       "apps/web/src/lib/payments/ledger-attribution.itest.ts",
+      "apps/web/src/lib/people/seat-memory-boundary.test.ts",
+      "apps/web/src/lib/people/seat-memory-boundary.ts",
+      "apps/web/src/lib/planning/spread.test.ts",
+      "apps/web/src/lib/planning/spread.ts",
       "apps/web/src/lib/platform/tenant-export.itest.ts",
       "apps/web/src/lib/platform/tenant-export.ts",
       "apps/web/src/lib/policies.ts",
@@ -2263,11 +2316,14 @@
       "docs/architecture/Tenure_Global_System_Architecture_Bible_v1.0.md",
       "docs/architecture/anl-analytics-inventory.json",
       "docs/architecture/anl-analytics-inventory.md",
+      "docs/architecture/anl-analytics-limitations.md",
+      "docs/architecture/anl-intuit-benchmark.md",
       "docs/architecture/architecture-document-graph.yaml",
       "docs/architecture/aws-current-state.md",
       "docs/architecture/aws-inventory.json",
       "docs/architecture/aws-wiring-map.md",
       "docs/architecture/capability-completeness-registry.yaml",
+      "docs/architecture/cat-connection-count-examples.md",
       "docs/architecture/cat-integration-inventory.md",
       "docs/architecture/cat-lifecycle-classification.md",
       "docs/architecture/cat-requirement-bindings.md",
@@ -2275,28 +2331,43 @@
       "docs/architecture/cfg-form-and-configuration-disposition.md",
       "docs/architecture/data-provenance.md",
       "docs/architecture/entry-points.md",
+      "docs/architecture/fin-accounting-scope-disclosure.md",
       "docs/architecture/fin-finance-surface-inventory.md",
       "docs/architecture/ge-landing-zone-model.json",
       "docs/architecture/ge-landing-zone-model.md",
       "docs/architecture/github-current-state.md",
+      "docs/architecture/hcm-capability-matrix.md",
       "docs/architecture/hcm-people-inventory.md",
+      "docs/architecture/int-connector-capability-matrix.md",
+      "docs/architecture/int-connector-write-boundary.md",
       "docs/architecture/int-integration-inventory.md",
+      "docs/architecture/ops-availability-and-limitations.md",
       "docs/architecture/ops-operations-code-inventory.md",
       "docs/architecture/ownership.md",
+      "docs/architecture/pack-capability-taxonomy.json",
+      "docs/architecture/pack-capability-taxonomy.md",
       "docs/architecture/pack-surface-inventory.json",
       "docs/architecture/pack-surface-inventory.md",
       "docs/architecture/pln-planning-inventory.md",
+      "docs/architecture/pln-planning-limitations.md",
       "docs/architecture/repository-map.json",
       "docs/architecture/resource-reconciliation.md",
       "docs/architecture/simon-absorption-inventory.json",
+      "docs/architecture/simon-capability-disposition.md",
+      "docs/architecture/simon-concept-collisions.md",
+      "docs/architecture/simon-convergence-inventory.json",
+      "docs/architecture/simon-hardcoded-assumptions.md",
+      "docs/architecture/simon-import-risk-inventory.md",
       "docs/architecture/simon-repository-inventory.md",
       "docs/architecture/simon-repository-maps.md",
       "docs/architecture/simon-stack-inventory.md",
       "docs/architecture/studio-design-system.md",
       "docs/architecture/studio-information-architecture.md",
       "docs/architecture/subsystem-paths.md",
+      "docs/architecture/tenant-experience-architecture.md",
       "docs/architecture/tenant-scoped-schema-plan.md",
       "docs/architecture/ttes-experience-audit.md",
+      "docs/architecture/ttes-governance-dashboard.md",
       "docs/architecture/ux-task-scorecard.md",
       "docs/architecture/wrk-authority-bindings.md",
       "docs/architecture/wrk-work-graph-inventory.md",
@@ -2434,6 +2505,10 @@
       "packages/configuration/src/exceptions.ts",
       "packages/configuration/src/expression.test.ts",
       "packages/configuration/src/expression.ts",
+      "packages/configuration/src/graph-snapshot.test.ts",
+      "packages/configuration/src/graph-snapshot.ts",
+      "packages/configuration/src/graph.test.ts",
+      "packages/configuration/src/graph.ts",
       "packages/configuration/src/index.ts",
       "packages/configuration/src/integrity.test.ts",
       "packages/configuration/src/integrity.ts",
@@ -2457,6 +2532,8 @@
       "packages/finops/package.json",
       "packages/finops/src/allocation.ts",
       "packages/finops/src/finops.test.ts",
+      "packages/finops/src/general-ledger.test.ts",
+      "packages/finops/src/general-ledger.ts",
       "packages/finops/src/grounding.test.ts",
       "packages/finops/src/grounding.ts",
       "packages/finops/src/index.ts",
@@ -2621,6 +2698,7 @@
       "packages/provisioning/src/change-class.ts",
       "packages/provisioning/src/commercial.test.ts",
       "packages/provisioning/src/commercial.ts",
+      "packages/provisioning/src/connection-cardinality.mjs",
       "packages/provisioning/src/connector-capability.ts",
       "packages/provisioning/src/deployment-signature.test.ts",
       "packages/provisioning/src/execute.ts",
@@ -2654,10 +2732,16 @@
       "pay5.json",
       "tests/architecture/a-ticked-box-is-a-passing-requirement.test.mjs",
       "tests/architecture/anl-analytics-inventory.test.mjs",
+      "tests/architecture/anl-intuit-benchmark.test.mjs",
+      "tests/architecture/anl-limitations-are-published.test.mjs",
+      "tests/architecture/anl-requirements-are-imported.test.mjs",
       "tests/architecture/anl-single-metric-definition.test.mjs",
       "tests/architecture/authorizing-routes-are-dynamic.test.mjs",
+      "tests/architecture/availability-labels-are-derived.test.mjs",
       "tests/architecture/brand-mark-is-one-mark.test.mjs",
       "tests/architecture/cache-does-not-cross-tenant-scopes.test.mjs",
+      "tests/architecture/cat-cardinality-covers-the-bible.test.mjs",
+      "tests/architecture/cat-connection-counting.test.mjs",
       "tests/architecture/cat-integration-inventory.test.mjs",
       "tests/architecture/cat-requirement-bindings.test.mjs",
       "tests/architecture/certified-is-derived.test.mjs",
@@ -2668,11 +2752,17 @@
       "tests/architecture/every-provisioned-service-has-a-reader.test.mjs",
       "tests/architecture/experience-separation.test.mjs",
       "tests/architecture/fin-finance-surface.test.mjs",
+      "tests/architecture/fin-ledger-import-is-complete.test.mjs",
+      "tests/architecture/fin-scope-disclosure.test.mjs",
       "tests/architecture/forbidden-clients.test.mjs",
       "tests/architecture/ge-landing-zone-model.test.mjs",
       "tests/architecture/guards-do-not-write-into-the-tree.test.mjs",
+      "tests/architecture/hcm-capability-matrix-is-current.test.mjs",
+      "tests/architecture/hcm-ledger-import-is-complete.test.mjs",
       "tests/architecture/hcm-people-inventory-is-current.test.mjs",
       "tests/architecture/ier-ledger-import-is-complete.test.mjs",
+      "tests/architecture/int-connector-capability-matrix.test.mjs",
+      "tests/architecture/int-connector-write-boundary.test.mjs",
       "tests/architecture/int-integration-inventory.test.mjs",
       "tests/architecture/int-requirements-are-imported.test.mjs",
       "tests/architecture/ledger-statuses.test.mjs",
@@ -2685,9 +2775,15 @@
       "tests/architecture/navigation-outside-tenant-scope.test.mjs",
       "tests/architecture/no-fixture-tenants-on-operator-surfaces.test.mjs",
       "tests/architecture/no-overstated-connectors.test.mjs",
+      "tests/architecture/no-tenant-fork-or-branch.test.mjs",
       "tests/architecture/no-uncertified-provider-claims.test.mjs",
+      "tests/architecture/no-unmeasured-superiority-claims.test.mjs",
+      "tests/architecture/ops-availability-and-limits.test.mjs",
+      "tests/architecture/ops-best-claim-is-measured.test.mjs",
       "tests/architecture/ops-operations-inventory.test.mjs",
+      "tests/architecture/ops-requirements-are-imported.test.mjs",
       "tests/architecture/ownership.test.mjs",
+      "tests/architecture/pack-capability-taxonomy.test.mjs",
       "tests/architecture/pack-requirements-imported.test.mjs",
       "tests/architecture/pack-surface-inventory.test.mjs",
       "tests/architecture/pass-requires-evidence.test.mjs",
@@ -2695,6 +2791,8 @@
       "tests/architecture/payments-port-is-the-only-door.test.mjs",
       "tests/architecture/permission-catalog-is-tenant-blind.test.mjs",
       "tests/architecture/pln-planning-inventory.test.mjs",
+      "tests/architecture/pln-planning-limitations.test.mjs",
+      "tests/architecture/pln-requirements-are-imported.test.mjs",
       "tests/architecture/prompt-matches-ledger.test.mjs",
       "tests/architecture/provider-api-version-is-pinned.test.mjs",
       "tests/architecture/provider-packs-bind-requirements.test.mjs",
@@ -2702,8 +2800,10 @@
       "tests/architecture/resource-tags.test.mjs",
       "tests/architecture/shell-separation.test.mjs",
       "tests/architecture/status-assertions-are-exact.test.mjs",
+      "tests/architecture/tenant-experience-architecture.test.mjs",
       "tests/architecture/tsconfig-includes-no-scratch-build.test.mjs",
       "tests/architecture/ttes-experience-audit.test.mjs",
+      "tests/architecture/ttes-governance-dashboard.test.mjs",
       "tests/architecture/ttes-requirements-are-imported.test.mjs",
       "tests/architecture/ux-task-scorecard.test.mjs",
       "tests/architecture/work-queue.test.mjs",
@@ -2748,8 +2848,10 @@
       "tests/security/studio-task-role-is-narrow.test.mjs",
       "tests/security/workflow-drift.test.mjs",
       "tests/simon-absorption-inventory.test.mjs",
+      "tests/simon-convergence-inventory.test.mjs",
       "tools/anl-analytics-inventory.mjs",
       "tools/aws-inventory.mjs",
+      "tools/cat-connection-counts.mjs",
       "tools/cat-integration-inventory.mjs",
       "tools/cat-requirement-bindings.mjs",
       "tools/cfg-configuration-truth.mjs",
@@ -2764,8 +2866,12 @@
       "tools/duplicate-sources-doc.mjs",
       "tools/entry-point-inventory.mjs",
       "tools/fin-finance-surface.mjs",
+      "tools/fin-scope-disclosure.mjs",
+      "tools/hcm-capability-matrix.mjs",
       "tools/hcm-people-inventory.mjs",
       "tools/import-requirements.mjs",
+      "tools/int-connector-capability-matrix.mjs",
+      "tools/int-connector-write-boundary.mjs",
       "tools/int-integration-inventory.mjs",
       "tools/key-last-use.mjs",
       "tools/key-summary.mjs",
@@ -2782,6 +2888,7 @@
       "tools/loop/domain-workflow.mjs",
       "tools/loop/family-fanout.mjs",
       "tools/loop/fin-mutation-run.mjs",
+      "tools/loop/fin-record-to-report-mutation-run.mjs",
       "tools/loop/harvested-queue.json",
       "tools/loop/next-batch.mjs",
       "tools/loop/plan-waves.mjs",
@@ -2823,17 +2930,25 @@
       "tools/loop/wave-4.json",
       "tools/loop/wave-items.json",
       "tools/loop/wave-plan.json",
+      "tools/ops-availability-and-limits.mjs",
       "tools/ops-operations-inventory.mjs",
       "tools/ownership-map.mjs",
+      "tools/pack-capability-taxonomy.mjs",
+      "tools/pack-storage-reach.mjs",
       "tools/pack-surface-inventory.mjs",
       "tools/platform-truth.mjs",
       "tools/pln-planning-inventory.mjs",
+      "tools/pln-planning-limitations.mjs",
       "tools/reconcile-execution-checkboxes.mjs",
       "tools/repository-map.mjs",
       "tools/run-platform-tests.mjs",
       "tools/simon-absorption-inventory.mjs",
+      "tools/simon-convergence-inventory.mjs",
       "tools/simon-sso-handoff.mjs",
+      "tools/superiority-claims.mjs",
+      "tools/tenant-experience-architecture.mjs",
       "tools/ttes-experience-audit.mjs",
+      "tools/ttes-governance-dashboard.mjs",
       "tools/verify-environments.mjs",
       "tools/verify-workflow-permissions.mjs",
       "tools/wrk-authority-bindings.mjs",
@@ -3196,7 +3311,7 @@
       },
       {
         "area": "apps/web",
-        "files": 494
+        "files": 503
       },
       {
         "area": "blueprints",
@@ -3220,7 +3335,7 @@
       },
       {
         "area": "docs/architecture",
-        "files": 44
+        "files": 62
       },
       {
         "area": "docs/contracts",
@@ -3280,7 +3395,7 @@
       },
       {
         "area": "packages/configuration",
-        "files": 28
+        "files": 32
       },
       {
         "area": "packages/contracts",
@@ -3288,7 +3403,7 @@
       },
       {
         "area": "packages/finops",
-        "files": 15
+        "files": 17
       },
       {
         "area": "packages/identity",
@@ -3316,7 +3431,7 @@
       },
       {
         "area": "packages/provisioning",
-        "files": 30
+        "files": 31
       },
       {
         "area": "packages/releases",
@@ -3328,11 +3443,11 @@
       },
       {
         "area": "tests",
-        "files": 1
+        "files": 2
       },
       {
         "area": "tests/architecture",
-        "files": 58
+        "files": 80
       },
       {
         "area": "tests/security",
@@ -3340,7 +3455,7 @@
       },
       {
         "area": "tools",
-        "files": 32
+        "files": 45
       },
       {
         "area": "tools/dev",
@@ -3348,14 +3463,14 @@
       },
       {
         "area": "tools/loop",
-        "files": 54
+        "files": 55
       }
     ],
     "import_graph": {
-      "code_files": 1207,
-      "builtin_imports": 724,
-      "unresolved_relative_specifiers": 7,
-      "unresolved_alias_specifiers": 3,
+      "code_files": 1260,
+      "builtin_imports": 872,
+      "unresolved_relative_specifiers": 4,
+      "unresolved_alias_specifiers": 9,
       "internal_edges": [
         {
           "from": "apps/system-studio/e2e",
@@ -3535,7 +3650,7 @@
         {
           "from": "apps/system-studio/src/lib",
           "to": "packages/provisioning/src",
-          "imports": 29
+          "imports": 28
         },
         {
           "from": "apps/web/e2e",
@@ -3570,7 +3685,7 @@
         {
           "from": "apps/web/src/app",
           "to": "apps/web/src/lib",
-          "imports": 415
+          "imports": 419
         },
         {
           "from": "apps/web/src/app",
@@ -3595,7 +3710,7 @@
         {
           "from": "apps/web/src/app",
           "to": "packages/finops/src",
-          "imports": 2
+          "imports": 3
         },
         {
           "from": "apps/web/src/app",
@@ -3625,7 +3740,7 @@
         {
           "from": "apps/web/src/components",
           "to": "apps/web/src/lib",
-          "imports": 16
+          "imports": 17
         },
         {
           "from": "apps/web/src/components",
@@ -3686,6 +3801,11 @@
           "from": "apps/web/src/lib",
           "to": "packages/contracts/src",
           "imports": 14
+        },
+        {
+          "from": "apps/web/src/lib",
+          "to": "packages/finops/src",
+          "imports": 1
         },
         {
           "from": "apps/web/src/lib",
@@ -3753,9 +3873,14 @@
           "imports": 1
         },
         {
+          "from": "tests",
+          "to": "tools",
+          "imports": 1
+        },
+        {
           "from": "tests/architecture",
           "to": "tools",
-          "imports": 15
+          "imports": 35
         },
         {
           "from": "tests/architecture",
@@ -4123,7 +4248,7 @@
         {
           "from": "apps/web/src/lib",
           "package": "@prisma/client",
-          "imports": 34,
+          "imports": 36,
           "declared": true
         },
         {
@@ -4225,13 +4350,13 @@
         {
           "from": "packages/configuration/src",
           "package": "@tenure/modules",
-          "imports": 1,
+          "imports": 2,
           "declared": false
         },
         {
           "from": "packages/configuration/src",
           "package": "zod",
-          "imports": 9,
+          "imports": 10,
           "declared": true
         },
         {
@@ -4877,7 +5002,7 @@
       },
       {
         "capability": "Unit tests",
-        "matches": 395,
+        "matches": 428,
         "evidence": [
           "apps/system-studio/src/app/console-index/answer.test.ts",
           "apps/system-studio/src/app/platform/audit/entries.test.ts",
@@ -4915,7 +5040,7 @@
         "pattern": "/^\\.github\\/workflows\\/.*\\.ya?ml$/"
       }
     ],
-    "working_tree_dirty_paths": 114
+    "working_tree_dirty_paths": 135
   },
   "relationship": {
     "merge_base": "d20d40d7846fc434b539f80cae8e437b750055ed",

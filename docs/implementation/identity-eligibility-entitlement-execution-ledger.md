@@ -309,10 +309,14 @@ the commands or the ADR that would unblock it — if it cannot.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
 
-- [ ] **IER-040-005** — Enforce file/row/column/cell/decompression/resource limits.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+## IER-040-005 — six limits, five of them decided before anything is inflated
 
+- [x] **IER-040-005** — "Enforce file/row/column/cell/decompression/resource limits."
+  - Status: PASS
+  - Code: `apps/web/src/lib/ingestion/workbook-admission.ts` — `WORKBOOK_LIMITS` (`FILE_BYTES`, `PARTS`, `PART_UNCOMPRESSED_BYTES`, `TOTAL_UNCOMPRESSED_BYTES`, `EXPANSION_RATIO`, `SHEETS`, `ROWS_PER_SHEET`, `COLUMNS_PER_SHEET`, `CELLS`) and `admitWorkbook`, which refuses `FILE_TOO_LARGE`, `TOO_MANY_PARTS`, `PART_TOO_LARGE`, `EXPANSION_TOO_LARGE`, `EXPANSION_RATIO_TOO_HIGH`. `apps/web/src/lib/ingestion/zip-container.ts:readZipCentralDirectory` supplies the declared sizes by parsing only the central directory — it inflates nothing, reads no member, and refuses ZIP64, spanned and self-contradicting directories rather than guessing. `apps/web/src/lib/ingestion/safe-workbook.ts:readWorkbookSafely` applies the sheet, row, column and whole-workbook cell budget and returns `sheetsTruncated`, `rowsTruncated`, `columnsTruncated`, `cellsTruncated`.
+  - Caller: `content.ts:87` (`readWorkbookSafely`), reached from the three document/attachment surfaces listed under IER-040-004. This *replaced* the previous limits, which were a `MAX_SHEETS = 3` and `MAX_ROWS = 300` local to `content.ts` with no column, cell, part, expansion or ratio limit at all — those two constants are now deleted from that file.
+  - Tests: `workbook-admission.test.ts` — the six container limits, including a ratio exactly at `EXPANSION_RATIO` admitted (the boundary is not off by one) and an all-empty archive that must not divide by zero; `safe-workbook.test.ts` — row, column and sheet truncation plus an untruncated control. Every fixture is built as `WORKBOOK_LIMITS.X + 1` rather than as a literal number, so a tuned limit keeps being tested instead of quietly ceasing to be.
+  - Evidence: `cd apps/web && npx jest src/lib/ingestion --ci` → "Tests: 52 passed, 52 total" (workbook-admission 23/23, zip-container 9/9, safe-workbook 20/20). Mutation A — `zip-container.ts` `u32(bytes, at + 24)` → `u32(bytes, at + 20)`, so the index reports compressed size as uncompressed and every ratio becomes 1: "Tests: 3 failed, 49 passed, 52 total", failing the gigabyte-declaration test, the per-part test and the bomb test; restored, 52/52. Mutation B — `ROWS_PER_SHEET - 1` → `ROWS_PER_SHEET + 99`: "Tests: 1 failed, 51 passed, 52 total", failing "stops reading rows at the row limit and says it did"; restored, 52/52.
 - [ ] **IER-040-006** — Never execute formulas and prevent CSV/formula injection on import/export.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
@@ -357,10 +361,16 @@ the commands or the ADR that would unblock it — if it cannot.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
 
-- [ ] **IER-050-005** — Preserve IDs as strings and dates with explicit ISO/timezone semantics.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+## IER-050-005 — an identifier stays a string, and a date says what its timezone semantics are
 
+- [x] **IER-050-005** — "Preserve IDs as strings and dates with explicit ISO/timezone semantics."
+  - Status: PASS
+  - Code: `apps/web/src/lib/ingestion/safe-workbook.ts` — `SafeCell` (the tagged union `empty` | `text` | `number` | `boolean` | `date` | `formula` | `impossibleDate` | `error`), `classifyCell`, `excelSerialToCivilIso`, `displayCell`, `DateSemantics = "FLOATING_CIVIL"`, and `readWorkbookSafely` which reads cells through `decode_range`/`encode_cell` instead of `XLSX.utils.sheet_to_json`.
+  - Caller: `content.ts:17,87,95`, reached from the three document/attachment surfaces listed under IER-040-004.
+  - What was actually wrong before: one line — `XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" })` — discarded the cell type. `"00417"` in a General cell came back `417`; a date came back as a bare serial, or, with `cellDates`, as a `Date` **constructed in the server's local zone**, so the same file read in two regions yields two days. That is not hypothetical here: building a fixture with `aoa_to_sheet` and a JS `Date` of 2026-09-01 UTC produced serial 46265.833… on this machine, i.e. 2026-08-31 20:00, purely because of the host offset.
+  - Why `FLOATING_CIVIL` is the answer and not a placeholder: a workbook records no UTC offset at all. `2026-09-01` means the first of September wherever the person filling it in was standing. Every library that returns an instant has invented an offset to do it. `excelSerialToCivilIso` does the whole computation in UTC and reads it back with `getUTC*`, so the string carries no `Z` and no offset and the host cannot reach it; resolving it to an instant is the caller's decision against a stated institution timezone.
+  - Tests: `apps/web/src/lib/ingestion/safe-workbook.test.ts` — 20 tests, 20 passing. `"00417"` stays `{ kind:"text", text:"00417" }` end to end through a real written-and-re-read `.xlsx`; a `{ t:"n", v:417, z:"@", w:"00417" }` cell returns the shown text; a quantity stays `{ kind:"number" }`; `#REF!` is not read as empty. Date anchors are arithmetic, not measurements: serial 1 → `1900-01-01`, 59 → `1900-02-28`, 61 → `1900-03-01` (60 is Excel's non-existent 1900-02-29 and returns `{ kind:"impossibleDate", serial:60 }` — Excel itself renders it `2/29/00`), 25569 → `1970-01-01`, 1904-system 0 → `1904-01-01`, 46265.9 → `2026-08-31T21:36:00` with no `Z` and no offset. One test computes 46265.9 under `TZ=Pacific/Kiritimati` and again under `TZ=Pacific/Pago_Pago` and requires the same string.
+  - Evidence: `cd apps/web && npx jest src/lib/ingestion --ci` → "Tests: 52 passed, 52 total". Mutation A — `EXCEL_1900_OFFSET = 25569` → `25570`: "Tests: 4 failed, 48 passed, 52 total", failing all four date tests; restored, 52/52. Mutation B — `cell.z === TEXT_FORMAT` → `cell.z === "@@"`: "Tests: 1 failed, 51 passed, 52 total", failing the text-formatted-identifier test; restored, 52/52.
 - [ ] **IER-050-006** — Produce row-level safe error output and remediation.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented

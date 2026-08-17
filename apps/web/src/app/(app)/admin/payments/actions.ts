@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import {
+  PaymentCapabilityError,
   assertLiabilityApproved,
   chargeModelDigest,
   decideChargeModel,
@@ -154,7 +155,27 @@ export async function saveFundsFlowConfiguration(
       }
     }
 
-    const decision = decideChargeModel(decisionInputFrom(formData, responsibilityFrom(formData)))
+    // PAY-010-008. `decideChargeModel` resolves the capability out of the
+    // registry and `capability()` refuses an unknown id by THROWING — which
+    // fails closed, correctly, and comes out of a server action as a 500 with a
+    // stack trace. The refusal is right and unreadable: an operator whose stale
+    // tab posts a capability that has since been removed, or a forged post
+    // naming one that never existed, deserves the sentence rather than the
+    // crash. Caught here, at the writer, so no other path can be taught to
+    // handle it differently.
+    let decision: ReturnType<typeof decideChargeModel>
+    try {
+      decision = decideChargeModel(decisionInputFrom(formData, responsibilityFrom(formData)))
+    } catch (error) {
+      if (!(error instanceof PaymentCapabilityError)) throw error
+      return {
+        ok: false,
+        code: "capability-unknown",
+        reason: error.message,
+        blockers: [],
+        approvalId: null,
+      }
+    }
 
     if (decision.model === null) {
       // Refused before the gate is even reached: there is no decision to

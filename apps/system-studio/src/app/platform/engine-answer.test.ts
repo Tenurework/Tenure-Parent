@@ -175,9 +175,29 @@ describe("capabilityForCall", () => {
     expect(capabilityForCall("sts get-caller-identity")).toBe("sts:GetCallerIdentity")
   })
 
+  test("maps the unit hierarchy the guardrail reconciliation reads", () => {
+    // STUDIO-010-003. These three were undeclared until the OU reconciliation
+    // needed them, and `organizations list-roots` was this file's example of a
+    // call the registry does not know. It knows it now, which is the point: the
+    // refusal the committed inventory carries for it stopped being unactionable
+    // and started carrying a pasteable statement.
+    expect(capabilityForCall("organizations list-roots")).toBe("organizations:ListRoots")
+    expect(capabilityForCall("organizations list-organizational-units-for-parent")).toBe(
+      "organizations:ListOrganizationalUnitsForParent",
+    )
+    expect(capabilityForCall("organizations list-policies-for-target")).toBe(
+      "organizations:ListPoliciesForTarget",
+    )
+  })
+
   test("returns null for a call this engine does not declare, rather than minting a key", () => {
-    // Real: the inventory tool makes this call and no capability names it.
-    expect(capabilityForCall("organizations list-roots")).toBeNull()
+    // Real, and still undeclared: nothing in this console reads one account's
+    // detail, so a refusal of it has no statement to offer.
+    expect(capabilityForCall("organizations describe-account")).toBeNull()
+    // Adjacent to a declared one and NOT it. `organizations:ListPolicies` lists
+    // every policy in the Organization; the registry declares only
+    // `ListPoliciesForTarget`, which lists the ones attached at one unit.
+    expect(capabilityForCall("organizations list-policies")).toBeNull()
     // The CLI's service name is not always IAM's prefix. `aws elbv2 …`
     // authorizes under `elasticloadbalancing:`, so a mapping that assumed they
     // were the same would produce a statement that grants nothing.
@@ -218,10 +238,23 @@ describe("refusedReads", () => {
   })
 
   test("a refusal the registry does not know says so, and no statement is invented", () => {
-    const row = refusedReads(recorded).find((r) => r.call === "organizations list-roots")!
+    // Not one of the three above any more: every call the committed inventory
+    // records is declared since STUDIO-010-003 added the unit hierarchy, so the
+    // undeclared case is exercised with a call that is genuinely undeclared
+    // rather than by leaving a stale expectation on one that no longer is.
+    const row = refusedReads([
+      { call: "organizations describe-account", reason: "Organizations not in use" },
+    ])[0]
     expect(row.capability).toBeNull()
     expect(row.statementSource).toBe("none")
     expect(row.minimumStatement).toBeNull()
+  })
+
+  test("the refusal that used to have no statement now carries one", () => {
+    const row = refusedReads(recorded).find((r) => r.call === "organizations list-roots")!
+    expect(row.capability).toBe("organizations:ListRoots")
+    expect(row.statementSource).toBe("registry")
+    expect(JSON.parse(row.minimumStatement!).Action).toContain("organizations:ListRoots")
   })
 
   test("a statement the collector recorded wins over one derived here", () => {
@@ -290,14 +323,15 @@ describe("declaredBySurface", () => {
       refusedReads([
         { call: "organizations describe-organization", reason: "Organizations not in use" },
         { call: "organizations list-accounts", reason: "Organizations not in use" },
-        // Unmapped: it must not be attributed to any surface at all.
         { call: "organizations list-roots", reason: "Organizations not in use" },
+        // Unmapped: it must not be attributed to any surface at all.
+        { call: "organizations describe-account", reason: "Organizations not in use" },
       ]),
     )
     const organization = rows.find((r) => r.surface === "organization")!
-    expect(organization.refused).toBe(2)
+    expect(organization.refused).toBe(3)
     expect(rows.filter((r) => r.surface !== "organization").every((r) => r.refused === 0)).toBe(true)
-    expect(rows.reduce((n, r) => n + r.refused, 0)).toBe(2)
+    expect(rows.reduce((n, r) => n + r.refused, 0)).toBe(3)
   })
 
   test("with no refusals every surface reports none", () => {

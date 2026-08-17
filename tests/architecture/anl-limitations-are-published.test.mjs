@@ -103,11 +103,20 @@ function frameProps() {
     .filter((s) => /^[a-zA-Z]\w*$/.test(s))
 }
 
-/** Every `*.tsx` in the chart kit itself (not its panels). */
+/**
+ * Every `*.tsx` in the chart kit itself (not its panels, and not its tests).
+ *
+ * The test exclusion is the same rule `tools/anl-analytics-inventory.mjs` states
+ * in its own header — "a test is evidence ABOUT an artefact, never one" — and it
+ * was missing here only because every test beside the kit happened to be `.ts`
+ * until one arrived as `.tsx`. Without it, `chart-integrity.test.tsx` is derived
+ * as a kit module and the disposition table is asked to classify a test file as
+ * a mark or as frame chrome, which it is neither of.
+ */
 function kitModules() {
   return fs
     .readdirSync(path.join(ROOT, KIT))
-    .filter((f) => f.endsWith('.tsx'))
+    .filter((f) => f.endsWith('.tsx') && !/\.(i?test|spec)\.tsx$/.test(f))
     .sort()
 }
 

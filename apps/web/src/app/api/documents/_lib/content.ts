@@ -12,15 +12,13 @@
  * it as private and never registers a route for it.
  */
 import mammoth from "mammoth"
-import * as XLSX from "xlsx"
 import JSZip from "jszip"
 import { documentsBucket, documentViewUrl, getDocumentBytes } from "@/lib/s3"
+import { displayCell, readWorkbookSafely } from "@/lib/ingestion/safe-workbook"
 import type { DocContent, PptxSlide, SheetData } from "@/components/documents/types"
 
 /** Existing native-parse ceiling — anything larger is offered as a download. */
 const MAX_PARSE_BYTES = 10 * 1024 * 1024
-const MAX_SHEETS = 3
-const MAX_ROWS = 300
 const MAX_TEXT_CHARS = 200_000
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -80,16 +78,27 @@ export async function buildDocContent(opts: {
     }
 
     if (isSheetMime(mime)) {
-      const wb = XLSX.read(bytes, { type: "buffer" })
-      const sheets: SheetData[] = wb.SheetNames.slice(0, MAX_SHEETS).map((name) => {
-        const rows = XLSX.utils
-          .sheet_to_json<(string | number | null)[]>(wb.Sheets[name], {
-            header: 1,
-            defval: "",
-          })
-          .slice(0, MAX_ROWS) as (string | number | null)[][]
-        return { name, rows }
-      })
+      // IER-040-004/005/006 — the container is admitted before a parser runs, and
+      // the parse itself neither evaluates formulas nor coerces an identifier to
+      // a number. It replaced a direct `XLSX.read(bytes, { type: "buffer" })`
+      // here, which accepted a macro-enabled workbook renamed to `.xlsx`, a
+      // decompression bomb, and a workbook whose values come from a file this
+      // server cannot see.
+      //
+      // This is the server's only workbook door. `components/finance/BudgetUpload.tsx`
+      // still parses in the browser with its own `XLSX.read`; that path reads a
+      // file the person already has and never stores what it parses, and moving
+      // it here is a separate change with a separate test.
+      const read = readWorkbookSafely(bytes, { mime })
+      if (!read.ok) {
+        // `detail` is assembled from literal sentences and integers, so this is
+        // safe to render even though the file that produced it is not.
+        return { kind: "unsupported", reason: read.detail, mime }
+      }
+      const sheets: SheetData[] = read.sheets.map((sheet) => ({
+        name: sheet.name,
+        rows: sheet.cells.map((row) => row.map(displayCell)),
+      }))
       return { kind: "sheets", sheets }
     }
 

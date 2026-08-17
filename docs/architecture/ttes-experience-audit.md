@@ -18,7 +18,7 @@ It covers the tenant experience only. `apps/system-studio` is the deployer
 experience, audited separately, and TTES-000-001 split the two inventories so a
 claim about one could not be read as a claim about both.
 
-Scope read: **413 files** under `apps/web/src`.
+Scope read: **440 files** under `apps/web/src`.
 
 ## 2. Personas
 
@@ -98,7 +98,7 @@ fixed-width while rendering a fully responsive layout.
 
 | Tailwind prefix | Occurrences in tenant .tsx |
 | --- | --- |
-| `sm:` | 63 |
+| `sm:` | 64 |
 | `md:` | 10 |
 | `lg:` | 36 |
 | `xl:` | 13 |
@@ -111,46 +111,46 @@ have at least one responsive declaration somewhere in their closure. The other
 
 | Page | Files in closure | Renders markup | Responsive | First responsive file |
 | --- | --- | --- | --- | --- |
-| `apps/web/src/app/(app)/admin/approvals/page.tsx` | 37 | yes | yes | `apps/web/src/components/ui/Button.tsx` |
+| `apps/web/src/app/(app)/admin/approvals/page.tsx` | 39 | yes | yes | `apps/web/src/components/ui/Button.tsx` |
 | `apps/web/src/app/(app)/admin/audit/page.tsx` | 31 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
-| `apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx` | 43 | yes | yes | `apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx` |
-| `apps/web/src/app/(app)/admin/clubs/page.tsx` | 35 | yes | yes | `apps/web/src/components/ui/Avatar.tsx` |
-| `apps/web/src/app/(app)/admin/overrides/page.tsx` | 39 | yes | yes | `apps/web/src/app/(app)/admin/overrides/page.tsx` |
-| `apps/web/src/app/(app)/admin/page.tsx` | 50 | yes | yes | `apps/web/src/components/charts/LiveStats.tsx` |
+| `apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx` | 45 | yes | yes | `apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx` |
+| `apps/web/src/app/(app)/admin/clubs/page.tsx` | 37 | yes | yes | `apps/web/src/components/ui/Avatar.tsx` |
+| `apps/web/src/app/(app)/admin/overrides/page.tsx` | 41 | yes | yes | `apps/web/src/app/(app)/admin/overrides/page.tsx` |
+| `apps/web/src/app/(app)/admin/page.tsx` | 51 | yes | yes | `apps/web/src/components/charts/LiveStats.tsx` |
 | `apps/web/src/app/(app)/admin/payments/page.tsx` | 30 | yes | yes | `apps/web/src/components/admin/FundsFlowForm.tsx` |
-| `apps/web/src/app/(app)/admin/people/page.tsx` | 37 | yes | yes | `apps/web/src/app/(app)/admin/people/page.tsx` |
-| `apps/web/src/app/(app)/approvals/[id]/page.tsx` | 44 | yes | yes | `apps/web/src/app/(app)/approvals/[id]/page.tsx` |
-| `apps/web/src/app/(app)/approvals/new/page.tsx` | 31 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
+| `apps/web/src/app/(app)/admin/people/page.tsx` | 39 | yes | yes | `apps/web/src/app/(app)/admin/people/page.tsx` |
+| `apps/web/src/app/(app)/approvals/[id]/page.tsx` | 48 | yes | yes | `apps/web/src/app/(app)/approvals/[id]/page.tsx` |
+| `apps/web/src/app/(app)/approvals/new/page.tsx` | 33 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
 | `apps/web/src/app/(app)/approvals/page.tsx` | 23 | yes | yes | `apps/web/src/app/(app)/approvals/page.tsx` |
 | `apps/web/src/app/(app)/calendar/[id]/page.tsx` | 25 | yes | yes | `apps/web/src/app/(app)/calendar/[id]/page.tsx` |
 | `apps/web/src/app/(app)/calendar/new/page.tsx` | 44 | yes | yes | `apps/web/src/app/(app)/calendar/new/page.tsx` |
 | `apps/web/src/app/(app)/calendar/page.tsx` | 43 | yes | yes | `apps/web/src/app/(app)/calendar/page.tsx` |
-| `apps/web/src/app/(app)/dashboard/page.tsx` | 54 | yes | yes | `apps/web/src/app/(app)/dashboard/page.tsx` |
-| `apps/web/src/app/(app)/feed/page.tsx` | 30 | yes | yes | `apps/web/src/app/(app)/feed/page.tsx` |
+| `apps/web/src/app/(app)/dashboard/page.tsx` | 55 | yes | yes | `apps/web/src/app/(app)/dashboard/page.tsx` |
+| `apps/web/src/app/(app)/feed/page.tsx` | 32 | yes | yes | `apps/web/src/app/(app)/feed/page.tsx` |
 | `apps/web/src/app/(app)/gallery/page.tsx` | 10 | yes | yes | `apps/web/src/components/ui/Button.tsx` |
 | `apps/web/src/app/(app)/inbox/page.tsx` | 30 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
 | `apps/web/src/app/(app)/messages/[id]/page.tsx` | 36 | yes | yes | `apps/web/src/app/(app)/messages/[id]/page.tsx` |
 | `apps/web/src/app/(app)/messages/compose/page.tsx` | 37 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
-| `apps/web/src/app/(app)/messages/page.tsx` | 34 | yes | yes | `apps/web/src/app/(app)/messages/page.tsx` |
+| `apps/web/src/app/(app)/messages/page.tsx` | 36 | yes | yes | `apps/web/src/app/(app)/messages/page.tsx` |
 | `apps/web/src/app/(app)/notifications/page.tsx` | 15 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
 | `apps/web/src/app/(app)/orgs/[slug]/documents/[id]/summary/page.tsx` | 31 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
-| `apps/web/src/app/(app)/orgs/[slug]/documents/[id]/view/page.tsx` | 30 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
-| `apps/web/src/app/(app)/orgs/[slug]/documents/page.tsx` | 49 | yes | yes | `apps/web/src/components/OrgRecordHeader.tsx` |
-| `apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx` | 62 | yes | yes | `apps/web/src/components/OrgRecordHeader.tsx` |
-| `apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx` | 45 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx` |
-| `apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx` | 31 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx` |
-| `apps/web/src/app/(app)/orgs/[slug]/members/page.tsx` | 40 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/members/page.tsx` |
+| `apps/web/src/app/(app)/orgs/[slug]/documents/[id]/view/page.tsx` | 33 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
+| `apps/web/src/app/(app)/orgs/[slug]/documents/page.tsx` | 51 | yes | yes | `apps/web/src/components/OrgRecordHeader.tsx` |
+| `apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx` | 65 | yes | yes | `apps/web/src/components/OrgRecordHeader.tsx` |
+| `apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx` | 46 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx` |
+| `apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx` | 32 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx` |
+| `apps/web/src/app/(app)/orgs/[slug]/members/page.tsx` | 42 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/members/page.tsx` |
 | `apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx` | 40 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx` |
 | `apps/web/src/app/(app)/orgs/[slug]/page.tsx` | 1 | redirect only | n/a | — |
-| `apps/web/src/app/(app)/orgs/page.tsx` | 32 | yes | yes | `apps/web/src/app/(app)/orgs/page.tsx` |
-| `apps/web/src/app/(app)/reports/finance/page.tsx` | 44 | yes | yes | `apps/web/src/app/(app)/reports/finance/page.tsx` |
-| `apps/web/src/app/(app)/reports/page.tsx` | 42 | yes | yes | `apps/web/src/components/charts/LiveStats.tsx` |
+| `apps/web/src/app/(app)/orgs/page.tsx` | 34 | yes | yes | `apps/web/src/app/(app)/orgs/page.tsx` |
+| `apps/web/src/app/(app)/reports/finance/page.tsx` | 45 | yes | yes | `apps/web/src/app/(app)/reports/finance/page.tsx` |
+| `apps/web/src/app/(app)/reports/page.tsx` | 43 | yes | yes | `apps/web/src/components/charts/LiveStats.tsx` |
 | `apps/web/src/app/(app)/resources/[slug]/page.tsx` | 20 | yes | yes | `apps/web/src/app/(app)/resources/[slug]/page.tsx` |
 | `apps/web/src/app/(app)/resources/page.tsx` | 36 | yes | yes | `apps/web/src/components/ResourcesBrowser.tsx` |
 | `apps/web/src/app/(app)/search/page.tsx` | 34 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
-| `apps/web/src/app/(app)/settings/page.tsx` | 42 | yes | yes | `apps/web/src/components/ProfileImageEditor.tsx` |
+| `apps/web/src/app/(app)/settings/page.tsx` | 45 | yes | yes | `apps/web/src/components/ProfileImageEditor.tsx` |
 | `apps/web/src/app/page.tsx` | 1 | redirect only | n/a | — |
-| `apps/web/src/app/signin/page.tsx` | 14 | yes | **no** | — |
+| `apps/web/src/app/signin/page.tsx` | 15 | yes | **no** | — |
 
 ## 5. Accessibility
 

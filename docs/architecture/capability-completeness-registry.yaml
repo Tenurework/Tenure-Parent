@@ -30,9 +30,9 @@ by_prefix:
   WRK: 88
 by_status:
   BLOCKED_EXTERNAL: 31
-  FAIL: 1973
+  FAIL: 1951
   NOT_APPLICABLE: 1
-  PASS: 260
+  PASS: 282
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -1528,7 +1528,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-000 — Authority, source documents, and baseline"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -1537,7 +1537,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-000 — Authority, source documents, and baseline"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -1546,7 +1546,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-000 — Authority, source documents, and baseline"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2464,7 +2464,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-100 — Cutover and go-live"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2473,7 +2473,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-100 — Cutover and go-live"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2491,7 +2491,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-100 — Cutover and go-live"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2509,7 +2509,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-100 — Cutover and go-live"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -4597,10 +4597,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-053: Authorization tests"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: Unknown action/resource/condition denies by default.
   - id: "GE-053-002"
     prefix: GE
@@ -4615,10 +4615,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-053: Authorization tests"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Delegation cannot exceed source authority, scope, time, resource, action, or non-delegable rules."
   - id: "GE-053-004"
     prefix: GE
@@ -4626,8 +4626,8 @@ requirements:
     section: "GE-053: Authorization tests"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Multi-seat and multi-tenant authority remains isolated; switching context rotates/revalidates session."
   - id: "GE-053-005"
     prefix: GE
@@ -4651,10 +4651,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-053: Authorization tests"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Tenant A/B cross-tenant tests deny every organization/seat/membership/delegation/policy path."
   - id: "GE-060-001"
     prefix: GE
@@ -6289,19 +6289,19 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-101: Placement engine"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement policy evaluation for partition, allowed regions, latency, classification, regulation/contract, isolation tier, service/model availability, capacity, KMS, DR, and cost."
   - id: "GE-101-002"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-101: Placement engine"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement pooled, bridge, silo, dedicated Tenure account, and regional/sovereign placement adapters behind one contract."
   - id: "GE-101-003"
     prefix: GE
@@ -6309,8 +6309,8 @@ requirements:
     section: "GE-101: Placement engine"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: Emit explainable placement decision with policy/config version and approved operator override workflow.
   - id: "GE-101-004"
     prefix: GE
@@ -7830,8 +7830,8 @@ requirements:
     section: "GE-143B: Forest-green brand, light/dark ambience, and type"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Restrict tenant branding to validated identity/accent roles. Prevent tenant colors from changing focus, status, destructive, financial polarity, permission, data quality, link, disabled, or security meanings; automatically adjust or reject invalid accents with an explanation."
   - id: "GE-143-013"
     prefix: GE
@@ -7947,8 +7947,8 @@ requirements:
     section: "GE-143C: Shell, layout, density, and components"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Standardize destructive and cross-organization previews with exact target, tenant/org/seat scope, affected count, downstream effects, approvals, recovery/undo window, retention/legal-hold impact, cost impact, and audit consequence."
   - id: "GE-143-026"
     prefix: GE
@@ -8019,8 +8019,8 @@ requirements:
     section: "GE-143D: Enterprise visualization platform"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Prohibit 3D/perspective distortion, decorative gauges, exploding pies, unjustified dual axes, silent truncated axes, rainbow categorical scales, status colors reused arbitrarily, hidden denominators, and visualized AI numbers without canonical provenance."
   - id: "GE-143-034"
     prefix: GE
@@ -11176,7 +11176,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-040 — Secure ingestion"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11284,7 +11284,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-050 — Workbook and source contracts"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -14182,7 +14182,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "2. Non-negotiable product boundaries"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -14200,7 +14200,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "2. Non-negotiable product boundaries"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -14254,7 +14254,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "3. Capability Completeness contract"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -14290,7 +14290,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "3. Capability Completeness contract"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -14299,7 +14299,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "4. Target architecture"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -15298,7 +15298,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "17. Authorization, approval, and financial controls"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -17935,10 +17935,10 @@ requirements:
     prefix: STUDIO
     source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
     section: "5.5 Control-plane account topology"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Define OU hierarchy and inherited guardrails for Security, Infrastructure, Workloads, Suspended, Quarantine, Sandbox, and Closure lifecycle."
   - id: "STUDIO-010-004"
     prefix: STUDIO
@@ -17953,10 +17953,10 @@ requirements:
     prefix: STUDIO
     source_document: docs/implementation/Tenure_System_Studio_AWS_Authoritative_Control_Plane_Claude_Bible_v1.0.md
     section: "5.5 Control-plane account topology"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Define separate read, plan, deploy-development, deploy-staging, deploy-production, security-remediation, lifecycle, and break-glass roles with permissions boundaries and session tags."
   - id: "STUDIO-010-006"
     prefix: STUDIO

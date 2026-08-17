@@ -52,8 +52,12 @@ import {
   SECRET_INDICATOR_PATTERNS,
   SNAPSHOT,
   exportsOf,
+  nameTokens,
+  parsePrismaSchema,
   placeOf,
   renderAll,
+  sharedNameTokens,
+  strengthOf,
 } from '../tools/simon-convergence-inventory.mjs'
 
 const readText = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8').split('\r\n').join('\n')
@@ -219,10 +223,18 @@ test('every disposition is a label the bible enumerates, and never one a file li
   assert.deepEqual(bad, [], bad.join('; '))
 })
 
-test('every capability disposition re-derives from the baseline file lists', () => {
+test('every capability disposition re-derives from the baseline file lists and the divergence table', () => {
   // Independently: the counts are recounted from the pattern the row carries,
   // and the label is re-decided by a rule written out here rather than by
   // calling the generator's.
+  //
+  // The divergence half is the correction this test carries. Path presence alone
+  // gave `PARENT_CANONICAL` to `Database schema` and `Authorization` while the
+  // same snapshot proved the content differs, so "the parent is canonical" was
+  // being asserted over a file the parent does not actually hold. A capability
+  // whose shared paths diverge is `MERGE_REQUIRED` now, and this rebuilds that
+  // decision from the divergence table rather than believing the row's label.
+  const divergence = new Map(snapshot.disposition.content_divergence.paths.map((p) => [p.path, p]))
   const problems = []
   for (const row of snapshot.disposition.capabilities) {
     const re = reFromString(row.pattern)
@@ -231,23 +243,81 @@ test('every capability disposition re-derives from the baseline file lists', () 
     const s = hit(baseline.source.files)
     const t = new Set(hit(baseline.target.files))
     const sourceOnly = s.filter((f) => !t.has(f))
+    const shared = s.filter((f) => t.has(f))
+    const divergent = shared.filter((f) => divergence.get(f)?.identical === false)
+    const unreadable = shared.filter((f) => !divergence.has(f))
 
     if (s.length !== row.source_matches) problems.push(`${row.capability}: source ${row.source_matches} recounts as ${s.length}`)
     if (t.size !== row.target_matches) problems.push(`${row.capability}: target ${row.target_matches} recounts as ${t.size}`)
     if (sourceOnly.length !== row.source_only) problems.push(`${row.capability}: source_only ${row.source_only} recounts as ${sourceOnly.length}`)
+    if (shared.length !== row.shared_paths) problems.push(`${row.capability}: shared ${row.shared_paths} recounts as ${shared.length}`)
+    if (divergent.length !== row.divergent_paths) problems.push(`${row.capability}: divergent ${row.divergent_paths} recounts as ${divergent.length}`)
+    if (unreadable.length !== row.undetermined_paths) {
+      problems.push(`${row.capability}: undetermined ${row.undetermined_paths} recounts as ${unreadable.length}`)
+    }
 
     let expected
     if (s.length === 0 && t.size === 0) expected = 'UNKNOWN'
     else if (s.length > 0 && t.size === 0) expected = 'REIMPLEMENT_REQUIRED'
     else if (s.length === 0) expected = 'PARENT_CANONICAL'
-    else if (sourceOnly.length === 0) expected = 'PARENT_CANONICAL'
-    else expected = 'MERGE_REQUIRED'
+    else if (sourceOnly.length > 0) expected = 'MERGE_REQUIRED'
+    else if (divergent.length > 0) expected = 'MERGE_REQUIRED'
+    else if (unreadable.length > 0) expected = 'UNKNOWN'
+    else expected = 'PARENT_CANONICAL'
     if (expected !== row.disposition) problems.push(`${row.capability}: says ${row.disposition}, the rule gives ${expected}`)
 
     const cited = new Set(row.source_only_paths)
     for (const p of cited) {
       if (!sourceOnly.includes(p)) problems.push(`${row.capability}: cites source-only path ${p} that is not source-only`)
     }
+    for (const p of row.divergent_examples) {
+      if (!divergent.includes(p)) problems.push(`${row.capability}: cites ${p} as divergent, and it is not`)
+    }
+  }
+  assert.deepEqual(problems, [], problems.slice(0, 12).join('\n  '))
+})
+
+test('the divergence table is two trees compared, and an “identical” claim is falsifiable', () => {
+  // The table itself: every path is one both trees carry, and the identical flag
+  // agrees with the two digests.
+  const cd = snapshot.disposition.content_divergence
+  const inSource = new Set(baseline.source.files)
+  const inTarget = new Set(baseline.target.files)
+  const problems = []
+  for (const p of cd.paths) {
+    if (!inSource.has(p.path)) problems.push(`${p.path} is in the divergence table and not in the source tree`)
+    if (!inTarget.has(p.path)) problems.push(`${p.path} is in the divergence table and not in the target tree`)
+    if (!/^[0-9a-f]{16}$/.test(p.source_sha256) || !/^[0-9a-f]{16}$/.test(p.target_sha256)) {
+      problems.push(`${p.path} carries something that is not a digest`)
+    }
+    if (p.identical !== (p.source_sha256 === p.target_sha256)) problems.push(`${p.path}: identical=${p.identical} disagrees with its own digests`)
+  }
+  assert.equal(cd.divergent, cd.paths.filter((p) => !p.identical).length, 'the divergent count disagrees with the table')
+  assert.equal(cd.identical, cd.paths.filter((p) => p.identical).length, 'the identical count disagrees with the table')
+  assert.equal(cd.shared, cd.paths.length, 'the shared count disagrees with the table')
+
+  // The independent falsifier, and it only runs in the direction it can prove:
+  // two byte-identical files must produce byte-identical assumption findings, so
+  // a path claimed IDENTICAL whose findings differ side to side is a claim the
+  // rest of the snapshot contradicts. That is the direction that matters —
+  // falsely claiming two files agree is what produces a wrong PARENT_CANONICAL.
+  // The converse does not hold (two different files can have the same findings)
+  // and is not asserted.
+  const findingsFor = (which) => {
+    const out = new Map()
+    for (const g of snapshot.assumptions[which].groups) {
+      if (!out.has(g.file)) out.set(g.file, [])
+      out.get(g.file).push(`${g.probe}|${g.hits}|${g.lines.join(',')}|${g.tokens.join(',')}`)
+    }
+    for (const v of out.values()) v.sort()
+    return out
+  }
+  const src = findingsFor('source')
+  const tgt = findingsFor('target')
+  for (const p of cd.paths.filter((x) => x.identical)) {
+    const a = (src.get(p.path) ?? []).join('\n')
+    const b = (tgt.get(p.path) ?? []).join('\n')
+    if (a !== b) problems.push(`${p.path} is claimed identical, but its assumption findings differ between the two trees`)
   }
   assert.deepEqual(problems, [], problems.slice(0, 12).join('\n  '))
 })
@@ -342,6 +412,189 @@ test('the export scanner reads declarations rather than any word after “export
   assert.equal(got.has('commentedOut'), false, 'a commented-out export was counted')
   assert.equal(got.has('notExported'), false)
   assert.equal(got.has('lambda'), false, '“exporting.lambda” was read as an export')
+})
+
+test('the role and workflow vocabulary is read out of the schemas, not typed from memory', () => {
+  // SIMON-000-004 says "every ... role ... assumption". The first version of this
+  // scan hand-listed six role names, two of which (OSE_ADMIN, VICE_PRESIDENT)
+  // occur nowhere in either tree, and it omitted every member of the two enums
+  // the pilot actually declares — so 107 occurrences of OSE_DIRECTOR/OSE_STAFF/
+  // OSE_ADVISOR on the source side were located by nothing. `tenant-token` could
+  // not cover for it: \bOSE\b does not match OSE_DIRECTOR, because `_` is a word
+  // character. This asserts the vocabulary comes from the declarations.
+  const derived = snapshot.assumptions.derived_vocabulary
+  assert.ok(Array.isArray(derived) && derived.length >= 2, 'the derived vocabulary is gone; the probes are hand-listed again')
+  const problems = []
+  for (const v of derived) {
+    const selector = reFromString(v.selector)
+    const union = [...new Set(v.declarations.flatMap((d) => d.members))].sort(byCodepoint)
+    assert.deepEqual(v.members, union, `${v.probe}: the member list is not the union of its own declarations`)
+    // The pattern is a function of the member SET, so a member cannot be in the
+    // list and missing from the alternation the scan actually ran.
+    assert.equal(v.pattern, `/\\b(?:${v.members.join('|')})\\b/g`, `${v.probe}: the pattern is not the alternation of its members`)
+    for (const d of v.declarations) {
+      if (!selector.test(d.enum)) problems.push(`${v.probe}: ${d.enum} does not match the selector it was collected by`)
+      const known = new Set(d.side === 'source' ? baseline.source.files : baseline.target.files)
+      if (!known.has(d.file)) problems.push(`${v.probe}: ${d.enum} cites ${d.file}, absent from the ${d.side} file list`)
+      if (!/schema\.prisma$/.test(d.file)) problems.push(`${v.probe}: ${d.enum} was collected from ${d.file}, which is not a schema`)
+      // The declaring file must itself carry a finding for every member it
+      // declares. The schema says the name exists there; if the probe did not
+      // locate it there, it is not locating it anywhere.
+      const found = new Set(
+        snapshot.assumptions[d.side].groups.filter((g) => g.file === d.file && g.probe === v.probe).flatMap((g) => g.tokens),
+      )
+      for (const m of d.members) {
+        if (!found.has(m)) problems.push(`${v.probe}: ${m} is declared at ${d.file}:${d.line} and the scan found it nowhere in that file`)
+      }
+    }
+  }
+
+  // The five names the review named, by name, on both sides.
+  const roles = derived.find((v) => v.probe === 'role-enum-member')
+  assert.ok(roles, 'the role vocabulary probe is gone')
+  for (const name of ['OSE_DIRECTOR', 'OSE_STAFF', 'OSE_ADVISOR', 'PRESIDENT', 'FUNCTIONAL', 'MEMBER']) {
+    assert.ok(roles.members.includes(name), `${name} is not in the role vocabulary`)
+    for (const which of ['source', 'target']) {
+      const hits = snapshot.assumptions[which].groups.filter((g) => g.probe === 'role-enum-member' && g.tokens.includes(name))
+      assert.ok(hits.length > 0, `${name} is located nowhere on the ${which} side`)
+    }
+  }
+  // And the site the review named: a hard-coded role array in a server action,
+  // which is a role assumption in exactly the place the requirement cares about.
+  const rolesInActions = snapshot.assumptions.source.groups.filter(
+    (g) => g.probe === 'role-enum-member' && g.file === 'apps/web/src/app/(app)/admin/actions.ts',
+  )
+  assert.ok(rolesInActions.length > 0, 'the hard-coded INSTITUTION_ROLES array in the pilot’s admin actions is located by nothing')
+  assert.deepEqual(problems, [], problems.slice(0, 12).join('\n  '))
+})
+
+test('the workflow row is located rather than empty, on both sides', () => {
+  // The other half of the same review: the `workflow` kind read 0 on the source
+  // side while that tree carries `model ApprovalStep`, five `approvalStep.create`
+  // call sites and an SLA escalation clock. A row of zeros in a coverage table is
+  // not "nothing to find".
+  for (const which of ['source', 'target']) {
+    const row = snapshot.assumptions[which].by_kind.find((k) => k.kind === 'workflow')
+    assert.ok(row && row.hits > 0, `the workflow assumption row is empty on the ${which} side`)
+  }
+  const sourceProbes = new Set(snapshot.assumptions.source.groups.map((g) => g.probe))
+  for (const probe of ['approval-chain-symbol', 'sla-threshold', 'workflow-state-member']) {
+    assert.ok(sourceProbes.has(probe), `${probe} found nothing at all on the source side`)
+  }
+  // Named sites, because "the row is non-zero" is satisfiable by noise.
+  const at = (probe, file) => snapshot.assumptions.source.groups.some((g) => g.probe === probe && g.file === file)
+  assert.ok(at('sla-threshold', 'apps/web/src/lib/approvals-sla.ts'), 'the pilot’s SLA escalation thresholds are located by nothing')
+  assert.ok(at('approval-chain-symbol', 'apps/web/prisma/schema.prisma'), 'the pilot’s ApprovalStep model is located by nothing')
+})
+
+test('the Prisma parser reads declarations rather than any word in a block', () => {
+  // The unit the whole schema comparison stands on, and the reason there is one
+  // parser rather than two: SIMON-000-004's vocabulary and SIMON-000-005's
+  // concept tables are the same parse at two zooms.
+  const got = parsePrismaSchema(
+    [
+      'enum Alpha {',
+      '  ONE   // a trailing comment',
+      '  TWO',
+      '  /// a doc comment',
+      '  // COMMENTED_OUT',
+      '}',
+      'model Beta {',
+      '  id     String @id',
+      '  gamma  Gamma?',
+      '  @@index([id])',
+      '}',
+      'enum Empty {',
+      '}',
+    ].join('\n'),
+  )
+  assert.deepEqual(
+    got.enums.map((e) => `${e.name}:${e.members.join(',')}`),
+    ['Alpha:ONE,TWO', 'Empty:'],
+    'the enum parse is not the declared members',
+  )
+  assert.deepEqual(got.models.map((m) => `${m.name}:${m.members.join(',')}`), ['Beta:id,gamma'])
+  assert.equal(got.enums[0].line, 1, 'the declaration line is wrong, so every citation in the document points at the wrong place')
+  assert.equal(got.models[0].line, 7)
+})
+
+test('the schema comparison sees the vocabulary the export scan structurally cannot', () => {
+  // SIMON-000-005's first half was answered over JS/TS module exports only, so
+  // schema, migration and API vocabulary were never compared — and the
+  // divergence that matters most in a financial ledger was invisible:
+  // `enum LedgerKind` exists in both schemas with different members.
+  const sc = snapshot.concepts.schema
+  const problems = []
+  assert.ok(sc, 'the schema comparison is gone')
+  assert.ok(sc.same_name_different_members.length > 0, 'no declared name differs — the schema comparison has stopped comparing')
+  const ledger = sc.same_name_different_members.find((x) => x.name === 'LedgerKind')
+  assert.ok(ledger, 'LedgerKind is not reported, and it differs in both trees — this is the miss this section exists to close')
+  assert.equal(ledger.declaration, 'enum')
+  assert.deepEqual(ledger.only_in_source.filter((m) => ledger.only_in_target.includes(m)), [], 'a member is reported as unique to both sides')
+  assert.ok(ledger.only_in_target.length > 0, 'LedgerKind is reported as differing with nothing on either side')
+
+  const inSource = new Set(baseline.source.files)
+  const inTarget = new Set(baseline.target.files)
+  for (const x of sc.same_name_different_members) {
+    if (x.only_in_source.length === 0 && x.only_in_target.length === 0) problems.push(`${x.name}: reported as differing with nothing on either side`)
+    if (!inSource.has(x.source_path)) problems.push(`${x.name}: cites source ${x.source_path}`)
+    if (!inTarget.has(x.target_path)) problems.push(`${x.name}: cites target ${x.target_path}`)
+    if (!['model', 'enum'].includes(x.declaration)) problems.push(`${x.name}: declaration kind ${x.declaration}`)
+    if (!x.verdict.startsWith('DECIDED')) problems.push(`${x.name}: a decided row is not labelled DECIDED`)
+  }
+  for (const x of sc.one_sided) {
+    const known = x.side === 'source only' ? inSource : inTarget
+    if (!known.has(x.path)) problems.push(`${x.name}: one-sided row cites ${x.path}`)
+    const other = x.side === 'source only' ? 'target' : 'source'
+    const clash = sc.same_name_different_members.some((y) => y.name === x.name && y.declaration === x.declaration)
+    if (clash) problems.push(`${x.name}: reported as ${x.side} and as differing on both sides`)
+    assert.ok(other, 'unreachable')
+  }
+  assert.deepEqual(problems, [], problems.slice(0, 12).join('\n  '))
+})
+
+test('a rename is located by two signals, and the strong ones are the strong ones', () => {
+  // The half of SIMON-000-005 that a Jaccard over shared export NAMES cannot
+  // answer at all: "duplicate business concepts implemented under DIFFERENT
+  // names". A rename has no shared name, so the old metric scored 0 on every one
+  // of them by construction and the table located nothing.
+  assert.deepEqual(nameTokens('deleteLedgerEntry'), ['delete', 'ledger', 'entry'])
+  assert.deepEqual(nameTokens('APPROVAL_DIGEST_FIELDS'), ['approval', 'digest', 'fields'])
+  assert.deepEqual(nameTokens('CalendarSyncProvider'), ['calendar', 'sync', 'provider'])
+  // `sync` is four letters, so it is not a concept word — sharing it proves
+  // nothing, and this is the rule that keeps the table from filling with noise.
+  assert.deepEqual(sharedNameTokens('deleteLedgerEntry', 'reverseLedgerEntry'), ['entry', 'ledger'])
+  assert.deepEqual(sharedNameTokens('CalendarSyncProvider', 'DirectorySyncProvider'), ['provider'])
+  assert.deepEqual(sharedNameTokens('getId', 'setId'), [])
+  assert.equal(strengthOf(['entry', 'ledger']), 'strong')
+  assert.equal(strengthOf(['approval']), 'weak')
+
+  const rows = snapshot.concepts.cross_name_candidates
+  assert.ok(Array.isArray(rows) && rows.length > 0, 'the rename table is empty; this half of the requirement is unanswered again')
+  const problems = []
+  const byPath = new Map(snapshot.concepts.same_name_different_shape.map((r) => [r.source_path, r]))
+  for (const x of rows) {
+    if (x.source_export === x.target_export) problems.push(`${x.path}: a "different names" row whose names are the same`)
+    if (!x.verdict.startsWith('CANDIDATE')) problems.push(`${x.path}: an undecided row is not labelled CANDIDATE`)
+    if (x.strength !== strengthOf(x.shared_name_tokens)) problems.push(`${x.path}: strength ${x.strength} is not what its shared words give`)
+    // Re-derived: the two names must really be the unique-to-each-side exports of
+    // that module, and the shared words must really be shared.
+    const row = byPath.get(x.path)
+    if (!row) problems.push(`${x.path}: cites a module the same-name table does not carry`)
+    else {
+      if (!row.only_in_source.includes(x.source_export)) problems.push(`${x.path}: ${x.source_export} is not source-only there`)
+      if (!row.only_in_target.includes(x.target_export)) problems.push(`${x.path}: ${x.target_export} is not target-only there`)
+    }
+    const shared = sharedNameTokens(x.source_export, x.target_export)
+    if (shared.join(',') !== x.shared_name_tokens.join(',')) problems.push(`${x.path}: shared words ${x.shared_name_tokens} recompute as ${shared}`)
+  }
+  // The one the review named, by name.
+  const strong = rows.filter((x) => x.strength === 'strong')
+  assert.ok(
+    strong.some((x) => x.source_export === 'deleteLedgerEntry' && x.target_export === 'reverseLedgerEntry'),
+    'deleteLedgerEntry / reverseLedgerEntry is not reported as one concept under two names',
+  )
+  assert.deepEqual(problems, [], problems.slice(0, 12).join('\n  '))
 })
 
 test('every import-risk path is in the source tree, or says why it is not', () => {

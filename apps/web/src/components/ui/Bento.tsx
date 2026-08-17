@@ -154,7 +154,11 @@ export function StatTile({
       {hint && <p className="mt-1.5 text-meta text-text-3">{hint}</p>}
       {spark && spark.length > 1 && (
         <div data-testid="stat-spark" className="mt-auto pt-3">
-          <Sparkline values={spark} />
+          {/* GE-143-033. The tile's own label, so the sparkline's disclosure
+              names the series it is of rather than describing an anonymous
+              trend: "Active members. Trend of 8 points. From 100 to 101 — the
+              axis starts at 100, not zero…". */}
+          <Sparkline values={spark} labelPrefix={label} />
         </div>
       )}
     </div>

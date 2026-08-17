@@ -12,11 +12,11 @@ node tools/fin-finance-surface.mjs --check   # fail if it is stale
 ## What was measured
 
 - Roots scanned for `.ts`/`.tsx`/`.mjs`: `apps/web/src`, `apps/web/e2e`, `apps/system-studio/src`, `apps/system-studio/e2e`, `packages`, `modules`.
-- Finance surface: **96 files** — 53 source, 37 unit/integration test, 6 e2e.
-- Facet hits (a file can match several): budget 9 · expense 3 · ledger 13 · payment 35 · cost 37 · finance 15.
+- Finance surface: **111 files** — 58 source, 47 unit/integration test, 6 e2e.
+- Facet hits (a file can match several): budget 9 · expense 3 · ledger 13 · payment 48 · cost 39 · finance 15.
 - Finance-bearing tables in `apps/web/prisma/schema.prisma`: **10**.
 - Bible §3.2 canonical accounting objects present as tables: **0 of 20** — none. A further 1 (`Account`) has its name taken by an unrelated model, which is a migration hazard and is not coverage.
-- Capability claims: **26** — 11 TRUE, 12 SCOPED, 3 OVERSTATED, 0 UNADJUDICATED.
+- Capability claims: **30** — 13 TRUE, 14 SCOPED, 3 OVERSTATED, 0 UNADJUDICATED.
 
 ## A. The finance surface
 
@@ -56,7 +56,9 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `apps/web/src/app/(app)/admin/payments/actions.ts` | tenant | source | payment |
 | `apps/web/src/app/(app)/admin/payments/liability-gate.test.ts` | tenant | test | payment |
 | `apps/web/src/app/(app)/admin/payments/page.tsx` | tenant | source | payment |
+| `apps/web/src/app/(app)/admin/payments/unsupported-capability.test.ts` | tenant | test | payment |
 | `apps/web/src/app/(app)/approvals/money-movement.test.ts` | tenant | test | ledger |
+| `apps/web/src/app/(app)/approvals/payment-movement-gate.test.ts` | tenant | test | payment |
 | `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts` | tenant | source | finance |
 | `apps/web/src/app/(app)/orgs/[slug]/finance/money-path.itest.ts` | tenant | test | ledger, finance |
 | `apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx` | tenant | source | finance |
@@ -65,6 +67,7 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `apps/web/src/app/api/payments/provider-events/route.ts` | tenant | source | payment |
 | `apps/web/src/app/api/templates/budget/route.ts` | tenant | source | budget |
 | `apps/web/src/app/api/templates/budget/target-spread.test.ts` | tenant | test | budget |
+| `apps/web/src/components/ai/relay-payments-claims.test.ts` | tenant | test | payment |
 | `apps/web/src/components/finance/BudgetBarChart.tsx` | tenant | source | budget, finance |
 | `apps/web/src/components/finance/BudgetUpload.tsx` | tenant | source | budget, finance |
 | `apps/web/src/components/finance/FinanceDashboard.tsx` | tenant | source | finance |
@@ -76,9 +79,15 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `apps/web/src/lib/finance-tie-out.test.ts` | tenant | test | finance |
 | `apps/web/src/lib/finance.test.ts` | tenant | test | finance |
 | `apps/web/src/lib/finance.ts` | tenant | source | finance |
+| `apps/web/src/lib/payments/authority-attacks.test.ts` | tenant | test | payment |
+| `apps/web/src/lib/payments/delegation-expiry-wired.test.ts` | tenant | test | payment |
 | `apps/web/src/lib/payments/ledger-attribution.itest.ts` | tenant | test | ledger, payment |
+| `apps/web/src/lib/payments/movement-gate.ts` | tenant | source | payment |
+| `apps/web/src/lib/relay/payments-claim-review.ts` | tenant | source | payment |
 | `packages/finops/src/allocation.ts` | shared | source | cost |
 | `packages/finops/src/finops.test.ts` | shared | test | cost |
+| `packages/finops/src/fx-evidence.test.ts` | shared | test | cost |
+| `packages/finops/src/fx-evidence.ts` | shared | source | cost |
 | `packages/finops/src/general-ledger.test.ts` | shared | test | ledger, cost |
 | `packages/finops/src/general-ledger.ts` | shared | source | ledger, cost |
 | `packages/finops/src/grounding.test.ts` | shared | test | cost |
@@ -99,6 +108,7 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `packages/payments/src/balance-transactions.ts` | shared | source | payment |
 | `packages/payments/src/capability-registry.test.ts` | shared | test | payment |
 | `packages/payments/src/capability-registry.ts` | shared | source | payment |
+| `packages/payments/src/capability-states.test.ts` | shared | test | payment |
 | `packages/payments/src/charge-model.test.ts` | shared | test | payment |
 | `packages/payments/src/charge-model.ts` | shared | source | payment |
 | `packages/payments/src/eligibility.test.ts` | shared | test | payment |
@@ -111,8 +121,13 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `packages/payments/src/index.ts` | shared | source | payment |
 | `packages/payments/src/liability.test.ts` | shared | test | payment |
 | `packages/payments/src/liability.ts` | shared | source | payment |
+| `packages/payments/src/limits.test.ts` | shared | test | payment |
+| `packages/payments/src/limits.ts` | shared | source | payment |
 | `packages/payments/src/posting.test.ts` | shared | test | ledger, payment |
 | `packages/payments/src/posting.ts` | shared | source | ledger, payment |
+| `packages/payments/src/prohibited-claims-content-review.test.ts` | shared | test | payment |
+| `packages/payments/src/prohibited-claims.test.ts` | shared | test | payment |
+| `packages/payments/src/prohibited-claims.ts` | shared | source | payment |
 | `packages/payments/src/refusal.test.ts` | shared | test | payment |
 | `packages/payments/src/refusal.ts` | shared | source | payment |
 | `packages/payments/src/responsibility.test.ts` | shared | test | payment |
@@ -194,12 +209,16 @@ Every term from the Bible's capability vocabulary uttered anywhere in the surfac
 | `packages/payments/src/charge-model.ts` | subledger | 1 | OVERSTATED | A blocker message tells the caller to 'post it to the internal subledger instead'. No subledger exists — there is one LedgerEntry table and no subledger document or entry at all. FIN-000-003. |
 | `packages/payments/src/eligibility.ts` | legal entity | 2 | SCOPED | The legal-entity TYPE a capability is declared for. A type, not an entity. |
 | `packages/payments/src/funds-flow.ts` | legal entity | 1 | SCOPED | Quotes the Payments Bible on direct flow. Describes the intended arrangement, claims no model. |
+| `packages/payments/src/limits.ts` | legal entity | 1 | SCOPED | One sentence of a doc comment on `recipientKey`, explaining that `null` means a movement between two dimensions of ONE legal entity rather than a payment to somebody. It names the boundary the null case sits inside; it does not claim this package models legal entities, and nothing here holds one. PAY-000-004. |
 | `packages/payments/src/posting.ts` | legal entity | 1 | SCOPED | The header QUOTES Bible §13 — templates 'versioned by legal entity, ledger/book, transaction type, provider flow, currency, tax and effective date' — and attributes it. What POSTING_TEMPLATES actually versions by is effective date and currency; the other five axes do not exist. Attributed, so not a false claim, but a reader skimming it will over-read the code. FIN-000-002. |
+| `packages/payments/src/prohibited-claims.test.ts` | legal entity | 1 | TRUE | The test that proves the rule above fires, using the sentence 'Tenure is not the merchant of record; the tenant legal entity is.' Same subject, and it is exercised rather than asserted. |
+| `packages/payments/src/prohibited-claims.ts` | legal entity | 1 | TRUE | Not a capability claim at all — it is the REASON a claim is forbidden. The rule refuses the sentence 'Tenure is the merchant of record' on the ground that the tenant's legal entity is the merchant by default (pay-adr-0001), and `describeMerchant` resolves the actual party. The code asserts the arrangement it describes and enforces it by refusing the opposite. |
+| `packages/payments/src/prohibited-claims.ts` | subledger | 2 | SCOPED | Used twice, both times to LIMIT what the word may be taken to mean: 'the only balance Tenure computes is an internal subledger figure' (so it must not be called the reader's balance) and 'Tenure's subledger is evidence beside the provider's records, never instead of them'. What exists underneath is real but small — `buildJournal` (posting.ts) refuses an unbalanced journal and posts against four named accounts — which is a bookkeeping mechanism, not an ERP subledger with per-entity books or a period close. SCOPED rather than TRUE because the machinery is narrower than the word, and rather than OVERSTATED because these sentences exist precisely to stop it being presented as money or as authoritative. |
 | `packages/payments/src/refusal.test.ts` | legal entity | 2 | TRUE | Tests the refusal that the source performs. |
 | `packages/payments/src/refusal.ts` | legal entity | 4 | TRUE | The refusal is real: a posting whose payee is outside the source legal entity is escalated rather than posted. It refuses the case instead of accounting for it, which is honest and is why IntercompanyTransaction is ABSENT above. |
 
 ## What this inventory says
 
-The platform has real finance code — 96 files and 10 money-bearing tables — and it is club budgeting, reimbursement and payment-provider plumbing, not accounting. Money is integer minor units end to end, a posting is a balanced journal, and a posted entry is corrected by a reversal rather than a delete. Above that line there is nothing: 20 of the 20 objects the Bible names as the minimum are not there, including every one that makes a ledger a ledger — `Journal`, `Ledger`, `Book`, `Account`, `Period`.
+The platform has real finance code — 111 files and 10 money-bearing tables — and it is club budgeting, reimbursement and payment-provider plumbing, not accounting. Money is integer minor units end to end, a posting is a balanced journal, and a posted entry is corrected by a reversal rather than a delete. Above that line there is nothing: 20 of the 20 objects the Bible names as the minimum are not there, including every one that makes a ledger a ledger — `Journal`, `Ledger`, `Book`, `Account`, `Period`.
 
-Of 26 capability claims, 3 are OVERSTATED. They are not marketing copy; they are comments and blocker messages that name objects nobody has built, which is the exact failure this inventory exists to find. Each is cited in the table above with the requirement that would make it true.
+Of 30 capability claims, 3 are OVERSTATED. They are not marketing copy; they are comments and blocker messages that name objects nobody has built, which is the exact failure this inventory exists to find. Each is cited in the table above with the requirement that would make it true.

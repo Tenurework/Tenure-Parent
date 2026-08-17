@@ -1,6 +1,17 @@
 import "server-only"
 
-import { choosePlacement, validateCellRecord, type CellRecord } from "@tenure/provisioning"
+import {
+  applyOverride,
+  choosePlacement,
+  evaluatePlacementPolicy,
+  validateCellRecord,
+  type CellPlacementFacts,
+  type CellRecord,
+  type IsolationTier,
+  type OverrideApproval,
+  type OverrideRequest,
+  type PlacementPolicyDecision,
+} from "@tenure/provisioning"
 
 /**
  * GE-030-002 — the fleet this engine knows about.
@@ -173,17 +184,157 @@ export function __resetFleet(): void {
 }
 
 /**
+ * GE-101-001 — the facts a cell publishes beyond its fleet record.
+ *
+ * Read from the environment, like everything else in this file, and OMITTED
+ * where the environment says nothing. That omission is the honest answer and it
+ * has teeth: a gate whose requirement was declared and whose fact is absent is
+ * `unverifiable`, which refuses the placement. Today's estate publishes none of
+ * these, so a tenant asking for a silo, a customer-managed key or a recovery
+ * objective is refused with the sentence that says the fleet cannot confirm it —
+ * rather than placed on a cell nobody checked.
+ *
+ * Nothing here derives one axis from another. `backup.retentionDays` is on the
+ * cell record and is NOT an RPO: publishing it as one would make the DR gate
+ * answer a question it was never asked.
+ */
+function cellFacts(cells: readonly CellRecord[]): readonly CellPlacementFacts[] {
+  const list = (name: string): readonly string[] | undefined => {
+    const raw = process.env[name]
+    if (raw === undefined) return undefined
+    // An empty variable is "publishes none", which is a different fact from an
+    // unset one and must survive as one.
+    return raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+  }
+  const num = (name: string): number | undefined => {
+    const raw = process.env[name]?.trim()
+    if (!raw) return undefined
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  const bool = (name: string): boolean | undefined => {
+    const raw = process.env[name]?.trim().toLowerCase()
+    if (!raw) return undefined
+    return raw === "true" || raw === "1"
+  }
+
+  const rpo = num("CELL_RPO_MINUTES")
+  const rto = num("CELL_RTO_MINUTES")
+  const cmk = bool("CELL_KMS_CMK_SUPPORTED")
+  const keyRegion = process.env.CELL_KMS_KEY_REGION?.trim()
+
+  return cells.map((c) => ({
+    cellId: c.cellId,
+    isolationClasses: list("CELL_ISOLATION_CLASSES") as readonly IsolationTier[] | undefined,
+    certifiedDataClasses: list("CELL_CERTIFIED_DATA_CLASSES"),
+    attestedRegulations: list("CELL_ATTESTED_REGULATIONS"),
+    availableServices: list("CELL_AVAILABLE_SERVICES"),
+    availableModels: list("CELL_AVAILABLE_MODELS"),
+    sovereignCertified: bool("CELL_SOVEREIGN_CERTIFIED"),
+    // Both halves or neither. A recovery objective with an RPO and no RTO is
+    // half a promise, and comparing against it would pass on the half that was
+    // supplied.
+    kms: cmk !== undefined && keyRegion ? { customerManagedKeySupported: cmk, keyRegion } : undefined,
+    dr: rpo !== undefined && rto !== undefined ? { rpoMinutes: rpo, rtoMinutes: rto } : undefined,
+    marginalTenantCostMinor: num("CELL_MARGINAL_TENANT_COST_MINOR"),
+    costCurrency: process.env.CELL_COST_CURRENCY?.trim() || undefined,
+  }))
+}
+
+/** The partition this control plane is in. See `estateFact`. */
+function estatePartition(): string {
+  return estateFact(
+    "AWS_PARTITION",
+    resolvedEstate?.partition,
+    "The AWS partition this cell runs in",
+  )
+}
+
+export interface PlacementOptions {
+  /** The shape the tenant contracted. Selects the placement adapter. */
+  isolation: IsolationTier
+  /** Set when the placement is under a sovereignty constraint. */
+  sovereign?: boolean
+  /**
+   * An approved operator override, or nothing.
+   *
+   * `at` is supplied rather than read from a clock here for the same reason
+   * `change-class.ts` gives: a caller that supplies both the expiry and the now
+   * can satisfy any window instantly, so the comparison belongs to whoever
+   * holds the persisted request.
+   */
+  override?: { request: OverrideRequest; approval: OverrideApproval; at: string }
+}
+
+export type StudioPlacement = Omit<ReturnType<typeof choosePlacement>, "reason"> & {
+  reason: ReturnType<typeof choosePlacement>["reason"] | "policy-refused"
+  policy: PlacementPolicyDecision
+}
+
+/**
  * Where a tenant should go.
  *
  * Returns the decision rather than a bare id, so a caller reports *why* a
  * tenant could not be placed. "No cell in your residency zone" and "every cell
  * is full" are the same outcome and completely different problems.
+ *
+ * ## Two stages, in this order (GE-101-001, GE-101-003)
+ *
+ * The policy runs FIRST and narrows the fleet to the cells the tenant's
+ * contract permits; `choosePlacement` then picks one of those. That order is
+ * what makes a fleet with one non-compliant cell and one compliant cell place
+ * the tenant on the compliant one instead of refusing — and running
+ * `choosePlacement` first would have chosen before the contract was consulted.
+ *
+ * `capacity` and `allowed-regions` stay with `choosePlacement`: it tells "the
+ * cells are full" from "we are holding the last slots back" and says what the
+ * fleet should do about it, which a boolean gate cannot. The policy still
+ * evaluates and explains both — see `GATES_ENFORCED_BY_ADMISSION`.
  */
-export function placementFor(tenant: {
-  residency: readonly string[]
-  environment: CellRecord["environment"]
-}) {
-  return choosePlacement(fleet(), tenant)
+export function placementFor(
+  tenant: {
+    tenantId: string
+    residency: readonly string[]
+    environment: CellRecord["environment"]
+  },
+  options: PlacementOptions,
+): StudioPlacement {
+  const cells = fleet()
+  const facts = cellFacts(cells)
+
+  const evaluated = evaluatePlacementPolicy({
+    cells,
+    facts,
+    request: {
+      tenantId: tenant.tenantId,
+      environment: tenant.environment,
+      allowedRegions: tenant.residency,
+      isolation: options.isolation,
+      sovereign: options.sovereign,
+      // A tenant's data must not cross a partition boundary, and the partition
+      // this control plane is in is the only one it can reach. Declared rather
+      // than assumed, so the gate refuses the day a cell in another one appears.
+      requiredPartition: estatePartition(),
+    },
+  })
+
+  const policy = options.override
+    ? applyOverride(evaluated, options.override.request, options.override.approval, options.override.at)
+    : evaluated
+
+  const eligible = cells.filter((c) => policy.eligibleCellIds.includes(c.cellId))
+  const decision = choosePlacement(eligible, tenant)
+
+  // A policy refusal is its own reason. Falling through to
+  // `no-cell-in-residency` — which is what an empty candidate set produces —
+  // would tell an operator to look at regions when the problem is a contract.
+  const reason =
+    policy.eligibleCellIds.length === 0 && cells.length > 0 ? "policy-refused" : decision.reason
+
+  return { ...decision, reason, policy }
 }
 
 /**

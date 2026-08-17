@@ -17,7 +17,14 @@
  * A pure module rather than an inline ladder so the four outcomes are testable
  * without a browser, and so the ordering — refusal before absence — is written
  * down in one place. `TenureAIPanel` is the production caller.
+ *
+ * PAY-000-004 added a sixth outcome, `claim-refused`, above the answer branch:
+ * the payments copy Bible §2 prohibits is what a model reaches for when asked
+ * where a club's money is, and this is the only place in the repository where
+ * vendor prose becomes product text.
  */
+
+import { reviewPaymentsClaims } from "@/lib/relay/payments-claim-review"
 
 export interface RelayReplyInput {
   /** The generated prose, when there is any. */
@@ -53,6 +60,13 @@ export type RelayOutcome =
   | "retrieval-refused"
   /** The model answered, and cited a source that was never offered. */
   | "citation-refused"
+  /**
+   * PAY-000-004. The model answered, and the answer made one of the payments
+   * claims Bible §2 prohibits — see `PROHIBITED_CLAIM_RULES`. Separate from
+   * `citation-refused` because the fault is different: the sentence may be
+   * perfectly well sourced and still be legally false about who holds money.
+   */
+  | "claim-refused"
   /** Nobody has configured a model in this cell. */
   | "unconfigured"
 
@@ -80,6 +94,26 @@ export interface RelayReply {
  */
 export function relayReply(input: RelayReplyInput): RelayReply {
   if (input.answer !== null && input.answer.trim() !== "") {
+    // PAY-000-004, and it is FIRST because it is the only branch that inspects
+    // text a vendor wrote. Bible §2 forbids five specific pieces of product
+    // copy, and a language model produces every one of them unprompted, because
+    // each is the fluent way to describe the feature. A static lint cannot reach
+    // a sentence that is generated per request, so the rules run here.
+    //
+    // The rules themselves live in `@/lib/relay/payments-claim-review`, not
+    // here: a shell module may not import a package (TTES-000-002, enforced by
+    // `tests/architecture/shell-separation.test.mjs`), and the rules are a
+    // package.
+    const claims = reviewPaymentsClaims(input.answer)
+    if (claims.withheld && claims.message !== null) {
+      return {
+        outcome: "claim-refused",
+        message: claims.message,
+        // The retrieved sources are real and unaffected by what the model wrote
+        // about them, and they are the honest remainder.
+        showSources: input.sourceCount > 0,
+      }
+    }
     return { outcome: "answered", message: input.answer, showSources: input.sourceCount > 0 }
   }
 

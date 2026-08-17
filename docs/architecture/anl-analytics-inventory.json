@@ -15,10 +15,10 @@
     "metric-module": "non-page, non-route module in an analytics-surface directory that aggregates"
   },
   "counts": {
-    "artefacts": 62,
+    "artefacts": 63,
     "byKind": {
       "analytics-surface": 22,
-      "chart-kit": 22,
+      "chart-kit": 23,
       "chart-panel": 7,
       "client-side-metric": 7,
       "metric-endpoint": 2,
@@ -497,6 +497,14 @@
     },
     {
       "id": "apps/web/src/components/charts/Sparkline.tsx",
+      "kinds": [
+        "chart-kit"
+      ],
+      "signals": [],
+      "owner": "reporting"
+    },
+    {
+      "id": "apps/web/src/components/charts/chart-integrity.ts",
       "kinds": [
         "chart-kit"
       ],

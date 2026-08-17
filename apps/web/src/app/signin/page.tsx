@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { SIGN_IN_FAILED_MESSAGE } from "@tenure/identity"
 import { auth, signIn } from "@/lib/auth"
 import { cellConnections, cellLoginMethods, connectionRefusals } from "@/lib/auth-connections"
+import { cellMigrationWave } from "@/lib/identity/migration-wave"
 import { TenureLogo, TenureWordmark } from "@/components/brand/TenureLogo"
 
 const DEMO_USERS = [
@@ -55,7 +56,23 @@ export default async function SignInPage({
       .filter((c) => refusedIds.has(c.connectionId))
       .map((c) => c.kind),
   )
-  const methods = cellLoginMethods().filter((m) => !refusedKinds.has(m.kind))
+  /**
+   * IER-100-008 — the SSO migration wave decides which methods may be drawn.
+   *
+   * A tenant part-way through an enterprise SSO migration is not simply "SSO
+   * on". At `SSO_REQUIRED` the local method must stop being offered, and at
+   * `RETIRED` the recovery sentence must stop offering to switch it back on —
+   * because the improvisation at that point is a fresh local account for a
+   * person who already has one, which is the duplicate authority IER-100-011
+   * exists to forbid.
+   *
+   * With no wave configured this changes nothing: `cellMigrationWave` permits
+   * both and the identity registry decides, exactly as before.
+   */
+  const migration = cellMigrationWave()
+  const methods = cellLoginMethods()
+    .filter((m) => !refusedKinds.has(m.kind))
+    .filter((m) => (m.kind === "COGNITO_LOCAL" ? migration.localLoginPermitted : migration.ssoOffered))
   const devLoginEnabled = methods.some((m) => m.kind === "COGNITO_LOCAL")
   const ssoMethods = methods.filter((m) => m.kind !== "COGNITO_LOCAL")
   // Only ask for what is actually enforced, so the field never looks decorative.
@@ -178,6 +195,28 @@ export default async function SignInPage({
             No sign-in method is configured for this workspace yet.
           </p>
         )}
+
+        {/* IER-100-011 — what somebody who cannot get in is actually offered,
+            which differs by wave and is wrong in the most expensive way after
+            retirement. `recoveryPath` in the engine is the single answer; this
+            prints it rather than deciding it, so the page and the operator
+            console cannot come to disagree about whether a rollback is still
+            possible. */}
+        {migration.recovery ? (
+          <p className="mt-6 text-xs text-text-2" data-testid="signin-recovery">
+            {migration.recovery.detail}
+          </p>
+        ) : null}
+
+        {/* A migration wave that was configured and could not be read. Stated,
+            because the alternative is a restriction that silently evaporates —
+            and the local method is already withheld by `cellMigrationWave`, so
+            somebody has to be told why the form is gone. */}
+        {migration.problem ? (
+          <p className="mt-6 text-xs text-text-2" data-testid="signin-wave-problem">
+            {migration.problem}
+          </p>
+        ) : null}
 
         {/* A configured connection that is NOT being offered, and why. This is
             the failure that otherwise arrives as "SSO is broken" with nothing

@@ -24,7 +24,7 @@ import {
   type AssuranceRequirement,
   type SessionAssurance,
 } from "./assurance"
-import { lookupPermission } from "./permission-catalog"
+import { isDelegable, lookupPermission } from "./permission-catalog"
 import {
   hasRelationship,
   relationshipProblems,
@@ -283,6 +283,29 @@ export function decide(
       const role = rolesByKey.get(conferred.roleKey)
       if (!role || !role.permissions.includes(request.permission)) continue
 
+      // GE-053-001. `related` means *this* resource or *its* unit, and a request
+      // that names no resource identifies neither. Without this the query below
+      // is built with no target constraint, so `hasRelationship` matches *any*
+      // live relationship of the type and the conferred role becomes
+      // tenant-wide — precisely the widening `scope: "related"` exists to make
+      // impossible to write, reached through a different door. It is also what
+      // made `effectivePermissions` (which asks with no resource) list every
+      // relationship-conferred permission as if it were held everywhere.
+      if (
+        conferred.scope === "related" &&
+        !request.resource?.id &&
+        !request.resource?.orgUnitId
+      ) {
+        trace.push({
+          step: "relationship",
+          outcome: "info",
+          detail:
+            `"${conferred.roleKey}" is conferred by ${conferred.via} at the related resource, and ` +
+            `this request names none. An unidentified resource is not the related one.`,
+        })
+        continue
+      }
+
       const held =
         conferred.scope === "tenant"
           ? hasRelationship(
@@ -323,6 +346,16 @@ export function decide(
   let matches = [...direct.matches, ...relationshipMatches()]
   let viaDelegationFrom: string | undefined
 
+  /**
+   * GE-053-003. Why a delegation that was otherwise usable did not confer it.
+   *
+   * Recorded rather than returned immediately, because the direct path's own
+   * answer is the better one when the principal holds the role themselves: being
+   * told "your grant is not confirmed yet" beats being told something about
+   * somebody else's delegation.
+   */
+  let delegationRefusal: { reason: DenyReason; detail: string } | null = null
+
   if (matches.length === 0) {
     // A delegation is the intersection of what was delegated and what the
     // delegator actually holds *now* — so revoking the delegator's role revokes
@@ -338,6 +371,47 @@ export function decide(
         continue
       }
       if (d.permissions && !d.permissions.includes(request.permission)) continue
+
+      // GE-053-003 — non-delegable first, and before the delegator's own grants
+      // are even looked at. Whether an authority may be borrowed at all is a
+      // property of the authority; checking it after the intersection would make
+      // the refusal depend on whether the delegator happened to hold it, so the
+      // same delegation would be refused for two different reasons.
+      if (!isDelegable(request.permission)) {
+        delegationRefusal = {
+          reason: "DELEGATION_NOT_PERMITTED",
+          detail:
+            `"${request.permission}" cannot be exercised through a delegation. The delegation from ` +
+            `${d.fromPrincipalId} is real and effective; this authority is not borrowable.`,
+        }
+        continue
+      }
+
+      // GE-053-003 — the delegation's own bounds. `scopeCovers` is reused so a
+      // delegation scoped to a unit inherits downward exactly as a grant does,
+      // and refuses an unplaced resource exactly as a grant does. A second
+      // scope rule here would be a second, quieter answer to "where".
+      if (d.scope && !scopeCovers(d.scope)) {
+        delegationRefusal = {
+          reason: "DELEGATION_OUT_OF_SCOPE",
+          detail:
+            `The delegation from ${d.fromPrincipalId} applies at ` +
+            `${d.scope.kind === "tenant" ? "the whole tenant" : `org unit "${d.scope.orgUnitId}"`}, ` +
+            `which does not cover ` +
+            `${request.resource?.orgUnitId ? `org unit "${request.resource.orgUnitId}"` : "an unplaced resource"}.`,
+        }
+        continue
+      }
+      if (d.resourceIds && !(request.resource && d.resourceIds.includes(request.resource.id))) {
+        delegationRefusal = {
+          reason: "DELEGATION_OUT_OF_SCOPE",
+          detail:
+            `The delegation from ${d.fromPrincipalId} covers only ` +
+            `${d.resourceIds.map((id) => `"${id}"`).join(", ")}, and this request is about ` +
+            `${request.resource ? `"${request.resource.id}"` : "no identified resource"}.`,
+        }
+        continue
+      }
 
       const borrowed = matchesFor(d.fromPrincipalId)
       if (borrowed.matches.length > 0) {
@@ -366,6 +440,12 @@ export function decide(
         `A confirmed role carrying "${request.permission}" is held, but not at a scope covering ` +
           `${request.resource?.orgUnitId ? `org unit "${request.resource.orgUnitId}"` : "this resource"}.`,
       )
+    }
+    // GE-053-003. After the direct answers, before the generic one: a delegation
+    // that was refused for exceeding its own bounds is a more specific truth than
+    // "no role confers this", and it is the one that tells somebody what to fix.
+    if (delegationRefusal) {
+      return deny(delegationRefusal.reason, delegationRefusal.detail)
     }
     return deny("NO_ROLE_GRANTING", `No role held in this tenant confers "${request.permission}".`)
   }
@@ -447,7 +527,37 @@ export function decide(
   for (const policy of world.policies ?? []) {
     if (policy.permission !== "*" && policy.permission !== request.permission) continue
     if (policy.effect !== "deny") continue
-    if (!policy.condition(ctx)) continue
+
+    // GE-053-001 — a condition that could not be evaluated denies.
+    //
+    // Two ways it fails, and both used to read as "did not fire": a condition
+    // that throws took the whole decision down with it (a 500 is not a denial —
+    // nothing is audited and a retry against a cached page may well succeed),
+    // and a condition answering anything other than a boolean — `undefined` from
+    // an early return, a Promise from an accidentally-async condition — was
+    // falsy and therefore an allow. Both are the same defect: "we could not
+    // look" collapsed into "we looked and found nothing". A deny policy that
+    // cannot answer is the one case where failing closed is not a judgement
+    // call, because the policy exists to stop something.
+    let fired: unknown
+    try {
+      fired = policy.condition(ctx)
+    } catch (error) {
+      return deny(
+        "POLICY_INDETERMINATE",
+        `Policy "${policy.id}" could not be evaluated: ` +
+          `${error instanceof Error ? error.message : String(error)}. ` +
+          `${policy.description} A deny policy that cannot answer denies.`,
+      )
+    }
+    if (typeof fired !== "boolean") {
+      return deny(
+        "POLICY_INDETERMINATE",
+        `Policy "${policy.id}" answered with ${fired === undefined ? "undefined" : typeof fired}, ` +
+          `not a boolean. ${policy.description} A deny policy that cannot answer denies.`,
+      )
+    }
+    if (!fired) continue
 
     const reason: DenyReason = policy.id.startsWith("sod.") ? "SEPARATION_OF_DUTIES" : "POLICY_DENIED"
     return deny(reason, `${policy.description} (policy "${policy.id}")`)

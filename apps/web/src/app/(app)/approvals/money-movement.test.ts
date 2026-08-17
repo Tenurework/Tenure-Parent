@@ -47,6 +47,12 @@ jest.mock("@/lib/db", () => {
     ledgerEntry: {
       findFirst: jest.fn(async () => null),
       create: jest.fn((args: Args) => ({ __op: "ledger", ...args })),
+      // PAY-200-004. The six ceilings read history before the journal is built,
+      // and a mock that cannot answer them makes the gate fail CLOSED — which is
+      // correct behaviour and would red every posting case here for the wrong
+      // reason. An institution with no prior postings answers 0 to all five.
+      count: jest.fn(async () => 0),
+      aggregate: jest.fn(async () => ({ _sum: { amountCents: 0 } })),
     },
     budgetLine: {
       findFirst: jest.fn(async () => ({
@@ -120,7 +126,7 @@ const db = mockedDb as unknown as {
   approvalRequest: { findUnique: Mocked; update: Mocked }
   approvalStep: { findMany: Mocked; create: Mocked }
   auditEvent: { create: Mocked }
-  ledgerEntry: { findFirst: Mocked; create: Mocked }
+  ledgerEntry: { findFirst: Mocked; create: Mocked; count: Mocked; aggregate: Mocked }
   budgetLine: { findFirst: Mocked; update: Mocked }
   outboxEvent: { create: Mocked }
   $transaction: Mocked
@@ -170,6 +176,11 @@ function given(metadata: Record<string, unknown>) {
 beforeEach(() => {
   jest.clearAllMocks()
   db.ledgerEntry.findFirst.mockResolvedValue(null)
+  // Re-stated here for the reason the $transaction comment below gives:
+  // `clearAllMocks` wipes implementations, and a limits read that resolves to
+  // `undefined` is an unreadable history, which fails closed.
+  db.ledgerEntry.count.mockResolvedValue(0)
+  db.ledgerEntry.aggregate.mockResolvedValue({ _sum: { amountCents: 0 } })
   db.approvalStep.findMany.mockResolvedValue([])
   db.budgetLine.findFirst.mockResolvedValue({
     id: "line_1",

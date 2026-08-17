@@ -13,6 +13,7 @@ import { TenureAIPanel } from "@/components/ai/TenureAIPanel"
 import { brandingCss } from "@tenure/platform-config"
 import { brandingFor } from "@tenure/platform-config"
 import { modulesFor, navigationForSystem } from "@tenure/platform-config"
+import { guardBrandingCss } from "@/lib/a11y/brand-roles"
 import { assessBrand } from "@/lib/a11y/tenant-brand"
 import { navigationCapabilitiesFor } from "@/lib/authz/navigation-capabilities"
 import { actingInstitutions } from "@/lib/tenant-scope"
@@ -76,7 +77,17 @@ export default async function AppLayout({
   // reaches the document; `assessBrand` returns the reasons, and
   // /settings shows them. This is the only place tenant colours enter a page,
   // so it is the only place the check has to be.
-  const brandCss = brandingCss(assessBrand(brandingFor(institution.slug)).accepted)
+  //
+  // GE-143-012 — and RESTRICTED here to the accent role. `assessBrand` decides
+  // whether the colour is legible; `guardBrandingCss` decides whether the
+  // property carrying it is a tenant's to set at all. The five accent properties
+  // pass; anything else — a focus ring, a status colour, the destructive red — is
+  // dropped with the meaning it carries named, because a tenant that could tint
+  // the focus ring could erase it, and one that could tint the danger red could
+  // make a delete button look like a save button. /settings shows the reasons.
+  const brandCss = guardBrandingCss(
+    brandingCss(assessBrand(brandingFor(institution.slug)).accepted),
+  ).css
 
   return (
     <AIProvider>

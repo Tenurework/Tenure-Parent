@@ -104,18 +104,21 @@ Ever added anywhere in the source branch's history: 1.
 
 ## Vulnerable dependencies
 
-`npm audit --package-lock-only --json` against the pinned source lockfile resolved 844 dependencies and reported 10: 3 critical, 7 high, 0 moderate, 0 low, 0 info. No install was run and no lifecycle script executed; the manifest and lockfile were extracted from the pinned commit into a temporary directory and deleted afterwards.
+`npm audit --package-lock-only --json` against the pinned source lockfile resolved 844 dependencies and reported 13: 3 critical, 10 high, 0 moderate, 0 low, 0 info. No install was run and no lifecycle script executed; the manifest and lockfile were extracted from the pinned commit into a temporary directory and deleted afterwards.
 
 | Package | Severity | Direct | Advisories |
 | --- | --- | --- | --- |
 | `@auth/core` | critical | no | `https://github.com/advisories/GHSA-7rqj-j65f-68wh` `https://github.com/advisories/GHSA-x445-f3h2-j279` `https://github.com/advisories/GHSA-xmf8-cvqr-rfgj` |
 | `@auth/prisma-adapter` | critical | no | — |
+| `@prisma/config` | high | no | — |
 | `brace-expansion` | high | no | `https://github.com/advisories/GHSA-mh99-v99m-4gvg` `https://github.com/advisories/GHSA-rgw5-rvv9-x895` |
+| `deepmerge-ts` | high | no | `https://github.com/advisories/GHSA-ggr8-5vv4-36mx` |
 | `js-yaml` | high | no | `https://github.com/advisories/GHSA-5p4m-2wfm-xmqj` |
 | `nanoid` | high | no | `https://github.com/advisories/GHSA-28wg-ghj8-5hjv` `https://github.com/advisories/GHSA-2v37-7h3g-55p8` |
 | `next` | high | no | `https://github.com/advisories/GHSA-4633-3j49-mh5q` `https://github.com/advisories/GHSA-4c39-4ccg-62r3` `https://github.com/advisories/GHSA-68g3-v927-f742` `https://github.com/advisories/GHSA-89xv-2m56-2m9x` `https://github.com/advisories/GHSA-955p-x3mx-jcvp` `https://github.com/advisories/GHSA-m99w-x7hq-7vfj` `https://github.com/advisories/GHSA-p9j2-gv94-2wf4` `https://github.com/advisories/GHSA-q8wf-6r8g-63ch` |
 | `next-auth` | critical | no | `https://github.com/advisories/GHSA-5jpx-9hw9-2fx4` `https://github.com/advisories/GHSA-7rqj-j65f-68wh` `https://github.com/advisories/GHSA-8fpg-xm3f-6cx3` `https://github.com/advisories/GHSA-x445-f3h2-j279` `https://github.com/advisories/GHSA-xmf8-cvqr-rfgj` |
 | `postcss` | high | no | `https://github.com/advisories/GHSA-6g55-p6wh-862q` `https://github.com/advisories/GHSA-fxqj-rqcc-2cmp` `https://github.com/advisories/GHSA-qx2v-qp2m-jg93` `https://github.com/advisories/GHSA-r28c-9q8g-f849` |
+| `prisma` | high | no | — |
 | `sharp` | high | no | `https://github.com/advisories/GHSA-f88m-g3jw-g9cj` |
 | `xlsx` | high | no | `https://github.com/advisories/GHSA-4r6h-8v6p-xvw6` `https://github.com/advisories/GHSA-5pgg-2g8v-p4x9` |
 

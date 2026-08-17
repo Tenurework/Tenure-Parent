@@ -501,11 +501,20 @@ export async function composeTenant(
     // there is one cell per region, and silently wrong the day there are two —
     // wrong in the direction of registering a tenant against a cell that is
     // full, draining, or in another environment.
-    const placement = placementFor({
-      residency: [manifest.region],
-      environment: (process.env.DEPLOY_ENVIRONMENT ??
-        "production") as "production",
-    });
+    // GE-101-001. The isolation tier the operator composed is passed through,
+    // so the shape the tenant contracted decides which policy gates the cell
+    // has to satisfy. A silo tenant on a fleet that does not publish which
+    // shapes it can provide is refused rather than quietly placed on a shared
+    // cell — which is what it got before, at silo prices.
+    const placement = placementFor(
+      {
+        tenantId: manifest.slug,
+        residency: [manifest.region],
+        environment: (process.env.DEPLOY_ENVIRONMENT ??
+          "production") as "production",
+      },
+      { isolation: manifest.isolation },
+    );
     if (!placement.cellId) {
       // Reported as a form problem rather than a 500, and with the reason: "no
       // cell may legally hold this tenant" and "every cell is full" are the
@@ -515,7 +524,15 @@ export async function composeTenant(
             field: "region",
             reason: placement.reason,
             detail:
-              placement.reason === "no-cell-in-residency"
+              placement.reason === "policy-refused"
+                ? // GE-101-003. The decision already carries a sentence per gate
+                  // that did not pass, naming what was demanded and what was
+                  // observed — or why it could not be observed. Rendering the
+                  // gate names alone would send an operator to read the policy
+                  // to find out what its answer meant.
+                  `No cell may take a ${manifest.isolation} tenant under the placement policy. ` +
+                  placement.policy.explanation.join(" ")
+                : placement.reason === "no-cell-in-residency"
                 ? `No cell serves ${manifest.region} in this environment.`
                 : placement.reason === "no-healthy-cell"
                   ? `Every cell in ${manifest.region} is degraded, upgrading or draining. Nothing to fix here — try again once the fleet is healthy.`

@@ -51,6 +51,22 @@ export {
   type SettlementComponents,
 } from "./settlement-components"
 
+// PAY-190-002. The FX RECORD, on top of `convert`'s arithmetic: which quote,
+// from which source, at what age; the provider's conversion fee kept out of the
+// rate; and the signed gain or loss against the rate the obligation was
+// recognised at. `netSettlement` takes `fxGainLoss` as an input — this is what
+// derives it, with the provenance that makes it evidence rather than a plug.
+export {
+  FX_ROUNDING,
+  convertWithEvidence,
+  fxEvidenceRecord,
+  type ConversionInput,
+  type FxEvidence,
+  type FxOutcome,
+  type FxRefusalCode,
+  type QuotedRate,
+} from "./fx-evidence"
+
 // FIN-010-003. Record-to-report: trial balance, account analysis, flux,
 // statements and item-level account reconciliation. Separate from `./settlement`
 // on purpose — that module reconciles two AGGREGATES per account and cannot name

@@ -1884,6 +1884,21 @@ export async function estateInventory(
 
     /* --- a reader exists, and this composition deliberately does not drive it */
     notComposedSection({
+      capability: "organizations:ListRoots",
+      covers: [
+        "organizations:ListRoots",
+        "organizations:ListOrganizationalUnitsForParent",
+        "organizations:ListPoliciesForTarget",
+      ],
+      label: "Organizational units",
+      why:
+        "`organization-units.ts` walks the unit hierarchy and the policies attached to it, on " +
+        "`/platform/estate` under STUDIO-010-003. An organizational unit is not an estate resource " +
+        "— nothing runs in one, nothing is billed for one — it is where a guardrail is attached, so " +
+        "counting units beside ECS services would inflate the estate with governance structure.",
+      holdsResources: false,
+    }),
+    notComposedSection({
       capability: "cloudwatch:GetMetricData",
       covers: ["cloudwatch:GetMetricData"],
       label: "Metric series",

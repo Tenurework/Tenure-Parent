@@ -22,16 +22,16 @@ Observed at **2026-08-17**. Source pinned to `47c1128cb55953b11bedc47927508bc5d6
 | --- | --- |
 | Role | source — the Simon OSE pilot application being absorbed |
 | Configured remote | `live` → `https://github.com/satvikOS/Tenure.git` |
-| Canonical name (GitHub) | Tenurework/Tenure |
-| Visibility | PUBLIC |
-| Fork | false |
-| Default branch | main |
+| Canonical name (GitHub) | UNKNOWN — `gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
+| Visibility | UNKNOWN — `gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
+| Fork | UNKNOWN — `gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
+| Default branch | UNKNOWN — `gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
 | Branches known here | 15 |
 | Tags (GitHub) | none |
 | Tags (local refs) | none |
 | Releases | none |
 | Deployment environments | none |
-| Open pull requests | #45 docs(runbook) + fix(platform-access): the read-only route, and the exit-code read that crashed |
+| Open pull requests | UNKNOWN — `gh pr list -R satvikOS/Tenure --state open --json number,title,headRefName` failed |
 | Commits on the recorded head | 171 |
 | Oldest commit | `abf30691f829` (2026-07-10) |
 | Newest commit | `47c1128cb559` (2026-08-14) |
@@ -63,26 +63,26 @@ Observed at **2026-08-17**. Source pinned to `47c1128cb55953b11bedc47927508bc5d6
 | --- | --- |
 | Role | target — this repository, the Tenure parent platform |
 | Configured remote | `origin` → `https://github.com/Tenurework/Tenure-Parent.git` |
-| Canonical name (GitHub) | Tenurework/Tenure-Parent |
-| Visibility | PUBLIC |
-| Fork | false |
-| Default branch | main |
+| Canonical name (GitHub) | UNKNOWN — `gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
+| Visibility | UNKNOWN — `gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
+| Fork | UNKNOWN — `gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
+| Default branch | UNKNOWN — `gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
 | Branches known here | 2 |
 | Tags (GitHub) | none |
 | Tags (local refs) | none |
 | Releases | none |
 | Deployment environments | `aws-read` `engine-production` |
-| Open pull requests | none open |
-| Commits on the recorded head | 442 |
+| Open pull requests | UNKNOWN — `gh pr list -R Tenurework/Tenure-Parent --state open --json number,title,headRefName` failed |
+| Commits on the recorded head | 445 |
 | Oldest commit | `abf30691f829` (2026-07-10) |
-| Newest commit | `cc4e5291da1c` (2026-08-17) |
+| Newest commit | `69b9fb749944` (2026-08-17) |
 | Contributors | 4 — Claude, Monorepo Migration, satvikOS, verification |
-| Tracked files | 1526 |
-| Working tree | checked out on `main`, 114 dirty path(s) at 2026-08-17 |
+| Tracked files | 1597 |
+| Working tree | checked out on `main`, 135 dirty path(s) at 2026-08-17 |
 
 | Branch | Commit |
 | --- | --- |
-| `main` | `cc4e5291da1c` |
+| `main` | `69b9fb749944` |
 | `wip/ier-killed-run-20260808` | `815be47a3c4b` |
 
 ## Shared history

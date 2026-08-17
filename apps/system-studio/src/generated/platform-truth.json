@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "cc4e529",
+  "commit": "69b9fb7",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 244,
-    "done": 117,
+    "total": 254,
+    "done": 122,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -1736,6 +1736,76 @@
             "title": "Nothing made `AuditEvent` append-only. Now the single Prisma client the whole application shares refuses every mutating operation on it, in enforce mode, from this commit.",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-053-001",
+            "done": true,
+            "title": "\"Unknown action/resource/condition denies by default.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-053-003",
+            "done": true,
+            "title": "\"Delegation cannot exceed source authority, scope, time, resource, action, or non-delegable rules.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-053-007",
+            "done": true,
+            "title": "\"Tenant A/B cross-tenant tests deny every organization/seat/membership/delegation/policy path.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-101-001",
+            "done": true,
+            "title": "\"Implement policy evaluation for partition, allowed regions, latency, classification, regulation/contract, isolation tier, service/model availability, capacity, KMS, DR, and cost.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-101-002",
+            "done": true,
+            "title": "\"Implement pooled, bridge, silo, dedicated Tenure account, and regional/sovereign placement adapters behind one contract.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-053-004",
+            "done": false,
+            "title": "\"Multi-seat and multi-tenant authority remains isolated; switching context rotates/revalidates session.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-101-003",
+            "done": false,
+            "title": "\"Emit explainable placement decision with policy/config version and approved operator override workflow.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-143-012",
+            "done": false,
+            "title": "\"Restrict tenant branding to validated identity/accent roles. Prevent tenant colors from changing focus, status, destructive, financial polarity, permission, data quality, link, disabled, or security meanings; automatically adjust or reject invalid accents with an explanation.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-143-025",
+            "done": false,
+            "title": "\"Standardize destructive and cross-organization previews with exact target, tenant/org/seat scope, affected count, downstream effects, approvals, recovery/undo window, retention/legal-hold impact, cost impact, and audit consequence.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-143-033",
+            "done": false,
+            "title": "\"Prohibit 3D/perspective distortion, decorative gauges, exploding pies, unjustified dual axes, silent truncated axes, rainbow categorical scales, status colors reused arbitrarily, hidden denominators, and visualized AI numbers without canonical provenance.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -1763,7 +1833,7 @@
     ],
     "totalItems": 2265,
     "totalGates": 181,
-    "decided": 292,
+    "decided": 314,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -1959,7 +2029,7 @@
         "source": "EXT",
         "items": 7,
         "gates": 1,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "EXT · EXT-010 — Implementation Control Plane",
@@ -2029,7 +2099,7 @@
         "source": "EXT",
         "items": 11,
         "gates": 1,
-        "done": 0
+        "done": 4
       },
       {
         "phase": "EXT · EXT-110 — Hypercare and service transition",
@@ -2260,7 +2330,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "GE · GE-060: Relational tenant isolation",
@@ -2449,7 +2519,7 @@
         "source": "GE",
         "items": 4,
         "gates": 0,
-        "done": 1
+        "done": 3
       },
       {
         "phase": "GE · GE-102: Idempotent provisioning state machine",
@@ -3282,14 +3352,14 @@
         "source": "IER",
         "items": 12,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "IER · IER-050 — Workbook and source contracts",
         "source": "IER",
         "items": 8,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "IER · IER-060 — Mapping and person resolution",
@@ -3590,21 +3660,21 @@
         "source": "PAY",
         "items": 8,
         "gates": 0,
-        "done": 5
+        "done": 7
       },
       {
         "phase": "PAY · 3. Capability Completeness contract",
         "source": "PAY",
         "items": 8,
         "gates": 0,
-        "done": 1
+        "done": 3
       },
       {
         "phase": "PAY · 4. Target architecture",
         "source": "PAY",
         "items": 8,
         "gates": 0,
-        "done": 5
+        "done": 6
       },
       {
         "phase": "PAY · 5. Canonical domain model",
@@ -3695,7 +3765,7 @@
         "source": "PAY",
         "items": 8,
         "gates": 0,
-        "done": 4
+        "done": 5
       },
       {
         "phase": "PAY · 18. System Studio: Payments and Treasury Studio",
@@ -3940,7 +4010,7 @@
         "source": "STUDIO",
         "items": 11,
         "gates": 1,
-        "done": 2
+        "done": 4
       },
       {
         "phase": "STUDIO · 6.2 Login flow",
@@ -4281,7 +4351,7 @@
     },
     {
       "name": "application unit",
-      "files": 98,
+      "files": 110,
       "what": "apps/web"
     },
     {
