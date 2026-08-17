@@ -151,8 +151,97 @@ theme × density × contrast combinations.
   primitive hardcodes a padding.
 - **`--tap` is identical in both densities** (WCAG 2.2 AA 2.5.8, 24×24 CSS
   pixels). Every control's height is built out of it rather than out of a
-  padding: `Button` is `--tap` plus a space step, `Switch`'s track *is* `--tap`.
-  Compact tightens the space around a control, never the control.
+  padding: `Button` is `--control-block-size`, which is `--tap` plus a space
+  step; `Switch`'s track *is* `--tap`. Compact tightens the space around a
+  control, never the control.
+
+### Component geometry — STUDIO-030-001
+
+ADR-0009 asks for controls at a **medium** height, rows compact enough that a
+screen shows a working set, and a nested card that does not pay full padding a
+second time. These are the five tokens that hold it, and they are five rather
+than five hundred for a reason worth stating:
+
+| Token | Default | Compact | Was |
+|---|---|---|---|
+| `--control-block-size` | 32px | 30px | eight different heights: 32, 36, 36+8, 40, 40, 40, 40, 44 |
+| `--control-padding-block` | 4px | 2px | 8px, `0.5rem`, `0.55rem` |
+| `--row-padding-block` | 4px | 2px | 8px |
+| `--card-padding` / `--card-gap` | 16px / 8px | 10px / 6px | unchanged in value |
+| `--card-padding-nested` / `--card-gap-nested` | 12px / 4px | 8px / 2px | 16px / 8px — the same as the container |
+
+**Eight heights, not one.** Before this, "bring the controls down" had eight
+places to be applied and no way to check it had been: `.md3-button` 36px,
+`.md3-field-input` 36px *declared* and **39.33px measured** (a `min-block-size`
+only ever raises, and the 8px padding plus a 21.3px line plus 2px of border
+exceeded it — so the number in the stylesheet was not the number on the screen),
+`.field input` / `.primary-action` / two submit buttons / `form.signin button` /
+`.adopt button` / `.md3-tab` at 40px, `.palette-input` at 44px,
+`.palette-result` at 32px. Each was defensible where it was written. Together
+they were not a scale.
+
+**Why the height derives from `--tap` rather than being a literal `32px`.**
+`--tap` is the one token compact does not reduce, so deriving from it makes the
+accessibility floor *structural*: `--control-block-size` cannot fall below 24px
+in either density without someone editing the token `preferences.spec.ts`
+measures in all eight preference combinations. A literal would make the floor a
+coincidence that holds until the next edit.
+
+**Why 32px and not 28px.** The instruction is "medium to small" and the ADR says
+"a **medium** height" — not the minimum. 32px is where a desktop application's
+regular control sits; 28px is its *small* variant. Coming down from 36–44 to 32
+is the change that was asked for. Going to 24 would be meeting the accessibility
+floor with the visible box, which is the specific thing STUDIO-030-007 says not
+to do: **the 24px target is met inside the 32px box by padding, not by the box
+being 40px.** `base-scale.spec.ts` proves it the way 2.5.8 asks — four
+`elementFromPoint` probes at the corners of the 24×24 square centred on the
+control — which is a question no height measurement can answer.
+
+**Rows: padding is the last thing added and the first thing cut.** A row's height
+is `padding × 2 + line-height × lines`, so `--row-padding-block` at 4px is 8px
+off every row in the console, and it compounds with `body-small` at 1.4.
+
+**Cards: the nested level pays less.** Not a hypothetical. Measured on `/tenants`
+at 1440×900, the first table row sat at **y = 1414 on a 900px screen**, and 920px
+of what was above it was two `.md3-unknown` panels inside the fleet-health card —
+**460px each** — every one of them paying the container's own 16px padding and
+8px gap a second time, charged six times over because the panel is six short
+blocks in a column. At 12px and 4px they are 397px.
+
+The rule is a descendant selector (`.md3-card .md3-unknown`) rather than a
+`data-nested` prop because a card does not know whether it is nested: `Card.tsx`
+is called by whichever page needs one, and depth is a fact about the composition.
+A prop would be wrong the first time a page wrapped an existing card in a new
+one; the selector reads the DOM, which is where the answer is.
+
+**And the nested hairline goes with it.** ADR-0009's last rule — "the gap between
+groups should exceed the gap within one, and that difference does more work than
+any border. Prefer removing a border to adding one." A nested surface had a
+background one ladder step from its container **and** its own padding **and** a
+hairline: three signals for one boundary. The hairline costs a pixel of layout
+and carries the least. It is removed **only** where it is decorative — two
+exclusions, both load-bearing: `[data-outlined="true"]`, whose edge the caller
+has declared meaningful, and `.md3-unknown`, which draws its border in `outline`
+rather than `outline-variant` precisely because it is the edge of the claim
+"nothing is known here" (3:1, WCAG 2.2 AA 1.4.11).
+
+**One type scale for both tables.** `table.grid` — the legacy grid, predating the
+token layer — set its own `font-size: 0.88rem` while `.md3-table` took all four
+parts of `body-small`. Two tables in one console at two sizes is not a density
+decision anybody made, and the visible consequence was that a row on
+`/tenants/[slug]` was a different height from a row on `/platform/estate` for no
+reason a reader could infer. `table.grid` now reads the same four tokens.
+
+**What this did not reach, and why it is recorded rather than claimed.** Rows
+visible without scrolling on `/platform/estate` at 1440×900 is **0 before and 0
+after**. The base scale moved the first table's y-coordinate from 1399 to 1319 on
+that page and from 1414 to 1275 on `/tenants`, and it took the page's own scroll
+height down 9–10%; but roughly 1,200px of what sits above the first row is *page
+composition* — five paragraphs of prose and two full unknown-state panels — which
+lives in `src/app/platform/estate/page.tsx` and `src/app/tenants/page.tsx`, not
+in the token layer this requirement binds. What the token layer does control is
+how many rows the scale **affords** in the content region, and that is the number
+`base-scale.spec.ts` asserts: 13 → 15 on the fleet, 9 → 11 on the estate.
 - **Anything that can be wider than its column scrolls inside itself.**
   `DataTable`'s shell (`overflow-x: auto` with a visible border, so a table that
   continues past the fold does not read as one that ends there), `Tabs`' strip,
@@ -279,9 +368,67 @@ which is how a stylesheet acquires eleven hand-tuned `letter-spacing` values.
 
 Sizes are `rem`, so a raised browser base size raises the whole scale. The three
 display sizes and the two largest headlines are `clamp()`d because
-`layout.spec.ts` runs every route at **320 CSS pixels** — a fixed 2.5rem headline
-is 40px of unbreakable word on a 320px screen, and the token is where that has to
-be solved, not the page.
+`layout.spec.ts` runs every route at **320 CSS pixels** — a fixed headline is
+unbreakable word on a 320px screen, and the token is where that has to be
+solved, not the page.
+
+### The heading end steps by ratio — STUDIO-030-001
+
+ADR-0009, *Component scale: compact by default*: "headings step by ratio, not by
+leaps. A heading that is three times body size on an internal console is a
+poster, not a hierarchy."
+
+It was a poster. Measured on the rendered page at 1440 CSS pixels,
+`display-large` was **40px against a 13.76px body — 2.91×** — and the ladder
+above `title-large` climbed in six different ratios (1.08×, 1.20×, 1.35×, 1.14×,
+1.25×). Six sizes in order is not a scale.
+
+It is now one geometric ladder from `title-large`, **ratio 1.09 per step**:
+
+| Role | Was | Is | × `body-medium` |
+|---|---|---|---|
+| `title-large` | 1.00rem | 1.00rem | 1.16× (the anchor, unchanged) |
+| `headline-small` | 1.08rem | 1.09rem | 1.27× |
+| `headline-medium` | 1.30rem | 1.19rem | 1.51× → 1.38× |
+| `headline-large` | 1.55rem | 1.30rem | 1.79× → 1.51× |
+| `display-small` | 1.75rem | 1.41rem | 2.03× → 1.64× |
+| `display-medium` | 2.00rem | 1.54rem | 2.33× → 1.79× |
+| `display-large` | 2.50rem | 1.68rem | **2.91× → 1.95×** |
+
+`headline-small` is the one value that rises, by 0.16px, and it rises to make the
+ladder geometric rather than to make anything larger.
+
+`base-scale.spec.ts` asserts the **ratio** — `display-large` under 2× body — not
+the pixel size, so a reader who has raised their browser's base size does not
+fail it.
+
+**Body, title and label sizes did not move**, and the second reason is the
+load-bearing one. Body is already the working size and the ADR calls it that;
+and `preferences.spec.ts`'s `contrastFailures` requires **4.5:1 of every text
+element with no large-text exemption written into it**, so no pair in this
+console was passing only because it counted as large text, and there is no pair
+that shrinking could drop below its required ratio. Re-run and confirmed rather
+than reasoned about.
+
+**Line heights came down with the sizes, but not proportionally.** A 26.88px
+heading needs relatively *more* leading than a 40px one, so `display-large` goes
+1.15 → 1.2 and still measures 32px against 46px. Negative tracking relaxes for
+the same reason: tight tracking is a large-size correction, and −0.02em at
+26.88px is over-tightened.
+
+Two line-heights moved for density rather than for optics:
+
+- `body-small` 1.5 → **1.4**. `body-small` is the *table* role — `.md3-table`
+  sets all four of its parts — so its line-height is a row-height decision. A
+  line goes 18.72px → 17.47px, and a fleet cell that wraps to two or three lines
+  is the tallest thing in its row, so this is worth more per row than the padding
+  cut.
+- `body-large` and `body-medium` 1.55 → **1.5**, which lands the tokens *on* the
+  canonical UI line-height and the exact figure WCAG 1.4.12 names, rather than
+  above it.
+
+WCAG 1.4.12 is unaffected by either: it requires the content to survive a reader
+**setting** 1.5, which is a different question from what is authored.
 
 `label-small` is 0.69rem (11px at a 16px root). It is a **label** role and never
 body text: WCAG sets no minimum type size, but an 11px paragraph is a defect

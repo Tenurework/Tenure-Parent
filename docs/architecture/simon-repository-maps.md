@@ -22,13 +22,13 @@ checks the roll-ups add up to the file lists they came from.
 | `.github/workflows` | 12 |
 | `Tier1` | 11 |
 | `Tier1/extracted` | 11 |
-| `apps/web` | 286 |
-| `docs` | 2 |
+| `apps/web` | 292 |
+| `docs` | 3 |
 | `docs/architecture` | 1 |
 | `docs/decisions` | 5 |
 | `infrastructure/terraform` | 20 |
 | `packages` | 1 |
-| **total** | **357** |
+| **total** | **364** |
 
 ### Target
 
@@ -38,7 +38,7 @@ checks the roll-ups add up to the file lists they came from.
 | `.github/workflows` | 18 |
 | `Tier1` | 13 |
 | `Tier1/extracted` | 11 |
-| `apps/system-studio` | 360 |
+| `apps/system-studio` | 364 |
 | `apps/web` | 494 |
 | `blueprints` | 5 |
 | `blueprints/corporate-divisions` | 1 |
@@ -78,7 +78,7 @@ checks the roll-ups add up to the file lists they came from.
 | `tools` | 32 |
 | `tools/dev` | 4 |
 | `tools/loop` | 53 |
-| **total** | **1519** |
+| **total** | **1523** |
 
 ## Workspace and package map
 
@@ -149,20 +149,20 @@ counted as if it were an import — four fixtures under `tests/architecture`
 embed `from "x"` and `require("z")` and are the reason single-letter
 packages appear below. That is a stated limit of the method, not a package.
 
-#### Source — 6 area edge(s) over 274 source file(s), 29 builtin import(s), 1 unresolved relative, 0 unresolved alias
+#### Source — 6 area edge(s) over 280 source file(s), 29 builtin import(s), 1 unresolved relative, 0 unresolved alias
 
 ```
 digraph modules {
   "apps/web/e2e" -> "apps/web/e2e/support" [label="28"]
   "apps/web/src" -> "apps/web/src/lib" [label="1"]
-  "apps/web/src/app" -> "apps/web/src/components" [label="172"]
-  "apps/web/src/app" -> "apps/web/src/lib" [label="318"]
+  "apps/web/src/app" -> "apps/web/src/components" [label="174"]
+  "apps/web/src/app" -> "apps/web/src/lib" [label="320"]
   "apps/web/src/components" -> "apps/web/src/app" [label="7"]
-  "apps/web/src/components" -> "apps/web/src/lib" [label="10"]
+  "apps/web/src/components" -> "apps/web/src/lib" [label="12"]
 }
 ```
 
-#### Target — 86 area edge(s) over 1201 source file(s), 723 builtin import(s), 2 unresolved relative, 4 unresolved alias
+#### Target — 86 area edge(s) over 1204 source file(s), 723 builtin import(s), 2 unresolved relative, 0 unresolved alias
 
 ```
 digraph modules {
@@ -176,9 +176,9 @@ digraph modules {
   "apps/system-studio/e2e" -> "packages/finops/src" [label="1"]
   "apps/system-studio/e2e" -> "packages/platform-config/src" [label="3"]
   "apps/system-studio/e2e" -> "packages/provisioning/src" [label="2"]
-  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="59"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="61"]
   "apps/system-studio/src/app" -> "apps/system-studio/src/generated" [label="1"]
-  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="275"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="277"]
   "apps/system-studio/src/app" -> "blueprints" [label="8"]
   "apps/system-studio/src/app" -> "modules" [label="7"]
   "apps/system-studio/src/app" -> "packages/audit/src" [label="3"]
@@ -261,7 +261,7 @@ An **undeclared** row is a real defect rather than a curiosity: the import
 resolves today through npm’s flat `node_modules` and breaks on the day the
 transitive dependency that hoisted it is removed.
 
-#### Source — 37 area/package pair(s), 2 undeclared
+#### Source — 38 area/package pair(s), 2 undeclared
 
 | Area | Package | Imports | Declared |
 | --- | --- | ---: | --- |

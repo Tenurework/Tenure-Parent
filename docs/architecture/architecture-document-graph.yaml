@@ -68,8 +68,8 @@ documents:
     family: "fin-finance-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "576e9ac69a5c7d7a11c09bcef982305e3f95c5478eb1e71147805118de4839ee"
-    bytes: 18163
+    sha256: "983a8970da308a632040e7d9798419fb5b6cb53fce633d24dd2b8b8ccb3f813d"
+    bytes: 18241
     aliases: []
     requirement_prefixes:
       - FIN

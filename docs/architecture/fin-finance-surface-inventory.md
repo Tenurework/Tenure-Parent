@@ -12,8 +12,8 @@ node tools/fin-finance-surface.mjs --check   # fail if it is stale
 ## What was measured
 
 - Roots scanned for `.ts`/`.tsx`/`.mjs`: `apps/web/src`, `apps/web/e2e`, `apps/system-studio/src`, `apps/system-studio/e2e`, `packages`, `modules`.
-- Finance surface: **91 files** — 52 source, 34 unit/integration test, 5 e2e.
-- Facet hits (a file can match several): budget 7 · expense 3 · ledger 11 · payment 35 · cost 35 · finance 14.
+- Finance surface: **92 files** — 52 source, 34 unit/integration test, 6 e2e.
+- Facet hits (a file can match several): budget 8 · expense 3 · ledger 11 · payment 35 · cost 35 · finance 14.
 - Finance-bearing tables in `apps/web/prisma/schema.prisma`: **10**.
 - Bible §3.2 canonical accounting objects present as tables: **0 of 20** — none. A further 1 (`Account`) has its name taken by an unrelated model, which is a migration hazard and is not coverage.
 - Capability claims: **15** — 5 TRUE, 7 SCOPED, 3 OVERSTATED, 0 UNADJUDICATED.
@@ -25,6 +25,7 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | Path | Plane | Kind | Facets |
 | --- | --- | --- | --- |
 | `apps/system-studio/e2e/cost.spec.ts` | operator | e2e | cost |
+| `apps/system-studio/e2e/density-budget.spec.ts` | operator | e2e | budget |
 | `apps/system-studio/e2e/pricing-logic.spec.ts` | operator | e2e | cost |
 | `apps/system-studio/e2e/pricing-surface.spec.ts` | operator | e2e | cost |
 | `apps/system-studio/src/app/platform/cost/CostAnswer.tsx` | operator | source | cost |
@@ -184,6 +185,6 @@ Every term from the Bible's capability vocabulary uttered anywhere in the surfac
 
 ## What this inventory says
 
-The platform has real finance code — 91 files and 10 money-bearing tables — and it is club budgeting, reimbursement and payment-provider plumbing, not accounting. Money is integer minor units end to end, a posting is a balanced journal, and a posted entry is corrected by a reversal rather than a delete. Above that line there is nothing: 20 of the 20 objects the Bible names as the minimum are not there, including every one that makes a ledger a ledger — `Journal`, `Ledger`, `Book`, `Account`, `Period`.
+The platform has real finance code — 92 files and 10 money-bearing tables — and it is club budgeting, reimbursement and payment-provider plumbing, not accounting. Money is integer minor units end to end, a posting is a balanced journal, and a posted entry is corrected by a reversal rather than a delete. Above that line there is nothing: 20 of the 20 objects the Bible names as the minimum are not there, including every one that makes a ledger a ledger — `Journal`, `Ledger`, `Book`, `Account`, `Period`.
 
 Of 15 capability claims, 3 are OVERSTATED. They are not marketing copy; they are comments and blocker messages that name objects nobody has built, which is the exact failure this inventory exists to find. Each is cited in the table above with the requirement that would make it true.

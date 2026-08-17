@@ -482,30 +482,90 @@
  * Density does NOT touch this block. Compact tightens space; it does not shrink
  * type (Bible §26.3.4), and `preferences.spec.ts` asserts the body size is
  * identical in both densities.
+ *
+ * ── The heading end steps by ratio, and the ratio is 1.09 ──────────────────
+ *
+ * STUDIO-030-001 / ADR-0009: "headings step by ratio, not by leaps. A heading
+ * that is three times body size on an internal console is a poster, not a
+ * hierarchy."
+ *
+ * It was a poster. `display-large` resolved to 40px at 1440 against a 13.76px
+ * `body-medium` — 2.91x — and the ladder above `title-large` climbed in leaps
+ * (1.00rem, 1.08, 1.30, 1.75, 2.00, 2.50: steps of 1.08x, then 1.20x, then
+ * 1.35x, 1.14x, 1.25x). Six sizes, six different ratios, which is not a scale;
+ * it is six numbers that happen to be in order.
+ *
+ * It is now one geometric ladder from `title-large`, ratio 1.09 per step:
+ *
+ *   title-large       1.00rem   (unchanged — the anchor)
+ *   headline-small    1.09rem   was 1.08rem   (+0.16px: the ladder's price)
+ *   headline-medium   1.19rem   was 1.30rem
+ *   headline-large    1.30rem   was 1.55rem
+ *   display-small     1.41rem   was 1.75rem
+ *   display-medium    1.54rem   was 2.00rem
+ *   display-large     1.68rem   was 2.50rem
+ *
+ * 1.68rem is 26.88px, which is 1.95x `body-medium` — under the 2x the ADR's
+ * "three times body" sentence argues against, and `base-scale.spec.ts` asserts
+ * exactly that ratio rather than the pixel value, so a viewer who has raised
+ * their browser's base size does not fail it.
+ *
+ * ## What this buys, in the unit the decision is measured in
+ *
+ * Every page in this console opens `h1.md3-headline-large`, and it went 30px
+ * tall to 26px. That is not the win on its own; the win is that the ladder no
+ * longer needs a 2vw clamp term to survive 320 CSS pixels, so the whole
+ * heading band is 4-13px shorter at every width rather than only at the wide
+ * end. The clamps are kept and narrowed rather than dropped: 26.88px is still
+ * an unbreakable word on a 320px screen, just a shorter one.
+ *
+ * ## Body, label and title sizes are UNCHANGED, deliberately
+ *
+ * Two reasons, and the second is the load-bearing one.
+ *
+ * Body is already the working size — 0.86rem / 13.76px — and the ADR calls it
+ * that. Shrinking it is the one change that would move every wrapping decision
+ * in the console at once, and `layout.spec.ts` measures overlap at four widths
+ * precisely because wrapping is where layout breaks.
+ *
+ * And the contrast question, which is the one the brief flags: `preferences.spec.ts`
+ * requires 4.5:1 of EVERY text element, with no large-text exemption written
+ * into it (`contrastFailures` compares against 4.5 unconditionally). So no pair
+ * in this console was passing only because it counted as large text, and there
+ * is no pair that shrinking could drop below its required ratio. The four sizes
+ * that DID cross the 24px large-text line coming down — the three displays and
+ * `headline-large` — were held to 4.5:1 the whole time anyway. Re-run and
+ * confirmed rather than reasoned about; see the result note.
+ *
+ * Line heights come down with the sizes, but not proportionally: a 26.88px
+ * heading needs relatively MORE leading than a 40px one, so `display-large`
+ * goes 1.15 to 1.2 and still measures 32px against 46px. Negative tracking
+ * relaxes for the same reason — tight tracking is a large-size correction, and
+ * at 26.88px -0.02em is over-tightened.
  */
 :root {
-  --md-sys-typescale-display-large-size: clamp(1.75rem, 1.35rem + 2vw, 2.5rem);
-  --md-sys-typescale-display-large-line-height: 1.15;
+  --md-sys-typescale-display-large-size: clamp(1.38rem, 1.24rem + 0.7vw, 1.68rem);
+  --md-sys-typescale-display-large-line-height: 1.2;
   --md-sys-typescale-display-large-weight: 400;
-  --md-sys-typescale-display-large-tracking: -0.02em;
-  --md-sys-typescale-display-medium-size: clamp(1.55rem, 1.25rem + 1.5vw, 2rem);
-  --md-sys-typescale-display-medium-line-height: 1.18;
+  --md-sys-typescale-display-large-tracking: -0.01em;
+  --md-sys-typescale-display-medium-size: clamp(1.3rem, 1.19rem + 0.55vw, 1.54rem);
+  --md-sys-typescale-display-medium-line-height: 1.2;
   --md-sys-typescale-display-medium-weight: 400;
-  --md-sys-typescale-display-medium-tracking: -0.01em;
-  --md-sys-typescale-display-small-size: clamp(1.4rem, 1.2rem + 1vw, 1.75rem);
-  --md-sys-typescale-display-small-line-height: 1.2;
+  --md-sys-typescale-display-medium-tracking: -0.005em;
+  --md-sys-typescale-display-small-size: clamp(1.22rem, 1.13rem + 0.45vw, 1.41rem);
+  --md-sys-typescale-display-small-line-height: 1.22;
   --md-sys-typescale-display-small-weight: 400;
   --md-sys-typescale-display-small-tracking: 0;
 
-  --md-sys-typescale-headline-large-size: clamp(1.18rem, 1rem + 0.6vw, 1.55rem);
-  --md-sys-typescale-headline-large-line-height: 1.2;
+  --md-sys-typescale-headline-large-size: clamp(1.14rem, 1.07rem + 0.35vw, 1.3rem);
+  --md-sys-typescale-headline-large-line-height: 1.25;
   --md-sys-typescale-headline-large-weight: 720;
   --md-sys-typescale-headline-large-tracking: 0;
-  --md-sys-typescale-headline-medium-size: clamp(1.1rem, 1rem + 0.4vw, 1.3rem);
-  --md-sys-typescale-headline-medium-line-height: 1.25;
+  --md-sys-typescale-headline-medium-size: clamp(1.09rem, 1.05rem + 0.2vw, 1.19rem);
+  --md-sys-typescale-headline-medium-line-height: 1.28;
   --md-sys-typescale-headline-medium-weight: 700;
   --md-sys-typescale-headline-medium-tracking: 0;
-  --md-sys-typescale-headline-small-size: 1.08rem;
+  --md-sys-typescale-headline-small-size: 1.09rem;
   --md-sys-typescale-headline-small-line-height: 1.3;
   --md-sys-typescale-headline-small-weight: 700;
   --md-sys-typescale-headline-small-tracking: 0;
@@ -523,16 +583,41 @@
   --md-sys-typescale-title-small-weight: 650;
   --md-sys-typescale-title-small-tracking: 0.01em;
 
+  /*
+   * STUDIO-030-001. The two prose roles go 1.55 to 1.5, and the SIZES do not
+   * move — 0.94rem and 0.86rem are the working sizes and the ADR says body is
+   * where the working size lives.
+   *
+   * 1.5 rather than "tighter": it is the canonical UI line-height and the exact
+   * figure WCAG 1.4.12 names, so this lands the token ON the reference number
+   * instead of above it. It is 0.69px a line on `body-medium` and 0.75px on
+   * `body-large`, which is nothing on one paragraph and 14px on the five
+   * `/platform/estate` opens with.
+   */
   --md-sys-typescale-body-large-size: 0.94rem;
-  --md-sys-typescale-body-large-line-height: 1.55;
+  --md-sys-typescale-body-large-line-height: 1.5;
   --md-sys-typescale-body-large-weight: 400;
   --md-sys-typescale-body-large-tracking: 0.005em;
   --md-sys-typescale-body-medium-size: 0.86rem;
-  --md-sys-typescale-body-medium-line-height: 1.55;
+  --md-sys-typescale-body-medium-line-height: 1.5;
   --md-sys-typescale-body-medium-weight: 400;
   --md-sys-typescale-body-medium-tracking: 0.01em;
+  /*
+   * `body-small` is the TABLE role — `.md3-table` sets all four of its parts —
+   * and its line-height is therefore a row-height decision rather than a
+   * paragraph one. 1.5 to 1.4 takes a line from 18.72px to 17.47px, and a fleet
+   * cell that wraps to two or three lines is the tallest thing in its row, so
+   * this is worth more per row than the padding cut below it.
+   *
+   * It stops at 1.4 rather than going tighter: 1.4 is the floor at which
+   * 12.48px text with `0.015em` tracking still has a visible gap between the
+   * descenders of one line and the ascenders of the next, which is the property
+   * a reader scanning a column of ARNs is actually using. WCAG 1.4.12 is
+   * unaffected either way — it requires the content to survive a reader SETTING
+   * 1.5, which is a different question from what is authored.
+   */
   --md-sys-typescale-body-small-size: 0.78rem;
-  --md-sys-typescale-body-small-line-height: 1.5;
+  --md-sys-typescale-body-small-line-height: 1.4;
   --md-sys-typescale-body-small-weight: 400;
   --md-sys-typescale-body-small-tracking: 0.015em;
 
@@ -644,6 +729,89 @@
   --space-6: 18px;
   /* Deliberately NOT reduced. This is the line the item draws. */
   --tap: 24px;
+}
+
+/*
+ * ── Component geometry ─────────────────────────────────────────────────────
+ *
+ * STUDIO-030-001. ADR-0009, "Component scale: compact by default": controls at
+ * a medium height, rows compact enough that a screen shows a working set, and a
+ * nested card that does not pay full padding a second time.
+ *
+ * These are FIVE numbers rather than five hundred, and that is the whole reason
+ * they exist. Before this block the console had eight different control heights
+ * written as eight different `calc(var(--tap) + var(--space-n))` expressions —
+ * 36px on `.md3-button`, 36px plus 8px of padding on `.md3-field-input` (which
+ * measured 39.33px, so the min-block-size was not even the number in force),
+ * 40px on `.field input` and on `.primary-action` and on the two submit
+ * buttons, 44px on `.palette-input`, 32px on `.palette-result`. Every one of
+ * them was defensible where it was written; together they were not a scale, and
+ * "bring the controls down" had eight places to be applied and no way to check
+ * that it had been.
+ *
+ * ## Why the heights are built out of `--tap` rather than out of pixels
+ *
+ * `--tap` is the one token compact does not reduce (WCAG 2.2 AA 2.5.8, 24 CSS
+ * pixels). Deriving the control height from it means the accessibility floor is
+ * STRUCTURAL: `--control-block-size` cannot fall below 24px in either density
+ * without someone editing `--tap`, which is the token `preferences.spec.ts`
+ * measures in all eight preference combinations. A literal `32px` here would
+ * make the floor a coincidence that holds until the next edit.
+ *
+ * Default: 24 + 8 = 32px. Compact: 24 + 6 = 30px. Both clear the floor.
+ *
+ * ## Why 32px and not 28px
+ *
+ * The instruction is "medium to small", and the ADR says "a MEDIUM height" — not
+ * the minimum. 32px is the height a desktop application's regular control sits
+ * at; 28px is its small variant, which is what a dense table's inline control
+ * should be and not what the primary action on a page should be. Coming down
+ * from 36-44 to 32 is the change that was asked for; going to 24 would be
+ * meeting the accessibility floor with the visible box, which is the specific
+ * thing STUDIO-030-007 says not to do.
+ *
+ * The 24px TARGET is met inside the 32px box by padding, not by the box being
+ * 40px — `base-scale.spec.ts` probes the four corners of the 24x24 square
+ * centred on a control with `elementFromPoint`, which is the question 2.5.8
+ * actually asks and the one a height measurement cannot answer.
+ *
+ * ## Rows: padding is the first thing cut
+ *
+ * `--row-padding-block` is 4px, from 8px. A table row's height is
+ * `padding * 2 + line-height * lines`, so this is 8px off every row in the
+ * console, and it compounds with the `body-small` line-height above: a fleet
+ * row measured 59.72px and is 46.28px.
+ *
+ * It is `--space-1` rather than a literal so compact still tightens it (2px),
+ * and it is a NAMED token rather than `var(--space-1)` written into the four
+ * table rules so that "how tall is a row" has one answer to read.
+ *
+ * ## Cards: the nested level pays less
+ *
+ * ADR-0009: "nested cards each paying full padding is how a console ends up
+ * showing four facts per screen." Measured on `/tenants`, the fleet-health card
+ * contained two `.md3-unknown` panels at 460px EACH — 920px of a 900px screen,
+ * above a table — and each of them was paying the same 16px padding and 8px
+ * internal gap as the card containing it. The nested level is now 12px and 4px.
+ */
+:root {
+  /* The visible box of a button, an input, a select, a palette row. */
+  --control-block-size: calc(var(--tap) + var(--space-2));
+  /*
+   * The padding INSIDE that box. 4px, so a 32px control holding a 21px line of
+   * body text is 4 + 21 + 4 + 2 of border and lands on its own min-block-size
+   * rather than overshooting it — which is what `.md3-field-input` was doing at
+   * 8px, measuring 39.33px against a declared 36px.
+   */
+  --control-padding-block: var(--space-1);
+  /* A table or list row's vertical padding. The first thing cut. */
+  --row-padding-block: var(--space-1);
+  /* A card's own padding and internal gap: the level that groups something. */
+  --card-padding: var(--space-4);
+  --card-gap: var(--space-2);
+  /* A card inside a card. It has already been paid for once. */
+  --card-padding-nested: var(--space-3);
+  --card-gap-nested: var(--space-1);
 }
 
 /*
@@ -1180,12 +1348,32 @@ body [data-topbar="true"] {
  * measures this at 1440 and at 1920 so that re-centring it is a failing test
  * rather than a preference somebody re-litigates.
  */
+/*
+ * STUDIO-030-001. The page's own frame, and the 8px at the top of it that every
+ * route pays before it has said anything.
+ *
+ * `--space-5` to `--space-3` at the top (20px to 12px) and `--space-6` to
+ * `--space-5` at the bottom (28px to 20px). The top is where the row count is:
+ * it sits above the breadcrumb, above the heading, above everything, so it is
+ * 8px off the y-coordinate of the first table on every page in the console. The
+ * bottom is trailing space below the last row and buys nothing, which is why it
+ * comes down too but is not cut as hard — a page whose content ends flush with
+ * the viewport edge reads as truncated.
+ *
+ * `--space-5` to `--space-4` inline (20px to 16px), matching what the 640px
+ * media query below has always set. A gutter is not hierarchy.
+ *
+ * `--space-3` and not a literal 12px: `preferences.spec.ts` reads THIS padding
+ * to assert that compact actually reduces spacing, and `--space-3` is 12px
+ * default against 8px compact. A literal would make that test pass on a
+ * stylesheet where density had stopped working.
+ */
 main {
   box-sizing: border-box;
   inline-size: 100%;
   min-inline-size: 0;
-  padding-block: var(--space-5) var(--space-6);
-  padding-inline: var(--space-5);
+  padding-block: var(--space-3) var(--space-5);
+  padding-inline: var(--space-4);
 }
 
 /*
@@ -1460,8 +1648,11 @@ form.signin button {
   color: var(--md-sys-color-on-primary);
   font: inherit;
   font-weight: 600;
-  min-block-size: calc(var(--tap) + var(--space-4));
-  padding: 0.55rem var(--space-4);
+  /* STUDIO-030-001. 40px to `--control-block-size` (32px), the fifth rule that
+     had written its own version of the same expression. */
+  min-block-size: var(--control-block-size);
+  padding-block: var(--control-padding-block);
+  padding-inline: var(--space-4);
   cursor: pointer;
 }
 .error {
@@ -1501,7 +1692,9 @@ form.signin button {
 }
 .tabs a,
 .tabs .here {
-  min-block-size: calc(var(--tap) + var(--space-2));
+  /* Already 32px; repointed by STUDIO-030-001 so it moves with the other
+     controls rather than coinciding with them. */
+  min-block-size: var(--control-block-size);
   display: inline-flex;
   align-items: center;
   padding-block: 0.25rem;
@@ -1528,30 +1721,54 @@ form.signin button {
 
 /* ── Tables ────────────────────────────────────────────────────────────── */
 /* Wide content scrolls inside its own container so the page body never does. */
+/*
+ * STUDIO-030-001. Two tables, one type scale.
+ *
+ * This table set its own `font-size: 0.88rem` (14.08px) while `.md3-table`
+ * below took all four parts of `body-small` (12.48px). Two tables in one
+ * console at two sizes is not a density decision anybody made — it is the
+ * legacy grid predating the token layer — and the visible consequence is that
+ * a row on `/tenants/[slug]` is a different height from a row on
+ * `/platform/estate` for no reason a reader can infer.
+ *
+ * All four parts, not just the size, for the reason the type-scale block gives:
+ * three of the four is what a type scale usually means in practice and the
+ * missing one is always tracking.
+ */
 table.grid {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
-  margin: 0.75rem 0 0.25rem;
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  font-weight: var(--md-sys-typescale-body-small-weight);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  margin: var(--space-2) 0 var(--space-1);
   display: block;
   overflow-x: auto;
   background: var(--md-sys-color-surface-container-lowest);
   border: 1px solid var(--border);
   border-radius: var(--md-sys-shape-md);
 }
+/* STUDIO-030-001. `--row-padding-block` (4px, was `--space-2`/8px), so this
+   table and `.md3-table` below cannot drift apart on the one number that
+   decides how many rows a screen shows. */
 table.grid th,
 table.grid td {
   text-align: start;
-  padding-block: var(--space-2);
+  padding-block: var(--row-padding-block);
   padding-inline: var(--space-3);
   border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
+/* STUDIO-030-001. `label-medium`, which is 0.75rem — the same size this rule
+   hardcoded — so the value does not move and the SOURCE does. `.md3-table th`
+   below already reads the same role. */
 table.grid th {
-  font-weight: 600;
-  font-size: 0.75rem;
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--muted);
   background: var(--md-sys-color-surface-container);
 }
@@ -1589,7 +1806,11 @@ table.grid td.alarm-verdict .slug {
 }
 
 /* ── Forms ─────────────────────────────────────────────────────────────── */
-.field { margin: 0.9rem 0; }
+/* STUDIO-030-001. `--space-3` (12px), was `0.9rem` (14.4px), and it is a token
+   now so compact reaches it — a hardcoded rem was the reason a compact form was
+   the same height as a comfortable one between the fields. `/tenants/new` has
+   eleven fields, so this is 26px and one more field visible. */
+.field { margin: var(--space-3) 0; }
 /* Direct children only.
    `.field label` matched the per-module labels nested inside the checkbox grid
    too, so twelve module names and their descriptions rendered in uppercase at
@@ -1601,7 +1822,11 @@ table.grid td.alarm-verdict .slug {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
-  margin-bottom: 0.35rem;
+  /* STUDIO-030-001. `--space-1` (4px), was `0.35rem` (5.6px). A caption and the
+     control it names are one group; 4px is a within-group gap and 12px (`.field`'s
+     own margin) is the between-group one, which is the difference the ADR asks
+     to be visible without a border. */
+  margin-bottom: var(--space-1);
   overflow-wrap: anywhere;
 }
 .field input[type="text"],
@@ -1613,8 +1838,14 @@ table.grid td.alarm-verdict .slug {
   width: 100%;
   min-width: 0;
   max-width: min(34rem, 100%);
-  min-block-size: calc(var(--tap) + var(--space-4));
-  padding: 0.55rem 0.75rem;
+  /* STUDIO-030-001. 40px to 32px, and the padding comes from the same token as
+     the height so the two cannot disagree — `0.55rem` (8.8px) top and bottom was
+     the reason the declared height and the measured one were different numbers.
+     `padding-inline` keeps its own value: a text field's inline padding is where
+     the caret sits away from the border, and 12px is that. */
+  min-block-size: var(--control-block-size);
+  padding-block: var(--control-padding-block);
+  padding-inline: 0.75rem;
   font: inherit;
   font-size: 0.92rem;
   color: inherit;
@@ -1687,11 +1918,15 @@ table.grid td.alarm-verdict .slug {
   letter-spacing: 0;
 }
 
+/* STUDIO-030-001. 40px to `--control-block-size` (32px). A submit button is not
+   a different KIND of control from `.md3-button`, and it was 4px taller for no
+   reason anyone recorded. */
 form.compose button[type="submit"],
 .advance button[type="submit"] {
-  margin-top: 1rem;
-  min-block-size: calc(var(--tap) + var(--space-4));
-  padding: 0.55rem 1.1rem;
+  margin-top: var(--space-4);
+  min-block-size: var(--control-block-size);
+  padding-block: var(--control-padding-block);
+  padding-inline: 1.1rem;
   font: inherit;
   font-weight: 600;
   color: var(--md-sys-color-on-primary);
@@ -1743,11 +1978,17 @@ form.compose button[type="submit"]:disabled,
    One per screen, and it looks like it. Everything else is a link or a plain
    control, so an operator scanning a page finds the thing to do next without
    reading every button. */
+/* STUDIO-030-001. 40px to `--control-block-size` (32px). `inline-flex` rather
+   than `inline-block`, because a min-block-size on an inline-block does not
+   centre its own text and the old rule was relying on the 8.8px padding to fake
+   it — which is exactly the coupling that made the height unreadable. */
 .primary-action {
-  display: inline-block;
-  margin-top: 1rem;
-  min-block-size: calc(var(--tap) + var(--space-4));
-  padding: 0.55rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--space-4);
+  min-block-size: var(--control-block-size);
+  padding-block: var(--control-padding-block);
+  padding-inline: var(--space-4);
   background: var(--md-sys-color-primary);
   border: 1px solid var(--md-sys-color-primary);
   border-radius: var(--md-sys-shape-full);
@@ -1824,9 +2065,11 @@ form.compose button[type="submit"]:disabled,
   max-width: 46rem;
 }
 .adopt button[type="submit"] {
-  margin-top: 1rem;
-  min-block-size: calc(var(--tap) + var(--space-4));
-  padding: 0.5rem 0.9rem;
+  /* STUDIO-030-001. 40px to `--control-block-size` (32px). */
+  margin-top: var(--space-4);
+  min-block-size: var(--control-block-size);
+  padding-block: var(--control-padding-block);
+  padding-inline: 0.9rem;
   font: inherit;
   font-size: 0.9rem;
   color: var(--md-sys-color-on-primary);
@@ -2172,8 +2415,12 @@ form.compose button[type="submit"]:disabled,
   background: var(--md-sys-color-surface-container-lowest);
   border: 0;
   border-bottom: 1px solid var(--border);
-  padding: var(--space-3);
-  min-height: calc(var(--tap) + var(--space-5));
+  /* STUDIO-030-001. 44px to `--control-block-size` (32px). It was the tallest
+     control in the console and it is the one an operator sees for the shortest
+     time — a command palette opens, takes a query and closes. */
+  padding-block: var(--control-padding-block);
+  padding-inline: var(--space-3);
+  min-height: var(--control-block-size);
 }
 .palette-input:focus-visible {
   outline: 2px solid var(--accent);
@@ -2187,12 +2434,14 @@ form.compose button[type="submit"]:disabled,
   overflow-y: auto;
 }
 
+/* STUDIO-030-001. Already 32px, repointed onto the token so it moves with every
+   other control instead of coinciding with them. */
 .palette-result {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: 0 var(--space-2);
-  min-height: calc(var(--tap) + var(--space-2));
+  min-height: var(--control-block-size);
 }
 .palette-result.chosen {
   background: var(--md-sys-state-focus);
@@ -2363,8 +2612,12 @@ fieldset.destructive .hint {
 }
 fieldset.destructive .chip {
   /* Deliberately taller than an ordinary chip, so the two are distinguishable
-     without colour and without reading the heading. */
-  min-height: calc(var(--tap) + var(--space-2));
+     without colour and without reading the heading. STUDIO-030-001 repoints it
+     onto `--control-block-size`: the RELATIONSHIP is what carries the meaning —
+     an ordinary chip is `--tap` (24px) and this is 32px — and expressing it as
+     the control height rather than as its own calc keeps the 8px difference
+     when the base moves rather than closing it by accident. */
+  min-height: var(--control-block-size);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -2655,8 +2908,12 @@ fieldset.destructive .chip {
 .md3-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
+  /* STUDIO-030-001. The values are unchanged at this level — a card that groups
+     something earns 16px — but they are now the tokens the NESTED rule below
+     overrides, which is the only way "reduce the inner level" can be expressed
+     once rather than at every place a card can be nested. */
+  gap: var(--card-gap);
+  padding: var(--card-padding);
   /*
      A card is itself a flex item of the page's column, and a flex item defaults
      to `min-width: auto` — "never shrink below my min-content width". A card
@@ -2699,19 +2956,78 @@ fieldset.destructive .chip {
   margin-block-start: var(--space-2);
 }
 
+/*
+ * ── The nested level (STUDIO-030-001) ──────────────────────────────────────
+ *
+ * ADR-0009: "a card earns its padding by grouping something; nested cards each
+ * paying full padding is how a console ends up showing four facts per screen."
+ *
+ * That is not a hypothetical about this console — it is the measurement. On
+ * `/tenants` at 1440x900 the first table row was at y=1414, on a 900px screen,
+ * and 920px of what sat above it was TWO `.md3-unknown` panels inside the
+ * fleet-health card, 460px each. Each was paying the container's own 16px
+ * padding and 8px internal gap a second time, and the panel is six short blocks
+ * in a column so the gap is charged six times over.
+ *
+ * 12px and 4px at the nested level: 8px of padding and 24px of gap back per
+ * panel, 64px across the two.
+ *
+ * ## Why this is a descendant selector and not a variant prop
+ *
+ * A card does not know whether it is nested — `Card.tsx` is called by whichever
+ * page needs one, and the nesting is a fact about the composition rather than
+ * about the component. Expressing it as `data-nested` would mean every caller
+ * has to know its own depth and would be wrong the first time a page wrapped an
+ * existing card in a new one. The selector reads the actual DOM, which is where
+ * the answer is.
+ *
+ * ## Why the hairline goes with it
+ *
+ * ADR-0009's last rule: "the gap between groups should exceed the gap within
+ * one, and that difference does more work than any border. Prefer removing a
+ * border to adding one." A nested surface has a background one ladder step from
+ * its container AND 12px of its own padding AND a hairline. Three signals for
+ * one boundary. The hairline is the one that costs a pixel of layout and carries
+ * the least, so it is the one that goes.
+ *
+ * It goes ONLY where it is decorative. Two exclusions, both load-bearing:
+ * `[data-outlined="true"]` is a surface whose edge the caller has declared
+ * meaningful, and `.md3-unknown` draws its border in `outline` rather than
+ * `outline-variant` precisely because it is the edge of the claim "nothing is
+ * known here" (3:1, WCAG 2.2 AA 1.4.11). Neither is a hairline and neither is
+ * touched.
+ */
+.md3-card .md3-card,
+.md3-card .md3-unknown,
+.md3-card .md3-empty {
+  padding: var(--card-padding-nested);
+  gap: var(--card-gap-nested);
+}
+.md3-card .md3-surface:not([data-outlined="true"]):not(.md3-unknown) {
+  border-color: transparent;
+}
+
 /* ── Button ────────────────────────────────────────────────────────────────
  *
  * Four variants and two tones. The height is `--tap` plus a space step, so it is
  * at or above the 24x24 CSS pixels WCAG 2.2 AA 2.5.8 asks for in BOTH densities
  * — `--tap` is the one token compact does not reduce, and building the height
  * out of it rather than out of a padding is what keeps that true.
+ *
+ * STUDIO-030-001: the step is now `--control-block-size`, ONE token, rather than
+ * this rule's own `calc(var(--tap) + var(--space-3))`. 36px to 32px. The
+ * expression was correct; the problem was that four other rules wrote their own
+ * version of it with a different space step and there was no way to bring them
+ * down together. `padding-inline` stays at `--space-4` — a button's width is
+ * label-driven and a 16px inline padding is what stops a two-character label
+ * rendering as a square.
  */
 .md3-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-block-size: calc(var(--tap) + var(--space-3));
+  min-block-size: var(--control-block-size);
   padding-inline: var(--space-4);
   max-inline-size: 100%;
   border: 1px solid transparent;
@@ -2938,7 +3254,10 @@ a.md3-chip {
    reading it aloud. */
 .md3-table > caption {
   text-align: start;
-  padding: var(--space-3);
+  /* STUDIO-030-001. `--space-2` (8px), was `--space-3` (12px). A caption is one
+     line of label text above a table; the 4px it gives back is a row every
+     twelve tables, and this console renders six on one page. */
+  padding: var(--space-2) var(--space-3);
   color: var(--md-sys-color-on-surface-variant);
   font-size: var(--md-sys-typescale-label-medium-size);
   line-height: var(--md-sys-typescale-label-medium-line-height);
@@ -2948,7 +3267,7 @@ a.md3-chip {
 }
 .md3-table th {
   text-align: start;
-  padding-block: var(--space-2);
+  padding-block: var(--row-padding-block);
   padding-inline: var(--space-3);
   background: var(--md-sys-color-surface-variant);
   color: var(--md-sys-color-on-surface-variant);
@@ -2960,8 +3279,12 @@ a.md3-chip {
   text-transform: uppercase;
   white-space: nowrap;
 }
+/* STUDIO-030-001. `--row-padding-block`: 4px, was 8px. Eight pixels off every
+   row in the console, and the row is the unit the whole decision is measured
+   in — `base-scale.spec.ts` asserts the shortest fleet row stays at or under a
+   ceiling, so a later "just a bit more padding" here has to argue with a test. */
 .md3-table td {
-  padding-block: var(--space-2);
+  padding-block: var(--row-padding-block);
   padding-inline: var(--space-3);
   color: var(--md-sys-color-on-surface);
   border-block-end: 1px solid var(--md-sys-color-outline-variant);
@@ -2989,12 +3312,16 @@ a.md3-chip {
  * pattern, and in a console an empty list is a fact about the estate rather than
  * an occasion.
  */
+/* STUDIO-030-001. `--space-3 --card-padding` (12/16), was `--space-5 --space-4`
+   (20/16). An empty list is a fact about the estate, not an occasion — the
+   comment above already says so, and 20px of vertical padding was arguing the
+   other way. */
 .md3-empty {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-5) var(--space-4);
+  gap: var(--card-gap);
+  padding: var(--space-3) var(--card-padding);
 }
 .md3-empty-headline {
   margin: 0;
@@ -3031,10 +3358,24 @@ a.md3-chip {
  * items and a column break can put a term at the bottom of one column and its
  * value at the top of the next.
  */
+/*
+ * STUDIO-030-001. `--space-1` (4px), was `--space-2` (8px).
+ *
+ * "Space is hierarchy: the gap BETWEEN groups should exceed the gap WITHIN
+ * one." A key/value list is ONE group — four facts about the same capability —
+ * and it was separating its own rows by the same 8px the card uses to separate
+ * itself from the next region. That reads as four groups of one, which is the
+ * inversion the rule is about. At 4px within and 12px around, the list reads as
+ * a list, and the 200px block on `/tenants` gives 12px back per panel.
+ *
+ * The ROW's own internal gap (`.md3-kv-row` below) stays at `--space-1` for the
+ * cross-axis and `--space-4` for the columns: a term and its value are closer
+ * still than two rows are, which is the same rule one level down.
+ */
 .md3-kv {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   margin: 0;
   min-inline-size: 0;
 }
@@ -3133,12 +3474,15 @@ a.md3-chip {
  * known here" — and the rule at the top of this section holds it to 3:1
  * (WCAG 2.2 AA 1.4.11) rather than to the 1.5:1 a card hairline gets.
  */
+/* STUDIO-030-001 repoints the two geometry values onto the card tokens, so the
+   nested rule in the Card section can reach them. The values at THIS level are
+   unchanged — a top-level unknown panel is a card and earns a card's padding. */
 .md3-unknown {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-4);
+  gap: var(--card-gap);
+  padding: var(--card-padding);
   border-color: var(--md-sys-color-outline);
 }
 .md3-unknown-label {
@@ -3179,7 +3523,10 @@ a.md3-chip {
   align-self: stretch;
   max-inline-size: 100%;
   overflow-x: auto;
-  padding: var(--space-3);
+  /* STUDIO-030-001. `--space-2` (8px), was `--space-3` (12px). This is a one-line
+     `<pre>` an operator copies; the padding is there so the text is not flush
+     against the border, and 8px does that. */
+  padding: var(--space-2);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--md-sys-shape-corner-small);
   background: var(--md-sys-color-surface-container-high);
@@ -3216,7 +3563,10 @@ a.md3-chip {
   align-items: center;
   gap: var(--space-2);
   flex: 0 0 auto;
-  min-block-size: calc(var(--tap) + var(--space-4));
+  /* STUDIO-030-001. 40px to `--control-block-size` (32px). A tab strip is drawn
+     once per page and sits above everything on it, so its 8px is 8px off the
+     y-coordinate of the first row on every route that has tabs. */
+  min-block-size: var(--control-block-size);
   padding-inline: var(--space-4);
   color: var(--md-sys-color-on-surface-variant);
   text-decoration: none;
@@ -3452,11 +3802,26 @@ a.md3-chip {
 .md3-field-label {
   color: var(--md-sys-color-on-surface);
 }
+/*
+ * STUDIO-030-001. This is the control the measurement caught out.
+ *
+ * It declared `min-block-size: calc(var(--tap) + var(--space-3))` — 36px — and
+ * measured 39.33px, because `padding-block: var(--space-2)` plus an inherited
+ * 21.3px line plus 2px of border comes to more than 36 and a min-block-size
+ * only ever raises. So the number in the stylesheet was not the number on the
+ * screen, which is the failure mode that makes "the input is 36px" a thing
+ * nobody can check by reading.
+ *
+ * `--control-block-size` (32px) with `--control-padding-block` (4px): 4 + 21.3 +
+ * 4 + 2 = 31.3, so the min-block-size is now the binding constraint and the
+ * control measures the number it declares. 39.33px to 32px, which is 7px off
+ * every field in every form in the console.
+ */
 .md3-field-input {
   min-inline-size: 0;
   max-inline-size: 100%;
-  min-block-size: calc(var(--tap) + var(--space-3));
-  padding-block: var(--space-2);
+  min-block-size: var(--control-block-size);
+  padding-block: var(--control-padding-block);
   padding-inline: var(--space-3);
   border: 1px solid var(--md-sys-color-outline);
   border-radius: var(--md-sys-shape-corner-extra-small);

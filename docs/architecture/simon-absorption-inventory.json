@@ -6,7 +6,7 @@
     "SIMON-000-002",
     "SIMON-000-003"
   ],
-  "observed_at": "2026-08-15",
+  "observed_at": "2026-08-17",
   "source": {
     "role": "source — the Simon OSE pilot application being absorbed",
     "remote": {
@@ -21,25 +21,59 @@
       "visibility": "PUBLIC",
       "is_fork": false,
       "default_branch": "main",
-      "open_pull_requests": [],
+      "open_pull_requests": [
+        {
+          "number": 40,
+          "head": "feat/uploads-decided-by-bytes",
+          "title": "fix(uploads): decide every upload from its bytes, not the client's claim"
+        }
+      ],
       "releases": [],
       "environments": [],
       "tags": []
     },
     "pinned_ref": "refs/remotes/live/main",
-    "pinned_commit": "3504b173828f0da18171f6dadab4ebfbfbbeb61f",
+    "pinned_commit": "47c1128cb55953b11bedc47927508bc5d622b159",
     "branches": [
+      {
+        "ref": "live",
+        "commit": "47c1128cb55953b11bedc47927508bc5d622b159"
+      },
+      {
+        "ref": "live/fix/active-org-scope",
+        "commit": "f151ae556b83928d716208b3d1d171718e9a9caa"
+      },
       {
         "ref": "live/fix/canonical-digest",
         "commit": "eb16bfca4d01898416165803b2d89fe86225e0a5"
+      },
+      {
+        "ref": "live/fix/canonical-seat-truth",
+        "commit": "9cfff4e667cc19b580e72e8710617c82d402372c"
+      },
+      {
+        "ref": "live/fix/csp-report-only",
+        "commit": "28b7b4b6d8068a08d44d07e02fffbaeec55b19d3"
+      },
+      {
+        "ref": "live/fix/docx-sanitize",
+        "commit": "4269e7220a1d364fe0ba56ab30d118ce5a76ddb7"
       },
       {
         "ref": "live/fix/e2e-retired-credential-card",
         "commit": "a121a640fcc839c476c2a5a7bbe81faca733b6ca"
       },
       {
+        "ref": "live/fix/upload-validation",
+        "commit": "f59c587a93adf1467bedc5adb2d24efedbed5fa1"
+      },
+      {
         "ref": "live/main",
-        "commit": "3504b173828f0da18171f6dadab4ebfbfbbeb61f"
+        "commit": "47c1128cb55953b11bedc47927508bc5d622b159"
+      },
+      {
+        "ref": "live/ops-status",
+        "commit": "8537db86a7844ed68a509b9777344699352c0107"
       },
       {
         "ref": "live/platform/reconcile-endpoint",
@@ -56,13 +90,17 @@
       {
         "ref": "live/security/untrack-real-roster",
         "commit": "6298add8a127026347657de31913d28c57872972"
+      },
+      {
+        "ref": "live/tenant/cognito-auth",
+        "commit": "3526fed7963ce316c6afec659687391bbce1fe5d"
       }
     ],
     "local_tags": [],
     "history": {
-      "commits": 168,
-      "newest_commit": "3504b173828f0da18171f6dadab4ebfbfbbeb61f",
-      "newest_commit_date": "2026-08-01",
+      "commits": 171,
+      "newest_commit": "47c1128cb55953b11bedc47927508bc5d622b159",
+      "newest_commit_date": "2026-08-14",
       "oldest_commit": "abf30691f8299414de6b115f4d40c8084049a0f4",
       "oldest_commit_date": "2026-07-10",
       "contributors": [
@@ -71,7 +109,7 @@
         "verification"
       ]
     },
-    "tracked_files": 357,
+    "tracked_files": 364,
     "files": [
       ".dockerignore",
       ".gitattributes",
@@ -258,6 +296,8 @@
       "apps/web/src/app/manifest.ts",
       "apps/web/src/app/not-found.tsx",
       "apps/web/src/app/page.tsx",
+      "apps/web/src/app/signin/SignInForm.tsx",
+      "apps/web/src/app/signin/loading.tsx",
       "apps/web/src/app/signin/page.tsx",
       "apps/web/src/components/BackButton.tsx",
       "apps/web/src/components/CalendarFilters.tsx",
@@ -280,6 +320,8 @@
       "apps/web/src/components/admin/RoleTransferPanel.tsx",
       "apps/web/src/components/ai/AIProvider.tsx",
       "apps/web/src/components/ai/TenureAIPanel.tsx",
+      "apps/web/src/components/brand/TenantBackdrop.tsx",
+      "apps/web/src/components/brand/TenantSplash.tsx",
       "apps/web/src/components/brand/TenureLogo.tsx",
       "apps/web/src/components/calendar/EventInspector.tsx",
       "apps/web/src/components/charts/BarChart.tsx",
@@ -394,11 +436,14 @@
       "apps/web/src/lib/tenancy/scope-args.ts",
       "apps/web/src/lib/tenant-scope.test.ts",
       "apps/web/src/lib/tenant-scope.ts",
+      "apps/web/src/lib/tenant/brand.test.ts",
+      "apps/web/src/lib/tenant/brand.ts",
       "apps/web/src/lib/time.test.ts",
       "apps/web/src/lib/time.ts",
       "apps/web/src/types/next-auth.d.ts",
       "apps/web/tailwind.config.ts",
       "apps/web/tsconfig.json",
+      "docs/HANDOFF.md",
       "docs/RUNBOOK.md",
       "docs/architecture/tenant-scoped-schema-plan.md",
       "docs/decisions/ADR-0001-versioned-migrations-and-boot-safety.md",
@@ -526,11 +571,11 @@
       },
       {
         "area": "apps/web",
-        "files": 286
+        "files": 292
       },
       {
         "area": "docs",
-        "files": 2
+        "files": 3
       },
       {
         "area": "docs/architecture",
@@ -550,7 +595,7 @@
       }
     ],
     "import_graph": {
-      "code_files": 274,
+      "code_files": 280,
       "builtin_imports": 29,
       "unresolved_relative_specifiers": 1,
       "unresolved_alias_specifiers": 0,
@@ -568,12 +613,12 @@
         {
           "from": "apps/web/src/app",
           "to": "apps/web/src/components",
-          "imports": 172
+          "imports": 174
         },
         {
           "from": "apps/web/src/app",
           "to": "apps/web/src/lib",
-          "imports": 318
+          "imports": 320
         },
         {
           "from": "apps/web/src/components",
@@ -583,7 +628,7 @@
         {
           "from": "apps/web/src/components",
           "to": "apps/web/src/lib",
-          "imports": 10
+          "imports": 12
         }
       ],
       "external_edges": [
@@ -680,7 +725,13 @@
         {
           "from": "apps/web/src/app",
           "package": "react",
-          "imports": 4,
+          "imports": 5,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/app",
+          "package": "react-dom",
+          "imports": 1,
           "declared": true
         },
         {
@@ -971,7 +1022,7 @@
       },
       {
         "capability": "Frontend components",
-        "matches": 71,
+        "matches": 73,
         "evidence": [
           "apps/web/src/components/BackButton.tsx",
           "apps/web/src/components/CalendarFilters.tsx",
@@ -1161,7 +1212,7 @@
       },
       {
         "capability": "Unit tests",
-        "matches": 25,
+        "matches": 26,
         "evidence": [
           "apps/web/scripts/db-bootstrap.test.mjs",
           "apps/web/src/app/api/documents/_lib/content.test.ts",
@@ -1224,68 +1275,32 @@
       "tags": []
     },
     "checked_out_branch": "main",
-    "head_commit": "2a03c89239b557f61f4e9377887d50d9a943ee8f",
+    "head_commit": "024eb0da8414561e81382c7df804480429c89b05",
     "branches": [
       {
-        "ref": "fix/canonical-digest",
-        "commit": "eb16bfca4d01898416165803b2d89fe86225e0a5"
-      },
-      {
-        "ref": "fix/e2e-retired-credential-card",
-        "commit": "a121a640fcc839c476c2a5a7bbe81faca733b6ca"
-      },
-      {
         "ref": "main",
-        "commit": "2a03c89239b557f61f4e9377887d50d9a943ee8f"
-      },
-      {
-        "ref": "platform/reconcile-endpoint",
-        "commit": "0c1a1811eb567fc88e7f25e04f622cf4707c0e44"
-      },
-      {
-        "ref": "platform/reconcile-secret",
-        "commit": "0ae1a96cf71cf189afcb21eef0dc2d02e1bf7858"
-      },
-      {
-        "ref": "platform/schema-version",
-        "commit": "e3f609dffae6b877cdbb6ec092ee411ca74528f0"
-      },
-      {
-        "ref": "security/untrack-real-roster",
-        "commit": "6298add8a127026347657de31913d28c57872972"
-      },
-      {
-        "ref": "studio-program",
-        "commit": "5561de0b6b84a3ebefeecb060996281cb4ead603"
+        "commit": "024eb0da8414561e81382c7df804480429c89b05"
       },
       {
         "ref": "wip/ier-killed-run-20260808",
         "commit": "815be47a3c4b718e034cb57bb7fc9d4b8468bec3"
-      },
-      {
-        "ref": "wip/studio-program-20260813",
-        "commit": "c5a468adeee6bc8a7f63dcaa93a1738a115cd4ba"
       }
     ],
     "remote_branches": [
       {
         "ref": "origin",
-        "commit": "2a03c89239b557f61f4e9377887d50d9a943ee8f"
+        "commit": "024eb0da8414561e81382c7df804480429c89b05"
       },
       {
         "ref": "origin/main",
-        "commit": "2a03c89239b557f61f4e9377887d50d9a943ee8f"
-      },
-      {
-        "ref": "origin/wip/studio-program-20260813",
-        "commit": "c5a468adeee6bc8a7f63dcaa93a1738a115cd4ba"
+        "commit": "024eb0da8414561e81382c7df804480429c89b05"
       }
     ],
     "local_tags": [],
     "history": {
-      "commits": 439,
-      "newest_commit": "2a03c89239b557f61f4e9377887d50d9a943ee8f",
-      "newest_commit_date": "2026-08-14",
+      "commits": 441,
+      "newest_commit": "024eb0da8414561e81382c7df804480429c89b05",
+      "newest_commit_date": "2026-08-17",
       "oldest_commit": "abf30691f8299414de6b115f4d40c8084049a0f4",
       "oldest_commit_date": "2026-07-10",
       "contributors": [
@@ -1295,7 +1310,7 @@
         "verification"
       ]
     },
-    "tracked_files": 1519,
+    "tracked_files": 1523,
     "files": [
       ".dockerignore",
       ".gitattributes",
@@ -1399,6 +1414,7 @@
       "apps/system-studio/e2e/high-risk-fails-closed.spec.ts",
       "apps/system-studio/e2e/identity-surface.spec.ts",
       "apps/system-studio/e2e/layout.spec.ts",
+      "apps/system-studio/e2e/live-refresh.spec.ts",
       "apps/system-studio/e2e/md3-primitives-logic.spec.ts",
       "apps/system-studio/e2e/md3-tokens-logic.spec.ts",
       "apps/system-studio/e2e/messaging-page-logic.spec.ts",
@@ -1541,6 +1557,7 @@
       "apps/system-studio/src/components/DeploymentPanel.tsx",
       "apps/system-studio/src/components/EvidencePanel.tsx",
       "apps/system-studio/src/components/Launcher.tsx",
+      "apps/system-studio/src/components/LiveRegion.tsx",
       "apps/system-studio/src/components/Nav.tsx",
       "apps/system-studio/src/components/OfflineBanner.tsx",
       "apps/system-studio/src/components/PreferencesMenu.tsx",
@@ -1548,6 +1565,7 @@
       "apps/system-studio/src/components/TopBar.tsx",
       "apps/system-studio/src/components/brand/TenureLogo.tsx",
       "apps/system-studio/src/components/breadcrumbs.module.css",
+      "apps/system-studio/src/components/live.module.css",
       "apps/system-studio/src/components/md3/Accordion.tsx",
       "apps/system-studio/src/components/md3/Badge.tsx",
       "apps/system-studio/src/components/md3/Button.tsx",
@@ -1686,6 +1704,7 @@
       "apps/system-studio/src/lib/aws/quotas.test.ts",
       "apps/system-studio/src/lib/aws/quotas.ts",
       "apps/system-studio/src/lib/aws/read.ts",
+      "apps/system-studio/src/lib/aws/refresh.ts",
       "apps/system-studio/src/lib/aws/result.ts",
       "apps/system-studio/src/lib/aws/retained.ts",
       "apps/system-studio/src/lib/aws/secrets.test.ts",
@@ -3170,7 +3189,7 @@
       },
       {
         "area": "apps/system-studio",
-        "files": 360
+        "files": 364
       },
       {
         "area": "apps/web",
@@ -3330,10 +3349,10 @@
       }
     ],
     "import_graph": {
-      "code_files": 1201,
+      "code_files": 1204,
       "builtin_imports": 723,
       "unresolved_relative_specifiers": 2,
-      "unresolved_alias_specifiers": 4,
+      "unresolved_alias_specifiers": 0,
       "internal_edges": [
         {
           "from": "apps/system-studio/e2e",
@@ -3388,7 +3407,7 @@
         {
           "from": "apps/system-studio/src/app",
           "to": "apps/system-studio/src/components",
-          "imports": 59
+          "imports": 61
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3398,7 +3417,7 @@
         {
           "from": "apps/system-studio/src/app",
           "to": "apps/system-studio/src/lib",
-          "imports": 275
+          "imports": 277
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3782,7 +3801,7 @@
         {
           "from": "apps/system-studio/e2e",
           "package": "@playwright/test",
-          "imports": 47,
+          "imports": 48,
           "declared": true
         },
         {
@@ -3824,7 +3843,7 @@
         {
           "from": "apps/system-studio/src/components",
           "package": "react",
-          "imports": 38,
+          "imports": 39,
           "declared": true
         },
         {
@@ -4648,7 +4667,7 @@
       },
       {
         "capability": "Frontend components",
-        "matches": 142,
+        "matches": 143,
         "evidence": [
           "apps/system-studio/src/components/AccountMenu.tsx",
           "apps/system-studio/src/components/Breadcrumbs.tsx",
@@ -4661,7 +4680,7 @@
       },
       {
         "capability": "Styles",
-        "matches": 23,
+        "matches": 24,
         "evidence": [
           "apps/system-studio/src/app/console-index/console-index.module.css",
           "apps/system-studio/src/app/globals.css",
@@ -4873,7 +4892,7 @@
       },
       {
         "capability": "End-to-end tests",
-        "matches": 82,
+        "matches": 83,
         "evidence": [
           "apps/system-studio/e2e/adoption.spec.ts",
           "apps/system-studio/e2e/api-contract.spec.ts",
@@ -4898,7 +4917,7 @@
         "pattern": "/^\\.github\\/workflows\\/.*\\.ya?ml$/"
       }
     ],
-    "working_tree_dirty_paths": 21
+    "working_tree_dirty_paths": 6
   },
   "relationship": {
     "merge_base": "d20d40d7846fc434b539f80cae8e437b750055ed",

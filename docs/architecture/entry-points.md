@@ -333,7 +333,7 @@ Allowlisted as necessarily public:
 TTES-000-001. The two experiences render from two stylesheets, and nothing
 compared them until now. `apps/web/src/app/globals.css` declares
 226 token names; `apps/system-studio/src/app/globals.css` declares
-164; 12 names are declared by both and
+171; 12 names are declared by both and
 5 of those carry different values — so one token name means two
 colours across the platform, which is fine when it is a decision and is a defect
 when it is drift.
@@ -404,6 +404,10 @@ justified, and capped at 1 so the next one fails the build.
 | `--border-control` | tenant | `#847f76` | — |
 | `--border-focus` | tenant | `#198052` | — |
 | `--border-strong` | **both (differ)** | `#d3d0c8` | `#6b7280` |
+| `--card-gap` | deployer | — | `8px` |
+| `--card-gap-nested` | deployer | — | `4px` |
+| `--card-padding` | deployer | — | `16px` |
+| `--card-padding-nested` | deployer | — | `12px` |
 | `--chart-1` | tenant | `#1c8c5a` | — |
 | `--chart-2` | tenant | `#b07a10` | — |
 | `--chart-3` | tenant | `#0e9aa7` | — |
@@ -416,9 +420,11 @@ justified, and capped at 1 so the next one fails the build.
 | `--chart-grid` | tenant | `#ecebe5` | — |
 | `--console-nav-offset` | undefined | — | — |
 | `--content-max` | tenant | `1720px` | — |
+| `--control-block-size` | deployer | — | `calc(var(--tap) + var(--space-2))` |
 | `--control-h` | tenant | `40px` | — |
 | `--control-h-lg` | tenant | `44px` | — |
 | `--control-h-sm` | tenant | `32px` | — |
+| `--control-padding-block` | deployer | — | `4px` |
 | `--density-gap` | tenant | `20px` | — |
 | `--ease-entry` | **both (differ)** | `cubic-bezier(0.16, 1, 0.3, 1)` | `cubic-bezier(0, 0, 0.2, 1)` |
 | `--ease-exit` | tenant | `cubic-bezier(0.4, 0, 1, 1)` | — |
@@ -513,40 +519,40 @@ justified, and capped at 1 so the next one fails the build.
 | `--md-sys-state-pressed-opacity` | deployer | — | `0.12` |
 | `--md-sys-type-font` | deployer | — | `Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` |
 | `--md-sys-type-mono` | deployer | — | `"SFMono-Regular", "Roboto Mono", Menlo, Consolas, monospace` |
-| `--md-sys-typescale-body-large-line-height` | deployer | — | `1.55` |
+| `--md-sys-typescale-body-large-line-height` | deployer | — | `1.5` |
 | `--md-sys-typescale-body-large-size` | deployer | — | `0.94rem` |
 | `--md-sys-typescale-body-large-tracking` | deployer | — | `0.005em` |
 | `--md-sys-typescale-body-large-weight` | deployer | — | `400` |
-| `--md-sys-typescale-body-medium-line-height` | deployer | — | `1.55` |
+| `--md-sys-typescale-body-medium-line-height` | deployer | — | `1.5` |
 | `--md-sys-typescale-body-medium-size` | deployer | — | `0.86rem` |
 | `--md-sys-typescale-body-medium-tracking` | deployer | — | `0.01em` |
 | `--md-sys-typescale-body-medium-weight` | deployer | — | `400` |
-| `--md-sys-typescale-body-small-line-height` | deployer | — | `1.5` |
+| `--md-sys-typescale-body-small-line-height` | deployer | — | `1.4` |
 | `--md-sys-typescale-body-small-size` | deployer | — | `0.78rem` |
 | `--md-sys-typescale-body-small-tracking` | deployer | — | `0.015em` |
 | `--md-sys-typescale-body-small-weight` | deployer | — | `400` |
-| `--md-sys-typescale-display-large-line-height` | deployer | — | `1.15` |
-| `--md-sys-typescale-display-large-size` | deployer | — | `clamp(1.75rem, 1.35rem + 2vw, 2.5rem)` |
-| `--md-sys-typescale-display-large-tracking` | deployer | — | `-0.02em` |
+| `--md-sys-typescale-display-large-line-height` | deployer | — | `1.2` |
+| `--md-sys-typescale-display-large-size` | deployer | — | `clamp(1.38rem, 1.24rem + 0.7vw, 1.68rem)` |
+| `--md-sys-typescale-display-large-tracking` | deployer | — | `-0.01em` |
 | `--md-sys-typescale-display-large-weight` | deployer | — | `400` |
-| `--md-sys-typescale-display-medium-line-height` | deployer | — | `1.18` |
-| `--md-sys-typescale-display-medium-size` | deployer | — | `clamp(1.55rem, 1.25rem + 1.5vw, 2rem)` |
-| `--md-sys-typescale-display-medium-tracking` | deployer | — | `-0.01em` |
+| `--md-sys-typescale-display-medium-line-height` | deployer | — | `1.2` |
+| `--md-sys-typescale-display-medium-size` | deployer | — | `clamp(1.3rem, 1.19rem + 0.55vw, 1.54rem)` |
+| `--md-sys-typescale-display-medium-tracking` | deployer | — | `-0.005em` |
 | `--md-sys-typescale-display-medium-weight` | deployer | — | `400` |
-| `--md-sys-typescale-display-small-line-height` | deployer | — | `1.2` |
-| `--md-sys-typescale-display-small-size` | deployer | — | `clamp(1.4rem, 1.2rem + 1vw, 1.75rem)` |
+| `--md-sys-typescale-display-small-line-height` | deployer | — | `1.22` |
+| `--md-sys-typescale-display-small-size` | deployer | — | `clamp(1.22rem, 1.13rem + 0.45vw, 1.41rem)` |
 | `--md-sys-typescale-display-small-tracking` | deployer | — | `0` |
 | `--md-sys-typescale-display-small-weight` | deployer | — | `400` |
-| `--md-sys-typescale-headline-large-line-height` | deployer | — | `1.2` |
-| `--md-sys-typescale-headline-large-size` | deployer | — | `clamp(1.18rem, 1rem + 0.6vw, 1.55rem)` |
+| `--md-sys-typescale-headline-large-line-height` | deployer | — | `1.25` |
+| `--md-sys-typescale-headline-large-size` | deployer | — | `clamp(1.14rem, 1.07rem + 0.35vw, 1.3rem)` |
 | `--md-sys-typescale-headline-large-tracking` | deployer | — | `0` |
 | `--md-sys-typescale-headline-large-weight` | deployer | — | `720` |
-| `--md-sys-typescale-headline-medium-line-height` | deployer | — | `1.25` |
-| `--md-sys-typescale-headline-medium-size` | deployer | — | `clamp(1.1rem, 1rem + 0.4vw, 1.3rem)` |
+| `--md-sys-typescale-headline-medium-line-height` | deployer | — | `1.28` |
+| `--md-sys-typescale-headline-medium-size` | deployer | — | `clamp(1.09rem, 1.05rem + 0.2vw, 1.19rem)` |
 | `--md-sys-typescale-headline-medium-tracking` | deployer | — | `0` |
 | `--md-sys-typescale-headline-medium-weight` | deployer | — | `700` |
 | `--md-sys-typescale-headline-small-line-height` | deployer | — | `1.3` |
-| `--md-sys-typescale-headline-small-size` | deployer | — | `1.08rem` |
+| `--md-sys-typescale-headline-small-size` | deployer | — | `1.09rem` |
 | `--md-sys-typescale-headline-small-tracking` | deployer | — | `0` |
 | `--md-sys-typescale-headline-small-weight` | deployer | — | `700` |
 | `--md-sys-typescale-label-large-line-height` | deployer | — | `1.35` |
@@ -591,6 +597,7 @@ justified, and capped at 1 so the next one fails the build.
 | `--radius-xl` | tenant | `18px` | — |
 | `--rail-inline-size` | deployer | — | `17rem` |
 | `--row-h` | tenant | `32px` | — |
+| `--row-padding-block` | deployer | — | `4px` |
 | `--segment-active-bg` | tenant | `#ffffff` | — |
 | `--shadow-focus` | tenant | `0 0 0 3px rgba(25, 128, 82, 0.28)` | — |
 | `--shadow-lg` | tenant | `0 16px 36px rgba(23, 24, 26, 0.14), 0 4px 10px rgba(23, 24, 26, 0.07)` | — |
