@@ -120,11 +120,53 @@ export {
   UNIMPLEMENTED_REJECTIONS,
   allRejections,
   ambiguousPrecedence,
+  dependencyAdjacency,
   moduleGraphRejections,
+  satisfiersOf,
   unentitledFeatures,
   unsafeExpressions,
 } from "./rejections"
 export type { ModuleLike, Rejection } from "./rejections"
+
+export { adjacencyOf, affectedSubgraph, dependentsOf, minimalCyclePaths, nodesOf, topologicalGroups } from "./graph"
+export type { Adjacency, TopologicalOrder } from "./graph"
+
+export {
+  GRAPH_COMPILER_VERSION,
+  GraphCompilerError,
+  NODE_KINDS,
+  RULE_SLOTS,
+  RULE_SLOT_NAMES,
+  SENSITIVITY_ORDER,
+  compileGraph,
+  evaluateGraph,
+  graphSigningKeyFromEnv,
+  presentationProjection,
+  reevaluateGraph,
+  signSnapshot,
+  snapshotBlockers,
+  verifySnapshot,
+} from "./graph-snapshot"
+export type {
+  CompileInput,
+  CompiledNode,
+  DeclaredNode,
+  Evaluation,
+  GraphEdge,
+  GraphProblem,
+  GraphSigningKey,
+  GraphSnapshot,
+  NodeKind,
+  NodeSensitivity,
+  NodeState,
+  PackageManifest,
+  PresentationNode,
+  PresentationProjection,
+  RuleSlot,
+  RuleTrace,
+  SnapshotSignature,
+  SnapshotVerification,
+} from "./graph-snapshot"
 
 export {
   DEFAULT_LIMITS,

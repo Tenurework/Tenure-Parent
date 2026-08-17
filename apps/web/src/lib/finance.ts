@@ -18,7 +18,15 @@ import {
 // PAY-080-007. The reconciliation arithmetic, not a second copy of it. Pure
 // TypeScript with no node builtins, so it travels into the client bundles that
 // already import this module.
-import { SCALE as FINOPS_SCALE, fromMinorUnits, reconcileToJournal } from "@tenure/finops"
+import {
+  SCALE as FINOPS_SCALE,
+  fromMinorUnits,
+  lateAdjustments,
+  reconcileToJournal,
+  trialBalance,
+  type LateAdjustment,
+  type PostedLine,
+} from "@tenure/finops"
 
 // PAY-020-002. The provider-neutral port, through its CLIENT-SAFE subpath —
 // `@tenure/payments` proper reads ADRs off disk with node:fs and hashes with
@@ -757,5 +765,156 @@ export function financeIntegrity(
         `${formatCentsIn(rollUpCents, { locale: DEFAULT_MONEY_FORMAT.locale, currency })} and the ledger posts ` +
         `${formatCentsIn(journalCents, { locale: DEFAULT_MONEY_FORMAT.locale, currency })}. Shown, not corrected — ` +
         `a cache silently rewritten to match hides whichever write went missing.`,
+  }
+}
+
+// -- Trial balance -------------------------------------------------------------
+
+/**
+ * FIN-010-003 — the double entry read back out of the books, from the rows a page
+ * has already fetched.
+ *
+ * `financeIntegrity` above answers a different and smaller question: does
+ * `BudgetLine.actualCents` still equal the sum of that line's postings. It never
+ * looks at `LedgerEntry.account` and never adds a debit to a credit, so it
+ * cannot say whether the ledger itself ties. Both halves of every journal can be
+ * mis-coded and it stays green.
+ *
+ * ## The one line that matters here
+ *
+ * `LedgerEntry.amountCents` is DEBIT-POSITIVE SIGNED. That is not a guess:
+ * `buildJournal` in `packages/payments/src/posting.ts` emits
+ * `signedMinorUnits: line.side === "debit" ? value : -value`, and both writers —
+ * `apps/web/src/app/(app)/approvals/actions.ts` and
+ * `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts` — persist exactly that
+ * alongside the `side`. So a CREDIT row holds a NEGATIVE `amountCents`.
+ *
+ * `@tenure/finops`' trial balance takes each line's amount as it stands IN ITS
+ * DECLARED COLUMN. Handing it the stored sign unchanged would total the credit
+ * column as a negative number, and `debits - credits` would come to twice the
+ * ledger instead of zero: a perfectly balanced ledger would report as out of
+ * balance by 200% of itself. Hence the negation on the credit arm, and hence the
+ * test that a normal journal ties.
+ *
+ * Not `Math.abs`, either. A reversal is persisted as the flipped side with the
+ * negated amount, so a contra amount — a negative debit — is a real row here, and
+ * taking its magnitude would move it into the other column and tie a ledger that
+ * does not.
+ */
+export type LedgerLineInput = {
+  id: string
+  journalId: string
+  /** Chart-of-accounts code. */
+  account: string
+  side: "DEBIT" | "CREDIT"
+  /** Debit-positive signed minor units, as persisted. */
+  amountCents: number
+  currency: string
+  /** `LedgerEntry.effectiveAt`, as an ISO UTC instant. */
+  effectiveAt: string
+  /** `LedgerEntry.createdAt`, as an ISO UTC instant. Not the same date. */
+  createdAt: string
+  /** The external item this line answers, when it has one. */
+  reference?: string | null
+}
+
+export function toPostedLines(rows: readonly LedgerLineInput[]): PostedLine[] {
+  return rows.map((row) => ({
+    journalId: row.journalId,
+    lineId: row.id,
+    account: row.account,
+    side: row.side,
+    amount: fromMinorUnits(
+      row.side === "DEBIT" ? row.amountCents : -row.amountCents,
+      row.currency,
+    ),
+    effectiveAt: row.effectiveAt,
+    recordedAt: row.createdAt,
+    ...(row.reference ? { reference: row.reference } : {}),
+  }))
+}
+
+export type LedgerTieOutCurrency = {
+  currency: string
+  debitCents: number
+  creditCents: number
+  outOfBalanceCents: number
+  balanced: boolean
+  accountCount: number
+  unbalancedJournalIds: string[]
+}
+
+export type LedgerTieOut = {
+  /**
+   * `null` when no posting fell inside the window. "We looked and found nothing"
+   * is not "the books tie", and a boolean here would render an empty year as a
+   * clean one.
+   */
+  balanced: boolean | null
+  currencies: LedgerTieOutCurrency[]
+  /** Journals that do not tie on their own, even when the total does. */
+  unbalancedJournalIds: string[]
+  /** Postings written into a later month than the one they belong to. */
+  late: LateAdjustment[]
+  postingCount: number
+  detail: string
+}
+
+/**
+ * Does the general ledger tie, and which journals do not?
+ *
+ * Two findings rather than one, because a global zero is not proof: two journals
+ * out by equal and opposite amounts cancel in every total ever printed. The
+ * per-journal check is what finds them.
+ *
+ * Nothing is corrected. An out-of-balance ledger that has been adjusted until it
+ * balances is the one state from which the error can never be found — the same
+ * reason `financeIntegrity` shows a drifted cache instead of rewriting it.
+ */
+export function ledgerTieOut(rows: readonly LedgerLineInput[]): LedgerTieOut {
+  const lines = toPostedLines(rows)
+  const report = trialBalance(lines)
+  const toCents = (units: number) => Math.trunc(units / 10 ** FINOPS_SCALE)
+
+  const currencies = report.sections.map((section) => ({
+    currency: section.currency,
+    debitCents: toCents(section.debits.units),
+    creditCents: toCents(section.credits.units),
+    outOfBalanceCents: toCents(section.outOfBalance.units),
+    balanced: section.balanced,
+    accountCount: section.accounts.length,
+    unbalancedJournalIds: section.unbalancedJournals.map((j) => j.journalId),
+  }))
+
+  const unbalancedJournalIds = [...new Set(currencies.flatMap((c) => c.unbalancedJournalIds))].sort()
+  const late = [...lateAdjustments(lines)]
+
+  return {
+    balanced: report.balanced,
+    currencies,
+    unbalancedJournalIds,
+    late,
+    postingCount: lines.length,
+    detail:
+      report.balanced === null
+        ? "No posting has been made yet, so there is nothing to tie out — which is not the same as a ledger that balances."
+        : report.balanced && unbalancedJournalIds.length === 0
+          ? `The ledger ties: ${lines.length} posting(s) across ${currencies.length} currency(ies), ` +
+            currencies
+              .map(
+                (c) =>
+                  `${formatCentsIn(c.debitCents, { locale: DEFAULT_MONEY_FORMAT.locale, currency: c.currency })} debits against the same in credits over ${c.accountCount} account(s)`,
+              )
+              .join("; ") +
+            "."
+          : report.balanced
+            ? `The ledger ties in total, but ${unbalancedJournalIds.length} journal(s) do not balance on their own (${unbalancedJournalIds.join(", ")}). Equal and opposite errors cancel in every total; shown, not corrected.`
+            : currencies
+                .filter((c) => !c.balanced)
+                .map(
+                  (c) =>
+                    `${c.currency}: debits and credits differ by ${formatCentsIn(c.outOfBalanceCents, { locale: DEFAULT_MONEY_FORMAT.locale, currency: c.currency })} across ${c.accountCount} account(s). Shown, not corrected — a ledger adjusted until it ties is one whose error can never be found.`,
+                )
+                .join(" "),
   }
 }

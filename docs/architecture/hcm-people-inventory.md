@@ -103,15 +103,23 @@ file is not counted, which is stated here rather than papered over.
 | `apps/system-studio/src/lib/command-handlers.ts` | no | `validateTopology` |
 | `apps/web/src/lib/org/projection.test.ts` | yes | `validateTopology` |
 | `apps/web/src/lib/org/projection.ts` | no | `OrgGraph`, `OrgTopology`, `OrgUnitInput`, `buildOrgGraph` |
+| `apps/web/src/lib/people/seat-memory-boundary.ts` | no | `Classification`, `ClassifiedResource`, `HandoverSummary`, `InheritanceClass`, `ReleaseDecision`, `SuccessionContext`, `planHandover`, `releaseToSuccessor` |
 | `blueprints/types.ts` | no | `OrgTopology` |
 | `packages/platform-config/src/build-system.ts` | no | `validateTopology` |
 
-**84 of the 89 exported symbols are imported by nothing outside the package.**
-The 5 that non-test code does reach are all topology and graph construction.
-Every assignment-state, bitemporal-correction, position-lifecycle and
-succession-release symbol is unreached — so the modelling that would answer
-"what did the organisation look like in March" is written, tested inside its own
-package, and connected to no caller. That is the finding this section exists for.
+**76 of the 89 exported symbols are imported by nothing outside the package.**
+13 are reached by non-test code.
+
+Attributed to the source module each symbol is exported from — derived from
+`index.ts`'s own `from "./module"` grouping, so this sentence cannot go stale
+the way a hand-written one did:
+
+- reached by non-test code: `continuity` (1/20), `graph` (3/8), `succession-release` (7/13), `topology` (2/9)
+- reached by nothing outside the package: `assignment-states`, `bitemporal`, `position-lifecycle`
+
+So the modelling that would answer "what did the organisation look like in
+March" is still written, tested inside its own package, and connected to no
+caller. That is the finding this section exists for.
 
 Reached by nothing outside `packages/organization-model`:
 
@@ -119,8 +127,6 @@ Reached by nothing outside `packages/organization-model`:
 - `AssignmentStateCatalog`
 - `BitemporalVersion`
 - `CatalogProblem`
-- `Classification`
-- `ClassifiedResource`
 - `ContainmentRule`
 - `CorrectionOutcome`
 - `CorrectionRefusal`
@@ -131,9 +137,7 @@ Reached by nothing outside `packages/organization-model`:
 - `EndOutcome`
 - `EndRefusal`
 - `EndableAssignment`
-- `HandoverSummary`
 - `HistoryEntry`
-- `InheritanceClass`
 - `LivePosition`
 - `OperationContext`
 - `OrgGraphError`
@@ -148,7 +152,6 @@ Reached by nothing outside `packages/organization-model`:
 - `PositionRefused`
 - `RecordPeriod`
 - `ReleaseAction`
-- `ReleaseDecision`
 - `ReleasePolicy`
 - `Resolution`
 - `ResolutionRefusal`
@@ -159,7 +162,6 @@ Reached by nothing outside `packages/organization-model`:
 - `SeatOwnedResource`
 - `SplitPart`
 - `StateAuthority`
-- `SuccessionContext`
 - `SuccessionOutcome`
 - `Team`
 - `TeamMembership`
@@ -182,11 +184,9 @@ Reached by nothing outside `packages/organization-model`:
 - `mayContain`
 - `mayRedelegate`
 - `mergePositions`
-- `planHandover`
 - `planTermTransition`
 - `positionMayBeFilled`
 - `redelegate`
-- `releaseToSuccessor`
 - `resolveAsOf`
 - `seatIsOpen`
 - `seatIsVacant`
@@ -246,7 +246,7 @@ than silently shrinking the denominator.
 | `Profile` | ABSENT | — | No requirement profile separate from a person profile. |
 | `LearningItem` | ABSENT | — | No learning catalogue. |
 | `LearningAssignment` | ABSENT | — | No learning catalogue. |
-| `SuccessionPlan` | PARTIAL | `packages/organization-model/src/succession-release.ts` | `planHandover` and `releaseToSuccessor` decide what a successor may inherit — in memory, with no table and no caller. |
+| `SuccessionPlan` | PARTIAL | `packages/organization-model/src/succession-release.ts` | `planHandover` and `releaseToSuccessor` decide what a successor may inherit, and HCM-040-003 wired them to `apps/web/src/lib/people/seat-memory-boundary.ts` and the two memory read paths. Still no table: the plan is computed per request, never stored, so nothing records what a past handover actually released. |
 | `HRCase` | ABSENT | — | No confidential case intake, classification or investigation record. |
 | `PayrollRelationship` | ABSENT | — | No payroll object, and the architecture document forbids building one — see the contradiction recorded below. |
 | `PayrollInput` | ABSENT | — | No payroll object. |

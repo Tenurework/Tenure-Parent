@@ -31,7 +31,7 @@ Observed at **2026-08-17**. Source pinned to `47c1128cb55953b11bedc47927508bc5d6
 | Tags (local refs) | none |
 | Releases | none |
 | Deployment environments | none |
-| Open pull requests | #40 fix(uploads): decide every upload from its bytes, not the client's claim |
+| Open pull requests | #45 docs(runbook) + fix(platform-access): the read-only route, and the exit-code read that crashed |
 | Commits on the recorded head | 171 |
 | Oldest commit | `abf30691f829` (2026-07-10) |
 | Newest commit | `47c1128cb559` (2026-08-14) |
@@ -73,16 +73,16 @@ Observed at **2026-08-17**. Source pinned to `47c1128cb55953b11bedc47927508bc5d6
 | Releases | none |
 | Deployment environments | `aws-read` `engine-production` |
 | Open pull requests | none open |
-| Commits on the recorded head | 441 |
+| Commits on the recorded head | 442 |
 | Oldest commit | `abf30691f829` (2026-07-10) |
-| Newest commit | `024eb0da8414` (2026-08-17) |
+| Newest commit | `cc4e5291da1c` (2026-08-17) |
 | Contributors | 4 — Claude, Monorepo Migration, satvikOS, verification |
-| Tracked files | 1523 |
-| Working tree | checked out on `main`, 6 dirty path(s) at 2026-08-17 |
+| Tracked files | 1526 |
+| Working tree | checked out on `main`, 114 dirty path(s) at 2026-08-17 |
 
 | Branch | Commit |
 | --- | --- |
-| `main` | `024eb0da8414` |
+| `main` | `cc4e5291da1c` |
 | `wip/ier-killed-run-20260808` | `815be47a3c4b` |
 
 ## Shared history

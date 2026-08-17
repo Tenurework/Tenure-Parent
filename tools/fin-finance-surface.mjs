@@ -288,6 +288,22 @@ export const CLAIM_VERDICTS = {
     verdict: "OVERSTATED",
     note: "A section header over five LedgerKind labels, a sign function and a disclosure string. A general ledger needs a ledger, a book, a chart of accounts and a period; none of the four exists. FIN-000-002.",
   },
+  "apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx|trial balance": {
+    verdict: "SCOPED",
+    note: "FIN-010-003. The page computes a real trial balance over every posted row — ledgerTieOut, apps/web/src/lib/finance.ts — and renders only its TIE-OUT: balanced or the residual, the account count, and the late-posting count. The per-account debit/credit grid is computed and not displayed. A reader of this page learns whether the books tie, not what is in them.",
+  },
+  "apps/web/src/lib/finance.ts|double entry": {
+    verdict: "TRUE",
+    note: "FIN-010-003. toPostedLines puts each row's amount in its declared column and ledgerTieOut totals the two; the double entry itself is enforced at write time by buildJournal (packages/payments/src/posting.ts), which refuses an unbalanced journal, and both halves share a journalId. The sentence claims the reading, and the reading is real.",
+  },
+  "apps/web/src/lib/finance.ts|trial balance": {
+    verdict: "TRUE",
+    note: "FIN-010-003. ledgerTieOut produces debits, credits, per-account nets and the residual, per currency and never totalled across currencies, from @tenure/finops' trialBalance. Proven by apps/web/src/lib/finance-tie-out.test.ts (9/9) and mutation-proven on the credit-sign conversion.",
+  },
+  "apps/web/src/lib/finance-tie-out.test.ts|trial balance": {
+    verdict: "TRUE",
+    note: "Tests the tie-out the source performs, including the sign convention that would make a balanced ledger report as out of balance by twice itself.",
+  },
   "apps/web/src/lib/payments/ledger-attribution.itest.ts|double entry": {
     verdict: "TRUE",
     note: "buildJournal in packages/payments/src/posting.ts refuses to emit an unbalanced journal, and both sides carry the same journalId. Balance is enforced at build time, which is what the sentence claims.",
@@ -295,6 +311,34 @@ export const CLAIM_VERDICTS = {
   "apps/system-studio/e2e/pricing-logic.spec.ts|multi-currency": {
     verdict: "SCOPED",
     note: "A multi-currency line item in the Studio's price COMPOSER — what a tenant would be quoted. No tenant transaction is multi-currency; apps/web/src/lib/finance.ts raises MixedCurrencyError instead.",
+  },
+  "packages/finops/src/general-ledger.test.ts|drill-through": {
+    verdict: "SCOPED",
+    note: "Names what the test asserts: every entry accountAnalysis returns carries its own journalId and lineId. That is the first link of Bible §3.3's chain and not the chain.",
+  },
+  "packages/finops/src/general-ledger.test.ts|trial balance": {
+    verdict: "TRUE",
+    note: "29 cases over the trial balance the module computes, including the empty window, the contra amount, the as-of window and two journals that cancel.",
+  },
+  "packages/finops/src/general-ledger.ts|accrual": {
+    verdict: "SCOPED",
+    note: "One word, in a comment giving an example of a reconciliation difference — 'an accrual that was released twice'. It claims no accrual BASIS, and none exists: docs/architecture/fin-accounting-scope-disclosure.md §A states that no accounting basis is declared anywhere in this platform.",
+  },
+  "packages/finops/src/general-ledger.ts|chart of accounts": {
+    verdict: "SCOPED",
+    note: "financialStatements takes the chart classification as an ARGUMENT — account, group, normal balance, statement line — because Bible §24 forbids hard-coding accounting rules. No chart-of-accounts RECORD exists (ChartOfAccounts is ABSENT in §C; FIN-000-002 is blocked on it), so the caller supplies one every time and nothing persists it.",
+  },
+  "packages/finops/src/general-ledger.ts|drill-through": {
+    verdict: "SCOPED",
+    note: "accountAnalysis carries journalId and lineId on every movement, so a balance leads to the rows that made it. Bible §3.3 asks for journal, subledger, business document and approval; the two middle links have no tables (FIN-000-003) and FIN-000-004's row says so.",
+  },
+  "packages/finops/src/general-ledger.ts|trial balance": {
+    verdict: "TRUE",
+    note: "FIN-010-003. Debits, credits and net per account per currency, the residual reported and never plugged, an empty window reported as null rather than balanced, and per-journal tie-out measured as well as the total. 29/29 with 10 mutations caught.",
+  },
+  "packages/finops/src/index.ts|trial balance": {
+    verdict: "TRUE",
+    note: "The package door naming what it exports, with the reason it is not ./settlement's reconciler.",
   },
   "packages/payments/src/capability-registry.ts|multi-currency": {
     verdict: "TRUE",

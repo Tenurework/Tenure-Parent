@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "024eb0d",
+  "commit": "cc4e529",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 244,
@@ -1763,14 +1763,14 @@
     ],
     "totalItems": 2265,
     "totalGates": 181,
-    "decided": 266,
+    "decided": 292,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
         "source": "ANL",
         "items": 5,
         "gates": 1,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "ANL · ANL-010 — Data, semantics and security",
@@ -1798,7 +1798,7 @@
         "source": "ANL",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "CAT · CAT-000 — Catalog truth and binding",
@@ -1812,7 +1812,7 @@
         "source": "CAT",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 5
       },
       {
         "phase": "CAT · CAT-020 — Schema-driven Deployer",
@@ -1896,7 +1896,7 @@
         "source": "CFG",
         "items": 7,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "CFG · CFG-040 — State, invalidation and provenance",
@@ -2078,7 +2078,7 @@
         "source": "FIN",
         "items": 6,
         "gates": 1,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "FIN · FIN-010 — Core ledgers and close",
@@ -2113,7 +2113,7 @@
         "source": "FIN",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-000: Repository inventory",
@@ -3212,7 +3212,7 @@
         "source": "HCM",
         "items": 5,
         "gates": 1,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "HCM · HCM-010 — Lifecycle and organization",
@@ -3233,21 +3233,21 @@
         "source": "HCM",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "HCM · HCM-040 — Privacy, UX, memory and Relay",
         "source": "HCM",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "HCM · HCM-050 — Global, integration, operations and superiority",
         "source": "HCM",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "IER · IER-000 — Document graph and execution truth",
@@ -3401,7 +3401,7 @@
         "source": "INT",
         "items": 5,
         "gates": 1,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "INT · INT-010 — Canonical runtime",
@@ -3513,7 +3513,7 @@
         "source": "OPS",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "PACK · PACK-000 — Truth and registry",
@@ -3541,14 +3541,14 @@
         "source": "PACK",
         "items": 6,
         "gates": 1,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "PACK · PACK-040 — Functional suites",
         "source": "PACK",
         "items": 5,
         "gates": 1,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "PACK · PACK-050 — Industry packs",
@@ -3786,7 +3786,7 @@
         "source": "PLN",
         "items": 5,
         "gates": 1,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "PLN · PLN-010 — Cycles, workflow and UX",
@@ -3814,14 +3814,14 @@
         "source": "PLN",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "SIMON · 4.1 Repository inventory",
         "source": "SIMON",
         "items": 7,
         "gates": 0,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "SIMON · 4.2 Deployed and AWS inventory",
@@ -4038,7 +4038,7 @@
         "source": "TTES",
         "items": 5,
         "gates": 1,
-        "done": 4
+        "done": 5
       },
       {
         "phase": "TTES · TTES-010 — Tokens and foundations",
@@ -4073,7 +4073,7 @@
         "source": "TTES",
         "items": 6,
         "gates": 1,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "WRK · WRK-000 — Truth and constitutional binding",
@@ -4094,7 +4094,7 @@
         "source": "WRK",
         "items": 6,
         "gates": 1,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "WRK · WRK-030 — Missing-connection and launch UX",
@@ -4281,7 +4281,7 @@
     },
     {
       "name": "application unit",
-      "files": 91,
+      "files": 98,
       "what": "apps/web"
     },
     {

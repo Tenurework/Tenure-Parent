@@ -111,7 +111,28 @@ test("no source outside api-version.ts holds a bare provider version literal", (
     } catch {
       continue
     }
-    if (text.includes(`"${version}"`) || text.includes(`'${version}'`)) {
+    // The pinned version is a DATE STRING, and this guard used to flag any file
+    // containing it. That cannot tell a second copy of the VERSION from a
+    // calendar date that happens to be the same day, and the difference is not
+    // cosmetic: `packages/finops/src/general-ledger.ts` uses
+    // `through: "2026-03-31"` as an accounting cut-off and its test fixes a
+    // timezone boundary at `2026-03-31T23:00:00+05:30`. Those are about the 31st
+    // of March. Importing PROVIDER_API_VERSION there would be actively wrong —
+    // the cut-off would then silently move the next time Stripe's version is
+    // bumped, which is a far worse bug than the duplication this guard prevents.
+    //
+    // So the match needs the version to appear in a VERSION context: on a line
+    // that also names a version, or as the value of an `apiVersion`-shaped key.
+    // That keeps every tooth that matters — a second `apiVersion: "2026-03-31"`,
+    // a `stripe(key, { apiVersion: "2026-03-31" })`, a `const VERSION =
+    // "2026-03-31"` all still fail — while letting a ledger that necessarily
+    // deals in dates contain a date.
+    const quoted = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const inVersionContext = new RegExp(
+      `(?:version[^\\n]*["'\`]${quoted}["'\`])|(?:["'\`]${quoted}["'\`][^\\n]*version)`,
+      "i",
+    )
+    if (inVersionContext.test(text)) {
       offenders.push(file)
     }
   }

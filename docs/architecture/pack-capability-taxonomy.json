@@ -1,0 +1,2584 @@
+{
+  "source": "Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md",
+  "functional": {
+    "requirement": "PACK-040-001",
+    "preamble": "Track every capability separately and compose process chains across suites.",
+    "suites": [
+      {
+        "id": "8.1",
+        "title": "Finance and enterprise performance",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "FUN-8.1-general-ledger",
+            "capability": "General ledger",
+            "line": "General ledger, subledgers, journals, allocations and period close.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-subledgers",
+            "capability": "subledgers",
+            "line": "General ledger, subledgers, journals, allocations and period close.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-journals",
+            "capability": "journals",
+            "line": "General ledger, subledgers, journals, allocations and period close.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-allocations",
+            "capability": "allocations",
+            "line": "General ledger, subledgers, journals, allocations and period close.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-period-close",
+            "capability": "period close",
+            "line": "General ledger, subledgers, journals, allocations and period close.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-accounts-payable",
+            "capability": "Accounts payable",
+            "line": "Accounts payable, receivable, billing, collections and credit.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-receivable",
+            "capability": "receivable",
+            "line": "Accounts payable, receivable, billing, collections and credit.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-billing",
+            "capability": "billing",
+            "line": "Accounts payable, receivable, billing, collections and credit.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-collections",
+            "capability": "collections",
+            "line": "Accounts payable, receivable, billing, collections and credit.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-credit",
+            "capability": "credit",
+            "line": "Accounts payable, receivable, billing, collections and credit.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-cash",
+            "capability": "Cash",
+            "line": "Cash, treasury, banking, liquidity and reconciliation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-treasury",
+            "capability": "treasury",
+            "line": "Cash, treasury, banking, liquidity and reconciliation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-banking",
+            "capability": "banking",
+            "line": "Cash, treasury, banking, liquidity and reconciliation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-liquidity",
+            "capability": "liquidity",
+            "line": "Cash, treasury, banking, liquidity and reconciliation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-reconciliation",
+            "capability": "reconciliation",
+            "line": "Cash, treasury, banking, liquidity and reconciliation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-fixed-assets",
+            "capability": "Fixed assets",
+            "line": "Fixed assets, leases, capital projects and depreciation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-leases",
+            "capability": "leases",
+            "line": "Fixed assets, leases, capital projects and depreciation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-capital-projects",
+            "capability": "capital projects",
+            "line": "Fixed assets, leases, capital projects and depreciation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-depreciation",
+            "capability": "depreciation",
+            "line": "Fixed assets, leases, capital projects and depreciation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-budgeting",
+            "capability": "Budgeting",
+            "line": "Budgeting, forecasting, planning, scenario and consolidation.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "budgeting",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Budgets, lines and actuals with a portfolio roll-up."
+            }
+          },
+          {
+            "id": "FUN-8.1-forecasting",
+            "capability": "forecasting",
+            "line": "Budgeting, forecasting, planning, scenario and consolidation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-planning",
+            "capability": "planning",
+            "line": "Budgeting, forecasting, planning, scenario and consolidation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-scenario",
+            "capability": "scenario",
+            "line": "Budgeting, forecasting, planning, scenario and consolidation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-consolidation",
+            "capability": "consolidation",
+            "line": "Budgeting, forecasting, planning, scenario and consolidation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-intercompany",
+            "capability": "Intercompany",
+            "line": "Intercompany, eliminations, transfer pricing support and group reporting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-eliminations",
+            "capability": "eliminations",
+            "line": "Intercompany, eliminations, transfer pricing support and group reporting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-transfer-pricing-support",
+            "capability": "transfer pricing support",
+            "line": "Intercompany, eliminations, transfer pricing support and group reporting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-group-reporting",
+            "capability": "group reporting",
+            "line": "Intercompany, eliminations, transfer pricing support and group reporting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-revenue-recognition",
+            "capability": "Revenue recognition",
+            "line": "Revenue recognition, subscription/usage billing and contract accounting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-subscription-usage-billing",
+            "capability": "subscription/usage billing",
+            "line": "Revenue recognition, subscription/usage billing and contract accounting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-contract-accounting",
+            "capability": "contract accounting",
+            "line": "Revenue recognition, subscription/usage billing and contract accounting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-expense",
+            "capability": "Expense",
+            "line": "Expense, travel, cards and spend controls.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "reimbursements",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Three-way matched expense claims that post on approval."
+            }
+          },
+          {
+            "id": "FUN-8.1-travel",
+            "capability": "travel",
+            "line": "Expense, travel, cards and spend controls.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-cards",
+            "capability": "cards",
+            "line": "Expense, travel, cards and spend controls.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-spend-controls",
+            "capability": "spend controls",
+            "line": "Expense, travel, cards and spend controls.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-tax-determination-interfaces",
+            "capability": "Tax determination interfaces",
+            "line": "Tax determination interfaces, statutory reporting and e-invoicing by certified scope.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-statutory-reporting",
+            "capability": "statutory reporting",
+            "line": "Tax determination interfaces, statutory reporting and e-invoicing by certified scope.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-e-invoicing-by-certified-scope",
+            "capability": "e-invoicing by certified scope",
+            "line": "Tax determination interfaces, statutory reporting and e-invoicing by certified scope.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-grants",
+            "capability": "Grants",
+            "line": "Grants, funds, endowments, donations, sponsorships and restricted funds.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-funds",
+            "capability": "funds",
+            "line": "Grants, funds, endowments, donations, sponsorships and restricted funds.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-endowments",
+            "capability": "endowments",
+            "line": "Grants, funds, endowments, donations, sponsorships and restricted funds.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-donations",
+            "capability": "donations",
+            "line": "Grants, funds, endowments, donations, sponsorships and restricted funds.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-sponsorships",
+            "capability": "sponsorships",
+            "line": "Grants, funds, endowments, donations, sponsorships and restricted funds.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.1-restricted-funds",
+            "capability": "restricted funds",
+            "line": "Grants, funds, endowments, donations, sponsorships and restricted funds.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "8.2",
+        "title": "Procurement and supplier management",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "FUN-8.2-supplier-onboarding",
+            "capability": "Supplier onboarding",
+            "line": "Supplier onboarding, qualification, diversity/risk and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-qualification",
+            "capability": "qualification",
+            "line": "Supplier onboarding, qualification, diversity/risk and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-diversity-risk",
+            "capability": "diversity/risk",
+            "line": "Supplier onboarding, qualification, diversity/risk and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-lifecycle",
+            "capability": "lifecycle",
+            "line": "Supplier onboarding, qualification, diversity/risk and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-sourcing",
+            "capability": "Sourcing",
+            "line": "Sourcing, RFx, auction, evaluation and award.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-rfx",
+            "capability": "RFx",
+            "line": "Sourcing, RFx, auction, evaluation and award.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-auction",
+            "capability": "auction",
+            "line": "Sourcing, RFx, auction, evaluation and award.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-evaluation",
+            "capability": "evaluation",
+            "line": "Sourcing, RFx, auction, evaluation and award.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-award",
+            "capability": "award",
+            "line": "Sourcing, RFx, auction, evaluation and award.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-contract-lifecycle",
+            "capability": "Contract lifecycle",
+            "line": "Contract lifecycle, catalogs, requisition, approval, purchase order and receipt.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-catalogs",
+            "capability": "catalogs",
+            "line": "Contract lifecycle, catalogs, requisition, approval, purchase order and receipt.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-requisition",
+            "capability": "requisition",
+            "line": "Contract lifecycle, catalogs, requisition, approval, purchase order and receipt.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-approval",
+            "capability": "approval",
+            "line": "Contract lifecycle, catalogs, requisition, approval, purchase order and receipt.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-purchase-order",
+            "capability": "purchase order",
+            "line": "Contract lifecycle, catalogs, requisition, approval, purchase order and receipt.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-receipt",
+            "capability": "receipt",
+            "line": "Contract lifecycle, catalogs, requisition, approval, purchase order and receipt.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-invoice-matching",
+            "capability": "Invoice matching",
+            "line": "Invoice matching, exceptions, payment proposal and supplier portal.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-exceptions",
+            "capability": "exceptions",
+            "line": "Invoice matching, exceptions, payment proposal and supplier portal.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-payment-proposal",
+            "capability": "payment proposal",
+            "line": "Invoice matching, exceptions, payment proposal and supplier portal.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-supplier-portal",
+            "capability": "supplier portal",
+            "line": "Invoice matching, exceptions, payment proposal and supplier portal.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-direct-indirect-procurement",
+            "capability": "Direct/indirect procurement",
+            "line": "Direct/indirect procurement, services procurement and subcontracting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-services-procurement",
+            "capability": "services procurement",
+            "line": "Direct/indirect procurement, services procurement and subcontracting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.2-subcontracting",
+            "capability": "subcontracting",
+            "line": "Direct/indirect procurement, services procurement and subcontracting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "8.3",
+        "title": "HCM and workforce",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "FUN-8.3-core-people-worker-member-records",
+            "capability": "Core people/worker/member records",
+            "line": "Core people/worker/member records and organization assignments.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-organization-assignments",
+            "capability": "organization assignments",
+            "line": "Core people/worker/member records and organization assignments.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "organizations",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Rosters, roles and the assignments people hold."
+            }
+          },
+          {
+            "id": "FUN-8.3-position-job-management",
+            "capability": "Position/job management",
+            "line": "Position/job management, headcount/FTE, contingent and volunteer workforce.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-headcount-fte",
+            "capability": "headcount/FTE",
+            "line": "Position/job management, headcount/FTE, contingent and volunteer workforce.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-contingent",
+            "capability": "contingent",
+            "line": "Position/job management, headcount/FTE, contingent and volunteer workforce.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-volunteer-workforce",
+            "capability": "volunteer workforce",
+            "line": "Position/job management, headcount/FTE, contingent and volunteer workforce.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-recruiting",
+            "capability": "Recruiting",
+            "line": "Recruiting, onboarding, offboarding and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-onboarding",
+            "capability": "onboarding",
+            "line": "Recruiting, onboarding, offboarding and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-offboarding",
+            "capability": "offboarding",
+            "line": "Recruiting, onboarding, offboarding and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-lifecycle",
+            "capability": "lifecycle",
+            "line": "Recruiting, onboarding, offboarding and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-time",
+            "capability": "Time",
+            "line": "Time, attendance, scheduling, leave and absence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-attendance",
+            "capability": "attendance",
+            "line": "Time, attendance, scheduling, leave and absence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-scheduling",
+            "capability": "scheduling",
+            "line": "Time, attendance, scheduling, leave and absence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-leave",
+            "capability": "leave",
+            "line": "Time, attendance, scheduling, leave and absence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-absence",
+            "capability": "absence",
+            "line": "Time, attendance, scheduling, leave and absence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-compensation",
+            "capability": "Compensation",
+            "line": "Compensation, benefits, talent, goals, performance, learning, skills and succession.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-benefits",
+            "capability": "benefits",
+            "line": "Compensation, benefits, talent, goals, performance, learning, skills and succession.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-talent",
+            "capability": "talent",
+            "line": "Compensation, benefits, talent, goals, performance, learning, skills and succession.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-goals",
+            "capability": "goals",
+            "line": "Compensation, benefits, talent, goals, performance, learning, skills and succession.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-performance",
+            "capability": "performance",
+            "line": "Compensation, benefits, talent, goals, performance, learning, skills and succession.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-learning",
+            "capability": "learning",
+            "line": "Compensation, benefits, talent, goals, performance, learning, skills and succession.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-skills",
+            "capability": "skills",
+            "line": "Compensation, benefits, talent, goals, performance, learning, skills and succession.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-succession",
+            "capability": "succession",
+            "line": "Compensation, benefits, talent, goals, performance, learning, skills and succession.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-payroll-export-provider-native-certified-modes-by-exact-jurisdiction",
+            "capability": "Payroll export/provider/native-certified modes by exact jurisdiction",
+            "line": "Payroll export/provider/native-certified modes by exact jurisdiction.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.3-device-app-access-lifecycle-integration",
+            "capability": "Device/app/access lifecycle integration",
+            "line": "Device/app/access lifecycle integration.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "8.4",
+        "title": "CRM, revenue and service",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "FUN-8.4-account-contact-household-party",
+            "capability": "Account/contact/household/party",
+            "line": "Account/contact/household/party and relationship graph.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-relationship-graph",
+            "capability": "relationship graph",
+            "line": "Account/contact/household/party and relationship graph.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-lead",
+            "capability": "Lead",
+            "line": "Lead, opportunity, territory, quota, forecast and sales activity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-opportunity",
+            "capability": "opportunity",
+            "line": "Lead, opportunity, territory, quota, forecast and sales activity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-territory",
+            "capability": "territory",
+            "line": "Lead, opportunity, territory, quota, forecast and sales activity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-quota",
+            "capability": "quota",
+            "line": "Lead, opportunity, territory, quota, forecast and sales activity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-forecast",
+            "capability": "forecast",
+            "line": "Lead, opportunity, territory, quota, forecast and sales activity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-sales-activity",
+            "capability": "sales activity",
+            "line": "Lead, opportunity, territory, quota, forecast and sales activity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-configure-price-quote",
+            "capability": "Configure/price/quote",
+            "line": "Configure/price/quote, contract, order, fulfillment, invoice and renewal.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-contract",
+            "capability": "contract",
+            "line": "Configure/price/quote, contract, order, fulfillment, invoice and renewal.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-order",
+            "capability": "order",
+            "line": "Configure/price/quote, contract, order, fulfillment, invoice and renewal.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-fulfillment",
+            "capability": "fulfillment",
+            "line": "Configure/price/quote, contract, order, fulfillment, invoice and renewal.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-invoice",
+            "capability": "invoice",
+            "line": "Configure/price/quote, contract, order, fulfillment, invoice and renewal.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-renewal",
+            "capability": "renewal",
+            "line": "Configure/price/quote, contract, order, fulfillment, invoice and renewal.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-marketing-audience",
+            "capability": "Marketing audience",
+            "line": "Marketing audience, consent, campaign, journey and attribution boundaries.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-consent",
+            "capability": "consent",
+            "line": "Marketing audience, consent, campaign, journey and attribution boundaries.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-campaign",
+            "capability": "campaign",
+            "line": "Marketing audience, consent, campaign, journey and attribution boundaries.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-journey",
+            "capability": "journey",
+            "line": "Marketing audience, consent, campaign, journey and attribution boundaries.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-attribution-boundaries",
+            "capability": "attribution boundaries",
+            "line": "Marketing audience, consent, campaign, journey and attribution boundaries.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-case",
+            "capability": "Case",
+            "line": "Case, knowledge, SLA, omnichannel service, field service and customer success.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-knowledge",
+            "capability": "knowledge",
+            "line": "Case, knowledge, SLA, omnichannel service, field service and customer success.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-sla",
+            "capability": "SLA",
+            "line": "Case, knowledge, SLA, omnichannel service, field service and customer success.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-omnichannel-service",
+            "capability": "omnichannel service",
+            "line": "Case, knowledge, SLA, omnichannel service, field service and customer success.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-field-service",
+            "capability": "field service",
+            "line": "Case, knowledge, SLA, omnichannel service, field service and customer success.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-customer-success",
+            "capability": "customer success",
+            "line": "Case, knowledge, SLA, omnichannel service, field service and customer success.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-subscription",
+            "capability": "Subscription",
+            "line": "Subscription, membership and donor lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-membership",
+            "capability": "membership",
+            "line": "Subscription, membership and donor lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.4-donor-lifecycle",
+            "capability": "donor lifecycle",
+            "line": "Subscription, membership and donor lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "8.5",
+        "title": "Projects and professional services",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "FUN-8.5-project-program-portfolio",
+            "capability": "Project/program/portfolio",
+            "line": "Project/program/portfolio, WBS, tasks, milestones and dependencies.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-wbs",
+            "capability": "WBS",
+            "line": "Project/program/portfolio, WBS, tasks, milestones and dependencies.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-tasks",
+            "capability": "tasks",
+            "line": "Project/program/portfolio, WBS, tasks, milestones and dependencies.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-milestones",
+            "capability": "milestones",
+            "line": "Project/program/portfolio, WBS, tasks, milestones and dependencies.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-dependencies",
+            "capability": "dependencies",
+            "line": "Project/program/portfolio, WBS, tasks, milestones and dependencies.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-resource-demand",
+            "capability": "Resource demand",
+            "line": "Resource demand, skills, staffing, utilization and capacity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-skills",
+            "capability": "skills",
+            "line": "Resource demand, skills, staffing, utilization and capacity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-staffing",
+            "capability": "staffing",
+            "line": "Resource demand, skills, staffing, utilization and capacity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-utilization",
+            "capability": "utilization",
+            "line": "Resource demand, skills, staffing, utilization and capacity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-capacity",
+            "capability": "capacity",
+            "line": "Resource demand, skills, staffing, utilization and capacity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-time-expense",
+            "capability": "Time/expense",
+            "line": "Time/expense, project costing, billing, revenue and profitability.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-project-costing",
+            "capability": "project costing",
+            "line": "Time/expense, project costing, billing, revenue and profitability.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-billing",
+            "capability": "billing",
+            "line": "Time/expense, project costing, billing, revenue and profitability.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-revenue",
+            "capability": "revenue",
+            "line": "Time/expense, project costing, billing, revenue and profitability.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-profitability",
+            "capability": "profitability",
+            "line": "Time/expense, project costing, billing, revenue and profitability.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-client-contracts",
+            "capability": "Client contracts",
+            "line": "Client contracts, change orders, deliverables and acceptance.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-change-orders",
+            "capability": "change orders",
+            "line": "Client contracts, change orders, deliverables and acceptance.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-deliverables",
+            "capability": "deliverables",
+            "line": "Client contracts, change orders, deliverables and acceptance.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-acceptance",
+            "capability": "acceptance",
+            "line": "Client contracts, change orders, deliverables and acceptance.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.5-grants-research-project-administration-where-certified",
+            "capability": "Grants/research project administration where certified",
+            "line": "Grants/research project administration where certified.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "8.6",
+        "title": "Supply chain, inventory and logistics",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "FUN-8.6-product-item-service-master",
+            "capability": "Product/item/service master",
+            "line": "Product/item/service master, categories, variants, units and attributes.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-categories",
+            "capability": "categories",
+            "line": "Product/item/service master, categories, variants, units and attributes.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-variants",
+            "capability": "variants",
+            "line": "Product/item/service master, categories, variants, units and attributes.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-units",
+            "capability": "units",
+            "line": "Product/item/service master, categories, variants, units and attributes.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-attributes",
+            "capability": "attributes",
+            "line": "Product/item/service master, categories, variants, units and attributes.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-demand-supply-inventory-planning",
+            "capability": "Demand/supply/inventory planning",
+            "line": "Demand/supply/inventory planning and replenishment.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-replenishment",
+            "capability": "replenishment",
+            "line": "Demand/supply/inventory planning and replenishment.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-inventory",
+            "capability": "Inventory",
+            "line": "Inventory, lot/serial, shelf life, reservations and valuation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-lot-serial",
+            "capability": "lot/serial",
+            "line": "Inventory, lot/serial, shelf life, reservations and valuation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-shelf-life",
+            "capability": "shelf life",
+            "line": "Inventory, lot/serial, shelf life, reservations and valuation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-reservations",
+            "capability": "reservations",
+            "line": "Inventory, lot/serial, shelf life, reservations and valuation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-valuation",
+            "capability": "valuation",
+            "line": "Inventory, lot/serial, shelf life, reservations and valuation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-warehouse-receiving",
+            "capability": "Warehouse receiving",
+            "line": "Warehouse receiving, putaway, replenishment, picking, packing, cycle count and shipping.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-putaway",
+            "capability": "putaway",
+            "line": "Warehouse receiving, putaway, replenishment, picking, packing, cycle count and shipping.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-replenishment-2",
+            "capability": "replenishment",
+            "line": "Warehouse receiving, putaway, replenishment, picking, packing, cycle count and shipping.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-picking",
+            "capability": "picking",
+            "line": "Warehouse receiving, putaway, replenishment, picking, packing, cycle count and shipping.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-packing",
+            "capability": "packing",
+            "line": "Warehouse receiving, putaway, replenishment, picking, packing, cycle count and shipping.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-cycle-count",
+            "capability": "cycle count",
+            "line": "Warehouse receiving, putaway, replenishment, picking, packing, cycle count and shipping.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-shipping",
+            "capability": "shipping",
+            "line": "Warehouse receiving, putaway, replenishment, picking, packing, cycle count and shipping.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-order-management",
+            "capability": "Order management",
+            "line": "Order management, available-to-promise and fulfillment orchestration.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-available-to-promise",
+            "capability": "available-to-promise",
+            "line": "Order management, available-to-promise and fulfillment orchestration.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-fulfillment-orchestration",
+            "capability": "fulfillment orchestration",
+            "line": "Order management, available-to-promise and fulfillment orchestration.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-transportation",
+            "capability": "Transportation",
+            "line": "Transportation, carrier, rate, load, route, freight, tracking and proof of delivery.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-carrier",
+            "capability": "carrier",
+            "line": "Transportation, carrier, rate, load, route, freight, tracking and proof of delivery.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-rate",
+            "capability": "rate",
+            "line": "Transportation, carrier, rate, load, route, freight, tracking and proof of delivery.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-load",
+            "capability": "load",
+            "line": "Transportation, carrier, rate, load, route, freight, tracking and proof of delivery.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-route",
+            "capability": "route",
+            "line": "Transportation, carrier, rate, load, route, freight, tracking and proof of delivery.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-freight",
+            "capability": "freight",
+            "line": "Transportation, carrier, rate, load, route, freight, tracking and proof of delivery.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-tracking",
+            "capability": "tracking",
+            "line": "Transportation, carrier, rate, load, route, freight, tracking and proof of delivery.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-proof-of-delivery",
+            "capability": "proof of delivery",
+            "line": "Transportation, carrier, rate, load, route, freight, tracking and proof of delivery.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-global-trade",
+            "capability": "Global trade",
+            "line": "Global trade, customs and restricted-party integrations by exact supported scope.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-customs",
+            "capability": "customs",
+            "line": "Global trade, customs and restricted-party integrations by exact supported scope.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-restricted-party-integrations-by-exact-supported-scope",
+            "capability": "restricted-party integrations by exact supported scope",
+            "line": "Global trade, customs and restricted-party integrations by exact supported scope.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-returns",
+            "capability": "Returns",
+            "line": "Returns, repair, reverse logistics and recalls.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-repair",
+            "capability": "repair",
+            "line": "Returns, repair, reverse logistics and recalls.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-reverse-logistics",
+            "capability": "reverse logistics",
+            "line": "Returns, repair, reverse logistics and recalls.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.6-recalls",
+            "capability": "recalls",
+            "line": "Returns, repair, reverse logistics and recalls.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "8.7",
+        "title": "Manufacturing and product lifecycle",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "FUN-8.7-product-structure",
+            "capability": "Product structure",
+            "line": "Product structure, BOM/formula/recipe, versions and effectivity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-bom-formula-recipe",
+            "capability": "BOM/formula/recipe",
+            "line": "Product structure, BOM/formula/recipe, versions and effectivity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-versions",
+            "capability": "versions",
+            "line": "Product structure, BOM/formula/recipe, versions and effectivity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-effectivity",
+            "capability": "effectivity",
+            "line": "Product structure, BOM/formula/recipe, versions and effectivity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-routings-recipes",
+            "capability": "Routings/recipes",
+            "line": "Routings/recipes, work centers/resources, calendars and capacity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-work-centers-resources",
+            "capability": "work centers/resources",
+            "line": "Routings/recipes, work centers/resources, calendars and capacity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-calendars",
+            "capability": "calendars",
+            "line": "Routings/recipes, work centers/resources, calendars and capacity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-capacity",
+            "capability": "capacity",
+            "line": "Routings/recipes, work centers/resources, calendars and capacity.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-mrp-material-planning",
+            "capability": "MRP/material planning",
+            "line": "MRP/material planning and production scheduling.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-production-scheduling",
+            "capability": "production scheduling",
+            "line": "MRP/material planning and production scheduling.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-work-orders-process-orders",
+            "capability": "Work orders/process orders",
+            "line": "Work orders/process orders, issue/consume, operation confirmation, yield and scrap.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-issue-consume",
+            "capability": "issue/consume",
+            "line": "Work orders/process orders, issue/consume, operation confirmation, yield and scrap.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-operation-confirmation",
+            "capability": "operation confirmation",
+            "line": "Work orders/process orders, issue/consume, operation confirmation, yield and scrap.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-yield",
+            "capability": "yield",
+            "line": "Work orders/process orders, issue/consume, operation confirmation, yield and scrap.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-scrap",
+            "capability": "scrap",
+            "line": "Work orders/process orders, issue/consume, operation confirmation, yield and scrap.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-shop-floor-collection",
+            "capability": "Shop-floor collection",
+            "line": "Shop-floor collection and MES integration.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-mes-integration",
+            "capability": "MES integration",
+            "line": "Shop-floor collection and MES integration.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-quality-planning",
+            "capability": "Quality planning",
+            "line": "Quality planning, inspection, nonconformance, CAPA and certificates.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-inspection",
+            "capability": "inspection",
+            "line": "Quality planning, inspection, nonconformance, CAPA and certificates.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-nonconformance",
+            "capability": "nonconformance",
+            "line": "Quality planning, inspection, nonconformance, CAPA and certificates.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-capa",
+            "capability": "CAPA",
+            "line": "Quality planning, inspection, nonconformance, CAPA and certificates.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-certificates",
+            "capability": "certificates",
+            "line": "Quality planning, inspection, nonconformance, CAPA and certificates.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-engineering-change",
+            "capability": "Engineering change",
+            "line": "Engineering change, PLM/CAD integration and configuration control.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-plm-cad-integration",
+            "capability": "PLM/CAD integration",
+            "line": "Engineering change, PLM/CAD integration and configuration control.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-configuration-control",
+            "capability": "configuration control",
+            "line": "Engineering change, PLM/CAD integration and configuration control.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-maintenance",
+            "capability": "Maintenance",
+            "line": "Maintenance, reliability, calibration and spare parts.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-reliability",
+            "capability": "reliability",
+            "line": "Maintenance, reliability, calibration and spare parts.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-calibration",
+            "capability": "calibration",
+            "line": "Maintenance, reliability, calibration and spare parts.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-spare-parts",
+            "capability": "spare parts",
+            "line": "Maintenance, reliability, calibration and spare parts.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-costing",
+            "capability": "Costing",
+            "line": "Costing, variance, traceability, genealogy and recall.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-variance",
+            "capability": "variance",
+            "line": "Costing, variance, traceability, genealogy and recall.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-traceability",
+            "capability": "traceability",
+            "line": "Costing, variance, traceability, genealogy and recall.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-genealogy",
+            "capability": "genealogy",
+            "line": "Costing, variance, traceability, genealogy and recall.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.7-recall",
+            "capability": "recall",
+            "line": "Costing, variance, traceability, genealogy and recall.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "8.8",
+        "title": "Assets, facilities, real estate and field operations",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "FUN-8.8-asset-registry",
+            "capability": "Asset registry",
+            "line": "Asset registry, hierarchy, location and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-hierarchy",
+            "capability": "hierarchy",
+            "line": "Asset registry, hierarchy, location and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-location",
+            "capability": "location",
+            "line": "Asset registry, hierarchy, location and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-lifecycle",
+            "capability": "lifecycle",
+            "line": "Asset registry, hierarchy, location and lifecycle.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-preventive-predictive-corrective-maintenance",
+            "capability": "Preventive/predictive/corrective maintenance",
+            "line": "Preventive/predictive/corrective maintenance and work management.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-work-management",
+            "capability": "work management",
+            "line": "Preventive/predictive/corrective maintenance and work management.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-facilities",
+            "capability": "Facilities",
+            "line": "Facilities, space, reservations, leases and property operations.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-space",
+            "capability": "space",
+            "line": "Facilities, space, reservations, leases and property operations.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-reservations",
+            "capability": "reservations",
+            "line": "Facilities, space, reservations, leases and property operations.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-leases",
+            "capability": "leases",
+            "line": "Facilities, space, reservations, leases and property operations.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-property-operations",
+            "capability": "property operations",
+            "line": "Facilities, space, reservations, leases and property operations.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-field-scheduling",
+            "capability": "Field scheduling",
+            "line": "Field scheduling, dispatch, mobile/offline, parts and service evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-dispatch",
+            "capability": "dispatch",
+            "line": "Field scheduling, dispatch, mobile/offline, parts and service evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-mobile-offline",
+            "capability": "mobile/offline",
+            "line": "Field scheduling, dispatch, mobile/offline, parts and service evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-parts",
+            "capability": "parts",
+            "line": "Field scheduling, dispatch, mobile/offline, parts and service evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-service-evidence",
+            "capability": "service evidence",
+            "line": "Field scheduling, dispatch, mobile/offline, parts and service evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-utilities-energy",
+            "capability": "Utilities/energy",
+            "line": "Utilities/energy, metering, sustainability and environmental data boundaries.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-metering",
+            "capability": "metering",
+            "line": "Utilities/energy, metering, sustainability and environmental data boundaries.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-sustainability",
+            "capability": "sustainability",
+            "line": "Utilities/energy, metering, sustainability and environmental data boundaries.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.8-environmental-data-boundaries",
+            "capability": "environmental data boundaries",
+            "line": "Utilities/energy, metering, sustainability and environmental data boundaries.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "8.9",
+        "title": "Governance, risk, compliance, legal and records",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "FUN-8.9-policy",
+            "capability": "Policy",
+            "line": "Policy, control, risk, assessment, finding, remediation and evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-control",
+            "capability": "control",
+            "line": "Policy, control, risk, assessment, finding, remediation and evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-risk",
+            "capability": "risk",
+            "line": "Policy, control, risk, assessment, finding, remediation and evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-assessment",
+            "capability": "assessment",
+            "line": "Policy, control, risk, assessment, finding, remediation and evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-finding",
+            "capability": "finding",
+            "line": "Policy, control, risk, assessment, finding, remediation and evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-remediation",
+            "capability": "remediation",
+            "line": "Policy, control, risk, assessment, finding, remediation and evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-evidence",
+            "capability": "evidence",
+            "line": "Policy, control, risk, assessment, finding, remediation and evidence.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-internal-audit",
+            "capability": "Internal audit",
+            "line": "Internal audit, external audit support and continuous controls monitoring.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-external-audit-support",
+            "capability": "external audit support",
+            "line": "Internal audit, external audit support and continuous controls monitoring.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-continuous-controls-monitoring",
+            "capability": "continuous controls monitoring",
+            "line": "Internal audit, external audit support and continuous controls monitoring.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-privacy-request",
+            "capability": "Privacy request",
+            "line": "Privacy request, consent, retention, legal hold and disposition.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-consent",
+            "capability": "consent",
+            "line": "Privacy request, consent, retention, legal hold and disposition.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-retention",
+            "capability": "retention",
+            "line": "Privacy request, consent, retention, legal hold and disposition.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-legal-hold",
+            "capability": "legal hold",
+            "line": "Privacy request, consent, retention, legal hold and disposition.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-disposition",
+            "capability": "disposition",
+            "line": "Privacy request, consent, retention, legal hold and disposition.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-contract",
+            "capability": "Contract",
+            "line": "Contract, matter, obligation, intellectual property and legal entity governance.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-matter",
+            "capability": "matter",
+            "line": "Contract, matter, obligation, intellectual property and legal entity governance.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-obligation",
+            "capability": "obligation",
+            "line": "Contract, matter, obligation, intellectual property and legal entity governance.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-intellectual-property",
+            "capability": "intellectual property",
+            "line": "Contract, matter, obligation, intellectual property and legal entity governance.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-legal-entity-governance",
+            "capability": "legal entity governance",
+            "line": "Contract, matter, obligation, intellectual property and legal entity governance.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-incident",
+            "capability": "Incident",
+            "line": "Incident, crisis, business continuity, resilience and third-party risk.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-crisis",
+            "capability": "crisis",
+            "line": "Incident, crisis, business continuity, resilience and third-party risk.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-business-continuity",
+            "capability": "business continuity",
+            "line": "Incident, crisis, business continuity, resilience and third-party risk.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-resilience",
+            "capability": "resilience",
+            "line": "Incident, crisis, business continuity, resilience and third-party risk.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-third-party-risk",
+            "capability": "third-party risk",
+            "line": "Incident, crisis, business continuity, resilience and third-party risk.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-ethics",
+            "capability": "Ethics",
+            "line": "Ethics, conflict disclosure, whistleblower/case safeguards.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-conflict-disclosure",
+            "capability": "conflict disclosure",
+            "line": "Ethics, conflict disclosure, whistleblower/case safeguards.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.9-whistleblower-case-safeguards",
+            "capability": "whistleblower/case safeguards",
+            "line": "Ethics, conflict disclosure, whistleblower/case safeguards.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "8.10",
+        "title": "Collaboration, work management and institutional memory",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "FUN-8.10-requests",
+            "capability": "Requests",
+            "line": "Requests, approvals, tasks, goals, meetings, calendar and messaging.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "approvals",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Approval requests are the module’s primary object."
+            }
+          },
+          {
+            "id": "FUN-8.10-approvals",
+            "capability": "approvals",
+            "line": "Requests, approvals, tasks, goals, meetings, calendar and messaging.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "approvals",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Multi-gate approval with delegation and a decision trail."
+            }
+          },
+          {
+            "id": "FUN-8.10-tasks",
+            "capability": "tasks",
+            "line": "Requests, approvals, tasks, goals, meetings, calendar and messaging.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.10-goals",
+            "capability": "goals",
+            "line": "Requests, approvals, tasks, goals, meetings, calendar and messaging.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.10-meetings",
+            "capability": "meetings",
+            "line": "Requests, approvals, tasks, goals, meetings, calendar and messaging.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.10-calendar",
+            "capability": "calendar",
+            "line": "Requests, approvals, tasks, goals, meetings, calendar and messaging.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "events",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Event scheduling with a subscribable calendar."
+            }
+          },
+          {
+            "id": "FUN-8.10-messaging",
+            "capability": "messaging",
+            "line": "Requests, approvals, tasks, goals, meetings, calendar and messaging.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "messaging",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Conversations, messages and attachments."
+            }
+          },
+          {
+            "id": "FUN-8.10-documents",
+            "capability": "Documents",
+            "line": "Documents, records, decisions, handoffs, playbooks and knowledge.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "memory",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Governs the Document model and its retrieval."
+            }
+          },
+          {
+            "id": "FUN-8.10-records",
+            "capability": "records",
+            "line": "Documents, records, decisions, handoffs, playbooks and knowledge.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.10-decisions",
+            "capability": "decisions",
+            "line": "Documents, records, decisions, handoffs, playbooks and knowledge.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "memory",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Knowledge cards that record what was decided."
+            }
+          },
+          {
+            "id": "FUN-8.10-handoffs",
+            "capability": "handoffs",
+            "line": "Documents, records, decisions, handoffs, playbooks and knowledge.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "memory",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Records written to outlive the officers who wrote them."
+            }
+          },
+          {
+            "id": "FUN-8.10-playbooks",
+            "capability": "playbooks",
+            "line": "Documents, records, decisions, handoffs, playbooks and knowledge.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "resources",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "The staff office’s published guides, targeted by seat."
+            }
+          },
+          {
+            "id": "FUN-8.10-knowledge",
+            "capability": "knowledge",
+            "line": "Documents, records, decisions, handoffs, playbooks and knowledge.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.10-durable-seat-context",
+            "capability": "Durable seat context",
+            "line": "Durable seat context and successor onboarding.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "organizations",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "Seats, seat holdings and role assignments."
+            }
+          },
+          {
+            "id": "FUN-8.10-successor-onboarding",
+            "capability": "successor onboarding",
+            "line": "Durable seat context and successor onboarding.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "organizations",
+              "lifecycle": "certified-limited",
+              "mode": "TENURE_NATIVE",
+              "why": "RoleTransfer is the successor hand-off object."
+            }
+          },
+          {
+            "id": "FUN-8.10-cross-module-search",
+            "capability": "Cross-module search",
+            "line": "Cross-module search, reporting, lineage and Relay.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "search",
+              "lifecycle": "certified-limited",
+              "mode": "READ_ONLY",
+              "why": "Search across everything the principal may already see."
+            }
+          },
+          {
+            "id": "FUN-8.10-reporting",
+            "capability": "reporting",
+            "line": "Cross-module search, reporting, lineage and Relay.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.10-lineage",
+            "capability": "lineage",
+            "line": "Cross-module search, reporting, lineage and Relay.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "FUN-8.10-relay",
+            "capability": "Relay",
+            "line": "Cross-module search, reporting, lineage and Relay.",
+            "status": "certified-limited",
+            "coveredBy": {
+              "module": "search",
+              "lifecycle": "certified-limited",
+              "mode": "READ_ONLY",
+              "why": "Declares the only registered Relay tool, search.corpus."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "industry": {
+    "requirement": "PACK-050-002",
+    "preamble": "Treat this as a maintained capability registry, not a claim that every pack is implemented.",
+    "families": [
+      {
+        "id": "9.1",
+        "title": "Manufacturing families",
+        "caveats": [
+          "Each pack declares needed combinations of BOM/formula, routing/recipe, lot/serial, effectivity, traceability, quality, maintenance, costing, regulatory evidence and external PLM/MES/LIMS/QMS."
+        ],
+        "entries": [
+          {
+            "id": "IND-9.1-discrete-manufacturing",
+            "industry": "Discrete manufacturing",
+            "line": "Discrete manufacturing.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-process-batch-manufacturing",
+            "industry": "Process/batch manufacturing",
+            "line": "Process/batch manufacturing.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-repetitive-manufacturing",
+            "industry": "Repetitive manufacturing",
+            "line": "Repetitive manufacturing.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-engineer-to-order-and-project-manufacturing",
+            "industry": "Engineer-to-order and project manufacturing",
+            "line": "Engineer-to-order and project manufacturing.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-automotive-and-tier-suppliers",
+            "industry": "Automotive and tier suppliers",
+            "line": "Automotive and tier suppliers.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-aerospace-and-defense",
+            "industry": "Aerospace and defense",
+            "line": "Aerospace and defense.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-industrial-equipment-and-machinery",
+            "industry": "Industrial equipment and machinery",
+            "line": "Industrial equipment and machinery.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-electronics-semiconductor-high-tech",
+            "industry": "Electronics/semiconductor/high tech",
+            "line": "Electronics/semiconductor/high tech.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-medical-devices",
+            "industry": "Medical devices",
+            "line": "Medical devices.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-chemicals-cosmetics-and-regulated-process-products",
+            "industry": "Chemicals, cosmetics and regulated process products",
+            "line": "Chemicals, cosmetics and regulated process products.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-food-and-beverage",
+            "industry": "Food and beverage",
+            "line": "Food and beverage.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.1-pharmaceuticals-and-life-sciences-manufacturing",
+            "industry": "Pharmaceuticals and life-sciences manufacturing",
+            "line": "Pharmaceuticals and life-sciences manufacturing.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "9.2",
+        "title": "Distribution, logistics and supply chain",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "IND-9.2-wholesale-distribution",
+            "industry": "Wholesale distribution",
+            "line": "Wholesale distribution.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.2-third-party-logistics-and-fulfillment",
+            "industry": "Third-party logistics and fulfillment",
+            "line": "Third-party logistics and fulfillment.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.2-freight-transportation-operations",
+            "industry": "Freight/transportation operations",
+            "line": "Freight/transportation operations.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.2-cold-chain-and-controlled-goods",
+            "industry": "Cold chain and controlled goods",
+            "line": "Cold chain and controlled goods.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.2-import-export-and-global-trade",
+            "industry": "Import/export and global trade",
+            "line": "Import/export and global trade.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.2-fleet-and-last-mile-delivery",
+            "industry": "Fleet and last-mile delivery",
+            "line": "Fleet and last-mile delivery.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "9.3",
+        "title": "Retail, commerce, hospitality and consumer services",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "IND-9.3-omnichannel-retail-and-ecommerce",
+            "industry": "Omnichannel retail and ecommerce",
+            "line": "Omnichannel retail and ecommerce.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.3-grocery-and-convenience",
+            "industry": "Grocery and convenience",
+            "line": "Grocery and convenience.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.3-restaurant-and-food-service",
+            "industry": "Restaurant and food service",
+            "line": "Restaurant and food service.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.3-hotel-hospitality-and-property-operations",
+            "industry": "Hotel/hospitality and property operations",
+            "line": "Hotel/hospitality and property operations.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.3-consumer-subscription-membership",
+            "industry": "Consumer subscription/membership",
+            "line": "Consumer subscription/membership.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.3-marketplace-platform-commerce",
+            "industry": "Marketplace/platform commerce",
+            "line": "Marketplace/platform commerce.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "9.4",
+        "title": "Professional and project services",
+        "caveats": [],
+        "entries": [
+          {
+            "id": "IND-9.4-consulting",
+            "industry": "Consulting",
+            "line": "Consulting.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.4-architecture-and-engineering",
+            "industry": "Architecture and engineering",
+            "line": "Architecture and engineering.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.4-legal-and-accounting-services",
+            "industry": "Legal and accounting services",
+            "line": "Legal and accounting services.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.4-creative-agency-media-production",
+            "industry": "Creative/agency/media production",
+            "line": "Creative/agency/media production.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.4-it-managed-services",
+            "industry": "IT/managed services",
+            "line": "IT/managed services.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.4-research-and-laboratories",
+            "industry": "Research and laboratories",
+            "line": "Research and laboratories.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "9.5",
+        "title": "Construction, engineering and real estate",
+        "caveats": [
+          "Required concerns may include estimate/bid, project/WBS, job cost, subcontract, retainage, lien/insurance evidence, change order, progress billing, equipment and field operations. Legal forms remain jurisdiction-gated."
+        ],
+        "entries": [
+          {
+            "id": "IND-9.5-general-contractor",
+            "industry": "General contractor",
+            "line": "General contractor.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.5-specialty-subcontractor",
+            "industry": "Specialty subcontractor",
+            "line": "Specialty subcontractor.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.5-heavy-civil-infrastructure",
+            "industry": "Heavy civil/infrastructure",
+            "line": "Heavy civil/infrastructure.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.5-engineering-procurement-construction",
+            "industry": "Engineering/procurement/construction",
+            "line": "Engineering/procurement/construction.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.5-real-estate-development",
+            "industry": "Real-estate development",
+            "line": "Real-estate development.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.5-property-facilities-management",
+            "industry": "Property/facilities management",
+            "line": "Property/facilities management.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "9.6",
+        "title": "Healthcare and life sciences",
+        "caveats": [
+          "Tenure must not claim to replace an EHR, diagnostic system, clinical safety system or validated GxP application without a separately certified scope. Protected health information requires explicit data classification, purpose, region, access, audit and support controls."
+        ],
+        "entries": [
+          {
+            "id": "IND-9.6-health-system-hospital-administration",
+            "industry": "Health system/hospital administration",
+            "line": "Health system/hospital administration.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.6-clinic-provider-operations",
+            "industry": "Clinic/provider operations",
+            "line": "Clinic/provider operations.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.6-healthcare-supply-chain",
+            "industry": "Healthcare supply chain",
+            "line": "Healthcare supply chain.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.6-pharmaceutical-biotech",
+            "industry": "Pharmaceutical/biotech",
+            "line": "Pharmaceutical/biotech.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.6-clinical-research-administration",
+            "industry": "Clinical research administration",
+            "line": "Clinical research administration.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.6-medical-device",
+            "industry": "Medical device",
+            "line": "Medical device.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "9.7",
+        "title": "Public sector, education and nonprofit",
+        "caveats": [
+          "Concerns include fund/grant/budget control, appropriations, public procurement, records, donor/member restrictions, governance, accessibility and transparent reporting."
+        ],
+        "entries": [
+          {
+            "id": "IND-9.7-federal-state-local-government",
+            "industry": "Federal/state/local government",
+            "line": "Federal/state/local government.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.7-municipality-and-public-authority",
+            "industry": "Municipality and public authority",
+            "line": "Municipality and public authority.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.7-k-12-and-higher-education",
+            "industry": "K–12 and higher education",
+            "line": "K–12 and higher education.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.7-research-institution",
+            "industry": "Research institution",
+            "line": "Research institution.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.7-nonprofit-charity-foundation",
+            "industry": "Nonprofit/charity/foundation",
+            "line": "Nonprofit/charity/foundation.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.7-membership-association",
+            "industry": "Membership association",
+            "line": "Membership association.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.7-student-organization-administration-including-simon-ose",
+            "industry": "Student organization administration, including Simon OSE",
+            "line": "Student organization administration, including Simon OSE.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "9.8",
+        "title": "Financial and regulated services",
+        "caveats": [
+          "Tenure must not imply it is a core banking, trading, custody, claims-adjudication or regulatory-reporting system without exact certification. Payments, treasury and embedded financial services follow their dedicated Bible."
+        ],
+        "entries": [
+          {
+            "id": "IND-9.8-banking-credit-union-operations-support",
+            "industry": "Banking/credit-union operations support",
+            "line": "Banking/credit-union operations support.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.8-insurance-operations-support",
+            "industry": "Insurance operations support",
+            "line": "Insurance operations support.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.8-investment-asset-management-administration",
+            "industry": "Investment/asset management administration",
+            "line": "Investment/asset management administration.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.8-fintech-platform-operations",
+            "industry": "Fintech/platform operations",
+            "line": "Fintech/platform operations.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      },
+      {
+        "id": "9.9",
+        "title": "Energy, utilities, natural resources and telecom",
+        "caveats": [
+          "Specialized operational control, safety and real-time network systems remain governed external systems until specifically implemented and certified."
+        ],
+        "entries": [
+          {
+            "id": "IND-9.9-utilities-and-energy-service",
+            "industry": "Utilities and energy service",
+            "line": "Utilities and energy service.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.9-oil-gas-mining-administration-and-assets",
+            "industry": "Oil/gas/mining administration and assets",
+            "line": "Oil/gas/mining administration and assets.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.9-renewable-energy-projects",
+            "industry": "Renewable energy projects",
+            "line": "Renewable energy projects.",
+            "status": "not-implemented",
+            "coveredBy": null
+          },
+          {
+            "id": "IND-9.9-telecommunications-network-operations-support",
+            "industry": "Telecommunications/network operations support",
+            "line": "Telecommunications/network operations support.",
+            "status": "not-implemented",
+            "coveredBy": null
+          }
+        ]
+      }
+    ]
+  },
+  "counts": {
+    "suites": 10,
+    "functionalEntries": 277,
+    "functionalCovered": 15,
+    "functionalNotImplemented": 262,
+    "families": 9,
+    "industryEntries": 57,
+    "industryImplemented": 0,
+    "modulesInCatalog": 12,
+    "modulesCoveringSomething": 9
+  }
+}

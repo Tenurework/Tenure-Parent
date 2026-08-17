@@ -6,13 +6,13 @@
 # duplicate upload cannot double-count the requirements it states.
 
 generated_from: tools/document-graph.mjs
-document_count: 41
+document_count: 51
 alias_count: 6
 requirement_statements: 3850
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
 authorities: 21
-references: 20
+references: 30
 documents:
   - id: "anl-analytics-inventory"
     title: "Analytics inventory — every dashboard, report, chart and client-side metric"
@@ -30,6 +30,48 @@ documents:
       - PAY
     states_requirements: 0
     mentions_requirement_ids: 6
+  - id: "anl-analytics-limitations"
+    title: Analytics limitations and blocked sources — what the numbers cannot do
+    version: unversioned
+    canonical_path: "docs/architecture/anl-analytics-limitations.md"
+    role: reference
+    family: "anl-analytics-limitations"
+    superseded_by: null
+    supersedes: []
+    sha256: "3083c83f4a7d0e410f1a056772e5bd824c9ce1c202c62c6545b341ff5fdd54db"
+    bytes: 17287
+    aliases: []
+    requirement_prefixes:
+      - ANL
+    states_requirements: 0
+    mentions_requirement_ids: 25
+  - id: "anl-intuit-benchmark"
+    title: "The Intuit Enterprise Suite comparison — Tenure's side of it, measured"
+    version: unversioned
+    canonical_path: "docs/architecture/anl-intuit-benchmark.md"
+    role: reference
+    family: "anl-intuit-benchmark"
+    superseded_by: null
+    supersedes: []
+    sha256: "5ff7a1f8249ee7d87566f12f1345822d74d2f3e6c57641e4352cbb169813626c"
+    bytes: 7914
+    aliases: []
+    requirement_prefixes:
+      - ANL
+      - CAT
+      - CFG
+      - EXT
+      - FIN
+      - GE
+      - HCM
+      - INT
+      - OPS
+      - PACK
+      - PAY
+      - PLN
+      - TTES
+    states_requirements: 0
+    mentions_requirement_ids: 37
   - id: "aws-current-state"
     title: AWS current state
     version: unversioned
@@ -45,6 +87,21 @@ documents:
       - GE
     states_requirements: 0
     mentions_requirement_ids: 1
+  - id: "cat-connection-count-examples"
+    title: "CAT-010 — connection counts, on the Bible's own examples"
+    version: unversioned
+    canonical_path: "docs/architecture/cat-connection-count-examples.md"
+    role: reference
+    family: "cat-connection-count-examples"
+    superseded_by: null
+    supersedes: []
+    sha256: f7fec2148262a3b11927c970192fb48f3d74bdfc25dd397149382b796ca61feb
+    bytes: 20585
+    aliases: []
+    requirement_prefixes:
+      - CAT
+    states_requirements: 0
+    mentions_requirement_ids: 4
   - id: "cat-lifecycle-classification"
     title: Catalog lifecycle classification
     version: unversioned
@@ -60,6 +117,21 @@ documents:
       - CAT
     states_requirements: 0
     mentions_requirement_ids: 1
+  - id: "fin-accounting-scope-disclosure"
+    title: "Finance scope disclosure — the exact limits of this platform's accounting"
+    version: unversioned
+    canonical_path: "docs/architecture/fin-accounting-scope-disclosure.md"
+    role: reference
+    family: "fin-accounting-scope-disclosure"
+    superseded_by: null
+    supersedes: []
+    sha256: c388d1d68e12939274c81947158f35b92f31e9b0e91c84f51ba5b813399bb064
+    bytes: 9811
+    aliases: []
+    requirement_prefixes:
+      - FIN
+    states_requirements: 0
+    mentions_requirement_ids: 10
   - id: "fin-finance-surface-inventory"
     title: "Finance surface inventory — FIN-000-001"
     version: unversioned
@@ -68,13 +140,57 @@ documents:
     family: "fin-finance-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "983a8970da308a632040e7d9798419fb5b6cb53fce633d24dd2b8b8ccb3f813d"
-    bytes: 18241
+    sha256: f1edffcf4600f425d9c41e506395da773d048201c7420bf4a32e02a3875f37d2
+    bytes: 22048
     aliases: []
     requirement_prefixes:
       - FIN
     states_requirements: 0
-    mentions_requirement_ids: 3
+    mentions_requirement_ids: 5
+  - id: "hcm-capability-matrix"
+    title: "People Cloud — supported capability, jurisdiction and provider matrix"
+    version: unversioned
+    canonical_path: "docs/architecture/hcm-capability-matrix.md"
+    role: reference
+    family: "hcm-capability-matrix"
+    superseded_by: null
+    supersedes: []
+    sha256: "18235ba4093ea335ff8bdeab6e9402fc93edf65a343206757f081f1e18909621"
+    bytes: 8268
+    aliases: []
+    requirement_prefixes:
+      - HCM
+    states_requirements: 0
+    mentions_requirement_ids: 4
+  - id: "int-connector-capability-matrix"
+    title: Supported connector and capability matrix
+    version: unversioned
+    canonical_path: "docs/architecture/int-connector-capability-matrix.md"
+    role: reference
+    family: "int-connector-capability-matrix"
+    superseded_by: null
+    supersedes: []
+    sha256: "327c1a4c2eadacf94fb91be2c620e3c120f6a18421f70dd4f73b7cf47c2b9c62"
+    bytes: 29887
+    aliases: []
+    requirement_prefixes:
+      - WRK
+    states_requirements: 0
+    mentions_requirement_ids: 8
+  - id: "int-connector-write-boundary"
+    title: "The integration plane: who owns it, and what it may write"
+    version: unversioned
+    canonical_path: "docs/architecture/int-connector-write-boundary.md"
+    role: reference
+    family: "int-connector-write-boundary"
+    superseded_by: null
+    supersedes: []
+    sha256: "38edf22a0eb4170b6ea44b311c9325d85514eef5f57216c8d7ac3a2be0d45ff3"
+    bytes: 6948
+    aliases: []
+    requirement_prefixes: []
+    states_requirements: 0
+    mentions_requirement_ids: 0
   - id: "int-integration-inventory"
     title: Integration inventory and producer/consumer map
     version: unversioned
@@ -90,6 +206,21 @@ documents:
       - INT
     states_requirements: 0
     mentions_requirement_ids: 2
+  - id: "ops-availability-and-limitations"
+    title: "Operations — availability, safety disclaimers and published limitations"
+    version: unversioned
+    canonical_path: "docs/architecture/ops-availability-and-limitations.md"
+    role: reference
+    family: "ops-availability-and-limitations"
+    superseded_by: null
+    supersedes: []
+    sha256: "44392f86f108d64fd415df8fd2c850e47db4c63bd7f417e5ab509ad5777c4691"
+    bytes: 15590
+    aliases: []
+    requirement_prefixes:
+      - OPS
+    states_requirements: 0
+    mentions_requirement_ids: 6
   - id: "ops-operations-code-inventory"
     title: "Operations, Supply, Manufacturing and Service — code inventory"
     version: unversioned
@@ -98,14 +229,29 @@ documents:
     family: "ops-operations-code-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "9ec792d465e45e570e08c7f13b684f71a1f9fc0bb5732efc916141a94405075a"
-    bytes: 10347
+    sha256: a24b140939705016c18600d970a73fd823732382976b1f80fc02b1b110a84605
+    bytes: 11125
     aliases: []
     requirement_prefixes:
       - GE
       - OPS
     states_requirements: 0
     mentions_requirement_ids: 4
+  - id: "pack-capability-taxonomy"
+    title: Pack capability registry
+    version: unversioned
+    canonical_path: "docs/architecture/pack-capability-taxonomy.md"
+    role: reference
+    family: "pack-capability-taxonomy"
+    superseded_by: null
+    supersedes: []
+    sha256: a64e405c3e1320ddfd3d192de9ce11517fe01976883aed57d623cb4ff4547d83
+    bytes: 51466
+    aliases: []
+    requirement_prefixes:
+      - PACK
+    states_requirements: 0
+    mentions_requirement_ids: 3
   - id: "pack-surface-inventory"
     title: Pack surface inventory
     version: unversioned
@@ -122,6 +268,22 @@ documents:
       - WRK
     states_requirements: 0
     mentions_requirement_ids: 10
+  - id: "pln-planning-limitations"
+    title: "PLN-040-005 — the exact limitations of Tenure planning"
+    version: unversioned
+    canonical_path: "docs/architecture/pln-planning-limitations.md"
+    role: reference
+    family: "pln-planning-limitations"
+    superseded_by: null
+    supersedes: []
+    sha256: a2495aee9fb38c6484fac3e8c7b948430567d91308221b2bb7e775a375c43ee9
+    bytes: 13279
+    aliases: []
+    requirement_prefixes:
+      - FIN
+      - PLN
+    states_requirements: 0
+    mentions_requirement_ids: 3
   - id: "studio-information-architecture"
     title: System Studio information architecture and route map
     version: unversioned

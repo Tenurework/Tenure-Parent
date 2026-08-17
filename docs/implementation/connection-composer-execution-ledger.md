@@ -69,25 +69,236 @@ the commands or the ADR that would unblock it — if it cannot.
   - Tests: `node --test tests/architecture/cat-requirement-bindings.test.mjs` (7 tests)
   - Honest limit: the binding is at PHASE granularity — five requirements in a phase share its surfaces — and it is stated as such in the document. It records where each requirement's work is jointly owned; it does not implement any of it. Every `CAT-*` requirement outside `CAT-000` remains `FAIL`.
 
-- [ ] **CAT-010-001** — Implement all cardinality modes and count dimensions.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-010-001** — Implement all cardinality modes and count dimensions.
+  - Status: PASS
+  - Code: `packages/provisioning/src/connection-cardinality.mjs` (909 lines) exports
+    `CARDINALITY_MODES` (14), `COUNT_DIMENSIONS` (16), `COUNT_KINDS` (5),
+    `DETECTIONS` (9), `DETECTIONS_DEFERRED` (5), `dimensionById`,
+    `cardinalityVerdict`, `countLedger`, `instancesFor`, `requirementFindings`,
+    `limitFindings`, `assessPortfolio`, `known`, `unknown`. Every one of the
+    fourteen modes has its own `case` in `cardinalityVerdict` — there is no
+    shared "count ≥ n" fallback, because `ONE_PER_DIMENSION_VALUE`,
+    `ALL_SELECTED_PROVIDERS`, `PRIMARY_PLUS_BACKUP`, `PER_USER_REQUIRED` and
+    `DISCOVERED_THEN_APPROVED` are not questions about a count at all.
+  - Caller: `tools/cat-connection-counts.mjs:37` (the generator behind
+    `docs/architecture/cat-connection-count-examples.md`),
+    `tests/architecture/cat-cardinality-covers-the-bible.test.mjs:14`,
+    `tests/architecture/cat-connection-counting.test.mjs:12`. No application
+    surface consumes it — see the honest limit.
+  - Tests: `node --test tests/architecture/cat-cardinality-covers-the-bible.test.mjs` — 9 tests, 9 pass, 0 fail.
+  - Evidence:
+    - The vocabulary is PARSED out of the Bible, not transcribed: `bibleModes()`
+      reads the fourteen backticked names between `### 1.1 Cardinality modes` and
+      `Count dimensions include:`, `bibleDimensions()` the sixteen bullets after
+      it, and the test asserts `deepEqual` against the engine's constants — so a
+      mode dropped from the engine AND a mode the engine invents both red.
+    - "every declared mode has an evaluator" drives all fourteen against a fully
+      declared requirement and asserts `determinable === true`, which is what
+      makes "implement" mean more than "list".
+    - Mutation M9 — deleted `"PRIMARY_PLUS_BACKUP",` from `CARDINALITY_MODES`:
+      `9 pass / 0 fail` → `8 pass / 1 fail`, `not ok - the engine implements
+      exactly §1.1's cardinality modes, in order`; restored → `9 pass / 0 fail`,
+      bytes identical after restore: true.
+    - Mutation M3 — `needs(n, "cardinality.n")` → `needs(n ?? 1, …)` in the
+      `EXACTLY_N` branch, i.e. a requirement that never said how many silently
+      becomes a requirement for one: `26 pass / 0 fail` → `25 pass / 1 fail`,
+      `not ok - a mode missing its parameter is undeterminable, and names the
+      field`; restored → `26 pass / 0 fail`.
+  - Honest limit: this is the count ENGINE and its vocabulary. Nothing renders it
+    to an operator: the Deployer's integration step does not exist (CAT-020,
+    CAT-040), so the engine's readers today are the generator that writes the
+    worked-examples document and the two platform guards. It is deliberately
+    `.mjs` rather than `.ts` because both of those readers run on Node 20, where
+    TypeScript cannot be loaded — the package's `main`/`exports` are unchanged and
+    still TypeScript-only, so no application import path is affected either way.
 
-- [ ] **CAT-010-002** — Distinguish connection instances, selected resources, entitled capacity, provisioned capacity, and usage.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-010-002** — Distinguish connection instances, selected resources, entitled capacity, provisioned capacity, and usage.
+  - Status: PASS
+  - Code: `countLedger()` and `COUNT_KINDS` in
+    `packages/provisioning/src/connection-cardinality.mjs`. Five separate
+    readings, each `{ known: true, value }` or `{ known: false, why }` — the same
+    shape as `apps/system-studio/src/app/tenants/[slug]/summary.ts`'s
+    `Reading<T>`, so a console cannot mistake a zero for a blank.
+  - Caller: `tools/cat-connection-counts.mjs:37` renders all five for each of the
+    eleven scenarios; `assessPortfolio()` returns it as `ledger`.
+  - Tests: `node --test tests/architecture/cat-connection-counting.test.mjs` — 26 tests, 26 pass, 0 fail.
+  - Evidence:
+    - §1's closing prohibition is a test: one connection with 40 selected
+      mailboxes reads `connection_instances 1 / selected_resources 40`. The Slack
+      and Stripe arms are in the generated document — 3 workspace connections and
+      23 channels; 3 connected accounts and 6 resources, with no tenant count
+      anywhere in the ledger.
+    - An undeclared selection is `known: false` naming the instances; a declared
+      empty one is `known: true, value: 0`.
+    - Mutation M1 — `connection_instances: known(instances.length)` →
+      `known(instances.reduce((t, i) => t + (i.selectedResources?.length ?? 1), 0))`,
+      which is the SharePoint miscount exactly: `26 pass / 0 fail` →
+      `23 pass / 3 fail`, `not ok - forty mailboxes under one connection are one
+      connection and forty resources`, `not ok - the five counts move
+      independently — none is derived from another`, `not ok - the committed
+      examples document is what the engine produces today`; restored →
+      `26 pass / 0 fail`, bytes identical after restore: true.
+    - Mutation M2 — `if (missing.length > 0) {` → `if (false) {` in
+      `sumDeclared`, so a portfolio with one unsized instance sums the rest:
+      `26 pass / 0 fail` → `24 pass / 2 fail`, `not ok - one unsized instance
+      makes the portfolio's capacity unknown, not the sum of the rest`; restored →
+      `26 pass / 0 fail`.
+  - Honest limit: entitled, provisioned and active capacity are DECLARATIONS on
+    each connection instance. Nothing here reads a contract, an AWS account or a
+    running connector, so all three are `known: false` for every scenario that
+    does not declare them, which is the truthful reading and not a measurement.
+    Wiring them to real readings is CAT-030-002 (capacity plan) and CAT-090-001.
 
-- [ ] **CAT-010-003** — Implement per-tenant/module/pack/capability/provider/dimension minimums, maximums, and redundancy.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-010-003** — Implement per-tenant/module/pack/capability/provider/dimension minimums, maximums, and redundancy.
+  - Status: PASS
+  - Code: `limitFindings()` and `LIMIT_GRAINS` in
+    `packages/provisioning/src/connection-cardinality.mjs` bind minimums and
+    maximums at all six grains the sentence names — `limits.tenant`,
+    `limits.byModule`, `limits.byPack`, `limits.byCapability`,
+    `limits.byProvider`, `limits.byDimension` (per dimension VALUE). Redundancy is
+    the `unsafe_concentration` arm of `requirementFindings()` plus the
+    `PRIMARY_PLUS_BACKUP` evaluator.
+  - Caller: `assessPortfolio()` calls `limitFindings` on every portfolio;
+    `tools/cat-connection-counts.mjs` scenario `example-portfolio-limits` drives
+    all six and the document shows one finding per grain.
+  - Tests: `node --test tests/architecture/cat-connection-counting.test.mjs` — 26 tests, 26 pass, 0 fail.
+  - Evidence:
+    - "minimums and maximums bind at all six grains" asserts the set of grains in
+      the findings is exactly `["capability", "dimension", "module", "pack",
+      "provider", "tenant"]`.
+    - Redundancy is not satisfied by arithmetic: a backup on the primary's own
+      `providerIdentity` is refused by the mode AND reported as
+      `unsafe_concentration` — "The same account failing takes both paths with
+      it." The banks scenario is exactly that portfolio.
+    - A per-grain count counts INSTANCES, not requirements: two requirements
+      sharing one capability and one connection produce no `above_maximum` at
+      `byModule: { collaboration: { maximum: 1 } }`.
+    - A limit declared on a dimension §1.1 does not name is refused
+      (`determinable: false`) rather than applied or dropped.
+    - Mutation M8 — deleted the `byPack` entry from `LIMIT_GRAINS`:
+      `26 pass / 0 fail` → `23 pass / 3 fail`, `not ok - minimums and maximums
+      bind at all six grains, each with its own finding`, `not ok - each worked
+      example produces exactly the findings it was written to produce`, `not ok -
+      the committed examples document is what the engine produces today`;
+      restored → `26 pass / 0 fail`, bytes identical after restore: true.
+  - Honest limit: the limits arrive as an argument. Nothing yet derives them from
+    a plan, an entitlement record or a module manifest — that binding is
+    CAT-090-002 ("plan/entitlement/capacity/usage count enforcement without
+    confusing them"), and until it lands a real tenant's maxima live nowhere.
 
-- [ ] **CAT-010-004** — Detect duplicate provider identities, missing coverage, unsafe reuse, unsupported mix, and fragmentation.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-010-004** — Detect duplicate provider identities, missing coverage, unsafe reuse, unsupported mix, and fragmentation.
+  - Status: PASS
+  - Code: `requirementFindings()` in
+    `packages/provisioning/src/connection-cardinality.mjs` emits
+    `duplicate_provider_identity`, `missing_dimension_coverage`,
+    `unsafe_reuse_across_boundary`,
+    `personal_grant_for_organization_requirement`, `unsupported_provider_mix` and
+    `excessive_fragmentation`; `DETECTIONS` carries the §4.2 bullet each one
+    closes and `DETECTIONS_DEFERRED` names the five §4.2 bullets this engine
+    refuses to decide, with what each needs and that CAT-030-003 owns it.
+  - Caller: `assessPortfolio()`; the generated document shows every code firing
+    on a scenario written for it.
+  - Tests: `node --test tests/architecture/cat-connection-counting.test.mjs` (26 pass) and
+    `node --test tests/architecture/cat-cardinality-covers-the-bible.test.mjs` (9 pass).
+  - Evidence:
+    - Duplicates are detected by VERIFIED PROVIDER IDENTITY, per §2.3 — two Entra
+      tenants under one capability produce no finding, and the same tenant
+      connected twice produces `duplicate_provider_identity` naming both
+      instance ids.
+    - Unsafe reuse and personal-grant policy are REQUIRED declarations, not
+      defaults. A requirement with no `scope.separation` gets a finding whose
+      `determinable` is `false` and whose text says "This is undeterminable, not
+      safe" — because defaulting it would decide a data-residency question in
+      code, for every tenant, silently.
+    - Fragmentation is assessed only against a declared count dimension and
+      reports `{ assessed: false, reason }` otherwise, rather than guessing a
+      threshold. It fires on two DISTINCT identities serving one dimension value
+      and not on one identity twice (that is the duplicate finding) and not on two
+      identities serving two values.
+    - `DETECTIONS` + `DETECTIONS_DEFERRED` is asserted set-equal to §4.2's
+      fourteen parsed bullets in both directions, so implementing nine and
+      claiming fourteen is impossible; so is quietly shortening the list.
+    - Mutation M4 — the duplicate map keyed on `providerProduct` instead of
+      `providerIdentity`: `26 pass / 0 fail` → `22 pass / 4 fail`, `not ok - two
+      Entra tenants are not duplicates; the same tenant twice is` (plus
+      fragmentation, worked-example and document-freshness); restored →
+      `26 pass / 0 fail`.
+    - Mutation M6 — `requirement.scope?.separation` → `… ?? {}`:
+      `26 pass / 0 fail` → `25 pass / 1 fail`, `not ok - undeclared separation
+      reports that reuse could not be assessed — it does not pass`; restored →
+      `26 pass / 0 fail`.
+    - Mutation M7 — `if (identities.length > 1)` → `if (group.length > 1)` in the
+      fragmentation arm: `26 pass / 0 fail` → `25 pass / 1 fail`, `not ok - two
+      Entra tenants are not duplicates; the same tenant twice is`; restored →
+      `26 pass / 0 fail`.
+    - Mutation M10 — deleted the "a provider instance with no capability
+      consumer" entry from `DETECTIONS_DEFERRED`: `9 pass / 0 fail` →
+      `8 pass / 1 fail`, `not ok - decided plus deferred detections are exactly
+      §4.2's fourteen bullets`; restored → `9 pass / 0 fail`.
+    - Mutation M11 — disabled the personal-grant arm by changing its comparison
+      literal to `"organization-wide-never-declared"`: `26 pass / 0 fail` →
+      `22 pass / 4 fail`, including `not ok - every detection this engine claims
+      to decide is exercised by a worked example`; restored → `26 pass / 0 fail`.
+    - Mutation M12 — `verdict.uncovered.length > 0` → `> 99`:
+      `26 pass / 0 fail` → `22 pass / 4 fail`; restored → `26 pass / 0 fail`.
+  - Honest limit: nine of §4.2's fourteen conditions. The five in
+    `DETECTIONS_DEFERRED` need a capability-consumer graph, module/pack connector
+    requirements, field-level system-of-record ownership, owner records with
+    departure dates, and cost/licence/review state — none of which this function
+    is given, all of which CAT-030-003 must supply. Detection also runs on
+    DECLARED portfolios; nothing here reaches a provider to verify that an
+    identity is what it says it is.
 
-- [ ] **CAT-010-005** — Prove examples with multi-Microsoft/Google tenants, Slack workspaces, Salesforce environments, ERP entities, banks, Stripe accounts, plants, and partners.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-010-005** — Prove examples with multi-Microsoft/Google tenants, Slack workspaces, Salesforce environments, ERP entities, banks, Stripe accounts, plants, and partners.
+  - Status: PASS
+  - Code: `tools/cat-connection-counts.mjs` (631 lines) declares `SCENARIOS` —
+    eleven portfolios covering the eight subjects the sentence names — and renders
+    `docs/architecture/cat-connection-count-examples.md` (231 lines) from the
+    engine's own output. Nothing in that document is transcribed.
+  - Caller: `node tools/cat-connection-counts.mjs` writes the document;
+    `tests/architecture/cat-connection-counting.test.mjs:13` imports `SCENARIOS`,
+    `results` and `render` and asserts both the verdicts and the committed bytes.
+    The generator writes ONLY when it is the process entry point
+    (`path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)`), so
+    importing it under `--test` cannot modify the tree the other guards are
+    scanning.
+  - Tests: `node --test tests/architecture/cat-connection-counting.test.mjs` — 26 tests, 26 pass, 0 fail.
+  - Evidence:
+    - Coverage of the sentence is asserted by name: the test iterates
+      `["multi-Microsoft tenants", "multi-Google tenants", "Slack workspaces",
+      "Salesforce environments", "ERP entities", "banks", "Stripe accounts",
+      "plants", "partners"]` and fails on any subject no scenario covers.
+    - Every scenario DECIDES: `assessment.undeterminable === 0` for all eleven, so
+      a worked example cannot be "proved" by an engine that shrugged.
+    - Each scenario's findings are pinned exactly — e.g.
+      `example-salesforce-environments` → `["missing_dimension_coverage",
+      "unsafe_reuse_across_boundary"]`, `example-bank-channels` →
+      `["duplicate_provider_identity", "unsafe_concentration"]`,
+      `example-partners` → `["below_minimum"]` (2 approved of 3 required, with
+      two discovered instances that do not count).
+    - Every code in `DETECTIONS` is required to fire in at least one scenario, so
+      a claimed detector with no witness reds. That test is what forced
+      `example-unsupported-provider-mix` into existence — `unsupported_provider_mix`
+      was declared and demonstrated nowhere until it was written.
+    - Determinism: the same portfolio assessed twice is JSON-identical, which is
+      the property the document's freshness check depends on.
+    - Mutation M13 — hand-edited the committed document ("The 52 mailboxes under
+      them are selected resources" → "… are 52 connections"):
+      `26 pass / 0 fail` → `25 pass / 1 fail`, `not ok - the committed examples
+      document is what the engine produces today`; restored →
+      `26 pass / 0 fail`, bytes identical after restore: true.
+    - Mutation M5 — `approved.length >= floor` → `carried.length >= floor` in
+      `DISCOVERED_THEN_APPROVED`, so a discovery sweep satisfies a requirement:
+      `26 pass / 0 fail` → `24 pass / 2 fail`, `not ok - DISCOVERED_THEN_APPROVED
+      counts approved instances only`; restored → `26 pass / 0 fail`.
+  - Honest limit: these are SPECIFICATION scenarios, not tenant data — every id is
+    prefixed `example-` and no scenario names a real customer, provider account or
+    credential. They prove the arithmetic and the detections over declared
+    portfolios of those shapes. They do not prove a connector to Microsoft,
+    Google, Slack, Salesforce, SAP, a bank, Stripe, an MES or an AS2 endpoint
+    exists: `docs/architecture/cat-lifecycle-classification.md` still records
+    every provider row at `PLANNED` or `IN_DEVELOPMENT` (CAT-000-003), and
+    CAT-050/060/070/080 are the requirements that would change that.
 
 - [ ] **CAT-020-001** — Implement all thirteen integration configuration sections from declarative schemas.
   - Status: FAIL
@@ -255,7 +466,27 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **CAT-GATE-010** — The Deployer can correctly configure how many of each integration a tenant needs.
   - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+  - Reason: 5 of 5 child requirements (CAT-010-001…CAT-010-005) are PASS, and the
+    gate is still FAIL, because the gate's subject is **the Deployer** and not the
+    count engine. The engine decides counts correctly and is proven to; nothing
+    lets an operator CONFIGURE one. There is no integration step in
+    `apps/system-studio/src/app/tenants/new/`, and no
+    `IntegrationCapabilityRequirement` or `ConnectionInstance` model in
+    `apps/web/prisma/schema.prisma` — the one connection-shaped model there,
+    `ConnectionLaunchToken` (schema.prisma:1654), is a single-use redeemable link
+    for a person who was blocked on a capability, not a configured connection.
+    Meanwhile
+    `apps/web/src/lib/connections/capability-resolution.ts` says so in its own
+    header — "`Connection` and `ConnectionOpportunity` (WRK-010-001) exist in no
+    package and no migration in this repository". So a configured count cannot be
+    entered, stored or read back.
+  - What would close it: CAT-020-001/003 (the thirteen schema-driven sections and
+    the repeatable connection-instance cards), CAT-020-004 (state, save/resume,
+    downstream invalidation), CAT-040-001/003 (the Integration Portfolio view and
+    the exact "configured N of M required" status), and the persistence those
+    need — which is a schema change this wave did not make and must not invent.
+    Requires: a `ConnectionInstance` / `IntegrationCapabilityRequirement` model
+    reviewed by a human, per the no-unverified-migrations rule.
 
 - [ ] **CAT-GATE-020** — Operators can configure complex portfolios safely without hard-coded forms or hidden state.
   - Status: FAIL

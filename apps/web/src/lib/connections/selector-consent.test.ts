@@ -4,15 +4,27 @@ import {
   selectorDigest,
   type CalendarSelector,
 } from "@/lib/connections/selector-consent"
+import { createHmac } from "node:crypto"
+
 import { calendarToken, verifyCalendarToken } from "@/lib/calendar-sync"
 
 /**
  * WRK-020-005 — the consent comparison, and the token that carries it.
  *
- * The behavioural proof runs against real Postgres through the ICS route
- * (`selector-consent.itest.ts`). This covers the decisions that route makes,
- * including the ones a fixture cannot easily reach: a moved institution, a lost
- * OSE seat, and a URL edited by its holder.
+ * This covers the decisions the ICS route makes, including the ones a fixture
+ * cannot easily reach: a moved institution, a lost OSE seat, and a URL edited by
+ * its holder.
+ *
+ * CORRECTED 2026-08-17. This header used to say "the behavioural proof runs
+ * against real Postgres through the ICS route (`selector-consent.itest.ts`)".
+ * That file has never existed — `find src -name '*selector-consent*'` returns
+ * this file and the module, and `calendar-token.itest.ts`, the only itest
+ * touching the route, contains no occurrence of "consent", "EXPANDED" or
+ * "intersection". The route's use of the comparison is now proven in
+ * `src/app/api/calendar/ics/[token]/consent-route.test.ts`, which drives `GET`
+ * with the three database reads mocked. A Postgres itest that asserts the
+ * consented predicate reaches the QUERY is still owed and is recorded as owed in
+ * `docs/implementation/universal-work-graph-execution-ledger.md`.
  */
 const INSTITUTION = "inst-rochester"
 
@@ -128,6 +140,56 @@ describe("the feed token carries the consent", () => {
     ).toString("base64url")
 
     expect(verifyCalendarToken(parts.join("."), EPOCH)).toBeNull()
+  })
+
+  it("refuses a validly-signed token whose digest and selector describe two different grants", () => {
+    // The cross-check inside `verifyCalendarToken` that nothing reached: the
+    // test above is caught by the MAC, so deleting the digest comparison left
+    // every assertion in this file and in `calendar-sync.test.ts` green.
+    //
+    // What it defends is not a forger — both fields are inside the signature —
+    // it is a MINTING bug: `calendar/page.tsx` computes the digest and passes
+    // the selector, and a version of it that computed the digest from one
+    // selector and encoded another would issue tokens whose receipt identifier
+    // named a narrower grant than the feed actually served. The comparison is
+    // reachable only by signing such a token, which is what this does.
+    const digestOfSomethingElse = selectorDigest({
+      ...pinned,
+      organizationIds: ["org-consulting"],
+    })
+    const body = [
+      "v2",
+      Buffer.from("user-priya", "utf8").toString("base64url"),
+      Buffer.from(INSTITUTION, "utf8").toString("base64url"),
+      Buffer.from(
+        JSON.stringify({ o: ["org-consulting", "org-finance"], w: false }),
+        "utf8",
+      ).toString("base64url"),
+      digestOfSomethingElse,
+      String(Math.floor(Date.now() / 1000)),
+      String(EPOCH),
+    ].join(".")
+    const mac = createHmac(
+      "sha256",
+      process.env.AUTH_SECRET ?? "tenure-dev-calendar-secret",
+    )
+      .update(body)
+      .digest("base64url")
+
+    // The signature is genuine — a control proves the forge is otherwise valid.
+    expect(verifyCalendarToken(`${body}.${mac}`, EPOCH)).toBeNull()
+
+    const honest = body.replace(
+      digestOfSomethingElse,
+      selectorDigest({ ...pinned, organizationIds: ["org-consulting", "org-finance"] }),
+    )
+    const honestMac = createHmac(
+      "sha256",
+      process.env.AUTH_SECRET ?? "tenure-dev-calendar-secret",
+    )
+      .update(honest)
+      .digest("base64url")
+    expect(verifyCalendarToken(`${honest}.${honestMac}`, EPOCH)).not.toBeNull()
   })
 
   it("refuses a v1 token, rather than reading its fields in the wrong order", () => {

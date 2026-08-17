@@ -667,8 +667,13 @@ export function workspaceMap(manifests) {
  * stdin and answers `<oid> <type> <size>\n<contents>\n` for each, in the order
  * asked. Parsed as bytes, then decoded, because the size in the header is in
  * bytes and slicing a decoded string by a byte count corrupts anything non-ASCII.
+ *
+ * Exported because `tools/simon-convergence-inventory.mjs` (SIMON-000-004 to
+ * -007) analyses the CONTENT of the same two pinned commits this file inventories.
+ * A second batch reader there would be a second implementation of the one thing
+ * in this file that is genuinely fiddly — the byte-accurate header parse.
  */
-function readBlobs(sha, files) {
+export function readBlobs(sha, files) {
   const out = new Map()
   if (files.length === 0) return out
   const stdout = execFileSync('git', ['cat-file', '--batch'], {

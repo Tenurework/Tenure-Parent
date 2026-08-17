@@ -12,11 +12,11 @@ node tools/fin-finance-surface.mjs --check   # fail if it is stale
 ## What was measured
 
 - Roots scanned for `.ts`/`.tsx`/`.mjs`: `apps/web/src`, `apps/web/e2e`, `apps/system-studio/src`, `apps/system-studio/e2e`, `packages`, `modules`.
-- Finance surface: **92 files** — 52 source, 34 unit/integration test, 6 e2e.
-- Facet hits (a file can match several): budget 8 · expense 3 · ledger 11 · payment 35 · cost 35 · finance 14.
+- Finance surface: **96 files** — 53 source, 37 unit/integration test, 6 e2e.
+- Facet hits (a file can match several): budget 9 · expense 3 · ledger 13 · payment 35 · cost 37 · finance 15.
 - Finance-bearing tables in `apps/web/prisma/schema.prisma`: **10**.
 - Bible §3.2 canonical accounting objects present as tables: **0 of 20** — none. A further 1 (`Account`) has its name taken by an unrelated model, which is a migration hazard and is not coverage.
-- Capability claims: **15** — 5 TRUE, 7 SCOPED, 3 OVERSTATED, 0 UNADJUDICATED.
+- Capability claims: **26** — 11 TRUE, 12 SCOPED, 3 OVERSTATED, 0 UNADJUDICATED.
 
 ## A. The finance surface
 
@@ -64,6 +64,7 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `apps/web/src/app/api/ai/chat/model-budget.test.ts` | tenant | test | budget |
 | `apps/web/src/app/api/payments/provider-events/route.ts` | tenant | source | payment |
 | `apps/web/src/app/api/templates/budget/route.ts` | tenant | source | budget |
+| `apps/web/src/app/api/templates/budget/target-spread.test.ts` | tenant | test | budget |
 | `apps/web/src/components/finance/BudgetBarChart.tsx` | tenant | source | budget, finance |
 | `apps/web/src/components/finance/BudgetUpload.tsx` | tenant | source | budget, finance |
 | `apps/web/src/components/finance/FinanceDashboard.tsx` | tenant | source | finance |
@@ -72,11 +73,14 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `apps/web/src/components/finance/ReimbursementForm.tsx` | tenant | source | expense, finance |
 | `apps/web/src/lib/config/payment-mode.test.ts` | tenant | test | payment |
 | `apps/web/src/lib/finance-integrity.test.ts` | tenant | test | finance |
+| `apps/web/src/lib/finance-tie-out.test.ts` | tenant | test | finance |
 | `apps/web/src/lib/finance.test.ts` | tenant | test | finance |
 | `apps/web/src/lib/finance.ts` | tenant | source | finance |
 | `apps/web/src/lib/payments/ledger-attribution.itest.ts` | tenant | test | ledger, payment |
 | `packages/finops/src/allocation.ts` | shared | source | cost |
 | `packages/finops/src/finops.test.ts` | shared | test | cost |
+| `packages/finops/src/general-ledger.test.ts` | shared | test | ledger, cost |
+| `packages/finops/src/general-ledger.ts` | shared | source | ledger, cost |
 | `packages/finops/src/grounding.test.ts` | shared | test | cost |
 | `packages/finops/src/grounding.ts` | shared | source | cost |
 | `packages/finops/src/index.ts` | shared | source | cost |
@@ -170,10 +174,21 @@ Every term from the Bible's capability vocabulary uttered anywhere in the surfac
 | `apps/system-studio/e2e/pricing-logic.spec.ts` | multi-currency | 1 | SCOPED | A multi-currency line item in the Studio's price COMPOSER — what a tenant would be quoted. No tenant transaction is multi-currency; apps/web/src/lib/finance.ts raises MixedCurrencyError instead. |
 | `apps/web/src/app/(app)/admin/payments/page.tsx` | legal entity | 2 | SCOPED | A column and a subtitle on the funds-flow screen. The legal entity is a FIELD on PaymentsFundsFlowConfig used to choose a charge model, not a modelled entity that owns a ledger. FIN-000-002. |
 | `apps/web/src/app/(app)/approvals/money-movement.test.ts` | legal entity | 1 | TRUE | Names the boundary the refusal is tested against; the refusal is real (packages/payments/src/refusal.ts). |
+| `apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx` | trial balance | 1 | SCOPED | FIN-010-003. The page computes a real trial balance over every posted row — ledgerTieOut, apps/web/src/lib/finance.ts — and renders only its TIE-OUT: balanced or the residual, the account count, and the late-posting count. The per-account debit/credit grid is computed and not displayed. A reader of this page learns whether the books tie, not what is in them. |
 | `apps/web/src/app/(app)/reports/finance/page.tsx` | consolidation | 1 | OVERSTATED | Calls itself 'the two-tier ERP consolidation view'. It is one findMany that sums each club's BudgetLine rows. There is no second legal entity, no ownership percentage, no elimination and no currency translation, so no consolidation is performed. FIN-060. |
 | `apps/web/src/lib/config/payment-mode.test.ts` | legal entity | 1 | SCOPED | Describes which legal entity a tenant ACTS FOR when a charge is made. It is a configuration value, not an accounting entity. |
-| `apps/web/src/lib/finance.ts` | general ledger | 1 | OVERSTATED | A section header over five LedgerKind labels, a sign function and a disclosure string. A general ledger needs a ledger, a book, a chart of accounts and a period; none of the four exists. FIN-000-002. |
+| `apps/web/src/lib/finance-tie-out.test.ts` | trial balance | 1 | TRUE | Tests the tie-out the source performs, including the sign convention that would make a balanced ledger report as out of balance by twice itself. |
+| `apps/web/src/lib/finance.ts` | double entry | 1 | TRUE | FIN-010-003. toPostedLines puts each row's amount in its declared column and ledgerTieOut totals the two; the double entry itself is enforced at write time by buildJournal (packages/payments/src/posting.ts), which refuses an unbalanced journal, and both halves share a journalId. The sentence claims the reading, and the reading is real. |
+| `apps/web/src/lib/finance.ts` | general ledger | 2 | OVERSTATED | A section header over five LedgerKind labels, a sign function and a disclosure string. A general ledger needs a ledger, a book, a chart of accounts and a period; none of the four exists. FIN-000-002. |
+| `apps/web/src/lib/finance.ts` | trial balance | 2 | TRUE | FIN-010-003. ledgerTieOut produces debits, credits, per-account nets and the residual, per currency and never totalled across currencies, from @tenure/finops' trialBalance. Proven by apps/web/src/lib/finance-tie-out.test.ts (9/9) and mutation-proven on the credit-sign conversion. |
 | `apps/web/src/lib/payments/ledger-attribution.itest.ts` | double entry | 1 | TRUE | buildJournal in packages/payments/src/posting.ts refuses to emit an unbalanced journal, and both sides carry the same journalId. Balance is enforced at build time, which is what the sentence claims. |
+| `packages/finops/src/general-ledger.test.ts` | drill-through | 1 | SCOPED | Names what the test asserts: every entry accountAnalysis returns carries its own journalId and lineId. That is the first link of Bible §3.3's chain and not the chain. |
+| `packages/finops/src/general-ledger.test.ts` | trial balance | 1 | TRUE | 29 cases over the trial balance the module computes, including the empty window, the contra amount, the as-of window and two journals that cancel. |
+| `packages/finops/src/general-ledger.ts` | accrual | 1 | SCOPED | One word, in a comment giving an example of a reconciliation difference — 'an accrual that was released twice'. It claims no accrual BASIS, and none exists: docs/architecture/fin-accounting-scope-disclosure.md §A states that no accounting basis is declared anywhere in this platform. |
+| `packages/finops/src/general-ledger.ts` | chart of accounts | 1 | SCOPED | financialStatements takes the chart classification as an ARGUMENT — account, group, normal balance, statement line — because Bible §24 forbids hard-coding accounting rules. No chart-of-accounts RECORD exists (ChartOfAccounts is ABSENT in §C; FIN-000-002 is blocked on it), so the caller supplies one every time and nothing persists it. |
+| `packages/finops/src/general-ledger.ts` | drill-through | 1 | SCOPED | accountAnalysis carries journalId and lineId on every movement, so a balance leads to the rows that made it. Bible §3.3 asks for journal, subledger, business document and approval; the two middle links have no tables (FIN-000-003) and FIN-000-004's row says so. |
+| `packages/finops/src/general-ledger.ts` | trial balance | 8 | TRUE | FIN-010-003. Debits, credits and net per account per currency, the residual reported and never plugged, an empty window reported as null rather than balanced, and per-journal tie-out measured as well as the total. 29/29 with 10 mutations caught. |
+| `packages/finops/src/index.ts` | trial balance | 1 | TRUE | The package door naming what it exports, with the reason it is not ./settlement's reconciler. |
 | `packages/payments/src/capability-registry.ts` | multi-currency | 1 | TRUE | Declared with the `planned` constructor, so the registry states the capability is NOT available. This is the shape a capability claim is supposed to take. |
 | `packages/payments/src/charge-model.ts` | legal entity | 4 | SCOPED | `legalEntityType` and a registration country are inputs to a pure decision function. Nothing persists a legal entity. |
 | `packages/payments/src/charge-model.ts` | subledger | 1 | OVERSTATED | A blocker message tells the caller to 'post it to the internal subledger instead'. No subledger exists — there is one LedgerEntry table and no subledger document or entry at all. FIN-000-003. |
@@ -185,6 +200,6 @@ Every term from the Bible's capability vocabulary uttered anywhere in the surfac
 
 ## What this inventory says
 
-The platform has real finance code — 92 files and 10 money-bearing tables — and it is club budgeting, reimbursement and payment-provider plumbing, not accounting. Money is integer minor units end to end, a posting is a balanced journal, and a posted entry is corrected by a reversal rather than a delete. Above that line there is nothing: 20 of the 20 objects the Bible names as the minimum are not there, including every one that makes a ledger a ledger — `Journal`, `Ledger`, `Book`, `Account`, `Period`.
+The platform has real finance code — 96 files and 10 money-bearing tables — and it is club budgeting, reimbursement and payment-provider plumbing, not accounting. Money is integer minor units end to end, a posting is a balanced journal, and a posted entry is corrected by a reversal rather than a delete. Above that line there is nothing: 20 of the 20 objects the Bible names as the minimum are not there, including every one that makes a ledger a ledger — `Journal`, `Ledger`, `Book`, `Account`, `Period`.
 
-Of 15 capability claims, 3 are OVERSTATED. They are not marketing copy; they are comments and blocker messages that name objects nobody has built, which is the exact failure this inventory exists to find. Each is cited in the table above with the requirement that would make it true.
+Of 26 capability claims, 3 are OVERSTATED. They are not marketing copy; they are comments and blocker messages that name objects nobody has built, which is the exact failure this inventory exists to find. Each is cited in the table above with the requirement that would make it true.

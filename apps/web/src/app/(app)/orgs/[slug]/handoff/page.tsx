@@ -20,6 +20,7 @@ import { AIScopeAnchor } from "@/components/ai/AIProvider"
 import { EmailLink } from "@/components/EmailLink"
 import { EmptyState } from "@/components/ui/EmptyState"
 import { formatCents } from "@/lib/finance"
+import { successorHandoffPacket } from "@/lib/people/seat-memory-boundary"
 import type { ApprovalStatus } from "@prisma/client"
 import { UNDECIDED_APPROVAL_STATUSES } from "@/lib/analytics/metrics"
 
@@ -57,7 +58,15 @@ export default async function HandoffPage({
               where: { status: { in: ["ACTIVE", "SHADOW"] } },
               include: { user: { select: { name: true, email: true } } },
             },
-            _count: { select: { memoryRecords: true } },
+            // HCM-040-003. The classification columns, not a count. A count
+            // said "12 knowledge cards" to an incoming officer over a set that
+            // included the seat's login card and everything labelled
+            // `restricted` — a promise of knowledge that will not be handed
+            // over. `successorHandoffPacket` splits it three ways.
+            memoryRecords: {
+              where: { isArchived: false },
+              select: { id: true, roleId: true, type: true, sensitivity: true },
+            },
           },
         },
       },
@@ -183,7 +192,12 @@ export default async function HandoffPage({
               const activeAssignee = role.assignments.find((a) => a.status === "ACTIVE")
               const shadow = role.assignments.find((a) => a.status === "SHADOW")
               const predecessor = role.holdings.find((h) => !h.isCurrent)
-              const knowledge = role._count.memoryRecords
+              // HCM-040-003. What this seat can actually pass on, decided per
+              // card. `transferred` is the successor's inheritance; `rotated` is
+              // access that must be reissued to them rather than handed over;
+              // `withheld` stays with the person leaving, each with its reason.
+              const packet = successorHandoffPacket(role.memoryRecords)
+              const knowledge = packet.transferred.length
               return (
                 <Card key={role.id} padding="sm">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -197,9 +211,32 @@ export default async function HandoffPage({
                       href={`/orgs/${slug}/memory`}
                       className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-[12px] text-text-2 no-underline hover:bg-base"
                     >
-                      <BookOpen size={13} /> {knowledge} knowledge card{knowledge === 1 ? "" : "s"}
+                      <BookOpen size={13} /> {knowledge} card{knowledge === 1 ? "" : "s"} you inherit
                     </Link>
                   </div>
+
+                  {/* HCM-040-003. Said, not hidden. A successor who is told
+                      only what transfers spends the term discovering the gaps
+                      one confused request at a time; a predecessor who is told
+                      nothing cannot check that what should have stayed did. */}
+                  {(packet.rotated.length > 0 || packet.withheld.length > 0) && (
+                    <p className="mt-2 text-[12px] text-text-3">
+                      {packet.rotated.length > 0 && (
+                        <>
+                          {packet.rotated.length} access card
+                          {packet.rotated.length === 1 ? "" : "s"} reissued to you, never handed
+                          over
+                          {packet.withheld.length > 0 ? " · " : ""}
+                        </>
+                      )}
+                      {packet.withheld.length > 0 && (
+                        <>
+                          {packet.withheld.length} stay{packet.withheld.length === 1 ? "s" : ""}{" "}
+                          with the outgoing holder: {packet.withheld[0].reason}
+                        </>
+                      )}
+                    </p>
+                  )}
 
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <HandoffContact

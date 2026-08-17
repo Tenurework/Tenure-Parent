@@ -10,7 +10,7 @@ The sweep looks for 9 anchors — `BudgetLine`, `BudgetPeriod`, `allocatedCents`
 than the word "budget", because the word also names the AI token budget and the
 SLO error budget, and neither is money.
 
-## 1. Budget and planning code — 19 files
+## 1. Budget and planning code — 21 files
 
 | File | Kind | What it actually does |
 | --- | --- | --- |
@@ -23,27 +23,31 @@ SLO error budget, and neither is money.
 | `apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx` | surface | Sums `budgetedCents`/`actualCents` with a raw reduce for the outgoing board's handoff summary. |
 | `apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx` | surface | Sums `budgetedCents`/`actualCents` with a raw reduce for the club impact narrative. |
 | `apps/web/src/app/(app)/reports/finance/page.tsx` | surface | The institution portfolio: every club's lines through `rollUpPortfolio`, totalled per currency. The only multi-organization roll-up. |
-| `apps/web/src/app/api/templates/budget/route.ts` | route | Generates the standard club budget workbook on request — ten fixed categories whose headers are the ones `parseBudgetSheet` detects. The template IS the planning model: the category axis is a hard-coded literal, not a dimension. |
+| `apps/web/src/app/api/templates/budget/route.ts` | route | Generates the standard club budget workbook on request — ten fixed categories whose headers are the ones `parseBudgetSheet` detects. The template IS the planning model: the category axis is a hard-coded literal, not a dimension. PLN-030-001 added `?total=`, which distributes a top-down target across those categories through `spread()` and writes the rule that did it onto the Instructions sheet; it is the only production caller of the planning engine. |
 | `apps/web/src/components/finance/BudgetBarChart.tsx` | component | Budgeted vs projected bars per category. Presentation only. |
 | `apps/web/src/components/finance/BudgetUpload.tsx` | component | Client-side spreadsheet preview: parses the workbook, then totals the detected rows with a raw reduce before an import is committed. |
 | `apps/web/src/components/finance/FinanceDashboard.tsx` | component | The grid. Projected = actual, else saved `forecastCents`, else budget; variance = budgeted - projected, recomputed as a number is typed. One flat category axis, one year, no version. |
 | `apps/web/src/components/finance/LedgerDrawer.tsx` | component | Per-category drawer: the ledger entries behind one line's actual, against its budgeted figure. |
 | `apps/web/src/lib/finance.ts` | domain logic | Pure calculation and sheet parsing: `summarize`, `rollUpPortfolio`, `parseBudgetSheet`, `financeIntegrity`, ledger signing. Imports no database client and writes nothing. |
+| `apps/web/src/lib/planning/spread.ts` | domain logic | PLN-030-001. Spreading (six bases), direct and step-down allocation, and top-down/bottom-up reconciliation that keeps both values and the decision. Pure; calls `allocateByWeight` in `@tenure/finops` rather than carrying a second largest-remainder split. Refuses reciprocal and activity-based allocation by name. Names `BudgetLine` in its header as the table its output lands on; it reads no database and persists nothing. |
 | `apps/web/src/lib/platform/tenant-export.ts` | platform | `Budget: () => db.budget.findMany()` — the budget tables in the tenant data export, read inside the tenant scope. |
 | `apps/web/src/lib/tenancy/registry.ts` | tenancy | Declares Budget reachable via `Budget.institutionId`, Transaction via `Budget.institutionId` and BudgetLine via `Organization.institutionId` — how the tenant guard reaches each budget table. |
 | `modules/index.ts` | module manifest | The `budgeting` ModuleManifest: objects, tiers budget/ledger/consolidation, permissions, and seventeen dimension verdicts. There is no `planning` manifest. |
+| `packages/finops/src/general-ledger.ts` | package | FIN-010-003's record-to-report arithmetic — trial balance, account analysis, flux and statements over posted journal lines. Not planning: it states money that already moved. It carries a budget anchor because its header names `BudgetLine.actualCents` as the cache check `financeIntegrity` performs and this module does not. |
 | `packages/finops/src/settlement.ts` | package | Reconciliation arithmetic reused by `financeIntegrity`; its header names `BudgetLine.actualCents` as the balance it reconciles against. |
 
-## 2. Tests over that code — 6 files
+## 2. Tests over that code — 8 files
 
 | File | Anchors |
 | --- | --- |
 | `apps/web/src/app/(app)/approvals/money-movement.test.ts` | `db.budgetLine` |
 | `apps/web/src/app/(app)/orgs/[slug]/finance/money-path.itest.ts` | `budgetedCents`, `db.budget`, `db.budgetLine` |
+| `apps/web/src/app/api/templates/budget/target-spread.test.ts` | `parseBudgetSheet` |
 | `apps/web/src/lib/approval-digest.itest.ts` | `budgetedCents`, `db.budgetLine` |
 | `apps/web/src/lib/finance-integrity.test.ts` | `BudgetLine` |
 | `apps/web/src/lib/finance.test.ts` | `budgetedCents`, `forecastCents`, `parseBudgetSheet`, `rollUpPortfolio` |
 | `apps/web/src/lib/payments/ledger-attribution.itest.ts` | `db.budget`, `db.budgetLine` |
+| `apps/web/src/lib/planning/spread.test.ts` | `BudgetLine`, `allocatedCents` |
 
 ## 3. Every production writer of a budget table — 3 files
 

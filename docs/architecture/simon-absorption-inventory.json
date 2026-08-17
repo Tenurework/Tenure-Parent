@@ -23,9 +23,9 @@
       "default_branch": "main",
       "open_pull_requests": [
         {
-          "number": 40,
-          "head": "feat/uploads-decided-by-bytes",
-          "title": "fix(uploads): decide every upload from its bytes, not the client's claim"
+          "number": 45,
+          "head": "docs/runbook-readonly-route",
+          "title": "docs(runbook) + fix(platform-access): the read-only route, and the exit-code read that crashed"
         }
       ],
       "releases": [],
@@ -1275,11 +1275,11 @@
       "tags": []
     },
     "checked_out_branch": "main",
-    "head_commit": "024eb0da8414561e81382c7df804480429c89b05",
+    "head_commit": "cc4e5291da1ce948b2a2153dfbe8444bbb1528b7",
     "branches": [
       {
         "ref": "main",
-        "commit": "024eb0da8414561e81382c7df804480429c89b05"
+        "commit": "cc4e5291da1ce948b2a2153dfbe8444bbb1528b7"
       },
       {
         "ref": "wip/ier-killed-run-20260808",
@@ -1289,17 +1289,17 @@
     "remote_branches": [
       {
         "ref": "origin",
-        "commit": "024eb0da8414561e81382c7df804480429c89b05"
+        "commit": "cc4e5291da1ce948b2a2153dfbe8444bbb1528b7"
       },
       {
         "ref": "origin/main",
-        "commit": "024eb0da8414561e81382c7df804480429c89b05"
+        "commit": "cc4e5291da1ce948b2a2153dfbe8444bbb1528b7"
       }
     ],
     "local_tags": [],
     "history": {
-      "commits": 441,
-      "newest_commit": "024eb0da8414561e81382c7df804480429c89b05",
+      "commits": 442,
+      "newest_commit": "cc4e5291da1ce948b2a2153dfbe8444bbb1528b7",
       "newest_commit_date": "2026-08-17",
       "oldest_commit": "abf30691f8299414de6b115f4d40c8084049a0f4",
       "oldest_commit_date": "2026-07-10",
@@ -1310,7 +1310,7 @@
         "verification"
       ]
     },
-    "tracked_files": 1523,
+    "tracked_files": 1526,
     "files": [
       ".dockerignore",
       ".gitattributes",
@@ -1394,6 +1394,7 @@
       "apps/system-studio/e2e/auth-mode-logic.spec.ts",
       "apps/system-studio/e2e/authorize-logic.spec.ts",
       "apps/system-studio/e2e/aws-unknown-is-not-absent.spec.ts",
+      "apps/system-studio/e2e/base-scale.spec.ts",
       "apps/system-studio/e2e/breadcrumbs.spec.ts",
       "apps/system-studio/e2e/commands-logic.spec.ts",
       "apps/system-studio/e2e/commands.spec.ts",
@@ -1404,6 +1405,7 @@
       "apps/system-studio/e2e/console-index.spec.ts",
       "apps/system-studio/e2e/cost.spec.ts",
       "apps/system-studio/e2e/data-surface.spec.ts",
+      "apps/system-studio/e2e/density-budget.spec.ts",
       "apps/system-studio/e2e/destructive-separation.spec.ts",
       "apps/system-studio/e2e/diagnose.spec.ts",
       "apps/system-studio/e2e/export.spec.ts",
@@ -2778,6 +2780,7 @@
       "tools/loop/cluster-workflow.mjs",
       "tools/loop/domain-batch.mjs",
       "tools/loop/domain-workflow.mjs",
+      "tools/loop/family-fanout.mjs",
       "tools/loop/fin-mutation-run.mjs",
       "tools/loop/harvested-queue.json",
       "tools/loop/next-batch.mjs",
@@ -3189,7 +3192,7 @@
       },
       {
         "area": "apps/system-studio",
-        "files": 364
+        "files": 366
       },
       {
         "area": "apps/web",
@@ -3345,14 +3348,14 @@
       },
       {
         "area": "tools/loop",
-        "files": 53
+        "files": 54
       }
     ],
     "import_graph": {
-      "code_files": 1204,
-      "builtin_imports": 723,
-      "unresolved_relative_specifiers": 2,
-      "unresolved_alias_specifiers": 0,
+      "code_files": 1207,
+      "builtin_imports": 724,
+      "unresolved_relative_specifiers": 7,
+      "unresolved_alias_specifiers": 3,
       "internal_edges": [
         {
           "from": "apps/system-studio/e2e",
@@ -3567,7 +3570,7 @@
         {
           "from": "apps/web/src/app",
           "to": "apps/web/src/lib",
-          "imports": 414
+          "imports": 415
         },
         {
           "from": "apps/web/src/app",
@@ -3592,7 +3595,7 @@
         {
           "from": "apps/web/src/app",
           "to": "packages/finops/src",
-          "imports": 1
+          "imports": 2
         },
         {
           "from": "apps/web/src/app",
@@ -3612,7 +3615,7 @@
         {
           "from": "apps/web/src/app",
           "to": "packages/platform-config/src",
-          "imports": 23
+          "imports": 24
         },
         {
           "from": "apps/web/src/components",
@@ -3683,11 +3686,6 @@
           "from": "apps/web/src/lib",
           "to": "packages/contracts/src",
           "imports": 14
-        },
-        {
-          "from": "apps/web/src/lib",
-          "to": "packages/finops/src",
-          "imports": 1
         },
         {
           "from": "apps/web/src/lib",
@@ -3801,7 +3799,7 @@
         {
           "from": "apps/system-studio/e2e",
           "package": "@playwright/test",
-          "imports": 48,
+          "imports": 50,
           "declared": true
         },
         {
@@ -4892,7 +4890,7 @@
       },
       {
         "capability": "End-to-end tests",
-        "matches": 83,
+        "matches": 85,
         "evidence": [
           "apps/system-studio/e2e/adoption.spec.ts",
           "apps/system-studio/e2e/api-contract.spec.ts",
@@ -4917,7 +4915,7 @@
         "pattern": "/^\\.github\\/workflows\\/.*\\.ya?ml$/"
       }
     ],
-    "working_tree_dirty_paths": 6
+    "working_tree_dirty_paths": 114
   },
   "relationship": {
     "merge_base": "d20d40d7846fc434b539f80cae8e437b750055ed",

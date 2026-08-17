@@ -23,6 +23,16 @@
  * matter for categorical series are an order of magnitude larger than the point
  * where the two metrics disagree.
  *
+ * What the first version of this file got wrong, recorded because the module's
+ * whole purpose is not to be believed on its word: it clamped every simulation
+ * into the display gamut before measuring ΔE. For protanopia and deuteranopia
+ * nothing is clamped and that was harmless. For tritanopia the projection leaves
+ * the cube by up to twice full scale, so the clamp collapsed six of the eight
+ * slots onto two values and the audit reported pairs 0.45 ΔE apart as
+ * indistinguishable hues. They are not hues at all. `outOfGamut` and `cvdAudit`
+ * now separate "these two collide" from "this simulation has no answer", which
+ * is the same distinction the rest of this codebase is built on.
+ *
  * Consumers: `cvd.test.ts`, which is what gates the palette in `globals.css`.
  * That is the same shape as `src/lib/a11y/contrast.ts` — a colour-system
  * validator's product IS its audit; there is no runtime path that simulates
@@ -97,11 +107,72 @@ function project(lms: [number, number, number], vision: Vision): [number, number
   }
 }
 
-/** What a dichromat of this type sees when the display shows `color`. */
-export function simulate(color: Rgb, vision: Vision): Rgb {
+/** The projection's answer in LINEAR RGB, before anything clamps it. */
+function projectedLinear(color: Rgb, vision: Vision): [number, number, number] {
   const lms = rgbToLms(toLinear(color.r), toLinear(color.g), toLinear(color.b))
-  const [r, g, b] = lmsToRgb(...project(lms, vision))
+  return lmsToRgb(...project(lms, vision))
+}
+
+/**
+ * What a dichromat of this type sees when the display shows `color`.
+ *
+ * `toSrgb` clamps, as a display does. That is correct for producing a swatch and
+ * WRONG as an input to ΔE, which is why `outOfGamut` exists and why
+ * `separationUnder` refuses rather than scoring a clamped pair. See the note
+ * there: the clamp does not merely lose precision, it manufactures collisions.
+ */
+export function simulate(color: Rgb, vision: Vision): Rgb {
+  const [r, g, b] = projectedLinear(color, vision)
   return { r: toSrgb(r), g: toSrgb(g), b: toSrgb(b), a: color.a }
+}
+
+/**
+ * How far outside the display gamut the projection landed, on its worst channel,
+ * or `null` when the simulated colour is one a screen can actually show.
+ *
+ * ## Why this is not a rounding detail
+ *
+ * The Viénot single-plane projection is quoted for protanopia and deuteranopia;
+ * its tritanopia arm is an approximation, and on real chart hues it leaves the
+ * cube by whole multiples of full scale. Measured over the eight `--chart-*`
+ * slots: every channel of every protan and deutan simulation lands inside the
+ * cube, and the tritan blue channel reaches **-2.042 and +1.451** — that is
+ * -521 and +370 on a 0–255 axis.
+ *
+ * `toSrgb` clamps all of those to 0 or 255. So six of the eight light slots and
+ * seven of the eight dark slots collapse onto two clamped values, and ΔE then
+ * reports pairs 0.45 and 0.50 apart — "the same colour" — for hues whose
+ * simulation was never computable in the first place. That is the collapse this
+ * codebase exists to refuse: "we could not look" is not "we looked and found
+ * nothing", and a palette audit that reports the second when it means the first
+ * would have sent somebody to redesign a hue over an arithmetic artefact.
+ *
+ * The tolerance is in LINEAR space, where the projection's arithmetic happens.
+ * 1e-3 is a tenth of one 8-bit step, so an exact-black or exact-white boundary
+ * that rounds a hair negative still reads as representable — the deuteranopia
+ * simulation of `--chart-2` on light lands at -0.0003 and is a real answer.
+ */
+export const GAMUT_TOLERANCE = 1e-3
+
+export type GamutExcursion = {
+  vision: Vision
+  channel: "r" | "g" | "b"
+  /** The linear value the projection produced. Outside [0, 1] by construction. */
+  linear: number
+}
+
+export function outOfGamut(color: Rgb, vision: Vision): GamutExcursion | null {
+  const linear = projectedLinear(color, vision)
+  const channels: ("r" | "g" | "b")[] = ["r", "g", "b"]
+  let worst: GamutExcursion | null = null
+  for (let i = 0; i < 3; i++) {
+    const value = linear[i]
+    const by = value < -GAMUT_TOLERANCE ? -value : value > 1 + GAMUT_TOLERANCE ? value - 1 : 0
+    if (by === 0) continue
+    const previous = worst === null ? 0 : Math.max(-worst.linear, worst.linear - 1)
+    if (by > previous) worst = { vision, channel: channels[i], linear: value }
+  }
+  return worst
 }
 
 /** CIE 1931 XYZ (D65) from sRGB, via the linear stage. */
@@ -140,6 +211,11 @@ export function deltaE76(a: Rgb, b: Rgb): number {
  * for anything `parseColor` does not understand: a silent 0 would report a
  * `var(--x)` typo as the worst possible collision, and a silent Infinity would
  * report it as safe. Neither is an answer.
+ *
+ * Throws for the same reason when either simulation left the gamut. A clamped
+ * pair produces a number, and the number is about the clamp rather than about
+ * the colours — see `outOfGamut`. Callers that are auditing a whole palette want
+ * `cvdAudit`, which reports the unscorable pairs instead of dropping them.
  */
 export function separationUnder(a: string | Rgb, b: string | Rgb, vision: Vision): number {
   const toRgb = (v: string | Rgb) => {
@@ -147,7 +223,21 @@ export function separationUnder(a: string | Rgb, b: string | Rgb, vision: Vision
     if (!parsed) throw new Error(`separationUnder(): not a colour — ${JSON.stringify(v)}`)
     return parsed
   }
-  return deltaE76(simulate(toRgb(a), vision), simulate(toRgb(b), vision))
+  const [left, right] = [toRgb(a), toRgb(b)]
+  for (const [color, which] of [
+    [left, "a"],
+    [right, "b"],
+  ] as const) {
+    const excursion = outOfGamut(color, vision)
+    if (excursion) {
+      throw new Error(
+        `separationUnder(): the ${vision} projection of ${which} leaves the display gamut ` +
+          `(linear ${excursion.channel} = ${excursion.linear.toFixed(3)}), so ΔE would measure the ` +
+          `clamp rather than the colours.`,
+      )
+    }
+  }
+  return deltaE76(simulate(left, vision), simulate(right, vision))
 }
 
 /**
@@ -172,19 +262,67 @@ export type CvdPair = {
   deltaE: number
 }
 
+/** A slot whose simulation is not a colour, and therefore not comparable. */
+export type Unscorable = GamutExcursion & {
+  /** 1-based slot number, as globals.css names it. */
+  slot: number
+}
+
+export type CvdAudit = {
+  /** Scored pairs below the floor, worst-first. */
+  warnings: CvdPair[]
+  /** Slots the projection could not place inside the gamut, by vision then slot. */
+  unscorable: Unscorable[]
+  /** How many pairs were actually measured. */
+  scored: number
+  /** How many pairs could not be, because a slot in them is unscorable. */
+  skipped: number
+}
+
 /**
- * Every unordered pair of `colors`, under every dichromacy, that falls below
- * `floor`. Sorted worst-first so a failure names the tightest collision.
+ * The whole palette, audited: which pairs collide, and which could not be asked.
+ *
+ * This replaced a `cvdWarnings()` that returned only the first list. That shape
+ * is the one that misleads, and it did: it reported 20 collisions on light and 19
+ * on dark, of which 11 and 9 were tritanopia pairs whose simulations had been
+ * clamped from linear values as far out as -2.042 (see `outOfGamut`). A reader
+ * would have concluded the palette fails badly for tritanopes. The truth is
+ * narrower and more useful — it fails measurably for red-green dichromacy, and
+ * for tritanopia this simulation cannot answer at all.
+ *
+ * So both numbers come back from one call, and `scored + skipped` is the total
+ * number of pairs, which is the arithmetic that makes a silent drop impossible.
  */
-export function cvdWarnings(colors: string[], floor: number = CVD_SEPARATION_FLOOR): CvdPair[] {
-  const out: CvdPair[] = []
+export function cvdAudit(colors: string[], floor: number = CVD_SEPARATION_FLOOR): CvdAudit {
+  const warnings: CvdPair[] = []
+  const unscorable: Unscorable[] = []
+  let scored = 0
+  let skipped = 0
+
   for (const vision of VISION_TYPES) {
+    const parsed = colors.map((c, i) => {
+      const rgb = parseColor(c)
+      if (!rgb) throw new Error(`cvdAudit(): slot ${i + 1} is not a colour — ${JSON.stringify(c)}`)
+      return rgb
+    })
+    const excursions = parsed.map((rgb) => outOfGamut(rgb, vision))
+    excursions.forEach((excursion, i) => {
+      if (excursion) unscorable.push({ ...excursion, slot: i + 1 })
+    })
+
     for (let i = 0; i < colors.length; i++) {
       for (let j = i + 1; j < colors.length; j++) {
-        const deltaE = separationUnder(colors[i], colors[j], vision)
-        if (deltaE < floor) out.push({ vision, a: i + 1, b: j + 1, deltaE })
+        if (excursions[i] || excursions[j]) {
+          skipped++
+          continue
+        }
+        scored++
+        const deltaE = deltaE76(simulate(parsed[i], vision), simulate(parsed[j], vision))
+        if (deltaE < floor) warnings.push({ vision, a: i + 1, b: j + 1, deltaE })
       }
     }
   }
-  return out.sort((x, y) => x.deltaE - y.deltaE)
+
+  warnings.sort((x, y) => x.deltaE - y.deltaE)
+  return { warnings, unscorable, scored, skipped }
 }

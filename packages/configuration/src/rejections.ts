@@ -1,5 +1,6 @@
 import { layerRank, type LayerKind, type VersionedLayer } from "./layer-schema"
 import { ExpressionError, parse as parseExpression, typeOf, type TypeEnv } from "./expression"
+import { adjacencyOf, minimalCyclePaths, type Adjacency } from "./graph"
 
 /**
  * GE-031-004 — what the renderer refuses.
@@ -116,6 +117,41 @@ export interface ModuleLike {
 }
 
 /**
+ * Which modules could satisfy a dependency target — the key itself, or every
+ * provider of it.
+ *
+ * Exported because the graph compiler (`graph-snapshot.ts`) needs the same
+ * answer, and a dependency that names a CAPABILITY rather than a module key is
+ * exactly the case a second resolver would get wrong: `reimbursements` depends on
+ * `finance.ledger`, which `budgeting` provides, and a resolver that only knows
+ * keys reports a dangling reference that blocks every publication.
+ */
+export function satisfiersOf(modules: readonly ModuleLike[], target: string): string[] {
+  if (modules.some((m) => m.key === target)) return [target]
+  return modules.filter((m) => (m.provides ?? []).includes(target)).map((m) => m.key)
+}
+
+/**
+ * The module graph as edges: module → the modules it depends on.
+ *
+ * Targets nothing satisfies are OMITTED rather than added as empty nodes. They
+ * are reported separately as `invalid-reference`, and inventing a node for a
+ * module that is not in the catalogue would put a phantom into every topological
+ * order taken over these edges.
+ */
+export function dependencyAdjacency(modules: readonly ModuleLike[]): Adjacency {
+  return adjacencyOf(
+    modules.map(
+      (module) =>
+        [
+          module.key,
+          (module.dependsOn ?? []).flatMap((dependency) => satisfiersOf(modules, dependency.module)),
+        ] as const,
+    ),
+  )
+}
+
+/**
  * Cycles and missing links in the module graph.
  *
  * A cycle is not a configuration error a tenant can see: it is a catalogue
@@ -129,12 +165,7 @@ export function moduleGraphRejections(
 ): readonly Rejection[] {
   const byKey = new Map(modules.map((m) => [m.key, m]))
   const rejections: Rejection[] = []
-
-  /** Which modules could satisfy a dependency target — the key itself, or every provider of it. */
-  const satisfiers = (target: string): string[] =>
-    byKey.has(target)
-      ? [target]
-      : modules.filter((m) => (m.provides ?? []).includes(target)).map((m) => m.key)
+  const satisfiers = (target: string): string[] => satisfiersOf(modules, target)
 
   // Every dependency names something that exists — a module, or a capability
   // some module supplies.
@@ -149,33 +180,21 @@ export function moduleGraphRejections(
     }
   }
 
-  // Cycles. Reported once per cycle, from its lowest-sorting member, so one
-  // cycle does not produce one rejection per participant.
-  const state = new Map<string, "visiting" | "done">()
-  const reported = new Set<string>()
-
-  const walk = (key: string, path: string[]) => {
-    if (state.get(key) === "done") return
-    if (state.get(key) === "visiting") {
-      const start = path.indexOf(key)
-      const cycle = path.slice(start).concat(key)
-      const signature = [...new Set(cycle)].sort().join(",")
-      if (!reported.has(signature)) {
-        reported.add(signature)
-        rejections.push({
-          rule: "dependency-cycle",
-          detail: `Modules depend on each other in a cycle: ${cycle.join(" → ")}. Neither can be enabled first.`,
-        })
-      }
-      return
-    }
-    state.set(key, "visiting")
-    for (const dependency of byKey.get(key)?.dependsOn ?? []) {
-      for (const satisfier of satisfiers(dependency.module)) walk(satisfier, [...path, key])
-    }
-    state.set(key, "done")
+  // Cycles, reported once per cycle and as the MINIMAL path through it.
+  //
+  // This was twenty lines of depth-first search here and another twenty in
+  // `expression.ts`, and both answered a question Bible §11 step 6 does not ask:
+  // they reported whichever cycle the traversal order closed first, not the
+  // shortest one. Given `a → b → c → a` and also `a → c`, the depth-first answer
+  // sent an operator to look at `b`, which is not part of the smallest set of
+  // declarations that has to change. Both now delegate to `graph.ts`, so there is
+  // one detector rather than three.
+  for (const cycle of minimalCyclePaths(dependencyAdjacency(modules))) {
+    rejections.push({
+      rule: "dependency-cycle",
+      detail: `Modules depend on each other in a cycle: ${cycle}. Neither can be enabled first.`,
+    })
   }
-  for (const module of [...modules].sort((a, b) => (a.key < b.key ? -1 : 1))) walk(module.key, [])
 
   // An enabled module whose dependency is not enabled. Distinct from a missing
   // catalogue entry: the module exists, it is simply not switched on, and the

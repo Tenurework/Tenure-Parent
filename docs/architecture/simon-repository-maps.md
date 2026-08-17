@@ -38,7 +38,7 @@ checks the roll-ups add up to the file lists they came from.
 | `.github/workflows` | 18 |
 | `Tier1` | 13 |
 | `Tier1/extracted` | 11 |
-| `apps/system-studio` | 364 |
+| `apps/system-studio` | 366 |
 | `apps/web` | 494 |
 | `blueprints` | 5 |
 | `blueprints/corporate-divisions` | 1 |
@@ -77,8 +77,8 @@ checks the roll-ups add up to the file lists they came from.
 | `tests/security` | 37 |
 | `tools` | 32 |
 | `tools/dev` | 4 |
-| `tools/loop` | 53 |
-| **total** | **1523** |
+| `tools/loop` | 54 |
+| **total** | **1526** |
 
 ## Workspace and package map
 
@@ -162,7 +162,7 @@ digraph modules {
 }
 ```
 
-#### Target — 86 area edge(s) over 1204 source file(s), 723 builtin import(s), 2 unresolved relative, 0 unresolved alias
+#### Target — 85 area edge(s) over 1207 source file(s), 724 builtin import(s), 7 unresolved relative, 3 unresolved alias
 
 ```
 digraph modules {
@@ -208,16 +208,16 @@ digraph modules {
   "apps/web/src" -> "apps/web/src/lib" [label="2"]
   "apps/web/src/app" -> "apps/web" [label="1"]
   "apps/web/src/app" -> "apps/web/src/components" [label="199"]
-  "apps/web/src/app" -> "apps/web/src/lib" [label="414"]
+  "apps/web/src/app" -> "apps/web/src/lib" [label="415"]
   "apps/web/src/app" -> "modules" [label="1"]
   "apps/web/src/app" -> "packages/authorization/src" [label="4"]
   "apps/web/src/app" -> "packages/configuration/src" [label="4"]
   "apps/web/src/app" -> "packages/contracts/src" [label="6"]
-  "apps/web/src/app" -> "packages/finops/src" [label="1"]
+  "apps/web/src/app" -> "packages/finops/src" [label="2"]
   "apps/web/src/app" -> "packages/identity/src" [label="2"]
   "apps/web/src/app" -> "packages/module-runtime/src" [label="1"]
   "apps/web/src/app" -> "packages/payments/src" [label="1"]
-  "apps/web/src/app" -> "packages/platform-config/src" [label="23"]
+  "apps/web/src/app" -> "packages/platform-config/src" [label="24"]
   "apps/web/src/components" -> "apps/web/src/app" [label="7"]
   "apps/web/src/components" -> "apps/web/src/lib" [label="16"]
   "apps/web/src/components" -> "packages/platform-config/src" [label="5"]
@@ -232,7 +232,6 @@ digraph modules {
   "apps/web/src/lib" -> "packages/authorization/src" [label="12"]
   "apps/web/src/lib" -> "packages/configuration/src" [label="3"]
   "apps/web/src/lib" -> "packages/contracts/src" [label="14"]
-  "apps/web/src/lib" -> "packages/finops/src" [label="1"]
   "apps/web/src/lib" -> "packages/identity/src" [label="5"]
   "apps/web/src/lib" -> "packages/metadata/src" [label="2"]
   "apps/web/src/lib" -> "packages/organization-model/src" [label="1"]

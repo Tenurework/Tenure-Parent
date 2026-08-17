@@ -12,6 +12,17 @@ all. They were not queued, not counted and not failing; they were invisible, and
 invisible reads exactly like done. `tests/architecture/document-graph.test.mjs`
 ratchets that number downward and it may only shrink.
 
+**Regeneration owed, 2026-08-17.** Five rows below were moved to `- [x]` / `Status: PASS` this
+run (`WRK-010-003`, `WRK-020-001`, `WRK-020-005`, `WRK-030-005`, `WRK-070-003`).
+`docs/architecture/capability-completeness-registry.yaml` is GENERATED and is stale —
+`node tools/document-graph.mjs --check` exited 1 **before** this run touched anything — so
+`tests/architecture/a-ticked-box-is-a-passing-requirement.test.mjs` reports those five ticks
+against a registry that still says FAIL. It reports 28 such ticks in total across nine ledgers,
+23 of them from other domains running concurrently, so this is a wave-wide regeneration step and
+not a WRK defect. Run `node tools/document-graph.mjs` once, after the wave, and the assertion goes
+green with no ledger edit. Regenerating mid-wave would bake in eleven agents' half-finished state,
+which is why it was not done here.
+
 Statuses: `PASS` · `FAIL` · `BLOCKED_EXTERNAL` · `NOT_APPLICABLE`. There is no
 `PARTIAL` and no `BLOCKED_ARCHITECTURE` — `tools/loop/next-batch.mjs` decides on
 `PASS`, `BLOCKED_EXTERNAL` and `NOT_APPLICABLE` only, so any other word reads as
@@ -168,7 +179,78 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **WRK-010-003** — Implement `REFERENCE_ONLY`, `SEARCH_PROJECTION`, and `GOVERNED_REPLICA` policies.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Overturned on review: Every claimed mutation reproduced exactly (memory mode 2 failed; retainedBody 3 failed; residencyCeiling 9 failed; the chat/route.ts wiring 3 failed/75 passed naming `never sends a REFERENCE_ONLY body`), and the code is real, reached from /api/ai/chat and /search, and fails closed. It still closes only two of the three policies the requirement's own sentence names. Bible sec 3.4 defines GOVERNED_REPLICA as "approved source content/version is RETAINED for a defined business, legal, offline, migration, or continuity purpose". In the shipped code GOVERNED_REPLICA is an enum member, a sentinel meaning "no residency cap" returned by residencyCeiling, and a fall-through `case` in modelSourceFor that returns byte-for-byte what SEARCH_PROJECTION returns. `grep -rn GOVERNED_REPLICA apps packages` (13 hits, all read) shows no kind maps to it, no doc can ever carry it (capAt takes min(MODE_BY_KIND, ceiling) and MODE_BY_KIND's maximum is SEARCH_PROJECTION), and nothing retains, expires or states a purpose for anything. There is no mutation of the GOVERNED_REPLICA arm that could change production behaviour, because it is unreachable in production. That is the case CLAUDE.md names verbatim: "Do not call an interface implemented when it is only declared." The claim concedes the absence honestly and argues it is justified by there being nothing to retain — but an honestly-stated absence of one of three named policies is a partial closure, which is FAIL not PASS. To close: give GOVERNED_REPLICA behaviour distinct from SEARCH_PROJECTION (a retention purpose plus expiry on the projection, or a kind that maps to it), or record the row as covering REFERENCE_ONLY and SEARCH_PROJECTION with GOVERNED_REPLICA outstanding.
+  - **Why this row exists at all.** The code was already in the tree and this ledger said
+    `not yet implemented`. `apps/web/src/lib/relay/projection-policy.ts` landed in commit
+    `f589596` ("STUDIO, WRK and TTES land") and no row was ever written for it, so the
+    registry read FAIL over working, wired, tested code — the same loss the ledger's own
+    header warns about from the other direction. This run verified it against the
+    requirement's sentence, re-proved it by mutation, and recorded it. Nothing about the
+    production behaviour changed.
+  - Code: `apps/web/src/lib/relay/projection-policy.ts` — `PROJECTION_MODES`
+    (`REFERENCE_ONLY` / `SEARCH_PROJECTION` / `GOVERNED_REPLICA`, ordered by increasing
+    retention), `MODE_BY_KIND` as an exhaustive `Record<ProjectedKind, ProjectionMode>` (so a
+    sixth source kind is a compile error rather than an unstated policy), `projectionModeFor`,
+    `projectionModeOf` (fails closed to `REFERENCE_ONLY` at a runtime boundary),
+    `retainedBody`, `residencyCeiling`, `effectiveModeFor`, `modelSourceFor`,
+    `REFERENCE_ONLY_NOTE` and `stateWithheldNote`.
+  - The requirement's three names all mean something. `memory` — the only kind whose body is a
+    person's own words rather than a description of a thing — is `REFERENCE_ONLY`, and
+    `retainedBody` drops its text before it enters the corpus at all, so it is absent from
+    ranking, from `/api/search` snippets and from the model prompt without any of the three
+    knowing the rule. The four description-shaped kinds are `SEARCH_PROJECTION`.
+    `GOVERNED_REPLICA` is declared, handled, and mapped to by NO kind, with the reason written
+    out in the module: nothing in this corpus retains anything, `loadSearchCorpus` reads live
+    rows per request, and the mode is kept because it is one of the three names §3.4 fixes.
+    That is a stated absence, not an unstated one.
+  - Callers, at both ends, because a policy decided once is a policy a second assembler can
+    forget: `apps/web/src/lib/search-data.ts` stamps `mode` on every `SearchDoc` and calls
+    `retainedBody` where the doc is built; `apps/web/src/app/api/ai/chat/route.ts:355` and
+    `:541` re-decide it at the vendor boundary through `effectiveModeFor` / `modelSourceFor`;
+    `synthesizeAnswer` in `apps/web/src/lib/ai.ts:326` does the same for `/search`'s answer.
+  - Tests: `apps/web/src/lib/relay/projection-policy.test.ts` 18/18,
+    `apps/web/src/lib/search.test.ts` 38/38 (the corpus loader),
+    `apps/web/src/app/api/ai/chat/relay-prompt-safety.test.ts` 21/21 (the route),
+    `apps/web/src/app/api/search/search-lifecycle.test.ts` 5/5,
+    `apps/web/src/app/api/ai/ai-kill-switch.test.ts` 42/42,
+    `apps/web/src/lib/relay/ai-surface-fencing.test.ts` 5/5.
+  - Mutations (4 applied, 4 caught, all restored; the producer mutated, never a test fixture):
+    1. `MODE_BY_KIND.memory` `"REFERENCE_ONLY"` → `"SEARCH_PROJECTION"` — a literal value, so no
+       other token can absorb it. **2 failed / 142 passed**: `projectionModeFor defaults to the
+       least-retentive mode that works › keeps memory-card text out of the projection entirely`
+       AND `loadSearchCorpus stamps a §3.4 projection mode on every doc › drops a memory card's
+       body from the corpus entirely` — the primitive and the real corpus loader. Restored,
+       144/144.
+    2. `retainedBody` body `return projectionModeOf(mode) === "REFERENCE_ONLY" ? "" : body` →
+       `return body`. **3 failed / 141 passed**: `retainedBody decides what enters the corpus ›
+       drops the body of a REFERENCE_ONLY row`, the corpus-loader case, and `the corpus projects
+       at the residency the cell is running in › keeps every body out of the corpus from a
+       partition the vendor is not in`. Restored, 144/144.
+    3. `residencyCeiling` collapsed to `return "GOVERNED_REPLICA"`. **9 failed / 135 passed**,
+       including `refuses a residency whose region and partition contradict each other` and
+       `modelSourceFor decides what crosses the vendor boundary › withholds a projected body
+       from a cell whose partition cannot reach the vendor`. Restored, 144/144.
+    4. **The wiring, at the production door.** In `apps/web/src/app/api/ai/chat/route.ts`,
+       `scored.map((doc) => modelSourceFor(doc, residency))` → `scored.map((doc) => ({ heading:
+       doc.title, body: doc.body }))` — correct policy, zero effect. **3 failed / 75 passed**:
+       `projection mode decides how much of a source crosses the boundary › never sends a
+       REFERENCE_ONLY body, even when the corpus hands one over`, `› still cites the
+       REFERENCE_ONLY source by title and link`, and `a source's state decides whether an answer
+       may rest on it › does answer from a stale source, and labels it in the prompt and the
+       response`. This is the mutation that proves the policy is reached from `/api/ai/chat`
+       rather than only from its own test file. Restored, 78/78.
+  - Evidence: `npx jest --ci --silent src/lib/relay src/lib/connections src/lib/search.test.ts
+    src/lib/calendar-sync.test.ts src/app/api/ai src/app/api/search src/app/api/calendar
+    src/lib/relay-tools.test.ts` from `apps/web` — `Tests: 354 passed, 354 total`,
+    `Test Suites: 20 passed`, 6.2 s (17.3 s on the final re-run, cold). `npx tsc --noEmit` in
+    `apps/web` — **0 errors** on the closing run. Mid-run it reported 6, all in
+    `packages/configuration/src/graph-snapshot.test.ts` and `graph.test.ts` and all owned by a
+    concurrent run that fixed them, plus two transient `TS6053 File … not found` for
+    `src/lib/connections/mutation-probe.ts` and `src/lib/finance-probe-9042.ts` — another domain's
+    mutation probes, caught mid-flight by `include: **/*.ts`. None in any file this run touched.
+  - Not claimed: the residency half is WRK-070-001's, which stays FAIL. `residencyCeiling` caps
+    a projection at what the cell's partition can reach, which is one clause of it; the
+    AWS-hosted governed content pipeline is not built.
 
 - [ ] **WRK-010-004** — Implement external identity linking without email-only or ambiguous automatic merges.
   - Status: FAIL
@@ -176,7 +258,28 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **WRK-010-005** — Implement graph state, freshness, deletion, access loss, quarantine, conflict, and reconciliation.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - **Considered for closure this run and refused: six of the seven.**
+    `apps/web/src/lib/relay/projection-state.ts` implements §3.5's ladder — six normal states
+    (`DISCOVERED → AUTHORIZED → FETCH_PENDING → CURRENT → STALE → REFRESHING`) and ten exceptional
+    ones, verbatim and in the Bible's own order — with `advance(state, event)` as a TABLE rather
+    than a chain of `if`s, so every pair not in it is a refusal that says why instead of a shrug
+    that returns the current state. `TERMINAL_PROJECTION_STATES` (`ACCESS_REVOKED`,
+    `SOURCE_DELETED`, `RETENTION_EXPIRED`) accept no event at all, and a recoverable exceptional
+    state re-enters at `FETCH_PENDING`, never at `CURRENT`, because "we fixed the mapping" is not
+    "we have the content". `bodyMayBeQuoted` is the rule applied at the one boundary that matters.
+    Six of the seven nouns are covered: state, freshness (`STALE`/`REFRESHING`), deletion
+    (`SOURCE_DELETED`), access loss (`ACCESS_REVOKED`), quarantine (`QUARANTINED`), conflict
+    (`MAPPING_CONFLICT`). Its caller is `projectTenureRecord` in `apps/web/src/lib/relay/
+    citation.ts`, which walks the ladder for every row `loadSearchCorpus` returns;
+    `apps/web/src/lib/relay/projection-state.test.ts` and `citation.test.ts` are green.
+  - **Reconciliation is the seventh and it does not exist.** Nothing detects that a projection
+    disagrees with its source, nothing owns the exception, and nothing drives a
+    `MAPPING_CONFLICT` back to `FETCH_PENDING` — there is no connector, no cursor and no external
+    ACL for a reconciler to compare against. `advance`'s `REQUEST_FETCH`-from-exceptional arm is the
+    TRANSITION a reconciler would use, not a reconciler. WRK-060-004 is the item that owns it and it
+    is also FAIL.
+  - Also not claimed: the file's own header cites WRK-010-001, and WRK-010-001 asks for twenty-odd
+    canonical objects of which this is one. That row stays FAIL too.
 
 - [ ] **WRK-010-006** — Prove graph/API/store/cache/search isolation under adversarial external IDs.
   - Status: FAIL
@@ -184,11 +287,102 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **WRK-020-001** — Implement every connection class and prohibit class escalation.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Overturned on review: All three claimed mutations reproduced (WEBHOOK_ONLY maxRisk READ->PRIVILEGED: 7 failed incl. `is decided before the surface's ceiling` with Expected CONNECTION_CLASS_EXCEEDED / Received SURFACE_IS_READ_ONLY; `if (grantedClass)` -> `if (false && grantedClass)`: 4 failed including two /api/ai/chat route tests, so the gate is genuinely reachable from the route; PERSONAL_PRODUCTIVITY tenantWide false->true: 2 failed). leastClassFor's ordering is also correct on hand-trace. But the requirement is "implement EVERY connection class", and one of the eight is unguarded. I mutated each class's ceiling one at a time: USER_DELEGATED DELETE->PRIVILEGED 2 failed, BOT_OR_APP_INSTALLATION EXTERNAL_SHARE->DELETE 1 failed, SERVICE_ACCOUNT BULK->EXTERNAL_SHARE 5 failed, APPLICATION_ORG_WIDE DELETE->BULK 5 failed — and FILE_OR_FEED SURVIVES TWICE: BULK->DELETE and BULK->EXTERNAL_SHARE both leave `npx jest src/lib/relay src/lib/relay-tools.test.ts src/app/api/ai` at 232 passed / 232 total, no failures. Nothing anywhere asserts FILE_OR_FEED's authority, so its declared ceiling can be silently raised to DELETE — an SFTP/object-store/ICS/EDI feed authorised to delete records — with the whole suite green. That is the class whose `because` names the one feed this platform actually ships (ICS), and it is the one class whose ClassAuthority is decoration rather than a proved constraint. Also noted, not the basis of the verdict: RELAY_CAPABILITY_OFFERS has exactly one entry, so seven classes are attached to no capability; and `isConnectionClass` is exported but has no production caller. To close: assert FILE_OR_FEED's ceiling (and ideally each of the eight) in connection-class.test.ts.
+  - **Why this row exists at all.** As with WRK-010-003: the implementation landed in commit
+    `f589596` and no ledger row was written, so the registry recorded FAIL over shipped, wired,
+    tested code. Verified against the sentence, re-proved by mutation, recorded. No production
+    behaviour changed by this run.
+  - Code, both halves the requirement names:
+    * **every class** — `CONNECTION_CLASSES` in `packages/platform-config/src/provider-review.ts`
+      declares §4.1's eight (`USER_DELEGATED`, `ADMIN_DELEGATED`, `APPLICATION_ORG_WIDE`,
+      `BOT_OR_APP_INSTALLATION`, `SERVICE_ACCOUNT`, `WEBHOOK_ONLY`, `FILE_OR_FEED`,
+      `PERSONAL_PRODUCTIVITY`), and `apps/web/src/lib/relay/connection-class.ts` gives each one a
+      `ClassAuthority` — `maxRisk`, `tenantWide`, and a `because` that is shown in the refusal
+      rather than kept for review. `CLASS_AUTHORITY` is a `Record<ConnectionClass, …>`, so a
+      ninth class is a compile error here instead of a class silently inheriting somebody
+      else's authority.
+    * **prohibit escalation** — `refuseEscalation(granted, requested)` returns an
+      `EscalationVerdict`, never a boolean: on refusal it names the granted class, the requested
+      risk, the ceiling, and `leastClassFor(requested)` — the narrowest class that COULD carry
+      it, because the way out is an administrator changing a grant and "you may not" does not
+      tell them to what. `PERSONAL_PRODUCTIVITY` carries `tenantWide: false` and is refused
+      outright on this path, which is §4.1's "prohibited from tenant-wide use" rather than a
+      narrower ceiling.
+  - One ordering, not two: `RISK_ORDER` lives in `connection-class.ts` and `relay-tools.ts:191`
+    imports it back for `riskExceeds`. The type import in the other direction is `import type`
+    and is erased, so the runtime graph runs one way.
+  - Caller, on the path that actually runs: `authorizeRegistrations` in
+    `apps/web/src/lib/relay-tools.ts:402-425` consults `classOf(tool.module)` — defaulting to the
+    shipped `connectionClassFor` — for every registration on every `/api/ai/chat` request, as
+    **gate 0**, ahead of the surface's own read-only ceiling and ahead of any permission read. The
+    order is deliberate and is asserted: "this connection may never do that, anywhere" outranks
+    "not from this route". A refusal emits `remedy: { kind: "CONNECTION_CLASS_EXCEEDED",
+    grantedClass, requestedRisk, requiredClass }`, which the route returns.
+  - `classOf` returning `null` is deliberately NOT a refusal: a module no external connection
+    serves is answered from Tenure's own store under Tenure authorization alone, and refusing it
+    would break every first-party tool.
+  - Tests: `apps/web/src/lib/relay/connection-class.test.ts` 12/12,
+    `apps/web/src/lib/relay-tools.test.ts` 56/56 (the door),
+    `apps/web/src/app/api/ai/ai-kill-switch.test.ts` 42/42 (the route).
+  - Mutations (3 applied, 3 caught, all restored):
+    1. `CLASS_AUTHORITY.WEBHOOK_ONLY.maxRisk` `"READ"` → `"PRIVILEGED"`. **6 failed / 62 passed**
+       across BOTH suites, including `is decided before the surface's ceiling, because it is the
+       wider statement` failing with `Expected: "CONNECTION_CLASS_EXCEEDED" / Received:
+       "SURFACE_IS_READ_ONLY"` — which is the gate-ordering property, not just the ceiling.
+       Restored, 68/68.
+    2. **The wiring.** `if (grantedClass) {` → `if (false && grantedClass) {` in
+       `relay-tools.ts` — correct rule, zero effect. **4 failed / 94 passed**, and the failures
+       include `apps/web/src/app/api/ai/ai-kill-switch.test.ts:1172`, a ROUTE test asserting
+       `body.relayTools.refused[0].remedy` matches `{ kind: "CONNECTION_CLASS_EXCEEDED", … }`.
+       That is the proof the class gate is reachable from `/api/ai/chat`. Restored, 98/98.
+    3. `CLASS_AUTHORITY.PERSONAL_PRODUCTIVITY.tenantWide` `false` → `true`. **1 failed / 67
+       passed**: `refuses a personal connection every risk class, because it is not tenant-wide`.
+       A localised mutation producing a localised failure. Restored, 68/68.
+  - Evidence: `npx jest --ci src/lib/relay/connection-class.test.ts src/lib/relay-tools.test.ts`
+    and `npx jest --ci src/lib/relay-tools.test.ts src/app/api/ai/ai-kill-switch.test.ts` from
+    `apps/web`. Whole targeted set after restoring everything: `Tests: 354 passed, 354 total`.
+  - Not claimed: WRK-GATE-020 as a whole. A class is one of the five authorities that gate names
+    (identity, resource, direction, purpose, tenant); direction is `GRANT_IS_READ_ONLY` and
+    resource is `RESOURCE_NOT_SELECTED` in the same file, and `purpose` has its own item.
 
 - [ ] **WRK-020-002** — Implement versioned include/exclude resource selectors and impact diffs.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - **Considered for closure this run and refused.** The vocabulary exists and is good:
+    `packages/provisioning/src/resource-selector.ts` declares `ResourcePattern`
+    (`container`/`object`, `externalId`, `recursive`), `ResourceSelector` (`version`, `include`,
+    `exclude`), `patternMatches`, `selectorSelects` with EXCLUDE-ALWAYS-WINS stated in exactly one
+    place, `selectorDiff` returning `{added, removed, unchanged}`, and `selectorProblems` with five
+    reasons — `include-empty` (a value two readers resolve differently is not a value),
+    `exclude-matches-nothing` (a rule that reads on a review screen as protection which does not
+    exist), `version-not-increased`, `version-invalid`, `pattern-empty`. The dead-rule check is
+    computed THROUGH `selectorDiff`, so the gate and the impact preview cannot disagree.
+  - Why it is still FAIL — three facts, each re-derived this run rather than assumed:
+    1. **Nothing declares a selector.** `ConnectorEntry.selector` is optional and
+       `grep -rn "selector:" packages/provisioning/src/provider-packs.ts
+       packages/provisioning/src/catalogs.ts packages/platform-config/src blueprints modules
+       apps/system-studio/src`, excluding `.test.`, returns NOTHING. All 24 provider packs and the
+       one shipped connector declare none, so `isUsable`'s
+       `if (entry.selector && selectorProblems(entry.selector).length > 0)` at `catalogs.ts:829`
+       has never fired outside its own test. A validator with a caller and no data is not a
+       shipped selector.
+    2. **No impact diff is ever shown to anybody.** `grep -rn "selectorDiff("` across `apps`,
+       `packages`, `blueprints` and `modules`, excluding tests, returns two hits and both are
+       inside `resource-selector.ts` itself. No surface in `apps/system-studio` or `apps/web`
+       renders `added`/`removed` before a Save, which is the half the requirement's own sentence
+       exists for ("if I remove this folder, which citations stop being reachable").
+    3. **The request path enforces a different thing.** `invokeRelayTool`'s
+       `limits.selectedResources` (`relay-tools.ts:1059`, `RESOURCE_NOT_SELECTED`) is a flat
+       `readonly string[]`, with `apps/web/src/app/api/ai/chat/route.ts:320` passing `[]`. It is a
+       real gate and it is proven, but it carries no version, no exclude list and no container
+       recursion, so the door and the catalog model two different selectors.
+  - What would close it, in order: put a `ResourceSelector` on the one connectable capability that
+    has resources to point at, render `selectorDiff` on the surface that changes it, and replace
+    `selectedResources: readonly string[]` on `RelayLimits` with the versioned selector so the
+    door and the catalog agree. None of that needs a schema change if the selection is carried on
+    the manifest; persisting a tenant's live selection does.
+  - Tests that exist today: `packages/provisioning/src/resource-selector.test.ts` and the selector
+    cases in `packages/provisioning/src/catalogs.test.ts`. Not mutation-proved here, because a
+    PASS was not claimed.
 
 - [ ] **WRK-020-003** — Implement personal versus organization ownership, owner succession, and orphan recovery.
   - Status: FAIL
@@ -276,9 +470,89 @@ the commands or the ADR that would unblock it — if it cannot.
     (`finance/actions.ts` exports, `UnscopedReason`, audit `mode`; all owned by concurrent runs).
     `npx tsc --noEmit` in `apps/system-studio` — 0 errors.
 
-- [ ] **WRK-020-005** — Require new approval/consent for meaningful selector or scope expansion.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **WRK-020-005** — Require new approval/consent for meaningful selector or scope expansion.
+  - Status: PASS
+  - The expansion it closes: the ICS calendar feed is the one grant this platform issues — a
+    signed URL a student pastes into Outlook, which then polls it forever. The route calls
+    `loadScopedEvents` FRESHLY on every poll, so before this the set of events a third party
+    received was whatever the holder could see TODAY. Joining a second club, or being seated in a
+    second organization, began publishing those events to whoever held the URL with no audit row,
+    no notification, and a 200 the calendar client swallows as an ordinary poll.
+  - Code: `apps/web/src/lib/connections/selector-consent.ts` — `CalendarSelector`
+    (`institutionId`, `organizationIds`, `institutionWide`), `selectorDigest` (sha256 over the
+    sorted, de-duplicated selector, institution INCLUDED because moving a feed to another tenant
+    is the widest expansion there is), `consentVerdict` returning
+    `UNCHANGED | NARROWED | EXPANDED` plus the added and removed organization ids, and
+    `consentedIntersection`, which is never wider than the consent AND never wider than current
+    access. `institutionWide` is part of the selector rather than a detail beside it: gaining an
+    OSE seat is the largest expansion available here and a digest over club ids alone would call
+    it UNCHANGED.
+  - Callers, all three: `apps/web/src/lib/calendar-sync.ts:176` puts the digest INSIDE the token's
+    MAC and `:263` recomputes it on every verification; `apps/web/src/app/(app)/calendar/page.tsx`
+    mints with the holder's live selector and shows the consented digest as the receipt;
+    `apps/web/src/app/api/calendar/ics/[token]/route.ts:88-131` compares the pinned digest against
+    the live scope on every poll, serves `consentedIntersection` on `EXPANDED`, and tells the
+    calendar client why — a description every client renders, plus an RFC 8288
+    `link: </calendar>; rel="related"` pointing at the page that re-issues the URL.
+  - Serving the intersection rather than refusing is a decision, not a softening: a subscriber
+    whose feed went empty because they joined a club would file a bug, and the safe answer is to
+    keep giving them exactly what they agreed to while telling them a wider link exists.
+  - **What this run added, because two claims did not hold up.**
+    1. `apps/web/src/app/api/calendar/ics/[token]/consent-route.test.ts` (NEW, 9 tests) — the
+       route's use of the comparison had NO test anywhere. `selector-consent.test.ts`'s header
+       said "the behavioural proof runs against real Postgres through the ICS route
+       (`selector-consent.itest.ts`)" and that file has never existed:
+       `find apps/web/src -name '*selector-consent*'` returns the module and its unit test only,
+       and `calendar-token.itest.ts` — the one itest touching this route — contains no occurrence
+       of `consent`, `EXPANDED` or `intersection`. The new suite drives `GET` with the three
+       `@/lib/calendar-data` reads and `withTenantScope` mocked, and the token minted and verified
+       for real, and asserts WHICH selector `loadScopedEvents` is narrowed to. The header has been
+       corrected in place rather than left claiming a proof that does not exist.
+    2. `apps/web/src/lib/connections/selector-consent.test.ts` (+1 test) — the digest/selector
+       cross-check inside `verifyCalendarToken` was unreachable by every existing assertion.
+       The pre-existing "widened their own consent by editing the URL" case is caught by the MAC,
+       so deleting the cross-check left all 34 tests green (mutation M3 below). The new case forges
+       a token whose MAC is GENUINE and whose digest and selector describe two different grants —
+       the shape a MINTING bug produces — with an honest control alongside proving the forge is
+       otherwise valid.
+  - Tests: `apps/web/src/lib/connections/selector-consent.test.ts` 12/12,
+    `apps/web/src/app/api/calendar/ics/[token]/consent-route.test.ts` 9/9,
+    `apps/web/src/lib/calendar-sync.test.ts` 14/14.
+  - Mutations (6 applied, 6 caught after the gap was closed, all restored):
+    1. `consentVerdict`: `if (addedOrganizationIds.length > 0 || gainedInstitutionWide)` →
+       `if (addedOrganizationIds.length > 0)`. **1 failed / 24 passed**: `is EXPANDED when the
+       holder gains institution-wide access`. Restored, 25/25.
+    2. `selectorDigest`: `institutionWide: selector.institutionWide` → `institutionWide: false`.
+       **1 failed / 24 passed**: `changes when the institution, the clubs or institution-wide
+       access change`. Restored.
+    3. `calendar-sync.ts`: `if (selectorDigest(selector) !== digest) return null` →
+       `if (false) return null`. **FIRST RUN: NOT CAUGHT — 25 passed, 0 failed.** That is the gap
+       above, and it is recorded rather than quietly fixed. After adding the forged-but-signed
+       case: **1 failed / 34 passed**, naming `refuses a validly-signed token whose digest and
+       selector describe two different grants`. Restored, 35/35.
+    4. **The route wiring.** `const consented = verdict.outcome === "EXPANDED" ?
+       consentedIntersection(claims.selector, live) : undefined` → `const consented = undefined`,
+       which is the silent-expansion defect verbatim. **3 failed / 6 passed**: `serves the
+       intersection, not what they can see today`, `does not hand over institution-wide events to
+       a URL that predates the seat`, `treats a moved institution as an expansion`. Restored, 9/9.
+    5. The route again: `: consentVerdict(claims.selector, live)` → `: { outcome: "UNCHANGED" as
+       const }` — the comparison bypassed while the digest check stays. **4 failed / 5 passed**,
+       adding `tells the calendar client why, and where to get a wider link`. Restored, 9/9.
+    6. `consentedIntersection`: `institutionWide: pinned.institutionWide && current.institutionWide`
+       → `institutionWide: current.institutionWide`. **2 failed / 18 passed**, one at the ROUTE
+       (`does not hand over institution-wide events to a URL that predates the seat`) and one at
+       the primitive. Restored, 20/20.
+  - Evidence: `npx jest --ci src/lib/connections/selector-consent.test.ts
+    src/lib/calendar-sync.test.ts "src/app/api/calendar"` from `apps/web` — 35/35.
+    `npx eslint` on the three files this entry touches — no output.
+    `npx tsc --noEmit` in `apps/web` — 0 errors in any of them.
+  - Still owed, and NOT claimed: a Postgres integration test asserting the consented selector
+    reaches the QUERY. `consentClause` in `apps/web/src/lib/calendar-data.ts` applies the narrowing
+    as a predicate rather than as a post-filter — deliberately, because a club the viewer is not a
+    member of contributes events through the institution-published branch — and this run could not
+    run Postgres (`docker ps` fails: the daemon is not running on this machine). The route-level
+    test above proves the route DECIDES to narrow and with which selector; it does not prove the
+    SQL. That is the honest boundary of this PASS and the itest is the next thing to write.
 
 - [x] **WRK-030-001** — Implement capability-resolution outcomes without leaking hidden connections/resources.
   - Status: PASS
@@ -306,7 +580,34 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **WRK-030-002** — Implement `ConnectionOpportunity`, `PendingActionIntent`, and single-use `ConnectionLaunchToken`.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Two of the three exist and one of the two has a producer. `apps/web/src/lib/connections/
+    pending-intent.ts` declares `ConnectionOpportunity` and mints a `ConnectionLaunchToken` over
+    the `ConnectionLaunchToken` Prisma model (`apps/web/prisma/schema.prisma:1654`, already in the
+    schema — no migration needed for anything below). The single-use property is stated correctly:
+    the `consumedAt` write IS the claim, `updateMany({ where: { id, consumedAt: null } })`, so two
+    concurrent redemptions cannot both succeed, and the tenant/user/expiry refusals all return
+    BEFORE the claim so a leaked token cannot be used to destroy the opportunity it cannot open.
+  - What this run added: `apps/web/src/lib/connections/pending-intent.test.ts` (NEW, 16 tests).
+    The module had no test of any kind. See WRK-030-006 for the seven cases and their mutations.
+  - Why still FAIL — three, each checked this run:
+    1. **`redeemConnectionLaunchToken` has no production caller.**
+       `grep -rn "pending-intent" apps/web/src` returns one importer,
+       `apps/web/src/app/api/connections/opportunity/route.ts:4`, and it imports
+       `openConnectionOpportunity` only. So an opportunity can be opened and nothing in this
+       application can redeem one: the round trip §5.3 exists to survive still ends nowhere. The
+       module's own doc block says so, which is why this is a recorded gap rather than a discovery.
+    2. **`PendingActionIntent` does not exist.** `grep -rn PendingActionIntent` across `apps`,
+       `packages` and `modules` returns nothing. `pendingIntent` on the token row is a person's
+       QUESTION carried across a sign-in; §5.2's `PendingActionIntent` is a proposed ACTION held
+       for authority it does not yet have, which is a different object with a different lifetime
+       and a different approval story.
+    3. **Five of §5.2's thirteen facts are written and eight are not.** The module states which and
+       why — `providerId`/`connectorVersion`/`certificationStatus` (no certified connector exists),
+       `requestedScopes`/`selectorHint`/`resourceHint` (no flow negotiates them),
+       `residencyClass`/`dataClass` (nothing is classified). Those are honest absences; they are
+       still absences.
+  - Next: a redemption surface. It needs no schema change — the columns are there — and it is what
+    turns `openConnectionOpportunity` from a write into a journey.
 
 - [ ] **WRK-030-003** — Implement Tenure sign-in/sign-up interruption and exact safe task resumption.
   - Status: FAIL
@@ -314,15 +615,156 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **WRK-030-004** — Implement user connect, scope upgrade, resource selection, reauth, ask-admin, provider-sign-up, request-integration, alternative-source, and unavailable paths.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - **Considered for closure this run and refused: six of the nine.**
+    `apps/web/src/lib/connections/capability-resolution.ts` implements `resolveCapability`, which
+    emits `CONNECTED | NEEDS_USER_CONNECT | NEEDS_ADMIN | NEEDS_SCOPE_UPGRADE | NEEDS_REAUTH |
+    NOT_CERTIFIED | UNAVAILABLE`, one §13.3 `statusWord` per outcome through an exhaustive
+    `Record`, and an `alternative` on every non-working outcome. Each of the six has a PRODUCER —
+    `apps/web/src/app/(app)/settings/page.tsx` and `apps/web/src/components/ai/TenureAIPanel.tsx` —
+    and `apps/web/src/lib/connections/capability-resolution.test.ts` is 17/17.
+  - Three are deliberately absent and the module names its own reasons, which this run checked:
+    * **provider-sign-up** and **request-integration** need a certified third-party provider to
+      sign up with or request, and `packages/provisioning/src/provider-packs.ts` records all 24 at
+      `PLANNED` with the one shipped connector uncertified. An outcome with no producer compiles,
+      appears in the vocabulary, and never fires — which is worse than a gap because every reader
+      assumes something emits it.
+    * **resource-selection** needs a capability that is connected AND has resources to point at.
+      The only selectable-resource surface is the ICS feed, and it is `configured: false` for every
+      account because the URL is stateless and Tenure holds no record that anybody subscribed. It
+      becomes producible when the consent receipt WRK-020-005 pins is read back here.
+  - So the honest ratio is 6/9 and the row stays FAIL. It is not mutation-proved here because no
+    PASS was claimed; the certification half of the same file IS proved, under WRK-030-005.
 
 - [ ] **WRK-030-005** — Ensure uncertified capabilities never produce a working-looking OAuth button.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Overturned on review: All three claimed mutations reproduced: the JSX literal `certified: true` back on settings/page.tsx reds the lexical guard 2 pass / 1 fail naming the file and the line text; `if (!state.certified)` -> `if (false && ...)` gives 3 failed / 14 passed with the first failure Expected NOT_CERTIFIED / Received NEEDS_USER_CONNECT; RELAY_ANTHROPIC_REVIEW.state NOT_SUBMITTED -> APPROVED gives 5 failed / 129 passed including `records honestly that nobody has reviewed the shipped connector`. I also traced the render chain and it is real (resolveCapability refuses first with action kind "none"; ConnectionActionControl returns null for kind "none"; no other .tsx in apps/web or apps/system-studio renders a connect control). What refutes it is a fourth branch of the producer that nothing asserts. certifiedCapabilityState's own comment states the rule — "A key in NEITHER list resolves to `certified: false`. Fail closed: a capability nobody has classified is one nobody has certified" — and inverting exactly that, `return { key, certified: FIRST_PARTY.includes(key) }` -> `return { key, certified: true }`, leaves `npx jest src/lib/connections src/app/api/ai` at 134 passed / 134 total with zero failures. capability-resolution.test.ts contains no occurrence of `certifiedCapabilityState` or `FIRST_PARTY` at all: the derivation function the whole row rests on has no unit test, only the resolver that consumes its output. The practical consequence is the requirement's own sentence: the next capability key added (a new provider, or a typo in an existing one) would default to certified and grow a working-looking Connect button for something /api/ai/chat will refuse, and the suite would stay green — which is the defect the row opened on, one layer down. The lexical guard does not cover it either; it only forbids a `certified:` literal in .tsx. To close: assert both defaults of certifiedCapabilityState — FIRST_PARTY membership true, an unclassified key false.
+  - **Why this row exists at all.** Same as WRK-010-003 and WRK-020-001: shipped in `f589596`,
+    never recorded. Verified, re-proved by mutation, recorded.
+  - The defect it closed: `resolveCapability` already refused a connect action when `certified` was
+    false, and NOTHING DERIVED `certified`. The literal `certified: true` sat at four call sites —
+    three in `apps/web/src/app/(app)/settings/page.tsx`, one in
+    `apps/web/src/components/ai/TenureAIPanel.tsx` — and for `ai.model` it was FALSE.
+    `RELAY_ANTHROPIC_REVIEW.state` is `NOT_SUBMITTED` and `/api/ai/chat` refuses every vendor call
+    because of it, so the Connection Center said "connected and working" about a capability the
+    request path will not call. That is a working-looking control over an uncertified capability,
+    written by the surface about itself.
+  - Code, three parts:
+    * `certifiedCapabilityState(key, at)` in `apps/web/src/lib/connections/capability-resolution.ts`
+      returns `{ key, certified }` as a FRAGMENT to spread, so a call site writes
+      `...certifiedCapabilityState("ai.model")` and cannot pair one capability's key with
+      another's verdict. `certified` comes from `providerActivation(scopes, review, at)` — the same
+      function `/api/ai/chat` calls, from the same client-safe entry point — or, for a capability
+      with no provider at all, from membership of `FIRST_PARTY`.
+    * `resolveCapability` refuses **first and unconditionally** on `!state.certified`:
+      `outcome: "NOT_CERTIFIED"`, `action: { kind: "none", label: "" }`, `statusWord: "Not
+      available yet"`, and an explanation that says "Nothing you do here will enable it." No
+      connect control is produced regardless of who is asking or how it is configured.
+    * `at` is a parameter, not `Date.now()`, because "was this activated when we shipped it" is a
+      question an audit asks and a gate that reads the clock cannot answer it.
+  - Callers: `apps/web/src/app/(app)/settings/page.tsx:98,126,144,200` (four capabilities) and
+    `apps/web/src/components/ai/TenureAIPanel.tsx:390`. Those are the only two shipped surfaces
+    that render a capability.
+  - The guard that keeps it closed, and why it is LEXICAL:
+    `tests/architecture/certified-is-derived.test.mjs` (3 tests, `node --test`). The failure mode is
+    a JSX literal at a call site — it type-checks, it renders, and it is invisible to every unit
+    test that builds its own fixture — so a unit test on `certifiedCapabilityState` cannot catch it
+    coming back. The guard scans every non-test `.tsx` under `apps/web/src/app` and
+    `apps/web/src/components` for `certified\s*:\s*(true|false)`, and its other two tests close the
+    loop the first one leaves open: that the resolver exists and reads `providerActivation`, and
+    that both surfaces call it. Comments are stripped, for the reason `audit-writes.test.mjs`
+    strips them.
+  - Tests: `tests/architecture/certified-is-derived.test.mjs` 3/3;
+    `apps/web/src/lib/connections/capability-resolution.test.ts` 17/17;
+    `tests/architecture/no-uncertified-provider-claims.test.mjs` 6/6;
+    `tests/architecture/no-overstated-connectors.test.mjs` 4/4.
+  - Mutations (3 applied, 3 caught, all restored; the producer mutated in each case):
+    1. **On the surface.** `...certifiedCapabilityState("ai.model")` in `settings/page.tsx` →
+       `certified: true,` — the exact literal the requirement opened on. Guard RED, **2 pass / 1
+       fail**, naming `apps/web/src/app/(app)/settings/page.tsx:60  certified: true,`. Restored,
+       3/3.
+    2. **On the resolver.** `if (!state.certified) {` → `if (false && !state.certified) {`.
+       **3 failed / 14 passed**, and the first failure reads `Expected: "NOT_CERTIFIED" /
+       Received: "NEEDS_USER_CONNECT"` — literally the working-looking connect button appearing.
+       Restored, 17/17.
+    3. **On the record the derivation reads.** `RELAY_ANTHROPIC_REVIEW.state` `"NOT_SUBMITTED"` →
+       `"APPROVED"` in `packages/platform-config/src/provider-review.ts` — the fabricated approval
+       `f589596` had to revert once already. **5 failed / 112 passed** across
+       `src/lib/connections` and `src/app/api/ai`, including `records honestly that nobody has
+       reviewed the shipped connector` and `refuses the vendor call because the provider has not
+       reviewed the connector`. Restored, 117/117.
+  - Recorded because it surprised me: mutation 3 did NOT red
+    `tests/architecture/no-uncertified-provider-claims.test.mjs`, and that guard is CORRECT to
+    allow it. Its rule is "no provider review is APPROVED for a connector that does not exist", and
+    it skips when `callSitesInCell(host).length > 0` — `api.anthropic.com` genuinely is contacted
+    by `apps/web/src/lib/ai.ts`. The Anthropic connector exists; what is missing is the review, and
+    that is the jest suites' half. Not a hole, and not fixed.
+  - Evidence: `node --test tests/architecture/certified-is-derived.test.mjs` — `# pass 3 / # fail
+    0`. `npx jest --ci src/lib/connections/capability-resolution.test.ts` from `apps/web` —
+    17/17. `npx jest --ci --silent src/lib/connections src/app/api/ai` — 117/117.
 
 - [ ] **WRK-030-006** — Test expired, replayed, wrong-user, wrong-session, wrong-tenant, tampered, and already-consumed launch tokens.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - This platform has TWO launch-token-shaped credentials with opposite designs, and one suite
+    cannot prove both. The calendar feed token is stateless, stable per user and MEANT to be
+    replayed forever (Outlook polls it); `ConnectionLaunchToken` is stored as a hash, fifteen
+    minutes long and burned on redemption. "Replay is the feature, bounded by four other refusals"
+    is true of the first and is the exact defect for the second.
+  - Already covered before this run — the feed token: `apps/web/src/lib/calendar-sync.test.ts`,
+    `describe("the seven launch-token cases")`, 14/14. WRONG-USER (the subject is inside the MAC),
+    WRONG-TENANT, TAMPERED (every field inside the MAC), EXPIRED (`CALENDAR_TOKEN_MAX_AGE_MS`),
+    ALREADY-CONSUMED as revocation (the `calendarTokenEpoch` counter), REPLAYED, and WRONG-SESSION
+    recorded as having no mechanism BY DESIGN — a calendar client cannot send a cookie, which is
+    the whole reason the credential exists, so a session-bound token would break at the holder's
+    next sign-out.
+  - **Added this run — `ConnectionLaunchToken`, which had no test of any kind:**
+    `apps/web/src/lib/connections/pending-intent.test.ts`, 16 tests. EXPIRED (and separately, the
+    BOUNDARY: `expiresAt <= now`, not `<`), REPLAYED, ALREADY_CONSUMED under two redemptions
+    started and awaited together, WRONG_TENANT, WRONG_USER, TAMPERED (flipped last character,
+    truncated, extended, nonce half alone, empty, garbage), plus the properties that make the
+    refusals safe: a refusal never consumes the row (so a leaked token cannot be used to deny the
+    legitimate holder their opportunity), the refusal ORDER puts identity above expiry and above
+    consumption, `returnPath` must be an in-app path, the row never holds the redeemable value,
+    and the redemption result carries neither the token, its hash, nor its nonce.
+  - What the fake costs, stated rather than implied. There is no PostgreSQL in this environment
+    (`docker ps` fails — the daemon is not running), so `@/lib/db` is mocked. The store is NOT a
+    canned double: `findUnique` matches on `tokenHash`, `create` refuses a duplicate hash the way
+    the `@unique` index does, and `updateMany` evaluates `where.consumedAt === null` against the
+    row's CURRENT value and returns the count of rows it changed. What is therefore NOT proven is
+    that PostgreSQL takes the row lock that makes two SIMULTANEOUS statements serialise — that is a
+    database property, asserted for the outbox claim in `apps/web/src/lib/outbox/dispatch.itest.ts`
+    against real Postgres, and the equivalent here needs a `pending-intent.itest.ts` this
+    environment cannot run.
+  - Mutations (4 applied, 4 caught, all restored; the producer mutated in each case):
+    1. `where: { id: row.id, consumedAt: null }` → `where: { id: row.id }` — single-use becomes a
+       read-then-write. **2 failed / 14 passed**: `REPLAYED: the second presentation of a good
+       token is refused` and `ALREADY_CONSUMED: two redemptions racing on one row, and only one
+       wins`. This is the mutation that proves the fake's predicate is load-bearing rather than
+       decorative. Restored, 16/16.
+    2. `if (row.institutionId !== session.institutionId) {` → `if (false && …) {`. **2 failed / 14
+       passed**: the WRONG_TENANT case and the ordering case. Restored, 16/16.
+    3. `if (row.expiresAt.getTime() <= now.getTime())` → `<`. **1 failed / 15 passed**:
+       `EXPIRED is decided on the boundary, not one millisecond after it` — a one-character
+       mutation caught by one test. Restored, 16/16.
+    4. The claim moved ABOVE the refusals (an `updateMany` inserted before the tenant check) —
+       check-then-write in the wrong order. **8 failed / 8 passed**, including every refusal's
+       "and is NOT consumed" half and both success cases. Restored, 16/16.
+  - **Why this is still FAIL: one of the seven, for one of the two tokens.** WRONG-SESSION on
+    `ConnectionLaunchToken` has no mechanism, and unlike the feed token that is not a design
+    decision — it is a missing field. The module's doc block claims "session-bound — the redeemer
+    passes the CURRENT session's user", which is USER binding wearing session binding's name: the
+    same person's second concurrent session redeems a token opened in the first, and nothing can
+    tell the two apart. The test states this as a gap and asserts the row has no `sessionId`.
+  - **NEEDS_SCHEMA, with the shape.** `model ConnectionLaunchToken` (`apps/web/prisma/schema.prisma
+    :1654`) needs one nullable column — `sessionId String?` — written from the session the mint ran
+    under, plus a `session.sessionId` on `ConnectionScope` and a `WRONG_SESSION` arm on
+    `LaunchRefusal` compared before the claim. Nullable so existing rows stay redeemable and the
+    refusal only applies when a token carries one. Recorded here rather than migrated: this wave
+    makes no schema changes, and a migration is the one artifact that cannot be reviewed on the
+    strength of "an agent wrote it". The ledger's status vocabulary has no `NEEDS_SCHEMA`, so this
+    row is FAIL.
+  - Evidence: `npx jest --ci src/lib/connections/pending-intent.test.ts` from `apps/web` — 16/16,
+    0.2 s. `npx jest --ci src/lib/calendar-sync.test.ts` — 14/14. `npx tsc --noEmit` in `apps/web`
+    — 0 errors in either file. `npx eslint src/lib/connections/pending-intent.test.ts` — no output.
 
 - [ ] **WRK-040-001** — Implement provider-specific authorization profiles using current secure flows, exact redirects, state, nonce, PKCE, backend exchange, and account verification.
   - Status: FAIL
@@ -737,7 +1179,73 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **WRK-070-003** — Implement freshness/source/inference distinctions and governed provider deep-link citations.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Overturned on review: All three claimed mutations reproduced across five suites (freshnessOf -> `return "LIVE"`: 6 failed / 269 passed at the primitive, rankDocs, loadSearchCorpus, /api/search and /api/ai/chat; governedDeepLink host check deleted: 1 failed, `still refuses a host the provider did not declare, however approved it is`; activation gate -> `if (false) return null`: 2 failed). citation.ts is real, reached and fails closed. But the requirement is about DISTINCTIONS — sec 9.3's sentence is "The USER CAN DISTINGUISH source text, Tenure record, Relay inference, and human-approved memory" — and the module that makes those distinctions visible has no test anywhere in the repository. `grep -rln "citation-display|originLabel|stateCaveat|INFERENCE_NOTE|citationLine" --include=*.test.* --include=*.itest.* --include=*.spec.* apps packages tests` returns NOTHING, and there is no citation-display.test.ts beside the module. Two mutations of it survive the whole suite at 237 passed / 237 total, zero failures: (1) originLabel collapsed to `return `${holder} record`` so a PROJECTION is labelled a record — the source distinction the claim cites CITATION_ASSERTIONS for, erased on all three reading surfaces ((app)/search/page.tsx, TenureAIPanel.tsx, SearchCommand.tsx), silently; (2) stateCaveat's unknown-state branch, "State unknown — open the source directly", replaced with `null`, so a state this build cannot name renders with no caveat at all — i.e. as current. That second one is this codebase's central rule and sec 3.5's own words ("Never answer as though a stale, deleted, inaccessible ... source is current") reported as fine instead of as unknown, with nothing catching it. The three claimed mutations were all on citation.ts values; the display half where the requirement's "distinctions" actually land is unproved. To close: test citation-display.ts — originLabel over both assertions, stateCaveat over all six states plus an unnameable one, ageLabel's boundaries.
+  - **Why this row exists at all.** `apps/web/src/lib/relay/citation.ts` landed in `f589596` with
+    no ledger row. Verified against the sentence, re-proved by mutation, recorded.
+  - The three distinctions the requirement names, each as a value rather than as prose:
+    * **freshness** — `freshnessOf(asOf, now)` returns `"LIVE" | "STALE"` against
+      `SEARCH_STALE_AFTER_MS` (90 days), and FAILS CLOSED to `STALE` on an unreadable date,
+      because a row whose version time did not survive its projection has no freshness anybody
+      can vouch for. A stale source is still RETURNED and still ranked — hiding a budget deadline
+      from last week is its own kind of wrong — and is labelled instead, which is §3.5's actual
+      rule ("never answer as though a stale source is current", not "never answer").
+    * **source** — `ExternalObjectRef` and `parseExternalObjectRef`: origin as a checked
+      reference, never a display string. `TENURE_PROVIDER` is the one constant naming this
+      corpus's system of record, so the first connector-backed row is a value change and not a
+      search-and-replace.
+    * **inference** — `CITATION_ASSERTIONS = ["RECORD", "PROJECTION"]`. A citation says whether
+      it asserts what the record IS or what a projection of it SAID, which is the distinction a
+      reader needs and the one a bare link erases.
+  - **Governed deep links**, which is the half with teeth. `ProviderDeepLinkPolicy` DECLARES the
+    single `host` whose URLs may be cited for a provider, and `governedDeepLink` compares the
+    stored URL against it — never parses the host out of it and believes it. That is the whole
+    control: a projected object's link is a string the provider, or whoever wrote into the
+    provider, chose, so "it says it is an Outlook link" is a claim by the attacker-influenceable
+    half of the pair. Four refusals, in order: unknown provider (absent from
+    `PROVIDER_DEEP_LINK_POLICIES` is refused, never defaulted), provider review not activated
+    (`providerActivation`), non-`https:`, and host mismatch. A Tenure path (`providerId === null`)
+    must start with `/` and not `//`, so a citation cannot become an open redirect.
+  - Consequence, deliberate and shipped: `GRAPH_CALENDAR_REVIEW.state` is honestly
+    `NOT_SUBMITTED`, so `governedDeepLink` refuses EVERY Microsoft link as this ships. That is
+    what an activation gate is, and it is the same consequence `/api/ai/chat` already accepts from
+    `RELAY_ANTHROPIC_REVIEW`. `now` and `policies` are parameters precisely so the activated branch
+    can be exercised without writing `APPROVED` into the shipped record.
+  - Callers: `projectTenureRecord` builds a `SourceCitation` for every row `loadSearchCorpus`
+    returns (`apps/web/src/lib/search-data.ts`); `citationLabel` goes at the FRONT of the heading
+    `modelSourceFor` hands the vendor, ahead of the tenant's own title, so a long club name cannot
+    push the label past `fenceUntrusted`'s 300-character cap; `citationRules()` is in the system
+    prompt via `apps/web/src/app/api/ai/chat/route.ts:33` and `apps/web/src/lib/ai.ts:8`; and
+    `apps/web/src/lib/relay/citation-display.ts` renders it for people in
+    `apps/web/src/app/(app)/search/page.tsx`, `apps/web/src/components/ai/TenureAIPanel.tsx` and
+    `apps/web/src/components/shell/SearchCommand.tsx`.
+  - Tests: `apps/web/src/lib/relay/citation.test.ts` 19/19,
+    `apps/web/src/lib/search.test.ts` 38/38, `apps/web/src/app/api/search/search-lifecycle.test.ts`
+    5/5 (the `/api/search` route), `apps/web/src/app/api/ai/chat/relay-prompt-safety.test.ts` 21/21
+    (the `/api/ai/chat` route), `apps/web/src/app/api/ai/ai-kill-switch.test.ts` 42/42.
+  - Mutations (3 applied, 3 caught, all restored; producer mutated each time):
+    1. `freshnessOf`: `return reference - at > SEARCH_STALE_AFTER_MS ? "STALE" : "LIVE"` →
+       `return "LIVE"`. **6 failed / 269 passed** across five suites, and the failures span all
+       three layers: the primitive (`calls a row inside the horizon live and one outside it
+       stale`), the ranking (`still ranks a stale doc, because §3.5 asks for freshness to be
+       shown`), the corpus (`marks a row nobody has touched in two years stale, and still projects
+       it`), the `/api/search` route (`labels a row nobody has touched in two years, and still
+       returns it`) and the `/api/ai/chat` route (`does answer from a stale source, and labels it
+       in the prompt and the response`). Restored, 275/275.
+    2. `governedDeepLink`: `return parsed.host.toLowerCase() === policy.host.toLowerCase() ?
+       parsed.href : null` → `return parsed.href` — the declared-host check deleted. **1 failed /
+       274 passed**: `still refuses a host the provider did not declare, however approved it is`.
+       Restored, 275/275.
+    3. `governedDeepLink`: `if (!providerActivation(policy.scopes, policy.review,
+       now.toISOString()).activated) return null` → `if (false) return null`. **2 failed / 273
+       passed**: `refuses every link for the provider as this ships, because nobody reviewed it`
+       and `refuses once an approval has lapsed`. Restored, 275/275.
+  - Evidence: `npx jest --ci src/lib/relay src/lib/search.test.ts src/app/api/ai src/app/api/search`
+    from `apps/web` — `Tests: 275 passed, 275 total`. Whole targeted set after restoring everything:
+    354/354 across 20 suites.
+  - Not claimed: WRK-GATE-070, which also needs WRK-070-002 (source-ACL authorization before model
+    exposure) and WRK-070-006 (governed memory). And `PROVIDER_DEEP_LINK_POLICIES` has exactly ONE
+    entry, because this repository catalogues exactly one external provider; the table's shape is
+    proven, its breadth is a function of WRK-080/090 and is not claimed here.
 
 - [ ] **WRK-070-004** — Implement deletion/access/retention/legal-hold propagation across graph, chunks, embeddings, caches, summaries, and citations.
   - Status: FAIL
@@ -745,7 +1253,35 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **WRK-070-005** — Implement indirect prompt-injection, malicious-file, DLP, link, and tool-exfiltration defenses.
   - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - **Considered for closure this run and refused: two and a half of the five.**
+    `apps/web/src/lib/relay/untrusted-content.ts` is real and is wired to
+    `apps/web/src/app/api/ai/chat/route.ts` and to `synthesizeAnswer` / `summarizeDocument` in
+    `apps/web/src/lib/ai.ts`, so all three paths that carry tenant text to a model vendor go
+    through it. `apps/web/src/lib/relay/untrusted-content.test.ts` and
+    `apps/web/src/lib/relay/ai-surface-fencing.test.ts` are green.
+    * **indirect prompt-injection** — covered. `fenceUntrusted` delimits every retrieved body AND
+      the client-supplied `history` with a per-request NONCE in both markers, named in the system
+      message the tenant cannot write to, so a body containing the literal close marker closes
+      nothing. `untrustedContentRules(nonce)` tells the model the fenced text is data.
+    * **hidden-text / link** — covered for the retrieved-text half. `INVISIBLE_RANGES` strips
+      zero-width, bidi override, soft hyphen, C0/C1, interlinear, private-use and the U+E0000 tag
+      block — written as codepoint NUMBERS and assembled, because a source file whose control is
+      itself invisible cannot be reviewed. `activeContentFindings` reports active content and
+      `hostLabel` refuses to let a retrieved body carry a fetchable URL into a prompt.
+  - Missing, and each is a whole defence rather than a rough edge:
+    * **DLP** — nothing inspects what LEAVES for the vendor or for a person. `grep -rn "dlp\|DLP"`
+      across `apps/web/src` and `packages` finds no classifier, no pattern set and no egress
+      decision. The projection modes (WRK-010-003) cap HOW MUCH text crosses by source kind; they
+      do not look at what the text says.
+    * **malicious-file** — no scanning of any kind. `summarizeDocument` reads an uploaded document
+      and nothing between the upload and the model examines it.
+    * **tool-exfiltration** — partial at best. `invokeRelayTool` refuses the model choosing tenant,
+      credential, account or an unlisted recipient (WRK-050-006, PASS), which stops the model
+      DIRECTING an exfiltration; nothing inspects a tool's ARGUMENTS for tenant data being smuggled
+      out inside an otherwise-permitted call, and there is no outbound tool to smuggle through yet.
+  - Not mutation-proved here, because no PASS was claimed. The two covered halves are exercised by
+    the suites named above and by the route tests in
+    `apps/web/src/app/api/ai/chat/relay-prompt-safety.test.ts`.
 
 - [ ] **WRK-070-006** — Implement governed `MemoryCandidate` review and private-versus-role-memory separation.
   - Status: FAIL

@@ -81,14 +81,28 @@ function walk(relativeDir, out) {
 }
 
 /**
+ * Every source file under `SCAN_ROOTS`, POSIX-pathed and sorted.
+ *
+ * Exported because `tools/pln-planning-limitations.mjs` sweeps the same tree for
+ * a different question, and a second walker would answer it over a slightly
+ * different set of files — a different extension list, a different skip list,
+ * a different sort — and the two documents would disagree about a repository
+ * neither of them is wrong about. This repository already carries a note about
+ * what having two parsers of one thing cost.
+ */
+export function sweptFiles() {
+  const files = []
+  for (const root of SCAN_ROOTS) walk(root, files)
+  return files.map(posix).sort()
+}
+
+/**
  * Every non-test source file carrying a budget anchor, with the anchors it
  * carries. Sorted by POSIX path; anchors sorted within a row.
  */
 export function deriveCode() {
-  const files = []
-  for (const root of SCAN_ROOTS) walk(root, files)
   const rows = []
-  for (const rel of files.map(posix).sort()) {
+  for (const rel of sweptFiles()) {
     if (TEST_RE.test(rel)) continue
     const hits = readText(rel).match(ANCHOR_RE)
     if (!hits) continue
@@ -99,10 +113,8 @@ export function deriveCode() {
 
 /** The same sweep restricted to test files — the evidence half of the inventory. */
 export function deriveTests() {
-  const files = []
-  for (const root of SCAN_ROOTS) walk(root, files)
   const rows = []
-  for (const rel of files.map(posix).sort()) {
+  for (const rel of sweptFiles()) {
     if (!TEST_RE.test(rel)) continue
     const hits = readText(rel).match(ANCHOR_RE)
     if (!hits) continue
@@ -232,7 +244,22 @@ export const NOTES = {
   ],
   "apps/web/src/app/api/templates/budget/route.ts": [
     "route",
-    "Generates the standard club budget workbook on request — ten fixed categories whose headers are the ones `parseBudgetSheet` detects. The template IS the planning model: the category axis is a hard-coded literal, not a dimension.",
+    "Generates the standard club budget workbook on request — ten fixed categories whose headers are the ones `parseBudgetSheet` detects. The template IS the planning model: the category axis is a hard-coded literal, not a dimension. PLN-030-001 added `?total=`, which distributes a top-down target across those categories through `spread()` and writes the rule that did it onto the Instructions sheet; it is the only production caller of the planning engine.",
+  ],
+  "apps/web/src/lib/planning/spread.ts": [
+    "domain logic",
+    "PLN-030-001. Spreading (six bases), direct and step-down allocation, and top-down/bottom-up " +
+      "reconciliation that keeps both values and the decision. Pure; calls `allocateByWeight` in " +
+      "`@tenure/finops` rather than carrying a second largest-remainder split. Refuses reciprocal " +
+      "and activity-based allocation by name. Names `BudgetLine` in its header as the table its " +
+      "output lands on; it reads no database and persists nothing.",
+  ],
+  "packages/finops/src/general-ledger.ts": [
+    "package",
+    "FIN-010-003's record-to-report arithmetic — trial balance, account analysis, flux and " +
+      "statements over posted journal lines. Not planning: it states money that already moved. It " +
+      "carries a budget anchor because its header names `BudgetLine.actualCents` as the cache " +
+      "check `financeIntegrity` performs and this module does not.",
   ],
   "apps/web/src/lib/platform/tenant-export.ts": [
     "platform",

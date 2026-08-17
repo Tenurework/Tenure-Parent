@@ -1305,10 +1305,40 @@ the commands or the ADR that would unblock it — if it cannot.
 - [x] **TTES-030-002** - Implement responsive desktop/tablet/mobile and bounded offline patterns.
   - Status: PASS
   - Code: `apps/web/src/components/shell/OfflineBoundary.tsx`,
-    `apps/web/src/app/(app)/layout.tsx`, `apps/web/src/app/globals.css`
-    (`html[data-offline]` block), and three route boundaries -
-    `(app)/admin/audit/loading.tsx`, `(app)/resources/loading.tsx`,
-    `(app)/orgs/loading.tsx`. Test: `apps/web/e2e/offline.spec.ts`.
+    `apps/web/src/app/(app)/layout.tsx` (mounts it, line 88),
+    `apps/web/src/app/globals.css` (`html[data-offline]` block).
+    Test: `apps/web/e2e/offline.spec.ts`.
+  - **CORRECTION 2026-08-17 — this row cited three files that do not exist, and
+    had done since the day after it was written.** The `Code:` line above used to
+    end "and three route boundaries - `(app)/admin/audit/loading.tsx`,
+    `(app)/resources/loading.tsx`, `(app)/orgs/loading.tsx`". All three were
+    deleted in `a8ceb8b`, whose message explains why: on those three subtrees a
+    `loading.tsx` aborts the App Router's RSC fetch mid-flight, so `<Link>`
+    clicks do not navigate and server actions never settle — it took the
+    `apps/web` Playwright suite to 157/175 and cost 12 failures and 3.4 minutes
+    of runtime. `find apps/web/src/app -name loading.tsx` returns **0 files**
+    again, exactly as this row's own prose says it did before the work.
+  - The PASS stands and the reason is the requirement's own sentence:
+    "responsive desktop/tablet/mobile and bounded offline patterns". The
+    responsive half (`NavDrawerToggle`, the 700px off-canvas rules,
+    `layout.spec.ts` at 1280/1024/768, `a11y.spec.ts` at 320) and the bounded
+    offline half (`OfflineBoundary` mounted in the shell layout, `data-offline`
+    stopping every submit, `StateSurface` supplying the role and politeness) are
+    both intact and both proven. Route-level *loading* boundaries are §16's
+    list, not this requirement's, and §16 is `TTES-GATE-020`'s territory.
+  - Consequence worth recording rather than hiding, because it is what made the
+    stale citation findable: with those three files went the only callers of
+    `Skeleton`. `docs/architecture/ttes-governance-dashboard.md` §1 counts
+    **0** product modules importing it, and no product module passes `geometry`
+    to `StateSurface` (`grep -rn geometry apps/web/src/app apps/web/src/components
+    --include=*.tsx` returns one hit, a comment inside `BarChart.tsx`), so
+    `skeletonHeight`'s tested arithmetic currently reaches nothing that renders.
+    That is an adoption gap on the dashboard, not a false claim here — this row
+    no longer claims it.
+  - Found by `tests/architecture/tenant-experience-architecture.test.mjs` — "the
+    tenant experience's own record cites files that exist" — added under
+    `TTES-GATE-000`. Nothing had ever checked that a ledger row's `Code:` line
+    names files that exist, and this row is the reason it now does.
   - The responsive half was already real (`NavDrawerToggle` + the 700px
     off-canvas rules; `layout.spec.ts` at 1280/1024/768 and `a11y.spec.ts` at
     320). The offline half did not exist at all: `states.ts` declared an
@@ -1485,7 +1515,39 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **TTES-040-003** — Meet route/component/bundle/RUM performance budgets.
   - Status: FAIL
-  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+  - Re-checked 2026-08-17 and still empty on every one of the four legs the
+    requirement names. This row previously said only "imported …; not yet
+    implemented", which reads identically for a requirement nobody has opened and
+    one somebody has measured as absent. It is the second.
+    * **Route** — no budget file of any kind:
+
+      ```
+      ls tools/perf-budget.mjs   # absent on 2026-08-17
+      ```
+
+      (`tests/architecture/pass-requires-evidence.test.mjs` re-runs that line, so
+      the day somebody adds the file this row has to be re-decided rather than
+      quietly outliving its subject.)
+    * **Component** — nothing measures a component's render cost. `grep -rn
+      "performance.mark\|performance.measure" apps/web/src` is empty.
+    * **Bundle** — `grep -rln budget apps/web/next.config.* apps/web/package.json
+      .github/workflows/*.yml` returns nothing, so §17's "bundle ownership and
+      regression budgets enforced in CI" has no enforcement point.
+    * **RUM** — `grep -rl "web-vitals\|reportWebVitals\|onLCP\|onINP"
+      apps/web/src` is empty. There is no real-user monitoring to partition by
+      route, device or tenant tier.
+  - Why it is FAIL and not BLOCKED_EXTERNAL: nothing external is missing. What it
+    needs is a production build to measure against, which `npm run build` provides
+    (exit 0 as of 2026-08-07, recorded under `TTES-050-001`), and a place to put
+    the numbers. It was not attempted in this batch for the stated reason that
+    eleven agents were holding the tree and `npm run studio:build` takes ~350s —
+    a wave where everyone builds is a wave where nobody finishes. That is a
+    scheduling decision, not a blocker, and it is recorded so the next batch does
+    not re-survey the same four greps.
+  - Nearest thing that does exist, so it is not rebuilt: `apps/web/e2e/support/
+    journey-metrics.ts` counts what a task costs a persona in clicks, key presses
+    and route commits (`TTES-050-001`). That is interaction cost, not load or
+    render performance, and it needs a served application.
 
 - [ ] **TTES-040-004** — Pass localization/RTL/zoom/high-contrast/reduced-motion tests.
   - Status: FAIL
@@ -1493,7 +1555,26 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **TTES-040-005** — Pass long-session and frontline usability tests.
   - Status: FAIL
-  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+  - Re-checked 2026-08-17. `grep -rln "frontline\|long.session" apps/web/e2e`
+    returns nothing, and every journey the metrics harness measures is a
+    single-task path (`J01`…`J08` in `apps/web/e2e/journeys.spec.ts`): none holds
+    a session open across an idle period, a token refresh or a device sleep, which
+    is what §18's "perceived workload/comfort in representative long sessions"
+    asks about. The previous text — "imported …; not yet implemented" — was true
+    and said nothing a reader could act on.
+  - What would close it, so the next batch starts from here: a spec that keeps one
+    authenticated session alive across several tasks and asserts the two things a
+    long session actually breaks — that autosave does not re-fire into an expired
+    session (the `session-expired` latch recorded under `TTES-040-002`) and that
+    accumulated client state does not degrade the surface — plus a frontline
+    scenario on the scanner/mobile path §19's journey 6 names. Both need a served
+    application and a seeded Postgres, so neither is provable in a build-free
+    batch; `apps/web/e2e/support/journey-metrics.ts` is the harness they would
+    reuse rather than replace.
+  - FAIL rather than BLOCKED_EXTERNAL: Postgres and Playwright are both available
+    to a batch that runs them (`docker compose up -d`, then `prisma migrate deploy`
+    and `node apps/web/scripts/seed.mjs`, which runs clean since 2026-08-07).
+    Nothing external is missing.
 
 - [ ] **TTES-050-001** — Establish task scorecard baselines/targets by persona.
   - Status: FAIL
@@ -1657,17 +1738,347 @@ the commands or the ADR that would unblock it — if it cannot.
     migration is added. That is the requirement working, not a flaky test.
 
 
-- [ ] **TTES-050-004** — Publish adoption/exception/visual-debt dashboards and ownership.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **TTES-050-004** — Publish adoption/exception/visual-debt dashboards and ownership.
+  - Status: PASS
+  - Code: `tools/ttes-governance-dashboard.mjs` — `DEBT_CLASSES`, `DEBT_BUDGETS`,
+    `debtMeasurements`, `ownerOfFile`, `designTokenExceptions`, `adoption`,
+    `ownedWrappers`, `productModules`, `render`, and a `--check` mode.
+    Output, committed: `docs/architecture/ttes-governance-dashboard.md`.
+  - Caller: `tests/architecture/ttes-governance-dashboard.test.mjs` (7 subtests),
+    which `npm run test:platform` discovers via `tools/run-platform-tests.mjs`
+    (`tests/**/*.test.mjs`) and CI runs at `.github/workflows/ci.yml:88`. The
+    generator's own `--check` branch is the second caller, and
+    `tools/superiority-claims.mjs` is a third the other way round — §5 of the
+    dashboard reads the claim gate from it, so `TTES-050-005`'s rule appears on
+    the dashboard rather than only in a test.
+  - **This requirement was already named as this requirement, by the code.**
+    `apps/web/eslint.config.mjs`'s "WHAT IS NOT ENFORCED, and why not" section
+    says of arbitrary spacing and type utilities: "a rule here is a cleanup
+    project across the whole product rather than a boundary, so it is the
+    debt-ratchet item (TTES-050-004)". The debt was therefore recorded — as a
+    number in a comment, "243 occurrences across 59 files as of 2026-08-07",
+    itself a correction of an earlier "237 across 58" that had drifted — with a
+    one-line re-measurement script beside it that nobody runs.
+  - **Re-measured on the first run of the generator: 275 across 66.** The debt
+    grew by 32 occurrences and 7 files in ten days while the only record of it
+    was a comment. That is the whole argument for this item, and it is why the
+    budgets below are asserted rather than printed.
+  - Three separate questions, three tables, because they fail differently:
+    * **Adoption** (§1) — one row per module in `apps/web/src/components/ui/`,
+      read from the directory so a wrapper added tomorrow appears with zero
+      importers rather than not at all, with the count of product modules that
+      import it. Findings: `Card` 39, `Badge` 28, `icons` 61 — and **three owned
+      wrappers with no product importer at all**: `IconFrame`, `Skeleton`,
+      `Tabs`. `Skeleton`'s is a regression with a cause, recorded under
+      `TTES-030-002` above: its only three callers were the `loading.tsx` route
+      boundaries deleted in `a8ceb8b`.
+    * **Exceptions** (§2) — read out of `DESIGN_TOKEN_EXCEPTIONS`, so an
+      exception cannot be granted in the config and stay off the dashboard. Four
+      today, each naming files, the rule keys it suspends, a reason and an
+      expiry. Read as text, not imported, and the reason is measured rather than
+      assumed: `import('./apps/web/eslint.config.mjs')` throws `Cannot read
+      config file … Failed to patch ESLint because the calling module was not
+      recognized`, because the config loads `eslint-config-next` through
+      `FlatCompat`. That file already reads `design-system.ts` with a regex for
+      the same class of reason and says so in its own header.
+    * **Visual debt** (§3) — six classes, and a class is only on the list if the
+      sanctioned alternative ALREADY EXISTS. That qualification is the line
+      between debt and an unmade decision: easing keywords are debt because
+      `--ease-entry` exists, and a class with no owned replacement would be a ban
+      rather than debt. `raw-text-input-element` deliberately excludes checkbox,
+      radio, file and hidden inputs for exactly that reason — `TextField` does
+      not wrap them.
+  - **Ownership** (§4) — every debt occurrence carries the domain
+    `tools/ownership-map.mjs` assigns its file, inverted per file out of
+    `classify()` rather than re-derived from `DOMAINS`, so this table cannot
+    disagree with the ownership ratchet. `erp-modules` carries 176 occurrences
+    across 18 files; 79 across 31 files sit on `shared`, which is not a domain
+    and therefore has nobody to pay them.
+  - **The budgets are the deliverable, not the tables.** A dashboard that only
+    reports is a number that goes up — that is precisely what the comment in
+    `eslint.config.mjs` was. `DEBT_BUDGETS` is asserted in BOTH directions: over
+    budget is a regression, and UNDER budget is a budget nobody lowered after
+    paying debt down, with the message naming the number to lower it to. So the
+    ratchet cannot acquire slack for the next regression to hide in.
+  - Determinism: sorted directory reads, POSIX paths, CRLF collapsed before
+    anything is counted, two in-process renders byte-compared, and **no clock** —
+    there is deliberately no "days until expiry" column, and the guard asserts
+    the only dates in the document are the exception expiries themselves. A
+    document that goes stale by sitting still teaches every reader to ignore its
+    staleness check.
+  - Kept out of the document graph on purpose: `tools/document-graph.mjs`
+    classifies any `.md` whose first 4,000 characters contain a bare authority
+    word as an authority document, so the dashboard cites the TTES authority by
+    filename (`_Bible_` has no word boundary). Asserted by the sibling guard —
+    see `TTES-GATE-000`, mutation 2 there.
+  - Tests: `tests/architecture/ttes-governance-dashboard.test.mjs` → **7/7**.
+    Mutation proof — 6 mutations, 6 caught, each restored and re-run 7/7 green:
+    1. **The one this item exists for.** One arbitrary-spacing utility added to
+       real product source (`<span className="p-[7px]">` in
+       `apps/web/src/app/(app)/inbox/page.tsx`) → `not ok 1` (staleness: `275 |
+       66` against `276 | 67`) AND `not ok 7` with
+       `arbitrary-spacing-type: 276 occurrences against a budget of 275`.
+       Restored → 7/7. Two independent detections of one added line.
+    2. The other direction: `easing-keyword` budget raised 9 → 12, simulating
+       debt paid down with the budget left where it was → `not ok 7`, "Debt was
+       paid down and the budget was not lowered with it", naming
+       `easing-keyword: 9 occurrences against a budget of 12 — lower it to 9`.
+    3. The occurrence counter disarmed (`const hits = null`, the
+       guard-that-cannot-fail shape) → `not ok 1` and `not ok 7`. A detector that
+       counts nothing publishes a clean product.
+    4. The exception reader made to return an empty table (`if (true) return out`)
+       → `not ok 4` with `Only 0 exceptions parsed; the config's table has been
+       reformatted.` The floor, not the finding, is what catches this.
+    5. An expiry moved into the past in the REAL `apps/web/eslint.config.mjs`
+       (`2027-08-06` → `2026-01-15`) → `not ok 5`, "A design-token exception has
+       expired", plus `not ok 1` and `not ok 2` because the date is in the
+       committed document. Restored; `git diff --name-only apps/web/eslint.config.mjs`
+       empty.
+    6. The adoption importer matcher blinded (`return []`) → `not ok 4` with
+       `Card reports 0 importers; the import matcher has stopped matching.`
+  - Commands: `node tools/ttes-governance-dashboard.mjs` (writes),
+    `node tools/ttes-governance-dashboard.mjs --check` (exit 0),
+    `node --test tests/architecture/ttes-governance-dashboard.test.mjs` → 7/7 in
+    ~3s. No build, no browser, no database.
+  - Honest limits, all in §6 of the document itself: an import is not a render;
+    the budget is a ratchet on a total and not a verdict on any one line; design
+    quality — rhythm, hierarchy, tone — is a judgement and nothing here measures
+    it; and the console's debt is out of scope because it is a separate
+    experience. Also stated because it will red somebody's build: any change to
+    the tenant product's debt counts reds the staleness check until the document
+    is regenerated, exactly as `ownership.md` and `entry-points.md` already do.
+    That is the ratchet working.
 
 - [ ] **TTES-050-005** — Block “best” claims until measured release gates pass.
   - Status: FAIL
-  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+  - Overturned on review: The seven claimed mutations all reproduce (I ran each: hard tier at the producer -> 'apps/web/src/app/signin/page.tsx:79 [hard] world-class'; soft tier in the interpolated footer -> ':207 [soft] Better than'; claimsIn blinded -> not ok 1; gateState accepting BLOCKED_EXTERNAL -> not ok 3 'TTES-050-002 is BLOCKED_EXTERNAL and the gate disagrees about whether it blocks'; line-comment handling removed -> not ok 2 + not ok 5 (packages/authorization/src/role-templates.ts:59); block-comment handling removed -> not ok 2 + not ok 5; shippedFiles -> [] -> not ok 4 and not ok 5). But my own producer mutation SURVIVED: I added `The best student operations platform in higher education.` to the sign-in page's subtitle - shipped tenant copy, on the one page every user sees, with the gate CLOSED (TTES-050-001=FAIL, TTES-050-002=BLOCKED_EXTERNAL) - and the suite stayed 5/5 with `node tools/superiority-claims.mjs` reporting nothing. Confirmed at the unit level: claimsIn returns [] for 'The best student operations platform.', 'We are the best.', 'Simply the best software for clubs.' and 'The fastest way to close your books.', and non-empty only for 'Tenure is the best.' The soft tier fires only when CLAIM_SUBJECT (Tenure|Relay|this platform|our product) appears in the SAME copy string, and marketing copy on a product's own surface almost never names the product - so the requirement's own word, 'best', is unblocked in its most common form. That is a partial closure of 'Block "best" claims until measured release gates pass', not a full one, and it is not disclosed: the ledger's 'Honest limits' bullet lists database copy, screenshots and CI-vs-editor and omits this. The gap is cheaply closeable (a ranking shape such as /\bthe best\b/ or 'simply the best' belongs in HARD_CLAIMS next to the existing /\bthe #\s?1\b/, and BENIGN already strips best match/available/fit/guess/effort/practice), which is why it reads as an untested hole rather than an intrinsic limit. Everything else about the item is sound - it is reached (tests/architecture/no-unmeasured-superiority-claims.test.mjs via run-platform-tests, plus section 5 of the governance dashboard), it is real, and its floors report an empty read as a failure rather than as a clean product.
+  - Code: `tools/superiority-claims.mjs` — `PUBLISHED_SURFACES`, `HARD_CLAIMS`,
+    `SOFT_CLAIMS`, `CLAIM_SUBJECT`, `claimsIn`, `copyStringsIn`,
+    `copyStringsInProse`, `shippedFiles`, `claimsFound`,
+    `MEASUREMENT_REQUIREMENTS`, `gateState`, plus a CLI that prints the findings
+    and the gate's state and writes nothing.
+  - Caller: `tests/architecture/no-unmeasured-superiority-claims.test.mjs`
+    (5 subtests), discovered by `tools/run-platform-tests.mjs` and run in CI at
+    `.github/workflows/ci.yml:88`; and `tools/ttes-governance-dashboard.mjs`,
+    which renders the gate and the claim count as §5 of
+    `docs/architecture/ttes-governance-dashboard.md` — so the rule is published on
+    the governance dashboard rather than living only inside a test.
+  - **Nothing looked before this.** `grep -rn` for the marketing vocabulary
+    across `apps/web/src` returns an identifier (`let best = -1` in a scoring
+    loop), an engineering qualifier ("generation is best-effort") and real user
+    advice ("best practice is to cc the club advisor") — and not one superiority
+    claim. That is why a grep was never going to be the check, and why nobody had
+    written one: a findings list that has to be triaged is how the one real
+    finding gets ignored.
+  - **A gate, not a ban, and the condition is read rather than written.**
+    `gateState` takes the ledger's own statuses for `MEASUREMENT_REQUIREMENTS` —
+    `TTES-050-001` (measured per-persona baselines, §18) and `TTES-050-002` (a
+    lawful competitor comparison, §18) — and lifts the block only when every one
+    is PASS. `BLOCKED_EXTERNAL` is not a pass. Today the gate is CLOSED, blocked
+    by those two, so the honest number of superiority claims Tenure may ship is
+    zero — and the day both are recorded PASS this stops objecting on its own,
+    the same shape `tests/architecture/no-overstated-connectors.test.mjs` uses
+    where the catalog's lifecycle decides.
+  - **Two tiers, because "best" has an innocent reading and "best-in-class" does
+    not.** HARD phrases (`best-in-class`, `world-class`, `industry-leading`,
+    `state-of-the-art`, `most advanced`, `the #1`, …) have no non-claim reading in
+    shipped copy. SOFT phrases (`best`, `modern`, `faster than`, `superior`,
+    `powerful`, …) are claims only when the same copy string also names the
+    subject — Tenure, Relay, "this platform" — so "the fastest refresh window on
+    a surface is the smallest one declared" is a fact about a cadence and
+    "Tenure is faster than the tools you use today" is the thing §22 forbids.
+    Benign spans (`best-effort`, `best practice`, `at best`, `best match`,
+    `modern browser`) are removed before either tier is matched, each with the
+    real occurrence that justifies it.
+  - **A false positive it produced on its first run, recorded rather than quietly
+    fixed:** `README.md:14` reads "Simon OSE (tenant #1)", meaning the first
+    tenant. A bare `#1` is an ordinal at least as often as a boast, so the claim
+    shape is now the ranking one — `the #1`, or `#1 in/for` — and a bare `#1` is
+    left alone.
+  - **Comments are stripped, which is the OPPOSITE of what
+    `no-overstated-connectors.test.mjs` does, deliberately.** That check exists
+    because a doc comment asserting a caller that does not exist misleads the next
+    engineer. This one is about what a USER is told: "the fastest way to leak a
+    provider's token" in a route comment is engineering prose and is a claim to
+    nobody. Measured: with line-comment handling removed, the tree scan reports a
+    finding out of `packages/authorization/src/role-templates.ts:59` that no user
+    will ever see.
+  - **A defect in this item's own reader, found by mutation and fixed.** The
+    copy reader first matched JSX text against a SHORTENED copy of the source
+    (comments and literals removed rather than blanked), so a claim planted on
+    line 79 of the real sign-in page was reported on **line 46**. A finding with
+    the wrong line is a finding the next reader cannot confirm. The mask is now
+    length-preserving (`new Array(n).fill(" ")`, newlines kept) and the guard pins
+    the line number of both a string literal and a JSX text run.
+  - **A second defect, same run: interpolated copy was invisible.** A
+    `>`-to-`<` reader sees nothing in `© {new Date().getFullYear()} Tenure. Better
+    than …` — the run begins after an interpolation — and interpolated copy is the
+    normal case in this product. Text runs are now delimited by `>` or `}` on the
+    left and `<` or `{` on the right. It over-reads in one direction on purpose
+    (a run between two adjacent code blocks is collected too), which costs
+    nothing: `world-class` is not an identifier, and a soft claim needs the
+    product named in the same run.
+  - Current state of the product, measured rather than asserted: **0 claims**
+    across 437 shipped files and 33,992 copy strings (both counts rise as other
+    domains add files — the claim count is the number that matters and the guard's
+    floor is 5,000 strings, so the assertion does not depend on either figure) —
+    `apps/web/src` (the tenant
+    product), `packages`, `modules` and `README.md`, each in
+    `PUBLISHED_SURFACES` with the reason it is in scope. The Bibles and the
+    ledgers are deliberately NOT scanned: the one governing this requirement uses
+    "world-class" itself while telling you not to ship it, and a checker that
+    failed on its own authority document would be switched off within a week.
+  - Tests: `tests/architecture/no-unmeasured-superiority-claims.test.mjs` →
+    **5/5** in 0.6s. Mutation proof — 7 mutations, 7 caught, each restored and
+    re-run 5/5 green:
+    1. HARD tier at the PRODUCER: `<h1 …>Tenure</h1>` in
+       `apps/web/src/app/signin/page.tsx` changed to `Tenure — the world-class
+       student operations platform` → `not ok 5` naming
+       `apps/web/src/app/signin/page.tsx:79 [hard] world-class`.
+    2. SOFT tier at the PRODUCER: the same file's footer changed to `© {…} Tenure.
+       Better than the software your office runs today.` → `not ok 5` naming
+       `apps/web/src/app/signin/page.tsx:207 [soft] Better than`. This is the
+       mutation that was NOT caught before the interpolation fix above, which is
+       why both tiers are proven on the real tree and not only on literals.
+    3. `claimsIn` blinded (`if (true) return found`) → `not ok 1`, the
+       detector-exercise case. The tree scan alone would have stayed green.
+    4. `gateState` taught to treat `BLOCKED_EXTERNAL` as a pass → `not ok 3`, "a
+       blocked measurement was treated as a measurement".
+    5. Line-comment handling removed → `not ok 2` ("a line comment's quoted
+       superlative was read as copy") and `not ok 5`.
+    6. Block-comment handling removed → `not ok 2` (the block-comment half) and
+       `not ok 5`. Both halves are pinned separately because only one of them was
+       broken at a time.
+    7. `shippedFiles` returning `[]` → `not ok 4` (`Only 0 shipped files were
+       read; the surface list has collapsed`) and `not ok 5` (`Only 0 copy strings
+       … the reader has gone quiet`). Every finding here is an absence, so the
+       floors are what stop an empty read reporting a clean product.
+  - Commands: `node tools/superiority-claims.mjs` → "Read 33992 copy strings
+    across 437 shipped files. Gate CLOSED by TTES-050-001=FAIL,
+    TTES-050-002=BLOCKED_EXTERNAL.", exit 0.
+    `node --test tests/architecture/no-unmeasured-superiority-claims.test.mjs` →
+    5/5. No build, no browser, no database.
+  - Honest limits: copy that arrives from the database is not in the repository
+    and is not checked — this reads the copy anyone can review; a claim written
+    in an image or a screenshot is invisible to it, which §22's "from screenshots
+    alone" wording is itself about; and the enforcement point is CI rather than
+    the editor. An ESLint rule would object as somebody types, and it was left
+    out on purpose this pass: the lint suite takes ~290s to run, and the same
+    boundary in `npm run test:platform` costs 0.6s.
 
-- [ ] **TTES-GATE-000** — Tenant experience has a distinct documented architecture.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **TTES-GATE-000** — Tenant experience has a distinct documented architecture.
+  - Status: PASS
+  - Children: 4 of 4 decided — `TTES-000-001` PASS (routes, components and tokens
+    inventoried across both experiences), `TTES-000-002` PASS (separate shells,
+    leakage prevented by 8 guards), `TTES-000-003` PASS (every `TTES-*` id
+    imported, with a check over the import), `TTES-000-004` PASS (the current
+    product audited across personas, themes, viewports and static
+    accessibility). A gate is proven by its children; the ratchet below is what
+    stops the gate's own named property — *distinct* and *documented* — decaying
+    afterwards, which is the same shape `TTES-GATE-010` takes.
+  - Code: `tools/tenant-experience-architecture.mjs` — `render`,
+    `tenantLayouts`, `tokenTiers`, `controlPlaneRoutes`, `NAVIGATION_AUTHORITY`,
+    and a `--check` mode. Output, committed:
+    `docs/architecture/tenant-experience-architecture.md`.
+  - Caller: `tests/architecture/tenant-experience-architecture.test.mjs`
+    (6 subtests), discovered by `tools/run-platform-tests.mjs` and run in CI at
+    `.github/workflows/ci.yml:88`, plus the generator's own `--check` branch.
+  - **The gap was findable in one `ls`, and nothing had looked.** The OPERATOR
+    experience has a documented architecture —
+    `docs/architecture/studio-information-architecture.md` and
+    `docs/architecture/studio-design-system.md`. The tenant experience, the one
+    this authority governs and the one a student and a director actually sign
+    into, had neither. What it had was three generated inventories that each
+    answer a narrower question: `entry-points.md` (what is exposed),
+    `ownership.md` (which domain owns a file), `ttes-experience-audit.md` (what
+    the current product measures). None of them says what the experience IS, and
+    "distinct documented architecture" is a claim about a document.
+  - **Derived, not written, and that is the opposite choice from the console's.**
+    The console's document is a hand-written normative spec, which is right for a
+    thing being built. This one describes a product that exists, and a
+    hand-written description of an existing product has exactly one failure
+    mode — "was right once" — which reads identically to "is right". So §1 comes
+    from `EXPERIENCES`, §3's route map from `collect()` (40 pages, 26 API routes,
+    65 server actions with the guards each names), §5's token tiers from the
+    generated catalog `apps/web/src/lib/a11y/tokens.ts` (155 primitive, 42
+    semantic, 29 component), §6's ownership from `classify()` restricted to files
+    the map places in the tenant experience, and §2's shell from the directories
+    themselves (3 layouts, 10 shell modules).
+  - **One thing is deliberately NOT re-derived: the navigation catalog.** Three
+    readers of `modules/index.ts` already exist under `tests/architecture/`, and a
+    fourth parser of one file is the defect this repository has already paid for
+    once — "which is what having two parsers costs", as `tools/document-graph.mjs`
+    puts it about the graph and `next-batch.mjs`. §4 therefore CITES the catalog
+    and the two guards that constrain it, by file and by identifier, and the
+    guard greps each file for each identifier so the citation cannot rot into a
+    pointer at a decision that has moved.
+  - **Distinctness is asserted, not asserted about.** The control-plane prefixes
+    a tenant route may never sit under are derived from the `control-plane` domain
+    of `tools/ownership-map.mjs` — which is how `apps/web/src/app/api/platform/`,
+    an operator surface served by the customer application, is covered without
+    anybody listing it — and the guard fails if any route in the tenant map falls
+    under one.
+  - **A real defect found by the new guard, in this family's own record.** "The
+    tenant experience's own record cites files that exist" reads the `Code:` and
+    `Tests:` bullets of every row in this ledger and resolves each path. On its
+    first run it reported three, all from `TTES-030-002`, which is PASS: its
+    `Code:` line named `(app)/admin/audit/loading.tsx`,
+    `(app)/resources/loading.tsx` and `(app)/orgs/loading.tsx`, all three deleted
+    in `a8ceb8b` because a `loading.tsx` on those subtrees aborts the App Router's
+    RSC fetch mid-flight and cost the Playwright suite 12 failures. Nothing had
+    ever checked that a row's cited code exists. Corrected in place above, with
+    the reason the PASS still stands and the adoption consequence (`Skeleton` now
+    has no product caller) recorded rather than dropped.
+  - That check is scoped to the `Code:`/`Tests:` bullets on purpose, and the
+    scoping is measured rather than argued: over the whole file it reports seven
+    paths, of which four are *supposed* to be absent — two mutations created and
+    removed (`packages/platform-config/src/ShellChrome.tsx`,
+    `packages/mutant-surface/src/app/page.tsx`) and two blockers' own `ls … #
+    absent` claims. Scoped to the evidence bullets, and skipping any path this
+    ledger claims absent so the two guards cannot contradict each other, it
+    reports three of three real. A findings list that has to be triaged is how a
+    real finding gets ignored.
+  - Kept out of the document graph on purpose, and this was caught before it
+    shipped: `tools/document-graph.mjs` classifies any `.md` whose first 4,000
+    characters contain a bare authority word as an authority document, and the
+    first render said "Bible §1" in §1 and WAS so classified — which would have
+    moved the registry's denominators because somebody wrote a paragraph. §1 now
+    cites the authority by filename (`_Bible_` has no word boundary, `_` being a
+    word character), and the guard asserts both this document and the governance
+    dashboard stay out of `classify()`.
+  - Tests: `tests/architecture/tenant-experience-architecture.test.mjs` →
+    **6/6** in ~2s. Mutation proof — 6 mutations, 6 caught, each restored and
+    re-run 6/6 green:
+    1. The committed document edited by hand ("10 shell modules" → "11") →
+       `not ok 1`, `docs/architecture/tenant-experience-architecture.md is stale`.
+    2. The authority word put back inside the first 4,000 characters
+       ("TTES-GATE-000. Generated by" → "TTES-GATE-000, a Bible for the tenant
+       experience. Generated by") → `not ok 2`, "is being classified as a platform
+       authority document". This is the trap the first render fell into.
+    3. **The distinctness mutation, at the producer:**
+       `apps/web/src/app/api/platform/fleet-cost/page.tsx` created — a
+       control-plane surface under the tenant app root → `not ok 4`, "A
+       control-plane route appears in the tenant route map: prefixes
+       /api/platform". Removed → 6/6.
+    4. `MAX_ENTRIES_PER_SECTION` renamed in `NAVIGATION_AUTHORITY` → `not ok 5`,
+       "tests/architecture/nav-hrefs-are-served.test.mjs no longer declares
+       MAX_ENTRIES_PER_SECTION_V2". The citation is checked, which is the only
+       thing that makes citing better than copying.
+    5. `tokenTiers` frozen to `[["primitive", 1]]` → `not ok 1` and the tier
+       floor in `not ok 3`.
+    6. The ledger path reader blinded (`return []`) → `not ok 6`, `Only 0 path
+       claims parsed out of the ledger; the reader has gone quiet.` The floor,
+       not the finding.
+  - Commands: `node tools/tenant-experience-architecture.mjs` (writes),
+    `node tools/tenant-experience-architecture.mjs --check` (exit 0),
+    `node --test tests/architecture/tenant-experience-architecture.test.mjs` →
+    6/6. No build, no browser, no database.
+  - What this gate does NOT now claim, stated because a gate is the easiest place
+    to over-read: the document is DESCRIPTIVE, not normative — it says what the
+    tenant experience is, and the requirements that change it are the rows in this
+    file. Nothing in it is rendered; the rendered half of the experience is
+    `TTES-040-*` work and is listed as NOT ESTABLISHED in §7 of the document and
+    in §7 of `docs/architecture/ttes-experience-audit.md`.
 
 - [x] **TTES-GATE-010** — Visual foundations are original, consistent and accessible.
   - Status: PASS
@@ -2118,4 +2529,29 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **TTES-GATE-050** — Tenant UX superiority is evidence-backed and continuously governed.
   - Status: FAIL
-  - Reason: imported from `Tenure_Tenant_Experience_System_and_Product_UIUX_Claude_Bible_v1.0.md`; not yet implemented
+  - Children: 2 of 5 decided — `TTES-050-001` FAIL (the harness exists; the
+    per-persona budgets it holds journeys to are still `—`), `TTES-050-002`
+    BLOCKED_EXTERNAL (licensed benchmarking access and a human-subjects protocol,
+    neither of which any code here produces), `TTES-050-003` PASS (design-system
+    versioning, notes, migration and enforced deprecation), `TTES-050-004` PASS
+    (the adoption / exception / visual-debt dashboard with an owner per row and
+    budgets asserted in both directions), and `TTES-050-005` FAIL — the claim gate
+    that blocks a superiority claim until its measurement is PASS was built and its
+    mutations all reproduce, but the row was OVERTURNED on review; its own entry
+    carries the refuter's reasoning. A gate is proven by its children, so nothing
+    written in this row can make it PASS.
+  - Written out rather than left as "imported …; not yet implemented", because that
+    sentence reads identically for a gate blocked on two named things and for one
+    nobody has opened. This one is the first: **the governance half of the gate
+    landed and the evidence half did not.** "Continuously governed" now has real
+    machinery — a dashboard nobody can quietly let drift and a claim gate that
+    reads the ledger rather than a list of banned words. "Evidence-backed" is
+    exactly what is missing: `TTES-050-001` has a measurement harness and no
+    recorded numbers, and `TTES-050-002` cannot have any until a human decides
+    what Tenure may lawfully benchmark and how.
+  - The two blockers, unchanged by this batch and not this batch's to move: eight
+    journey budgets need a served application on a seeded Postgres
+    (`TTES-050-001`), and the competitor comparison needs
+    `docs/decisions/ADR-0009-competitive-benchmarking.md`, whose absence
+    `tests/architecture/pass-requires-evidence.test.mjs` re-checks on every CI run
+    from `TTES-050-002`'s own row.

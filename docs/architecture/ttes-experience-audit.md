@@ -18,7 +18,7 @@ It covers the tenant experience only. `apps/system-studio` is the deployer
 experience, audited separately, and TTES-000-001 split the two inventories so a
 claim about one could not be read as a claim about both.
 
-Scope read: **404 files** under `apps/web/src`.
+Scope read: **413 files** under `apps/web/src`.
 
 ## 2. Personas
 
@@ -137,17 +137,17 @@ have at least one responsive declaration somewhere in their closure. The other
 | `apps/web/src/app/(app)/orgs/[slug]/documents/[id]/view/page.tsx` | 30 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
 | `apps/web/src/app/(app)/orgs/[slug]/documents/page.tsx` | 49 | yes | yes | `apps/web/src/components/OrgRecordHeader.tsx` |
 | `apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx` | 62 | yes | yes | `apps/web/src/components/OrgRecordHeader.tsx` |
-| `apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx` | 37 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx` |
+| `apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx` | 45 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx` |
 | `apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx` | 31 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx` |
 | `apps/web/src/app/(app)/orgs/[slug]/members/page.tsx` | 40 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/members/page.tsx` |
-| `apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx` | 39 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx` |
+| `apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx` | 40 | yes | yes | `apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx` |
 | `apps/web/src/app/(app)/orgs/[slug]/page.tsx` | 1 | redirect only | n/a | — |
 | `apps/web/src/app/(app)/orgs/page.tsx` | 32 | yes | yes | `apps/web/src/app/(app)/orgs/page.tsx` |
 | `apps/web/src/app/(app)/reports/finance/page.tsx` | 44 | yes | yes | `apps/web/src/app/(app)/reports/finance/page.tsx` |
 | `apps/web/src/app/(app)/reports/page.tsx` | 42 | yes | yes | `apps/web/src/components/charts/LiveStats.tsx` |
 | `apps/web/src/app/(app)/resources/[slug]/page.tsx` | 20 | yes | yes | `apps/web/src/app/(app)/resources/[slug]/page.tsx` |
 | `apps/web/src/app/(app)/resources/page.tsx` | 36 | yes | yes | `apps/web/src/components/ResourcesBrowser.tsx` |
-| `apps/web/src/app/(app)/search/page.tsx` | 33 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
+| `apps/web/src/app/(app)/search/page.tsx` | 34 | yes | yes | `apps/web/src/components/ui/Card.tsx` |
 | `apps/web/src/app/(app)/settings/page.tsx` | 42 | yes | yes | `apps/web/src/components/ProfileImageEditor.tsx` |
 | `apps/web/src/app/page.tsx` | 1 | redirect only | n/a | — |
 | `apps/web/src/app/signin/page.tsx` | 14 | yes | **no** | — |

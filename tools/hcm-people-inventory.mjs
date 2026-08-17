@@ -200,6 +200,34 @@ export function organizationModelExports(text = read(ORG_MODEL_INDEX)) {
 }
 
 /**
+ * Every barrel export, attributed to the source module it comes from.
+ *
+ * HCM-040-003 made the prose that used to follow the headline false. It said
+ * "the N that non-test code does reach are all topology and graph construction"
+ * and "every … succession-release symbol is unreached", which were true when
+ * written and became wrong the moment `apps/web/src/lib/people/
+ * seat-memory-boundary.ts` imported `planHandover` and `releaseToSuccessor`. A
+ * generated document must not carry a hand-written claim about its own numbers,
+ * so the claim is derived from `index.ts`'s own `from "./module"` grouping
+ * instead: which source modules production code reaches, and which it does not,
+ * both read off the tree.
+ */
+export function exportsBySourceModule(text = read(ORG_MODEL_INDEX)) {
+  const byModule = new Map()
+  const re = /export\s+(?:type\s+)?\{([^}]*)\}\s*from\s*"\.\/([^"]+)"/g
+  let m
+  while ((m = re.exec(text)) !== null) {
+    const names = byModule.get(m[2]) ?? new Set()
+    for (const raw of m[1].split(",")) {
+      const name = raw.trim().replace(/^type\s+/, "").split(/\s+as\s+/)[0].trim()
+      if (name) names.add(name)
+    }
+    byModule.set(m[2], names)
+  }
+  return byModule
+}
+
+/**
  * Named imports of a module specifier, per importing file.
  *
  * Specifier-based, so a relative import from a sibling directory is not
@@ -299,7 +327,7 @@ export const BINDINGS = {
   Profile: ["ABSENT", "", "No requirement profile separate from a person profile."],
   LearningItem: ["ABSENT", "", "No learning catalogue."],
   LearningAssignment: ["ABSENT", "", "No learning catalogue."],
-  SuccessionPlan: ["PARTIAL", "packages/organization-model/src/succession-release.ts", "`planHandover` and `releaseToSuccessor` decide what a successor may inherit — in memory, with no table and no caller."],
+  SuccessionPlan: ["PARTIAL", "packages/organization-model/src/succession-release.ts", "`planHandover` and `releaseToSuccessor` decide what a successor may inherit, and HCM-040-003 wired them to `apps/web/src/lib/people/seat-memory-boundary.ts` and the two memory read paths. Still no table: the plan is computed per request, never stored, so nothing records what a past handover actually released."],
   HRCase: ["ABSENT", "", "No confidential case intake, classification or investigation record."],
   PayrollRelationship: ["ABSENT", "", "No payroll object, and the architecture document forbids building one — see the contradiction recorded below."],
   PayrollInput: ["ABSENT", "", "No payroll object."],
@@ -538,11 +566,27 @@ export function render() {
   }
   L.push(``)
   L.push(`**${unreached.length} of the ${exported.length} exported symbols are imported by nothing outside the package.**`)
-  L.push(`The ${productionNames.size} that non-test code does reach are all topology and graph construction.`)
-  L.push(`Every assignment-state, bitemporal-correction, position-lifecycle and`)
-  L.push(`succession-release symbol is unreached — so the modelling that would answer`)
-  L.push(`"what did the organisation look like in March" is written, tested inside its own`)
-  L.push(`package, and connected to no caller. That is the finding this section exists for.`)
+  L.push(`${productionNames.size} are reached by non-test code.`)
+  L.push(``)
+  const bySource = exportsBySourceModule()
+  const reachedModules = []
+  const unreachedModules = []
+  for (const [module, names] of [...bySource].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    const taken = [...names].filter((n) => productionNames.has(n))
+    ;(taken.length > 0 ? reachedModules : unreachedModules).push(
+      taken.length > 0 ? `\`${module}\` (${taken.length}/${names.size})` : `\`${module}\``,
+    )
+  }
+  L.push(`Attributed to the source module each symbol is exported from — derived from`)
+  L.push(`\`index.ts\`'s own \`from "./module"\` grouping, so this sentence cannot go stale`)
+  L.push(`the way a hand-written one did:`)
+  L.push(``)
+  L.push(`- reached by non-test code: ${reachedModules.length > 0 ? reachedModules.join(", ") : "none"}`)
+  L.push(`- reached by nothing outside the package: ${unreachedModules.length > 0 ? unreachedModules.join(", ") : "none"}`)
+  L.push(``)
+  L.push(`So the modelling that would answer "what did the organisation look like in`)
+  L.push(`March" is still written, tested inside its own package, and connected to no`)
+  L.push(`caller. That is the finding this section exists for.`)
   L.push(``)
   L.push(`Reached by nothing outside \`packages/organization-model\`:`)
   L.push(``)

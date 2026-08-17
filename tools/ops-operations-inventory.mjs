@@ -132,9 +132,24 @@ export const VERDICTS = [
     "\"an inventory of *this app's* dependencies\" — which AWS services the application calls",
   ],
   [
+    "apps/web/src/lib/people/seat-memory-boundary.ts",
+    "unrelated-word",
+    "`docs/architecture/hcm-people-inventory.md`, the People inventory document it cites for a measurement",
+  ],
+  [
+    "apps/web/src/lib/planning/spread.ts",
+    "unrelated-word",
+    "`docs/architecture/pln-planning-inventory.md`, the Planning inventory document it cites for absent objects",
+  ],
+  [
     "apps/web/src/lib/policies.ts",
     "unrelated-word",
     "OSE policy text shown to a club: \"All logistics, planning and expenses are managed by students\"",
+  ],
+  [
+    "packages/finops/src/general-ledger.ts",
+    "unrelated-word",
+    "`docs/architecture/fin-finance-surface-inventory.md`, the Finance inventory document it cites twice for ABSENT entities",
   ],
   [
     "packages/identity/src/handoff.ts",

@@ -51,6 +51,45 @@ export {
   type SettlementComponents,
 } from "./settlement-components"
 
+// FIN-010-003. Record-to-report: trial balance, account analysis, flux,
+// statements and item-level account reconciliation. Separate from `./settlement`
+// on purpose — that module reconciles two AGGREGATES per account and cannot name
+// the item that is missing, which is the whole job of a month-end account
+// reconciliation.
+export {
+  GeneralLedgerInputError,
+  accountAnalysis,
+  financialStatements,
+  flux,
+  lateAdjustments,
+  periodOf,
+  reconcileAccountBalance,
+  trialBalance,
+  type AccountClassification,
+  type AccountReconciliation,
+  type FinancialStatements,
+  type FluxBasis,
+  type FluxReport,
+  type FluxRow,
+  type FluxThresholds,
+  type LateAdjustment,
+  type PostedLine,
+  type PostingSide,
+  type ReconciliationItem,
+  type StatementGroup,
+  type StatementLine,
+  type SupportingItem,
+  type TrialBalance,
+  // Named `TrialBalanceAccount`, not `AccountBalance`: `./settlement` already
+  // exports that name for the allocation-versus-journal comparison, and two
+  // different shapes under one exported name is a collision this package's own
+  // type-check catches.
+  type TrialBalanceAccount,
+  type TrialBalanceOptions,
+  type TrialBalanceSection,
+  type UnbalancedJournal,
+} from "./general-ledger"
+
 export {
   ReconciliationInputError,
   reconcileToJournal,

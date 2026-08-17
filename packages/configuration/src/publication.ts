@@ -8,6 +8,13 @@ import { stableStringify } from "./merge"
 import { authorityViolations, type AuthorityViolation } from "./authority"
 import { applyExceptions, type GuardrailException } from "./exceptions"
 import { allRejections, type ModuleLike, type Rejection } from "./rejections"
+import {
+  compileGraph,
+  graphSigningKeyFromEnv,
+  snapshotBlockers,
+  type GraphSnapshot,
+  type PackageManifest,
+} from "./graph-snapshot"
 import type { ConfigDiffEntry } from "./version"
 
 /**
@@ -282,6 +289,24 @@ export interface PublicationPlan {
    */
   rollbackTo: number | null
   activateAt: string
+  /**
+   * The compiled configuration graph this publication would run under (CFG-030).
+   *
+   * Set on every plan, because "the graph compiled cleanly" and "nobody compiled
+   * the graph" are different answers and a plan that omitted the snapshot when it
+   * was clean would make them look the same. Its `digest` is what an approval can
+   * be bound to; its `problems` are already folded into `blockers`.
+   *
+   * Optional in the TYPE and unconditional in the code, which is a deliberate
+   * trade and not an oversight. `PublicationPlan` is built as an object literal by
+   * fixtures in two other applications' test files, and making the field required
+   * would red their type-check for a field they have no reason to care about. The
+   * guarantee is therefore asserted rather than typed: `graph-snapshot.test.ts`
+   * fails if `planPublication` ever returns a plan without it. There is exactly
+   * one producer of this object, so a test is a sufficient place to hold the
+   * invariant; if a second producer appears, make it required.
+   */
+  graph?: GraphSnapshot
 }
 
 /** Everything an operator needs before signing, in one object. */
@@ -403,6 +428,22 @@ export function planPublication(input: PublicationInput): PublicationPlan {
     }
   }
 
+  // CFG-030 — compile the package closure into one typed graph before anything
+  // is signed.
+  //
+  // The catalogue reaching this function is the closure the tenant would run:
+  // `modules` already carries `dependsOn` and `provides`, so no new input is
+  // needed and no caller has to be changed for the compile to be live. Only the
+  // problems `allRejections` does not already report are added as blockers —
+  // `snapshotBlockers` says which and why — so an operator never sees one defect
+  // twice.
+  const graph = compileGraph({
+    packages: modules as readonly PackageManifest[],
+    enabled: enabledModules,
+    signWith: graphSigningKeyFromEnv(),
+  })
+  blockers.push(...snapshotBlockers(graph))
+
   // Resolve the proposal once to produce the diff and the impact.
   let proposedValues: Readonly<Record<string, unknown>> = {}
   try {
@@ -459,5 +500,6 @@ export function planPublication(input: PublicationInput): PublicationPlan {
     simulations,
     rollbackTo: current?.revision ?? null,
     activateAt: activateAt.toISOString(),
+    graph,
   }
 }

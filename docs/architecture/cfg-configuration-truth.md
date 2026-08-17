@@ -8,13 +8,13 @@ No timestamp, no hostname and no absolute path appears here, and every count is 
 |---|---:|
 | System Studio routes | 25 |
 | Authentication and authorization modules | 12 |
-| Configuration and form code | 64 |
+| Configuration and form code | 66 |
 | Databases | 4 |
 | Infrastructure as code | 37 |
 | Workflows | 18 |
-| Tests over the configuration surface | 41 |
+| Tests over the configuration surface | 43 |
 | Deployed nonproduction behaviour | 3 |
-| **Total** | **204** |
+| **Total** | **208** |
 
 ## System Studio routes
 
@@ -108,14 +108,16 @@ The set `configurationModules()` computes, which is also the left-hand side of t
 | `packages/configuration/src/definition.ts` | configuration-module | 288 lines · 7 exports |
 | `packages/configuration/src/domains.ts` | configuration-module | 457 lines · 8 exports |
 | `packages/configuration/src/exceptions.ts` | configuration-module | 182 lines · 8 exports |
-| `packages/configuration/src/expression.ts` | configuration-module | 759 lines · 17 exports |
-| `packages/configuration/src/index.ts` | configuration-module | 155 lines · 0 exports |
+| `packages/configuration/src/expression.ts` | configuration-module | 747 lines · 17 exports |
+| `packages/configuration/src/graph-snapshot.ts` | configuration-module | 971 lines · 32 exports |
+| `packages/configuration/src/graph.ts` | configuration-module | 234 lines · 8 exports |
+| `packages/configuration/src/index.ts` | configuration-module | 197 lines · 0 exports |
 | `packages/configuration/src/integrity.ts` | configuration-module | 223 lines · 9 exports |
 | `packages/configuration/src/layer-bridge.ts` | configuration-module | 210 lines · 3 exports |
 | `packages/configuration/src/layer-schema.ts` | configuration-module | 367 lines · 15 exports |
 | `packages/configuration/src/merge.ts` | configuration-module | 193 lines · 7 exports |
-| `packages/configuration/src/publication.ts` | configuration-module | 464 lines · 11 exports |
-| `packages/configuration/src/rejections.ts` | configuration-module | 320 lines · 8 exports |
+| `packages/configuration/src/publication.ts` | configuration-module | 506 lines · 11 exports |
+| `packages/configuration/src/rejections.ts` | configuration-module | 339 lines · 10 exports |
 | `packages/configuration/src/resolve.ts` | configuration-module | 437 lines · 13 exports |
 | `packages/configuration/src/scopes.ts` | configuration-module | 67 lines · 4 exports |
 | `packages/configuration/src/store.ts` | configuration-module | 254 lines · 7 exports |
@@ -238,6 +240,8 @@ Which runner owns a file is decided by where it lives: `tests/**` is bare `node 
 | `packages/configuration/src/domains.test.ts` | jest (npm run test --workspace apps/web) | 338 lines |
 | `packages/configuration/src/exceptions.test.ts` | jest (npm run test --workspace apps/web) | 292 lines |
 | `packages/configuration/src/expression.test.ts` | jest (npm run test --workspace apps/web) | 284 lines |
+| `packages/configuration/src/graph-snapshot.test.ts` | jest (npm run test --workspace apps/web) | 662 lines |
+| `packages/configuration/src/graph.test.ts` | jest (npm run test --workspace apps/web) | 154 lines |
 | `packages/configuration/src/integrity.test.ts` | jest (npm run test --workspace apps/web) | 261 lines |
 | `packages/configuration/src/layer-bridge.test.ts` | jest (npm run test --workspace apps/web) | 180 lines |
 | `packages/configuration/src/layer-schema.test.ts` | jest (npm run test --workspace apps/web) | 354 lines |

@@ -370,11 +370,118 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PACK-010-003** — Prevent pack direct access to another pack's private storage or unauthorized tenant context.
   - Status: FAIL
-  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+  - **Measured, for the first time: 161 cross-domain storage reaches, in 59
+    files, over 31 of the 38 governed models.** The requirement is not close to
+    met, and until this run nobody could say by how much.
+  - Code: `tools/pack-storage-reach.mjs` (new) — `reaches()`, and the CLI that
+    prints them. It joins the two things that had to exist first and did, in
+    different sessions: every module declares the Prisma models it governs
+    (`objects` on `ModuleManifest`, held by
+    `tests/architecture/module-objects.test.mjs`, PACK-040-002) which is what
+    "another pack's storage" MEANS here, and every source file belongs to
+    exactly one platform domain (`tools/ownership-map.mjs`, GE-020-001) which is
+    what "which pack is reaching" means. Neither on its own can answer the
+    question; the join can.
+  - Caller: the command line, deliberately. It is an instrument, not a gate —
+    see the next paragraph.
+  - Evidence — run it: `node tools/pack-storage-reach.mjs` →
+    `161 cross-domain storage reaches, in 59 files, over 31 of 38 governed
+    models (12 modules).` Deterministic: `--json` twice into two files, `diff`
+    them, identical. The worst sites are
+    `apps/web/src/lib/platform/tenant-export.ts` (21 models, which is arguably
+    correct — a tenant export is supposed to read everything, and it is the one
+    finding a real gate would have to exempt by name),
+    `apps/web/src/app/(app)/admin/actions.ts` (11) and
+    `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts` (9). By owning
+    module: `organizations` 50, `approvals` 30, `budgeting` 22,
+    `administration` 21, `memory` 19, `events` 12, `messaging` 4, `feed` 2,
+    `resources` 1.
+  - Why no gate is committed, and why that is not evasion. A gate that fails
+    breaks the build for eleven other domains; a gate that passes with 59 named
+    exemptions is a list nobody reads and a rule that means nothing. The honest
+    artifact at this stage is the number, in the ledger, with the instrument
+    beside it — so whoever closes this requirement writes the gate against a
+    measurement they did not choose, and the number they claim is the number
+    this prints.
+  - What the number is NOT: it is a floor. (a) Ownership is per DOMAIN and three
+    modules share `erp-modules`, so a budgeting page reading a reimbursement row
+    is invisible here. (b) It is lexical: `db.budgetLine.…` is seen, a helper
+    taking a client and a delegate name from a variable is not, and raw SQL is
+    not. Both limits are in the tool's docstring rather than in this ledger only.
+  - The second half of the row — "or unauthorized tenant context" — is not
+    measured at all and is not claimed. `withTenant` has two contradictory
+    designs on record (`docs/architecture/REVIEW-FINDINGS.md`), and counting
+    unscoped queries against a design nobody has settled would produce a number
+    that changes meaning when they settle it.
+  - Not BLOCKED_EXTERNAL: nothing external is missing. The work is a command or
+    a repository port per module boundary, then a gate. It is large, not blocked.
 
 - [ ] **PACK-010-004** — Prove no tenant/source fork or hard-coded tenant branch.
   - Status: FAIL
-  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+  - Three properties, stated separately because they fail differently. **Two
+    hold and are now guarded; the third does not hold**, which is what decides
+    this row.
+  - Code: `tests/architecture/no-tenant-fork-or-branch.test.mjs` (new). Nothing
+    in it is authored: the slugs come from `blueprints/index.ts`'s own `slug:`
+    lines (the same array `RESERVED_TENANT_SLUGS` is built from) and the
+    forbidden words come from that file's `platform.terminology.*` VALUES, so
+    adding a tenant extends the check and renaming one cannot leave a stale rule.
+  - Holds — **no branch.** No shipped file compares, switches on, keys off or
+    tests membership of a tenant slug. Six decision shapes are searched across
+    634 shipped files in `apps/web/src`, `apps/system-studio/src`, `packages`
+    and `modules`; `blueprints/` is excluded because it DECLARES the bindings,
+    and `tools/` because `tools/dev/show-config-history.mjs` defaults a CLI
+    argument to `rochester` and ships to nobody.
+  - Holds — **no fork in the tree.** No path in the repository is named for a
+    tenant. This is the one that does not announce itself: a fork arrives as a
+    directory with a customer's name, after which every file inside is
+    individually defensible.
+  - Does NOT hold — **a configured tenant word is still a literal in seven
+    shipped files.** `rochester`'s binding sets
+    `platform.terminology.staffOfficeName` to `"Ainslie OSE"`, and the comment
+    beside it says that value "was a literal in eight components". Seven files
+    still contain it: `apps/web/src/lib/policies.ts` (32 occurrences — the
+    pilot's own policy documents transcribed into source, which needs a tenant
+    content store rather than a config key), `apps/web/src/lib/resources.ts` (an
+    audience label map), `apps/web/src/app/(app)/calendar/page.tsx` (the source
+    label on every calendar row), `apps/web/src/app/error.tsx` and
+    `apps/web/src/app/(app)/error.tsx` (both error boundaries' support
+    sentence), `apps/web/src/app/(app)/admin/people/page.tsx` (an input
+    placeholder) and `packages/platform-config/src/definitions.ts` (the
+    configuration key's own description, naming the pilot's answer as the
+    example). A platform holding a configuration key AND a literal for the same
+    word is a platform where the second customer's answer is a code change,
+    which is the pressure a fork comes from.
+  - The guard is green with those seven NAMED, and the list can only shrink: a
+    file on it that no longer holds the literal fails the test too, so fixing one
+    forces the list and the count in this row to move together. It is not an
+    exemption — each entry states the key that site should be resolving.
+  - Tests: `node --test tests/architecture/no-tenant-fork-or-branch.test.mjs` →
+    4/4 pass (692 files listed for the slug scan, 634 for the shipped scan).
+  - Evidence — 4 mutations, 4 caught, all restored to 4/4:
+    1. `apps/web/src/lib/clubs.ts` given
+       `export const IS_PILOT = (slug: string) => slug === "rochester"` → "no
+       shipped file branches on a tenant" FAILS naming the file, the slug and
+       the regex that matched; "a tenant's slug is not a value in shipped
+       source either" fails too. Restored → 4/4.
+    2. `apps/web/src/lib/rochester/overrides.ts` created → "no path in the tree
+       is named for a tenant" FAILS naming it. Directory removed → 4/4.
+    3. `apps/web/src/lib/clubs.ts` given `export const OFFICE = "Ainslie OSE"` →
+       the seventh-site check FAILS with "these files spell out a word a tenant
+       configures, and are not on the list of known sites:
+       apps/web/src/lib/clubs.ts". Restored → 4/4.
+    4. The ratchet's own direction: `apps/web/src/lib/resources.ts` changed from
+       `OSE: "Ainslie OSE"` to `OSE: "Staff office"` — a FIX — → the same test
+       FAILS with "these files are listed as holding a configured tenant word
+       and no longer do — remove them from HARD_CODED_TENANT_WORDS and update
+       the PACK-010-004 count". That is the mutation that matters most here: it
+       proves the list cannot quietly become an allowlist of things that are
+       already fine. Restored → 4/4.
+  - What would close it: resolve `platform.terminology.staffOfficeName` at the
+    five label sites (the two error boundaries are client components, so this is
+    real work rather than a find-and-replace), decide where the pilot's policy
+    content belongs, and delete the seven entries. The guard then proves the
+    whole requirement rather than two thirds of it.
 
 - [ ] **PACK-020-001** — Implement scale, organization, operating, system-of-record, deployment, geography, functional, industry and provider axes.
   - Status: FAIL
@@ -674,13 +781,142 @@ the commands or the ADR that would unblock it — if it cannot.
   - Mutation: stopped refusing a retired pin in `validateSystem` -> "refuses a
     release that pins a retired module" failed; restored -> 60/60.
 
-- [ ] **PACK-030-005** — Prove UI/API never labels unsupported scope available.
-  - Status: FAIL
-  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **PACK-030-005** — Prove UI/API never labels unsupported scope available.
+  - Status: PASS
+  - Code: `tests/architecture/availability-labels-are-derived.test.mjs` (new) —
+    four properties over the shipped surfaces of both apps and over every
+    shipped module.
+  - What was already true, and why it is not this requirement. The GATES exist
+    and are tested: `isUsable` / `availabilityDecisions`
+    (`packages/provisioning/src/catalogs.ts`) refuse an uncertified entry, a
+    lapsed certification and an unreviewed region (47 tests, PACK-050-004 and
+    PACK-080-003); `resolveModules` refuses `UNAVAILABLE` and removes an
+    unresolvable module to a fixed point (PACK-GATE-010); `validateManifest`
+    refuses `lifecycle: "available"` beside a declared gap (PACK-000-002). This
+    row asks something else — whether a SURFACE can say available about
+    something a gate would refuse — and every failure of that kind this
+    repository has actually had was a literal at a call site, invisible to the
+    gate and to every test that builds its own fixture: `certified: true` in JSX
+    at four sites while the provider review was `NOT_SUBMITTED`
+    (`tests/architecture/certified-is-derived.test.mjs`), and the Studio
+    composer dropping `lifecycle` from `MODULE_CATALOG.all()`, which
+    PACK-000-004's entry records as the one thing it left with no automated
+    check. That check now exists.
+  - The four properties: (1) a surface containing the label `Available` must
+    reference a value some gate computed (`availabilityDecisions`, `.available`,
+    `isUsable`, `certificationState`, `ENABLEABLE`, `lifecycle`) — one surface
+    does, `apps/system-studio/src/app/page.tsx`, which draws "Available — n of
+    m" from `capabilities.filter((d) => d.available)`; (2) no shipped file
+    asserts `available: true` as a literal anywhere in `apps/*/src`, `packages`,
+    `modules` or `blueprints` — `available: false` is deliberately allowed,
+    because refusing is always safe; (3) no tenant surface under
+    `apps/web/src/app/(app)` or `apps/web/src/components` imports
+    `@tenure/modules`, so the tenant application renders the system it resolved
+    rather than the catalog, and `/api/me` reports `moduleProblems` and
+    `moduleAdvisories` beside the enabled set; (4) a surface that offers the
+    whole catalog carries each module's `lifecycle:` into what it renders and
+    takes `enableable` from `ENABLEABLE.has(...)`.
+  - Caller: `tools/run-platform-tests.mjs` discovers every `tests/**/*.test.mjs`
+    and CI runs it as `npm run test:platform`. Nothing had to be added to a
+    shared script for this to run.
+  - Tests: `node --test tests/architecture/availability-labels-are-derived.test.mjs`
+    → 4/4 pass (over 100 surface files, over 400 shipped files, over 80 tenant
+    UI files — each asserted as a floor, because every claim here is an absence
+    and an absence over an empty scan is not a finding).
+  - Evidence — 5 mutations, 5 caught, all restored to 4/4:
+    1. `apps/web/src/app/(app)/calendar/page.tsx` given
+       `export const PROBE_LABEL = "Available"` → property 1 FAILS: "these
+       surfaces label something Available without deriving it from a gate:
+       apps/web/src/app/(app)/calendar/page.tsx".
+    2. `packages/provisioning/src/catalogs.ts` refusal changed from
+       `available: false` to `available: true` → property 2 FAILS naming the
+       file. This is the semantically apt mutation: a refusal relabelled.
+    3. `apps/web/src/app/(app)/calendar/page.tsx` given
+       `import { MODULE_CATALOG } from "@tenure/modules"` → property 3 FAILS:
+       "these tenant surfaces import the module catalog directly".
+    4. `apps/system-studio/src/app/tenants/new/page.tsx` — `lifecycle: m.lifecycle`
+       deleted from the projection, which is PACK-000-004's actual defect →
+       property 4 FAILS. **It did not, at first.** The check asked whether the
+       file contained the word `lifecycle`, and it still did, twice:
+       `enableable: ENABLEABLE.has(m.lifecycle)` and a comment. The guard
+       certified the defect it was written for. It now requires the property
+       assignment `lifecycle:`, and the same mutation reds. Recorded because the
+       first version would have shipped as proof.
+    5. Same file, `enableable: ENABLEABLE.has(m.lifecycle)` → `enableable: true`
+       → property 4 FAILS on the second half. The check asks for
+       `ENABLEABLE.has(` rather than `ENABLEABLE`, because the import survives
+       the mutation and the symbol alone would have absorbed it.
+  - Honest limit: this is lexical, and lexical checks are necessary rather than
+    sufficient. It cannot prove the gate's own logic — that is the 47 catalog
+    tests and the resolver's fixed point, cited above — and it cannot see a
+    surface that renders a refusal's `reason` next to a green tick. What it
+    removes is the class of failure that has actually occurred here twice: a
+    literal beside a gate that was never consulted.
 
-- [ ] **PACK-040-001** — Create canonical registry entries for all functional capabilities in Section 8.
-  - Status: FAIL
-  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **PACK-040-001** — Create canonical registry entries for all functional capabilities in Section 8.
+  - Status: PASS
+  - Code: `tools/pack-capability-taxonomy.mjs` (new) — `registry()`,
+    `capabilitiesOf`, `COVERED_BY`, and the two artifacts it renders:
+    `docs/architecture/pack-capability-taxonomy.json` and
+    `docs/architecture/pack-capability-taxonomy.md`. Guarded by
+    `tests/architecture/pack-capability-taxonomy.test.mjs` (new).
+  - **277 canonical entries across all ten §8 suites**, each with a stable id
+    (`FUN-8.1-general-ledger`), the capability it names, the Bible bullet it was
+    split from, a status and — where one exists — the module that covers it.
+    §8's own first line is "Track every capability separately", and its bullets
+    are comma lists of several: "Cash, treasury, banking, liquidity and
+    reconciliation" is five capabilities, not one, so the split is mechanical and
+    makes no attempt to be prettier than the source.
+  - Parsed from the Bible, not written. A hand-written registry of 277
+    capabilities is accurate the day it is typed and plausible from the next
+    commit onward, which is the failure this programme keeps hitting. Every
+    entry carries its own bullet and the guard searches the Bible for that
+    bullet as TEXT, without the generator's parser.
+  - The one authored thing is `COVERED_BY`: which of the twelve shipped modules,
+    if any, covers a stated capability — judgement that cannot be computed,
+    because no string in `modules/index.ts` says "this is §8.1's Budgeting". So
+    it is declared with a reason, and everything about it is checked: the module
+    key must exist in the catalog (the generator THROWS otherwise rather than
+    emitting a document that hides it), the reason must be non-empty, and the
+    entry's status is READ from that module's own `lifecycle` rather than written
+    beside it. 15 of 277 are covered, by 9 of the 12 modules. `budgeting` covers
+    §8.1's "Budgeting" and not its "General ledger", because it has no journals,
+    no subledgers and no period close; `FUN-8.10-reporting` is mapped to nothing,
+    because a landing surface and a `/reports` page are not the cross-module
+    reporting §8.10 names beside lineage.
+  - Caller: `tools/run-platform-tests.mjs` discovers the guard and CI runs it as
+    `npm run test:platform`. The generator is not in the root `generate` script
+    for the same reason `tools/pack-surface-inventory.mjs` is not — `package.json`
+    is shared and was not this domain's to edit — so the freshness check names
+    the command instead.
+  - Tests: `node --test tests/architecture/pack-capability-taxonomy.test.mjs` →
+    7/7 pass. `node tools/pack-capability-taxonomy.mjs --check` → current.
+  - Evidence — 6 mutations, 6 caught, all restored to 7/7:
+    1. One entry's quoted line corrupted in the committed JSON ("General ledger,
+       …" → "Generalized ledger, …") → 2 red: the freshness check, and
+       "FUN-8.1-general-ledger quotes a line …does not contain: Generalized
+       ledger, subledgers, journals, allocations and period close."
+    2. One entry deleted from the committed JSON (`FUN-8.7-capa`, counts
+       adjusted to match) → 2 red, including "Bible §8 names "CAPA" in "Quality
+       planning, inspection, nonconformance, CAPA and certificates." and no
+       entry carries it". This is the omission direction, and it is caught by a
+       second, dumber scan of the Bible written inside the test rather than by
+       the generator's parser.
+    3. `FUN-8.1-budgeting.coveredBy.module` changed to `procurement` → "is
+       covered by "procurement", which the catalog does not declare".
+    4. The GENERATOR changed to write `status: "available"` for a covered entry,
+       then regenerated — so the freshness check passes and only the claim is
+       wrong → "FUN-8.1-budgeting says "available" while budgeting declares
+       lifecycle "certified-limited"". This is the inflation mutation, and it is
+       the one that proves the status is derived rather than transcribed.
+    5. One industry entry's status set to `certified-limited` → the §9 test reds
+       (recorded under PACK-050-002).
+    6. The generator's caveat capture disabled → the regulated-limits test reds
+       (recorded under PACK-050-002).
+  - What this row does NOT claim, stated because a 277-row document invites the
+    opposite reading: 262 of the 277 are `not-implemented`, and the 15 that are
+    not say `certified-limited`, never `available`. Breadth of REGISTRY is not
+    breadth of product. Depth per plane is PACK-040-003, still FAIL.
 
 - [x] **PACK-040-002** — Map each entry to owner, objects, states, controls, UI, integrations, tests and lifecycle.
   - Status: PASS
@@ -740,7 +976,55 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PACK-050-002** — Create registry taxonomy for Section 9 without claiming implementation.
   - Status: FAIL
-  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+  - Overturned on review: The substantive property holds, but one of the three enforcement mechanisms the claim and the ledger row state does not exist — verified by me directly, not by reading. Claim/ledger (a): 'COVERED_BY is keyed by functional id so an industry coverage claim throws as an unknown key — the generator throws.' It does not. registry()'s guard is Object.keys(COVERED_BY).filter(k => !usedIds.has(k)), and usedIds is filled by id('IND', ...) as well as id('FUN', ...) (tools/pack-capability-taxonomy.mjs lines 221-228 and 271), so a real industry id is a KNOWN key. Experiment: COVERED_BY['IND-9.1-discrete-manufacturing'] = {module:'budgeting', why:...} then registry() printed 'NO THROW — industry claim accepted'; the same experiment with COVERED_BY['FUN-8.1-not-a-capability'] printed 'THREW: COVERED_BY names 1 entry id(s) the Bible does not produce'. So an industry coverage claim is silently ignored rather than rejected — evidence in a PASS row that does not reproduce. Everything else I checked did reproduce: requirement sentence matches (Bible line 787); 57 industries across 9 families, counts.industryImplemented === 0, every industry status 'not-implemented' and coveredBy null; the preamble is verbatim 'Treat this as a maintained capability registry, not a claim that every pack is implemented.' and is text the Bible contains; caveats present on 9.1/9.5/9.6/9.7/9.8/9.9 and each verbatim. Mutations re-run individually, each restored to 7/7: IND-9.1-discrete-manufacturing status -> 'certified-limited' in the committed JSON -> 2 red including 'IND-9.1-discrete-manufacturing claims "certified-limited" and no industry pack exists'; the caveat capture disabled (else if (false)) and regenerated -> '§9.6 (Healthcare and life sciences) does not carry its own limit: expected a caveat containing "must not claim to replace an EHR"'; the §8 line corruption also reds the shared quote check. Remedy is one line — restrict the unknown-key filter to functional ids (e.g. keys not present among the FUN ids, or reject any key not starting 'FUN-') — or strike enforcement (a) from the ledger row. Until one of those, the row overstates its defences and I cannot pass it.
+  - Code: `tools/pack-capability-taxonomy.mjs` (the `industry` half of
+    `registry()`), `docs/architecture/pack-capability-taxonomy.json` and
+    `.md`, `tests/architecture/pack-capability-taxonomy.test.mjs`.
+  - **57 industries across all nine §9 families, 0 implemented.** Every family
+    is parsed from the Bible, including §9.1's numbered list, and every entry
+    carries the line it came from so the guard can search the Bible for it as
+    text.
+  - "Without claiming implementation" is enforced three ways rather than
+    asserted once. (a) `COVERED_BY` is keyed by functional id only, so a
+    coverage claim for an industry entry is rejected as an unknown key — the
+    generator throws. (b) Every industry status is the constant
+    `not-implemented`, written in the generator, so claiming otherwise requires
+    editing code rather than a data file. (c) The guard checks the per-entry
+    status AND `counts.industryImplemented === 0`, so an entry ADDED with a
+    claim is caught even if the loop is satisfied.
+  - The registry carries its own governing sentence, quoted rather than
+    paraphrased: §9's own first line, "Treat this as a maintained capability
+    registry, not a claim that every pack is implemented", is asserted verbatim
+    and asserted to be text the Bible contains.
+  - **The limits travel with the taxonomy.** A list of 57 industries with the
+    caveats dropped is a claim that Tenure serves them, which is exactly what
+    this requirement forbids — so every §9 prose paragraph is captured beside
+    its family and every one is checked verbatim against the Bible. Three are
+    named individually, by the phrase the Bible uses, so that losing one is a
+    failure rather than a smaller number nobody reads: §9.6 "must not claim to
+    replace an EHR", §9.8 "must not imply it is a core banking", §9.9 "remain
+    governed external systems until specifically implemented and certified".
+    §9.1, §9.5 and §9.7 carry theirs too.
+  - Tests: `node --test tests/architecture/pack-capability-taxonomy.test.mjs` →
+    7/7 pass, of which 2 are this row's ("the §9 taxonomy is every industry the
+    Bible lists, claiming none of them", "the regulated families carry the
+    Bible's own limits, verbatim").
+  - Evidence — 3 mutations bearing on §9, 3 caught, all restored to 7/7:
+    1. `IND-9.1-discrete-manufacturing` status set to `certified-limited` in the
+       committed JSON → "IND-9.1-discrete-manufacturing claims
+       "certified-limited" and no industry pack exists". The freshness check
+       reds too, and the two are separate findings on purpose: a stale document
+       and a false one are different problems.
+    2. The generator's caveat capture disabled (`else if (false)`), then
+       regenerated so freshness passes → "§9.6 (Healthcare and life sciences)
+       does not carry its own limit: expected a caveat containing "must not
+       claim to replace an EHR"".
+    3. One entry's `line` corrupted (recorded under PACK-040-001, same
+       mechanism, the §8 half).
+  - Honest scope: this is the TAXONOMY, and nothing else. It does not deliver a
+    pack (PACK-050-003, FAIL), does not define a pack's internal structure
+    (PACK-050-001, FAIL), and its 57 zeroes are the state of the platform rather
+    than a placeholder for work in progress.
 
 - [ ] **PACK-050-003** — Deliver at least education/nonprofit, professional-services and discrete-manufacturing proving packs at declared scope.
   - Status: FAIL
@@ -1254,13 +1538,15 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PACK-GATE-030** — Pack truth is versioned, contextual and enforced.
   - Status: FAIL
-  - Children: 2 of 5 decided. PACK-030-001 (canonical pack objects, versions,
-    signatures, lifecycle, scope) and PACK-030-004 (deprecation, suspension,
-    end-of-support, retirement) are PASS. PACK-030-002 (exact availability
-    decisions), PACK-030-003 (dependencies, alternatives, conflicts,
-    compatibility) and PACK-030-005 (UI/API never labels unsupported scope
-    available) are FAIL. Corrected from "3 of 5", which counted PACK-030-003 as
-    PASS while the ledger has it FAIL.
+  - Children: 3 of 5 decided — `PACK-030-001` PASS (canonical pack objects,
+    versions, signatures, lifecycle, scope), `PACK-030-004` PASS (deprecation,
+    suspension, end-of-support, retirement), `PACK-030-005` PASS (UI/API never
+    labels unsupported scope available); `PACK-030-002` FAIL (exact availability
+    decisions) and `PACK-030-003` FAIL (dependencies, alternatives, conflicts,
+    compatibility). Was "2 of 5" until PACK-030-005 landed, and "3 of 5" before
+    that with PACK-030-003 wrongly counted as PASS — the number is written in the
+    keyed form with each child named, because both spellings have been wrong here
+    for different reasons.
   - Closed in this pass — the half of REVIEW-FINDINGS P0 #5 that was missing.
     `decide()` implemented the ordered tier comparison the finding demands
     (`tierRank` at `packages/authorization/src/decide.ts`, `current < required`
@@ -1292,15 +1578,42 @@ the commands or the ADR that would unblock it — if it cannot.
     equal" failed in `seat-world.test` and the upgrade test failed in
     `authorization.test`; restored -> both green.
   - What the gate still needs: PACK-030-002's legal-entity/population/country
-    scoping and PACK-030-005's UI/API label proof.
+    scoping, and PACK-030-003's alternatives/compatibility half re-judged by a
+    reader other than the one who fixed it. The UI/API label proof that used to
+    be listed here is done — `tests/architecture/availability-labels-are-derived.test.mjs`,
+    4/4, 5 mutations — and the gate is still FAIL, because a gate is proven by
+    its children and two of five are open.
 
 - [ ] **PACK-GATE-040** — Functional breadth is honest and depth is evidence-gated.
   - Status: FAIL
-  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+  - Children: 3 of 4 decided — `PACK-040-001` PASS (277 canonical registry
+    entries for every §8 capability), `PACK-040-002` PASS (each mapped to owner,
+    objects, states, controls, UI, integrations, tests and lifecycle),
+    `PACK-040-004` PASS (75 declared gaps, tracked as advisories);
+    `PACK-040-003` FAIL — complete vertical slices instead of shallow scaffolds,
+    which is the DEPTH half this gate is named for.
+  - Breadth is now honest in the sense the gate means: 262 of the 277 registered
+    capabilities say `not-implemented`, and the 15 that do not say
+    `certified-limited` because that is what their module's manifest says. Depth
+    is not evidence-gated yet — no suite has a complete vertical slice — so the
+    gate stays FAIL. Half a gate is not a gate.
 
 - [ ] **PACK-GATE-050** — Industry labels resolve to implemented process/control differences, not branding.
   - Status: FAIL
-  - Reason: imported from `Tenure_ERP_Archetype_and_Specialized_System_Pack_Factory_Claude_Bible_v1.0.md`; not yet implemented
+  - Children: 1 of 4 decided — `PACK-050-004` PASS (regulated-industry
+    disclaimers and hard availability gates); `PACK-050-001` FAIL (industry pack
+    internal structure and schema validation), `PACK-050-003` FAIL (the three
+    proving packs), and `PACK-050-002` FAIL — the §9 taxonomy of 57 industries is
+    real and none of them is claimed, but the row was OVERTURNED on review
+    because one of the three enforcement mechanisms it stated does not exist. Its
+    row carries the refuter's finding.
+  - The gate's own claim is the one thing the taxonomy deliberately does NOT
+    make: that an industry label resolves to an implemented process or control
+    difference. It cannot, because no industry pack exists — every one of the 57
+    entries says `not-implemented`, which is the honest answer and is also why
+    this gate cannot pass. It passes when PACK-050-001 gives a pack an internal
+    structure and PACK-050-003 delivers one at declared scope; the taxonomy is
+    the register those two will be judged against.
 
 - [ ] **PACK-GATE-060** — Modules form coherent business systems.
   - Status: FAIL

@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/Badge"
 import { FinanceDashboard } from "@/components/finance/FinanceDashboard"
 import { ReimbursementForm } from "@/components/finance/ReimbursementForm"
 import { type LedgerEntryRow } from "@/components/finance/LedgerDrawer"
-import { financeIntegrity, type LedgerKindName } from "@/lib/finance"
+import { financeIntegrity, ledgerTieOut, type LedgerKindName } from "@/lib/finance"
 
 export const dynamic = "force-dynamic"
 
@@ -143,6 +143,32 @@ export default async function FinancePage({
       lines[0]?.currency ?? undefined,
     )
 
+    /*
+     * FIN-010-003 — does the ledger itself tie?
+     *
+     * A different question from `integrity` above, which compares each budget
+     * line's cached actual against the postings dimensioned to it. That check
+     * passes while BOTH halves of a journal are mis-coded, because it never adds
+     * a debit to a credit and never looks at `account` at all.
+     *
+     * EVERY row, deliberately — including the counter-halves with no
+     * `budgetLineId`. Those are exactly what makes a journal balance; filtering
+     * them out (as the integrity check must) would leave a trial balance that
+     * cannot tie by construction.
+     */
+    const tieOut = ledgerTieOut(
+      ledger.map((e) => ({
+        id: e.id,
+        journalId: e.journalId,
+        account: e.account,
+        side: e.side,
+        amountCents: e.amountCents,
+        currency: e.currency,
+        effectiveAt: e.effectiveAt.toISOString(),
+        createdAt: e.createdAt.toISOString(),
+      })),
+    )
+
     // For the record header's status row. Zero budgeted is 0%, not a division
     // by zero: a club that has not been given a budget has not spent any of it.
     const budgetedCents = lines.reduce((s, l) => s + l.budgetedCents, 0)
@@ -178,6 +204,24 @@ export default async function FinancePage({
           className={`mt-3 text-sm ${integrity.reconciles ? "text-text-2" : "text-text-1 font-medium"}`}
         >
           {integrity.detail}
+        </p>
+
+        {/* FIN-010-003. The trial-balance tie-out, stated on both arms and on the
+            third one nobody asks about: a ledger with no postings has not
+            balanced, and saying so is the difference between "we looked" and "we
+            could not look". */}
+        <p
+          data-testid="ledger-tie-out"
+          className={`mt-1 text-sm ${tieOut.balanced === true && tieOut.unbalancedJournalIds.length === 0 ? "text-text-2" : "text-text-1 font-medium"}`}
+        >
+          {tieOut.detail}
+          {tieOut.late.length > 0 && (
+            <>
+              {" "}
+              {tieOut.late.length} posting(s) were written into a later month than the one they
+              belong to.
+            </>
+          )}
         </p>
 
         <FinanceDashboard

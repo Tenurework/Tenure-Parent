@@ -112,6 +112,12 @@ const DOMAINS = [
       'apps/web/src/app/api/profile-image/',
 
       'apps/web/src/lib/org/',
+      // HCM-040-003. The seat-memory boundary: what a successor inherits from a
+      // seat and what stays with the person who held it. It belongs to the org
+      // graph for the same reason `seat-is-not-a-role.itest.ts` does — the claim
+      // it enforces is about seats and succession, not about tenancy or privacy
+      // machinery in general.
+      'apps/web/src/lib/people/',
       'apps/web/src/lib/clubs.ts',
       // GE-050-002. Proves the seat/role split against a real database, which
       // is an organization-graph claim rather than a tenancy one.
@@ -256,6 +262,12 @@ const DOMAINS = [
       'apps/web/src/components/QuickLinks',
 
       'apps/web/src/lib/finance',
+      // PLN-030-001. Planning arithmetic — spreading, allocation and
+      // top-down/bottom-up reconciliation. Beside finance rather than inside it:
+      // finance records what happened, planning distributes what is intended,
+      // and `docs/architecture/pln-planning-limitations.md` §2 is the record of
+      // how far apart those two are here.
+      'apps/web/src/lib/planning/',
       'apps/web/src/lib/resources',
       'apps/web/src/app/api/templates/',
       'apps/web/src/app/(app)/resources/',

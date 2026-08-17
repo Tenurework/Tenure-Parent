@@ -38,6 +38,8 @@
  * configuration digest (GE-031-003) mean anything when expressions are in it.
  */
 
+import { adjacencyOf, minimalCyclePaths } from "./graph"
+
 export const EXPRESSION_LANGUAGE_VERSION = "1.0.0"
 
 export type ExprType = "number" | "string" | "boolean" | "null"
@@ -477,32 +479,18 @@ export function expressionCycles(expressions: Readonly<Record<string, string>>):
   const asts = new Map<string, Node>()
   for (const [name, source] of Object.entries(expressions)) asts.set(name, parse(source))
 
-  const cycles: string[] = []
-  const reported = new Set<string>()
-  const state = new Map<string, "visiting" | "done">()
-
-  const walk = (name: string, path: string[]) => {
-    if (state.get(name) === "done") return
-    if (state.get(name) === "visiting") {
-      const cycle = path.slice(path.indexOf(name)).concat(name)
-      const signature = [...new Set(cycle)].sort().join(",")
-      if (!reported.has(signature)) {
-        reported.add(signature)
-        cycles.push(cycle.join(" → "))
-      }
-      return
-    }
-    state.set(name, "visiting")
-    for (const dependency of dependencies(asts.get(name)!)) {
-      // Only a dependency that is itself an expression can form a cycle; a
-      // reference to plain environment data terminates.
-      if (asts.has(dependency)) walk(dependency, [...path, name])
-    }
-    state.set(name, "done")
-  }
-
-  for (const name of Object.keys(expressions).sort()) walk(name, [])
-  return cycles
+  // Only a dependency that is itself an expression can form a cycle; a reference
+  // to plain environment data terminates.
+  //
+  // The traversal itself is `graph.ts`. It used to be a depth-first search
+  // written out here, duplicating the one in `rejections.ts`, and both reported
+  // whichever cycle the traversal closed first rather than the SHORTEST one that
+  // Bible §11 step 6 asks for.
+  return minimalCyclePaths(
+    adjacencyOf(
+      [...asts].map(([name, ast]) => [name, dependencies(ast).filter((d) => asts.has(d))] as const),
+    ),
+  )
 }
 
 // ── Type checking ────────────────────────────────────────────────────────────

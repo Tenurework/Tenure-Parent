@@ -54,6 +54,8 @@ the properties the bible asks for rather than merely the name.
 | `packages/configuration/src/authority.ts` | RETAIN | The five non-bypassable guardrails. CFG-020-003's lock rule cannot be built on anything weaker. | `packages/configuration/src/authority.test.ts` |
 | `packages/configuration/src/exceptions.ts` | RETAIN | The reviewed path for what the guardrails refuse — the half that stops a guardrail becoming a reason to bypass the whole engine. | `packages/configuration/src/exceptions.test.ts` |
 | `packages/configuration/src/store.ts` | RETAIN | `commit` is the one writer, and `tests/security/one-config-writer.test.mjs` reds if a second appears. CFG's configurator must publish through it. | `tests/security/one-config-writer.test.mjs` |
+| `packages/configuration/src/graph.ts` | RETAIN | The graph algorithms Bible §11 steps 6 and 8 and §16 need, in one place: `minimalCyclePaths`, `topologicalGroups`, `affectedSubgraph`. RETAIN rather than REFACTOR because it replaced two duplicate depth-first searches rather than adding a third — `expression.ts` and `rejections.ts` both delegate to it now. | `packages/configuration/src/graph.test.ts` |
+| `packages/configuration/src/graph-snapshot.ts` | RETAIN | Bible §11's ten compilation steps, the traced evaluator, affected-subgraph re-evaluation and the two §11-step-10 projections. This is what CFG-030-001, -002, -003 and -005 and CFG-020-004 are recorded against, and CFG-020-001's missing vocabularies are additions to `RULE_SLOTS` here rather than a second compiler. | `packages/configuration/src/graph-snapshot.test.ts` |
 
 ## What the platform makes configurable — `packages/platform-config`
 
@@ -138,11 +140,11 @@ read the suffix rule will otherwise wonder where they went.
 
 | Disposition | Modules |
 |---|---:|
-| RETAIN | 49 |
+| RETAIN | 51 |
 | REFACTOR | 9 |
 | MIGRATE | 6 |
 | RETIRE | 0 |
-| **Total** | **64** |
+| **Total** | **66** |
 
 The counts are asserted against the table by the guard, so a row that changes
 disposition without the summary changing reds.

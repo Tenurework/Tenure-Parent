@@ -119,6 +119,14 @@ async function buildSearchCorpus(userId: string): Promise<SearchDoc[]> {
         roleId: true,
         organizationId: true,
         updatedAt: true,
+        // HCM-040-003. `type` and `sensitivity` are selected because
+        // `canSeeMemoryCard` now reads them: what an INCOMING seat holder
+        // inherits is decided per card by `people/seat-memory-boundary.ts`.
+        // Dropping either from this projection is a type error there, for the
+        // same reason the document projection below carries its own note —
+        // omitting a classification column silently reclassifies every row.
+        type: true,
+        sensitivity: true,
       },
     }),
     db.document.findMany({

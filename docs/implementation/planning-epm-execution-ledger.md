@@ -109,9 +109,46 @@ the commands or the ADR that would unblock it — if it cannot.
     calls is the "a type declares it" result this ledger exists to refuse.
   - Order: build PLN-000-002 first, then this against it.
 
-- [ ] **PLN-000-004** — Import every `PLN-*` item into the canonical ledger.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **PLN-000-004** — Import every `PLN-*` item into the canonical ledger.
+  - Status: PASS
+  - Code: `tests/architecture/pln-requirements-are-imported.test.mjs`, 9 tests, and the guard IS the
+    implementation — this requirement is about the register, so the thing that closes it is the check
+    that keeps the register complete. Every fact comes from `tools/document-graph.mjs`'s own readers
+    (`requirementsIn`, `ledgerStatuses`, `buildRegistry`, `classify`, `importedIds`), never a local
+    regex over the Bible, because two parsers of one document will disagree and the loop acts on that
+    one's answer.
+  - Caller: `npm run test:platform` → `tools/run-platform-tests.mjs`, which runs every
+    `tests/architecture/*.test.mjs` in CI. The Bible is read at the canonical path the GRAPH records
+    (`docs/architecture/architecture-document-graph.yaml`, entry
+    `tenure-planning-epm-and-decision-cloud-claude-bible-v1-0`), never at a hard-coded string, so a
+    rename the graph knows about cannot make it pass from a file the graph does not consider
+    authoritative.
+  - What it checks, and what the WRK and INT siblings do not: the graph registers the Bible as an
+    authority for `PLN`; the Bible states exactly 27 `PLN-*` requirements (a pinned literal — a count
+    read from the file agrees with whatever the file says today, including after a section was
+    deleted); the graph's `states_requirements` matches; all 27 have a row in this ledger; no invented
+    id and no unqualified duplicate; no other ledger claims a `PLN` requirement; the generated
+    registry owns exactly those 27 and every row resolves to the canonical path. **And the row's own
+    title is the Bible's own sentence, collapsed on whitespace only.** Nothing else in the programme
+    compares those two strings, and it is the check that decides whether "imported" means anything: a
+    `PLN-030-001` retitled from "spreading, allocations and top-down/bottom-up reconciliation" to
+    "spreading" is present, unique, correctly filed, and will one day be ticked for something the
+    authority did not ask for. `tools/import-requirements.mjs` wrote them equal once; only a check
+    keeps them equal, because the ledger is hand-edited for years and the Bible is not edited at all.
+  - Tests: 9 tests, `node --test tests/architecture/pln-requirements-are-imported.test.mjs` — 9 pass,
+    0 fail. All 27 titles matched the Bible verbatim on the first run.
+  - Evidence — 4 mutations, 4 caught, each restored and re-run green:
+    (1) deleted the `PLN-020-004` row from this ledger → `not ok 4 - every PLN requirement the Bible
+    states has a row in the planning ledger`, `# pass 8 # fail 1`; restored → `# pass 9 # fail 0`.
+    (2) retitled `PLN-030-001` to "Implement spreading." → `not ok 6 - every planning ledger row is
+    titled with the sentence the Bible states`, 8/1; restored → 9/0. This is the mutation the WRK and
+    INT siblings do not catch.
+    (3) inserted an invented `- [ ] **PLN-050-001** — Implement the quantum planning cube.` → `not ok
+    5 - the planning ledger invents no requirement and repeats none`, 8/1; restored → 9/0.
+    (4) `const STATED_COUNT = 27` → `26` → `not ok 2 - the Planning Bible still states the
+    requirements this pins`, 8/1; restored → 9/0.
+  - Not claimed: this proves the 27 are queued and correctly stated, not that any of them is done.
+    Twenty-four are `FAIL` or `BLOCKED_EXTERNAL` below, and that is the point of importing them.
 
 - [ ] **PLN-010-001** — Implement cycle/task/submission/review/approval/publish state machines.
   - Status: FAIL
@@ -127,7 +164,19 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PLN-010-004** — Pass WCAG 2.2 AA, localization, themes, density and long-session tests.
   - Status: FAIL
-  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Examined this wave. There is no planning surface to test: §10 of the Bible requires eight
+    experiences — planning home, model studio, planning grid, scenario lab, review workspace,
+    connected-plan map, board reporting, forecast/accuracy centre — and none of them exists.
+    PLN-010-002, which builds them, is FAIL below. A WCAG run against the club finance dashboard would
+    be a pass for a different requirement in a different domain.
+  - The localization clause is separately and independently blocked, and this is measurable now:
+    `docs/architecture/pln-planning-limitations.md` §4 derives that no internationalisation library is
+    declared in `apps/web/package.json` (none of `next-intl`, `react-intl`, `i18next`,
+    `react-i18next`, `@formatjs/intl`, `lingui`), that the default money format is `en-US`/`USD`, and
+    that `formatCentsCompact` in `apps/web/src/lib/finance.ts` hardcodes `$` and divides by 100. Every
+    string in the product is English in the source. Localizing a planning surface therefore needs a
+    localization pipeline first, and that is a platform decision this domain does not own.
+  - Unblocks when: PLN-010-002 ships a surface, and a localization pipeline exists to test it under.
 
 - [ ] **PLN-020-001** — Implement financial planning and Finance publication/reconciliation.
   - Status: FAIL
@@ -147,15 +196,130 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PLN-020-005** — Prove cross-plan dependencies and no duplicated master systems.
   - Status: FAIL
-  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Examined this wave and refused as a VACUOUS pass, which is the interesting part. The second clause
+    — no duplicated master systems — is a property of this repository and a guard over it would pass
+    today, because there are no planning tables at all to duplicate anything with
+    (`docs/architecture/pln-planning-inventory.md` §5: 0 of 36 canonical objects present). A test that
+    passes because the subject does not exist proves nothing and cannot be mutation-proven: there is
+    no mutation of a planning model that makes it fail, since there is no planning model. Writing it
+    would add a green check that will stay green through exactly the change it is supposed to catch.
+  - The first clause cannot be attempted at all: `financial/workforce/sales/operations/capital`
+    dependencies need plans on both ends, and seven of the eight §6 domains have none.
+  - The one dependency that could be proven now is not this requirement's: `Budget.allocatedCents`
+    (institution → club, top-down) against Σ `BudgetLine.budgetedCents` (club → institution,
+    bottom-up). The engine for it shipped under PLN-030-001; it is a single-plan reconciliation, not a
+    cross-plan dependency.
+  - Unblocks when: two of the §6 domains exist, so a dependency has two ends. Then the guard is worth
+    writing and can be mutation-proven by pointing one plan's driver at the other's master.
 
 - [ ] **PLN-030-001** — Implement spreading, allocations and top-down/bottom-up reconciliation.
   - Status: FAIL
-  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Why FAIL when most of it is built and proven: the sentence has three clauses and only the first
+    has a production caller. Spreading is called; allocation and reconciliation are a library nothing
+    imports, and this repository's rule is that a module nothing calls is not shipped. Recorded as
+    FAIL with the code in the tree rather than PASS with a scope note, because a scope note is where
+    "two of three" quietly becomes "done".
+  - Code, shipped and real: `apps/web/src/lib/planning/spread.ts` (new) — `spread`,
+    `assertRuleComplete`, `allocateDirect`, `allocateStepDown`, `allocateReciprocal`,
+    `allocateActivityBased`, `reconcile`, `applyDecision`, `SpreadRuleError`, `SPREAD_BASES`,
+    `REPRESENTABLE_UNITS`, `UNSUPPORTED_ALLOCATION_METHODS`, and the `SpreadRule` /
+    `ReconciliationRecord` types. All six bases §7 names — even, proportional, driver, seasonal,
+    historical, manual. Direct and step-down allocation. `SpreadRule` requires every one of the
+    thirteen fields §7 lists (source, target, basis, exclusions, order, currency/unit, precision,
+    zero/negative, effective period, owner, approval, test) and `assertRuleComplete` refuses blanks,
+    because `owner: ""` satisfies TypeScript and defeats the point of requiring an owner. Every output
+    cell carries `basis`, `weight`, `totalWeight`, `source` and `ruleId` — §7's "results drill to
+    basis and original source".
+  - Built on what exists: the split goes through `allocateByWeight` in `packages/finops/src/money.ts`,
+    not a second largest-remainder implementation. A repository with two of those has two answers to
+    "who got the leftover cent", and `packages/finops/src/split.ts` already carries the note about what
+    that cost.
+  - Caller, named, for the spreading clause: `apps/web/src/app/api/templates/budget/route.ts`. `GET`
+    now takes `?total=`, parses it with the importer's own `parseMoneyToCents`, spreads it across the
+    ten template categories, writes whole currency amounts into the Budgeted column the way
+    `parseBudgetSheet` reads them, and writes the rule — id, target, source, basis, rounding,
+    effective period, owner, approval — onto the Instructions sheet, so a pre-filled column arrives
+    with its basis rather than as numbers nobody can defend. `basis=even` is the only basis the route
+    offers, and not because the engine has one: the other five need a driver measurement, a season
+    profile, last year's actuals per category or the club's own proposal, none of which that request
+    has, and offering them would mean inventing the basis.
+  - Caller, named, for the other two clauses: **none.** `allocateDirect`, `allocateStepDown`,
+    `reconcile` and `applyDecision` are imported by their tests and by nothing else. The natural
+    production home for the reconciliation is the surface that shows a club its allocated total
+    (`Budget.allocatedCents`, written only by `apps/web/src/app/(app)/admin/actions.ts`) against the
+    sum of its proposed lines (`BudgetLine.budgetedCents`, written by
+    `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts`) — a top-down/bottom-up pair that already
+    exists in the schema and that nothing reconciles today. Both of those files, and
+    `apps/web/src/lib/finance.ts`, are claimed by the financial-management, payments-treasury and
+    global-engine ledgers, so this domain did not edit them in a wave with twelve agents in the tree.
+    That is a sequencing constraint, not a missing capability: the next wave wires it in one file.
+  - Refused rather than faked: `allocateReciprocal()` and `allocateActivityBased()` throw, naming what
+    each would need — simultaneous equations over an inter-service consumption matrix that no table
+    holds, and an activity model with cost drivers, which is `Driver` and `Measure`, two of the 36
+    objects PLN-000-002 has not built. §7 says "where supported"; degrading either to step-down would
+    return a number that is wrong and looks right.
+  - Not persisted, and it cannot be in this wave: there is no `SpreadRule`, `AllocationRule` or
+    `Reconciliation` table — `docs/architecture/pln-planning-inventory.md` §5 records 0 of 36
+    canonical objects present — and no schema change was permitted. A rule is a value a caller
+    constructs. It is complete, validated and traceable; it is not durable.
+  - Tests: 41 tests in `apps/web/src/lib/planning/spread.test.ts` plus 8 in
+    `apps/web/src/app/api/templates/budget/target-spread.test.ts`, all green:
+    `cd apps/web && npx jest src/lib/planning/spread.test.ts` → `Tests: 41 passed, 41 total`;
+    `npx jest src/app/api/templates/budget/target-spread.test.ts` → `Tests: 8 passed, 8 total`. The
+    route test asserts against the generated workbook parsed back out, not the engine's return value,
+    because the failure it is aimed at lives in the gap between them — cents divided by the wrong
+    power of ten, shares in the wrong column, a Total row double-counted.
+    `npx tsc --noEmit -p apps/web/tsconfig.json` → no output. `npx eslint` on all four files → no
+    output.
+  - Evidence — 10 mutations, 10 caught, each restored and re-run green. Engine (6):
+    (1) `allocateByWeight(...)` → independent per-share `Math.floor` → 5 tests failed including
+    `splits an indivisible target so the parts add back to exactly the target`, `Tests: 5 failed, 36
+    passed`; restored → 41/41.
+    (2) the all-zero-basis refusal `if (totalWeight === 0)` → `=== -12345` → `× refuses a basis that
+    measured zero everywhere instead of splitting evenly`, 1 failed / 40 passed; restored → 41/41.
+    (3) the manual-sum check `if (total !== targetMinorUnits)` → `=== -98765` → `× refuses a manual
+    spread that does not add to the target instead of reweighting it`, 1/40; restored → 41/41.
+    (4) step-down `pools.slice(index + 1)` → `pools.filter(p => p.id !== pool.id)`, i.e. charging a
+    closed pool backwards → `× steps down in order: an earlier pool charges a later one, never the
+    reverse`, 1/40; restored → 41/41.
+    (5) `bottomUpTotalMinorUnits: bottomTotal` → `topTotal`, i.e. the target overwriting the proposal
+    → 3 tests failed including `× keeps both sides and never overwrites either`; restored → 41/41.
+    (6) excluded members dropped instead of recorded at zero → `× records an exclusion at zero rather
+    than dropping the member`, 1/40; restored → 41/41.
+    Caller (4): (7) the cents→major-unit divisor set to 1 → 2 tests failed; (8) `spread()`'s result
+    replaced by `Math.round(targetCents / CATEGORIES.length)` → `× spreads an indivisible target to
+    the cent, without losing one`; (9) the rule no longer written into the workbook → `× writes the
+    rule that filled the column into the workbook`; (10) a `SpreadRuleError` returned as 503 instead
+    of 400 → `× refuses a negative target, in the engine's own words`. Each 1 failed / 7 passed except
+    (7); all restored → `Tests: 8 passed, 8 total`.
+  - Also changed, and both are shared files, additively: `tools/ownership-map.mjs` gains
+    `apps/web/src/lib/planning/` under `erp-modules` (the ownership guard fails on any unclaimed
+    source file, and it was already failing on three files this domain did not write), and
+    `docs/architecture/ownership.md` was regenerated with `node tools/ownership-map.mjs`.
+    `tools/pln-planning-inventory.mjs` — this domain's own — gains notes for `spread.ts` and for
+    `packages/finops/src/general-ledger.ts`, which arrived from FIN mid-wave carrying a budget anchor
+    and was reding PLN-000-001's guard.
+  - What the next wave does: import `reconcile` where `Budget.allocatedCents` and the sum of
+    `BudgetLine.budgetedCents` are already both on screen, and this becomes PASS without further
+    engine work.
 
 - [ ] **PLN-030-002** — Implement scenario compare, sensitivity and reproducible simulation.
   - Status: FAIL
-  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Examined this wave as the natural neighbour of PLN-030-001 and not attempted, for a reason that is
+    about the requirement rather than about time. Comparing two scenarios needs two scenarios: the
+    schema has no `Scenario` and no `PlanVersion` (`docs/architecture/pln-planning-inventory.md` §5),
+    and `BudgetLine`'s grain is `organizationId`/`academicYear`/`category` with a single
+    `forecastCents` column — so the same category cannot hold a base case and a worst case at once.
+    There is nothing to put on either side of a comparison, and a comparison engine over inputs a
+    caller invents would be a demo.
+  - Sensitivity has the same shape one level down: it varies a driver and re-evaluates, and there is no
+    driver and no calculation graph (PLN-000-003, FAIL below — the whole of the planning arithmetic
+    before this wave was `summarize()` in `apps/web/src/lib/finance.ts`).
+  - The reproducibility clause is the one part that could have been built now — a seeded, deterministic
+    simulation whose run is replayable from its recorded seed and inputs. It was not, because a
+    reproducible run of a model that does not exist is a reproducible run of nothing, and
+    `SimulationRun` has nowhere to be stored.
+  - Order: PLN-000-002 (the tables), then PLN-000-003 (the graph), then this against both.
 
 - [ ] **PLN-030-003** — Implement AWS-hosted forecast gateway, baselines, uncertainty, drift and human review.
   - Status: FAIL
@@ -179,11 +343,101 @@ the commands or the ADR that would unblock it — if it cannot.
 
 - [ ] **PLN-040-004** — Instrument scorecard baseline/targets/results and competitor workflow benchmarks.
   - Status: FAIL
-  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+  - Examined this wave and deliberately not attempted, with the reason, because "instrument" is the
+    verb and a document is not one. §15 of the Bible lists 13 measures. Twelve of them —
+    cycle duration, contributor time, time from actual refresh to reforecast, model change lead time,
+    forecast accuracy by horizon, unexplained variance, percentage of values with complete lineage,
+    scenario turnaround, task success and grid error rate, plan-to-execution consistency, calculation
+    performance at scale, successor comprehension time — are measurements of PEOPLE USING A PLANNING
+    SYSTEM OVER TIME. There is no planning system (`docs/architecture/pln-planning-limitations.md` §2:
+    seven of the eight domains absent), so there is no cycle to time, no forecast to score and no
+    contributor to observe. The thirteenth, cost per model/cell/job, needs metering per planning
+    object and there are no planning objects.
+  - What could have been shipped and was refused: a generated `pln-scorecard.md` in the shape of
+    PLN-000-001 and PLN-040-005, with 12 rows reading "no instrument exists". That would be an honest
+    document and it would not instrument anything, and filing it as PASS against a requirement whose
+    verb is "instrument" is exactly the substitution this ledger exists to refuse. It would also
+    duplicate PLN-040-005, which already publishes the absence with derived evidence.
+  - The competitor half is separately blocked and differently: §15 requires benchmarking against
+    Workday Adaptive Planning, SAP Analytics Cloud Planning, Oracle EPM and Intuit Enterprise Suite
+    "using public/lawful evidence", with named Intuit scenarios. A benchmark needs a released scope to
+    benchmark and lawful access to compare against; neither exists, and PLN-GATE-040's own sentence —
+    "'Best' is claimed only for measured released scope" — is the instruction not to fabricate it.
+  - Unblocks when: PLN-000-002 (schema) and PLN-010-001 (cycles) exist, so a cycle has a start and an
+    end and a contributor has a task; then baseline/target/result become numbers a job can record.
 
-- [ ] **PLN-040-005** — Publish exact model/domain/forecast/country limitations.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Planning_EPM_and_Decision_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **PLN-040-005** — Publish exact model/domain/forecast/country limitations.
+  - Status: PASS
+  - Code: `tools/pln-planning-limitations.mjs` derives `docs/architecture/pln-planning-limitations.md`
+    — four sections, one per axis the requirement names, plus a fifth stating what the generator
+    cannot see. Exported derivations: `deriveGrain`, `deriveFields`, `deriveBibleList`,
+    `deriveRequiredDimensions`, `deriveRequiredUnits`, `deriveRepresentableUnits`, `deriveDomains`,
+    `deriveDomainVerdicts`, `deriveRejectedProbes`, `deriveForecastEvidence`,
+    `deriveCurrencyExponents`, `deriveDefaultMoneyFormat`, `deriveCompactFormatter`,
+    `deriveBudgetPeriods`, `deriveI18nDependencies`, `render`.
+  - Caller: the guard `tests/architecture/pln-planning-limitations.test.mjs`, run by
+    `npm run test:platform`; the document is committed and regenerated with
+    `node tools/pln-planning-limitations.mjs`. It reuses `sweptFiles()`, `readText`, `BIBLE`,
+    `SCHEMA` and `SCAN_ROOTS` from `tools/pln-planning-inventory.mjs` rather than growing a second
+    walker — `sweptFiles` was extracted from `deriveCode`/`deriveTests` in that file for this, and
+    those two are byte-identical afterwards (its 8 tests stayed green across the refactor).
+  - The word that decides whether this is worth anything is "exact". A hand-written limitations page
+    is adjectives — "planning support is currently limited" is true of a repository with a full EPM
+    engine and true of one with none — and it ages in the direction that flatters. So every number
+    and verdict is derived, and the guard re-derives the whole document and compares byte for byte.
+  - What it publishes, all derived: **model** — the planning grain read from `@@unique` on
+    `BudgetLine` (`organizationId`, `academicYear`, `category`) and `Budget`, against the 18
+    dimensions §4.1 requires read out of the Bible, and 1 of the 9 unit kinds §4.2 requires
+    representable, because every measure column is an `Int` of cents; **domain** — all 8 subsections
+    of §6, probed, 7 absent and `6.8` partial; **forecast** — 11 statistical identifiers swept over
+    every source file with zero hits, all 4 forecast objects absent from the schema, and
+    `saveForecast` read to show `forecastCents` is a number a human typed; **country** — the 26
+    currency codes whose minor-unit exponent `packages/finops/src/money.ts` knows (everything else
+    defaults to 2, a hundredfold error for a code outside them whose minor unit is not a hundredth),
+    no `ExchangeRateSet`, default locale `en-US`, `formatCentsCompact` read to show it hardcodes `$`
+    and /100, `BudgetPeriod`'s 3 values as the only fiscal calendar, and no i18n library declared.
+  - "We looked and found nothing" is kept apart from "we could not look" three ways: a probe is a
+    NECESSARY condition (zero hits proves absence, hits do not prove presence, so hits print their
+    files and the note says what they actually do); probe tokens are compound identifiers, with the
+    rejected single words published beside a file each still hits; and §5 names the generator's own
+    blind spots — runtime data, whether an absence is wrong, prose outside `.ts`/`.tsx`/`.mjs`, and
+    capabilities named something nobody guessed.
+  - It caught a live drift while being written: `incomeStatement` and `balanceSheet` hit
+    `packages/finops/src/general-ledger.ts`, which FIN-010-003 landed during this wave. The §6.1 note
+    had said "no statement integration"; the probes were narrowed to planning tokens
+    (`plannedBalanceSheet`, `capexPlan`, …) and the note now separates Finance's record-to-report over
+    posted lines from a projected statement, which is the distinction §6.1 is actually about.
+  - Refusals, and they are the load-bearing part: the generator throws when a §6 domain has no probe
+    set or no note, when a note or probe set names a domain the Bible does not state, when a note says
+    `Absent` over a probe hit or claims something over zero hits, and when the currency tables, the
+    default money format, the compact formatter, either `@@unique` or either parsed Bible sentence is
+    not where it looks. The document deliberately does NOT print a count of files swept: that number
+    moved from 937 to 941 in one minute of this wave and carries no claim, so it would be churn
+    wearing the clothes of evidence. The `grant` hit count was published for the same reason and
+    withdrawn for the same one — 178, then 179 a minute later.
+  - Tests: 11 tests, `node --test tests/architecture/pln-planning-limitations.test.mjs` — `# pass 11
+    # fail 0`, stable over 3 consecutive runs. Four of the substantive claims are re-checked a second,
+    deliberately independent way rather than through the generator: the grain is re-read from
+    `schema.prisma`, every currency code is re-checked against `money.ts`, every path the page names
+    is opened and re-matched, and the 11 statistical identifiers are re-swept. The missing-probe-set
+    refusal is exercised by deleting a key from `DOMAIN_PROBES` and restoring it.
+  - Evidence — 5 mutations, 5 caught, each restored and re-run green:
+    (1) hand-edited the page: `Exponents known for 26 currency codes` → `99` → `not ok 1 - the
+    committed limitations page is exactly what the tree derives`, `# pass 9 # fail 1`; restored → 10/0.
+    (2) `6.8`'s probes → `["nonprofitFundPlan"]` (hits nothing) while its note still claims two
+    capabilities → `not ok 4 - a note claiming Absent is checked against the sweep` + `not ok 1`,
+    8/2; restored → 10/0.
+    (3) created `apps/system-studio/src/lib/pln-mutation-probe.ts` containing `linearRegression` →
+    `not ok 8 - the statistical identifiers the page says appear nowhere appear nowhere` + `not ok 1`,
+    8/2; deleted it → green.
+    (4) `const probes = DOMAIN_PROBES[domain]` → `?? []`, i.e. an unprobed domain reading as absent →
+    `not ok 3 - a domain with no probe set is refused, not silently reported absent`, 10/1; restored
+    → 11/0.
+    (5) `enrollment`'s exemplar path → `packages/finops/src/money.ts`, which does not contain it →
+    `not ok 6 - every rejected probe still hits the file the page says it hits` + `not ok 1`, 9/2;
+    restored → 11/0.
+  - Regeneration: `node tools/pln-planning-limitations.mjs`. The page is stale by design when the code
+    it describes changes; that is the cost of exact numbers, and it is stated on the page itself.
 
 - [ ] **PLN-GATE-000** — Multidimensional planning foundation is correct and tenant-safe.
   - Status: FAIL
