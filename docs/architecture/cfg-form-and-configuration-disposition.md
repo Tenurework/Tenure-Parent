@@ -114,6 +114,7 @@ a 1,240-line page component.
 | `apps/system-studio/src/components/DeploymentPanel.tsx` | RETAIN | The deployment artifact a cell reconciles toward, with the facts that used to be claimed in comments and rendered nowhere. | `apps/system-studio/src/components/DeploymentPanel.tsx` |
 | `apps/system-studio/src/components/EvidencePanel.tsx` | RETAIN | What a step ran against and produced, checkable against the account. CFG-060's handoff evidence renders here. | `apps/system-studio/src/components/EvidencePanel.tsx` |
 | `apps/system-studio/src/components/TagCompliancePanel.tsx` | RETAIN | Where the tag contract stops being a computation and becomes something an operator has to look at. | `apps/system-studio/src/components/TagCompliancePanel.tsx` |
+| `apps/system-studio/src/components/GovernancePanel.tsx` | RETAIN | Matched on the `Panel` suffix, and it configures nothing: every sentence it renders comes from a `*Lines` function in `src/lib/change` and `src/lib/portability`, so it chooses markup and takes no decision. It is a readout of what a move reaches and what a copy would not carry — the surface CFG-060's handoff evidence and CFG-040's impact preview are read on, not a question a schema graph would replace. | `apps/system-studio/e2e/change-governance-logic.spec.ts` |
 
 ## The tenant application's forms — `apps/web`
 
@@ -143,11 +144,11 @@ read the suffix rule will otherwise wonder where they went.
 
 | Disposition | Modules |
 |---|---:|
-| RETAIN | 54 |
+| RETAIN | 55 |
 | REFACTOR | 9 |
 | MIGRATE | 6 |
 | RETIRE | 0 |
-| **Total** | **69** |
+| **Total** | **70** |
 
 The counts are asserted against the table by the guard, so a row that changes
 disposition without the summary changing reds.

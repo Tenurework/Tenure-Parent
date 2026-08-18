@@ -98,6 +98,19 @@ const DOMAINS = [
 
       'apps/web/src/lib/authz/',
       'apps/web/src/lib/admin/',
+      // IER-070. The deterministic eligibility engine: a typed policy language,
+      // its compiler, the evaluator, and the tenant-entry policy this
+      // deployment decides with. It is here rather than under `identity`
+      // because the facts it reads (affiliation status, verified email) are
+      // inputs, not its subject — what it produces is an access outcome for a
+      // named CAPABILITY, gated first on whether the tenant is entitled to that
+      // capability at all (`evaluate.ts` gate 1). "What someone may do:
+      // capabilities, policy decisions" is this domain's sentence, and
+      // `lib/policies.ts` below is the same subject asked declaratively.
+      // The prefix, not the files: `engine-purity.test.ts` reads the other
+      // three as text to prove no clock, network call or random source entered
+      // the engine, and it has to move with them.
+      'apps/web/src/lib/eligibility/',
       'apps/web/src/lib/rbac',
       'apps/web/src/lib/delegation.ts',
       'apps/web/src/lib/policies.ts',
@@ -197,6 +210,18 @@ const DOMAINS = [
 
       'apps/web/src/lib/s3.ts',
       'apps/web/src/lib/s3.test.ts',
+      // GE-143-007. The format boundary on tenant-supplied imagery: the bytes
+      // decide the type, the client's declared one is only used to detect
+      // disagreement, and anything unidentifiable is refused. It belongs to the
+      // domain that owns what happens NEXT — `lib/s3.ts` above stores the
+      // object with that content type and the viewer serves it back inline,
+      // which is the whole reason a lie about the format matters. Not
+      // `organization`, which owns the profile- and org-image ROUTES: this
+      // module is imported by those and by tenant settings, and its own backlog
+      // register names paths in messaging, documents and finance — a helper
+      // whose callers already span four domains is owned by its subject, and
+      // its subject is what may become a stored object.
+      'apps/web/src/lib/uploads/',
       'apps/web/src/app/api/documents/',
       'apps/web/src/app/api/attachment/',
       // Images are attachments with a different viewer. The gallery reads the

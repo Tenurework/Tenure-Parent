@@ -18,11 +18,11 @@ defensible.
 |---|---:|---|---|
 | `control-plane` | 390 | deployer + engine + tenant | Composing, provisioning and operating tenants. The engine, not any tenant. |
 | `identity` | 86 | engine + tenant | Who someone is: providers, sessions, the sign-in surface. |
-| `authorization` | 49 | engine + tenant | What someone may do: capabilities, policy decisions, delegation. |
+| `authorization` | 56 | engine + tenant | What someone may do: capabilities, policy decisions, delegation. |
 | `organization` | 47 | engine + tenant | The org graph: institutions, organizations, roles, seats, the directory. |
 | `configuration` | 116 | engine + tenant | Layered configuration, blueprints, module resolution, tenancy scoping. |
 | `workflow` | 21 | engine + tenant | Approvals, their gates and their state machine. |
-| `files` | 17 | tenant | Documents and attachments: storage, retrieval, editing. |
+| `files` | 19 | tenant | Documents and attachments: storage, retrieval, editing. |
 | `search-memory` | 9 | tenant | Retrieval across everything a principal may already see, and org memory. |
 | `notifications` | 61 | tenant | Telling someone something happened: in-app notices, calendars, messaging. |
 | `reporting` | 45 | engine + tenant | Reading the estate back: reports, dashboards, the audit trail. |
@@ -98,15 +98,7 @@ list here would mean the domains are wrong rather than that the code is unusual.
 
 ## Unclaimed
 
-- `apps/web/src/lib/eligibility/engine-purity.test.ts`
-- `apps/web/src/lib/eligibility/evaluate.test.ts`
-- `apps/web/src/lib/eligibility/evaluate.ts`
-- `apps/web/src/lib/eligibility/policy.test.ts`
-- `apps/web/src/lib/eligibility/policy.ts`
-- `apps/web/src/lib/eligibility/tenant-entry.test.ts`
-- `apps/web/src/lib/eligibility/tenant-entry.ts`
-- `apps/web/src/lib/uploads/tenant-image.test.ts`
-- `apps/web/src/lib/uploads/tenant-image.ts`
+_None._
 
 ## Claimed twice
 

@@ -16,7 +16,7 @@ node tools/fin-finance-surface.mjs --check   # fail if it is stale
 - Facet hits (a file can match several): budget 9 · expense 3 · ledger 13 · payment 62 · cost 39 · finance 18.
 - Finance-bearing tables in `apps/web/prisma/schema.prisma`: **10**.
 - Bible §3.2 canonical accounting objects present as tables: **0 of 20** — none. A further 1 (`Account`) has its name taken by an unrelated model, which is a migration hazard and is not coverage.
-- Capability claims: **31** — 13 TRUE, 14 SCOPED, 3 OVERSTATED, 1 UNADJUDICATED.
+- Capability claims: **31** — 13 TRUE, 15 SCOPED, 3 OVERSTATED, 0 UNADJUDICATED.
 
 ## A. The finance surface
 
@@ -223,7 +223,7 @@ Every term from the Bible's capability vocabulary uttered anywhere in the surfac
 | `packages/payments/src/charge-model.ts` | subledger | 1 | OVERSTATED | A blocker message tells the caller to 'post it to the internal subledger instead'. No subledger exists — there is one LedgerEntry table and no subledger document or entry at all. FIN-000-003. |
 | `packages/payments/src/eligibility.ts` | legal entity | 2 | SCOPED | The legal-entity TYPE a capability is declared for. A type, not an entity. |
 | `packages/payments/src/funds-flow.ts` | legal entity | 1 | SCOPED | Quotes the Payments Bible on direct flow. Describes the intended arrangement, claims no model. |
-| `packages/payments/src/high-risk-actions.ts` | legal entity | 1 | UNADJUDICATED | No verdict recorded. FIN-000-001 requires every claim to be adjudicated. |
+| `packages/payments/src/high-risk-actions.ts` | legal entity | 1 | SCOPED | One occurrence, in the module header quoting Bible §22's enumeration of what an audit event carries. The slot behind the word is real — `legalEntity` is one of the 18 `EVIDENCE_FIELDS`, and a value supplied under that name is carried into the package and into its sha256 digest even when the class did not ask for it. But it is in neither `ALWAYS` nor any of the six `EVIDENCE_REQUIREMENTS`, so no high-risk action is ever reported incomplete for want of one, and the module never resolves, validates or looks one up. What a caller would have to hand it is the bare `legalEntityId` string on `PaymentsFundsFlowConfig` (`apps/web/prisma/schema.prisma`); no `LegalEntity` model exists. The term names a field the evidence package will carry if it is given one, not an entity this platform models. FIN-000-002. |
 | `packages/payments/src/limits.ts` | legal entity | 1 | SCOPED | One sentence of a doc comment on `recipientKey`, explaining that `null` means a movement between two dimensions of ONE legal entity rather than a payment to somebody. It names the boundary the null case sits inside; it does not claim this package models legal entities, and nothing here holds one. PAY-000-004. |
 | `packages/payments/src/posting.ts` | legal entity | 1 | SCOPED | The header QUOTES Bible §13 — templates 'versioned by legal entity, ledger/book, transaction type, provider flow, currency, tax and effective date' — and attributes it. What POSTING_TEMPLATES actually versions by is effective date and currency; the other five axes do not exist. Attributed, so not a false claim, but a reader skimming it will over-read the code. FIN-000-002. |
 | `packages/payments/src/prohibited-claims.test.ts` | legal entity | 1 | TRUE | The test that proves the rule above fires, using the sentence 'Tenure is not the merchant of record; the tenant legal entity is.' Same subject, and it is exercised rather than asserted. |

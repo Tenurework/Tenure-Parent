@@ -250,9 +250,26 @@ export default async function PlatformPage() {
     tenants: customerTenantsOnly(fleetCompatibility(cell.release)),
   }))
 
-  // The inventory records denials as {call, reason}; a count alone would lose
-  // the reason, which is the part that matters.
-  const denied = Array.isArray(estate.deniedCalls) ? estate.deniedCalls : []
+  /*
+   * The inventory records denials as {call, reason}; a count alone would lose the
+   * reason, which is the part that matters.
+   *
+   * TYPED EXPLICITLY, and that is load-bearing rather than tidy. The shape comes
+   * from an imported JSON artefact, so TypeScript infers the element type from
+   * whatever that file happens to contain — and when the estate has NO denials
+   * the array is `[]`, which infers as `never[]`. Reading `d.call` off `never`
+   * then fails to compile.
+   *
+   * So the build broke on the healthiest possible state: an engine refused
+   * nothing. It surfaced when the artefact was regenerated while the AWS account
+   * was suspended and every read failed differently, but the latent defect is the
+   * inference, not that day's data — the same crash waits for the first account
+   * that grants everything this console asks for.
+   */
+  type DeniedCall = { call: string; reason: string }
+  const denied: DeniedCall[] = Array.isArray(estate.deniedCalls)
+    ? (estate.deniedCalls as DeniedCall[])
+    : []
   const percent = ((programme.decided / programme.totalItems) * 100).toFixed(1)
   const percentValue = Number(percent)
   const untranscribed = programme.totalItems - ledger.total
@@ -1458,7 +1475,12 @@ export default async function PlatformPage() {
                       : row.state,
                 },
               ]}
-              rows={estate.alarms}
+              /* Typed for the same reason `denied` is, a thousand lines above:
+                 the rows come from an imported JSON artefact, so an estate with
+                 no alarms infers as `never[]` and reading `row.name` off it
+                 fails to COMPILE. An account with nothing alarming is a good
+                 state, not a build break. */
+              rows={estate.alarms as { name: string; state: string; actionsEnabled?: boolean }[]}
               rowKey={(row) => row.name}
               empty={
                 <EmptyState

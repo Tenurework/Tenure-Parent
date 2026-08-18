@@ -121,8 +121,8 @@ the schema, so a description cannot drift from the declaration it describes.
 ## 3. Operations vocabulary in the tenant product
 
 Scanned: `apps/web/src`, `modules`, `packages` — every `.ts`/`.tsx` file, for
-22 Operations terms. **31** matches in
-**17** files.
+22 Operations terms. **52** matches in
+**24** files.
 
 Out of scope: the operator plane (`apps/system-studio/src`). Its Operations
 vocabulary is the AWS estate sense — `apps/system-studio/src/lib/aws/inventory.ts`
@@ -135,16 +135,37 @@ guard holds it to a floor instead, so the exclusion cannot become an empty scan.
 
 | File | Line | Term |
 | --- | --- | --- |
+| `apps/web/src/components/ui/icon-family.ts` | 22 | inventory |
+| `apps/web/src/components/ui/icon-family.ts` | 24 | inventory |
 | `apps/web/src/lib/a11y/theme-tokens.ts` | 23 | inventory |
 | `apps/web/src/lib/a11y/theme-tokens.ts` | 33 | inventory |
 | `apps/web/src/lib/a11y/theme-tokens.ts` | 157 | inventory |
+| `apps/web/src/lib/connections/exception-worklist.ts` | 20 | manufacturing |
 | `apps/web/src/lib/dev-login.ts` | 12 | procurement |
 | `apps/web/src/lib/partition-services.ts` | 24 | inventory |
 | `apps/web/src/lib/people/seat-memory-boundary.ts` | 41 | inventory |
 | `apps/web/src/lib/planning/spread.ts` | 54 | inventory |
 | `apps/web/src/lib/policies.ts` | 293 | logistics |
+| `apps/web/src/lib/workflows/generality-parity.test.ts` | 80 | procurement |
 | `packages/finops/src/general-ledger.ts` | 19 | inventory |
 | `packages/finops/src/general-ledger.ts` | 65 | inventory |
+| `packages/generality-fixtures/src/corporate-org.test.ts` | 61 | procurement |
+| `packages/generality-fixtures/src/corporate-org.test.ts` | 62 | procurement |
+| `packages/generality-fixtures/src/corporate-org.test.ts` | 64 | procurement |
+| `packages/generality-fixtures/src/corporate-org.test.ts` | 65 | procurement |
+| `packages/generality-fixtures/src/corporate-org.test.ts` | 77 | procurement |
+| `packages/generality-fixtures/src/corporate-org.test.ts` | 111 | procurement |
+| `packages/generality-fixtures/src/corporate-org.ts` | 126 | procurement |
+| `packages/generality-fixtures/src/corporate-org.ts` | 127 | procurement |
+| `packages/generality-fixtures/src/corporate-org.ts` | 133 | procurement |
+| `packages/generality-fixtures/src/corporate-purchase.test.ts` | 30 | procurement |
+| `packages/generality-fixtures/src/corporate-purchase.test.ts` | 37 | procurement |
+| `packages/generality-fixtures/src/corporate-purchase.test.ts` | 136 | procurement |
+| `packages/generality-fixtures/src/corporate-purchase.test.ts` | 251 | procurement |
+| `packages/generality-fixtures/src/corporate-purchase.test.ts` | 295 | procurement |
+| `packages/generality-fixtures/src/corporate-purchase.ts` | 28 | procurement |
+| `packages/generality-fixtures/src/corporate-purchase.ts` | 183 | procurement |
+| `packages/generality-fixtures/src/corporate-purchase.ts` | 222 | procurement |
 | `packages/identity/src/handoff.test.ts` | 235 | inventory |
 | `packages/identity/src/handoff.ts` | 132 | inventory |
 | `packages/identity/src/handoff.ts` | 133 | inventory |
@@ -163,7 +184,7 @@ guard holds it to a floor instead, so the exclusion cannot become an empty scan.
 | `packages/organization-model/src/topology.ts` | 222 | warehouse |
 | `packages/platform-config/src/module-permissions.test.ts` | 157 | procurement |
 | `packages/platform-config/src/module-permissions.test.ts` | 171 | procurement |
-| `packages/provisioning/src/provisioning.test.ts` | 474 | procurement |
+| `packages/provisioning/src/provisioning.test.ts` | 516 | procurement |
 | `packages/provisioning/src/resource-tags.ts` | 33 | inventory |
 | `packages/provisioning/src/resource-tags.ts` | 38 | inventory |
 
@@ -171,13 +192,20 @@ guard holds it to a floor instead, so the exclusion cannot become an empty scan.
 
 | File | Verdict | The word means |
 | --- | --- | --- |
+| `apps/web/src/components/ui/icon-family.ts` | unrelated-word | `tools/tes-ui-stack-inventory.mjs`, the UI-stack inventory scan it defers its accessible-name clause to |
 | `apps/web/src/lib/a11y/theme-tokens.ts` | unrelated-word | the design token inventory in `tools/entry-point-inventory.mjs` — a list of CSS custom properties |
+| `apps/web/src/lib/connections/exception-worklist.ts` | unrelated-word | fabrication — "a type that filled one in would be manufacturing an assignment nobody made", about a missing exception owner |
 | `apps/web/src/lib/dev-login.ts` | unrelated-word | an institution's purchasing timetable for Okta, in a comment about when the dev door can be removed |
 | `apps/web/src/lib/partition-services.ts` | unrelated-word | "an inventory of *this app's* dependencies" — which AWS services the application calls |
 | `apps/web/src/lib/people/seat-memory-boundary.ts` | unrelated-word | `docs/architecture/hcm-people-inventory.md`, the People inventory document it cites for a measurement |
 | `apps/web/src/lib/planning/spread.ts` | unrelated-word | `docs/architecture/pln-planning-inventory.md`, the Planning inventory document it cites for absent objects |
 | `apps/web/src/lib/policies.ts` | unrelated-word | OSE policy text shown to a club: "All logistics, planning and expenses are managed by students" |
+| `apps/web/src/lib/workflows/generality-parity.test.ts` | unrelated-word | `emea-industrial-procurement`, the GE-052-004 fixture org unit a `unit.lead` grant is scoped to |
 | `packages/finops/src/general-ledger.ts` | unrelated-word | `docs/architecture/fin-finance-surface-inventory.md`, the Finance inventory document it cites twice for ABSENT entities |
+| `packages/generality-fixtures/src/corporate-org.test.ts` | unrelated-word | the same fixture unit id, asserted for its depth and its ancestors |
+| `packages/generality-fixtures/src/corporate-org.ts` | unrelated-word | `emea-industrial-procurement`, a GE-052-002 fixture org-chart department whose display name is "Sourcing" — a node with a parent and a rank, and no operational behaviour |
+| `packages/generality-fixtures/src/corporate-purchase.test.ts` | unrelated-word | the same approval gate, exercised — a director who "cannot lend procurement" is a delegation refusal about authority, not about supply |
+| `packages/generality-fixtures/src/corporate-purchase.ts` | unrelated-word | a rung of SPEND AUTHORITY — `procurementGate` is "the executive who signs what the company is committed to" and `PENDING_PROCUREMENT` is that person's queue. The GE-052-003 fixture prices an amount and routes approvals; it carries no supplier, item, unit of measure, purchase-order line or receipt, and nothing exists downstream of `APPROVED` |
 | `packages/identity/src/handoff.test.ts` | unrelated-word | the same `source: "inventory"` string, in a fixture |
 | `packages/identity/src/handoff.ts` | unrelated-word | `docs/architecture/aws-inventory.json`, the source a handoff field cites |
 | `packages/identity/src/session.test.ts` | unrelated-word | `sessionInventory`, the same list of sessions |
@@ -189,7 +217,7 @@ guard holds it to a floor instead, so the exclusion cannot become an empty scan.
 | `packages/provisioning/src/provisioning.test.ts` | unrelated-word | `systemOfRecord: { procurement: "external" }`, a deliberately unknown domain the validator must refuse |
 | `packages/provisioning/src/resource-tags.ts` | unrelated-word | `apps/system-studio/src/lib/aws/inventory.ts` calling `tagProblems` on AWS resources |
 
-**0** of the 17 are Operations capability claims.
+**0** of the 24 are Operations capability claims.
 No shipped file claims an Operations capability, so there is no false claim to withdraw — the finding is an absence, not an overstatement.
 
 ## 4. What follows from this

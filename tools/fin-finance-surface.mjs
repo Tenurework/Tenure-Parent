@@ -268,6 +268,10 @@ export const CLAIM_TERMS = [
  * automatable and it is not optional.
  */
 export const CLAIM_VERDICTS = {
+  "packages/payments/src/high-risk-actions.ts|legal entity": {
+    verdict: "SCOPED",
+    note: "One occurrence, in the module header quoting Bible §22's enumeration of what an audit event carries. The slot behind the word is real — `legalEntity` is one of the 18 `EVIDENCE_FIELDS`, and a value supplied under that name is carried into the package and into its sha256 digest even when the class did not ask for it. But it is in neither `ALWAYS` nor any of the six `EVIDENCE_REQUIREMENTS`, so no high-risk action is ever reported incomplete for want of one, and the module never resolves, validates or looks one up. What a caller would have to hand it is the bare `legalEntityId` string on `PaymentsFundsFlowConfig` (`apps/web/prisma/schema.prisma`); no `LegalEntity` model exists. The term names a field the evidence package will carry if it is given one, not an entity this platform models. FIN-000-002.",
+  },
   "packages/payments/src/limits.ts|legal entity": {
     verdict: "SCOPED",
     note: "One sentence of a doc comment on `recipientKey`, explaining that `null` means a movement between two dimensions of ONE legal entity rather than a payment to somebody. It names the boundary the null case sits inside; it does not claim this package models legal entities, and nothing here holds one. PAY-000-004.",

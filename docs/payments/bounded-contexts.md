@@ -39,7 +39,7 @@ inbox, not a payment system.
 | 9 | Risk and Disputes Service | absent | — |
 | 10 | Payments Ledger Adapter | partial | `packages/payments/src/posting.ts`, `packages/payments/src/balance-transactions.ts`, `apps/web/src/lib/finance.ts` |
 | 11 | Provider Gateway | partial | `packages/payments/src/gateway.ts`, `packages/payments/src/api-version.ts`, `packages/payments/src/webhook.ts`, `packages/payments/src/external-reference.ts`, `apps/web/src/app/api/payments/provider-events/route.ts` |
-| 12 | Payments Operations Center | partial | `packages/payments/src/refusal.ts`, `packages/payments/src/limits.ts` |
+| 12 | Payments Operations Center | partial | `packages/payments/src/refusal.ts`, `packages/payments/src/limits.ts`, `packages/payments/src/financial-identifiers.ts`, `packages/payments/src/high-risk-actions.ts` |
 
 What each of the five that exist actually does, as against what Bible §4 asks of
 it:
@@ -61,9 +61,15 @@ it:
   webhook signature verification and deduplication, and qualified external
   references. It holds **no provider SDK and makes no network call** — the event
   route records evidence and stops.
-* **12. Payments Operations Center.** The refusal engine and the movement
-  limits. No queues, dashboards or incident tooling; what exists is the control
-  that says a request may not proceed and names the queue that would own it.
+* **12. Payments Operations Center.** The refusal engine, the movement limits,
+  the financial-identifier protection that decides how much of a card or bank
+  number a purpose has earned, and the evidence package a high-risk action has
+  to carry. No queues, dashboards or incident tooling; what exists is the
+  control that says a request may not proceed and names the queue that would
+  own it, plus the two PAY-200 controls that govern what an operator may see
+  and what a consequential action must record. The evidence package here is an
+  AUDIT evidence package for an action — not the dispute evidence package
+  context 9 would own, which still does not exist.
 
 The seven absent contexts, and why each is absent rather than pending:
 
@@ -98,8 +104,10 @@ what "publish ownership and dependency diagrams" is asked to prevent.
 | `charge-model` | Funds Flow Service | `capability-registry`, `funds-flow`, `responsibility` |
 | `eligibility` | Payments Configuration Plane | `capability-registry` |
 | `external-reference` | Provider Gateway | — |
+| `financial-identifiers` | Payments Operations Center | — |
 | `funds-flow` | Funds Flow Service | `capability-registry`, `eligibility`, `responsibility` |
 | `gateway` | Provider Gateway | `api-version`, `external-reference`, `prohibited-claims`, `refusal`, `responsibility` |
+| `high-risk-actions` | Payments Operations Center | — |
 | `liability` | Funds Flow Service | `charge-model` |
 | `limits` | Payments Operations Center | — |
 | `posting` | Payments Ledger Adapter | — |

@@ -189,19 +189,26 @@ test("the ceiling is what Rule 6 permits and nothing better", () => {
  * one: the fix is a ledger edit, and this test is not the thing that gets to
  * make it. The list may only shrink. Correcting a gate's row means deleting its
  * entry in the same commit, which is the moment somebody notices.
+ *
+ * It is now empty, and the moment it emptied is worth recording. The single
+ * entry was `GE-GATE-1`: recorded `BLOCKED_EXTERNAL` over nineteen children,
+ * one of which — `GE-010-006`, "prove nonproduction roles cannot reach
+ * production resources" — had no ledger row at all, so the gate's claim covered
+ * eighteen children and asserted the nineteenth. That child has since been
+ * decided on its own row in `docs/implementation/global-engine-execution-ledger.md`
+ * ("GE-010-006 — decided at last, and the decision is that it cannot be proven
+ * in one account"), `BLOCKED_EXTERNAL` on the Organization the estate does not
+ * have — `aws-inventory.json` records `organization.inUse: false` — and on the
+ * four operator decisions ADR-0007 names. Phase 1 now reads 19/19 recorded, six
+ * of them `BLOCKED_EXTERNAL` and none `FAIL`, so Rule 6's ceiling for the gate
+ * is exactly `BLOCKED_EXTERNAL` and the recorded row is at it, not above it.
+ *
+ * The entry came off in the same commit as this sentence, which is the deal the
+ * paragraph above makes. The cap below moved 1 → 0 with it: an emptied ratchet
+ * left at its old cap is a slot the next over-claim can be parked in without
+ * anybody arguing for it, and the only direction this file permits is down.
  */
-const KNOWN_OVERCLAIMS = new Map([
-  [
-    "GE-GATE-1",
-    // Recorded BLOCKED_EXTERNAL over nineteen children, one of which — GE-010-006,
-    // "prove nonproduction roles cannot reach production resources" — has no
-    // ledger row at all. It is named in prose inside GE-010's other rows and in
-    // `docs/architecture/ge-landing-zone-model.md`, and never decided. The
-    // gate's own reason says "three of its children are blocked on the
-    // Organization", which is a claim about the eighteen that were read.
-    "GE-010-006 has no ledger row; the gate claims BLOCKED_EXTERNAL over a child nobody decided",
-  ],
-])
+const KNOWN_OVERCLAIMS = new Map([])
 
 test("no GE gate is recorded better than Rule 6 allows", () => {
   const rows = evaluate()
@@ -240,7 +247,7 @@ test("no GE gate is recorded better than Rule 6 allows", () => {
     "These gates are on the known-over-claim list and no longer over-claim. Delete their entries " +
       "from KNOWN_OVERCLAIMS — a ratchet that never shrinks is an allowlist.",
   )
-  assert.ok(KNOWN_OVERCLAIMS.size <= 1, "the known-over-claim list grew; it may only shrink")
+  assert.ok(KNOWN_OVERCLAIMS.size <= 0, "the known-over-claim list grew; it may only shrink")
 })
 
 test("every gate the authority names has a ledger row", () => {

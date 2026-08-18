@@ -117,9 +117,19 @@ export const TERMS = [
  */
 export const VERDICTS = [
   [
+    "apps/web/src/components/ui/icon-family.ts",
+    "unrelated-word",
+    "`tools/tes-ui-stack-inventory.mjs`, the UI-stack inventory scan it defers its accessible-name clause to",
+  ],
+  [
     "apps/web/src/lib/a11y/theme-tokens.ts",
     "unrelated-word",
     "the design token inventory in `tools/entry-point-inventory.mjs` — a list of CSS custom properties",
+  ],
+  [
+    "apps/web/src/lib/connections/exception-worklist.ts",
+    "unrelated-word",
+    "fabrication — \"a type that filled one in would be manufacturing an assignment nobody made\", about a missing exception owner",
   ],
   [
     "apps/web/src/lib/dev-login.ts",
@@ -147,9 +157,29 @@ export const VERDICTS = [
     "OSE policy text shown to a club: \"All logistics, planning and expenses are managed by students\"",
   ],
   [
+    "apps/web/src/lib/workflows/generality-parity.test.ts",
+    "unrelated-word",
+    "`emea-industrial-procurement`, the GE-052-004 fixture org unit a `unit.lead` grant is scoped to",
+  ],
+  [
     "packages/finops/src/general-ledger.ts",
     "unrelated-word",
     "`docs/architecture/fin-finance-surface-inventory.md`, the Finance inventory document it cites twice for ABSENT entities",
+  ],
+  [
+    "packages/generality-fixtures/src/corporate-org.test.ts",
+    "unrelated-word",
+    "the same fixture unit id, asserted for its depth and its ancestors",
+  ],
+  [
+    "packages/generality-fixtures/src/corporate-org.ts",
+    "unrelated-word",
+    "`emea-industrial-procurement`, a GE-052-002 fixture org-chart department whose display name is \"Sourcing\" — a node with a parent and a rank, and no operational behaviour",
+  ],
+  [
+    "packages/generality-fixtures/src/corporate-purchase.test.ts",
+    "unrelated-word",
+    "the same approval gate, exercised — a director who \"cannot lend procurement\" is a delegation refusal about authority, not about supply",
   ],
   [
     "packages/identity/src/handoff.ts",

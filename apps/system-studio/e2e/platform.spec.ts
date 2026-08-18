@@ -272,7 +272,11 @@ test.describe("platform console", () => {
       page.getByRole("heading", { name: "What this engine may read, and what it was refused" }),
     ).toBeVisible()
 
-    const denials = truth.estate.deniedCalls
+    // Typed, because `truth` is an imported JSON artefact: an estate that was
+    // refused nothing gives `[]`, which infers as `never[]`, and `denial.call`
+    // then fails to compile. The spec must survive a console with no denials —
+    // that is the state it is hoping for.
+    const denials = truth.estate.deniedCalls as { call: string; reason: string }[]
     expect(denials.length).toBeGreaterThan(0)
 
     const refused = page.getByRole("table", { name: /Every read that was refused/ })
