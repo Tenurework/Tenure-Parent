@@ -31,6 +31,17 @@ jobs:
             echo "  GET  https://$host/signin  -> $code"
           done
 
+      - name: Does anything in the AWS account still serve?
+        run: |
+          # Two managed endpoints that exist only if the account is serving, and
+          # neither needs a credential to answer. A suspended account stops
+          # serving these; a broken IAM user does not.
+          for host in tenure-studio-154932391697.auth.us-east-1.amazoncognito.com                       cognito-idp.us-east-1.amazonaws.com                       sts.amazonaws.com; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "https://$host/" || echo "000")
+            echo "  $host -> $code"
+          done
+          echo "  (a real answer, even 400/403, means the endpoint exists; 000 means nothing is there)"
+
       - name: The certificate the console presents
         run: |
           echo | openssl s_client -connect helm.tenurework.com:443 -servername helm.tenurework.com 2>/dev/null \
