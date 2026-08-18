@@ -1,0 +1,30 @@
+{
+  "id": "prevent-root-use",
+  "title": "The root user of a member account does nothing",
+  "attach_to": ["Root"],
+  "why": "Root cannot be scoped by a policy, cannot be given a permissions boundary and cannot be attributed to a person. ADR-0007 says root has MFA, no routine access keys and no day-to-day use; this is the half of that sentence a control can hold rather than a habit.",
+  "sourced_from": [
+    "docs/decisions/ADR-0007-tenure-owned-aws-organization.md — 'The management account runs nothing… Root has MFA, no routine access keys, and no day-to-day use'",
+    "Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md — GE-010-005, 'root use'"
+  ],
+  "limits": [
+    "An SCP does not apply to the MANAGEMENT account, including its root. This guardrail therefore protects every member account and not the one whose compromise is unbounded. That account is covered by GE-010-003 — MFA and no access keys, verified through account metadata — and by the fact that ADR-0007 puts no workload in it. Stating this is not a caveat; a reader who believes root is blocked everywhere will not go and check the one place it is not.",
+    "The break-glass exception is deliberately absent. AWS itself requires root for a short list of tasks (closing an account, changing the payment method, restoring an invalid S3 policy). Each is an operator action taken from the management account, which this policy does not reach."
+  ],
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DenyEveryActionByRoot",
+        "Effect": "Deny",
+        "Action": "*",
+        "Resource": "*",
+        "Condition": {
+          "StringLike": {
+            "aws:PrincipalArn": "arn:aws:iam::*:root"
+          }
+        }
+      }
+    ]
+  }
+}

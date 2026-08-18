@@ -99,7 +99,7 @@ export default async function EventDetailPage({
                   event.approval ? (
                     <Link
                       href={`/approvals/${event.approval.id}`}
-                      className="text-[--primary] hover:underline"
+                      className="text-[--text-link] hover:underline"
                     >
                       View request
                     </Link>
@@ -141,7 +141,7 @@ export default async function EventDetailPage({
                         {other && (
                           <Link
                             href={`/calendar/${other.id}`}
-                            className="text-xs text-[--primary] hover:underline"
+                            className="text-xs text-[--text-link] hover:underline"
                           >
                             View “{other.title}”
                           </Link>

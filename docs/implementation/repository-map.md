@@ -4,28 +4,29 @@
 a hand-written map is accurate on the day it is written and wrong from the next commit.
 Regenerate it instead. `docs/architecture/repository-map.json` is the machine-readable form.
 
-Tracked files: **1597**. Workspace globs: `apps/*`, `packages/*`, `blueprints`, `modules`.
+Tracked files: **1779**. Workspace globs: `apps/*`, `packages/*`, `blueprints`, `modules`.
 
 ## Workspaces
 
 | Directory | Package | Files | Tests | Depends on | Container |
 | --- | --- | ---: | ---: | --- | --- |
-| `apps/system-studio` | @tenure/system-studio | 366 | 130 | `@tenure/audit` `@tenure/contracts` `@tenure/finops` `@tenure/provisioning` | yes |
-| `apps/web` | tenure | 503 | 163 | `@tenure/contracts` | yes |
+| `apps/system-studio` | @tenure/system-studio | 388 | 140 | `@tenure/audit` `@tenure/contracts` `@tenure/finops` `@tenure/provisioning` | yes |
+| `apps/web` | tenure | 559 | 194 | `@tenure/contracts` | yes |
 | `blueprints` | @tenure/blueprints | 8 | 0 | — | — |
 | `modules` | @tenure/modules | 2 | 0 | — | — |
 | `packages/audit` | @tenure/audit | 7 | 1 | — | — |
-| `packages/authorization` | @tenure/authorization | 20 | 7 | — | — |
-| `packages/configuration` | @tenure/configuration | 32 | 13 | `@tenure/audit` `@tenure/finops` | — |
+| `packages/authorization` | @tenure/authorization | 24 | 11 | — | — |
+| `packages/configuration` | @tenure/configuration | 34 | 14 | `@tenure/audit` `@tenure/finops` | — |
 | `packages/contracts` | @tenure/contracts | 3 | 1 | — | — |
-| `packages/finops` | @tenure/finops | 17 | 6 | — | — |
-| `packages/identity` | @tenure/identity | 57 | 28 | — | — |
+| `packages/finops` | @tenure/finops | 19 | 7 | — | — |
+| `packages/generality-fixtures` | @tenure/generality-fixtures | 7 | 3 | — | — |
+| `packages/identity` | @tenure/identity | 59 | 29 | — | — |
 | `packages/metadata` | @tenure/metadata | 5 | 1 | — | — |
 | `packages/module-runtime` | @tenure/module-runtime | 8 | 2 | — | — |
 | `packages/organization-model` | @tenure/organization-model | 15 | 6 | — | — |
-| `packages/payments` | @tenure/payments | 27 | 12 | — | — |
+| `packages/payments` | @tenure/payments | 42 | 21 | — | — |
 | `packages/platform-config` | @tenure/platform-config | 30 | 12 | — | — |
-| `packages/provisioning` | @tenure/provisioning | 31 | 10 | `@tenure/platform-config` | — |
+| `packages/provisioning` | @tenure/provisioning | 48 | 13 | `@tenure/platform-config` | — |
 | `packages/releases` | @tenure/releases | 5 | 1 | — | — |
 | `packages/workflow` | @tenure/workflow | 5 | 1 | — | — |
 
@@ -45,6 +46,7 @@ Tracked files: **1597**. Workspace globs: `apps/*`, `packages/*`, `blueprints`, 
 | `ops-status.yml` | Ops Status | workflow_dispatch | **yes** | `Tenurework/Tenure` |
 | `platform-plan.yml` | Platform · Terraform plan (read-only) | workflow_dispatch | **yes** | — |
 | `probe-debug.yml` | Probe Debug | — | — | `Tenurework/Tenure` |
+| `reachability.yml` | Reachability probe | workflow_dispatch | — | — |
 | `replace-acm-cert.yml` | Replace ACM Certificate | workflow_dispatch | **yes** | `Tenurework/Tenure` |
 | `rotate-auth-secret.yml` | Rotate Auth Secret | — | **yes** | `Tenurework/Tenure` |
 | `seed-reference-data.yml` | Seed reference data | workflow_dispatch | **yes** | `Tenurework/Tenure` |
@@ -70,9 +72,9 @@ Tracked files: **1597**. Workspace globs: `apps/*`, `packages/*`, `blueprints`, 
 
 | Suite | Files |
 | --- | ---: |
-| apps/web unit (jest) | 105 |
+| apps/web unit (jest) | 136 |
 | apps/web isolation (jest, needs Postgres) | 22 |
 | apps/web e2e (playwright) | 37 |
-| system-studio e2e (playwright) | 48 |
-| platform (node:test) | 119 |
-| packages (jest, via apps/web roots) | 101 |
+| system-studio e2e (playwright) | 51 |
+| platform (node:test) | 139 |
+| packages (jest, via apps/web roots) | 123 |

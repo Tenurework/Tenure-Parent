@@ -10,12 +10,12 @@ import {
   type VersionedLayer,
 } from "@tenure/configuration"
 import { REGISTRY } from "@tenure/platform-config"
-import { MODULES } from "@tenure/modules"
 
 import { auth } from "@/lib/auth"
 import { authorizeCommand, decisionLine, type StudioCommand } from "@/lib/authorize"
 import { DynamoConfigStore } from "@/lib/config-store"
 import { editableDomains, parseField } from "@/lib/editable-config"
+import { publicationModules } from "./publication-modules"
 // STUDIO-110-005. A configuration publication is a material change to a live
 // tenant, and until this import existed it left no audit row at all — the
 // `console.info` below went to a log stream nobody keeps and nothing signs.
@@ -218,18 +218,9 @@ export async function review(_prev: ReviewResult | null, form: FormData): Promis
       now: new Date(),
       // GE-032-002. Without these the entitlement check never runs and a plan
       // can enable a module the contract does not cover — a console showing a
-      // feature while every request for it is denied.
-      // `provides` is not optional decoration. A dependency may name a
-      // CAPABILITY another module supplies rather than a module key —
-      // `reimbursements` depends on `finance.ledger`, which `budgeting`
-      // provides — and without it the graph check cannot find a satisfier
-      // and reports a dangling reference, which blocks EVERY publication.
-      modules: MODULES.map((m) => ({
-        key: m.key,
-        dependsOn: m.dependsOn,
-        provides: m.provides,
-        entitlement: m.requiresEntitlement,
-      })),
+      // feature while every request for it is denied. The shape, and why it
+      // carries a version, is in `publication-modules.ts`.
+      modules: publicationModules(),
       // The editor does not enable modules yet — module enablement is a
       // separate surface. Passing the catalogue anyway means the check is live
       // the moment it does, rather than being wired later and forgotten.
@@ -269,17 +260,7 @@ export async function publish(_prev: PublishResult | null, form: FormData): Prom
       publishedBy,
       activateAt: activationFrom(form),
       now: new Date(),
-      // `provides` is not optional decoration. A dependency may name a
-      // CAPABILITY another module supplies rather than a module key —
-      // `reimbursements` depends on `finance.ledger`, which `budgeting`
-      // provides — and without it the graph check cannot find a satisfier
-      // and reports a dangling reference, which blocks EVERY publication.
-      modules: MODULES.map((m) => ({
-        key: m.key,
-        dependsOn: m.dependsOn,
-        provides: m.provides,
-        entitlement: m.requiresEntitlement,
-      })),
+      modules: publicationModules(),
       enabledModules: [],
       entitlements: [],
     })
@@ -437,17 +418,7 @@ export async function rollback(_prev: RollbackResult | null, form: FormData): Pr
       publishedBy,
       activateAt: activationFrom(form),
       now: new Date(),
-      // `provides` is not optional decoration. A dependency may name a
-      // CAPABILITY another module supplies rather than a module key —
-      // `reimbursements` depends on `finance.ledger`, which `budgeting`
-      // provides — and without it the graph check cannot find a satisfier
-      // and reports a dangling reference, which blocks EVERY publication.
-      modules: MODULES.map((m) => ({
-        key: m.key,
-        dependsOn: m.dependsOn,
-        provides: m.provides,
-        entitlement: m.requiresEntitlement,
-      })),
+      modules: publicationModules(),
       enabledModules: [],
       entitlements: [],
     })

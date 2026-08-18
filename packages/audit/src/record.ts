@@ -30,7 +30,14 @@ import { createHash } from "node:crypto"
 // The same canonical serializer the releases and configuration packages hash
 // with. Reused rather than reimplemented: two definitions of "canonical" is one
 // too many, and a chain whose hash depends on JSON key order is not a chain.
-import { stableStringify } from "@tenure/configuration"
+//
+// From `@tenure/contracts` rather than `@tenure/configuration`, where it used
+// to live. `configuration` imports `findSecretValues` from this package, so
+// importing back out of it made `audit → configuration → audit` — the one
+// production import cycle in the shared code, and the reason
+// `tools/simon-module-boundaries.mjs` could not assign either package a tier.
+// `@tenure/contracts` has no dependencies and is what both may depend on.
+import { stableStringify } from "@tenure/contracts"
 
 // Redaction by value rather than by key name. See secret-values.ts for why the
 // two rules are both needed and why this one is prefix-based.

@@ -815,10 +815,94 @@ the commands or the ADR that would unblock it — if it cannot.
   - Status: FAIL
   - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
 
-- [ ] **WRK-040-005** — Prove browser/model/log/event/config/evidence never receive reusable provider secrets.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
+## WRK-040-005 — the six sinks, proved reached, and the one whose guard could not fail
 
+- [x] **WRK-040-005** — "Prove browser/model/log/event/config/evidence never receive reusable provider secrets."
+  - Status: PASS
+  - **Why this row exists at all.** As with WRK-010-003, WRK-020-001 and WRK-030-005: the
+    proof landed in commit `f589596` ("STUDIO, WRK and TTES land") and no row was written, so
+    the registry recorded `not yet implemented` over committed, working, mutation-resistant
+    code. `git log --oneline -3 -- tests/security/no-reusable-secrets-outside-the-vault.test.mjs`
+    → `f589596`, and `git status --porcelain tests/security/` did not list it, so it is not a
+    concurrent agent's in-flight file. Verified against the sentence, mutation-proved, fixed
+    where a mutation survived, recorded.
+  - Code, the production side, one sink at a time. `packages/audit/src/secret-values.ts`
+    declares `PATTERNS` (eight credential formats), `findSecretValues` and `safeLogText` —
+    one rule, one file. Its value is entirely in who calls it, and all six of the sinks the
+    requirement names have a call site:
+    * **browser** — `credentialWrites` in `tests/security/no-tokens-in-browser-storage.test.mjs`
+      is a static guard over the whole tree, imported here rather than reimplemented;
+    * **model** — `apps/web/src/lib/ai.ts:167` scans `{ system, user }` and **returns null**
+      before `fetch("https://api.anthropic.com…")`. Refuse, not redact: a redacted prompt asks
+      a question with a hole in it and returns an answer built on it;
+    * **log** — `safeLogText` wraps every `console.*` argument carrying text this process did
+      not author, in `apps/web/src/lib/commands/bus.ts:314` and `apps/web/src/lib/ai.ts:297,308`;
+    * **event** — `apps/web/src/lib/outbox/outbox.ts:113` scans a provider-origin payload and
+      `throw`s `ProviderPayloadRefused`, so the row is never written inside the business
+      transaction;
+    * **config** — `packages/configuration/src/publication.ts:449` scans every proposed layer
+      value and `blockers.push`es, because a published value is checksummed into an immutable
+      revision and cannot be un-published;
+    * **evidence** — the ledgers and the generated capability registry are swept with the same
+      `PATTERNS`, parsed out of the production module rather than copied, so a ninth format
+      extends the sweep on the same commit.
+  - Tests: `tests/security/no-reusable-secrets-outside-the-vault.test.mjs` — **13/13**
+    (`node --test`, no browser, no server, no database). Was 12; this run added one.
+  - **The defect this run found and fixed, which is why the row is not just a recording.**
+    The config sink asserted `assert.match(source.slice(scan, scan + 800), /blockers\.push\(/)`.
+    Replacing the `blockers.push` that handles a SECRET finding with a `console.warn` left the
+    file at **`# pass 12 # fail 0`** — two later `blockers.push` calls, about approval-by-the-
+    author and past activation, sat inside the same 800 characters and satisfied the match. A
+    credential typed into any ordinary `platform.*` string would have been published into an
+    immutable revision with the sink's own guard green. A fixed window is a guard an unrelated
+    neighbour can satisfy. Replaced with `handlingBlock(source, scan)`, which brace-matches
+    the first block opening at or after the scan, applied to BOTH the event and config sinks;
+    plus a new test, `the brace matcher does not accept a neighbour's handling for the sink's
+    own`, which pins the property directly against four shaped sources (neighbour rejected,
+    handling accepted, nested braces still inside, no block at all → `""` rather than a pass).
+    This is the only file changed by this run and it is a shared test; it is listed as such.
+  - Mutations (5 on the producers, one at a time, every one restored and re-verified):
+    1. **model.** `const leaked = findSecretValues({ system, user }, "prompt")` → `const
+       leaked = []` in `apps/web/src/lib/ai.ts`. `not ok 7 - sink: model — aiComplete scans
+       the prompt before it reaches the vendor`, **`# pass 11 # fail 1`**. Restored.
+    2. **event.** `throw new ProviderPayloadRefused(` → `console.warn(new
+       ProviderPayloadRefused(` in `apps/web/src/lib/outbox/outbox.ts`. `not ok 9 - sink:
+       event`, **`# pass 12 # fail 1`** after the brace-match fix (**`# pass 11 # fail 1`**
+       before it). Restored.
+    3. **config, and this is the one that mattered.** `blockers.push(` → `console.warn(`
+       inside `for (const found of findSecretValues(layer.values)) {` in
+       `packages/configuration/src/publication.ts`. **Before the fix: `# pass 12 # fail 0` —
+       it survived.** After the fix: `not ok 10 - sink: config — a published value carrying a
+       credential is blocked`, **`# pass 12 # fail 1`**. Restored.
+    4. **log.** `` failed: ${safeLogText(err)}` `` → `` failed: ${err}` `` in
+       `apps/web/src/lib/commands/bus.ts`. `not ok 8 - sink: log — every log line carrying
+       foreign text goes through safeLogText`, **`# pass 11 # fail 1`**. Restored.
+    5. **the patterns the evidence sink reads.** The `AWS access key id` entry deleted from
+       `PATTERNS` in `packages/audit/src/secret-values.ts`. `not ok 5 - the patterns are
+       readable at all`, **`# pass 11 # fail 1`**. Restored byte-for-byte —
+       `git status --porcelain packages/audit/src/secret-values.ts` empty.
+  - Stated rather than implied, because a refuter should not have to find it: the **browser**
+    sink's mutation is on a guard, not a runtime writer, because this repository has no
+    runtime browser-storage credential writer to mutate — the rule is enforced statically over
+    the whole tree by `credentialWrites`, and this file's contribution is that deleting that
+    function fails this file at IMPORT time. The **evidence** sink was not mutation-proved by
+    planting a credential in a ledger, because this wave may not edit
+    `docs/implementation/*-ledger.md`; it is proved instead by mutation 5 (the sweep reads the
+    production patterns, so shrinking them reds) and by the file's own `the evidence sweep
+    would notice one`, which plants each format in a synthetic ledger line.
+  - Evidence: `node --test tests/security/no-reusable-secrets-outside-the-vault.test.mjs` —
+    `# tests 13 / # pass 13 / # fail 0`. Together with its neighbours:
+    `node --test tests/security/no-reusable-secrets-outside-the-vault.test.mjs
+    tests/security/no-automatic-identity-merge.test.mjs tests/security/email-is-not-a-key.test.mjs
+    tests/security/no-tokens-in-browser-storage.test.mjs` — `# pass 28 # fail 0`.
+    `npx jest --ci --silent src/lib/relay src/lib/connections src/lib/relay-tools.test.ts
+    src/app/api/ai src/lib/outbox` from `apps/web` — `Tests: 356 passed, 356 total`.
+    `npx tsc --noEmit` in `apps/web` — 0 errors.
+  - Not claimed: WRK-040-004. The Credential Broker exists
+    (`apps/web/src/lib/connections/credential-broker.ts`, guarded by
+    `tests/security/provider-secrets-go-through-the-broker.test.mjs`) but the KMS-bound vault
+    and the short-lived runner capability need AWS KMS and are not built. This row is the
+    PROOF half and does not depend on them.
 - [ ] **WRK-040-006** — Test OAuth CSRF/mix-up/code interception/token substitution/wrong-account/confused-deputy and refresh-token theft/reuse cases.
   - Status: FAIL
   - Reason: imported from `Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md`; not yet implemented
@@ -1869,3 +1953,133 @@ the commands or the ADR that would unblock it — if it cannot.
     new files, raw-client construction in other runs' itests).
   - Also: `tools/ownership-map.mjs` — the `institution-time.ts` entry widened to the
     `institution-time` prefix so the new test belongs to the domain that owns the loader it is about.
+
+## WRK-020-001 — every one of §4.1's eight classes is now pinned at its own ceiling
+
+- [x] **WRK-020-001** — "Implement every connection class and prohibit class escalation."
+  - Status: PASS
+  - What the overturn named, and what this run did about it. The previous claim was
+    refuted for one reason and it was the right one: `connection-class.test.ts`'s only
+    per-class check was `expect(RISK_ORDER).toContain(authority.maxRisk)`, which all seven
+    risk names satisfy, and four of the eight classes appeared in no other assertion.
+    `CLASS_AUTHORITY.FILE_OR_FEED.maxRisk` could therefore be raised from `BULK` to
+    `DELETE` — an SFTP, object-store, ICS or EDI feed authorised to delete tenant records —
+    with `npx jest src/lib/relay src/lib/relay-tools.test.ts src/app/api/ai` at 232 passed /
+    232 total. "Implement EVERY connection class" is not satisfied by a class whose declared
+    authority nothing asserts.
+  - Code (unchanged this run; it was already correct and already wired):
+    `packages/platform-config/src/provider-review.ts` — `CONNECTION_CLASSES` (§4.1's eight),
+    `connectionClassFor`, `RELAY_CAPABILITY_OFFERS`.
+    `apps/web/src/lib/relay/connection-class.ts` — `CLASS_AUTHORITY` (a `Record` over
+    `ConnectionClass`, so a ninth class is a compile error), `RISK_ORDER`, `leastClassFor`,
+    `refuseEscalation`, `EscalationVerdict`.
+  - Caller: `authorizeRegistrations` in `apps/web/src/lib/relay-tools.ts:402-425` consults
+    `classOf(tool.module)` for every registration on every `/api/ai/chat` request as gate 0,
+    ahead of the surface's read-only ceiling and ahead of any permission read. Reachability
+    from the route is proved in `apps/web/src/app/api/ai/ai-kill-switch.test.ts:1172`, which
+    asserts `body.relayTools.refused[0].remedy` matches `{ kind: "CONNECTION_CLASS_EXCEEDED", … }`.
+  - Tests added: `apps/web/src/lib/relay/connection-class-authority.test.ts` — **21/21**, a
+    NEW file rather than an edit to `connection-class.test.ts`, which eleven concurrent
+    agents make a collision risk. Every class is pinned twice: the literal it declares, and
+    the BOUNDARY that literal produces through `refuseEscalation` — the act at the ceiling is
+    allowed and the next act up the ladder is refused. A structural check alone would pass if
+    `refuseEscalation` stopped reading the table; a behavioural check alone would pass if a
+    ceiling and the comparison drifted together. Plus `leastClassFor` for all seven risks,
+    the property that it never names a class that could not carry the act, and that exactly
+    one class (`ADMIN_DELEGATED`) reaches `PRIVILEGED`. Nothing asserts a measured pixel or a
+    row count; every number is an index into `RISK_ORDER`, which is a token list.
+  - Mutations (5 applied to the producer, 5 caught, all restored; one literal at a time):
+    1. **The escape the refuter found.** `CLASS_AUTHORITY.FILE_OR_FEED.maxRisk` `"BULK"` →
+       `"DELETE"`. **`Tests: 3 failed, 18 passed, 21 total`** — `FILE_OR_FEED declares its
+       ceiling as BULK` with `Expected: "BULK" / Received: "DELETE"`, `FILE_OR_FEED reaches
+       BULK and refuses the act above it`, and `lets a feed move data in volume and go no
+       further` with `Expected: false / Received: true`. Restored, 21/21.
+    2. `FILE_OR_FEED.maxRisk` `"BULK"` → `"EXTERNAL_SHARE"` — the second surviving mutation
+       the refuter recorded. **3 failed / 18 passed.** Restored, 21/21.
+    3. `SERVICE_ACCOUNT.maxRisk` `"BULK"` → `"DELETE"`. **3 failed / 18 passed.** Restored.
+    4. `USER_DELEGATED.maxRisk` `"DELETE"` → `"PRIVILEGED"`. **5 failed / 16 passed** — it
+       also moves `leastClassFor("PRIVILEGED")`, which the ladder tests catch. Restored.
+    5. `PERSONAL_PRODUCTIVITY.tenantWide` `false` → `true`. **3 failed / 18 passed**,
+       including `refuses every act on the one class §4.1 keeps out of tenant-wide use`.
+       Restored, 21/21.
+    `git status --porcelain apps/web/src/lib/relay/connection-class.ts` was empty after each
+    restore.
+  - Evidence: `npx jest --ci src/lib/relay/connection-class-authority.test.ts` from
+    `apps/web` — `Tests: 21 passed, 21 total`. Whole neighbourhood after restoring
+    everything: `npx jest --ci --silent src/lib/relay src/lib/connections
+    src/lib/relay-tools.test.ts src/app/api/ai src/lib/outbox` — `Test Suites: 21 passed`,
+    `Tests: 356 passed, 356 total`. `npx tsc --noEmit` in `apps/web` — **0 errors**.
+    `npx eslint src/lib/relay/connection-class-authority.test.ts` — no output.
+  - Not claimed, and both were noted by the refuter as not the basis of its verdict:
+    `RELAY_CAPABILITY_OFFERS` still has one entry, so seven of the eight classes are attached
+    to no shipped capability; and `isConnectionClass` is still exported with no production
+    caller. Giving it one means guarding the `classOf` seam in `relay-tools.ts`, a file other
+    WRK bands are editing this hour, so it was deliberately left alone rather than raced.
+
+## WRK-030-005 — the derivation of `certified`, asserted in both directions
+
+- [x] **WRK-030-005** — "Ensure uncertified capabilities never produce a working-looking OAuth button."
+  - Status: PASS
+  - What the overturn named. The previous claim's three mutations all reproduced and the
+    render chain was traced and found real; what refuted it was a fourth branch of the
+    producer that nothing asserted. `certifiedCapabilityState`'s own comment states the rule
+    — "A key in NEITHER list resolves to `certified: false`. Fail closed" — and inverting
+    exactly that, `return { key, certified: FIRST_PARTY.includes(key) }` →
+    `return { key, certified: true }`, left `npx jest src/lib/connections src/app/api/ai` at
+    **134 passed / 134 total, zero failures**. `capability-resolution.test.ts` contains no
+    occurrence of `certifiedCapabilityState` or `FIRST_PARTY`: it builds its own `certified`
+    and proves the RESOLVER, never the derivation the resolver consumes. The practical
+    consequence is the requirement's own sentence one layer down — the next capability key
+    added, or a typo in an existing one, would default to certified and grow a
+    working-looking Connect button for something `/api/ai/chat` refuses, with the suite green.
+    The lexical guard does not cover it either: its rule is "no `certified:` literal in a
+    `.tsx`", which is the call-site failure, not the default.
+  - Code (unchanged this run): `certifiedCapabilityState(key, at)` and `resolveCapability`'s
+    unconditional first refusal in `apps/web/src/lib/connections/capability-resolution.ts`;
+    `providerActivation` / `RELAY_ANTHROPIC_REVIEW` in
+    `packages/platform-config/src/provider-review.ts`.
+  - Callers: `apps/web/src/app/(app)/settings/page.tsx:98,126,144,200` and
+    `apps/web/src/components/ai/TenureAIPanel.tsx:390` — the only two shipped surfaces that
+    render a capability.
+  - Tests added: `apps/web/src/lib/connections/certified-capability-state.test.ts` —
+    **11/11**, a NEW file. Three branches, one test each, and the CONSEQUENCE of each carried
+    through `resolveCapability` rather than stopping at the boolean:
+    * the three first-party keys (`documents.storage`, `calendar.feed`, `identity.sso`)
+      certify — written out as literals, because reading `FIRST_PARTY` back would be the list
+      asserting that it equals itself (it is module-private, so it could not be read anyway);
+    * four unclassified keys refuse — a plausible new provider (`slack.messages`), two typos
+      of real keys (`calendar.feeds`, `documents.storge`), and the empty string a mis-wired
+      call site would pass;
+    * `ai.model` reads the REAL `RELAY_ANTHROPIC_REVIEW`, whose state is `NOT_SUBMITTED`,
+      asserted alongside so a recorded review changes this test rather than leaving a stale
+      pin;
+    * the returned `key` is always the key asked about, which is the whole reason this is a
+      fragment to spread rather than a bare boolean;
+    * end to end, an unclassified key yields `outcome: "NOT_CERTIFIED"`, `action.kind:
+      "none"`, `action.label: ""`, `statusWord: "Not available yet"`;
+    * and the other direction, so the default is not vacuous: `calendar.feed` DOES reach
+      `action.kind: "connect"`. A derivation returning false for everything would satisfy
+      every refusal assertion above and take the platform's own capabilities off the air.
+  - Mutations (3 applied to the producer, 3 caught, all restored):
+    1. **The escape the refuter found.** `return { key, certified: FIRST_PARTY.includes(key) }`
+       → `return { key, certified: true }`. **`Tests: 5 failed, 6 passed, 11 total`** — all
+       four unclassified-key cases plus the end-to-end one, whose first failure reads
+       `Expected: "NOT_CERTIFIED" / Received: "NEEDS_USER_CONNECT"`. That is the
+       working-looking connect button appearing, in the assertion. Restored, 11/11.
+    2. `"calendar.feed"` deleted from `FIRST_PARTY`. **`Tests: 2 failed, 9 passed, 11 total`**
+       — `certifies calendar.feed, because Tenure runs it and no provider has an opinion`
+       (`Expected: true / Received: false`) and `a first-party key does reach a connect
+       control, so the default is not vacuous`. Restored, 11/11.
+    3. `return { key, certified: providerActivation(reviewed.scopes, reviewed.review, at)
+       .activated }` → `return { key, certified: true }` — the provider-reviewed arm.
+       **`Tests: 1 failed, 10 passed, 11 total`** on `reads the real provider review for the
+       one capability that has one`. A localised mutation, a localised failure. Restored.
+    `git status --porcelain apps/web/src/lib/connections/capability-resolution.ts` was empty
+    after the restores.
+  - Evidence: `npx jest --ci src/lib/connections/certified-capability-state.test.ts` from
+    `apps/web` — `Tests: 11 passed, 11 total`.
+    `npx jest --ci --silent src/lib/relay src/lib/connections src/lib/relay-tools.test.ts
+    src/app/api/ai src/lib/outbox` — `Test Suites: 21 passed`, `Tests: 356 passed, 356 total`.
+    `node --test tests/architecture/certified-is-derived.test.mjs` — still `# pass 3 / # fail 0`.
+    `npx tsc --noEmit` in `apps/web` — **0 errors**. `npx eslint
+    src/lib/connections/certified-capability-state.test.ts` — no output.

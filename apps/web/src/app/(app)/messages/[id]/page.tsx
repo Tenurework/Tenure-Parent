@@ -129,7 +129,7 @@ export default async function ConversationPage({
           {convo.approval && (
             <Link
               href={`/approvals/${convo.approval.id}`}
-              className="text-xs text-[--primary] hover:underline"
+              className="text-xs text-[--text-link] hover:underline"
             >
               View the approval request →
             </Link>

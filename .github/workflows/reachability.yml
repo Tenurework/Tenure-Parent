@@ -15,6 +15,14 @@ name: Reachability probe
 on:
   workflow_dispatch:
 
+# Nothing. The probe never checks out the repository, never calls the GitHub API
+# and never assumes an AWS role — it curls public hostnames and reads a
+# certificate. `{}` revokes every scope from GITHUB_TOKEN rather than inheriting
+# the repository default, so the token this job carries can do nothing at all if
+# a step is ever compromised. Declared explicitly because an inherited default is
+# a setting in a web form that no file here would record.
+permissions: {}
+
 jobs:
   probe:
     name: Curl the console from outside
@@ -22,7 +30,7 @@ jobs:
     steps:
       - name: Resolve and fetch
         run: |
-          for host in helm.tenurework.com d2kj4iy5i37kfd.cloudfront.net tenurework.com; do
+          for host in helm.tenurework.com d2kj4iy5i37kfd.cloudfront.net d1n6mdis7bs02g.cloudfront.net tenurework.com; do
             echo "=== $host"
             getent hosts "$host" || echo "  (no address)"
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "https://$host/" || echo "000")

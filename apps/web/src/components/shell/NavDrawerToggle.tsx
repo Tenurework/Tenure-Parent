@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react"
 
+import { List, X } from "@/components/ui/icons"
+
 /**
  * GE-022-003 — WCAG 1.4.10, Reflow.
  *
@@ -59,14 +61,12 @@ export function NavDrawerToggle() {
         aria-controls="primary-navigation"
         onClick={() => set(!open)}
       >
-        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden fill="none">
-          <path
-            d={open ? "M4 4l10 10M14 4L4 14" : "M2.5 4.5h13M2.5 9h13M2.5 13.5h13"}
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
-        </svg>
+        {/* GE-143-007. This drew its own hamburger and close glyph — two paths
+            stroked at 1.6, beside a product whose every other icon comes from
+            one family at that family's own weight. A one-icon family is still a
+            second family. The accessible name is on the button above, so the
+            glyph is decorative. */}
+        {open ? <X size={18} aria-hidden /> : <List size={18} aria-hidden />}
       </button>
       {/* Clicking beside the drawer closes it. aria-hidden because the button
           above is the accessible control; this is the pointer affordance. */}

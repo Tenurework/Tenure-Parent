@@ -326,18 +326,18 @@ export default async function DashboardPage() {
                 <p className="mt-0.5 text-meta text-text-3">{s.role.seat.positionCode}</p>
               )}
               <div className="mt-1.5 flex flex-wrap gap-3 text-[13px]">
-                <Link href={`/orgs/${s.role.organization.slug}/members`} className="text-[--primary] no-underline hover:underline">
+                <Link href={`/orgs/${s.role.organization.slug}/members`} className="text-[--text-link] no-underline hover:underline">
                   Members
                 </Link>
-                <Link href={`/orgs/${s.role.organization.slug}/memory`} className="text-[--primary] no-underline hover:underline">
+                <Link href={`/orgs/${s.role.organization.slug}/memory`} className="text-[--text-link] no-underline hover:underline">
                   Seat memory
                 </Link>
                 {isPres ? (
-                  <Link href="/approvals" className="text-[--primary] no-underline hover:underline">
+                  <Link href="/approvals" className="text-[--text-link] no-underline hover:underline">
                     Review requests
                   </Link>
                 ) : s.status === "ACTIVE" ? (
-                  <Link href="/approvals/new" className="text-[--primary] no-underline hover:underline">
+                  <Link href="/approvals/new" className="text-[--text-link] no-underline hover:underline">
                     New request
                   </Link>
                 ) : null}

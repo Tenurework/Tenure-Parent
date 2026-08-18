@@ -54,6 +54,14 @@
       "@tenure/blueprints": [
         "../../blueprints/index.ts"
       ],
+      // GE-052-004. TEST-ONLY: the second organization shape, reached by
+      // `src/lib/workflows/generality-parity.test.ts` so the pilot's approval
+      // flow and the corporate purchase chain can be driven through the same
+      // engine in one file. No runtime module imports it, which is why it is
+      // absent from next.config.ts's transpilePackages.
+      "@tenure/generality-fixtures": [
+        "../../packages/generality-fixtures/src/index.ts"
+      ],
       "@tenure/organization-model": [
         "../../packages/organization-model/src/index.ts"
       ],

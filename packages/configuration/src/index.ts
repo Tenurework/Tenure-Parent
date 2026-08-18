@@ -169,6 +169,15 @@ export type {
 } from "./graph-snapshot"
 
 export {
+  CAPABILITY_CONTEXT_PREFIX,
+  capabilityPath,
+  changedNodes,
+  registryGraphInput,
+  registryInputs,
+} from "./registry-graph"
+export type { RegistryGraph, RegistryGraphOptions, UnrepresentableKey } from "./registry-graph"
+
+export {
   DEFAULT_LIMITS,
   EXPRESSION_LANGUAGE_VERSION,
   ExpressionError,

@@ -360,10 +360,22 @@ the commands or the ADR that would unblock it — if it cannot.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
 
-- [ ] **CAT-050-001** — Register every provider/product family in section 8.1 with exact lifecycle and capabilities.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+## CAT-050-001 — §8.1's ten capability families and sixty-nine products are registered, each at the §6 state the tree evidences
 
+- [x] **CAT-050-001** — "Register every provider/product family in section 8.1 with exact lifecycle and capabilities."
+  - Status: PASS
+  - Code: `tools/cat-catalog-registry.mjs` (new, ~470 lines) exports `bibleSections`, `bibleEntryFields`, `splitProducts`, `packAuthClasses`, `packLifecycles`, `PACK_BINDINGS`, `LIFECYCLE_RULES`, `ENTRY_FIELDS`, `CONNECT_STATE`, `AVAILABLE_STATES`, `connectPath`, `registry`, `render`, `CATALOG_DOC`. §8.1's table is PARSED — the ten families and their sixty-nine products are read out of the Bible's own left and right columns, never transcribed — and the lifecycle vocabulary and per-entry field list come from `bibleLifecycles()` and §6's "Every entry shows:" bullets. The connector evidence is `providerPacks()` and `classify()` re-used from `tools/cat-integration-inventory.mjs`, so this register holds no second opinion about a pack's state.
+  - Caller: `tests/architecture/cat-catalog-registry.test.mjs` (auto-discovered by `tools/run-platform-tests.mjs:38`, so it runs under `npm run test:platform` in CI) imports `registry`, `render`, `connectPath`, `ENTRY_FIELDS`, `PACK_BINDINGS`, `bibleSections`, `bibleEntryFields`. The module's own command block writes `docs/architecture/integration-catalog.md` — the first of §13's required repository deliverables, which did not exist.
+  - Tests: `node --test tests/architecture/cat-catalog-registry.test.mjs` — 19 tests, 19 pass, 0 fail.
+  - Evidence:
+    - 69 §8.1 entries across exactly the ten families §8.1 declares, asserted set-equal in BOTH directions — a family dropped from the Bible and a family the register invents both red.
+    - 24 entries bound to a real connector pack and holding that pack's own `capability · direction` and `oidc`/`oauth2`/`adminConsent` install class read from `packages/provisioning/src/provider-packs.ts`; 45 at `INVENTORY_ONLY`, which is §6's own state for "a system recorded to plan migration or coexistence without implying Tenure has an adapter".
+    - Every entry carries all ten §6 "Every entry shows" bullets, in §6's order, each as `{known:true,value}` or `{known:false,why}`. Four are `known:false` for every entry today (regions/data classes, connector+certification release, pricing/entitlement, evidence expiry) and that is the answer, not a gap: "no pricing assumption is declared anywhere in this repository" and "the pricing is zero" are different statements.
+    - Every registered product and family string is asserted to appear verbatim in the Bible, so the register cannot invent a logo.
+    - Mutation M7 — deleted `| Whiteboard/design | Miro, Lucidchart/Lucidspark, Figma, Canva |` from §8.1: `# pass 19 / # fail 0` -> `# pass 14 / # fail 5`, `not ok 2 - §8.1 — every provider/product family is registered, and no extra`; restored -> `19/0`, Bible md5 `OK`.
+    - Mutation M3 — `: unknown(` -> `: known(` in the `capabilities` field: `19/0` -> `17/2`, `not ok 11 - a capability is never invented …` / `8.10|EHR/clinical|Epic claims a capability with no connector pack`; restored -> `19/0`.
+    - Mutation M6 — removed the `pricing_entitlement` field from `ENTRY_FIELDS`: `19/0` -> `17/2`, `not ok 9 - every entry carries exactly §6's 'Every entry shows' bullets, in §6's order`; restored -> `19/0`.
+  - Honest limit: "capabilities" means two different things and the register says which it has. For the 24 bound products it is the pack's declared capability and direction — which is a PLANNED declaration, not a working adapter. For the other 45 it is `known:false`: §8.1's left column is a planning family, not a connector capability list, and no object/action/event inventory exists for any product (that is CAT-080-004, and it bites only on AVAILABLE packs, of which there are none). Nothing renders this register to an operator; its readers are the generator that writes the §13 deliverable and the platform guard.
 - [ ] **CAT-050-002** — Execute Wave 1 only through the Universal Work Graph provider-pack requirements.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
@@ -372,22 +384,63 @@ the commands or the ADR that would unblock it — if it cannot.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
 
-- [ ] **CAT-050-004** — Prove unbuilt catalog entries cannot generate connect/deploy/available states.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+## CAT-050-004 — the gate refuses all 412 entries, and the refusal is computed rather than constant
 
-- [ ] **CAT-060-001** — Register CRM, revenue, marketing, service, and communication systems from sections 8.2.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-050-004** — "Prove unbuilt catalog entries cannot generate connect/deploy/available states."
+  - Status: PASS
+  - Code: `connectPath()`, `CONNECT_STATE` and `AVAILABLE_STATES` in `tools/cat-catalog-registry.mjs`. §6, quoted in the module header: "only exact `TENANT_ELIGIBLE` capabilities offer a connect/deploy path." So `connect` and `deploy` are exactly one state and `available` admits the two states downstream of it — an already-connected capability is offered no connect path and is plainly not unavailable either.
+  - Caller: `registry()` stamps `entry.path` on every one of the 412 entries; `render()` prints the count and the §6 sentence; `tests/architecture/cat-catalog-registry.test.mjs` asserts it four ways. The test runs under `npm run test:platform` through `tools/run-platform-tests.mjs:38`.
+  - Tests: `node --test tests/architecture/cat-catalog-registry.test.mjs` — 19 tests, 19 pass, 0 fail.
+  - Evidence:
+    - `connectPath()` offers a connect path to **0 of 412** entries and reports **0** available. The assertion is `deepEqual(offered.map(…), [])`, so a failure NAMES every entry and its state rather than reporting a count.
+    - The refusal is computed, not returned: a synthetic entry at `TENANT_ELIGIBLE` gets `{connect:true, deploy:true, available:true, reason:null}`, one at `TENANT_CONNECTED` gets `available:true, connect:false`, and the test then drives ALL sixteen of §6's parsed states through the gate and checks each of connect/deploy/available independently. A function that refused everything would fail this test — which is the difference between a gate and a stub.
+    - `TENANT_ELIGIBLE`, `TENANT_CONNECTED` and `TENANT_ACTIVE` are asserted to be states §6 still declares, and no entry is at any of them: nothing in this tree evidences a certified, tenant-eligible connector, and `LIFECYCLE_RULES` has no rule that can emit one — C1 defers to `classify()`, whose ceiling is `IN_DEVELOPMENT`, and C2 emits `INVENTORY_ONLY`.
+    - Unbuilt means absent from production, not merely flagged: every one of the 24 keys in `packages/provisioning/src/provider-packs.ts` is bound to a §8 entry, so `provider-packs.ts` declares no connector the register cannot account for, and no unbound §8 entry key appears as a production catalog key.
+    - There is deliberately NO rule reading §7's build waves. §7 says "priorities … are not availability claims"; turning a wave listing into a lifecycle state is exactly the visibility-vs-availability confusion §6 separates.
+    - Mutation M1 — `CONNECT_STATE` `"TENANT_ELIGIBLE"` -> `"INVENTORY_ONLY"`: `19/0` -> `# pass 16 / # fail 3`, `not ok 14 - no unbuilt entry generates a connect, deploy or available state` and `not ok 15 - the refusal is computed from the lifecycle, not returned as a constant`; restored -> `19/0`, md5 `OK`.
+    - Mutation M2 — deleted `"8.1|Knowledge/wiki|Coda": "coda.docs",` from `PACK_BINDINGS`: `19/0` -> `16/3`, `not ok 13` with `error: 'pack "coda.docs" is bound to no §8 entry — a connector for a system the catalog does not list'`; restored -> `19/0`, md5 `OK`.
+  - Honest limit: this proves the REGISTER's gate. It is not `availabilityDecisions()` in `packages/provisioning/src/catalogs.ts`, which is the gate the System Studio renders, and the two are not wired together — they cannot disagree today only because the register can produce no eligible entry and the production catalog contains only the 24 packs the register binds. Wiring the register into an operator surface needs the Deployer integration step that CAT-020/CAT-040 own and the persistence CAT-GATE-010 records as NEEDS_SCHEMA.
+## CAT-060-001 — §8.2's CRM, revenue, marketing, service and communication systems are registered, all at INVENTORY_ONLY
 
-- [ ] **CAT-060-002** — Register ERP, accounting, Finance, EPM, spend, tax, treasury, banking, and payment systems from section 8.3.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-060-001** — "Register CRM, revenue, marketing, service, and communication systems from sections 8.2."
+  - Status: PASS
+  - Code: `tools/cat-catalog-registry.mjs` — `bibleSections()` parses §8.2's table, `registry()` builds one entry per product, `connectPath()` decides its connect/deploy/available state from the lifecycle and nothing else.
+  - Caller: `tests/architecture/cat-catalog-registry.test.mjs` (runs under `npm run test:platform` via `tools/run-platform-tests.mjs:38`); `node tools/cat-catalog-registry.mjs` writes the §8.2 table into `docs/architecture/integration-catalog.md`.
+  - Tests: `node --test tests/architecture/cat-catalog-registry.test.mjs` — 19 tests, 19 pass, 0 fail.
+  - Evidence:
+    - 44 entries across exactly the seven families §8.2 declares — Enterprise CRM, Customer service/IT-facing support, CPQ/revenue/subscription, Marketing automation, Messaging/delivery, CDP/customer data, Social/customer listening — asserted set-equal in both directions.
+    - All 44 are `INVENTORY_ONLY` and all 44 have `connect: false`, `deploy: false`, `available: false`. Not one of Salesforce, ServiceNow, Zendesk, Marketo, Twilio or Segment has a connector pack, and the register says so rather than listing them next to a connect button.
+    - Each carries §8's own conditional clause where the Bible narrows the listing — e.g. `Semrush` keeps `where exact governed workflows exist`.
+    - Mutation M8 — deleted `| CDP/customer data | Salesforce Data Cloud, Twilio Segment, Adobe Experience Platform, Tealium, mParticle |`: `19/0` -> `# pass 17 / # fail 2`, `not ok 3 - §8.2 — every provider/product family is registered, and no extra`; restored -> `19/0`, Bible md5 `OK`.
+  - Honest limit: registration, not integration. Every §8.2 capability reading is `known: false` naming its planning family, because no pack declares one. §8.2's row for a CRM is a planning row; treating it as a capability claim is the failure this register was written to make impossible.
+## CAT-060-002 — §8.3's ERP, finance, spend, tax, treasury and payment systems are registered, with §8.3's money boundary carried with them
 
-- [ ] **CAT-060-003** — Register HCM, payroll, recruiting, learning, benefit, scheduling, and workforce systems from section 8.4.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented
+- [x] **CAT-060-002** — "Register ERP, accounting, Finance, EPM, spend, tax, treasury, banking, and payment systems from section 8.3."
+  - Status: PASS
+  - Code: `tools/cat-catalog-registry.mjs` — `bibleSections()` parses §8.3's table AND the prose paragraphs that follow it; `render()` prints them under "Boundaries §8.3 states in its own prose".
+  - Caller: `tests/architecture/cat-catalog-registry.test.mjs` (runs under `npm run test:platform`); `node tools/cat-catalog-registry.mjs` writes `docs/architecture/integration-catalog.md`.
+  - Tests: `node --test tests/architecture/cat-catalog-registry.test.mjs` — 19 tests, 19 pass, 0 fail.
+  - Evidence:
+    - 72 entries across exactly the eleven families §8.3 declares — Tier-1 ERP suites, Mid-market/cloud ERP, Accounting/bookkeeping, Spend/procurement, Expense/travel/cards, AP/payables, Close/reconciliation, Tax, Planning/EPM, Treasury/banking connectivity, Payments/merchant/acquiring — asserted set-equal in both directions.
+    - §8.3's own refusal travels with the rows: "Money movement, merchant liability, cards, accounts, payout, treasury, settlement, dispute, reserve, KYC/KYB, fraud, and reconciliation can never be enabled from this catalog alone." A register that dropped it would be a list of payment brands with the constraint removed.
+    - Every §8.3 entry is `INVENTORY_ONLY` with `connect: false` — including `Stripe`, which keeps its §8 condition `under Payments Bible`. The Payments Bible's authority is not weakened by a catalog listing.
+    - Mutation M4 — deleted the `| Tax | Avalara, Vertex, Thomson Reuters ONESOURCE, Sovos |` row: `19/0` -> `17/2`, `not ok 4 - §8.3 — every provider/product family is registered, and no extra`; restored -> `19/0`, Bible md5 `OK`.
+    - Mutation M5 — hand-edited the committed document to give Avalara a pack, `TENANT_ELIGIBLE` and a connect path: `19/0` -> `18/1`, `not ok 19 - the committed integration catalog is what the register produces today`; regenerated -> md5 `OK`, `19/0`.
+  - Honest limit: none of these is an adapter and none of them is costed. `packages/payments/src/capability-registry.ts` remains the only place any payment capability is modelled at all, and this register does not touch it — §8.3's Payments row is a planning row that points at the Payments Bible, which is where the authority stays.
+## CAT-060-003 — §8.4's HCM, payroll, recruiting, learning, benefit, scheduling and workforce systems are registered, payroll gate attached
 
+- [x] **CAT-060-003** — "Register HCM, payroll, recruiting, learning, benefit, scheduling, and workforce systems from section 8.4."
+  - Status: PASS
+  - Code: `tools/cat-catalog-registry.mjs` — `splitProducts()` separates each product from the §8 clause that narrows it, so a conditional listing stays conditional.
+  - Caller: `tests/architecture/cat-catalog-registry.test.mjs` (runs under `npm run test:platform`); `node tools/cat-catalog-registry.mjs` writes `docs/architecture/integration-catalog.md`.
+  - Tests: `node --test tests/architecture/cat-catalog-registry.test.mjs` — 19 tests, 19 pass, 0 fail.
+  - Evidence:
+    - 35 entries across exactly the seven families §8.4 declares — Enterprise HCM, Workforce/payroll, Recruiting/ATS, Learning/talent, Engagement/performance, Benefits, Scheduling/time — asserted set-equal in both directions.
+    - The register does not flatten §8.4's conditions: `benefit carriers/brokers and enrollment platforms` carries `only with exact carrier/file/API certification`, and the scheduling row carries `where selected populations and jurisdictions are certified`.
+    - §8.4's boundary paragraph is carried with the section: "Payroll remains jurisdiction/provider/population certified. No catalog selection activates payroll calculation, tax filing, or employee payment without the People and Finance domain gates."
+    - 0 of 35 have a connector pack; 0 have a connect, deploy or available state.
+    - Mutation M9 — deleted the `| Learning/talent | … |` row: `19/0` -> `17/2`, `not ok 5 - §8.4 — every provider/product family is registered, and no extra`; restored -> `19/0`, Bible md5 `OK`.
+  - Honest limit: this registers what §8.4 names. It is not the HCM capability matrix (`docs/architecture/hcm-capability-matrix.md` and the people-HR ledger own that), and no jurisdiction, population or carrier file is modelled anywhere here.
 - [ ] **CAT-060-004** — Register identity, IT, security, developer, observability, incident, data, BI, integration, database, and file systems from sections 8.5–8.6.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md`; not yet implemented

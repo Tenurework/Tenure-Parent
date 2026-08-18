@@ -12,7 +12,7 @@ GitHub API. A field this run could not read is `UNKNOWN` with the command
 that would answer it — never an empty list, because a refusal is not an
 absence.
 
-Observed at **2026-08-17**. Source pinned to `47c1128cb55953b11bedc47927508bc5d622b159`.
+Observed at **2026-08-18**. Source pinned to `47c1128cb55953b11bedc47927508bc5d622b159`.
 
 ## Repositories
 
@@ -22,16 +22,16 @@ Observed at **2026-08-17**. Source pinned to `47c1128cb55953b11bedc47927508bc5d6
 | --- | --- |
 | Role | source — the Simon OSE pilot application being absorbed |
 | Configured remote | `live` → `https://github.com/satvikOS/Tenure.git` |
-| Canonical name (GitHub) | UNKNOWN — `gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
-| Visibility | UNKNOWN — `gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
-| Fork | UNKNOWN — `gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
-| Default branch | UNKNOWN — `gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
+| Canonical name (GitHub) | Tenurework/Tenure |
+| Visibility | PUBLIC |
+| Fork | false |
+| Default branch | main |
 | Branches known here | 15 |
 | Tags (GitHub) | none |
 | Tags (local refs) | none |
 | Releases | none |
 | Deployment environments | none |
-| Open pull requests | UNKNOWN — `gh pr list -R satvikOS/Tenure --state open --json number,title,headRefName` failed |
+| Open pull requests | none open |
 | Commits on the recorded head | 171 |
 | Oldest commit | `abf30691f829` (2026-07-10) |
 | Newest commit | `47c1128cb559` (2026-08-14) |
@@ -63,26 +63,26 @@ Observed at **2026-08-17**. Source pinned to `47c1128cb55953b11bedc47927508bc5d6
 | --- | --- |
 | Role | target — this repository, the Tenure parent platform |
 | Configured remote | `origin` → `https://github.com/Tenurework/Tenure-Parent.git` |
-| Canonical name (GitHub) | UNKNOWN — `gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
-| Visibility | UNKNOWN — `gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
-| Fork | UNKNOWN — `gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
-| Default branch | UNKNOWN — `gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed |
+| Canonical name (GitHub) | Tenurework/Tenure-Parent |
+| Visibility | PUBLIC |
+| Fork | false |
+| Default branch | main |
 | Branches known here | 2 |
 | Tags (GitHub) | none |
 | Tags (local refs) | none |
 | Releases | none |
 | Deployment environments | `aws-read` `engine-production` |
-| Open pull requests | UNKNOWN — `gh pr list -R Tenurework/Tenure-Parent --state open --json number,title,headRefName` failed |
-| Commits on the recorded head | 445 |
+| Open pull requests | none open |
+| Commits on the recorded head | 451 |
 | Oldest commit | `abf30691f829` (2026-07-10) |
-| Newest commit | `69b9fb749944` (2026-08-17) |
+| Newest commit | `ccbe45af1196` (2026-08-17) |
 | Contributors | 4 — Claude, Monorepo Migration, satvikOS, verification |
-| Tracked files | 1597 |
-| Working tree | checked out on `main`, 135 dirty path(s) at 2026-08-17 |
+| Tracked files | 1671 |
+| Working tree | checked out on `main`, 169 dirty path(s) at 2026-08-18 |
 
 | Branch | Commit |
 | --- | --- |
-| `main` | `69b9fb749944` |
+| `main` | `ccbe45af1196` |
 | `wip/ier-killed-run-20260808` | `815be47a3c4b` |
 
 ## Shared history
@@ -127,6 +127,7 @@ The two repositories share history: the parent was branched from the pilot. Abso
 | `.github/workflows/ops-status.yml` | Ops Status | workflow_dispatch | yes | — | `Tenurework/Tenure` |
 | `.github/workflows/platform-plan.yml` | Platform · Terraform plan (read-only) | workflow_dispatch | yes | — | **none** |
 | `.github/workflows/probe-debug.yml` | Probe Debug | workflow_dispatch | — | — | `Tenurework/Tenure` |
+| `.github/workflows/reachability.yml` | Reachability probe | workflow_dispatch | — | — | **none** |
 | `.github/workflows/replace-acm-cert.yml` | Replace ACM Certificate | workflow_dispatch | yes | **yes** | `Tenurework/Tenure` |
 | `.github/workflows/rotate-auth-secret.yml` | Rotate Auth Secret | workflow_dispatch | yes | **yes** | `Tenurework/Tenure` |
 | `.github/workflows/seed-reference-data.yml` | Seed reference data | workflow_dispatch | yes | — | `Tenurework/Tenure` |

@@ -56,6 +56,7 @@ the properties the bible asks for rather than merely the name.
 | `packages/configuration/src/store.ts` | RETAIN | `commit` is the one writer, and `tests/security/one-config-writer.test.mjs` reds if a second appears. CFG's configurator must publish through it. | `tests/security/one-config-writer.test.mjs` |
 | `packages/configuration/src/graph.ts` | RETAIN | The graph algorithms Bible §11 steps 6 and 8 and §16 need, in one place: `minimalCyclePaths`, `topologicalGroups`, `affectedSubgraph`. RETAIN rather than REFACTOR because it replaced two duplicate depth-first searches rather than adding a third — `expression.ts` and `rejections.ts` both delegate to it now. | `packages/configuration/src/graph.test.ts` |
 | `packages/configuration/src/graph-snapshot.ts` | RETAIN | Bible §11's ten compilation steps, the traced evaluator, affected-subgraph re-evaluation and the two §11-step-10 projections. This is what CFG-030-001, -002, -003 and -005 and CFG-020-004 are recorded against, and CFG-020-001's missing vocabularies are additions to `RULE_SLOTS` here rather than a second compiler. | `packages/configuration/src/graph-snapshot.test.ts` |
+| `packages/configuration/src/registry-graph.ts` | RETAIN | The bridge that gives the compiled graph its nodes: every `ConfigDefinition` becomes a `DeclaredNode` under its owner's namespace, and the flags that already decide enablement and applicability imperatively (`overridable`, `requiresCapability`, `liveOnly`) become the rules that decide them declaratively. Keys the four scalar types cannot carry are NAMED, not dropped. | `packages/configuration/src/registry-graph.test.ts` |
 
 ## What the platform makes configurable — `packages/platform-config`
 
@@ -100,6 +101,8 @@ a 1,240-line page component.
 | `apps/system-studio/src/lib/config-sort-key.ts` | RETAIN | Pure string padding for the revision sort key, testable without a server. | `apps/system-studio/src/lib/config-sort-key.ts` |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/change-cost.ts` | RETAIN | What a configuration change does to the bill, quoted rather than charged. CFG-040 treats a cost estimate as an external check, which is what this is. | `apps/system-studio/src/app/tenants/[slug]/configuration/change-cost.test.ts` |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/RollbackControls.tsx` | RETAIN | Rollback republishes forward as a new revision and the wording says so. CFG-060's rollback UX asks for exactly that honesty. | `apps/system-studio/src/app/tenants/[slug]/configuration/RollbackControls.test.tsx` |
+| `apps/system-studio/src/app/tenants/[slug]/configuration/consequences.ts` | RETAIN | Turns the plan's graph evaluation and client-safe projection into the review panel's lines — which fields the change moves, what an approval binds to, what the browser is not sent, which configured keys have no node. A presenter only: it takes no decision and it never renders "nothing moved" and "nothing was evaluated" as the same sentence. | `apps/system-studio/src/app/tenants/[slug]/configuration/consequences.test.ts` |
+| `apps/system-studio/src/app/tenants/[slug]/configuration/publication-modules.ts` | RETAIN | The one module closure the Studio hands to `planPublication`, carrying `version`. It replaced three copies in `actions.ts`, all three of which dropped the version and so made the graph digest unable to tell a republished package from an approved one. | `apps/system-studio/src/app/tenants/[slug]/configuration/consequences.test.ts` |
 | `apps/system-studio/src/app/tenants/new/ComposeForm.tsx` | REFACTOR | 1,155 lines of hand-built composition questionnaire — the single largest piece of imperative form code in the repository, and the one CFG-020 exists to replace with a schema graph. Its behaviour is the specification for that graph. | `apps/system-studio/src/app/tenants/new/compose-pricing.test.tsx` |
 | `apps/system-studio/src/app/tenants/new/page.tsx` | REFACTOR | Holds the coexistence-profile prose beside the form. In a declarative configurator that text is a translation key on a schema node, not a constant in a page. | `apps/system-studio/src/app/tenants/new/page.tsx` |
 | `apps/system-studio/src/app/tenants/new/ChoiceGroup.tsx` | MIGRATE | Its own header says it belongs in `components/md3/` beside `Field`, `TextField`, `Select` and `Switch`. A schema-rendered configurator needs one component kit, not one plus a local copy. | `apps/system-studio/src/app/tenants/new/ChoiceGroup.tsx` |
@@ -140,11 +143,11 @@ read the suffix rule will otherwise wonder where they went.
 
 | Disposition | Modules |
 |---|---:|
-| RETAIN | 51 |
+| RETAIN | 54 |
 | REFACTOR | 9 |
 | MIGRATE | 6 |
 | RETIRE | 0 |
-| **Total** | **66** |
+| **Total** | **69** |
 
 The counts are asserted against the table by the guard, so a row that changes
 disposition without the summary changing reds.

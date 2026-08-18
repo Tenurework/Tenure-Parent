@@ -10,11 +10,21 @@ import { applyExceptions, type GuardrailException } from "./exceptions"
 import { allRejections, type ModuleLike, type Rejection } from "./rejections"
 import {
   compileGraph,
+  evaluateGraph,
   graphSigningKeyFromEnv,
+  presentationProjection,
+  reevaluateGraph,
   snapshotBlockers,
+  type Evaluation,
   type GraphSnapshot,
-  type PackageManifest,
+  type PresentationProjection,
 } from "./graph-snapshot"
+import {
+  changedNodes,
+  registryGraphInput,
+  registryInputs,
+  type UnrepresentableKey,
+} from "./registry-graph"
 import type { ConfigDiffEntry } from "./version"
 
 /**
@@ -307,6 +317,48 @@ export interface PublicationPlan {
    * invariant; if a second producer appears, make it required.
    */
   graph?: GraphSnapshot
+  /**
+   * The server-authoritative evaluation of that graph over the proposal
+   * (CFG-030-003, CFG-030-005).
+   *
+   * Computed incrementally from an evaluation of the CURRENT configuration:
+   * only the nodes the diff reached, and everything downstream of them, are
+   * recomputed. Its `outputDigest` covers the graph digest, the inputs, the
+   * values and the states, so two runs over the same configuration produce the
+   * same digest and an approval can be bound to it.
+   *
+   * `null` — with `evaluationSkipped` saying why — when the graph did not
+   * compile. Never an empty evaluation standing in for an absent one.
+   */
+  evaluation?: Evaluation | null
+  /** Why there is no evaluation, when there is none. Null when there is one. */
+  evaluationSkipped?: string | null
+  /**
+   * The client-safe projection of the SAME snapshot (CFG-020-004).
+   *
+   * Presentation rules only, no `confidential` or `secret` node and no node
+   * whose rules read one — and everything withheld is named, so a browser can
+   * tell a partial view from a complete one.
+   */
+  presentation?: PresentationProjection | null
+  /**
+   * Graph nodes whose value or state this change moves, sorted.
+   *
+   * Named rather than counted, and derived from the two evaluations rather than
+   * from the diff: a key the diff does not mention still appears here when a
+   * rule downstream of a changed key derives from it, which is the consequence
+   * an operator cannot work out by reading the diff.
+   */
+  nodesAffected?: readonly string[]
+  /**
+   * Registry keys that could not become graph nodes, each with the reason.
+   *
+   * Carried onto the plan because the alternative is silence: a key with an
+   * object default has no node, no rules and no evaluated state, and a reviewer
+   * reading an evaluation that covers nine of ten keys would have no way to know
+   * the tenth was missing rather than unaffected.
+   */
+  unrepresentableKeys?: readonly UnrepresentableKey[]
 }
 
 /** Everything an operator needs before signing, in one object. */
@@ -437,9 +489,18 @@ export function planPublication(input: PublicationInput): PublicationPlan {
   // problems `allRejections` does not already report are added as blockers —
   // `snapshotBlockers` says which and why — so an operator never sees one defect
   // twice.
+  //
+  // The closure is the module catalogue WITH the registry's declarations
+  // attached (`registryGraphInput`). Compiling the catalogue alone compiled a
+  // graph of zero nodes: modules declare dependencies and capabilities, and the
+  // tenant's configurable fields live in the registry. A snapshot with no nodes
+  // has a digest, a signature and nothing to evaluate, which is a compiler that
+  // reads as working and decides nothing.
+  const registryGraph = registryGraphInput(registry, modules, { liveModeKey: PAYMENT_MODE_CONFIG_KEY })
   const graph = compileGraph({
-    packages: modules as readonly PackageManifest[],
+    packages: registryGraph.packages,
     enabled: enabledModules,
+    contextTypes: registryGraph.contextTypes,
     signWith: graphSigningKeyFromEnv(),
   })
   blockers.push(...snapshotBlockers(graph))
@@ -464,6 +525,55 @@ export function planPublication(input: PublicationInput): PublicationPlan {
     else if (stableStringify(before[key]) !== stableStringify(proposedValues[key])) {
       diff.push({ key, change: "changed", before: before[key], after: proposedValues[key] })
     }
+  }
+
+  // CFG-020-004 / CFG-030-003 / CFG-030-005 — evaluate the graph this
+  // publication would run under, incrementally, and project the client-safe
+  // half of the same snapshot.
+  //
+  // The evaluation is server-authoritative and the projection is what a browser
+  // may have; both come from ONE snapshot, so they cannot drift. The order here
+  // is the requirement, not an optimisation: the CURRENT configuration is
+  // evaluated in full, and the proposal is then re-evaluated over only the nodes
+  // the diff reached and everything downstream of them. That is the §16
+  // "evaluate only affected subgraphs after a change" path, and running it here
+  // rather than in a test is what makes it the path production takes.
+  //
+  // Nothing is evaluated when the graph did not compile. `evaluateGraph` refuses
+  // such a snapshot, and it is right to: numbers out of a graph whose ordering
+  // is not known to be possible are indistinguishable from real ones. The plan
+  // then says WHY there is no evaluation — "we could not look" and "we looked
+  // and everything is fine" are different answers.
+  let evaluation: Evaluation | null = null
+  let presentation: PresentationProjection | null = null
+  let evaluationSkipped: string | null = null
+  let nodesAffected: readonly string[] = []
+  if (graph.publishable) {
+    const capabilities = [...publisherCapabilities]
+    const beforeEvaluation = evaluateGraph(graph, registryInputs(registryGraph, before, capabilities))
+    const changed = changedNodes(
+      registryGraph,
+      diff.map((entry) => entry.key),
+    )
+    evaluation = reevaluateGraph(
+      graph,
+      beforeEvaluation,
+      registryInputs(registryGraph, proposedValues, capabilities),
+      changed,
+    )
+    presentation = presentationProjection(graph)
+    nodesAffected = graph.nodes
+      .map((node) => node.id)
+      .filter(
+        (id) =>
+          stableStringify(beforeEvaluation.values[id]) !== stableStringify(evaluation!.values[id]) ||
+          stableStringify(beforeEvaluation.states[id]) !== stableStringify(evaluation!.states[id]),
+      )
+      .sort()
+  } else {
+    evaluationSkipped =
+      `The graph did not compile (${graph.problems.length} problem${graph.problems.length === 1 ? "" : "s"}), ` +
+      `so nothing was evaluated and no presentation was projected. The problems are in \`blockers\`.`
   }
 
   const simulations = simulate(registry, proposed, fixtures, activateAt)
@@ -501,5 +611,10 @@ export function planPublication(input: PublicationInput): PublicationPlan {
     rollbackTo: current?.revision ?? null,
     activateAt: activateAt.toISOString(),
     graph,
+    evaluation,
+    evaluationSkipped,
+    presentation,
+    nodesAffected,
+    unrepresentableKeys: registryGraph.unrepresentable,
   }
 }

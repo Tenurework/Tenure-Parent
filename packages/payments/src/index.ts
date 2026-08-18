@@ -42,15 +42,40 @@ export {
   capabilityAvailabilityForModules,
   capabilityState,
   isTransactable,
+  providerApiCompatibility,
   settlementCurrencies,
+  type ApiCompatibilityVerdict,
   type BusinessType,
   type CapabilityApproval,
   type CapabilityState,
   type LegalEntityType,
   type ModulePaymentCapability,
   type PaymentCapability,
+  type ProviderApiCompatibility,
   type RegistryChecks,
 } from "./capability-registry"
+
+/** PAY-010-002 — provider, certification, entitlement, activation. All four. */
+export {
+  CAPABILITY_GATES,
+  evaluateCapabilityGates,
+  type CapabilityGate,
+  type CapabilityGateDecision,
+  type CapabilityGateFacts,
+  type GateResult,
+  type GateVerdict,
+  type MerchantActivation,
+  type ProviderCapabilityObservation,
+} from "./capability-gates"
+
+/** PAY-010-007 — a provider change raises review tasks and mutates nothing. */
+export {
+  watchProviderApiVersion,
+  watchProviderFeatures,
+  type ProviderFeatureReviewTask,
+  type ProviderVersionReviewTask,
+  type ProviderVersionWatchReport,
+} from "./version-watch"
 
 /** PAY-010-006 — country/currency/entity/business-type eligibility, explained. */
 export {
@@ -222,3 +247,71 @@ export {
   type PaymentQuote,
   type PaymentQuoteInput,
 } from "./gateway"
+
+/**
+ * PAY-200-003 / PAY-180-004 — financial identifiers: recognised by checksum,
+ * tokenized under a tenant-scoped key, encrypted when they have to come back,
+ * and shown only as far as the PURPOSE asking has earned.
+ *
+ * Server-only, like the rest of this entry point: `node:crypto`. The credential
+ * scanner it sits beside is `@tenure/audit`'s `secret-values.ts` — a different
+ * class of value with a different answer (refuse, rather than tokenize).
+ */
+export {
+  ACCESS_PURPOSES,
+  FINANCIAL_IDENTIFIER_KINDS,
+  MIN_TOKEN_KEY_LENGTH,
+  PURPOSES_NO_GRANT_CAN_RAISE,
+  REVEAL_LEVELS,
+  abaPrefixIsAssigned,
+  containsFinancialIdentifier,
+  decryptIdentifier,
+  encryptIdentifier,
+  findFinancialIdentifiers,
+  grantProblems,
+  keyIdOf,
+  maskIdentifier,
+  normalizeIdentifier,
+  passesAbaCheck,
+  passesIbanCheck,
+  passesLuhn,
+  redactFinancialIdentifiers,
+  redactFinancialIdentifiersDeep,
+  revealFor,
+  tokenFor,
+  type AccessPurpose,
+  type DecryptResult,
+  type EncryptResult,
+  type EncryptionRefusal,
+  type FinancialIdentifierKind,
+  type GrantProblem,
+  type IdentifierOccurrence,
+  type PurposeGrant,
+  type RedactionFinding,
+  type RedactionOptions,
+  type RedactionResult,
+  type RevealLevel,
+  type TokenResult,
+  type TokenizationRefusal,
+} from "./financial-identifiers"
+
+/**
+ * PAY-200-005 — which actions are high-risk, and what evidence one has to be
+ * able to show. Consumed by `apps/web/src/lib/audit-record.ts`, the one door
+ * every audit row in the application is written through.
+ */
+export {
+  EVIDENCE_FIELDS,
+  EVIDENCE_REQUIREMENTS,
+  HIGH_RISK_CLASSES,
+  HIGH_RISK_CLASS_PRECEDENCE,
+  buildEvidencePackage,
+  classifyHighRiskAction,
+  evidenceDigestMatches,
+  isHighRiskAction,
+  type EvidenceField,
+  type EvidencePackage,
+  type EvidencePackageInput,
+  type EvidenceValues,
+  type HighRiskClass,
+} from "./high-risk-actions"

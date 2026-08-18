@@ -31,6 +31,34 @@ export {
 export type { Actor, AdvanceOptions, LifecycleStep, TenantState } from "./lifecycle"
 
 /**
+ * GE-103-013 / GE-103-015 — the two gates on the way out.
+ *
+ * Exported beside `advance` because they are not optional extras: `advance`
+ * refuses `PURGE_PENDING → PURGING` without a clearance and
+ * `PURGING → PURGED_ZERO_INCREMENTAL_COST` without a tombstone, so a caller
+ * that has the lifecycle has to have these too.
+ */
+export { PURGE_CHECKS, PURGE_CHECK_IDS, purgeClearance } from "./purge-gate"
+export type {
+  CheckVerdict,
+  ExportOutcome,
+  PurgeApproval,
+  PurgeCheck,
+  PurgeCheckId,
+  PurgeCheckResult,
+  PurgeClearance,
+  PurgeFacts,
+} from "./purge-gate"
+export { TOMBSTONE_FIELDS, TombstoneRefused, buildTombstone, tombstoneProblems } from "./tombstone"
+export type {
+  Tombstone,
+  TombstoneApproval,
+  TombstoneField,
+  TombstoneLifecycle,
+  TombstoneProblem,
+} from "./tombstone"
+
+/**
  * WRK-120-005. The checkable half of the residual-cost claim, exported beside
  * `RESIDUAL_COST` so a console rendering the sentence has the list in the same
  * import and no excuse for rendering one without the other.
@@ -105,6 +133,31 @@ export type {
   ProvisioningPlan,
   TenantManifest,
 } from "./manifest"
+
+/**
+ * GE-100-002 — the six kinds of value a manifest carries.
+ *
+ * Exported beside the manifest for the same reason `RESIDUAL_CLAIMS` is
+ * exported beside `RESIDUAL_COST`: a surface that renders a manifest has the
+ * provenance of every field in the same import, so there is no excuse for
+ * showing a default as though somebody had chosen it.
+ */
+export {
+  MANIFEST_FIELD_SPECS,
+  PLACEHOLDER_SHAPES,
+  VALUE_KINDS,
+  classifyManifestValues,
+  placeholderProblems,
+  placeholderReason,
+} from "./manifest-values"
+export type {
+  ClassifiedValue,
+  FieldSpec,
+  PlaceholderShape,
+  ValueClassification,
+  ValueKind,
+  ValueSource,
+} from "./manifest-values"
 
 /**
  * The coexistence vocabulary, re-exported rather than redefined.

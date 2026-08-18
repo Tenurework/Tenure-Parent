@@ -10,6 +10,8 @@
  */
 
 import { RESIDUAL_CLAIMS, type ResidualClaim } from "./residual-reconciliation"
+import { tombstoneProblems } from "./tombstone"
+import type { PurgeClearance } from "./purge-gate"
 
 /** Where a tenant is, exactly. */
 export type TenantState =
@@ -218,6 +220,35 @@ export interface AdvanceOptions {
    */
   ownerPrincipalId?: string
   reason?: string
+
+  /**
+   * GE-103-013 — the seven pre-purge checks and the destructive approval,
+   * already evaluated.
+   *
+   * Required by `advance` for `PURGE_PENDING → PURGING`, which is the only edge
+   * into the only state from which `PURGED_ZERO_INCREMENTAL_COST` is reachable.
+   * Absent is a refusal, exactly as `approverIsOperator` is: a caller that
+   * forgets the field must not be able to skip the control by omission.
+   *
+   * The evaluated clearance rather than the raw facts, because the facts are
+   * read from stores this package must not know about — a contract end date, a
+   * tax schedule, a legal-hold matter. `purgeClearance` is the function that
+   * turns them into this, and it lives beside this one so there is no second
+   * reading of what "cleared" means.
+   */
+  purgeClearance?: PurgeClearance
+
+  /**
+   * GE-103-015 — what is left in the Parent afterwards.
+   *
+   * Required by `advance` for `PURGING → PURGED_ZERO_INCREMENTAL_COST`, and
+   * typed `unknown` on purpose: a caller that has built one gets it checked
+   * rather than trusted, which is the same argument `tombstoneProblems` makes
+   * about rows read back out of a store. A tenant may not be recorded as purged
+   * until the thing that survives the purge has been checked to carry nothing
+   * that should not have.
+   */
+  tombstone?: unknown
 }
 
 /** One recorded step. GE-102-002. */
@@ -315,6 +346,55 @@ export function advance(
       from,
       to,
     )
+  }
+
+  // GE-103-013. The destructive edge. After the approval and owner gates
+  // because those are cheap to satisfy and this one takes fifteen minutes to
+  // satisfy — an operator sent to wait out a cooling-off period only to be told
+  // afterwards that their approver was unverified has been made to discover the
+  // list one item at a time.
+  if (from === "PURGE_PENDING" && to === "PURGING") {
+    if (!options.purgeClearance) {
+      throw new LifecycleError(
+        `PURGE_PENDING → PURGING requires a purge clearance. Seven checks — export, contract, ` +
+          `retention, legal hold, tax, audit and cooling-off — plus a separate protected ` +
+          `destructive human approval have to have been evaluated before a tenant's data is ` +
+          `destroyed, and no clearance was supplied. An absent clearance is a refusal rather than ` +
+          `a default: this is the one transition with no undo.`,
+        from,
+        to,
+      )
+    }
+    if (!options.purgeClearance.cleared) {
+      throw new LifecycleError(
+        `PURGE_PENDING → PURGING is refused.\n${options.purgeClearance.explanation}`,
+        from,
+        to,
+      )
+    }
+  }
+
+  // GE-103-015. Nothing is recorded as purged until what survives the purge has
+  // been checked. The check runs on the value as given, not on its type.
+  if (to === "PURGED_ZERO_INCREMENTAL_COST") {
+    if (options.tombstone === undefined) {
+      throw new LifecycleError(
+        `PURGING → PURGED_ZERO_INCREMENTAL_COST requires a tombstone. It is the only record that ` +
+          `survives, and a tenant recorded as purged with nothing left behind cannot answer who ` +
+          `approved it, when it happened, or where the evidence is.`,
+        from,
+        to,
+      )
+    }
+    const problems = tombstoneProblems(options.tombstone)
+    if (problems.length > 0) {
+      throw new LifecycleError(
+        `The tombstone for ${to} was refused on ${problems.length} ground(s): ` +
+          problems.map((p) => `${p.field || "(root)"} — ${p.reason}: ${p.detail}`).join(" | "),
+        from,
+        to,
+      )
+    }
   }
 
   const attempt = attemptFor(history, to)

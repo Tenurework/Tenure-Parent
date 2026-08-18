@@ -50,7 +50,7 @@ export function DocContentView({
     case "html":
       return (
         <div
-          className="prose-doc text-sm text-text-1 space-y-3 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:text-[1rem] [&_h2]:font-semibold [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_a]:text-[--primary]"
+          className="prose-doc text-sm text-text-1 space-y-3 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:text-[1rem] [&_h2]:font-semibold [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1 [&_a]:text-[--text-link]"
           dangerouslySetInnerHTML={{ __html: content.html }}
         />
       )

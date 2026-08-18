@@ -294,7 +294,7 @@ export default async function ApprovalDetailPage({
                     reimb.documentId ? (
                       <Link
                         href={`/orgs/${approval.organization.slug}/documents/${reimb.documentId}/view`}
-                        className="text-[--primary] hover:underline"
+                        className="text-[--text-link] hover:underline"
                       >
                         View receipt
                       </Link>
@@ -324,7 +324,7 @@ export default async function ApprovalDetailPage({
                   action={
                     <Link
                       href={`/calendar/${approval.event.id}`}
-                      className="text-xs text-[--primary] hover:underline"
+                      className="text-xs text-[--text-link] hover:underline"
                     >
                       View event
                     </Link>

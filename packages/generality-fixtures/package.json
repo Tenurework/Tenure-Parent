@@ -1,0 +1,12 @@
+{
+  "name": "@tenure/generality-fixtures",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GE-052 — the second, structurally different organization the platform must be able to produce as configuration: a corporate spine, its seat ladder, and its purchase approval chain.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

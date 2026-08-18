@@ -382,14 +382,9 @@ function firstMatch(source: string, tokens: readonly string[]): string | null {
  * shape three call sites had, not a proof about all of them.
  */
 export function conditionalMeaningOffenders(source: string): ConditionalOffence[] {
-  const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "")
   const offences: ConditionalOffence[] = []
 
-  for (const i of conditionalPositions(code)) {
-    const branches = splitConditional(code, i)
-    if (!branches) continue
-
-    const { consequent, alternative, end } = branches
+  for (const { consequent, alternative, text } of conditionalsIn(source)) {
     // Both branches have to be a COLOUR CHOICE for this to be the defect. Two
     // JSX subtrees that happen to contain an accent in one and a status colour
     // in the other are two different pieces of UI, not two paints on one thing;
@@ -402,12 +397,12 @@ export function conditionalMeaningOffenders(source: string): ConditionalOffence[
       [alternative, consequent],
     ]
     for (const [brandSide, protectedSide] of pairs) {
-      const brand = BRAND_TOKEN_PATTERN.exec(brandSide)?.[1]
+      const brand = brandTokenIn(brandSide)
       if (!brand) continue
       const captured = firstMatch(protectedSide, PROTECTED_TOKENS)
       if (!captured) continue
       offences.push({
-        conditional: code.slice(i, end).replace(/\s+/g, " ").trim().slice(0, 160),
+        conditional: text,
         brandToken: brand,
         protectedToken: captured,
         meanings: meaningsOf(captured),
@@ -419,6 +414,73 @@ export function conditionalMeaningOffenders(source: string): ConditionalOffence[
   return offences
 }
 
+/** Line and block comments removed, so a `?` or a token quoted in prose is not code. */
+export function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "")
+}
+
+/** The brand-writable property a piece of source paints with, or null. */
+export function brandTokenIn(source: string): string | null {
+  return BRAND_TOKEN_PATTERN.exec(source)?.[1] ?? null
+}
+
+/** One conditional expression, split into the three parts a reader argues about. */
+export interface ConditionalSpan {
+  /**
+   * The text immediately before the `?`, bounded by the nearest opener.
+   *
+   * A look-back window rather than a parsed expression: what any check needs
+   * from it is its VOCABULARY — whether the thing being tested is a sum of
+   * money, a status or a permission — and for that the last clause is enough.
+   * Bounded at the nearest `${`, `(`, `{`, `;`, `,` or line start so a
+   * conditional never inherits the previous statement's words.
+   */
+  condition: string
+  consequent: string
+  alternative: string
+  /** The whole conditional, whitespace-collapsed, for an error a human can find. */
+  text: string
+}
+
+/**
+ * Every conditional expression in a module, with its condition and both branches.
+ *
+ * One scanner, used by both `conditionalMeaningOffenders` here and the predicate
+ * scan in `brand-meaning-scan.ts`. Two copies of this string-state machine would
+ * be two answers to "is this `?` inside a template literal", which is exactly the
+ * question its comments are about.
+ */
+export function conditionalsIn(source: string): ConditionalSpan[] {
+  const code = stripComments(source)
+  const spans: ConditionalSpan[] = []
+
+  for (const i of conditionalPositions(code)) {
+    const branches = splitConditional(code, i)
+    if (!branches) continue
+    spans.push({
+      condition: conditionBefore(code, i),
+      consequent: branches.consequent,
+      alternative: branches.alternative,
+      text: code.slice(i, branches.end).replace(/\s+/g, " ").trim().slice(0, 160),
+    })
+  }
+
+  return spans
+}
+
+/** The clause a `?` tests: back to the nearest opener, at most 160 characters. */
+function conditionBefore(code: string, questionMark: number): string {
+  const from = Math.max(0, questionMark - 160)
+  const window = code.slice(from, questionMark)
+  let start = 0
+  for (let i = 0; i < window.length; i++) {
+    const ch = window[i]
+    if (ch === "$" && window[i + 1] === "{") start = i + 2
+    else if (ch === "(" || ch === "{" || ch === ";" || ch === "," || ch === "\n") start = i + 1
+  }
+  return window.slice(start).trim()
+}
+
 /**
  * Whether a branch is a colour choice rather than a piece of UI.
  *
@@ -426,7 +488,7 @@ export function conditionalMeaningOffenders(source: string): ConditionalOffence[
  * subtree: `cond ? <PanelInTheAccent/> : <PanelWithAnError/>` is two components,
  * and the tokens inside them are not alternatives painted on one element.
  */
-function isColourExpression(branch: string): boolean {
+export function isColourExpression(branch: string): boolean {
   return branch.length <= 300 && !/<[A-Za-z]/.test(branch)
 }
 

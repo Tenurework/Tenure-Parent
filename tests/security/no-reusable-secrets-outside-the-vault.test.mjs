@@ -256,6 +256,36 @@ test("sink: log — every log line carrying foreign text goes through safeLogTex
   }
 })
 
+/**
+ * The block that HANDLES a scan's findings, brace-matched from the scan call.
+ *
+ * WRK-040-005. This replaces `source.slice(scan, scan + N)`, and the difference
+ * is not stylistic — a fixed window is a guard that can be satisfied by an
+ * unrelated neighbour. Measured, not supposed: replacing the `blockers.push`
+ * that handles a secret finding in `publication.ts` with a `console.warn` left
+ * this file at 12 pass / 0 fail, because two later `blockers.push` calls about
+ * approval and scheduling sat inside the same 800 characters. The publish went
+ * ahead with the credential in it and the sink's own guard said nothing.
+ *
+ * Brace-matching from the scan means the handling has to be inside the block
+ * the finding is handled in, and a neighbouring rule cannot stand in for it.
+ * Returns "" when no block opens, which fails the caller's `assert.match`
+ * rather than passing it on an empty string.
+ */
+function handlingBlock(source, scan) {
+  const open = source.indexOf("{", scan)
+  if (open === -1) return ""
+  let depth = 0
+  for (let i = open; i < source.length; i++) {
+    if (source[i] === "{") depth++
+    else if (source[i] === "}") {
+      depth--
+      if (depth === 0) return source.slice(open + 1, i)
+    }
+  }
+  return ""
+}
+
 /* ─────────────────────────────────────────────── sink 4 of 6: the events */
 
 const OUTBOX = "apps/web/src/lib/outbox/outbox.ts"
@@ -266,7 +296,7 @@ test("sink: event — a provider-origin outbox payload is refused, not enqueued"
   const scan = source.indexOf("findSecretValues(")
   assert.notEqual(scan, -1, `${OUTBOX} no longer scans provider payloads`)
   assert.match(
-    source.slice(scan, scan + 600),
+    handlingBlock(source, scan),
     /throw new ProviderPayloadRefused/,
     `${OUTBOX} scans the payload and does not refuse it. An outbox row is written inside a ` +
       `business transaction and handed to a dispatcher that logs it; a finding nobody throws on ` +
@@ -290,12 +320,32 @@ test("sink: config — a published value carrying a credential is blocked", () =
       `platform.* string resolves into every snapshot the application reads.`,
   )
   assert.match(
-    source.slice(scan, scan + 800),
+    handlingBlock(source, scan),
     /blockers\.push\(/,
     `${PUBLICATION} finds a secret in a proposed value and does not block the publish. This is ` +
       `the worst of the six sinks: a published value is checksummed into an immutable revision ` +
       `and cannot be un-published.`,
   )
+})
+
+test("the brace matcher does not accept a neighbour's handling for the sink's own", () => {
+  // The property the fixed-size window did not have, asserted directly so the
+  // fix cannot regress into a slice again. The first block after the scan is
+  // the one that must contain the handling; a later sibling does not count.
+  const shaped =
+    "for (const found of findSecretValues(values)) { console.warn(found) }\n" +
+    "if (somethingElse) { blockers.push('unrelated') }\n"
+  assert.doesNotMatch(handlingBlock(shaped, shaped.indexOf("findSecretValues(")), /blockers\.push\(/)
+
+  const handled = "for (const found of findSecretValues(values)) { blockers.push(found.kind) }\n"
+  assert.match(handlingBlock(handled, handled.indexOf("findSecretValues(")), /blockers\.push\(/)
+
+  // Nested braces inside the handling block are still inside it.
+  const nested = "if (findSecretValues(v).length) { if (x) { blockers.push(1) } }\n"
+  assert.match(handlingBlock(nested, nested.indexOf("findSecretValues(")), /blockers\.push\(/)
+
+  // No block at all is a failure, never a pass on an empty string.
+  assert.equal(handlingBlock("const n = findSecretValues(v).length", 0), "")
 })
 
 /* ─────────────────────────────────────────── sink 6 of 6: the evidence trail */

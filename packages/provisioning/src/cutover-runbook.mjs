@@ -71,7 +71,7 @@ export const REQUIRED_TASK_BINDINGS = Object.freeze([
  * records the instruction rather than the artifact. Two rehearsals of the same
  * runbook can then execute different code and both be "as written".
  */
-const FLOATING_VERSION = /^(latest|main|master|head|stable|current|\*)$|^[\^~><]|(\.x$)/i
+export const FLOATING_VERSION = /^(latest|main|master|head|stable|current|\*)$|^[\^~><]|(\.x$)/i
 
 const named = (value) => typeof value === "string" && value.trim().length > 0
 

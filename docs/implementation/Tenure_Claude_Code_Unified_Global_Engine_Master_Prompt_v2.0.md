@@ -175,7 +175,7 @@ Use this evidence shape:
 - [x] GE-010-002 — Model or reconcile Management, Security, Log Archive, Infrastructure, Tenure Parent, Nonproduction, Production Cells, Dedicated Tenants, and Quarantine OUs/accounts.
 - [ ] GE-010-003 — Ensure management account has no product workload and root has governed MFA/no routine access keys, verified only through permitted metadata.
 - [ ] GE-010-004 — Establish Control Tower/Account Factory or equivalent account-vending baseline with organization trail/config, delegated security admin, required contacts/tags/budgets, backup, IAM boundaries, and deployment roles.
-- [ ] GE-010-005 — Define SCPs/guardrails for region restrictions, public resource prevention, disabling security services, leaving organization, root use, unapproved IAM escalation, and required evidence—tested for operational safety.
+- [x] GE-010-005 — Define SCPs/guardrails for region restrictions, public resource prevention, disabling security services, leaving organization, root use, unapproved IAM escalation, and required evidence—tested for operational safety.
 - [ ] GE-010-006 — Separate production/nonproduction/security/log workloads and prove nonproduction roles cannot reach production resources.
 - [x] GE-010-007 — Define partition-aware account abstraction for commercial, GovCloud, and sovereign deployments without pretending unavailable services exist.
 
@@ -193,7 +193,7 @@ Use this evidence shape:
 
 - [x] GE-012-001 — Establish deterministic environment/account/partition/region/cell configuration with schema validation and no business-code hard-coding.
 - [ ] GE-012-002 — Implement foundational KMS, artifact registry, logs, CloudTrail/Config delivery, security-service integration, VPC/network, DNS/certificates, Secrets Manager namespaces, backup policies, and cost tags.
-- [ ] GE-012-003 — Add IaC plan/change-set generation, destructive/replacement/public-access/privilege-expansion detectors, policy scans, cost estimate, and immutable evidence.
+- [x] GE-012-003 — Add IaC plan/change-set generation, destructive/replacement/public-access/privilege-expansion detectors, policy scans, cost estimate, and immutable evidence.
 - [ ] GE-012-004 — Deploy and verify development foundation through OIDC. Test rollback and drift detection.
 - [ ] GE-012-005 — Deploy verified staging foundation from the same templates and tested artifact/config versions.
 
@@ -350,9 +350,9 @@ Use this evidence shape:
 ### GE-052: Generality fixtures
 
 - [ ] GE-052-001 — Implement Simon/OSE tenant config using confirmed terms and VP → President → OSE configurable approval flow without core hard-coding.
-- [ ] GE-052-002 — Implement corporate fixture: Company → Region → Business Unit → Department → Team; Analyst → Manager → Director → Executive.
-- [ ] GE-052-003 — Implement corporate purchase workflow with amount thresholds, department/finance/procurement approvals, delegation, and self-approval denial.
-- [ ] GE-052-004 — Prove both fixtures use identical schemas, services, authorization, workflows, and deployment paths.
+- [x] GE-052-002 — Implement corporate fixture: Company → Region → Business Unit → Department → Team; Analyst → Manager → Director → Executive.
+- [x] GE-052-003 — Implement corporate purchase workflow with amount thresholds, department/finance/procurement approvals, delegation, and self-approval denial.
+- [x] GE-052-004 — Prove both fixtures use identical schemas, services, authorization, workflows, and deployment paths.
 
 ### GE-053: Authorization tests
 
@@ -360,7 +360,7 @@ Use this evidence shape:
 - [ ] GE-053-002 — Assignment effective boundaries, title/org changes, vacancy, former/alumni, and historical no-authority behavior pass.
 - [x] GE-053-003 — Delegation cannot exceed source authority, scope, time, resource, action, or non-delegable rules.
 - [ ] GE-053-004 — Multi-seat and multi-tenant authority remains isolated; switching context rotates/revalidates session.
-- [ ] GE-053-005 — Terminology changes do not change semantic permission behavior.
+- [x] GE-053-005 — Terminology changes do not change semantic permission behavior.
 - [ ] GE-053-006 — Membership/assignment/policy/delegation revocation invalidates access and caches immediately.
 - [x] GE-053-007 — Tenant A/B cross-tenant tests deny every organization/seat/membership/delegation/policy path.
 
@@ -649,7 +649,7 @@ Use this evidence shape:
 ### GE-100: Tenant manifest
 
 - [ ] GE-100-001 — Define complete versioned tenant manifest covering legal/display identity, plan/modules/limits, region/residency, isolation, recovery, organization/seat, terminology, permissions, workflows, entities/forms, reports, branding/localization, identity, integrations, retention, Relay, observability, support, and billing.
-- [ ] GE-100-002 — Separate confirmed values, defaults, optional values, externally required values, secret references, and forbidden placeholders.
+- [x] GE-100-002 — Separate confirmed values, defaults, optional values, externally required values, secret references, and forbidden placeholders.
 - [ ] GE-100-003 — Implement deterministic render/digest/signature, compatibility, uniqueness, dependency, cost, risk, and regional service/model availability validation.
 - [ ] GE-100-004 — Generate human-readable plan/diff, infrastructure/config impact, data migration, expected cost, tests, approvals, and rollback.
 
@@ -688,7 +688,7 @@ Use this evidence shape:
 - [ ] GE-103-010 — Inventory and handle every retained/billable byte or control resource: S3 objects/versions/replicas/multipart, snapshots/backups, audit/legal hold, analytics, AI derivatives, logs/alarms, Secrets Manager, KMS keys/grants, Route 53, and dedicated-account security/baseline resources.
 - [ ] GE-103-011 — For pooled tenants, remove tenant routing/jobs/schema/database/storage/index/key/secret/backup/dedicated resources while preserving shared cell resources required by active tenants; measure zero incremental tenant runtime rather than falsely claiming global zero.
 - [ ] GE-103-012 — Show all residual hibernation charges and exact reason. `HIBERNATED_ZERO_RUNTIME` may retain priced recovery/storage/evidence and must never be displayed as $0 if it is not.
-- [ ] GE-103-013 — Implement `PURGED_ZERO_INCREMENTAL_COST` only after complete export/contract/retention/legal-hold/tax/audit/cooling-off checks and a separate protected destructive human approval.
+- [x] GE-103-013 — Implement `PURGED_ZERO_INCREMENTAL_COST` only after complete export/contract/retention/legal-hold/tax/audit/cooling-off checks and a separate protected destructive human approval.
 - [ ] GE-103-014 — Purge every tenant-specific billable resource and retained byte, expire backups/replicas/versions/archives, remove keys/secrets/DNS/endpoints/indexes, and close a dedicated Tenure account only when no required evidence remains.
 - [ ] GE-103-015 — Retain only a minimal non-content Parent tombstone: tenant ID, lifecycle timestamps, purge-manifest digest, approvals, and evidence reference. It must contain no recoverable customer content.
 - [ ] GE-103-016 — Reconcile tags/application inventory/IaC/account resources after hibernation/purge and create orphan findings with service, resource, account/region, owner, reason, expected cost, and corrective action.
@@ -919,7 +919,7 @@ Treat experience quality as a production invariant. Use Monarch for calm whole-p
 - [x] GE-143-004 — Add lint/architecture rules that prevent literal colors, arbitrary spacing/shadows/z-index, unregistered fonts/icons, and direct raw primitive tokens in product modules, with a documented exception process and expiry.
 - [ ] GE-143-005 — If React is canonical, evaluate and adopt Radix Primitives selectively behind owned Tenure wrappers for appropriate behaviors; pin versions and test portals, focus, layering, keyboard, touch, screen-reader, RTL, and reduced-motion behavior. Do not adopt Radix Themes as Tenure's identity.
 - [ ] GE-143-006 — Create a component laboratory and documentation site with interaction controls, accessibility annotations, source links, usage guidance, anti-patterns, changelog, migration notes, and realistic enterprise fixtures.
-- [ ] GE-143-007 — Establish one coherent outline icon family, sanitation rules for tenant/extension icons, and semantic icon-label requirements; remove emoji or mixed icon families from operational controls unless explicitly content-authored.
+- [x] GE-143-007 — Establish one coherent outline icon family, sanitation rules for tenant/extension icons, and semantic icon-label requirements; remove emoji or mixed icon families from operational controls unless explicitly content-authored.
 - [ ] GE-143-008 — Establish named layer/portal ownership for base, sticky, rail, header, popover, command, inspector, dialog, notification, and emergency surfaces; eliminate arbitrary stacking contests and scroll locks.
 
 #### GE-143B: Forest-green brand, light/dark ambience, and type
@@ -927,7 +927,7 @@ Treat experience quality as a production invariant. Use Monarch for calm whole-p
 - [ ] GE-143-009 — Implement a calibrated evergreen/forest ramp anchored initially at `#0F3D2E`; map actions, selection, focus, and brand-soft surfaces through semantic tokens rather than hard-coded values.
 - [ ] GE-143-010 — Implement soft cool-neutral light canvases and green-charcoal dark canvases as separately art-directed themes; prohibit algorithmic inversion, full-screen pure white/black, neon accent fields, uncontrolled gradients/glow, and low-contrast gray-on-gray.
 - [ ] GE-143-011 — Implement mode-specific canvas, surface, elevated surface, text, muted text, border, action, focus, information, success, warning, and danger tokens; validate WCAG contrast, color-vision differentiation, low-brightness legibility, common display gamut, and projector/washed-display conditions.
-- [ ] GE-143-012 — Restrict tenant branding to validated identity/accent roles. Prevent tenant colors from changing focus, status, destructive, financial polarity, permission, data quality, link, disabled, or security meanings; automatically adjust or reject invalid accents with an explanation.
+- [x] GE-143-012 — Restrict tenant branding to validated identity/accent roles. Prevent tenant colors from changing focus, status, destructive, financial polarity, permission, data quality, link, disabled, or security meanings; automatically adjust or reject invalid accents with an explanation.
 - [ ] GE-143-013 — Support `system`, explicit light, explicit dark, and optional scheduled theme without wrong-theme flash; persist safely per user/device and honor forced-colors/high-contrast platform behavior.
 - [ ] GE-143-014 — Select and self-host where licensed a legible variable sans with tabular figures and global script fallback; define display/title/body/compact/label/caption/numeric roles, line heights, readable measures, font loading/fallback metrics, and tabular money/operations formatting.
 - [ ] GE-143-015 — Define controlled radius, border, translucency, and elevation systems. Use depth sparingly; prohibit glass/blur where variable content, performance, contrast, or focus clarity suffers.

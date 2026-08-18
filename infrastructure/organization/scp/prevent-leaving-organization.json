@@ -1,0 +1,27 @@
+{
+  "id": "prevent-leaving-organization",
+  "title": "An account cannot remove itself from the Organization, and cannot close itself",
+  "attach_to": ["Root"],
+  "why": "Every other guardrail in this set is attached at the Organization. An account that can leave can drop all of them in one call, and the account that leaves keeps the data. This is the guardrail that makes the others hold.",
+  "sourced_from": [
+    "docs/decisions/ADR-0007-tenure-owned-aws-organization.md — 'Nothing to attach a guardrail to. SCPs are an Organizations feature… there is no way to express \"this account may not be left\"'",
+    "Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md — GE-010-005, 'leaving organization'"
+  ],
+  "limits": [
+    "Removal from the management account's side (organizations:RemoveAccountFromOrganization) is deliberately not denied here: it is the operator's own offboarding path, and an SCP does not restrict the management account in any case."
+  ],
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DenyLeavingTheOrganization",
+        "Effect": "Deny",
+        "Action": [
+          "organizations:LeaveOrganization",
+          "account:CloseAccount"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }
+}

@@ -6,6 +6,7 @@ import { db } from "@/lib/db"
 import { canManageOrg, getUserContext, isOseDirector } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
 import { fileRef, storageConfigured, uploadDocument } from "@/lib/s3"
+import { sanitizeTenantImage } from "@/lib/uploads/tenant-image"
 
 async function requireUserId() {
   const session = await auth()
@@ -131,20 +132,29 @@ export async function uploadOrgImage(formData: FormData) {
       throw new Error("File uploads are not configured — paste an image URL instead")
 
     const file = formData.get("file")
-    if (!(file instanceof File) || file.size === 0) throw new Error("Choose an image file")
-    if (!file.type.startsWith("image/")) throw new Error("That file is not an image")
-    if (file.size > 5 * 1024 * 1024) throw new Error("Images must be under 5 MB")
+    if (!(file instanceof File)) throw new Error("Choose an image file")
 
-    const ext = (file.name.split(".").pop() || "img").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5)
+    // GE-143-007. The format is decided by the BYTES. `file.type` and the file
+    // name are both claims by the client, and this object is stored with the
+    // content type it is served back with — so an SVG admitted here is a
+    // document served inline from the platform's own storage.
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const verdict = sanitizeTenantImage({ bytes: buffer, declaredType: file.type || undefined })
+    if (verdict.refused) throw new Error(verdict.refused.explanation)
+
     // Tenant-prefixed, which it was not: the key used to begin `org-images/`,
     // so nothing about it said which institution's bucket space it belonged in
     // and `parseFileRef` refuses it outright. Existing images are unaffected —
     // reads use the key stored on the row, and only new uploads are minted
-    // here.
-    const key = `${org.institutionId}/org-images/${org.id}/${Date.now()}.${ext}`
-    const buffer = Buffer.from(await file.arrayBuffer())
+    // here. The extension comes from the sniffed format, never from the name.
+    const key = `${org.institutionId}/org-images/${org.id}/${Date.now()}.${verdict.accepted.extension}`
     await uploadDocument(
-      fileRef({ tenantId: org.institutionId, objectKey: key, mimeType: file.type, body: buffer }),
+      fileRef({
+        tenantId: org.institutionId,
+        objectKey: key,
+        mimeType: verdict.accepted.mimeType,
+        body: buffer,
+      }),
       buffer,
     )
 

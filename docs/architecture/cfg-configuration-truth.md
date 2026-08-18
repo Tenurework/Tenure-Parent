@@ -8,13 +8,13 @@ No timestamp, no hostname and no absolute path appears here, and every count is 
 |---|---:|
 | System Studio routes | 25 |
 | Authentication and authorization modules | 12 |
-| Configuration and form code | 66 |
+| Configuration and form code | 70 |
 | Databases | 4 |
 | Infrastructure as code | 37 |
-| Workflows | 18 |
-| Tests over the configuration surface | 43 |
+| Workflows | 19 |
+| Tests over the configuration surface | 45 |
 | Deployed nonproduction behaviour | 3 |
-| **Total** | **208** |
+| **Total** | **215** |
 
 ## System Studio routes
 
@@ -76,11 +76,13 @@ The set `configurationModules()` computes, which is also the left-hand side of t
 | `apps/system-studio/src/app/platform/audit/HoldControls.tsx` | form-component | 157 lines · 1 exports |
 | `apps/system-studio/src/app/tenants/AdoptForm.tsx` | form-component | 128 lines · 1 exports |
 | `apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx` | form-component | 279 lines · 1 exports |
-| `apps/system-studio/src/app/tenants/[slug]/configuration/ConfigurationEditor.tsx` | form-component | 348 lines · 1 exports |
+| `apps/system-studio/src/app/tenants/[slug]/configuration/ConfigurationEditor.tsx` | form-component | 364 lines · 1 exports |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/RollbackControls.tsx` | form-component | 131 lines · 2 exports |
-| `apps/system-studio/src/app/tenants/[slug]/configuration/actions.ts` | configuration-module | 506 lines · 6 exports |
+| `apps/system-studio/src/app/tenants/[slug]/configuration/actions.ts` | configuration-module | 477 lines · 6 exports |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/change-cost.ts` | configuration-module | 318 lines · 11 exports |
+| `apps/system-studio/src/app/tenants/[slug]/configuration/consequences.ts` | configuration-module | 114 lines · 2 exports |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx` | configuration-module | 1273 lines · 1 exports |
+| `apps/system-studio/src/app/tenants/[slug]/configuration/publication-modules.ts` | configuration-module | 32 lines · 1 exports |
 | `apps/system-studio/src/app/tenants/new/ChoiceGroup.tsx` | configuration-module | 106 lines · 2 exports |
 | `apps/system-studio/src/app/tenants/new/ComposeForm.tsx` | form-component | 1167 lines · 4 exports |
 | `apps/system-studio/src/app/tenants/new/page.tsx` | configuration-module | 294 lines · 1 exports |
@@ -88,11 +90,12 @@ The set `configurationModules()` computes, which is also the left-hand side of t
 | `apps/system-studio/src/app/tenants/new/quote.ts` | configuration-module | 362 lines · 11 exports |
 | `apps/system-studio/src/components/DeploymentPanel.tsx` | form-component | 100 lines · 1 exports |
 | `apps/system-studio/src/components/EvidencePanel.tsx` | form-component | 142 lines · 2 exports |
+| `apps/system-studio/src/components/GovernancePanel.tsx` | form-component | 111 lines · 1 exports |
 | `apps/system-studio/src/components/TagCompliancePanel.tsx` | form-component | 124 lines · 1 exports |
 | `apps/system-studio/src/lib/config-sort-key.ts` | configuration-module | 20 lines · 3 exports |
 | `apps/system-studio/src/lib/config-store.ts` | configuration-module | 97 lines · 1 exports |
 | `apps/system-studio/src/lib/editable-config.ts` | configuration-module | 161 lines · 7 exports |
-| `apps/web/src/app/(app)/settings/actions.ts` | configuration-module | 208 lines · 6 exports |
+| `apps/web/src/app/(app)/settings/actions.ts` | configuration-module | 212 lines · 6 exports |
 | `apps/web/src/app/(app)/settings/page.tsx` | configuration-module | 529 lines · 1 exports |
 | `apps/web/src/components/ClubImageEditor.tsx` | form-component | 103 lines · 1 exports |
 | `apps/web/src/components/ProfileImageEditor.tsx` | form-component | 80 lines · 1 exports |
@@ -111,12 +114,13 @@ The set `configurationModules()` computes, which is also the left-hand side of t
 | `packages/configuration/src/expression.ts` | configuration-module | 747 lines · 17 exports |
 | `packages/configuration/src/graph-snapshot.ts` | configuration-module | 971 lines · 32 exports |
 | `packages/configuration/src/graph.ts` | configuration-module | 234 lines · 8 exports |
-| `packages/configuration/src/index.ts` | configuration-module | 197 lines · 0 exports |
+| `packages/configuration/src/index.ts` | configuration-module | 206 lines · 0 exports |
 | `packages/configuration/src/integrity.ts` | configuration-module | 223 lines · 9 exports |
 | `packages/configuration/src/layer-bridge.ts` | configuration-module | 210 lines · 3 exports |
 | `packages/configuration/src/layer-schema.ts` | configuration-module | 367 lines · 15 exports |
-| `packages/configuration/src/merge.ts` | configuration-module | 193 lines · 7 exports |
-| `packages/configuration/src/publication.ts` | configuration-module | 506 lines · 11 exports |
+| `packages/configuration/src/merge.ts` | configuration-module | 195 lines · 6 exports |
+| `packages/configuration/src/publication.ts` | configuration-module | 621 lines · 11 exports |
+| `packages/configuration/src/registry-graph.ts` | configuration-module | 278 lines · 8 exports |
 | `packages/configuration/src/rejections.ts` | configuration-module | 339 lines · 10 exports |
 | `packages/configuration/src/resolve.ts` | configuration-module | 437 lines · 13 exports |
 | `packages/configuration/src/scopes.ts` | configuration-module | 67 lines · 4 exports |
@@ -213,6 +217,7 @@ Counted from the `resource`/`data` blocks in each file rather than from a plan, 
 | `.github/workflows/ops-status.yml` | production-disarmed | triggers: workflow_dispatch |
 | `.github/workflows/platform-plan.yml` | no-aws-job-or-not-disarmed | triggers: workflow_dispatch |
 | `.github/workflows/probe-debug.yml` | production-disarmed | triggers: (none parsed) |
+| `.github/workflows/reachability.yml` | no-aws-job-or-not-disarmed | triggers: workflow_dispatch |
 | `.github/workflows/replace-acm-cert.yml` | production-disarmed | triggers: workflow_dispatch |
 | `.github/workflows/rotate-auth-secret.yml` | production-disarmed | triggers: (none parsed) |
 | `.github/workflows/seed-reference-data.yml` | production-disarmed | triggers: workflow_dispatch |
@@ -229,6 +234,7 @@ Which runner owns a file is decided by where it lives: `tests/**` is bare `node 
 | `apps/system-studio/e2e/config-store.spec.ts` | playwright | 229 lines |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/RollbackControls.test.tsx` | jest (npm run test --workspace apps/web) | 184 lines |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/change-cost.test.ts` | jest (npm run test --workspace apps/web) | 388 lines |
+| `apps/system-studio/src/app/tenants/[slug]/configuration/consequences.test.ts` | jest (npm run test --workspace apps/web) | 144 lines |
 | `apps/system-studio/src/app/tenants/new/compose-pricing.test.tsx` | jest (npm run test --workspace apps/web) | 201 lines |
 | `apps/system-studio/src/app/tenants/new/placement.test.tsx` | jest (npm run test --workspace apps/web) | 305 lines |
 | `apps/system-studio/src/app/tenants/new/quote.test.tsx` | jest (npm run test --workspace apps/web) | 382 lines |
@@ -246,6 +252,7 @@ Which runner owns a file is decided by where it lives: `tests/**` is bare `node 
 | `packages/configuration/src/layer-bridge.test.ts` | jest (npm run test --workspace apps/web) | 180 lines |
 | `packages/configuration/src/layer-schema.test.ts` | jest (npm run test --workspace apps/web) | 354 lines |
 | `packages/configuration/src/publication.test.ts` | jest (npm run test --workspace apps/web) | 558 lines |
+| `packages/configuration/src/registry-graph.test.ts` | jest (npm run test --workspace apps/web) | 441 lines |
 | `packages/configuration/src/rejections.test.ts` | jest (npm run test --workspace apps/web) | 310 lines |
 | `packages/configuration/src/store.test.ts` | jest (npm run test --workspace apps/web) | 286 lines |
 | `packages/platform-config/src/branding.test.ts` | jest (npm run test --workspace apps/web) | 112 lines |
@@ -262,7 +269,7 @@ Which runner owns a file is decided by where it lives: `tests/**` is bare `node 
 | `packages/platform-config/src/resolve.test.ts` | jest (npm run test --workspace apps/web) | 161 lines |
 | `tests/architecture/authorizing-routes-are-dynamic.test.mjs` | node --test (npm run test:platform) | 118 lines |
 | `tests/architecture/cfg-configuration-truth-is-current.test.mjs` | node --test (npm run test:platform) | 143 lines |
-| `tests/architecture/no-fixture-tenants-on-operator-surfaces.test.mjs` | node --test (npm run test:platform) | 165 lines |
+| `tests/architecture/no-fixture-tenants-on-operator-surfaces.test.mjs` | node --test (npm run test:platform) | 173 lines |
 | `tests/architecture/tsconfig-includes-no-scratch-build.test.mjs` | node --test (npm run test:platform) | 139 lines |
 | `tests/security/entry-points.test.mjs` | node --test (npm run test:platform) | 121 lines |
 | `tests/security/every-path-authorizes.test.mjs` | node --test (npm run test:platform) | 462 lines |

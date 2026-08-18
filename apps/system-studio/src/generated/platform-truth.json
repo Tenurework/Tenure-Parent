@@ -1,10 +1,10 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "69b9fb7",
+  "commit": "ccbe45a",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
-    "total": 254,
-    "done": 122,
+    "total": 267,
+    "done": 132,
     "phases": [
       {
         "phase": "Phase 0 — Establish repository, product, and AWS truth",
@@ -1806,6 +1806,97 @@
             "title": "\"Prohibit 3D/perspective distortion, decorative gauges, exploding pies, unjustified dual axes, silent truncated axes, rainbow categorical scales, status colors reused arbitrarily, hidden denominators, and visualized AI numbers without canonical provenance.\"",
             "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
             "isGate": false
+          },
+          {
+            "id": "GE-052-002",
+            "done": true,
+            "title": "\"Implement corporate fixture: Company → Region → Business Unit → Department → Team; Analyst → Manager → Director → Executive.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-052-003",
+            "done": true,
+            "title": "\"Implement corporate purchase workflow with amount thresholds, department/finance/procurement approvals, delegation, and self-approval denial.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-052-004",
+            "done": true,
+            "title": "\"Prove both fixtures use identical schemas, services, authorization, workflows, and deployment paths.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-053-005",
+            "done": true,
+            "title": "\"Terminology changes do not change semantic permission behavior.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-100-002",
+            "done": true,
+            "title": "\"Separate confirmed values, defaults, optional values, externally required values, secret references, and forbidden placeholders.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-103-013",
+            "done": true,
+            "title": "\"Implement `PURGED_ZERO_INCREMENTAL_COST` only after complete export/contract/retention/legal-hold/tax/audit/cooling-off checks and a separate protected destructive human approval.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-143-007",
+            "done": true,
+            "title": "\"Establish one coherent outline icon family, sanitation rules for tenant/extension icons, and semantic icon-label requirements; remove emoji or mixed icon families from operational controls unless explicitly content-authored.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-103-015",
+            "done": false,
+            "title": "\"Retain only a minimal non-content Parent tombstone: tenant ID, lifecycle timestamps, purge-manifest digest, approvals, and evidence reference. It must contain no recoverable customer content.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-143-001",
+            "done": false,
+            "title": "\"Inventory every current UI stack, component library, CSS strategy, font, icon set, table/grid, chart library, editor, calendar, dialog, theme, breakpoint, and copied component; record duplication, accessibility debt, visual drift, and migration risk.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-010-006",
+            "done": false,
+            "title": "\"Separate production/nonproduction/security/log workloads and prove nonproduction roles cannot reach production resources.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-012-003",
+            "done": true,
+            "title": "\"Add IaC plan/change-set generation, destructive/replacement/public-access/privilege-expansion detectors, policy scans, cost estimate, and immutable evidence.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-010-005",
+            "done": true,
+            "title": "\"Define SCPs/guardrails for region restrictions, public resource prevention, disabling security services, leaving organization, root use, unapproved IAM escalation, and required evidence—tested for operational safety.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
+          },
+          {
+            "id": "GE-143-012",
+            "done": true,
+            "title": "\"Restrict tenant branding to validated identity/accent roles. Prevent tenant colors from changing focus, status, destructive, financial polarity, permission, data quality, link, disabled, or security meanings; automatically adjust or reject invalid accents with an explanation.\"",
+            "phase": "Phase 1 completion, and Phase 2 foundations (batch of ten)",
+            "isGate": false
           }
         ]
       }
@@ -1833,7 +1924,7 @@
     ],
     "totalItems": 2265,
     "totalGates": 181,
-    "decided": 314,
+    "decided": 351,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -1910,14 +2001,14 @@
         "source": "CAT",
         "items": 5,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "CAT · CAT-060 — Horizontal enterprise catalog",
         "source": "CAT",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "CAT · CAT-070 — Industry catalog",
@@ -1959,14 +2050,14 @@
         "source": "CFG",
         "items": 6,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "CFG · CFG-030 — Graph compiler and incremental evaluation",
         "source": "CFG",
         "items": 7,
         "gates": 1,
-        "done": 2
+        "done": 4
       },
       {
         "phase": "CFG · CFG-040 — State, invalidation and provenance",
@@ -2029,14 +2120,14 @@
         "source": "EXT",
         "items": 7,
         "gates": 1,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "EXT · EXT-010 — Implementation Control Plane",
         "source": "EXT",
         "items": 11,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "EXT · EXT-020 — Environment landscape and promotion",
@@ -2071,7 +2162,7 @@
         "source": "EXT",
         "items": 16,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "EXT · EXT-070 — High-volume integrations",
@@ -2092,14 +2183,14 @@
         "source": "EXT",
         "items": 11,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "EXT · EXT-100 — Cutover and go-live",
         "source": "EXT",
         "items": 11,
         "gates": 1,
-        "done": 4
+        "done": 8
       },
       {
         "phase": "EXT · EXT-110 — Hypercare and service transition",
@@ -2204,7 +2295,7 @@
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 6
+        "done": 7
       },
       {
         "phase": "GE · GE-011: GitHub Actions OIDC",
@@ -2323,14 +2414,14 @@
         "source": "GE",
         "items": 4,
         "gates": 0,
-        "done": 0
+        "done": 3
       },
       {
         "phase": "GE · GE-053: Authorization tests",
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 3
+        "done": 4
       },
       {
         "phase": "GE · GE-060: Relational tenant isolation",
@@ -2512,7 +2603,7 @@
         "source": "GE",
         "items": 4,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-101: Placement engine",
@@ -2533,7 +2624,7 @@
         "source": "GE",
         "items": 24,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-104: Provisioning proof",
@@ -2673,14 +2764,14 @@
         "source": "GE",
         "items": 8,
         "gates": 0,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "GE · GE-143B: Forest-green brand, light/dark ambience, and type",
         "source": "GE",
         "items": 7,
         "gates": 0,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "GE · GE-143C: Shell, layout, density, and components",
@@ -3352,7 +3443,7 @@
         "source": "IER",
         "items": 12,
         "gates": 0,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "IER · IER-050 — Workbook and source contracts",
@@ -3373,7 +3464,7 @@
         "source": "IER",
         "items": 12,
         "gates": 0,
-        "done": 0
+        "done": 6
       },
       {
         "phase": "IER · IER-080 — Access reconciliation and continuity",
@@ -3667,7 +3758,7 @@
         "source": "PAY",
         "items": 8,
         "gates": 0,
-        "done": 3
+        "done": 5
       },
       {
         "phase": "PAY · 4. Target architecture",
@@ -4164,21 +4255,21 @@
         "source": "WRK",
         "items": 6,
         "gates": 1,
-        "done": 2
+        "done": 3
       },
       {
         "phase": "WRK · WRK-030 — Missing-connection and launch UX",
         "source": "WRK",
         "items": 7,
         "gates": 1,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "WRK · WRK-040 — OAuth, consent, and token security",
         "source": "WRK",
         "items": 7,
         "gates": 1,
-        "done": 1
+        "done": 2
       },
       {
         "phase": "WRK · WRK-050 — Relay tools and external actions",
@@ -4284,74 +4375,38 @@
     }
   ],
   "estate": {
-    "generatedAt": "2026-07-31T23:40:04.289Z",
-    "account": "1549…97",
+    "generatedAt": "2026-08-18T02:03:02.559Z",
+    "account": "unknown",
     "region": "us-east-1",
     "summary": {
-      "vpcs": 2,
+      "vpcs": 0,
       "natGateways": 0,
-      "loadBalancers": 2,
-      "cloudfrontDistributions": 2,
-      "ecsClusters": 2,
-      "rdsInstances": 1,
-      "s3Buckets": 3,
+      "loadBalancers": 0,
+      "cloudfrontDistributions": 0,
+      "ecsClusters": 0,
+      "rdsInstances": 0,
+      "s3Buckets": 0,
       "cognitoUserPools": 0,
-      "secrets": 6,
-      "deniedCalls": 3
+      "secrets": 0,
+      "deniedCalls": 0
     },
     "organizationInUse": false,
     "oidcProviders": 0,
     "cognitoUserPools": 0,
     "backupVaults": 0,
-    "sqsQueues": [
-      "tenure-pilot-default",
-      "tenure-pilot-default-dlq",
-      "tenure-pilot-email",
-      "tenure-pilot-email-dlq",
-      "tenure-pilot-notifications"
-    ],
-    "alarms": [
-      {
-        "name": "tenure-pilot-alb-5xx",
-        "state": "OK"
-      },
-      {
-        "name": "tenure-pilot-dlq-messages",
-        "state": "OK"
-      },
-      {
-        "name": "tenure-pilot-ecs-no-running-tasks",
-        "state": "OK"
-      },
-      {
-        "name": "tenure-pilot-rds-cpu-high",
-        "state": "OK"
-      }
-    ],
-    "deniedCalls": [
-      {
-        "call": "organizations describe-organization",
-        "reason": "Organizations not in use"
-      },
-      {
-        "call": "organizations list-accounts",
-        "reason": "Organizations not in use"
-      },
-      {
-        "call": "organizations list-roots",
-        "reason": "Organizations not in use"
-      }
-    ]
+    "sqsQueues": [],
+    "alarms": [],
+    "deniedCalls": []
   },
   "suites": [
     {
       "name": "platform guards",
-      "files": 37,
+      "files": 40,
       "what": "repository and deployment invariants"
     },
     {
       "name": "application unit",
-      "files": 110,
+      "files": 126,
       "what": "apps/web"
     },
     {
@@ -4361,7 +4416,7 @@
     },
     {
       "name": "end to end",
-      "files": 85,
+      "files": 88,
       "what": "real browser"
     }
   ]

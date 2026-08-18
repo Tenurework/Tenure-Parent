@@ -1,0 +1,59 @@
+{
+  "id": "require-evidence",
+  "title": "The record of what happened cannot be edited by the accounts it is a record of",
+  "attach_to": ["Root"],
+  "why": "An incident is reconstructed from the organization trail and the Config history. If the account under investigation can stop the trail, delete the log group or expire the archive, the reconstruction is of whatever the intruder left. The Log Archive OU exists so the evidence lives somewhere its subject cannot reach; this is the part of that which holds inside every other account.",
+  "sourced_from": [
+    "docs/decisions/ADR-0007-tenure-owned-aws-organization.md — Log Archive OU, 'write-once org trail + config history'",
+    "docs/architecture/ge-landing-zone-model.json — the Log Archive node",
+    "Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md — GE-010-005, 'required evidence'"
+  ],
+  "log_archive_bucket_arn_pattern": "arn:aws:s3:::tenure-log-archive-*",
+  "limits": [
+    "Retention shortening on an APPLICATION log group is not denied: /ecs/tenure-pilot is operational logging, its retention is a cost decision, and it is not the evidence trail. The trail's own group is matched by name below.",
+    "Object Lock on the archive bucket is what actually makes it write-once. An SCP can stop the bucket being deleted or unversioned; it cannot create the lock. That is GE-012-002."
+  ],
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DenyStoppingTheTrail",
+        "Effect": "Deny",
+        "Action": [
+          "cloudtrail:StopLogging",
+          "cloudtrail:DeleteTrail",
+          "cloudtrail:PutEventSelectors",
+          "cloudtrail:UpdateTrail"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DenyEditingTheArchive",
+        "Effect": "Deny",
+        "Action": [
+          "s3:DeleteBucket",
+          "s3:PutBucketVersioning",
+          "s3:PutLifecycleConfiguration",
+          "s3:PutBucketPolicy",
+          "s3:DeleteBucketPolicy",
+          "s3:PutObjectRetention",
+          "s3:BypassGovernanceRetention"
+        ],
+        "Resource": [
+          "arn:aws:s3:::tenure-log-archive-*",
+          "arn:aws:s3:::tenure-log-archive-*/*"
+        ]
+      },
+      {
+        "Sid": "DenyDeletingTheTrailLogGroup",
+        "Effect": "Deny",
+        "Action": [
+          "logs:DeleteLogGroup",
+          "logs:PutRetentionPolicy",
+          "logs:DeleteRetentionPolicy"
+        ],
+        "Resource": "arn:aws:logs:*:*:log-group:/aws/cloudtrail/tenure-org:*"
+      }
+    ]
+  }
+}

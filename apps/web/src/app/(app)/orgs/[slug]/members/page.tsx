@@ -222,7 +222,7 @@ export default async function MembersPage({
                             <input type="hidden" name="userId" value={a.userId} />
                             <button
                               type="submit"
-                              className="text-sm font-medium text-text-1 transition-colors hover:text-[--primary] hover:underline"
+                              className="text-sm font-medium text-text-1 transition-colors hover:text-[--text-link] hover:underline"
                               title={`Message ${a.user.name ?? a.user.email} in Tenure`}
                             >
                               {a.user.name ?? a.user.email}
@@ -247,7 +247,7 @@ export default async function MembersPage({
                           <form action={transitionWithSlug}>
                             <input type="hidden" name="assignmentId" value={a.id} />
                             <input type="hidden" name="to" value="ACTIVE" />
-                            <button className="text-xs font-medium text-[--primary] hover:underline">
+                            <button className="text-xs font-medium text-[--text-link] hover:underline">
                               Activate
                             </button>
                           </form>

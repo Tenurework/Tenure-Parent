@@ -6,7 +6,7 @@
     "SIMON-000-002",
     "SIMON-000-003"
   ],
-  "observed_at": "2026-08-17",
+  "observed_at": "2026-08-18",
   "source": {
     "role": "source — the Simon OSE pilot application being absorbed",
     "remote": {
@@ -17,36 +17,11 @@
     "configured_url": "https://github.com/satvikOS/Tenure.git",
     "queried": {
       "queried_as": "satvikOS/Tenure",
-      "canonical_name": {
-        "ok": false,
-        "unknown_because": "`gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
-        "command": "gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork",
-        "of": "satvikOS/Tenure repository"
-      },
-      "visibility": {
-        "ok": false,
-        "unknown_because": "`gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
-        "command": "gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork",
-        "of": "satvikOS/Tenure repository"
-      },
-      "is_fork": {
-        "ok": false,
-        "unknown_because": "`gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
-        "command": "gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork",
-        "of": "satvikOS/Tenure repository"
-      },
-      "default_branch": {
-        "ok": false,
-        "unknown_because": "`gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
-        "command": "gh repo view satvikOS/Tenure --json nameWithOwner,defaultBranchRef,visibility,isFork",
-        "of": "satvikOS/Tenure repository"
-      },
-      "open_pull_requests": {
-        "ok": false,
-        "unknown_because": "`gh pr list -R satvikOS/Tenure --state open --json number,title,headRefName` failed",
-        "command": "gh pr list -R satvikOS/Tenure --state open --json number,title,headRefName",
-        "of": "satvikOS/Tenure open pull requests"
-      },
+      "canonical_name": "Tenurework/Tenure",
+      "visibility": "PUBLIC",
+      "is_fork": false,
+      "default_branch": "main",
+      "open_pull_requests": [],
       "releases": [],
       "environments": [],
       "tags": []
@@ -1281,36 +1256,11 @@
     "configured_url": "https://github.com/Tenurework/Tenure-Parent.git",
     "queried": {
       "queried_as": "Tenurework/Tenure-Parent",
-      "canonical_name": {
-        "ok": false,
-        "unknown_because": "`gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
-        "command": "gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork",
-        "of": "Tenurework/Tenure-Parent repository"
-      },
-      "visibility": {
-        "ok": false,
-        "unknown_because": "`gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
-        "command": "gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork",
-        "of": "Tenurework/Tenure-Parent repository"
-      },
-      "is_fork": {
-        "ok": false,
-        "unknown_because": "`gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
-        "command": "gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork",
-        "of": "Tenurework/Tenure-Parent repository"
-      },
-      "default_branch": {
-        "ok": false,
-        "unknown_because": "`gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork` failed",
-        "command": "gh repo view Tenurework/Tenure-Parent --json nameWithOwner,defaultBranchRef,visibility,isFork",
-        "of": "Tenurework/Tenure-Parent repository"
-      },
-      "open_pull_requests": {
-        "ok": false,
-        "unknown_because": "`gh pr list -R Tenurework/Tenure-Parent --state open --json number,title,headRefName` failed",
-        "command": "gh pr list -R Tenurework/Tenure-Parent --state open --json number,title,headRefName",
-        "of": "Tenurework/Tenure-Parent open pull requests"
-      },
+      "canonical_name": "Tenurework/Tenure-Parent",
+      "visibility": "PUBLIC",
+      "is_fork": false,
+      "default_branch": "main",
+      "open_pull_requests": [],
       "releases": [],
       "environments": [
         "aws-read",
@@ -1319,11 +1269,11 @@
       "tags": []
     },
     "checked_out_branch": "main",
-    "head_commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace",
+    "head_commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea",
     "branches": [
       {
         "ref": "main",
-        "commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace"
+        "commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea"
       },
       {
         "ref": "wip/ier-killed-run-20260808",
@@ -1333,17 +1283,17 @@
     "remote_branches": [
       {
         "ref": "origin",
-        "commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace"
+        "commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea"
       },
       {
         "ref": "origin/main",
-        "commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace"
+        "commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea"
       }
     ],
     "local_tags": [],
     "history": {
-      "commits": 445,
-      "newest_commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace",
+      "commits": 451,
+      "newest_commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea",
       "newest_commit_date": "2026-08-17",
       "oldest_commit": "abf30691f8299414de6b115f4d40c8084049a0f4",
       "oldest_commit_date": "2026-07-10",
@@ -1354,7 +1304,7 @@
         "verification"
       ]
     },
-    "tracked_files": 1597,
+    "tracked_files": 1671,
     "files": [
       ".dockerignore",
       ".gitattributes",
@@ -1370,6 +1320,7 @@
       ".github/workflows/ops-status.yml",
       ".github/workflows/platform-plan.yml",
       ".github/workflows/probe-debug.yml",
+      ".github/workflows/reachability.yml",
       ".github/workflows/replace-acm-cert.yml",
       ".github/workflows/rotate-auth-secret.yml",
       ".github/workflows/seed-reference-data.yml",
@@ -1530,12 +1481,14 @@
       "apps/system-studio/src/app/platform/estate/estate-coverage.test.ts",
       "apps/system-studio/src/app/platform/estate/estate-coverage.ts",
       "apps/system-studio/src/app/platform/estate/estate.module.css",
+      "apps/system-studio/src/app/platform/estate/organizational-units-wiring.test.ts",
       "apps/system-studio/src/app/platform/estate/page.tsx",
       "apps/system-studio/src/app/platform/health/answer.test.ts",
       "apps/system-studio/src/app/platform/health/answer.ts",
       "apps/system-studio/src/app/platform/health/health.module.css",
       "apps/system-studio/src/app/platform/health/page.tsx",
       "apps/system-studio/src/app/platform/health/watch.ts",
+      "apps/system-studio/src/app/platform/identity/control-plane-roles-wiring.test.ts",
       "apps/system-studio/src/app/platform/identity/doors.test.ts",
       "apps/system-studio/src/app/platform/identity/doors.ts",
       "apps/system-studio/src/app/platform/identity/identity.module.css",
@@ -1704,6 +1657,8 @@
       "apps/system-studio/src/lib/aws/dashboards.ts",
       "apps/system-studio/src/lib/aws/database.test.ts",
       "apps/system-studio/src/lib/aws/database.ts",
+      "apps/system-studio/src/lib/aws/deployment-roles.test.ts",
+      "apps/system-studio/src/lib/aws/deployment-roles.ts",
       "apps/system-studio/src/lib/aws/dns.test.ts",
       "apps/system-studio/src/lib/aws/dns.ts",
       "apps/system-studio/src/lib/aws/drift.test.ts",
@@ -1742,6 +1697,8 @@
       "apps/system-studio/src/lib/aws/mutate.ts",
       "apps/system-studio/src/lib/aws/network.test.ts",
       "apps/system-studio/src/lib/aws/network.ts",
+      "apps/system-studio/src/lib/aws/organization-units.test.ts",
+      "apps/system-studio/src/lib/aws/organization-units.ts",
       "apps/system-studio/src/lib/aws/organization.ts",
       "apps/system-studio/src/lib/aws/posture.test.ts",
       "apps/system-studio/src/lib/aws/posture.ts",
@@ -1788,6 +1745,7 @@
       "apps/system-studio/src/lib/high-risk-gate.test.ts",
       "apps/system-studio/src/lib/object-authority.ts",
       "apps/system-studio/src/lib/operators.ts",
+      "apps/system-studio/src/lib/placement-wiring.test.ts",
       "apps/system-studio/src/lib/preferences.ts",
       "apps/system-studio/src/lib/registry-record.ts",
       "apps/system-studio/src/lib/registry.ts",
@@ -1897,12 +1855,14 @@
       "apps/web/src/app/(app)/admin/payments/actions.ts",
       "apps/web/src/app/(app)/admin/payments/liability-gate.test.ts",
       "apps/web/src/app/(app)/admin/payments/page.tsx",
+      "apps/web/src/app/(app)/admin/payments/unsupported-capability.test.ts",
       "apps/web/src/app/(app)/admin/people/page.tsx",
       "apps/web/src/app/(app)/approvals/[id]/page.tsx",
       "apps/web/src/app/(app)/approvals/actions.ts",
       "apps/web/src/app/(app)/approvals/money-movement.test.ts",
       "apps/web/src/app/(app)/approvals/new/page.tsx",
       "apps/web/src/app/(app)/approvals/page.tsx",
+      "apps/web/src/app/(app)/approvals/payment-movement-gate.test.ts",
       "apps/web/src/app/(app)/calendar/[id]/page.tsx",
       "apps/web/src/app/(app)/calendar/actions.ts",
       "apps/web/src/app/(app)/calendar/error.tsx",
@@ -1991,6 +1951,7 @@
       "apps/web/src/app/manifest.ts",
       "apps/web/src/app/not-found.tsx",
       "apps/web/src/app/page.tsx",
+      "apps/web/src/app/signin/migration-wave-signin.test.tsx",
       "apps/web/src/app/signin/page.tsx",
       "apps/web/src/app/signin/signin-methods.test.tsx",
       "apps/web/src/components/BackButton.tsx",
@@ -2017,6 +1978,7 @@
       "apps/web/src/components/admin/RoleTransferPanel.tsx",
       "apps/web/src/components/ai/AIProvider.tsx",
       "apps/web/src/components/ai/TenureAIPanel.tsx",
+      "apps/web/src/components/ai/relay-payments-claims.test.ts",
       "apps/web/src/components/ai/relay-reply.test.ts",
       "apps/web/src/components/ai/relay-reply.ts",
       "apps/web/src/components/brand/BrandPreview.tsx",
@@ -2036,6 +1998,8 @@
       "apps/web/src/components/charts/SankeyChart.test.ts",
       "apps/web/src/components/charts/SankeyChart.tsx",
       "apps/web/src/components/charts/Sparkline.tsx",
+      "apps/web/src/components/charts/chart-integrity.test.tsx",
+      "apps/web/src/components/charts/chart-integrity.ts",
       "apps/web/src/components/charts/chart-table.test.ts",
       "apps/web/src/components/charts/chart-table.ts",
       "apps/web/src/components/charts/cvd.test.ts",
@@ -2082,6 +2046,8 @@
       "apps/web/src/components/ui/ConfirmDialog.tsx",
       "apps/web/src/components/ui/ConfirmInlineSubmit.tsx",
       "apps/web/src/components/ui/DataTable.tsx",
+      "apps/web/src/components/ui/DestructivePreview.test.tsx",
+      "apps/web/src/components/ui/DestructivePreview.tsx",
       "apps/web/src/components/ui/EmptyState.tsx",
       "apps/web/src/components/ui/IconFrame.tsx",
       "apps/web/src/components/ui/Menu.tsx",
@@ -2099,6 +2065,8 @@
       "apps/web/src/components/ui/data-table-model.ts",
       "apps/web/src/components/ui/design-system.test.ts",
       "apps/web/src/components/ui/design-system.ts",
+      "apps/web/src/components/ui/destructive-preview.test.ts",
+      "apps/web/src/components/ui/destructive-preview.ts",
       "apps/web/src/components/ui/gallery-catalog.test.ts",
       "apps/web/src/components/ui/gallery-catalog.ts",
       "apps/web/src/components/ui/icons.tsx",
@@ -2106,6 +2074,8 @@
       "apps/web/src/components/ui/states.test.ts",
       "apps/web/src/components/ui/states.ts",
       "apps/web/src/instrumentation.ts",
+      "apps/web/src/lib/a11y/brand-roles.test.ts",
+      "apps/web/src/lib/a11y/brand-roles.ts",
       "apps/web/src/lib/a11y/contrast.test.ts",
       "apps/web/src/lib/a11y/contrast.ts",
       "apps/web/src/lib/a11y/css-declarations.mjs",
@@ -2138,6 +2108,7 @@
       "apps/web/src/lib/authz/authority-is-not-a-title.test.ts",
       "apps/web/src/lib/authz/borrowed-authority.test.ts",
       "apps/web/src/lib/authz/borrowed-authority.ts",
+      "apps/web/src/lib/authz/delegation-expiry.ts",
       "apps/web/src/lib/authz/institution-equivalence.test.ts",
       "apps/web/src/lib/authz/navigation-capabilities.test.ts",
       "apps/web/src/lib/authz/navigation-capabilities.ts",
@@ -2201,9 +2172,18 @@
       "apps/web/src/lib/identity/access-state.itest.ts",
       "apps/web/src/lib/identity/live-membership.itest.ts",
       "apps/web/src/lib/identity/live-membership.ts",
+      "apps/web/src/lib/identity/migration-wave.test.ts",
+      "apps/web/src/lib/identity/migration-wave.ts",
       "apps/web/src/lib/identity/seat-term.itest.ts",
       "apps/web/src/lib/inbox/work-inbox.test.ts",
       "apps/web/src/lib/inbox/work-inbox.ts",
+      "apps/web/src/lib/ingestion/__fixtures__/zip.ts",
+      "apps/web/src/lib/ingestion/safe-workbook.test.ts",
+      "apps/web/src/lib/ingestion/safe-workbook.ts",
+      "apps/web/src/lib/ingestion/workbook-admission.test.ts",
+      "apps/web/src/lib/ingestion/workbook-admission.ts",
+      "apps/web/src/lib/ingestion/zip-container.test.ts",
+      "apps/web/src/lib/ingestion/zip-container.ts",
       "apps/web/src/lib/institution-time.test.ts",
       "apps/web/src/lib/institution-time.ts",
       "apps/web/src/lib/jobs/approvals-slo.itest.ts",
@@ -2231,11 +2211,15 @@
       "apps/web/src/lib/outbox/prisma-ports.ts",
       "apps/web/src/lib/partition-services.test.ts",
       "apps/web/src/lib/partition-services.ts",
+      "apps/web/src/lib/payments/authority-attacks.test.ts",
+      "apps/web/src/lib/payments/delegation-expiry-wired.test.ts",
       "apps/web/src/lib/payments/ledger-attribution.itest.ts",
+      "apps/web/src/lib/payments/movement-gate.ts",
       "apps/web/src/lib/people/seat-memory-boundary.test.ts",
       "apps/web/src/lib/people/seat-memory-boundary.ts",
       "apps/web/src/lib/planning/spread.test.ts",
       "apps/web/src/lib/planning/spread.ts",
+      "apps/web/src/lib/platform/inventories-carry-no-credential.test.ts",
       "apps/web/src/lib/platform/tenant-export.itest.ts",
       "apps/web/src/lib/platform/tenant-export.ts",
       "apps/web/src/lib/policies.ts",
@@ -2253,6 +2237,7 @@
       "apps/web/src/lib/relay/citation.ts",
       "apps/web/src/lib/relay/connection-class.test.ts",
       "apps/web/src/lib/relay/connection-class.ts",
+      "apps/web/src/lib/relay/payments-claim-review.ts",
       "apps/web/src/lib/relay/projection-policy.test.ts",
       "apps/web/src/lib/relay/projection-policy.ts",
       "apps/web/src/lib/relay/projection-state.test.ts",
@@ -2329,6 +2314,7 @@
       "docs/architecture/cat-requirement-bindings.md",
       "docs/architecture/cfg-configuration-truth.md",
       "docs/architecture/cfg-form-and-configuration-disposition.md",
+      "docs/architecture/cutover-command-center.md",
       "docs/architecture/data-provenance.md",
       "docs/architecture/entry-points.md",
       "docs/architecture/fin-accounting-scope-disclosure.md",
@@ -2422,6 +2408,7 @@
       "docs/migrations/DUPLICATE-SOURCES.md",
       "docs/migrations/LIVE-APP-IMPORT-PLAN.md",
       "docs/migrations/duplicate-sources.json",
+      "docs/payments/bounded-contexts.md",
       "docs/payments/payment-authority-and-regulatory-boundary.md",
       "docs/runbooks/approvals-queue-stalled.md",
       "infrastructure/oidc/environments.json",
@@ -2479,9 +2466,12 @@
       "packages/authorization/src/authorization.test.ts",
       "packages/authorization/src/break-glass.test.ts",
       "packages/authorization/src/break-glass.ts",
+      "packages/authorization/src/context-isolation.test.ts",
       "packages/authorization/src/controls.test.ts",
       "packages/authorization/src/controls.ts",
       "packages/authorization/src/decide.ts",
+      "packages/authorization/src/default-deny.test.ts",
+      "packages/authorization/src/delegation-bounds.test.ts",
       "packages/authorization/src/index.ts",
       "packages/authorization/src/model.ts",
       "packages/authorization/src/permission-catalog.test.ts",
@@ -2494,6 +2484,7 @@
       "packages/authorization/src/service.ts",
       "packages/authorization/src/support-session.test.ts",
       "packages/authorization/src/support-session.ts",
+      "packages/authorization/src/tenant-isolation.test.ts",
       "packages/configuration/package.json",
       "packages/configuration/src/authority.test.ts",
       "packages/configuration/src/authority.ts",
@@ -2532,6 +2523,8 @@
       "packages/finops/package.json",
       "packages/finops/src/allocation.ts",
       "packages/finops/src/finops.test.ts",
+      "packages/finops/src/fx-evidence.test.ts",
+      "packages/finops/src/fx-evidence.ts",
       "packages/finops/src/general-ledger.test.ts",
       "packages/finops/src/general-ledger.ts",
       "packages/finops/src/grounding.test.ts",
@@ -2596,6 +2589,8 @@
       "packages/identity/src/seats.ts",
       "packages/identity/src/session.test.ts",
       "packages/identity/src/session.ts",
+      "packages/identity/src/sso-migration.test.ts",
+      "packages/identity/src/sso-migration.ts",
       "packages/identity/src/tenant-switch.test.ts",
       "packages/identity/src/tenant-switch.ts",
       "packages/identity/src/token-parsing.test.ts",
@@ -2638,6 +2633,7 @@
       "packages/payments/src/balance-transactions.ts",
       "packages/payments/src/capability-registry.test.ts",
       "packages/payments/src/capability-registry.ts",
+      "packages/payments/src/capability-states.test.ts",
       "packages/payments/src/charge-model.test.ts",
       "packages/payments/src/charge-model.ts",
       "packages/payments/src/eligibility.test.ts",
@@ -2650,8 +2646,13 @@
       "packages/payments/src/index.ts",
       "packages/payments/src/liability.test.ts",
       "packages/payments/src/liability.ts",
+      "packages/payments/src/limits.test.ts",
+      "packages/payments/src/limits.ts",
       "packages/payments/src/posting.test.ts",
       "packages/payments/src/posting.ts",
+      "packages/payments/src/prohibited-claims-content-review.test.ts",
+      "packages/payments/src/prohibited-claims.test.ts",
+      "packages/payments/src/prohibited-claims.ts",
       "packages/payments/src/refusal.test.ts",
       "packages/payments/src/refusal.ts",
       "packages/payments/src/responsibility.test.ts",
@@ -2700,6 +2701,11 @@
       "packages/provisioning/src/commercial.ts",
       "packages/provisioning/src/connection-cardinality.mjs",
       "packages/provisioning/src/connector-capability.ts",
+      "packages/provisioning/src/cutover-freeze.mjs",
+      "packages/provisioning/src/cutover-go-no-go.mjs",
+      "packages/provisioning/src/cutover-horizons.mjs",
+      "packages/provisioning/src/cutover-rollback.mjs",
+      "packages/provisioning/src/cutover-runbook.mjs",
       "packages/provisioning/src/deployment-signature.test.ts",
       "packages/provisioning/src/execute.ts",
       "packages/provisioning/src/identity-registry.test.ts",
@@ -2707,6 +2713,10 @@
       "packages/provisioning/src/index.ts",
       "packages/provisioning/src/lifecycle.ts",
       "packages/provisioning/src/manifest.ts",
+      "packages/provisioning/src/placement-adapters.ts",
+      "packages/provisioning/src/placement-override.ts",
+      "packages/provisioning/src/placement-policy.ts",
+      "packages/provisioning/src/placement.test.ts",
       "packages/provisioning/src/plan-catalog.ts",
       "packages/provisioning/src/pool-strategy.test.ts",
       "packages/provisioning/src/pool-strategy.ts",
@@ -2751,16 +2761,22 @@
       "tests/architecture/document-graph.test.mjs",
       "tests/architecture/every-provisioned-service-has-a-reader.test.mjs",
       "tests/architecture/experience-separation.test.mjs",
+      "tests/architecture/ext-artifact-map.test.mjs",
+      "tests/architecture/ext-baseline-truth.test.mjs",
+      "tests/architecture/ext-cutover-command-center.test.mjs",
+      "tests/architecture/ext-read-order-contract.test.mjs",
       "tests/architecture/fin-finance-surface.test.mjs",
       "tests/architecture/fin-ledger-import-is-complete.test.mjs",
       "tests/architecture/fin-scope-disclosure.test.mjs",
       "tests/architecture/forbidden-clients.test.mjs",
       "tests/architecture/ge-landing-zone-model.test.mjs",
+      "tests/architecture/ge-phase-gate-rule-six.test.mjs",
       "tests/architecture/guards-do-not-write-into-the-tree.test.mjs",
       "tests/architecture/hcm-capability-matrix-is-current.test.mjs",
       "tests/architecture/hcm-ledger-import-is-complete.test.mjs",
       "tests/architecture/hcm-people-inventory-is-current.test.mjs",
       "tests/architecture/ier-ledger-import-is-complete.test.mjs",
+      "tests/architecture/ier-navigation-is-not-enforcement.test.mjs",
       "tests/architecture/int-connector-capability-matrix.test.mjs",
       "tests/architecture/int-connector-write-boundary.test.mjs",
       "tests/architecture/int-integration-inventory.test.mjs",
@@ -2788,6 +2804,8 @@
       "tests/architecture/pack-surface-inventory.test.mjs",
       "tests/architecture/pass-requires-evidence.test.mjs",
       "tests/architecture/pay-authority-boundary-and-adrs.test.mjs",
+      "tests/architecture/pay-bounded-contexts.test.mjs",
+      "tests/architecture/pay-no-module-bypasses-the-payment-layer.test.mjs",
       "tests/architecture/payments-port-is-the-only-door.test.mjs",
       "tests/architecture/permission-catalog-is-tenant-blind.test.mjs",
       "tests/architecture/pln-planning-inventory.test.mjs",
@@ -2857,6 +2875,7 @@
       "tools/cfg-configuration-truth.mjs",
       "tools/contract-schemas.mjs",
       "tools/create-registry-table.mjs",
+      "tools/cutover-command-center.mjs",
       "tools/dev/reset-registry-table.mjs",
       "tools/dev/seed-studio-fleet.mjs",
       "tools/dev/show-config-history.mjs",
@@ -2865,8 +2884,12 @@
       "tools/document-graph.mjs",
       "tools/duplicate-sources-doc.mjs",
       "tools/entry-point-inventory.mjs",
+      "tools/ext-artifact-map.mjs",
+      "tools/ext-baseline-truth.mjs",
+      "tools/ext-read-order.mjs",
       "tools/fin-finance-surface.mjs",
       "tools/fin-scope-disclosure.mjs",
+      "tools/ge-phase-gate-children.mjs",
       "tools/hcm-capability-matrix.mjs",
       "tools/hcm-people-inventory.mjs",
       "tools/import-requirements.mjs",
@@ -2883,6 +2906,7 @@
       "tools/loop/aws-live.mjs",
       "tools/loop/batch-gate.mjs",
       "tools/loop/bible-watch.mjs",
+      "tools/loop/big-family-fanout.mjs",
       "tools/loop/cluster-workflow.mjs",
       "tools/loop/domain-batch.mjs",
       "tools/loop/domain-workflow.mjs",
@@ -3295,7 +3319,7 @@
       },
       {
         "area": ".github/workflows",
-        "files": 18
+        "files": 19
       },
       {
         "area": "Tier1",
@@ -3307,11 +3331,11 @@
       },
       {
         "area": "apps/system-studio",
-        "files": 366
+        "files": 373
       },
       {
         "area": "apps/web",
-        "files": 503
+        "files": 530
       },
       {
         "area": "blueprints",
@@ -3335,7 +3359,7 @@
       },
       {
         "area": "docs/architecture",
-        "files": 62
+        "files": 63
       },
       {
         "area": "docs/contracts",
@@ -3359,7 +3383,7 @@
       },
       {
         "area": "docs/payments",
-        "files": 1
+        "files": 2
       },
       {
         "area": "docs/runbooks",
@@ -3391,7 +3415,7 @@
       },
       {
         "area": "packages/authorization",
-        "files": 20
+        "files": 24
       },
       {
         "area": "packages/configuration",
@@ -3403,11 +3427,11 @@
       },
       {
         "area": "packages/finops",
-        "files": 17
+        "files": 19
       },
       {
         "area": "packages/identity",
-        "files": 57
+        "files": 59
       },
       {
         "area": "packages/metadata",
@@ -3423,7 +3447,7 @@
       },
       {
         "area": "packages/payments",
-        "files": 27
+        "files": 33
       },
       {
         "area": "packages/platform-config",
@@ -3431,7 +3455,7 @@
       },
       {
         "area": "packages/provisioning",
-        "files": 31
+        "files": 40
       },
       {
         "area": "packages/releases",
@@ -3447,7 +3471,7 @@
       },
       {
         "area": "tests/architecture",
-        "files": 80
+        "files": 88
       },
       {
         "area": "tests/security",
@@ -3455,7 +3479,7 @@
       },
       {
         "area": "tools",
-        "files": 45
+        "files": 50
       },
       {
         "area": "tools/dev",
@@ -3463,13 +3487,13 @@
       },
       {
         "area": "tools/loop",
-        "files": 55
+        "files": 56
       }
     ],
     "import_graph": {
-      "code_files": 1260,
-      "builtin_imports": 872,
-      "unresolved_relative_specifiers": 4,
+      "code_files": 1331,
+      "builtin_imports": 939,
+      "unresolved_relative_specifiers": 12,
       "unresolved_alias_specifiers": 9,
       "internal_edges": [
         {
@@ -3545,7 +3569,7 @@
         {
           "from": "apps/system-studio/src/app",
           "to": "modules",
-          "imports": 7
+          "imports": 6
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3685,7 +3709,7 @@
         {
           "from": "apps/web/src/app",
           "to": "apps/web/src/lib",
-          "imports": 419
+          "imports": 425
         },
         {
           "from": "apps/web/src/app",
@@ -3725,7 +3749,7 @@
         {
           "from": "apps/web/src/app",
           "to": "packages/payments/src",
-          "imports": 1
+          "imports": 2
         },
         {
           "from": "apps/web/src/app",
@@ -3740,7 +3764,7 @@
         {
           "from": "apps/web/src/components",
           "to": "apps/web/src/lib",
-          "imports": 17
+          "imports": 19
         },
         {
           "from": "apps/web/src/components",
@@ -3770,7 +3794,7 @@
         {
           "from": "apps/web/src/lib",
           "to": "apps/web/src/components",
-          "imports": 1
+          "imports": 2
         },
         {
           "from": "apps/web/src/lib",
@@ -3785,12 +3809,12 @@
         {
           "from": "apps/web/src/lib",
           "to": "packages/audit/src",
-          "imports": 5
+          "imports": 6
         },
         {
           "from": "apps/web/src/lib",
           "to": "packages/authorization/src",
-          "imports": 12
+          "imports": 13
         },
         {
           "from": "apps/web/src/lib",
@@ -3805,7 +3829,7 @@
         {
           "from": "apps/web/src/lib",
           "to": "packages/finops/src",
-          "imports": 1
+          "imports": 2
         },
         {
           "from": "apps/web/src/lib",
@@ -3824,8 +3848,13 @@
         },
         {
           "from": "apps/web/src/lib",
+          "to": "packages/payments/src",
+          "imports": 3
+        },
+        {
+          "from": "apps/web/src/lib",
           "to": "packages/platform-config/src",
-          "imports": 20
+          "imports": 22
         },
         {
           "from": "apps/web/src/lib",
@@ -3880,7 +3909,7 @@
         {
           "from": "tests/architecture",
           "to": "tools",
-          "imports": 35
+          "imports": 40
         },
         {
           "from": "tests/architecture",
@@ -4122,7 +4151,7 @@
         {
           "from": "apps/web/src/app",
           "package": "@prisma/client",
-          "imports": 10,
+          "imports": 11,
           "declared": true
         },
         {
@@ -4152,7 +4181,7 @@
         {
           "from": "apps/web/src/app",
           "package": "react-dom",
-          "imports": 1,
+          "imports": 2,
           "declared": true
         },
         {
@@ -4200,7 +4229,7 @@
         {
           "from": "apps/web/src/components",
           "package": "react",
-          "imports": 54,
+          "imports": 56,
           "declared": true
         },
         {
@@ -4212,13 +4241,13 @@
         {
           "from": "apps/web/src/components",
           "package": "react-dom",
-          "imports": 8,
+          "imports": 10,
           "declared": true
         },
         {
           "from": "apps/web/src/components",
           "package": "xlsx",
-          "imports": 2,
+          "imports": 1,
           "declared": true
         },
         {
@@ -4283,6 +4312,12 @@
         },
         {
           "from": "apps/web/src/lib",
+          "package": "xlsx",
+          "imports": 4,
+          "declared": true
+        },
+        {
+          "from": "apps/web/src/lib",
           "package": "zod",
           "imports": 2,
           "declared": true
@@ -4319,7 +4354,7 @@
         },
         {
           "from": "packages/audit/src",
-          "package": "@tenure/configuration",
+          "package": "@tenure/contracts",
           "imports": 1,
           "declared": false
         },
@@ -4338,7 +4373,7 @@
         {
           "from": "packages/configuration/src",
           "package": "@tenure/contracts",
-          "imports": 1,
+          "imports": 3,
           "declared": false
         },
         {
@@ -4404,7 +4439,7 @@
         {
           "from": "packages/payments/src",
           "package": "@tenure/platform-config",
-          "imports": 1,
+          "imports": 2,
           "declared": false
         },
         {
@@ -4500,7 +4535,7 @@
         {
           "from": "tests/architecture",
           "package": "x",
-          "imports": 3,
+          "imports": 5,
           "declared": false
         },
         {
@@ -4684,6 +4719,16 @@
         ]
       },
       {
+        "file": ".github/workflows/reachability.yml",
+        "name": "Reachability probe",
+        "triggers": [
+          "workflow_dispatch"
+        ],
+        "reaches_aws": false,
+        "is_deployment": false,
+        "repository_guards": []
+      },
+      {
         "file": ".github/workflows/replace-acm-cert.yml",
         "name": "Replace ACM Certificate",
         "triggers": [
@@ -4790,7 +4835,7 @@
       },
       {
         "capability": "Frontend components",
-        "matches": 143,
+        "matches": 146,
         "evidence": [
           "apps/system-studio/src/components/AccountMenu.tsx",
           "apps/system-studio/src/components/Breadcrumbs.tsx",
@@ -5002,7 +5047,7 @@
       },
       {
         "capability": "Unit tests",
-        "matches": 428,
+        "matches": 467,
         "evidence": [
           "apps/system-studio/src/app/console-index/answer.test.ts",
           "apps/system-studio/src/app/platform/audit/entries.test.ts",
@@ -5028,7 +5073,7 @@
       },
       {
         "capability": "CI / deployment workflows",
-        "matches": 18,
+        "matches": 19,
         "evidence": [
           ".github/workflows/aws-inventory.yml",
           ".github/workflows/bootstrap-oidc.yml",
@@ -5040,7 +5085,7 @@
         "pattern": "/^\\.github\\/workflows\\/.*\\.ya?ml$/"
       }
     ],
-    "working_tree_dirty_paths": 135
+    "working_tree_dirty_paths": 169
   },
   "relationship": {
     "merge_base": "d20d40d7846fc434b539f80cae8e437b750055ed",

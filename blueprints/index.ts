@@ -263,6 +263,53 @@ export const TENANT_BINDINGS: readonly TenantBinding[] = [
       "platform.terminology.staffOfficeShortName": "SSC",
     },
   },
+  {
+    // GE-052-002 — the corporate generality fixture, and the reason it is a
+    // BINDING rather than a test constant.
+    //
+    // `corporate-divisions` shipped as a blueprint with nothing bound to it
+    // (`apps/system-studio/src/app/tenants/new/page.tsx` says so out loud), so
+    // every claim the platform made about supporting a company was a claim
+    // about a topology object no resolver had ever been asked to serve. A
+    // blueprint nobody runs proves the type-checker accepts it, not that the
+    // engine does: `resolveSystemConfig`, `modulesFor`, `archetypeFor` and the
+    // release path all key on a SLUG, and none of them had ever seen this
+    // shape.
+    //
+    // Bound here so they have. GE-052-004 is the falsifiable form: the pilot
+    // and this fixture are run through the identical exported functions, in one
+    // parameterised suite, and a function that needed a special case for either
+    // of them fails it.
+    //
+    // Deliberately NOT seeded into any database and not a customer.
+    slug: "fixture-corporate",
+    fixture: true,
+    blueprintId: "corporate-divisions",
+    displayName: "Northwind Industrial — corporate fixture",
+    // Held, so the purchase ladder's finance gate is a gate somebody can
+    // actually pass. Without it `budgeting` is refused for this tenant and the
+    // corporate approval chain would terminate at a module the tenant does not
+    // run — which is a real refusal, and the wrong one to be proving here: the
+    // pilot holds the same entitlement, so the pair differs by SHAPE and not by
+    // what was bought.
+    entitlements: ["finance"],
+    currentTier: { budgeting: "ledger" },
+    values: {
+      // Deliberately not the pilot's words, and not the nonprofit's either.
+      // GE-053-005 asserts that changing these changes no authorization
+      // answer, which is only a test if the two tenants disagree about every
+      // word in it.
+      // Not a word this fixture's own modules spell out anywhere.
+      // `tests/architecture/no-tenant-fork-or-branch.test.mjs` refuses a
+      // shipped file that contains a word a tenant CONFIGURES, and an earlier
+      // draft of this binding chose "Corporate Procurement"/"Procurement" —
+      // which the corporate purchase chain spells out constantly, because a
+      // procurement GATE is platform vocabulary and this tenant's office NAME
+      // is not. The guard caught it, and it was right to.
+      "platform.terminology.staffOfficeName": "Group Sourcing Office",
+      "platform.terminology.staffOfficeShortName": "GSO",
+    },
+  },
 ]
 
 const BY_SLUG = new Map(TENANT_BINDINGS.map((t) => [t.slug, t]))

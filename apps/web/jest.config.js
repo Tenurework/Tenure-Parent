@@ -28,6 +28,9 @@ const config = {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@tenure/configuration$": "<rootDir>/../../packages/configuration/src/index.ts",
     "^@tenure/blueprints$": "<rootDir>/../../blueprints/index.ts",
+    // GE-052-004 — the corporate generality fixture. Test-only; see the note
+    // beside the same entry in tsconfig.json.
+    "^@tenure/generality-fixtures$": "<rootDir>/../../packages/generality-fixtures/src/index.ts",
     "^@tenure/organization-model$": "<rootDir>/../../packages/organization-model/src/index.ts",
     "^@tenure/module-runtime$": "<rootDir>/../../packages/module-runtime/src/index.ts",
     "^@tenure/modules$": "<rootDir>/../../modules/index.ts",

@@ -181,9 +181,20 @@ export function LedgerDrawer({
                         <td className="px-3 py-2.5">
                           <SourceLink slug={slug} entry={e} />
                         </td>
+                        {/* GE-143-012: the SIGN of a ledger amount is financial
+                            polarity, which is a protected meaning, so it cannot
+                            be drawn in a colour the tenant sets. Money out was
+                            `--primary`: an institution whose accent is a maroon
+                            shipped a ledger where a spend and a deposit were the
+                            same red, and one whose accent is a green shipped one
+                            where a spend read as a gain. The negative side is now
+                            the platform's `--error-text` — the token the
+                            protected-meaning register already names for this
+                            meaning — and the positive side stays neutral, because
+                            an ordinary deposit is not a success state. */}
                         <td
                           className={`whitespace-nowrap px-3 py-2.5 text-right tabular-nums ${
-                            e.amountCents < 0 ? "text-[--primary]" : "text-text-1"
+                            e.amountCents < 0 ? "text-[--error-text]" : "text-text-1"
                           }`}
                         >
                           {formatCents(e.amountCents)}

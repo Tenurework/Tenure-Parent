@@ -32,10 +32,10 @@ unmet rather than approximated from source.
 | image assets in the whole repository | 3 |
 | declared OAuth redirect paths | 24 |
 | — served by a route file | 0 |
-| HTTP routes in both apps | 29 |
+| HTTP routes in both apps | 31 |
 | Relay tool registrations | 1 |
 | — bound to an external provider | 0 |
-| sync/index surfaces named in the tree | 21 |
+| sync/index surfaces named in the tree | 22 |
 | — naming a provider egress host | 0 |
 | environment variable names in source | 72 |
 | public integration claims in user-visible text | 0 |
@@ -148,11 +148,13 @@ with the route that would serve it.
 | `/api/calendar/event/[id]` | GET, PATCH | `apps/web/src/app/api/calendar/event/[id]/route.ts` |
 | `/api/calendar/ics/[token]` | GET | `apps/web/src/app/api/calendar/ics/[token]/route.ts` |
 | `/api/calendar/reschedule` | POST | `apps/web/src/app/api/calendar/reschedule/route.ts` |
+| `/api/connections/exceptions` | GET | `apps/web/src/app/api/connections/exceptions/route.ts` |
 | `/api/connections/opportunity` | POST | `apps/web/src/app/api/connections/opportunity/route.ts` |
 | `/api/documents/[id]/content` | GET | `apps/web/src/app/api/documents/[id]/content/route.ts` |
 | `/api/documents/[id]/save` | POST | `apps/web/src/app/api/documents/[id]/save/route.ts` |
 | `/api/health` | GET | `apps/web/src/app/api/health/route.ts` |
 | `/api/jobs/outbox` | POST | `apps/web/src/app/api/jobs/outbox/route.ts` |
+| `/api/jobs/payments-version-watch` | POST | `apps/web/src/app/api/jobs/payments-version-watch/route.ts` |
 | `/api/jobs/reminders` | POST | `apps/web/src/app/api/jobs/reminders/route.ts` |
 | `/api/jobs/slo` | POST | `apps/web/src/app/api/jobs/slo/route.ts` |
 | `/api/me` | GET | `apps/web/src/app/api/me/route.ts` |
@@ -349,6 +351,7 @@ egress hosts each one names in code with comments stripped.
 | `packages/configuration/src/index.ts` | index | none |
 | `packages/contracts/src/index.ts` | index | none |
 | `packages/finops/src/index.ts` | index | none |
+| `packages/generality-fixtures/src/index.ts` | index | none |
 | `packages/identity/src/index.ts` | index | none |
 | `packages/metadata/src/index.ts` | index | none |
 | `packages/module-runtime/src/index.ts` | index | none |
@@ -382,7 +385,7 @@ outside a comment is a provider Tenure has never called.
 | `airtable.com` | none |
 | `api.adobesign.com` | none |
 | `api.airtable.com` | none |
-| `api.anthropic.com` | `apps/web/src/lib/ai.ts:56`<br>`apps/web/src/lib/ai.ts:208` |
+| `api.anthropic.com` | `apps/web/src/lib/ai.ts:57`<br>`apps/web/src/lib/ai.ts:232` |
 | `api.atlassian.com` | none |
 | `api.box.com` | none |
 | `api.clickup.com` | none |
@@ -432,6 +435,6 @@ _None._
 - **0 of 24 declared OAuth redirect paths are served by a route.** A redirect no route serves cannot complete an authorization, so no declared pack can be authorized today.
 - **0 of 24 providers have a logo asset**, out of 3 image assets in the repository. Invariant 3 forbids reading availability off a logo; today there is no logo to misread.
 - **1 Relay tool registration(s) exist: `search.corpus`**, all read-only, and none is bound to an external provider. There is no external-action tool.
-- **0 of 21 sync/index surfaces name a provider egress host.** The rest are Tenure-internal, which is what makes "sync" in a filename not evidence of a connector.
+- **0 of 22 sync/index surfaces name a provider egress host.** The rest are Tenure-internal, which is what makes "sync" in a filename not evidence of a connector.
 - **0 public integration claim(s) survive in user-visible text.** `tests/architecture/no-uncertified-provider-claims.test.mjs` and `tests/architecture/no-overstated-connectors.test.mjs` are the guards that keep this number where it is; this inventory counts it, it does not enforce it.
 - **Deployed environments are not inspected.** WRK-000-001 names "environment"; source-declared names are answered above, and what is actually set in a running cell requires read-only AWS access this tool does not have.

@@ -58,7 +58,7 @@ Shell modules: `Footer`, `MainRegion`, `NavDrawerToggle`, `NotificationBell`, `O
 
 ## 3. The route map — every surface the tenant application serves
 
-40 pages, 26 API routes and 65 server
+40 pages, 28 API routes and 65 server
 actions, from `tools/entry-point-inventory.mjs`. Guards are the ones the handler
 or an ancestor layout names; `tests/security/entry-points.test.mjs` is what makes
 an unguarded new surface fail rather than merely appear here.
@@ -223,19 +223,19 @@ tenant experience. Counts are files, not lines.
 
 | Domain | Tenant files | What the domain is |
 |---|---|---|
-| `notifications` | 59 | Telling someone something happened: in-app notices, calendars, messaging. |
-| `integrations` | 44 | Outbound connections to anything Tenure does not run. |
+| `notifications` | 61 | Telling someone something happened: in-app notices, calendars, messaging. |
+| `integrations` | 52 | Outbound connections to anything Tenure does not run. |
 | `erp-modules` | 39 | The domain modules a tenant runs: finance, resources, and the module catalog. |
 | `reporting` | 39 | Reading the estate back: reports, dashboards, the audit trail. |
 | `configuration` | 35 | Layered configuration, blueprints, module resolution, tenancy scoping. |
 | `organization` | 33 | The org graph: institutions, organizations, roles, seats, the directory. |
+| `identity` | 28 | Who someone is: providers, sessions, the sign-in surface. |
 | `authorization` | 26 | What someone may do: capabilities, policy decisions, delegation. |
-| `identity` | 26 | Who someone is: providers, sessions, the sign-in surface. |
 | `files` | 17 | Documents and attachments: storage, retrieval, editing. |
-| `workflow` | 16 | Approvals, their gates and their state machine. |
+| `workflow` | 17 | Approvals, their gates and their state machine. |
+| `billing-metering` | 11 | What a tenant consumes and what it is charged for. |
 | `control-plane` | 10 | Composing, provisioning and operating tenants. The engine, not any tenant. |
 | `search-memory` | 9 | Retrieval across everything a principal may already see, and org memory. |
-| `billing-metering` | 8 | What a tenant consumes and what it is charged for. |
 
 ## 7. What this document does not decide, and does not establish
 

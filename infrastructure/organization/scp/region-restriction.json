@@ -1,0 +1,51 @@
+{
+  "id": "region-restriction",
+  "title": "Nothing runs outside a region the estate has decided on",
+  "attach_to": ["Root"],
+  "why": "A resource created in a region nobody watches is a resource with no alarm, no backup policy, no log destination and no residency claim behind it. The failure is silent: it works.",
+  "sourced_from": [
+    "docs/architecture/aws-inventory.json — region: us-east-1, and every resource the inventory found is in it",
+    "docs/decisions/ADR-0007-tenure-owned-aws-organization.md — partition awareness; a sovereign deployment is a placement decision, so this list is edited rather than worked around"
+  ],
+  "allowed_regions": ["us-east-1"],
+  "limits": [
+    "This constrains where an API CALL lands, not where data ends up: a global service replicating to an edge location is outside its reach.",
+    "Adding a region is an edit to allowed_regions AND to the Statement condition below. They are checked against each other by tests/security/scp-guardrails.test.mjs so the two cannot drift."
+  ],
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DenyOutsideAllowedRegions",
+        "Effect": "Deny",
+        "NotAction": [
+          "iam:*",
+          "organizations:*",
+          "sts:*",
+          "route53:*",
+          "route53domains:*",
+          "cloudfront:*",
+          "waf:*",
+          "wafv2:*",
+          "shield:*",
+          "support:*",
+          "budgets:*",
+          "ce:*",
+          "cur:*",
+          "health:*",
+          "account:*",
+          "trustedadvisor:*",
+          "acm:RequestCertificate",
+          "acm:DescribeCertificate",
+          "acm:ListCertificates"
+        ],
+        "Resource": "*",
+        "Condition": {
+          "StringNotEquals": {
+            "aws:RequestedRegion": ["us-east-1"]
+          }
+        }
+      }
+    ]
+  }
+}

@@ -36,7 +36,7 @@ SLO error budget, and neither is money.
 | `packages/finops/src/general-ledger.ts` | package | FIN-010-003's record-to-report arithmetic — trial balance, account analysis, flux and statements over posted journal lines. Not planning: it states money that already moved. It carries a budget anchor because its header names `BudgetLine.actualCents` as the cache check `financeIntegrity` performs and this module does not. |
 | `packages/finops/src/settlement.ts` | package | Reconciliation arithmetic reused by `financeIntegrity`; its header names `BudgetLine.actualCents` as the balance it reconciles against. |
 
-## 2. Tests over that code — 9 files
+## 2. Tests over that code — 10 files
 
 | File | Anchors |
 | --- | --- |
@@ -47,6 +47,7 @@ SLO error budget, and neither is money.
 | `apps/web/src/lib/approval-digest.itest.ts` | `budgetedCents`, `db.budgetLine` |
 | `apps/web/src/lib/finance-integrity.test.ts` | `BudgetLine` |
 | `apps/web/src/lib/finance.test.ts` | `budgetedCents`, `forecastCents`, `parseBudgetSheet`, `rollUpPortfolio` |
+| `apps/web/src/lib/ingestion/tabular-import.test.ts` | `parseBudgetSheet` |
 | `apps/web/src/lib/payments/ledger-attribution.itest.ts` | `db.budget`, `db.budgetLine` |
 | `apps/web/src/lib/planning/spread.test.ts` | `BudgetLine`, `allocatedCents` |
 

@@ -7,13 +7,13 @@
     "SIMON-000-006",
     "SIMON-000-007"
   ],
-  "observed_at": "2026-08-17",
+  "observed_at": "2026-08-18",
   "baseline": {
     "snapshot": "docs/architecture/simon-absorption-inventory.json",
     "source_commit": "47c1128cb55953b11bedc47927508bc5d622b159",
-    "target_commit": "69b9fb7499449154c7dda94dc8cef22ab3540ace",
+    "target_commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea",
     "source_files": 364,
-    "target_files": 1597,
+    "target_files": 1671,
     "note": "Both trees are read at the commits the baseline inventory pinned, not at whatever a ref resolves to now, so the two artifacts describe the same two trees by construction."
   },
   "assumptions": {
@@ -11992,10 +11992,10 @@
       ]
     },
     "target": {
-      "files_offered": 1597,
-      "files_scanned": 1415,
-      "files_skipped": 141,
-      "total_hits": 9053,
+      "files_offered": 1671,
+      "files_scanned": 1487,
+      "files_skipped": 143,
+      "total_hits": 9310,
       "groups": [
         {
           "file": ".github/workflows/aws-inventory.yml",
@@ -12305,6 +12305,43 @@
           ],
           "tokens": [
             "us-east-1"
+          ]
+        },
+        {
+          "file": ".github/workflows/reachability.yml",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "deployment scripts",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            39
+          ],
+          "tokens": [
+            "us-east-1"
+          ]
+        },
+        {
+          "file": ".github/workflows/reachability.yml",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "deployment scripts",
+          "in_path": false,
+          "hits": 9,
+          "lines": [
+            6,
+            25,
+            39,
+            47
+          ],
+          "tokens": [
+            "cloudfront.net",
+            "cognito-idp.us-east-1.amazonaws.com",
+            "d2kj4iy5i37kfd.cloudfront.net",
+            "helm.tenurework.com",
+            "sts.amazonaws.com",
+            "tenure-studio-154932391697.auth.us-east-1.amazoncognito.com",
+            "tenurework.com"
           ]
         },
         {
@@ -13296,7 +13333,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            476
+            504
           ],
           "tokens": [
             "ORGANIZATION"
@@ -14035,9 +14072,9 @@
           "hits": 4,
           "lines": [
             135,
-            233,
-            442,
-            1014
+            266,
+            476,
+            1048
           ],
           "tokens": [
             "############"
@@ -14054,12 +14091,12 @@
             149,
             157,
             165,
-            233,
-            450,
-            525,
-            604,
-            907,
-            945
+            266,
+            484,
+            559,
+            638,
+            941,
+            979
           ],
           "tokens": [
             "arn:aws:iam:",
@@ -14076,11 +14113,11 @@
           "in_path": false,
           "hits": 5,
           "lines": [
-            450,
-            491,
-            527,
-            883,
-            975
+            484,
+            525,
+            561,
+            917,
+            1009
           ],
           "tokens": [
             "us-east-1"
@@ -14094,8 +14131,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            975,
-            1017
+            1009,
+            1051
           ],
           "tokens": [
             "example.com",
@@ -14110,11 +14147,11 @@
           "in_path": false,
           "hits": 5,
           "lines": [
-            1013,
-            1014,
-            1019,
-            1024,
-            1025
+            1047,
+            1048,
+            1053,
+            1058,
+            1059
           ],
           "tokens": [
             "ACTIVE",
@@ -14256,16 +14293,16 @@
             175,
             179,
             275,
-            294,
-            355,
-            358,
+            296,
+            357,
             360,
-            374,
-            415,
-            419,
-            889,
-            893,
-            922
+            362,
+            376,
+            417,
+            421,
+            891,
+            895,
+            924
           ],
           "tokens": [
             "############"
@@ -14284,13 +14321,13 @@
             147,
             175,
             275,
-            294,
-            358,
-            415,
-            889,
-            893,
-            922,
-            925
+            296,
+            360,
+            417,
+            891,
+            895,
+            924,
+            927
           ],
           "tokens": [
             "arn:aws:cognito-idp:",
@@ -14314,9 +14351,9 @@
             177,
             227,
             265,
-            357,
-            415,
-            417
+            359,
+            417,
+            419
           ],
           "tokens": [
             "eu-west-2"
@@ -14331,7 +14368,7 @@
           "hits": 2,
           "lines": [
             164,
-            855
+            857
           ],
           "tokens": [
             "ACTIVE",
@@ -15107,7 +15144,7 @@
           "hits": 2,
           "lines": [
             484,
-            1037
+            1054
           ],
           "tokens": [
             "us-east-1"
@@ -15121,7 +15158,7 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            955
+            972
           ],
           "tokens": [
             "OSE",
@@ -15137,7 +15174,7 @@
           "hits": 2,
           "lines": [
             181,
-            592
+            609
           ],
           "tokens": [
             "DRAFT"
@@ -15688,7 +15725,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            4219
+            4289
           ],
           "tokens": [
             "us-east-1"
@@ -15739,29 +15776,9 @@
             1596,
             1617,
             1638,
-            2378,
-            3358,
-            3750,
+            2448,
+            3428,
             3820,
-            3821,
-            3827,
-            3828,
-            3834,
-            3835,
-            3841,
-            3842,
-            3848,
-            3849,
-            3855,
-            3856,
-            3862,
-            3863,
-            3869,
-            3870,
-            3876,
-            3877,
-            3883,
-            3884,
             3890,
             3891,
             3897,
@@ -15773,7 +15790,27 @@
             3918,
             3919,
             3925,
-            3926
+            3926,
+            3932,
+            3933,
+            3939,
+            3940,
+            3946,
+            3947,
+            3953,
+            3954,
+            3960,
+            3961,
+            3967,
+            3968,
+            3974,
+            3975,
+            3981,
+            3982,
+            3988,
+            3989,
+            3995,
+            3996
           ],
           "tokens": [
             "OSE",
@@ -16495,7 +16532,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            608
+            621
           ],
           "tokens": [
             "arn:aws:health:"
@@ -16810,9 +16847,9 @@
           "in_path": false,
           "hits": 3,
           "lines": [
-            280,
-            281,
-            302
+            283,
+            284,
+            305
           ],
           "tokens": [
             "eu-west-1",
@@ -16827,9 +16864,9 @@
           "in_path": false,
           "hits": 3,
           "lines": [
-            394,
-            1533,
-            1534
+            426,
+            1565,
+            1566
           ],
           "tokens": [
             "ACTIVE",
@@ -17433,6 +17470,74 @@
           ],
           "tokens": [
             "eu-west-2",
+            "us-east-1"
+          ]
+        },
+        {
+          "file": "apps/system-studio/src/lib/aws/deployment-roles.test.ts",
+          "probe": "aws-account-id",
+          "kind": "account",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 14,
+          "lines": [
+            35,
+            43,
+            55,
+            71,
+            72,
+            126,
+            139,
+            140,
+            151,
+            154,
+            187,
+            319,
+            410,
+            411
+          ],
+          "tokens": [
+            "############"
+          ]
+        },
+        {
+          "file": "apps/system-studio/src/lib/aws/deployment-roles.test.ts",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 12,
+          "lines": [
+            35,
+            43,
+            55,
+            71,
+            72,
+            126,
+            140,
+            151,
+            154,
+            187,
+            319,
+            410
+          ],
+          "tokens": [
+            "arn:aws:iam:",
+            "arn:aws:sts:"
+          ]
+        },
+        {
+          "file": "apps/system-studio/src/lib/aws/deployment-roles.test.ts",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            169,
+            412
+          ],
+          "tokens": [
             "us-east-1"
           ]
         },
@@ -19153,6 +19258,20 @@
           ]
         },
         {
+          "file": "apps/system-studio/src/lib/aws/organization-units.test.ts",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            73
+          ],
+          "tokens": [
+            "us-east-1"
+          ]
+        },
+        {
           "file": "apps/system-studio/src/lib/aws/posture.test.ts",
           "probe": "aws-account-id",
           "kind": "account",
@@ -20287,8 +20406,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            64,
-            100
+            75,
+            111
           ],
           "tokens": [
             "us-east-1"
@@ -20302,7 +20421,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            148
+            159
           ],
           "tokens": [
             "platform.tenurework.com"
@@ -20619,6 +20738,50 @@
           ],
           "tokens": [
             "DRAFT"
+          ]
+        },
+        {
+          "file": "apps/system-studio/src/lib/placement-wiring.test.ts",
+          "probe": "aws-account-id",
+          "kind": "account",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            19
+          ],
+          "tokens": [
+            "############"
+          ]
+        },
+        {
+          "file": "apps/system-studio/src/lib/placement-wiring.test.ts",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            18,
+            33,
+            59
+          ],
+          "tokens": [
+            "us-east-1"
+          ]
+        },
+        {
+          "file": "apps/system-studio/src/lib/placement-wiring.test.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            33
+          ],
+          "tokens": [
+            "simon"
           ]
         },
         {
@@ -20969,21 +21132,21 @@
           "in_path": false,
           "hits": 15,
           "lines": [
-            63,
-            67,
-            68,
-            72,
-            87,
-            90,
-            91,
-            92,
-            94,
-            99,
-            100,
-            101,
+            80,
+            84,
+            85,
+            89,
+            104,
             107,
+            108,
+            109,
+            111,
             116,
-            123
+            117,
+            118,
+            124,
+            133,
+            140
           ],
           "tokens": [
             "Club",
@@ -21000,8 +21163,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            172,
-            173
+            189,
+            190
           ],
           "tokens": [
             "PRESIDENT"
@@ -21015,8 +21178,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            172,
-            173
+            189,
+            190
           ],
           "tokens": [
             "PRESIDENT"
@@ -21032,25 +21195,25 @@
           "lines": [
             56,
             58,
-            67,
-            72,
-            87,
-            91,
-            92,
-            93,
-            100,
-            107,
-            116,
-            123,
-            139,
-            154,
-            160,
-            162,
-            167,
-            173,
-            174,
-            200,
-            207
+            84,
+            89,
+            104,
+            108,
+            109,
+            110,
+            117,
+            124,
+            133,
+            140,
+            156,
+            171,
+            177,
+            179,
+            184,
+            190,
+            191,
+            217,
+            224
           ],
           "tokens": [
             "OSE",
@@ -21066,10 +21229,10 @@
           "in_path": false,
           "hits": 7,
           "lines": [
-            162,
-            172,
-            173,
-            174
+            179,
+            189,
+            190,
+            191
           ],
           "tokens": [
             "APPROVED",
@@ -24631,11 +24794,11 @@
           "hits": 7,
           "lines": [
             27,
-            59,
-            60,
-            73,
-            77,
-            93
+            64,
+            65,
+            78,
+            82,
+            98
           ],
           "tokens": [
             "Club",
@@ -24652,10 +24815,10 @@
           "in_path": false,
           "hits": 4,
           "lines": [
-            118,
-            119,
-            120,
-            121
+            123,
+            124,
+            125,
+            126
           ],
           "tokens": [
             "COMMUNITY",
@@ -24672,7 +24835,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            296
+            357
           ],
           "tokens": [
             "PRESIDENT"
@@ -24686,10 +24849,10 @@
           "in_path": false,
           "hits": 4,
           "lines": [
-            292,
-            295,
-            296,
-            297
+            353,
+            356,
+            357,
+            358
           ],
           "tokens": [
             "FUNCTIONAL",
@@ -24705,9 +24868,9 @@
           "in_path": false,
           "hits": 3,
           "lines": [
-            47,
-            241,
-            242
+            52,
+            302,
+            303
           ],
           "tokens": [
             "ACTIVE",
@@ -24967,9 +25130,9 @@
           "in_path": false,
           "hits": 3,
           "lines": [
-            151,
-            175,
-            267
+            152,
+            196,
+            288
           ],
           "tokens": [
             "club"
@@ -24983,8 +25146,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            29,
-            216
+            30,
+            237
           ],
           "tokens": [
             "APPROVED",
@@ -25066,6 +25229,20 @@
           ],
           "tokens": [
             "ACTIVE"
+          ]
+        },
+        {
+          "file": "apps/web/src/app/(app)/admin/payments/unsupported-capability.test.ts",
+          "probe": "role-enum-member",
+          "kind": "role",
+          "place": "route names",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            50
+          ],
+          "tokens": [
+            "OSE_DIRECTOR"
           ]
         },
         {
@@ -25280,13 +25457,13 @@
           "in_path": false,
           "hits": 7,
           "lines": [
-            135,
-            252,
-            543,
-            567,
-            577,
-            849,
-            859
+            137,
+            254,
+            545,
+            569,
+            579,
+            921,
+            931
           ],
           "tokens": [
             "ApprovalStep",
@@ -25301,21 +25478,21 @@
           "in_path": false,
           "hits": 16,
           "lines": [
-            67,
-            99,
-            114,
-            119,
-            157,
-            190,
-            386,
-            412,
-            470,
-            642,
-            645,
-            646,
-            711,
-            811,
-            832
+            69,
+            101,
+            116,
+            121,
+            159,
+            192,
+            388,
+            414,
+            472,
+            644,
+            647,
+            648,
+            718,
+            883,
+            904
           ],
           "tokens": [
             "club"
@@ -25329,8 +25506,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            125,
-            161
+            127,
+            163
           ],
           "tokens": [
             "PRESIDENT"
@@ -25344,8 +25521,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            125,
-            161
+            127,
+            163
           ],
           "tokens": [
             "PRESIDENT"
@@ -25359,8 +25536,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            688,
-            698
+            695,
+            705
           ],
           "tokens": [
             "escalated",
@@ -25375,13 +25552,13 @@
           "in_path": false,
           "hits": 7,
           "lines": [
-            68,
-            470,
-            487,
-            488,
-            493,
-            648,
-            812
+            70,
+            472,
+            489,
+            490,
+            495,
+            650,
+            884
           ],
           "tokens": [
             "OSE",
@@ -25396,38 +25573,38 @@
           "in_path": false,
           "hits": 37,
           "lines": [
-            56,
-            60,
-            66,
-            110,
-            119,
-            124,
-            152,
+            58,
+            62,
+            68,
+            112,
+            121,
+            126,
             154,
-            184,
-            242,
-            255,
-            339,
-            411,
-            464,
-            492,
+            156,
+            186,
+            244,
+            257,
+            341,
+            413,
+            466,
             494,
-            506,
-            510,
-            513,
-            517,
-            534,
-            546,
-            575,
-            581,
-            613,
-            667,
-            844,
-            846,
-            871,
-            953,
-            970,
-            973
+            496,
+            508,
+            512,
+            515,
+            519,
+            536,
+            548,
+            577,
+            583,
+            615,
+            674,
+            916,
+            918,
+            943,
+            1029,
+            1046,
+            1049
           ],
           "tokens": [
             "ACTIVE",
@@ -25451,9 +25628,9 @@
           "hits": 4,
           "lines": [
             36,
-            121,
-            173,
-            180
+            127,
+            184,
+            191
           ],
           "tokens": [
             "approvalStep"
@@ -25467,8 +25644,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            234,
-            254
+            245,
+            265
           ],
           "tokens": [
             "escalates"
@@ -25482,7 +25659,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            85
+            91
           ],
           "tokens": [
             "OSE"
@@ -25496,7 +25673,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            91
+            97
           ],
           "tokens": [
             "university"
@@ -25510,8 +25687,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            143,
-            146
+            149,
+            152
           ],
           "tokens": [
             "ACTIVE",
@@ -25610,6 +25787,69 @@
           "tokens": [
             "ACTIVE",
             "SHADOW"
+          ]
+        },
+        {
+          "file": "apps/web/src/app/(app)/approvals/payment-movement-gate.test.ts",
+          "probe": "approval-chain-symbol",
+          "kind": "workflow",
+          "place": "route names",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            29,
+            99,
+            109,
+            177
+          ],
+          "tokens": [
+            "approvalStep"
+          ]
+        },
+        {
+          "file": "apps/web/src/app/(app)/approvals/payment-movement-gate.test.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "route names",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            66
+          ],
+          "tokens": [
+            "OSE"
+          ]
+        },
+        {
+          "file": "apps/web/src/app/(app)/approvals/payment-movement-gate.test.ts",
+          "probe": "university-token",
+          "kind": "University",
+          "place": "route names",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            72
+          ],
+          "tokens": [
+            "university"
+          ]
+        },
+        {
+          "file": "apps/web/src/app/(app)/approvals/payment-movement-gate.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "route names",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            132,
+            135,
+            168
+          ],
+          "tokens": [
+            "ACTIVE",
+            "APPROVED",
+            "PENDING_OSE"
           ]
         },
         {
@@ -26166,7 +26406,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            37
+            38
           ],
           "tokens": [
             "club"
@@ -26180,7 +26420,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            37
+            38
           ],
           "tokens": [
             "OSE"
@@ -28247,6 +28487,20 @@
           ]
         },
         {
+          "file": "apps/web/src/app/signin/migration-wave-signin.test.tsx",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "route names",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            45
+          ],
+          "tokens": [
+            "example.okta.com"
+          ]
+        },
+        {
           "file": "apps/web/src/app/signin/page.tsx",
           "probe": "club-token",
           "kind": "club",
@@ -28254,9 +28508,9 @@
           "in_path": false,
           "hits": 3,
           "lines": [
-            10,
             11,
-            12
+            12,
+            13
           ],
           "tokens": [
             "Club"
@@ -28270,9 +28524,9 @@
           "in_path": false,
           "hits": 3,
           "lines": [
-            8,
             9,
-            104
+            10,
+            121
           ],
           "tokens": [
             "OSE"
@@ -28286,8 +28540,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            104,
-            170
+            121,
+            187
           ],
           "tokens": [
             "university"
@@ -28733,6 +28987,36 @@
           ]
         },
         {
+          "file": "apps/web/src/components/ai/relay-payments-claims.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            10,
+            27,
+            55
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
+          "file": "apps/web/src/components/ai/relay-reply.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            23
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
           "file": "apps/web/src/components/charts/ChartFrame.tsx",
           "probe": "club-token",
           "kind": "club",
@@ -29124,6 +29408,34 @@
           ]
         },
         {
+          "file": "apps/web/src/components/ui/DestructivePreview.test.tsx",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            25
+          ],
+          "tokens": [
+            "Club"
+          ]
+        },
+        {
+          "file": "apps/web/src/components/ui/DestructivePreview.test.tsx",
+          "probe": "university-token",
+          "kind": "University",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            24
+          ],
+          "tokens": [
+            "University"
+          ]
+        },
+        {
           "file": "apps/web/src/components/ui/PageHeader.tsx",
           "probe": "club-token",
           "kind": "club",
@@ -29149,6 +29461,60 @@
           ],
           "tokens": [
             "fonts.gstatic.com"
+          ]
+        },
+        {
+          "file": "apps/web/src/components/ui/destructive-preview.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            40,
+            201,
+            207,
+            294
+          ],
+          "tokens": [
+            "Club",
+            "clubs"
+          ]
+        },
+        {
+          "file": "apps/web/src/components/ui/destructive-preview.test.ts",
+          "probe": "university-token",
+          "kind": "University",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            39,
+            200,
+            206
+          ],
+          "tokens": [
+            "University"
+          ]
+        },
+        {
+          "file": "apps/web/src/components/ui/destructive-preview.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 6,
+          "lines": [
+            59,
+            294,
+            297,
+            300,
+            338
+          ],
+          "tokens": [
+            "Club",
+            "club",
+            "clubs"
           ]
         },
         {
@@ -30273,6 +30639,36 @@
           ],
           "tokens": [
             "ACTIVE"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/authz/delegation-expiry.ts",
+          "probe": "approval-chain-symbol",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            6,
+            21
+          ],
+          "tokens": [
+            "ApprovalDelegation"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/authz/delegation-expiry.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            44,
+            103
+          ],
+          "tokens": [
+            "REVOKED"
           ]
         },
         {
@@ -31799,7 +32195,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            19
+            20
           ],
           "tokens": [
             "approvalDelegation"
@@ -31813,7 +32209,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            5
+            6
           ],
           "tokens": [
             "ACTIVE"
@@ -32344,6 +32740,21 @@
           ],
           "tokens": [
             "club"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/ingestion/workbook-admission.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            27,
+            44
+          ],
+          "tokens": [
+            "ACTIVE"
           ]
         },
         {
@@ -33358,6 +33769,152 @@
           ]
         },
         {
+          "file": "apps/web/src/lib/payments/authority-attacks.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            55,
+            63,
+            100
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/payments/authority-attacks.test.ts",
+          "probe": "role-constant",
+          "kind": "role",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            58
+          ],
+          "tokens": [
+            "PRESIDENT"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/payments/authority-attacks.test.ts",
+          "probe": "role-enum-member",
+          "kind": "role",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            32,
+            58
+          ],
+          "tokens": [
+            "FUNCTIONAL",
+            "PRESIDENT"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/payments/authority-attacks.test.ts",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            43,
+            56,
+            71
+          ],
+          "tokens": [
+            "escalation"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/payments/authority-attacks.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 9,
+          "lines": [
+            26,
+            33,
+            84,
+            85,
+            88,
+            93,
+            95,
+            101,
+            159
+          ],
+          "tokens": [
+            "ACTIVE",
+            "ALUMNI",
+            "ARCHIVED",
+            "REVOKED",
+            "SHADOW"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/payments/delegation-expiry-wired.test.ts",
+          "probe": "approval-chain-symbol",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            15,
+            38,
+            39
+          ],
+          "tokens": [
+            "approvalDelegation"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/payments/delegation-expiry-wired.test.ts",
+          "probe": "role-constant",
+          "kind": "role",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            26
+          ],
+          "tokens": [
+            "PRESIDENT"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/payments/delegation-expiry-wired.test.ts",
+          "probe": "role-enum-member",
+          "kind": "role",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            26
+          ],
+          "tokens": [
+            "PRESIDENT"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/payments/delegation-expiry-wired.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            27
+          ],
+          "tokens": [
+            "ACTIVE"
+          ]
+        },
+        {
           "file": "apps/web/src/lib/payments/ledger-attribution.itest.ts",
           "probe": "approval-chain-symbol",
           "kind": "workflow",
@@ -34350,6 +34907,20 @@
           ],
           "tokens": [
             "DRAFT"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/relay/payments-claim-review.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            8
+          ],
+          "tokens": [
+            "club"
           ]
         },
         {
@@ -36105,8 +36676,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            728,
-            746
+            736,
+            754
           ],
           "tokens": [
             "escalate",
@@ -36579,6 +37150,40 @@
           ]
         },
         {
+          "file": "packages/authorization/src/context-isolation.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            21,
+            99
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
+          "file": "packages/authorization/src/context-isolation.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 5,
+          "lines": [
+            52,
+            125,
+            126,
+            192,
+            246
+          ],
+          "tokens": [
+            "ACTIVE",
+            "SUSPENDED"
+          ]
+        },
+        {
           "file": "packages/authorization/src/controls.ts",
           "probe": "sla-threshold",
           "kind": "workflow",
@@ -36604,7 +37209,7 @@
             65,
             239,
             240,
-            294
+            317
           ],
           "tokens": [
             "club",
@@ -36626,6 +37231,76 @@
           ],
           "tokens": [
             "ACTIVE"
+          ]
+        },
+        {
+          "file": "packages/authorization/src/default-deny.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            27
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
+          "file": "packages/authorization/src/default-deny.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            81
+          ],
+          "tokens": [
+            "ACTIVE"
+          ]
+        },
+        {
+          "file": "packages/authorization/src/delegation-bounds.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            65,
+            187,
+            194
+          ],
+          "tokens": [
+            "club",
+            "clubs"
+          ]
+        },
+        {
+          "file": "packages/authorization/src/delegation-bounds.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 10,
+          "lines": [
+            71,
+            72,
+            73,
+            146,
+            161,
+            162,
+            163,
+            164,
+            346,
+            355
+          ],
+          "tokens": [
+            "ACTIVE",
+            "PENDING",
+            "REVOKED"
           ]
         },
         {
@@ -36851,6 +37526,30 @@
           ],
           "tokens": [
             "REVOKED"
+          ]
+        },
+        {
+          "file": "packages/authorization/src/tenant-isolation.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 10,
+          "lines": [
+            57,
+            58,
+            59,
+            60,
+            118,
+            119,
+            146,
+            204,
+            223,
+            310
+          ],
+          "tokens": [
+            "ACTIVE",
+            "SUSPENDED"
           ]
         },
         {
@@ -38802,6 +39501,87 @@
           ]
         },
         {
+          "file": "packages/identity/src/sso-migration.test.ts",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            53
+          ],
+          "tokens": [
+            "escalation"
+          ]
+        },
+        {
+          "file": "packages/identity/src/sso-migration.test.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 6,
+          "lines": [
+            50,
+            51,
+            53,
+            58,
+            200,
+            307
+          ],
+          "tokens": [
+            "OSE",
+            "ose"
+          ]
+        },
+        {
+          "file": "packages/identity/src/sso-migration.test.ts",
+          "probe": "university-token",
+          "kind": "University",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            309
+          ],
+          "tokens": [
+            "university"
+          ]
+        },
+        {
+          "file": "packages/identity/src/sso-migration.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            40,
+            331
+          ],
+          "tokens": [
+            "ACTIVE",
+            "REVOKED"
+          ]
+        },
+        {
+          "file": "packages/identity/src/sso-migration.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            488,
+            557,
+            560,
+            568
+          ],
+          "tokens": [
+            "ACTIVE"
+          ]
+        },
+        {
           "file": "packages/identity/src/tenant-switch.test.ts",
           "probe": "workflow-state-member",
           "kind": "workflow",
@@ -39246,6 +40026,20 @@
           ]
         },
         {
+          "file": "packages/payments/src/gateway.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            153
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
           "file": "packages/payments/src/index.ts",
           "probe": "sla-threshold",
           "kind": "workflow",
@@ -39297,6 +40091,20 @@
           ]
         },
         {
+          "file": "packages/payments/src/limits.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            95
+          ],
+          "tokens": [
+            "clubs"
+          ]
+        },
+        {
           "file": "packages/payments/src/posting.ts",
           "probe": "club-token",
           "kind": "club",
@@ -39309,6 +40117,38 @@
             75,
             77,
             156
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
+          "file": "packages/payments/src/prohibited-claims.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            196,
+            227,
+            233,
+            241
+          ],
+          "tokens": [
+            "Club",
+            "club"
+          ]
+        },
+        {
+          "file": "packages/payments/src/prohibited-claims.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            123
           ],
           "tokens": [
             "club"
@@ -40195,6 +41035,36 @@
           ]
         },
         {
+          "file": "packages/provisioning/src/cutover-go-no-go.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            342
+          ],
+          "tokens": [
+            "escalate",
+            "escalation"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/cutover-runbook.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            8,
+            63
+          ],
+          "tokens": [
+            "escalation"
+          ]
+        },
+        {
           "file": "packages/provisioning/src/deployment-signature.test.ts",
           "probe": "aws-region",
           "kind": "region",
@@ -40502,6 +41372,80 @@
           ],
           "tokens": [
             "platform.tenurework.com"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/placement.test.ts",
+          "probe": "aws-account-id",
+          "kind": "account",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            41
+          ],
+          "tokens": [
+            "############"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/placement.test.ts",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 20,
+          "lines": [
+            42,
+            49,
+            62,
+            109,
+            121,
+            158,
+            163,
+            171,
+            173,
+            259,
+            269,
+            278,
+            399,
+            414,
+            423,
+            435,
+            487,
+            509
+          ],
+          "tokens": [
+            "eu-west-1",
+            "us-east-1"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/placement.test.ts",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            50
+          ],
+          "tokens": [
+            "platform.tenurework.com"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/placement.test.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            60
+          ],
+          "tokens": [
+            "simon"
           ]
         },
         {
@@ -41089,6 +42033,21 @@
           ]
         },
         {
+          "file": "tests/architecture/ext-baseline-truth.test.mjs",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            132,
+            133
+          ],
+          "tokens": [
+            "api.github.com"
+          ]
+        },
+        {
           "file": "tests/architecture/forbidden-clients.test.mjs",
           "probe": "domain-literal",
           "kind": "domain",
@@ -41300,6 +42259,49 @@
           ],
           "tokens": [
             "FALL"
+          ]
+        },
+        {
+          "file": "tests/architecture/pay-no-module-bypasses-the-payment-layer.test.mjs",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            219
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
+          "file": "tests/architecture/pay-no-module-bypasses-the-payment-layer.test.mjs",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 11,
+          "lines": [
+            17,
+            71,
+            76,
+            77,
+            78,
+            79,
+            80,
+            82,
+            83,
+            341
+          ],
+          "tokens": [
+            "api.braintreegateway.com",
+            "api.stripe.com",
+            "checkout.adyen.com",
+            "checkout.stripe.com",
+            "connect.stripe.com",
+            "files.stripe.com",
+            "js.stripe.com"
           ]
         },
         {
@@ -41814,6 +42816,76 @@
         },
         {
           "file": "tests/simon-convergence-inventory.test.mjs",
+          "probe": "approval-chain-symbol",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            473,
+            487
+          ],
+          "tokens": [
+            "ApprovalStep",
+            "approvalStep"
+          ]
+        },
+        {
+          "file": "tests/simon-convergence-inventory.test.mjs",
+          "probe": "role-constant",
+          "kind": "role",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            419,
+            455
+          ],
+          "tokens": [
+            "OSE_ADMIN",
+            "PRESIDENT",
+            "VICE_PRESIDENT"
+          ]
+        },
+        {
+          "file": "tests/simon-convergence-inventory.test.mjs",
+          "probe": "role-enum-member",
+          "kind": "role",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 10,
+          "lines": [
+            421,
+            422,
+            423,
+            455
+          ],
+          "tokens": [
+            "FUNCTIONAL",
+            "MEMBER",
+            "OSE_ADVISOR",
+            "OSE_DIRECTOR",
+            "OSE_STAFF",
+            "PRESIDENT"
+          ]
+        },
+        {
+          "file": "tests/simon-convergence-inventory.test.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            474,
+            486
+          ],
+          "tokens": [
+            "escalation"
+          ]
+        },
+        {
+          "file": "tests/simon-convergence-inventory.test.mjs",
           "probe": "tenant-in-path",
           "kind": "route name",
           "place": "elsewhere",
@@ -41830,16 +42902,20 @@
           "kind": "Simon / OSE",
           "place": "elsewhere",
           "in_path": false,
-          "hits": 11,
+          "hits": 16,
           "lines": [
             2,
             5,
             19,
             41,
-            57,
-            76,
-            77,
-            83
+            61,
+            80,
+            81,
+            87,
+            418,
+            492,
+            522,
+            557
           ],
           "tokens": [
             "SIMON",
@@ -41934,6 +43010,20 @@
           ],
           "tokens": [
             "json-schema.org"
+          ]
+        },
+        {
+          "file": "tools/cutover-command-center.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            91
+          ],
+          "tokens": [
+            "escalation"
           ]
         },
         {
@@ -42036,6 +43126,63 @@
           ]
         },
         {
+          "file": "tools/ext-baseline-truth.mjs",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            145
+          ],
+          "tokens": [
+            "api.github.com"
+          ]
+        },
+        {
+          "file": "tools/ext-baseline-truth.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            83,
+            84
+          ],
+          "tokens": [
+            "simon"
+          ]
+        },
+        {
+          "file": "tools/ext-read-order.mjs",
+          "probe": "role-comparison",
+          "kind": "role",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            78
+          ],
+          "tokens": [
+            "role === \"authority\""
+          ]
+        },
+        {
+          "file": "tools/ext-read-order.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            137
+          ],
+          "tokens": [
+            "Simon"
+          ]
+        },
+        {
           "file": "tools/fin-finance-surface.mjs",
           "probe": "approval-chain-symbol",
           "kind": "workflow",
@@ -42058,9 +43205,9 @@
           "hits": 4,
           "lines": [
             214,
-            281,
-            572,
-            630
+            297,
+            588,
+            646
           ],
           "tokens": [
             "club",
@@ -42075,7 +43222,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            373
+            389
           ],
           "tokens": [
             "escalated"
@@ -42418,6 +43565,35 @@
           ],
           "tokens": [
             "github.com"
+          ]
+        },
+        {
+          "file": "tools/loop/big-family-fanout.mjs",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            45
+          ],
+          "tokens": [
+            "github.com"
+          ]
+        },
+        {
+          "file": "tools/loop/big-family-fanout.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            35,
+            190
+          ],
+          "tokens": [
+            "SIMON"
           ]
         },
         {
@@ -44275,8 +45451,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            106,
-            121
+            114,
+            129
           ],
           "tokens": [
             "club",
@@ -44451,13 +45627,28 @@
         },
         {
           "file": "tools/simon-convergence-inventory.mjs",
+          "probe": "approval-chain-symbol",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            204
+          ],
+          "tokens": [
+            "ApprovalStep",
+            "approvalStep"
+          ]
+        },
+        {
+          "file": "tools/simon-convergence-inventory.mjs",
           "probe": "aws-arn-prefix",
           "kind": "resource",
           "place": "elsewhere",
           "in_path": false,
           "hits": 1,
           "lines": [
-            227
+            248
           ],
           "tokens": [
             "arn:aws:s3:"
@@ -44483,13 +45674,15 @@
           "kind": "club",
           "place": "elsewhere",
           "in_path": false,
-          "hits": 6,
+          "hits": 8,
           "lines": [
             10,
-            159,
             160,
-            163,
-            1247
+            161,
+            164,
+            354,
+            361,
+            1763
           ],
           "tokens": [
             "club"
@@ -44503,10 +45696,25 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            929
+            1383
           ],
           "tokens": [
             "github.com"
+          ]
+        },
+        {
+          "file": "tools/simon-convergence-inventory.mjs",
+          "probe": "org-category-member",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            356
+          ],
+          "tokens": [
+            "COMMUNITY",
+            "SOCIAL"
           ]
         },
         {
@@ -44517,8 +45725,8 @@
           "in_path": false,
           "hits": 7,
           "lines": [
-            189,
-            196
+            190,
+            197
           ],
           "tokens": [
             "ADVISOR",
@@ -44535,13 +45743,38 @@
           "kind": "role",
           "place": "elsewhere",
           "in_path": false,
-          "hits": 2,
+          "hits": 7,
           "lines": [
-            189,
-            196
+            190,
+            197,
+            332,
+            333,
+            335,
+            1731
           ],
           "tokens": [
+            "OSE_ADVISOR",
+            "OSE_DIRECTOR",
+            "OSE_STAFF",
             "PRESIDENT"
+          ]
+        },
+        {
+          "file": "tools/simon-convergence-inventory.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            214,
+            215,
+            219
+          ],
+          "tokens": [
+            "SLA_ATTENTION_DAYS",
+            "SLA_OVERDUE_DAYS",
+            "escalation"
           ]
         },
         {
@@ -44562,7 +45795,7 @@
           "kind": "Simon / OSE",
           "place": "elsewhere",
           "in_path": false,
-          "hits": 60,
+          "hits": 66,
           "lines": [
             3,
             6,
@@ -44574,43 +45807,49 @@
             36,
             59,
             60,
-            75,
-            79,
+            76,
             80,
             81,
             82,
             83,
-            110,
-            118,
-            146,
+            84,
+            111,
+            119,
             147,
-            163,
-            184,
-            196,
-            198,
-            222,
-            248,
-            419,
-            431,
-            645,
-            762,
-            853,
-            1110,
-            1111,
-            1160,
-            1161,
-            1177,
-            1178,
-            1250,
-            1271,
-            1272,
-            1342,
-            1353,
-            1354,
-            1408,
-            1418,
-            1419,
-            1579
+            148,
+            164,
+            185,
+            197,
+            199,
+            243,
+            269,
+            282,
+            284,
+            356,
+            588,
+            600,
+            814,
+            1032,
+            1049,
+            1216,
+            1307,
+            1591,
+            1592,
+            1650,
+            1651,
+            1667,
+            1668,
+            1766,
+            1791,
+            1792,
+            1952,
+            1963,
+            1964,
+            2028,
+            2035,
+            2045,
+            2046,
+            2206
           ],
           "tokens": [
             "OSE",
@@ -44629,7 +45868,7 @@
           "in_path": false,
           "hits": 4,
           "lines": [
-            175
+            176
           ],
           "tokens": [
             "FALL",
@@ -44646,7 +45885,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            170
+            171
           ],
           "tokens": [
             "Fall 2026"
@@ -44661,8 +45900,8 @@
           "hits": 3,
           "lines": [
             10,
-            152,
-            153
+            153,
+            154
           ],
           "tokens": [
             "University",
@@ -44677,7 +45916,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            198
+            199
           ],
           "tokens": [
             "six-step"
@@ -44876,43 +46115,43 @@
       "by_kind": [
         {
           "kind": "Simon / OSE",
-          "hits": 1421,
-          "files": 246
+          "hits": 1447,
+          "files": 253
         },
         {
           "kind": "University",
-          "hits": 202,
-          "files": 89
+          "hits": 208,
+          "files": 93
         },
         {
           "kind": "account",
-          "hits": 446,
-          "files": 104
+          "hits": 462,
+          "files": 107
         },
         {
           "kind": "club",
-          "hits": 1829,
-          "files": 293
+          "hits": 1867,
+          "files": 308
         },
         {
           "kind": "domain",
-          "hits": 792,
-          "files": 174
+          "hits": 818,
+          "files": 181
         },
         {
           "kind": "region",
-          "hits": 812,
-          "files": 188
+          "hits": 840,
+          "files": 193
         },
         {
           "kind": "resource",
-          "hits": 481,
-          "files": 90
+          "hits": 493,
+          "files": 91
         },
         {
           "kind": "role",
-          "hits": 611,
-          "files": 107
+          "hits": 636,
+          "files": 112
         },
         {
           "kind": "route name",
@@ -44926,8 +46165,8 @@
         },
         {
           "kind": "workflow",
-          "hits": 2431,
-          "files": 346
+          "hits": 2511,
+          "files": 361
         }
       ],
       "by_place": [
@@ -44967,8 +46206,8 @@
         },
         {
           "place": "permission checks",
-          "hits": 440,
-          "files": 32,
+          "hits": 473,
+          "files": 36,
           "evidence": [
             "apps/system-studio/e2e/authorize-logic.spec.ts",
             "apps/system-studio/src/lib/authorize.ts",
@@ -44980,8 +46219,8 @@
         },
         {
           "place": "deployment scripts",
-          "hits": 154,
-          "files": 33,
+          "hits": 165,
+          "files": 34,
           "evidence": [
             ".github/workflows/aws-inventory.yml",
             ".github/workflows/bootstrap-oidc.yml",
@@ -44993,8 +46232,8 @@
         },
         {
           "place": "route names",
-          "hits": 1359,
-          "files": 106,
+          "hits": 1370,
+          "files": 109,
           "evidence": [
             "apps/system-studio/src/app/console-index/answer.test.ts",
             "apps/system-studio/src/app/layout.tsx",
@@ -45006,8 +46245,8 @@
         },
         {
           "place": "elsewhere",
-          "hits": 6920,
-          "files": 566,
+          "hits": 7122,
+          "files": 594,
           "evidence": [
             "apps/system-studio/e2e/adoption.spec.ts",
             "apps/system-studio/e2e/api-contract.spec.ts",
@@ -45126,6 +46365,23 @@
           "place": "elsewhere"
         },
         {
+          "file": "tools/simon-convergence-inventory.mjs",
+          "hits": 109,
+          "kinds": [
+            "Simon / OSE",
+            "University",
+            "club",
+            "domain",
+            "region",
+            "resource",
+            "role",
+            "route name",
+            "term",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/policies.ts",
           "hits": 103,
           "kinds": [
@@ -45144,23 +46400,6 @@
             "Simon / OSE",
             "club",
             "role"
-          ],
-          "place": "elsewhere"
-        },
-        {
-          "file": "tools/simon-convergence-inventory.mjs",
-          "hits": 88,
-          "kinds": [
-            "Simon / OSE",
-            "University",
-            "club",
-            "domain",
-            "region",
-            "resource",
-            "role",
-            "route name",
-            "term",
-            "workflow"
           ],
           "place": "elsewhere"
         },
@@ -45629,6 +46868,17 @@
           "place": "elsewhere"
         },
         {
+          "file": "tests/simon-convergence-inventory.test.mjs",
+          "hits": 35,
+          "kinds": [
+            "Simon / OSE",
+            "role",
+            "route name",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/system-studio/src/lib/aws/drift.test.ts",
           "hits": 33,
           "kinds": [
@@ -45780,6 +47030,16 @@
           "kinds": [
             "Simon / OSE",
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/system-studio/src/lib/aws/deployment-roles.test.ts",
+          "hits": 28,
+          "kinds": [
+            "account",
+            "region",
+            "resource"
           ],
           "place": "elsewhere"
         },
@@ -46097,6 +47357,17 @@
           "place": "elsewhere"
         },
         {
+          "file": "packages/provisioning/src/placement.test.ts",
+          "hits": 23,
+          "kinds": [
+            "Simon / OSE",
+            "account",
+            "domain",
+            "region"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/system-studio/src/lib/aws/network.test.ts",
           "hits": 22,
           "kinds": [
@@ -46386,6 +47657,16 @@
             "workflow"
           ],
           "place": "route names"
+        },
+        {
+          "file": "apps/web/src/lib/payments/authority-attacks.test.ts",
+          "hits": 18,
+          "kinds": [
+            "club",
+            "role",
+            "workflow"
+          ],
+          "place": "elsewhere"
         },
         {
           "file": "packages/configuration/src/configuration.test.ts",
@@ -47041,6 +48322,15 @@
           "place": "permission checks"
         },
         {
+          "file": "packages/authorization/src/delegation-bounds.test.ts",
+          "hits": 13,
+          "kinds": [
+            "club",
+            "workflow"
+          ],
+          "place": "permission checks"
+        },
+        {
           "file": "packages/provisioning/src/identity-registry.ts",
           "hits": 13,
           "kinds": [
@@ -47183,11 +48473,11 @@
           "place": "elsewhere"
         },
         {
-          "file": "tests/simon-convergence-inventory.test.mjs",
+          "file": "tests/architecture/pay-no-module-bypasses-the-payment-layer.test.mjs",
           "hits": 12,
           "kinds": [
-            "Simon / OSE",
-            "route name"
+            "club",
+            "domain"
           ],
           "place": "elsewhere"
         },
@@ -47196,6 +48486,15 @@
           "hits": 11,
           "kinds": [
             "Simon / OSE",
+            "domain",
+            "region"
+          ],
+          "place": "deployment scripts"
+        },
+        {
+          "file": ".github/workflows/reachability.yml",
+          "hits": 11,
+          "kinds": [
             "domain",
             "region"
           ],
@@ -47315,6 +48614,16 @@
           "file": "packages/identity/src/linking.test.ts",
           "hits": 11,
           "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "packages/identity/src/sso-migration.test.ts",
+          "hits": 11,
+          "kinds": [
+            "Simon / OSE",
+            "University",
             "workflow"
           ],
           "place": "elsewhere"
@@ -47482,6 +48791,14 @@
             "Simon / OSE",
             "club",
             "role"
+          ],
+          "place": "permission checks"
+        },
+        {
+          "file": "packages/authorization/src/tenant-isolation.test.ts",
+          "hits": 10,
+          "kinds": [
+            "workflow"
           ],
           "place": "permission checks"
         },
@@ -47674,6 +48991,16 @@
             "club"
           ],
           "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/app/(app)/approvals/payment-movement-gate.test.ts",
+          "hits": 9,
+          "kinds": [
+            "Simon / OSE",
+            "University",
+            "workflow"
+          ],
+          "place": "route names"
         },
         {
           "file": "apps/web/src/components/shell/SearchCommand.test.tsx",
@@ -48036,6 +49363,15 @@
           "place": "elsewhere"
         },
         {
+          "file": "packages/authorization/src/context-isolation.test.ts",
+          "hits": 8,
+          "kinds": [
+            "club",
+            "workflow"
+          ],
+          "place": "permission checks"
+        },
+        {
           "file": "packages/identity/src/claims-input.test.ts",
           "hits": 8,
           "kinds": [
@@ -48222,6 +49558,15 @@
             "workflow"
           ],
           "place": "reports"
+        },
+        {
+          "file": "apps/web/src/components/ui/destructive-preview.test.ts",
+          "hits": 7,
+          "kinds": [
+            "University",
+            "club"
+          ],
+          "place": "elsewhere"
         },
         {
           "file": "apps/web/src/lib/calendar-sync.ts",
@@ -48512,6 +49857,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/components/ui/destructive-preview.ts",
+          "hits": 6,
+          "kinds": [
+            "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/audit-record.ts",
           "hits": 6,
           "kinds": [
@@ -48545,6 +49898,15 @@
             "account",
             "domain",
             "region"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/lib/payments/delegation-expiry-wired.test.ts",
+          "hits": 6,
+          "kinds": [
+            "role",
+            "workflow"
           ],
           "place": "elsewhere"
         },
@@ -48754,6 +50116,16 @@
           "hits": 5,
           "kinds": [
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/system-studio/src/lib/placement-wiring.test.ts",
+          "hits": 5,
+          "kinds": [
+            "Simon / OSE",
+            "account",
+            "region"
           ],
           "place": "elsewhere"
         },
@@ -49130,6 +50502,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/lib/authz/delegation-expiry.ts",
+          "hits": 4,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/calendar-color.ts",
           "hits": 4,
           "kinds": [
@@ -49276,6 +50656,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "packages/identity/src/sso-migration.ts",
+          "hits": 4,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "packages/identity/src/token-parsing.test.ts",
           "hits": 4,
           "kinds": [
@@ -49297,6 +50685,14 @@
           "hits": 4,
           "kinds": [
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "packages/payments/src/prohibited-claims.test.ts",
+          "hits": 4,
+          "kinds": [
+            "club"
           ],
           "place": "elsewhere"
         },
@@ -49370,6 +50766,15 @@
           "kinds": [
             "domain",
             "term"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tools/loop/big-family-fanout.mjs",
+          "hits": 4,
+          "kinds": [
+            "Simon / OSE",
+            "domain"
           ],
           "place": "elsewhere"
         },
@@ -49687,6 +51092,14 @@
             "club"
           ],
           "place": "route names"
+        },
+        {
+          "file": "apps/web/src/components/ai/relay-payments-claims.test.ts",
+          "hits": 3,
+          "kinds": [
+            "club"
+          ],
+          "place": "elsewhere"
         },
         {
           "file": "apps/web/src/components/charts/panels/ActivityChart.tsx",
@@ -50013,6 +51426,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "packages/provisioning/src/cutover-runbook.mjs",
+          "hits": 3,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "packages/provisioning/src/manifest.ts",
           "hits": 3,
           "kinds": [
@@ -50059,6 +51480,15 @@
           "hits": 3,
           "kinds": [
             "role"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tools/ext-baseline-truth.mjs",
+          "hits": 3,
+          "kinds": [
+            "Simon / OSE",
+            "domain"
           ],
           "place": "elsewhere"
         },
@@ -50500,6 +51930,15 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/components/ui/DestructivePreview.test.tsx",
+          "hits": 2,
+          "kinds": [
+            "University",
+            "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/components/ui/gallery-catalog.ts",
           "hits": 2,
           "kinds": [
@@ -50603,6 +52042,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/lib/ingestion/workbook-admission.test.ts",
+          "hits": 2,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/provisioning/reconcile.ts",
           "hits": 2,
           "kinds": [
@@ -50625,6 +52072,15 @@
             "role"
           ],
           "place": "deployment scripts"
+        },
+        {
+          "file": "packages/authorization/src/default-deny.test.ts",
+          "hits": 2,
+          "kinds": [
+            "club",
+            "workflow"
+          ],
+          "place": "permission checks"
         },
         {
           "file": "packages/authorization/src/support-session.ts",
@@ -50734,6 +52190,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "packages/provisioning/src/cutover-go-no-go.mjs",
+          "hits": 2,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "packages/provisioning/src/residual-reconciliation.ts",
           "hits": 2,
           "kinds": [
@@ -50763,6 +52227,14 @@
           "hits": 2,
           "kinds": [
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tests/architecture/ext-baseline-truth.test.mjs",
+          "hits": 2,
+          "kinds": [
+            "domain"
           ],
           "place": "elsewhere"
         },
@@ -50804,6 +52276,15 @@
           "kinds": [
             "club",
             "domain"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tools/ext-read-order.mjs",
+          "hits": 2,
+          "kinds": [
+            "Simon / OSE",
+            "role"
           ],
           "place": "elsewhere"
         },
@@ -51133,6 +52614,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/system-studio/src/lib/aws/organization-units.test.ts",
+          "hits": 1,
+          "kinds": [
+            "region"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/system-studio/src/lib/commands.ts",
           "hits": 1,
           "kinds": [
@@ -51237,6 +52726,14 @@
           "place": "route names"
         },
         {
+          "file": "apps/web/src/app/(app)/admin/payments/unsupported-capability.test.ts",
+          "hits": 1,
+          "kinds": [
+            "role"
+          ],
+          "place": "route names"
+        },
+        {
           "file": "apps/web/src/app/(app)/error.tsx",
           "hits": 1,
           "kinds": [
@@ -51293,6 +52790,14 @@
           "place": "route names"
         },
         {
+          "file": "apps/web/src/app/signin/migration-wave-signin.test.tsx",
+          "hits": 1,
+          "kinds": [
+            "domain"
+          ],
+          "place": "route names"
+        },
+        {
           "file": "apps/web/src/components/OrgTabs.tsx",
           "hits": 1,
           "kinds": [
@@ -51310,6 +52815,14 @@
         },
         {
           "file": "apps/web/src/components/admin/FundsFlowForm.tsx",
+          "hits": 1,
+          "kinds": [
+            "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/components/ai/relay-reply.ts",
           "hits": 1,
           "kinds": [
             "club"
@@ -51470,6 +52983,14 @@
         },
         {
           "file": "apps/web/src/lib/outbox/prisma-ports.ts",
+          "hits": 1,
+          "kinds": [
+            "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/lib/relay/payments-claim-review.ts",
           "hits": 1,
           "kinds": [
             "club"
@@ -51661,10 +53182,34 @@
           "place": "elsewhere"
         },
         {
+          "file": "packages/payments/src/gateway.ts",
+          "hits": 1,
+          "kinds": [
+            "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "packages/payments/src/index.ts",
           "hits": 1,
           "kinds": [
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "packages/payments/src/limits.ts",
+          "hits": 1,
+          "kinds": [
+            "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "packages/payments/src/prohibited-claims.ts",
+          "hits": 1,
+          "kinds": [
+            "club"
           ],
           "place": "elsewhere"
         },
@@ -51801,6 +53346,14 @@
           "hits": 1,
           "kinds": [
             "domain"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tools/cutover-command-center.mjs",
+          "hits": 1,
+          "kinds": [
+            "workflow"
           ],
           "place": "elsewhere"
         },
@@ -51945,7 +53498,7 @@
   },
   "concepts": {
     "source_modules": 217,
-    "target_modules": 716,
+    "target_modules": 748,
     "identical_modules": 184,
     "same_name_different_shape": [
       {
@@ -53146,8 +54699,8 @@
     "content_divergence": {
       "algorithm": "sha256 over LF-normalised text, first 16 hex digits",
       "shared": 254,
-      "divergent": 159,
-      "identical": 95,
+      "divergent": 162,
+      "identical": 92,
       "undetermined": [],
       "paths": [
         {
@@ -53237,7 +54790,7 @@
         {
           "path": "apps/web/e2e/app.spec.ts",
           "source_sha256": "f9b828620c54a550",
-          "target_sha256": "d1c415467299f7b6",
+          "target_sha256": "ad49ceef3670e26a",
           "identical": false
         },
         {
@@ -53435,7 +54988,7 @@
         {
           "path": "apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx",
           "source_sha256": "0d4a4f73ae377931",
-          "target_sha256": "c94bab9337b08c2d",
+          "target_sha256": "e07673a71bc1803a",
           "identical": false
         },
         {
@@ -53519,7 +55072,7 @@
         {
           "path": "apps/web/src/app/(app)/layout.tsx",
           "source_sha256": "d0b62e9b1025d40b",
-          "target_sha256": "f3eeda828ba260ef",
+          "target_sha256": "b580f99fa6f10870",
           "identical": false
         },
         {
@@ -53783,7 +55336,7 @@
         {
           "path": "apps/web/src/app/signin/page.tsx",
           "source_sha256": "56963b9578d0053e",
-          "target_sha256": "717649565c306203",
+          "target_sha256": "472c4bfe5e94c17c",
           "identical": false
         },
         {
@@ -53909,7 +55462,7 @@
         {
           "path": "apps/web/src/components/ai/TenureAIPanel.tsx",
           "source_sha256": "c3b8f6b284a549f5",
-          "target_sha256": "af95e73c7eb53033",
+          "target_sha256": "87c0ad9ec7f2bb18",
           "identical": false
         },
         {
@@ -53969,7 +55522,7 @@
         {
           "path": "apps/web/src/components/charts/LiveStats.tsx",
           "source_sha256": "7ab747e0c87c39c9",
-          "target_sha256": "18bfbecdeca09bc6",
+          "target_sha256": "fdb7fff51545f24c",
           "identical": false
         },
         {
@@ -53993,8 +55546,8 @@
         {
           "path": "apps/web/src/components/charts/Sparkline.tsx",
           "source_sha256": "4e0c5e105b35c80f",
-          "target_sha256": "4e0c5e105b35c80f",
-          "identical": true
+          "target_sha256": "e6636fb0b85a558e",
+          "identical": false
         },
         {
           "path": "apps/web/src/components/charts/panels/ActivityChart.tsx",
@@ -54053,7 +55606,7 @@
         {
           "path": "apps/web/src/components/finance/FinanceDashboard.tsx",
           "source_sha256": "d10f6fcf0b2dc354",
-          "target_sha256": "f9720ebf57dd02a2",
+          "target_sha256": "b14b85580eb7c3e7",
           "identical": false
         },
         {
@@ -54131,7 +55684,7 @@
         {
           "path": "apps/web/src/components/ui/Bento.tsx",
           "source_sha256": "6d4a69ac23fabc03",
-          "target_sha256": "1664389fd5171d8c",
+          "target_sha256": "ca7289dfa307bce0",
           "identical": false
         },
         {
@@ -54149,8 +55702,8 @@
         {
           "path": "apps/web/src/components/ui/ConfirmDialog.tsx",
           "source_sha256": "78728862b518c81a",
-          "target_sha256": "78728862b518c81a",
-          "identical": true
+          "target_sha256": "42aa85f63b39cfb8",
+          "identical": false
         },
         {
           "path": "apps/web/src/components/ui/ConfirmInlineSubmit.tsx",
@@ -54323,8 +55876,8 @@
         {
           "path": "apps/web/src/lib/delegation.ts",
           "source_sha256": "0fff73b7577ad683",
-          "target_sha256": "0fff73b7577ad683",
-          "identical": true
+          "target_sha256": "54c9abbf133ebe39",
+          "identical": false
         },
         {
           "path": "apps/web/src/lib/dev-login.test.ts",
@@ -54737,14 +56290,14 @@
         "pattern": "/\\/src\\/components\\/.*\\.tsx$/",
         "exclude": null,
         "source_matches": 73,
-        "target_matches": 143,
+        "target_matches": 146,
         "source_only": 2,
         "source_only_paths": [
           "apps/web/src/components/brand/TenantBackdrop.tsx",
           "apps/web/src/components/brand/TenantSplash.tsx"
         ],
         "shared_paths": 71,
-        "divergent_paths": 44,
+        "divergent_paths": 46,
         "divergent_examples": [
           "apps/web/src/components/CalendarFilters.tsx",
           "apps/web/src/components/CalendarSubscribe.tsx",
@@ -54753,7 +56306,7 @@
         ],
         "undetermined_paths": 0,
         "disposition": "MERGE_REQUIRED",
-        "why": "2 source path(s) for this capability are absent from the target tree, and 44 shared path(s) differ in content"
+        "why": "2 source path(s) for this capability are absent from the target tree, and 46 shared path(s) differ in content"
       },
       {
         "capability": "Styles",
@@ -54818,7 +56371,7 @@
         "source_only": 0,
         "source_only_paths": [],
         "shared_paths": 30,
-        "divergent_paths": 22,
+        "divergent_paths": 23,
         "divergent_examples": [
           "apps/web/src/lib/ai.ts",
           "apps/web/src/lib/approvals-sla.ts",
@@ -54827,7 +56380,7 @@
         ],
         "undetermined_paths": 0,
         "disposition": "MERGE_REQUIRED",
-        "why": "every source path is present in the target tree, but 22 of 30 shared path(s) differ in content, so the target does not hold the source implementation"
+        "why": "every source path is present in the target tree, but 23 of 30 shared path(s) differ in content, so the target does not hold the source implementation"
       },
       {
         "capability": "Database engine (provisioned)",
@@ -55081,7 +56634,7 @@
         "pattern": "/\\.(test|itest)\\.(ts|tsx|mjs|js)$/",
         "exclude": null,
         "source_matches": 26,
-        "target_matches": 428,
+        "target_matches": 467,
         "source_only": 5,
         "source_only_paths": [
           "apps/web/src/app/api/documents/_lib/content.test.ts",
@@ -55127,7 +56680,7 @@
         "pattern": "/^\\.github\\/workflows\\/.*\\.ya?ml$/",
         "exclude": null,
         "source_matches": 12,
-        "target_matches": 18,
+        "target_matches": 19,
         "source_only": 0,
         "source_only_paths": [],
         "shared_paths": 12,

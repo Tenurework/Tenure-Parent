@@ -81,8 +81,8 @@ documents:
     family: "aws-current-state"
     superseded_by: null
     supersedes: []
-    sha256: "2cf33db62535a26b7368aeaf0bb08bdc0610884711bebb02406ab8d73d7c5561"
-    bytes: 4593
+    sha256: d640680d7701c8aacd3a1414bbe61178e5f7c60eda5a36e6528ce3b6eaf45539
+    bytes: 4641
     aliases: []
     requirement_prefixes:
       - GE
@@ -141,8 +141,8 @@ documents:
     family: "fin-finance-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "159c6051b1a38e08b93b77b6734a7eea96a1ec03cf646340c05e049e0ec1e217"
-    bytes: 25146
+    sha256: "09c5941b1acfa3e183ac5d94b52b8251e694d4027a73ead1355c8f1b38f76623"
+    bytes: 26484
     aliases: []
     requirement_prefixes:
       - FIN
@@ -187,8 +187,8 @@ documents:
     family: "int-connector-write-boundary"
     superseded_by: null
     supersedes: []
-    sha256: "6ea0698853deebfd16e255142fd6f6616662eea30376beef175c8d0ab45114d5"
-    bytes: 7041
+    sha256: a0db266b526593423ee70e92130eeb67713760bf30b1dda217d361eb51c843f3
+    bytes: 7431
     aliases: []
     requirement_prefixes: []
     states_requirements: 0
@@ -201,8 +201,8 @@ documents:
     family: "int-integration-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "05959c88c1a1b1f86126f5598b3398140beac5cabd2756bb15779535b017ab5d"
-    bytes: 20622
+    sha256: "79ee81f7204fead3384ae8f7fcea64af9bfac38e400d44754fd398f11262c75c"
+    bytes: 20986
     aliases: []
     requirement_prefixes:
       - INT
@@ -262,8 +262,8 @@ documents:
     family: "pack-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "91e33eb25866dc7361720bc7086ffaf7e79fd19b21aa642437de3dfdc79856b7"
-    bytes: 20793
+    sha256: d4d3b165867428d8a44d0b0d844d9007b493970ba287e0f20fa83f2a24ee6e61
+    bytes: 21101
     aliases: []
     requirement_prefixes:
       - PACK
@@ -278,8 +278,8 @@ documents:
     family: "pln-planning-limitations"
     superseded_by: null
     supersedes: []
-    sha256: a2495aee9fb38c6484fac3e8c7b948430567d91308221b2bb7e775a375c43ee9
-    bytes: 13279
+    sha256: aa6619c37370c935132746b095439895c33e24da6f71e4b8681d6c61539e1dfd
+    bytes: 13332
     aliases: []
     requirement_prefixes:
       - FIN
@@ -460,7 +460,7 @@ documents:
     family: Tenure_Claude_Code_Global_Engine_Execution_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: d83e2fe55d2c4a79fe0adcb3653488f6e6a2e4852aad7bd8398eb717cd4842a0
+    sha256: "7a73db6cdbd17b43ad0ee3d893ed487b17ee700eb66fd8937d2385bea795273c"
     bytes: 115086
     aliases: []
     requirement_prefixes:
@@ -475,7 +475,7 @@ documents:
     family: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt
     superseded_by: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     supersedes: []
-    sha256: ce2b657a1bc069d5812ac28501e476453970e1c8fc3a8ec97dba5f1a7f212363
+    sha256: "6e739630171d6a8c004def885130fbe414a5065f1bd2fbfe6edb3abb135bb658"
     bytes: 162330
     aliases: []
     requirement_prefixes:
@@ -522,13 +522,13 @@ documents:
     family: "bounded-contexts"
     superseded_by: null
     supersedes: []
-    sha256: "4005d810cf50b0c1697d9c11b21d29218e49b41845a356850ac20fe7c44339ac"
-    bytes: 9477
+    sha256: "171d20119aaf43be8e5dd2e6d02daee9419d0099ddcd8cda0ceb3e2fe9879d3f"
+    bytes: 10721
     aliases: []
     requirement_prefixes:
       - PAY
     states_requirements: 0
-    mentions_requirement_ids: 1
+    mentions_requirement_ids: 3
   - id: "payment-authority-and-regulatory-boundary"
     title: Payment authority and regulatory boundary
     version: unversioned

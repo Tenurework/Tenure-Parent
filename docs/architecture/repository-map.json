@@ -1,6 +1,6 @@
 {
   "generatedFrom": "git ls-files",
-  "totalTrackedFiles": 1597,
+  "totalTrackedFiles": 1779,
   "workspaceGlobs": [
     "apps/*",
     "packages/*",
@@ -27,8 +27,8 @@
         "@tenure/finops",
         "@tenure/provisioning"
       ],
-      "fileCount": 366,
-      "testFiles": 130,
+      "fileCount": 388,
+      "testFiles": 140,
       "hasDockerfile": true
     },
     {
@@ -50,8 +50,8 @@
       "dependsOnWorkspaces": [
         "@tenure/contracts"
       ],
-      "fileCount": 503,
-      "testFiles": 163,
+      "fileCount": 559,
+      "testFiles": 194,
       "hasDockerfile": true
     },
     {
@@ -94,8 +94,8 @@
       "description": "Combined RBAC, ABAC and relationship-based authorization with hierarchical scope inheritance, delegation, separation of duties, and an explainable decision.",
       "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 20,
-      "testFiles": 7,
+      "fileCount": 24,
+      "testFiles": 11,
       "hasDockerfile": false
     },
     {
@@ -108,8 +108,8 @@
         "@tenure/audit",
         "@tenure/finops"
       ],
-      "fileCount": 32,
-      "testFiles": 13,
+      "fileCount": 34,
+      "testFiles": 14,
       "hasDockerfile": false
     },
     {
@@ -130,8 +130,19 @@
       "description": "Cost allocation and reporting: CUR line items attributed to tenants by tag, shared cost split by a documented driver, unallocated cost reported rather than hidden, and every figure carrying its currency and as-of.",
       "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 17,
-      "testFiles": 6,
+      "fileCount": 19,
+      "testFiles": 7,
+      "hasDockerfile": false
+    },
+    {
+      "dir": "packages/generality-fixtures",
+      "name": "@tenure/generality-fixtures",
+      "private": true,
+      "description": "GE-052 — the second, structurally different organization the platform must be able to produce as configuration: a corporate spine, its seat ladder, and its purchase approval chain.",
+      "scripts": [],
+      "dependsOnWorkspaces": [],
+      "fileCount": 7,
+      "testFiles": 3,
       "hasDockerfile": false
     },
     {
@@ -141,8 +152,8 @@
       "description": "The canonical identity model: a durable person, the external identities that authenticate them, effective-dated tenant memberships, invitations, sessions, authentication events and recovery paths — liveness computed from the clock, and no status change without an audit record.",
       "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 57,
-      "testFiles": 28,
+      "fileCount": 59,
+      "testFiles": 29,
       "hasDockerfile": false
     },
     {
@@ -185,8 +196,8 @@
       "description": "Provider-neutral payments primitives, quoting only: qualified external references (a raw provider id is never a key), balance-transaction ingest that can tell a retry from a conflict, the approved-capability registry, eligibility simulation, the responsibility matrix, funds-flow and charge-model decisions, posting templates, webhook verification and the money-movement refusal engine. No provider SDK, no network, no write verb.",
       "scripts": [],
       "dependsOnWorkspaces": [],
-      "fileCount": 27,
-      "testFiles": 12,
+      "fileCount": 42,
+      "testFiles": 21,
       "hasDockerfile": false
     },
     {
@@ -209,8 +220,8 @@
       "dependsOnWorkspaces": [
         "@tenure/platform-config"
       ],
-      "fileCount": 31,
-      "testFiles": 10,
+      "fileCount": 48,
+      "testFiles": 13,
       "hasDockerfile": false
     },
     {
@@ -344,6 +355,15 @@
       "guardedTo": "Tenurework/Tenure"
     },
     {
+      "file": ".github/workflows/reachability.yml",
+      "name": "Reachability probe",
+      "triggers": [
+        "workflow_dispatch"
+      ],
+      "reachesAws": false,
+      "guardedTo": null
+    },
+    {
       "file": ".github/workflows/replace-acm-cert.yml",
       "name": "Replace ACM Certificate",
       "triggers": [
@@ -422,7 +442,7 @@
   "testSuites": [
     {
       "name": "apps/web unit (jest)",
-      "files": 105
+      "files": 136
     },
     {
       "name": "apps/web isolation (jest, needs Postgres)",
@@ -434,19 +454,19 @@
     },
     {
       "name": "system-studio e2e (playwright)",
-      "files": 48
+      "files": 51
     },
     {
       "name": "platform (node:test)",
-      "files": 119
+      "files": 139
     },
     {
       "name": "packages (jest, via apps/web roots)",
-      "files": 101
+      "files": 123
     }
   ],
   "docs": {
-    "architecture": 62,
+    "architecture": 69,
     "decisions": 15,
     "migrations": 4,
     "implementation": 23

@@ -120,6 +120,12 @@ jobs:
 
       # The load-bearing step. -lock=false so a real deploy in flight is not
       # blocked; plan does not persist refreshed state, so this cannot corrupt it.
+      #
+      # `-out` writes the plan to a file so it can be converted to JSON below.
+      # A saved plan file is not an apply and cannot become one here: nothing in
+      # this workflow runs `terraform apply`, and the read-only assertion in
+      # tests/security/production-workflows-disarmed.test.mjs is what stops that
+      # changing quietly.
       - name: Terraform plan
         id: plan
         working-directory: ${{ env.TF_DIR }}
@@ -128,6 +134,7 @@ jobs:
           terraform plan \
             -input=false \
             -lock=false \
+            -out=/tmp/plan.bin \
             -var="image_tag=$IMAGE_TAG" \
             -detailed-exitcode 2>&1 | tee /tmp/plan.txt || EXIT=$?
 
@@ -151,10 +158,58 @@ jobs:
           [ "$EXIT" = "2" ] && exit 0
           exit "$EXIT"
 
+      # GE-012-003. The human plan text is what a reviewer skims; this is what is
+      # actually checked. `terraform show -json` is a local conversion of the
+      # saved plan — it makes no API call and changes nothing.
+      - name: Change-set review — destructive, replacement, public access, privilege expansion
+        id: review
+        if: always()
+        # No `actions/setup-node` here on purpose: `ubuntu-latest` ships Node, and
+        # adding a pinned action reference would grow the tag-reference count that
+        # tests/security/workflow-drift.test.mjs ratchets downward. The review needs
+        # nothing outside the standard library.
+        run: |
+          set -uo pipefail
+          if [ ! -f /tmp/plan.bin ]; then
+            echo "::warning::no saved plan — the plan step did not get far enough to review."
+            exit 0
+          fi
+
+          if ! terraform -chdir="$TF_DIR" show -json /tmp/plan.bin > /tmp/plan.json; then
+            echo "::error::could not convert the saved plan to JSON. Nothing was reviewed."
+            exit 1
+          fi
+
+          # --regions pins the estate's allowed regions. Without it the region
+          # rule reports itself unchecked rather than silently passing.
+          node tools/iac-plan-review.mjs /tmp/plan.json \
+            --regions "$AWS_REGION" \
+            --markdown > /tmp/change-set-review.md
+          REVIEW_EXIT=$?
+
+          node tools/iac-plan-review.mjs /tmp/plan.json \
+            --regions "$AWS_REGION" --json > /tmp/change-set-review.json || true
+
+          cat /tmp/change-set-review.md >> "$GITHUB_STEP_SUMMARY"
+          echo "verdict_exit=$REVIEW_EXIT" >> "$GITHUB_OUTPUT"
+
+          # A blocking finding fails the job. This workflow cannot apply anything,
+          # so the failure is the signal — it is what stops "the plan looked fine"
+          # being said about a change set nobody read to the bottom of.
+          exit "$REVIEW_EXIT"
+
       - name: Upload plan
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
-          path: /tmp/plan.txt
+          # The evidence is the three together: what a human reads, the machine
+          # form it was judged from, and the review carrying both digests. Any
+          # one of them alone can be re-attached to a different plan.
+          path: |
+            /tmp/plan.txt
+            /tmp/plan.json
+            /tmp/change-set-review.md
+            /tmp/change-set-review.json
+          if-no-files-found: warn
           retention-days: 14

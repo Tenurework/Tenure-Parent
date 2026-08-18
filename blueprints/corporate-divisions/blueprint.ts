@@ -63,6 +63,33 @@ export const corporateDivisions: SystemBlueprint = {
     types: [
       { id: "company", label: "Company", pluralLabel: "Companies" },
       { id: "division", label: "Division", pluralLabel: "Divisions" },
+      {
+        // GE-052-002. The geographic rung of the enterprise spine
+        // (company → region → business unit → department → team), which the
+        // divisional spine (company → division → department → team) does not
+        // have. Both converge on `department`, which is what makes this
+        // topology a matrix rather than two topologies sharing a file: the
+        // `matrix-reports-to` relation below already says a department may
+        // serve a body it does not sit under, and a company that runs its P&L
+        // by region and its craft by division is the ordinary shape that
+        // relation exists for.
+        id: "region",
+        label: "Region",
+        pluralLabel: "Regions",
+        description:
+          "A geography with its own P&L — EMEA, Americas, APAC. Contains the business units that trade in it.",
+      },
+      {
+        // GE-052-002. A business unit is the smallest body with its own
+        // revenue line; a department is a function inside one. Collapsing the
+        // two is what makes a corporate import unable to say whether "Payments"
+        // is a business a general manager runs or a function a head runs.
+        id: "business-unit",
+        label: "Business unit",
+        pluralLabel: "Business units",
+        description:
+          "A trading unit with its own revenue line, inside a region. Departments are the functions within it.",
+      },
       { id: "department", label: "Department", pluralLabel: "Departments" },
       { id: "team", label: "Team", pluralLabel: "Teams" },
       {
@@ -97,6 +124,16 @@ export const corporateDivisions: SystemBlueprint = {
       { parent: "division", child: "location" },
       { parent: "division", child: "project" },
       { parent: "department", child: "team" },
+      // GE-052-002 — the enterprise spine. company → region → business unit →
+      // department → team is four edges, so `team` sits at depth 4 and the
+      // existing `maxDepth: 4` is exactly satisfied rather than raised: a
+      // deeper chain is still the self-referential import row it was before.
+      { parent: "company", child: "region" },
+      { parent: "region", child: "business-unit" },
+      { parent: "region", child: "location" },
+      { parent: "region", child: "project" },
+      { parent: "business-unit", child: "department" },
+      { parent: "business-unit", child: "location" },
     ],
     relationTypes: [
       {
@@ -104,12 +141,16 @@ export const corporateDivisions: SystemBlueprint = {
         label: "Matrix reports to",
         description: "A dotted line: a team serving a division it does not sit under.",
         from: ["team", "department"],
-        to: ["division", "department"],
+        // GE-052-002 — a department inside one region's business unit serving
+        // a division that spans every region is the dotted line this relation
+        // was written for, and it could not be stated until `business-unit`
+        // existed.
+        to: ["division", "department", "business-unit"],
       },
       {
         id: "based-at",
         label: "Based at",
-        from: ["division", "department", "team"],
+        from: ["division", "business-unit", "department", "team"],
         to: ["location"],
       },
       {

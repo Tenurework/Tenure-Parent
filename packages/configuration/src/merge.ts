@@ -25,6 +25,8 @@
  * feature may be used at all — takes a restrictive strategy, so that delegating
  * configuration downward cannot delegate more authority than the delegator had.
  */
+import { stableStringify } from "@tenure/contracts"
+
 export const MERGE_STRATEGIES = [
   "replace",
   "deepMerge",
@@ -140,18 +142,18 @@ function stableKey(value: unknown): string {
 /**
  * JSON with object keys sorted, so two equal values always produce equal text.
  *
- * Used for set identity and for the resolution checksum. `JSON.stringify` alone
- * is insertion-ordered, which would make the checksum depend on the order rows
- * came back from the database.
+ * Used here for set identity and for the resolution checksum. `JSON.stringify`
+ * alone is insertion-ordered, which would make the checksum depend on the order
+ * rows came back from the database.
+ *
+ * DEFINED IN `@tenure/contracts`, and re-exported from here so that every
+ * existing importer of `@tenure/configuration` keeps working. It moved because
+ * `@tenure/audit` hashes with the same function and importing it from this
+ * package closed a cycle — audit → configuration → audit, the return leg being
+ * `publication.ts` importing `findSecretValues`. See the definition for why the
+ * answer was to move it down rather than to define it twice.
  */
-export function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null"
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, v]) => v !== undefined)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(",")}}`
-}
+export { stableStringify } from "@tenure/contracts"
 
 /**
  * Combine one lower-precedence value with one higher-precedence value.

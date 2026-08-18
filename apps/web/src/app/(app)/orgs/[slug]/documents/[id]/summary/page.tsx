@@ -77,7 +77,7 @@ export default async function DocumentSummaryPage({
           <h1 className="text-text-1 mt-0.5">{doc.title}</h1>
           <Link
             href={`/orgs/${slug}/documents`}
-            className="text-xs text-[--primary] hover:underline"
+            className="text-xs text-[--text-link] hover:underline"
           >
             ← Back to documents
           </Link>

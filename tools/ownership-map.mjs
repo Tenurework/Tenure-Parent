@@ -160,6 +160,13 @@ const DOMAINS = [
       'apps/web/src/lib/institution-time',
       'apps/web/src/lib/time',
       'packages/configuration/',
+      // GE-052. The second, structurally different organization system the
+      // platform must be able to produce as configuration — a corporate spine,
+      // its seat ladder, and its purchase chain. It belongs here rather than to
+      // `organization` or `workflow` because it is a claim about the
+      // CONFIGURATION engine: it holds no engine of its own and exists so that
+      // "one platform, two shapes" is falsifiable.
+      'packages/generality-fixtures/',
       'packages/platform-config/',
       'packages/module-runtime/',
       'packages/metadata/',

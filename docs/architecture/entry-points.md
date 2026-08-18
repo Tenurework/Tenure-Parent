@@ -8,7 +8,7 @@ Generated from the filesystem. `npm run test:platform` regenerates this and
 fails if the committed copy is stale, so it cannot quietly go out of date, and
 fails if a handler appears with no guard and no entry on the public allowlist.
 
-**29 API routes · 58 pages · 21 server-action modules exporting 73 actions.**
+**31 API routes · 58 pages · 21 server-action modules exporting 73 actions.**
 
 ## The two experiences
 
@@ -20,7 +20,7 @@ and only one of them may be reached by a customer.
 
 | Experience | App | Surface | What it is |
 |---|---|---:|---|
-| `tenant` | `apps/web` | 26 routes · 40 pages · 17 action modules | What a customer signs into. Everything it serves is scoped to one institution. |
+| `tenant` | `apps/web` | 28 routes · 40 pages · 17 action modules | What a customer signs into. Everything it serves is scoped to one institution. |
 | `deployer` | `apps/system-studio` | 3 routes · 18 pages · 4 action modules | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
 
 ## What a guard means here
@@ -51,11 +51,13 @@ no guard of their own; they are behind `(app)/layout.tsx`.
 | `/api/calendar/event/[id]` | tenant | GET, PATCH | `session` + `tenant` |
 | `/api/calendar/ics/[token]` | tenant | GET | `tenant` + `url-token` |
 | `/api/calendar/reschedule` | tenant | POST | `session` + `tenant` |
+| `/api/connections/exceptions` | tenant | GET | `session` + `tenant` |
 | `/api/connections/opportunity` | tenant | POST | `session` + `tenant` |
 | `/api/documents/[id]/content` | tenant | GET | `session` + `capability` + `tenant` |
 | `/api/documents/[id]/save` | tenant | POST | `session` + `capability` + `tenant` |
 | `/api/health` | tenant | GET | **none** |
 | `/api/jobs/outbox` | tenant | POST | `tenant` + `shared-secret` |
+| `/api/jobs/payments-version-watch` | tenant | POST | `shared-secret` |
 | `/api/jobs/reminders` | tenant | POST | `tenant` + `shared-secret` |
 | `/api/jobs/slo` | tenant | POST | `tenant` + `shared-secret` |
 | `/api/me` | tenant | GET | `session` |

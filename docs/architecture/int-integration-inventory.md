@@ -34,9 +34,9 @@ approximated from structure.
 
 | category | count |
 | --- | --- |
-| HTTP route handlers | 29 |
+| HTTP route handlers | 31 |
 | — inbound from a provider | 1 |
-| — inbound from the scheduler | 3 |
+| — inbound from the scheduler | 4 |
 | internal event types | 2 |
 | SQS queues declared | 5 |
 | SQS queues with a producer in the tree | 0 |
@@ -45,7 +45,7 @@ approximated from structure.
 | alarms that cannot fire | 1 |
 | S3 buckets declared | 2 |
 | file-exchange modules | 3 |
-| credential references (names) | 25 |
+| credential references (names) | 26 |
 | provider SDK dependencies | 44 |
 | direct dependencies scanned | 88 |
 | connector claims | 24 |
@@ -69,11 +69,13 @@ reach it. `direction` is derived from the route path, not asserted.
 | tenant | `/api/calendar/event/[id]` | GET, PATCH | tenant-session | `apps/web/src/app/api/calendar/event/[id]/route.ts` |
 | tenant | `/api/calendar/ics/[token]` | GET | tenant-session | `apps/web/src/app/api/calendar/ics/[token]/route.ts` |
 | tenant | `/api/calendar/reschedule` | POST | tenant-session | `apps/web/src/app/api/calendar/reschedule/route.ts` |
+| tenant | `/api/connections/exceptions` | GET | tenant-session | `apps/web/src/app/api/connections/exceptions/route.ts` |
 | tenant | `/api/connections/opportunity` | POST | tenant-session | `apps/web/src/app/api/connections/opportunity/route.ts` |
 | tenant | `/api/documents/[id]/content` | GET | tenant-session | `apps/web/src/app/api/documents/[id]/content/route.ts` |
 | tenant | `/api/documents/[id]/save` | POST | tenant-session | `apps/web/src/app/api/documents/[id]/save/route.ts` |
 | tenant | `/api/health` | GET | tenant-session | `apps/web/src/app/api/health/route.ts` |
 | tenant | `/api/jobs/outbox` | POST | inbound-scheduler | `apps/web/src/app/api/jobs/outbox/route.ts` |
+| tenant | `/api/jobs/payments-version-watch` | POST | inbound-scheduler | `apps/web/src/app/api/jobs/payments-version-watch/route.ts` |
 | tenant | `/api/jobs/reminders` | POST | inbound-scheduler | `apps/web/src/app/api/jobs/reminders/route.ts` |
 | tenant | `/api/jobs/slo` | POST | inbound-scheduler | `apps/web/src/app/api/jobs/slo/route.ts` |
 | tenant | `/api/me` | GET | tenant-session | `apps/web/src/app/api/me/route.ts` |
@@ -172,6 +174,7 @@ Names and identifiers. No value is read by the generator and none appears here.
 | `GITHUB_TOKEN` | process.env identifier | `tools/verify-environments.mjs` |
 | `GITHUB_TOKEN` | process.env identifier | `tools/verify-workflow-permissions.mjs` |
 | `JOB_SECRET` | process.env identifier | `apps/web/src/app/api/jobs/outbox/route.ts` |
+| `JOB_SECRET` | process.env identifier | `apps/web/src/app/api/jobs/payments-version-watch/route.ts` |
 | `JOB_SECRET` | process.env identifier | `apps/web/src/app/api/jobs/reminders/route.ts` |
 | `JOB_SECRET` | process.env identifier | `apps/web/src/app/api/jobs/slo/route.ts` |
 | `PAYMENTS_WEBHOOK_SECRET` | process.env identifier | `apps/web/src/app/api/payments/provider-events/route.ts` |

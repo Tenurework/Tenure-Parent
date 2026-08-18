@@ -6,6 +6,7 @@ import { actingInstitutions } from "@/lib/tenant-scope"
 import { modulesFor } from "@tenure/platform-config"
 import { navigationCapabilitiesFor } from "@/lib/authz/navigation-capabilities"
 import { accessReportFor } from "@/lib/identity/access-report"
+import { tenantEntryEligibility } from "@/lib/eligibility/tenant-entry"
 
 /**
  * Who is signed in, which tenant they are acting in, and what that tenant runs.
@@ -45,7 +46,9 @@ export async function GET() {
     // old as the session. The header reads them fresh for the same reason.
     db.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true, image: true },
+      // `emailVerified` is read for gate 2 below: a timestamp when the person
+      // proved they control the address, null when they have not.
+      select: { name: true, email: true, image: true, emailVerified: true },
     }),
     // GE-042-006. Why this person has no access, when they have none — see
     // `accessReportFor`, which reads memberships that are deliberately not
@@ -55,6 +58,26 @@ export async function GET() {
 
   const system = modulesFor(tenants.active?.slug ?? "")
   const enabledModules = system.keys
+  /**
+   * IER-070 gate 2 — the tenant-entry eligibility policy, evaluated.
+   *
+   * Bible §2.1 requires three separate gates and forbids collapsing them into
+   * one boolean. `capabilities` below is gate 3's navigation shadow and
+   * `modules` is gate 1's; neither of them is the person-eligibility question,
+   * and until now nothing answered it at all.
+   *
+   * It reports, exactly as the rest of this route does. The decision is a
+   * policy conclusion with a digest and reason codes, not an authorization: a
+   * client showing "your membership is suspended" instead of the onboarding
+   * path is the point, and every route still decides for itself.
+   */
+  const eligibility = tenantEntryEligibility(userId, {
+    accessState: access.state,
+    emailVerifiedAt: me?.emailVerified ?? null,
+    tenantCapabilities: enabledModules,
+    now: new Date(),
+  })
+
   const capabilities = navigationCapabilitiesFor(
     ctx,
     tenants.active?.id ?? "",
@@ -85,6 +108,21 @@ export async function GET() {
        * sentence instead of assuming everybody with no tenant is new.
        */
       access,
+      /**
+       * Gate 2 (§2.1), decided by `tenure.tenant-entry.v1`.
+       *
+       * `outcome` is one of the eight §2.2 eligibility outcomes, `reasonCodes`
+       * are safe codes rather than sentences containing anybody's data, and
+       * `policyDigest` is what makes the decision re-derivable — the same
+       * inputs under the same policy version produce the same answer.
+       */
+      eligibility: {
+        outcome: eligibility.outcome,
+        reasonCodes: eligibility.reasonCodes,
+        remediation: eligibility.remediation,
+        policyId: eligibility.receipt.policyId,
+        policyDigest: eligibility.receipt.policyDigest,
+      },
       institutions: tenants.options.map((institution) => ({
         ...institution,
         active: institution.id === tenants.active?.id,

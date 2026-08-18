@@ -1,0 +1,45 @@
+{
+  "id": "protect-security-services",
+  "title": "The detection services cannot be turned off by the accounts they watch",
+  "attach_to": ["Root"],
+  "why": "The first move of anyone who gets into an account is to stop it being watched. Delegated security administration means these services are administered from the Security account, so every other account has no reason to be able to disable them — and the one that does is named by ARN rather than trusted by convention.",
+  "sourced_from": [
+    "docs/decisions/ADR-0007-tenure-owned-aws-organization.md — Security OU: delegated admin, GuardDuty/Config/Security Hub",
+    "docs/architecture/ge-landing-zone-model.json — the Security node"
+  ],
+  "security_admin_role_arn_pattern": "arn:aws:iam::*:role/tenure-security-admin",
+  "limits": [
+    "This does not make the services EXIST. Enabling GuardDuty, Config and Security Hub is GE-012-002, which needs the Organization. A guardrail against disabling something nothing has enabled protects nothing yet — it is here so the day the services are enabled is not also the day somebody has to remember this."
+  ],
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DenyDisablingDetection",
+        "Effect": "Deny",
+        "Action": [
+          "guardduty:DeleteDetector",
+          "guardduty:DisassociateFromMasterAccount",
+          "guardduty:DisassociateMembers",
+          "guardduty:StopMonitoringMembers",
+          "guardduty:UpdateDetector",
+          "securityhub:DisableSecurityHub",
+          "securityhub:DisassociateFromMasterAccount",
+          "securityhub:DeleteMembers",
+          "securityhub:DisableImportFindingsForProduct",
+          "config:DeleteConfigurationRecorder",
+          "config:StopConfigurationRecorder",
+          "config:DeleteDeliveryChannel",
+          "config:DeleteConfigRule",
+          "access-analyzer:DeleteAnalyzer"
+        ],
+        "Resource": "*",
+        "Condition": {
+          "ArnNotLike": {
+            "aws:PrincipalArn": "arn:aws:iam::*:role/tenure-security-admin"
+          }
+        }
+      }
+    ]
+  }
+}

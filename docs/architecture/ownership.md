@@ -5,7 +5,7 @@ GE-020-001. Every source file belongs to exactly one of the fourteen platform
 domains, and `tests/architecture/ownership.test.mjs` fails the build when one
 does not.
 
-**1026 files · 13 domains with code · 1 declared and unbuilt · 23 shared.**
+**1092 files · 13 domains with code · 1 declared and unbuilt · 23 shared.**
 
 An orphan — a file matching no domain — is not a formatting problem. It means
 code was added that nobody decided the ownership of, which is how a codebase
@@ -16,19 +16,19 @@ defensible.
 
 | Domain | Files | Experience | What it owns |
 |---|---:|---|---|
-| `control-plane` | 370 | deployer + engine + tenant | Composing, provisioning and operating tenants. The engine, not any tenant. |
-| `identity` | 84 | engine + tenant | Who someone is: providers, sessions, the sign-in surface. |
+| `control-plane` | 390 | deployer + engine + tenant | Composing, provisioning and operating tenants. The engine, not any tenant. |
+| `identity` | 86 | engine + tenant | Who someone is: providers, sessions, the sign-in surface. |
 | `authorization` | 49 | engine + tenant | What someone may do: capabilities, policy decisions, delegation. |
 | `organization` | 47 | engine + tenant | The org graph: institutions, organizations, roles, seats, the directory. |
-| `configuration` | 108 | engine + tenant | Layered configuration, blueprints, module resolution, tenancy scoping. |
-| `workflow` | 20 | engine + tenant | Approvals, their gates and their state machine. |
+| `configuration` | 116 | engine + tenant | Layered configuration, blueprints, module resolution, tenancy scoping. |
+| `workflow` | 21 | engine + tenant | Approvals, their gates and their state machine. |
 | `files` | 17 | tenant | Documents and attachments: storage, retrieval, editing. |
 | `search-memory` | 9 | tenant | Retrieval across everything a principal may already see, and org memory. |
-| `notifications` | 59 | tenant | Telling someone something happened: in-app notices, calendars, messaging. |
+| `notifications` | 61 | tenant | Telling someone something happened: in-app notices, calendars, messaging. |
 | `reporting` | 45 | engine + tenant | Reading the estate back: reports, dashboards, the audit trail. |
 | `erp-modules` | 39 | tenant | The domain modules a tenant runs: finance, resources, and the module catalog. |
-| `integrations` | 44 | tenant | Outbound connections to anything Tenure does not run. |
-| `billing-metering` | 58 | engine + tenant | What a tenant consumes and what it is charged for. |
+| `integrations` | 52 | tenant | Outbound connections to anything Tenure does not run. |
+| `billing-metering` | 70 | engine + tenant | What a tenant consumes and what it is charged for. |
 
 ## Experience — who the code is rendered to
 
@@ -46,9 +46,9 @@ is gone rather than reworded.
 
 | Experience | Files | What it is |
 |---|---:|---|
-| `tenant` | 438 | What a customer signs into. Everything it serves is scoped to one institution. |
-| `deployer` | 317 | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
-| `engine` | 271 | Library code with no surface of its own. It renders to nobody; it is rendered through by whichever app imports it, so it belongs to neither audience and is available to both. |
+| `tenant` | 467 | What a customer signs into. Everything it serves is scoped to one institution. |
+| `deployer` | 329 | What Tenure staff operate the estate from. It shows every tenant, so it is scoped to none — which is why it is a separate origin (PD-007) and why its guards are operator-shaped. |
+| `engine` | 296 | Library code with no surface of its own. It renders to nobody; it is rendered through by whichever app imports it, so it belongs to neither audience and is available to both. |
 
 ### Rendered to no declared audience
 
@@ -98,7 +98,15 @@ list here would mean the domains are wrong rather than that the code is unusual.
 
 ## Unclaimed
 
-_None._
+- `apps/web/src/lib/eligibility/engine-purity.test.ts`
+- `apps/web/src/lib/eligibility/evaluate.test.ts`
+- `apps/web/src/lib/eligibility/evaluate.ts`
+- `apps/web/src/lib/eligibility/policy.test.ts`
+- `apps/web/src/lib/eligibility/policy.ts`
+- `apps/web/src/lib/eligibility/tenant-entry.test.ts`
+- `apps/web/src/lib/eligibility/tenant-entry.ts`
+- `apps/web/src/lib/uploads/tenant-image.test.ts`
+- `apps/web/src/lib/uploads/tenant-image.ts`
 
 ## Claimed twice
 

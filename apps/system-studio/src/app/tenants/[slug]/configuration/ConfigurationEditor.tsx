@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react"
 
 import { publish, review, type PublishResult, type ReviewResult } from "./actions"
+import { consequenceLines } from "./consequences"
 
 /**
  * GE-032-001 — the editor, in two steps.
@@ -295,6 +296,21 @@ export function ConfigurationEditor({
 
           <h4>What changes</h4>
           <pre className="state-detail">{reviewed.plan.humanDiff}</pre>
+
+          {/* CFG-020-004 / CFG-030-003. The compiled graph's answer, not the
+              diff's: which fields this moves, what an approval would bind to,
+              what the browser is not being sent, and which configured keys sit
+              outside the graph entirely. Every one of these was computed by
+              `planPublication` and shown to nobody. */}
+          <h4>Consequences</h4>
+          <dl className="state-detail" data-testid="consequences">
+            {consequenceLines(reviewed.plan).map((line) => (
+              <div key={line.id} data-consequence={line.id}>
+                <dt>{line.label}</dt>
+                <dd>{line.detail}</dd>
+              </div>
+            ))}
+          </dl>
 
           <h4>Impact</h4>
           <div className="chips">

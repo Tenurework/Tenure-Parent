@@ -10,7 +10,7 @@ Regenerate with `node tools/pack-surface-inventory.mjs`.
 is stale, if any row cites a path that is not there, or if a module claims a
 schema model the database does not declare.
 
-**12 modules · 87 routes (66 tenant, 21 deployer) · 52 schema models · 18 workspaces · 1 feature flag · 24 provider packs · 11 configuration layers · 16 configuration domains · 3 blueprints.**
+**12 modules · 89 routes (68 tenant, 21 deployer) · 52 schema models · 19 workspaces · 1 feature flag · 24 provider packs · 11 configuration layers · 16 configuration domains · 3 blueprints.**
 
 This is an inventory of what EXISTS, not a claim about what works. Every module
 below is `certified-limited` — Bible §6's name for a capability that runs and is
@@ -77,11 +77,13 @@ filesystem and never appear in a URL.
 | tenant | api | `/api/calendar/event/[id]` | GET PATCH | `apps/web/src/app/api/calendar/event/[id]/route.ts` |
 | tenant | api | `/api/calendar/ics/[token]` | GET | `apps/web/src/app/api/calendar/ics/[token]/route.ts` |
 | tenant | api | `/api/calendar/reschedule` | POST | `apps/web/src/app/api/calendar/reschedule/route.ts` |
+| tenant | api | `/api/connections/exceptions` | GET | `apps/web/src/app/api/connections/exceptions/route.ts` |
 | tenant | api | `/api/connections/opportunity` | POST | `apps/web/src/app/api/connections/opportunity/route.ts` |
 | tenant | api | `/api/documents/[id]/content` | GET | `apps/web/src/app/api/documents/[id]/content/route.ts` |
 | tenant | api | `/api/documents/[id]/save` | POST | `apps/web/src/app/api/documents/[id]/save/route.ts` |
 | tenant | api | `/api/health` | GET | `apps/web/src/app/api/health/route.ts` |
 | tenant | api | `/api/jobs/outbox` | POST | `apps/web/src/app/api/jobs/outbox/route.ts` |
+| tenant | api | `/api/jobs/payments-version-watch` | POST | `apps/web/src/app/api/jobs/payments-version-watch/route.ts` |
 | tenant | api | `/api/jobs/reminders` | POST | `apps/web/src/app/api/jobs/reminders/route.ts` |
 | tenant | api | `/api/jobs/slo` | POST | `apps/web/src/app/api/jobs/slo/route.ts` |
 | tenant | api | `/api/me` | GET | `apps/web/src/app/api/me/route.ts` |
@@ -213,6 +215,7 @@ thing that makes "packs build over the kernel" a direction something can check.
 | `packages/configuration` | `@tenure/configuration` | `@tenure/audit` `@tenure/finops` |
 | `packages/contracts` | `@tenure/contracts` | — |
 | `packages/finops` | `@tenure/finops` | — |
+| `packages/generality-fixtures` | `@tenure/generality-fixtures` | — |
 | `packages/identity` | `@tenure/identity` | — |
 | `packages/metadata` | `@tenure/metadata` | — |
 | `packages/module-runtime` | `@tenure/module-runtime` | — |

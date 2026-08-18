@@ -305,10 +305,20 @@ the commands or the ADR that would unblock it — if it cannot.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
 
-- [ ] **IER-040-004** — Reject macro-enabled, active-content, external-link, embedded-object, and unsupported workbooks.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+## IER-040-004 — five refusals, each an exact string against an index rather than a guess
 
+- [x] **IER-040-004** — "Reject macro-enabled, active-content, external-link, embedded-object, and unsupported workbooks."
+  - Status: PASS
+  - What was open: the row. The control shipped with `apps/web/src/lib/ingestion/workbook-admission.ts` and its 23 tests, and IER-040-005's recorded row refers to "the three document/attachment surfaces listed under IER-040-004" — but this ledger's entry for it was still the seeded stub, so the count said nobody had looked. I read the requirement's five clauses against the code, re-proved it by mutation, and closed the one hole in its reach.
+  - Code: `apps/web/src/lib/ingestion/workbook-admission.ts` — `admitWorkbook`, `AdmissionRefusalReason`, `FORBIDDEN_PART_PATHS`, `FORBIDDEN_PART_PREFIXES`, `MACRO_ENABLED_MIMES`, `WORKBOOK_LIMITS`, over `zip-container.ts:readZipCentralDirectory`. Clause by clause: **macro-enabled** — `xl/vbaProject.bin` and `xl/macrosheets/` as exact index entries, plus the four macro-enabled MIMEs refused before a byte of the archive is read; **active content** — `xl/activeX/`; **external link** — `xl/externalLinks/`, which is a workbook whose values come from a file this server cannot see; **embedded object** — `xl/embeddings/` and `xl/oleObjects/`; **unsupported** — a compound-file (legacy binary, and password-protected packages arrive the same way), an archive with no workbook part however it is named, an encrypted member, a compression method it does not read, ZIP64, and a member name that would escape the package on extraction. The decision is an exact string comparison against the central directory, not a heuristic over bytes: the extension is a declaration, the macro is in the file, and the MIME is the one part of an upload the uploader fully controls — so it is used only to refuse, never to accept.
+  - Caller: `apps/web/src/lib/ingestion/safe-workbook.ts:276` calls it first and returns its refusal unchanged; `app/api/documents/_lib/content.ts:92` calls that, reached from `app/api/documents/[id]/content/route.ts:63`, `app/api/attachment/[id]/content/route.ts:48`, and `app/(app)/orgs/[slug]/documents/[id]/view/page.tsx:50`. **New in this pass:** a fourth surface. `components/finance/BudgetUpload.tsx` used to parse uploads in the browser with its own `XLSX.read`, so a macro-enabled workbook renamed `.xlsx` reached a parser with none of these checks; it now goes through `readTabularUpload` -> `readWorkbookSafely` -> `admitWorkbook` (`BudgetUpload.tsx:60`, mounted at `FinanceDashboard.tsx:373`, route `app/(app)/orgs/[slug]/finance/page.tsx:227`). A control that three of four doors honour is not a control.
+  - Tests: `apps/web/src/lib/ingestion/workbook-admission.test.ts` — 23 tests, of which the `IER-040-004` block is 10, plus the two admitted-workbook controls that stop it refusing everything (an ordinary workbook written by the parser this app ships, and a delimited file, which has no archive index to check).
+  - Evidence: `cd apps/web && ../../node_modules/.bin/jest src/lib/ingestion --ci` -> "Test Suites: 4 passed, 4 total / Tests: 71 passed, 71 total" (workbook-admission 23, safe-workbook 20, zip-container 9, tabular-import 19).
+  - Mutations (each applied alone, run, restored, re-run green):
+    - `["xl/externalLinks/", "EXTERNAL_LINK"]` -> `["xl/externalLinksZZ/", "EXTERNAL_LINK"]`: "Tests: 2 failed, 21 passed, 23 total" — "refuses a workbook whose values come from another file", and the canary test, which is the correct second failure: a part that is not refused is a part whose name reaches the caller
+    - `"application/vnd.ms-excel.sheet.macroEnabled.12"` -> `"…macroEnabled.13"`: "Tests: 1 failed, 22 passed, 23 total" — "refuses a declared macro-enabled MIME before it reads a byte of the archive"
+    - `["xl/vbaProject.bin", "MACRO_ENABLED"]` -> `["xl/vbaProjectX.bin", "MACRO_ENABLED"]`: "Tests: 2 failed, 21 passed, 23 total" — "refuses a macro project however the file is named"
+  - Restored: `diff -q` against the pre-mutation copy clean after each, and "Tests: 71 passed, 71 total" re-confirmed after the last restore. No guard was left disabled.
 ## IER-040-005 — six limits, five of them decided before anything is inflated
 
 - [x] **IER-040-005** — "Enforce file/row/column/cell/decompression/resource limits."
@@ -423,26 +433,68 @@ the commands or the ADR that would unblock it — if it cannot.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
 
-- [ ] **IER-070-001** — Implement typed deterministic versioned declarative eligibility policies.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+## IER-070-001 — eligibility is a declarative document with a canonical digest, and evaluating it is a pure function
 
-- [ ] **IER-070-002** — Validate all attribute references, types, source trust, and freshness.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+- [x] **IER-070-001** — "Implement typed deterministic versioned declarative eligibility policies."
+  - Status: PASS
+  - Code: `apps/web/src/lib/eligibility/policy.ts` — `EligibilityPolicy`, `AttributeDefinition`, `AttributeCatalog`, `Condition`, `Comparison`, `DenyRule`, `ConditionalRequirement`, `PolicyException`, `StagedRollout`, `UNKNOWN_BEHAVIOURS`, `SOURCE_ROLES`, `canonicalJson`, `canonicalDigest`, `compilePolicy`, `compilePolicyOrThrow`, `CompiledPolicy`. `apps/web/src/lib/eligibility/evaluate.ts` — `evaluate`, `grantsAccess`, `ELIGIBILITY_OUTCOMES` (the eight outcomes of Bible §2.2), `Decision`, `DecisionReceipt`. `apps/web/src/lib/eligibility/tenant-entry.ts` — `TENANT_ENTRY_CATALOG`, `TENANT_ENTRY_POLICY`, `COMPILED_TENANT_ENTRY_POLICY`, `tenantEntryFacts`, `tenantEntryEligibility`.
+  - Why it is *declarative*: there is no script and no expression parser. `Comparison` enumerates exactly three operators (`equals`, `in`, `evaluationTimeWithin`) and `Condition` adds `all` / `any` / `not`. A policy is data; §12.2's "typed declarative language, not arbitrary scripts" is a property of the type, not a convention.
+  - Why it is *versioned*: `version` plus `canonicalDigest`, a sha256 over `canonicalJson`, which sorts object keys at every depth. A policy re-saved by an editor that reorders fields keeps its digest; a policy whose conditions changed does not. `DecisionReceipt.policyDigest` carries it into every decision.
+  - Caller: `apps/web/src/app/api/me/route.ts:9` imports `tenantEntryEligibility`; `:74` calls it on every bootstrap request; `:119-125` puts `outcome`, `reasonCodes`, `remediation`, `policyId` and `policyDigest` in the response. `apps/web/src/lib/eligibility/tenant-entry.ts` compiles the shipped policy at module load through `compilePolicyOrThrow`, so a policy that does not compile is an import-time failure rather than a per-request denial.
+  - Tests: `apps/web/src/lib/eligibility/policy.test.ts`, `evaluate.test.ts`, `tenant-entry.test.ts`, `engine-purity.test.ts` — 59 tests, 4 suites, all passing.
+  - Evidence: `cd apps/web && npx jest src/lib/eligibility --ci` → `Test Suites: 4 passed, 4 total` / `Tests:       59 passed, 59 total`. `npx tsc --noEmit` → 6 error lines, 0 of them in `src/lib/eligibility` or `src/app/api/me` (the six are pre-existing, in `src/lib/payments/financial-redaction.ts` and `packages/provisioning/src/manifest-values.ts`, both other agents' in-flight files). `npx eslint src/lib/eligibility src/app/api/me/route.ts` → no output.
+  - Mutation: removed the `.sort(...)` line from `canonicalJson` → `Tests: 2 failed, 57 passed, 59 total`, failing both digest tests. Restored → `Tests: 59 passed, 59 total`.
+## IER-070-002 — a policy that references a typo, widens its own trust, or accepts a stale fact does not compile
 
-- [ ] **IER-070-003** — Support all/any/not, effective dates, explicit deny, exceptions, staged rollout, and expiry.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+- [x] **IER-070-002** — "Validate all attribute references, types, source trust, and freshness."
+  - Status: PASS
+  - Code: `apps/web/src/lib/eligibility/policy.ts` — `compilePolicy` and its helper `checkComparison`. Compile-time it refuses: an attribute in no catalog entry; a condition over an attribute the policy never declared trust and freshness for; `evaluationTimeWithin` on a non-interval attribute; a boolean compared against a string; a value that is not a member of an enum; an `in` over a boolean or interval; an `in` with no members; a protected attribute read with no stated lawful basis; `acceptedSourceRoles` wider than the catalog's; `maxAgeMs` older than the catalog's. Every problem carries the path inside the policy where it lives.
+  - Evaluation-time half, `apps/web/src/lib/eligibility/evaluate.ts` — `resolveAttribute`: a fact whose `sourceRole` the policy does not accept is skipped before it is read (not down-weighted), and a fact older than the requirement's `maxAgeMs` is marked stale and excluded, with `stale: true` recorded on the receipt's `sourceRevisions`. §12.2 asks for validation "at compile time **and** evaluation time" and both are present.
+  - Why trust and freshness live on the CATALOG and are only narrowable by a policy: they are properties of the fact, not of the question. A self-attested employment status is untrustworthy in every policy that reads it, so a policy widening its own acceptance would be granting itself trust the catalog withheld.
+  - Caller: `apps/web/src/lib/eligibility/tenant-entry.ts` runs `compilePolicyOrThrow(TENANT_ENTRY_POLICY, TENANT_ENTRY_CATALOG)` at module load, and that module is imported by `apps/web/src/app/api/me/route.ts:9`.
+  - Tests: `apps/web/src/lib/eligibility/policy.test.ts` — the `IER-070-002` describe block, 8 tests; plus `evaluate.test.ts` "a fact from a source role the policy does not accept is not read at all" and "a fact older than the policy's freshness applies onStale".
+  - Evidence: `cd apps/web && npx jest src/lib/eligibility --ci` → `Tests: 59 passed, 59 total`.
+  - Mutations, one at a time, each restored and re-run green: (1) source-trust check → `() => false` reds "refuses a policy that widens source trust beyond the catalog"; (2) freshness check → `if (false)` reds "refuses a policy that accepts a fact staler than the catalog permits"; (3) catalog lookup falls back to a real attribute reds "refuses an attribute that is in no catalog entry". Each: `Tests: 1 failed, 58 passed, 59 total` → restored `Tests: 59 passed, 59 total`.
+## IER-070-003 — all seven clauses of the policy language, including a deny an exception cannot walk past
 
-- [ ] **IER-070-004** — Define missing, stale, conflict, and unavailable-source behavior for every policy.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+- [x] **IER-070-003** — "Support all/any/not, effective dates, explicit deny, exceptions, staged rollout, and expiry."
+  - Status: PASS
+  - Code: `apps/web/src/lib/eligibility/evaluate.ts` — `evaluate`, `evaluateCondition`, `evaluateComparison`, `inRollout`, `timingOutcome`; `apps/web/src/lib/eligibility/policy.ts` — `Condition`, `DenyRule`, `PolicyException`, `StagedRollout`.
+    - **all / any / not** — `evaluateCondition`. `all` short-circuits on an *abort* but not on a false, so "we could not look" is never reported as "we looked and the answer was no"; `any` lets a satisfied branch make an unknown branch irrelevant, and otherwise reports the unknown rather than a denial.
+    - **effective dates** — two kinds, kept distinct. The POLICY's window (`activeFrom` / `expiresAt`) yields `POLICY_NOT_YET_ACTIVE` / `POLICY_EXPIRED`, both INDETERMINATE. The SUBJECT's interval, read through `evaluationTimeWithin`, yields §2.2's `PENDING_EFFECTIVE_DATE` and `EXPIRED` via `timingOutcome`, derived from the interval attribute the policy already reads rather than declared a second time.
+    - **explicit deny** — `DenyRule[]`, evaluated before conditions, exceptions and rollout, so no ordering of the rest can produce access a deny forbids. A rule carries `outcome: "INELIGIBLE" | "SUSPENDED"` because a liftable denial and a permanent one need different sentences.
+    - **exceptions** — applied *after* denies and before conditions: `"an exception cannot walk past an explicit deny"` is a test. Expiry is mandatory (`compilePolicy` refuses one without a parseable `expiresAt`: "an exception without an expiry is a permanent grant with paperwork"), and an expired exception is ignored.
+    - **staged rollout** — `inRollout` is FNV-1a over `${cohortSalt}:${policyId}:${subjectId}`, bucketed to 10 000. Deterministic by construction; 0 and 100 are absolute. A subject outside the cohort is INDETERMINATE, never ELIGIBLE.
+    - **expiry** — the policy's own `expiresAt`, and `compilePolicy` refuses a policy that expires before it activates.
+  - Caller: `apps/web/src/app/api/me/route.ts:74`, through `tenantEntryEligibility`. `tenure.tenant-entry.v1` uses two deny rules (`AFFILIATION_SUSPENDED` → SUSPENDED, `AFFILIATION_REVOKED` → INELIGIBLE) and a 100 % rollout with salt `tenant-entry-2026`.
+  - Tests: `apps/web/src/lib/eligibility/evaluate.test.ts` — the two `IER-070-003` describe blocks, 8 tests; `tenant-entry.test.ts` "distinguishes the five ways access can be absent".
+  - Evidence: `cd apps/web && npx jest src/lib/eligibility --ci` → `Tests: 59 passed, 59 total`.
+  - Mutations, one at a time, each restored and re-run green: deny loop disabled → 3 tests red; `inRollout`'s 0 % branch inverted → 2 tests red; policy activation check disabled → 1 test red.
+## IER-070-004 — four absences, four declared behaviours, and no policy may leave one unsaid
 
-- [ ] **IER-070-005** — Prohibit network calls, arbitrary code, hidden defaults, and nondeterminism in evaluation.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+- [x] **IER-070-004** — "Define missing, stale, conflict, and unavailable-source behavior for every policy."
+  - Status: PASS
+  - Code: `apps/web/src/lib/eligibility/policy.ts` — `UNKNOWN_BEHAVIOURS` (`INDETERMINATE`, `MANUAL_REVIEW_REQUIRED`, `INELIGIBLE`, `TREAT_AS_ABSENT`) and the four **required** fields `onMissing`, `onStale`, `onConflict`, `onSourceUnavailable` on `EligibilityPolicy`. `compilePolicy` re-checks all four at runtime, because System Studio can hand this compiler parsed JSON where the type system is not present — §12.2's "Prohibit hidden defaults" is exactly the rule that a policy which forgot to say what a stale HRIS feed means must not silently mean "carry on".
+  - Evaluation, `apps/web/src/lib/eligibility/evaluate.ts` — `resolveAttribute` returns `RESOLVED` / `MISSING` / `STALE` / `CONFLICT` as four distinct states, and `evaluateComparison` selects the matching declared behaviour. Reason codes name the state and the attribute (`MISSING:affiliation.status`, `STALE:…`, `CONFLICT:…`, `SOURCE_UNAVAILABLE:hris`), so the four are distinguishable by anyone reading a decision.
+    - A withheld or unknown fact is MISSING, not `false` — §2.2 keeps "unknown, null, not supplied, withheld, not applicable and explicitly false" distinct, and `Fact.presence` is why.
+    - Two accepted sources asserting different values is CONFLICT. §8.1: "Conflicting authoritative sources never resolve through last write wins" — so they do not resolve at all.
+    - `TREAT_AS_ABSENT` is the only behaviour that can still end in ELIGIBLE, which is why it has to be chosen deliberately rather than fallen into.
+  - Caller: `apps/web/src/app/api/me/route.ts:74`. `tenure.tenant-entry.v1` declares `onMissing: INDETERMINATE`, `onStale: INDETERMINATE`, `onConflict: MANUAL_REVIEW_REQUIRED`, `onSourceUnavailable: INDETERMINATE`; a person with no affiliation asserted at all is reported INDETERMINATE with `MISSING:affiliation.status`, not INELIGIBLE.
+  - Tests: `policy.test.ts` — the `IER-070-004` block, 5 tests (one per field via `it.each`, plus an unrecognised behaviour word); `evaluate.test.ts` — the `IER-070-004` block, 8 tests.
+  - Evidence: `cd apps/web && npx jest src/lib/eligibility --ci` → `Tests: 59 passed, 59 total`.
+  - Mutations, one at a time: disabling the declared-behaviour check → 5 tests red; collapsing the MISSING/STALE/CONFLICT choice to `onMissing` → 2 tests red. Both restored → `Tests: 59 passed, 59 total`.
+## IER-070-005 — the evaluation path cannot reach the network, a clock, or arbitrary code, and the guard is on the source
 
+- [x] **IER-070-005** — "Prohibit network calls, arbitrary code, hidden defaults, and nondeterminism in evaluation."
+  - Status: PASS
+  - Code: `apps/web/src/lib/eligibility/evaluate.ts` — `evaluate(compiled, request)` where `request` carries `now: Date`, every `Fact`, `tenantCapabilities` and `unavailableSources`. It reads no clock, no environment, no database and no random source; `inRollout` is FNV-1a, not a sample. `apps/web/src/lib/eligibility/policy.ts` — the language has no interpreter to escape from: `Comparison` enumerates three operators and `compilePolicy` caps the condition tree at `MAX_CONDITION_NODES = 64` (§12.2 "Cap expression complexity").
+  - The guard: `apps/web/src/lib/eligibility/engine-purity.test.ts` runs nine prohibition patterns over the shipped source of `policy.ts`, `evaluate.ts` and `tenant-entry.ts` — `fetch(`, `XMLHttpRequest` / `node:http(s)` / `from "http(s)"`, `new Function` / `eval(`, `Date.now(`, `new Date()`, `Math.random` / `randomUUID` / `randomBytes`, `process.env`, `await` / `async`, and `embedding|llm|anthropic|openai|similarity|confidence`. Comments are stripped first, because both the engine's prose and the guard's own prose name the constructs they forbid.
+  - Why a static guard and not only a behavioural test: a behavioural test shows today's engine is deterministic and cannot show tomorrow's is. A `fetch` added to check a licence registry, or `Date.now()` substituted for the injected clock, passes every test in `evaluate.test.ts` while making the decision unreproducible and the receipt a claim nobody can re-derive. The prohibition is on the CODE, so it is checked against the code.
+  - "Hidden defaults": no failure-behaviour field is optional or defaulted — see IER-070-004. `node:crypto`'s `createHash` is deliberately *not* prohibited: hashing a policy document is deterministic and is how the digest is produced.
+  - Caller: `apps/web/src/app/api/me/route.ts:74` supplies the clock explicitly (`now: new Date()` at the call site, not inside the engine), which is the shape that makes the decision replayable.
+  - Tests: `engine-purity.test.ts` — 5 tests (3 files × the pattern set, a non-empty-source check, and a positive control proving the patterns match a violating line); `evaluate.test.ts` "IER-070-005 — the same arguments produce the same decision" — 2 tests.
+  - Evidence: `cd apps/web && npx jest src/lib/eligibility --ci` → `Tests: 59 passed, 59 total`.
+  - Mutation: `const nowMs = request.now.getTime()` → `const nowMs = Date.now()` → `Test Suites: 2 failed, 2 passed, 4 total` / `Tests: 4 failed, 55 passed, 59 total`, one of them the purity guard on `evaluate.ts`. Restored → `Tests: 59 passed, 59 total`.
 - [ ] **IER-070-006** — Prohibit LLM/embedding/probabilistic output as final access condition.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
@@ -467,10 +519,19 @@ the commands or the ADR that would unblock it — if it cannot.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
 
-- [ ] **IER-070-012** — Fail closed on engine error or indeterminate high-risk decisions.
-  - Status: FAIL
-  - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented
+## IER-070-012 — an engine defect is a closed door with a name, and a high-risk unknown escalates
 
+- [x] **IER-070-012** — "Fail closed on engine error or indeterminate high-risk decisions."
+  - Status: PASS
+  - Code: `apps/web/src/lib/eligibility/evaluate.ts` — `evaluate`'s `catch`, `outcomeForBehaviour`, `grantsAccess`, and `EligibilityPolicy.risk` in `policy.ts`.
+    - **Engine error.** `evaluate` never throws. Any defect inside it becomes `INDETERMINATE` with reason code `ENGINE_ERROR`. The catch is the requirement, not defensive habit: a thrown exception inside an authorization path is an outage in one caller and an unchecked `catch` that continues in the next. The receipt is still written — `evaluatedAt` falls back to `INVALID_EVALUATION_CLOCK` rather than throwing on `toISOString()` of an invalid Date, so the one failure mode that would have turned a closed door into an unhandled exception is closed too.
+    - **Indeterminate high-risk.** `outcomeForBehaviour` maps INDETERMINATE to `MANUAL_REVIEW_REQUIRED` when `risk === "HIGH"`. §8.1: privileged, regulated, financial, payroll, production or safety access "fails closed or requires protected review when its source becomes stale". Neither outcome grants anything; the difference is whether a person is asked.
+    - **No outcome is mistaken for access.** `grantsAccess` returns true for `ELIGIBLE` alone, exported precisely so no caller writes its own `outcome === … || …` list and gets it wrong. `CONDITIONALLY_ELIGIBLE` is deliberately false — the conditions ARE the access, and "conditionally" means they are unmet.
+    - Gate 1 fails closed too: a tenant capability that is not entitled is `INELIGIBLE` with `TENANT_CAPABILITY_NOT_ENTITLED`, however eligible the person is (§2.1).
+  - Caller: `apps/web/src/app/api/me/route.ts:74`; the outcome and reason codes reach the response at `:119-125`.
+  - Tests: `evaluate.test.ts` — the `IER-070-012` block, 5 tests (missing capability; HIGH vs LOW escalation; a facts getter that throws when walked; an unusable evaluation clock; `grantsAccess`). `tenant-entry.test.ts` — "refuses gate 2 when the tenant is not entitled to a workspace at all".
+  - Evidence: `cd apps/web && npx jest src/lib/eligibility --ci` → `Tests: 59 passed, 59 total`.
+  - Mutations, one at a time, each restored and re-run green: HIGH-risk escalation removed → 1 test red; the catch replaced with a rethrow → 1 test red.
 - [ ] **IER-080-001** — Implement desired-versus-actual access reconciliation.
   - Status: FAIL
   - Reason: imported from `Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md`; not yet implemented

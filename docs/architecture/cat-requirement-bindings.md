@@ -5,7 +5,7 @@
 
 Closes **CAT-000-004** — every `CAT-*` requirement in `docs/implementation/connection-composer-execution-ledger.md` bound to the 9 surfaces the requirement names, each with the document that governs it, the ledger that tracks it and code that exists today. `tests/architecture/cat-requirement-bindings.test.mjs` opens every path below.
 
-A binding says where a requirement's work is jointly owned. It does not say the work is done: 9 of 59 `CAT-*` requirements are closed (`CAT-000-001`, `CAT-000-002`, `CAT-000-003`, `CAT-000-004`, `CAT-010-001`, `CAT-010-002`, `CAT-010-003`, `CAT-010-004`, `CAT-010-005`) and the rest are `FAIL` — the binding is what makes it possible to say where.
+A binding says where a requirement's work is jointly owned. It does not say the work is done: 14 of 59 `CAT-*` requirements are closed (`CAT-000-001`, `CAT-000-002`, `CAT-000-003`, `CAT-000-004`, `CAT-010-001`, `CAT-010-002`, `CAT-010-003`, `CAT-010-004`, `CAT-010-005`, `CAT-050-001`, `CAT-050-004`, `CAT-060-001`, `CAT-060-002`, `CAT-060-003`) and the rest are `FAIL` — the binding is what makes it possible to say where.
 
 ## The 9 surfaces, in CAT-000-004's own words
 

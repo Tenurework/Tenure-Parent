@@ -1,0 +1,39 @@
+{
+  "id": "prevent-public-resources",
+  "title": "The account-wide public-access guards cannot be switched off, and nothing is shared with everyone",
+  "attach_to": ["Root"],
+  "why": "Every one of these is an action whose only purpose is to make something readable by people who have no account. There is no legitimate deployment that needs them, so the boundary costs nothing to hold.",
+  "sourced_from": [
+    "Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md — GE-010-005, 'public resource prevention'",
+    "docs/architecture/aws-inventory.json — three S3 buckets, two of them holding tenant documents and exports"
+  ],
+  "limits": [
+    "A security group opened to 0.0.0.0/0 is NOT expressible here: an SCP condition cannot read a CIDR out of an ec2:AuthorizeSecurityGroupIngress request. That case is caught before the apply by the public-access detector in tools/iac-plan-review.mjs, and after it by Config. Naming the hole is the point — a guardrail set that implies it covers this would be worse than one that does not.",
+    "s3:PutBucketPublicAccessBlock is deliberately NOT denied. It is how a bucket is created private, and denying it would stop the estate creating buckets safely while stopping nobody from creating them unsafely."
+  ],
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DenyRemovingAccountPublicAccessBlock",
+        "Effect": "Deny",
+        "Action": [
+          "s3:PutAccountPublicAccessBlock",
+          "s3:DeleteAccountPublicAccessBlock"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DenySharingImagesAndSnapshotsWithEveryone",
+        "Effect": "Deny",
+        "Action": [
+          "ec2:ModifyImageAttribute",
+          "ec2:ModifySnapshotAttribute",
+          "rds:ModifyDBSnapshotAttribute",
+          "rds:ModifyDBClusterSnapshotAttribute"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }
+}

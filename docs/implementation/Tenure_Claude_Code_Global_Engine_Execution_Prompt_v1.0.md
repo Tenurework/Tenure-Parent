@@ -151,7 +151,7 @@ Use this evidence shape:
 - [x] GE-010-002 — Model or reconcile Management, Security, Log Archive, Infrastructure, Tenure Parent, Nonproduction, Production Cells, Dedicated Tenants, and Quarantine OUs/accounts.
 - [ ] GE-010-003 — Ensure management account has no product workload and root has governed MFA/no routine access keys, verified only through permitted metadata.
 - [ ] GE-010-004 — Establish Control Tower/Account Factory or equivalent account-vending baseline with organization trail/config, delegated security admin, required contacts/tags/budgets, backup, IAM boundaries, and deployment roles.
-- [ ] GE-010-005 — Define SCPs/guardrails for region restrictions, public resource prevention, disabling security services, leaving organization, root use, unapproved IAM escalation, and required evidence—tested for operational safety.
+- [x] GE-010-005 — Define SCPs/guardrails for region restrictions, public resource prevention, disabling security services, leaving organization, root use, unapproved IAM escalation, and required evidence—tested for operational safety.
 - [ ] GE-010-006 — Separate production/nonproduction/security/log workloads and prove nonproduction roles cannot reach production resources.
 - [x] GE-010-007 — Define partition-aware account abstraction for commercial, GovCloud, and sovereign deployments without pretending unavailable services exist.
 
@@ -169,7 +169,7 @@ Use this evidence shape:
 
 - [x] GE-012-001 — Establish deterministic environment/account/partition/region/cell configuration with schema validation and no business-code hard-coding.
 - [ ] GE-012-002 — Implement foundational KMS, artifact registry, logs, CloudTrail/Config delivery, security-service integration, VPC/network, DNS/certificates, Secrets Manager namespaces, backup policies, and cost tags.
-- [ ] GE-012-003 — Add IaC plan/change-set generation, destructive/replacement/public-access/privilege-expansion detectors, policy scans, cost estimate, and immutable evidence.
+- [x] GE-012-003 — Add IaC plan/change-set generation, destructive/replacement/public-access/privilege-expansion detectors, policy scans, cost estimate, and immutable evidence.
 - [ ] GE-012-004 — Deploy and verify development foundation through OIDC. Test rollback and drift detection.
 - [ ] GE-012-005 — Deploy verified staging foundation from the same templates and tested artifact/config versions.
 
@@ -323,9 +323,9 @@ Use this evidence shape:
 ### GE-052: Generality fixtures
 
 - [ ] GE-052-001 — Implement Simon/OSE tenant config using confirmed terms and VP → President → OSE configurable approval flow without core hard-coding.
-- [ ] GE-052-002 — Implement corporate fixture: Company → Region → Business Unit → Department → Team; Analyst → Manager → Director → Executive.
-- [ ] GE-052-003 — Implement corporate purchase workflow with amount thresholds, department/finance/procurement approvals, delegation, and self-approval denial.
-- [ ] GE-052-004 — Prove both fixtures use identical schemas, services, authorization, workflows, and deployment paths.
+- [x] GE-052-002 — Implement corporate fixture: Company → Region → Business Unit → Department → Team; Analyst → Manager → Director → Executive.
+- [x] GE-052-003 — Implement corporate purchase workflow with amount thresholds, department/finance/procurement approvals, delegation, and self-approval denial.
+- [x] GE-052-004 — Prove both fixtures use identical schemas, services, authorization, workflows, and deployment paths.
 
 ### GE-053: Authorization tests
 
@@ -333,7 +333,7 @@ Use this evidence shape:
 - [ ] GE-053-002 — Assignment effective boundaries, title/org changes, vacancy, former/alumni, and historical no-authority behavior pass.
 - [x] GE-053-003 — Delegation cannot exceed source authority, scope, time, resource, action, or non-delegable rules.
 - [ ] GE-053-004 — Multi-seat and multi-tenant authority remains isolated; switching context rotates/revalidates session.
-- [ ] GE-053-005 — Terminology changes do not change semantic permission behavior.
+- [x] GE-053-005 — Terminology changes do not change semantic permission behavior.
 - [ ] GE-053-006 — Membership/assignment/policy/delegation revocation invalidates access and caches immediately.
 - [x] GE-053-007 — Tenant A/B cross-tenant tests deny every organization/seat/membership/delegation/policy path.
 
@@ -622,7 +622,7 @@ Use this evidence shape:
 ### GE-100: Tenant manifest
 
 - [ ] GE-100-001 — Define complete versioned tenant manifest covering legal/display identity, plan/modules/limits, region/residency, isolation, recovery, organization/seat, terminology, permissions, workflows, entities/forms, reports, branding/localization, identity, integrations, retention, Relay, observability, support, and billing.
-- [ ] GE-100-002 — Separate confirmed values, defaults, optional values, externally required values, secret references, and forbidden placeholders.
+- [x] GE-100-002 — Separate confirmed values, defaults, optional values, externally required values, secret references, and forbidden placeholders.
 - [ ] GE-100-003 — Implement deterministic render/digest/signature, compatibility, uniqueness, dependency, cost, risk, and regional service/model availability validation.
 - [ ] GE-100-004 — Generate human-readable plan/diff, infrastructure/config impact, data migration, expected cost, tests, approvals, and rollback.
 
@@ -661,7 +661,7 @@ Use this evidence shape:
 - [ ] GE-103-010 — Inventory and handle every retained/billable byte or control resource: S3 objects/versions/replicas/multipart, snapshots/backups, audit/legal hold, analytics, AI derivatives, logs/alarms, Secrets Manager, KMS keys/grants, Route 53, and dedicated-account security/baseline resources.
 - [ ] GE-103-011 — For pooled tenants, remove tenant routing/jobs/schema/database/storage/index/key/secret/backup/dedicated resources while preserving shared cell resources required by active tenants; measure zero incremental tenant runtime rather than falsely claiming global zero.
 - [ ] GE-103-012 — Show all residual hibernation charges and exact reason. `HIBERNATED_ZERO_RUNTIME` may retain priced recovery/storage/evidence and must never be displayed as $0 if it is not.
-- [ ] GE-103-013 — Implement `PURGED_ZERO_INCREMENTAL_COST` only after complete export/contract/retention/legal-hold/tax/audit/cooling-off checks and a separate protected destructive human approval.
+- [x] GE-103-013 — Implement `PURGED_ZERO_INCREMENTAL_COST` only after complete export/contract/retention/legal-hold/tax/audit/cooling-off checks and a separate protected destructive human approval.
 - [ ] GE-103-014 — Purge every tenant-specific billable resource and retained byte, expire backups/replicas/versions/archives, remove keys/secrets/DNS/endpoints/indexes, and close a dedicated Tenure account only when no required evidence remains.
 - [ ] GE-103-015 — Retain only a minimal non-content Parent tombstone: tenant ID, lifecycle timestamps, purge-manifest digest, approvals, and evidence reference. It must contain no recoverable customer content.
 - [ ] GE-103-016 — Reconcile tags/application inventory/IaC/account resources after hibernation/purge and create orphan findings with service, resource, account/region, owner, reason, expected cost, and corrective action.

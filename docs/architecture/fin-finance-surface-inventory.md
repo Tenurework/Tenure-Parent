@@ -12,11 +12,11 @@ node tools/fin-finance-surface.mjs --check   # fail if it is stale
 ## What was measured
 
 - Roots scanned for `.ts`/`.tsx`/`.mjs`: `apps/web/src`, `apps/web/e2e`, `apps/system-studio/src`, `apps/system-studio/e2e`, `packages`, `modules`.
-- Finance surface: **111 files** — 58 source, 47 unit/integration test, 6 e2e.
-- Facet hits (a file can match several): budget 9 · expense 3 · ledger 13 · payment 48 · cost 39 · finance 15.
+- Finance surface: **125 files** — 64 source, 55 unit/integration test, 6 e2e.
+- Facet hits (a file can match several): budget 9 · expense 3 · ledger 13 · payment 62 · cost 39 · finance 18.
 - Finance-bearing tables in `apps/web/prisma/schema.prisma`: **10**.
 - Bible §3.2 canonical accounting objects present as tables: **0 of 20** — none. A further 1 (`Account`) has its name taken by an unrelated model, which is a migration hazard and is not coverage.
-- Capability claims: **30** — 13 TRUE, 14 SCOPED, 3 OVERSTATED, 0 UNADJUDICATED.
+- Capability claims: **31** — 13 TRUE, 14 SCOPED, 3 OVERSTATED, 1 UNADJUDICATED.
 
 ## A. The finance surface
 
@@ -64,6 +64,8 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx` | tenant | source | finance |
 | `apps/web/src/app/(app)/reports/finance/page.tsx` | tenant | source | finance |
 | `apps/web/src/app/api/ai/chat/model-budget.test.ts` | tenant | test | budget |
+| `apps/web/src/app/api/jobs/payments-version-watch/route.test.ts` | tenant | test | payment |
+| `apps/web/src/app/api/jobs/payments-version-watch/route.ts` | tenant | source | payment |
 | `apps/web/src/app/api/payments/provider-events/route.ts` | tenant | source | payment |
 | `apps/web/src/app/api/templates/budget/route.ts` | tenant | source | budget |
 | `apps/web/src/app/api/templates/budget/target-spread.test.ts` | tenant | test | budget |
@@ -79,10 +81,13 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `apps/web/src/lib/finance-tie-out.test.ts` | tenant | test | finance |
 | `apps/web/src/lib/finance.test.ts` | tenant | test | finance |
 | `apps/web/src/lib/finance.ts` | tenant | source | finance |
+| `apps/web/src/lib/payments/audit-evidence-wired.test.ts` | tenant | test | payment |
 | `apps/web/src/lib/payments/authority-attacks.test.ts` | tenant | test | payment |
 | `apps/web/src/lib/payments/delegation-expiry-wired.test.ts` | tenant | test | payment |
+| `apps/web/src/lib/payments/financial-redaction.ts` | tenant | source | payment, finance |
 | `apps/web/src/lib/payments/ledger-attribution.itest.ts` | tenant | test | ledger, payment |
 | `apps/web/src/lib/payments/movement-gate.ts` | tenant | source | payment |
+| `apps/web/src/lib/payments/prompt-redaction.test.ts` | tenant | test | payment |
 | `apps/web/src/lib/relay/payments-claim-review.ts` | tenant | source | payment |
 | `packages/finops/src/allocation.ts` | shared | source | cost |
 | `packages/finops/src/finops.test.ts` | shared | test | cost |
@@ -106,6 +111,9 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `packages/payments/src/api-version.ts` | shared | source | payment |
 | `packages/payments/src/balance-transactions.test.ts` | shared | test | payment |
 | `packages/payments/src/balance-transactions.ts` | shared | source | payment |
+| `packages/payments/src/capability-api-versions.test.ts` | shared | test | payment |
+| `packages/payments/src/capability-gates.test.ts` | shared | test | payment |
+| `packages/payments/src/capability-gates.ts` | shared | source | payment |
 | `packages/payments/src/capability-registry.test.ts` | shared | test | payment |
 | `packages/payments/src/capability-registry.ts` | shared | source | payment |
 | `packages/payments/src/capability-states.test.ts` | shared | test | payment |
@@ -115,9 +123,13 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `packages/payments/src/eligibility.ts` | shared | source | payment |
 | `packages/payments/src/external-reference.test.ts` | shared | test | payment |
 | `packages/payments/src/external-reference.ts` | shared | source | payment |
+| `packages/payments/src/financial-identifiers.test.ts` | shared | test | payment, finance |
+| `packages/payments/src/financial-identifiers.ts` | shared | source | payment, finance |
 | `packages/payments/src/funds-flow.test.ts` | shared | test | payment |
 | `packages/payments/src/funds-flow.ts` | shared | source | payment |
 | `packages/payments/src/gateway.ts` | shared | source | payment |
+| `packages/payments/src/high-risk-actions.test.ts` | shared | test | payment |
+| `packages/payments/src/high-risk-actions.ts` | shared | source | payment |
 | `packages/payments/src/index.ts` | shared | source | payment |
 | `packages/payments/src/liability.test.ts` | shared | test | payment |
 | `packages/payments/src/liability.ts` | shared | source | payment |
@@ -132,6 +144,8 @@ Every file whose POSIX path matches a finance facet. `plane` is derived from the
 | `packages/payments/src/refusal.ts` | shared | source | payment |
 | `packages/payments/src/responsibility.test.ts` | shared | test | payment |
 | `packages/payments/src/responsibility.ts` | shared | source | payment |
+| `packages/payments/src/version-watch.test.ts` | shared | test | payment |
+| `packages/payments/src/version-watch.ts` | shared | source | payment |
 | `packages/payments/src/webhook.test.ts` | shared | test | payment |
 | `packages/payments/src/webhook.ts` | shared | source | payment |
 | `packages/platform-config/src/money.ts` | shared | source | ledger |
@@ -209,6 +223,7 @@ Every term from the Bible's capability vocabulary uttered anywhere in the surfac
 | `packages/payments/src/charge-model.ts` | subledger | 1 | OVERSTATED | A blocker message tells the caller to 'post it to the internal subledger instead'. No subledger exists — there is one LedgerEntry table and no subledger document or entry at all. FIN-000-003. |
 | `packages/payments/src/eligibility.ts` | legal entity | 2 | SCOPED | The legal-entity TYPE a capability is declared for. A type, not an entity. |
 | `packages/payments/src/funds-flow.ts` | legal entity | 1 | SCOPED | Quotes the Payments Bible on direct flow. Describes the intended arrangement, claims no model. |
+| `packages/payments/src/high-risk-actions.ts` | legal entity | 1 | UNADJUDICATED | No verdict recorded. FIN-000-001 requires every claim to be adjudicated. |
 | `packages/payments/src/limits.ts` | legal entity | 1 | SCOPED | One sentence of a doc comment on `recipientKey`, explaining that `null` means a movement between two dimensions of ONE legal entity rather than a payment to somebody. It names the boundary the null case sits inside; it does not claim this package models legal entities, and nothing here holds one. PAY-000-004. |
 | `packages/payments/src/posting.ts` | legal entity | 1 | SCOPED | The header QUOTES Bible §13 — templates 'versioned by legal entity, ledger/book, transaction type, provider flow, currency, tax and effective date' — and attributes it. What POSTING_TEMPLATES actually versions by is effective date and currency; the other five axes do not exist. Attributed, so not a false claim, but a reader skimming it will over-read the code. FIN-000-002. |
 | `packages/payments/src/prohibited-claims.test.ts` | legal entity | 1 | TRUE | The test that proves the rule above fires, using the sentence 'Tenure is not the merchant of record; the tenant legal entity is.' Same subject, and it is exercised rather than asserted. |
@@ -219,6 +234,6 @@ Every term from the Bible's capability vocabulary uttered anywhere in the surfac
 
 ## What this inventory says
 
-The platform has real finance code — 111 files and 10 money-bearing tables — and it is club budgeting, reimbursement and payment-provider plumbing, not accounting. Money is integer minor units end to end, a posting is a balanced journal, and a posted entry is corrected by a reversal rather than a delete. Above that line there is nothing: 20 of the 20 objects the Bible names as the minimum are not there, including every one that makes a ledger a ledger — `Journal`, `Ledger`, `Book`, `Account`, `Period`.
+The platform has real finance code — 125 files and 10 money-bearing tables — and it is club budgeting, reimbursement and payment-provider plumbing, not accounting. Money is integer minor units end to end, a posting is a balanced journal, and a posted entry is corrected by a reversal rather than a delete. Above that line there is nothing: 20 of the 20 objects the Bible names as the minimum are not there, including every one that makes a ledger a ledger — `Journal`, `Ledger`, `Book`, `Account`, `Period`.
 
-Of 30 capability claims, 3 are OVERSTATED. They are not marketing copy; they are comments and blocker messages that name objects nobody has built, which is the exact failure this inventory exists to find. Each is cited in the table above with the requirement that would make it true.
+Of 31 capability claims, 3 are OVERSTATED. They are not marketing copy; they are comments and blocker messages that name objects nobody has built, which is the exact failure this inventory exists to find. Each is cited in the table above with the requirement that would make it true.

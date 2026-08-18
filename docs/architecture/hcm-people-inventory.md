@@ -104,17 +104,22 @@ file is not counted, which is stated here rather than papered over.
 | `apps/web/src/lib/org/projection.test.ts` | yes | `validateTopology` |
 | `apps/web/src/lib/org/projection.ts` | no | `OrgGraph`, `OrgTopology`, `OrgUnitInput`, `buildOrgGraph` |
 | `apps/web/src/lib/people/seat-memory-boundary.ts` | no | `Classification`, `ClassifiedResource`, `HandoverSummary`, `InheritanceClass`, `ReleaseDecision`, `SuccessionContext`, `planHandover`, `releaseToSuccessor` |
+| `apps/web/src/lib/workflows/generality-parity.test.ts` | yes | `OrgUnitInput`, `buildOrgGraph`, `validateTopology` |
 | `blueprints/types.ts` | no | `OrgTopology` |
+| `packages/generality-fixtures/src/corporate-org.test.ts` | yes | `OrgGraphError`, `buildOrgGraph`, `typeHoldsSeats` |
+| `packages/generality-fixtures/src/corporate-org.ts` | no | `OrgGraph`, `OrgTopology`, `OrgUnitInput`, `buildOrgGraph`, `typeHoldsSeats` |
+| `packages/generality-fixtures/src/corporate-purchase.test.ts` | yes | `Delegation` |
+| `packages/generality-fixtures/src/corporate-purchase.ts` | no | `Delegation`, `DelegationVerdict`, `delegationAllows` |
 | `packages/platform-config/src/build-system.ts` | no | `validateTopology` |
 
-**76 of the 89 exported symbols are imported by nothing outside the package.**
-13 are reached by non-test code.
+**71 of the 89 exported symbols are imported by nothing outside the package.**
+17 are reached by non-test code.
 
 Attributed to the source module each symbol is exported from — derived from
 `index.ts`'s own `from "./module"` grouping, so this sentence cannot go stale
 the way a hand-written one did:
 
-- reached by non-test code: `continuity` (1/20), `graph` (3/8), `succession-release` (7/13), `topology` (2/9)
+- reached by non-test code: `continuity` (4/20), `graph` (3/8), `succession-release` (7/13), `topology` (3/9)
 - reached by nothing outside the package: `assignment-states`, `bitemporal`, `position-lifecycle`
 
 So the modelling that would answer "what did the organisation look like in
@@ -131,16 +136,13 @@ Reached by nothing outside `packages/organization-model`:
 - `CorrectionOutcome`
 - `CorrectionRefusal`
 - `Dated`
-- `Delegation`
 - `DelegationRefusal`
-- `DelegationVerdict`
 - `EndOutcome`
 - `EndRefusal`
 - `EndableAssignment`
 - `HistoryEntry`
 - `LivePosition`
 - `OperationContext`
-- `OrgGraphError`
 - `OrgRelationInput`
 - `OrgRelationType`
 - `OrgSnapshot`
@@ -175,7 +177,6 @@ Reached by nothing outside `packages/organization-model`:
 - `attachmentSurvivesTurnover`
 - `correct`
 - `decisionDrifted`
-- `delegationAllows`
 - `endAssignment`
 - `factHistory`
 - `findAssignmentState`
@@ -195,7 +196,6 @@ Reached by nothing outside `packages/organization-model`:
 - `succeedsTo`
 - `teamConfers`
 - `transferPosition`
-- `typeHoldsSeats`
 - `typeOf`
 - `unfreezePosition`
 - `validateAssignmentCatalog`

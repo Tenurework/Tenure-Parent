@@ -85,7 +85,7 @@ Section 6 of the Bible states 8 connected planning domains.
 | `6.5 Capital and project planning` | 5 | **none** | Absent. No initiative or project proposal, no stage gate, no NPV/IRR/payback calculation. |
 | `6.6 Cash, treasury and liquidity planning` | 5 | **none** | Absent. Payments and treasury movements are recorded — see the payments ledger — but nothing plans receipts, disbursements, debt or FX forward. |
 | `6.7 Strategic, scenario and OKR planning` | 4 | **none** | Absent. No objective, key result, strategic target or initiative object. |
-| `6.8 Nonprofit/public/education planning` | 2 | `parseBudgetSheet` (5), `rollUpPortfolio` (3) | Partial, and it is the only domain with anything real. Club budget proposals (`parseBudgetSheet` turns an uploaded sheet into lines), a cross-club view (`rollUpPortfolio` behind the institution finance report) and approval exist. Fund/grant, donor restriction, appropriation, enrollment and public-service outcome planning do not. The probes that hit prove those two capabilities exist; they prove nothing about the five that do not. |
+| `6.8 Nonprofit/public/education planning` | 2 | `parseBudgetSheet` (6), `rollUpPortfolio` (3) | Partial, and it is the only domain with anything real. Club budget proposals (`parseBudgetSheet` turns an uploaded sheet into lines), a cross-club view (`rollUpPortfolio` behind the institution finance report) and approval exist. Fund/grant, donor restriction, appropriation, enrollment and public-service outcome planning do not. The probes that hit prove those two capabilities exist; they prove nothing about the five that do not. |
 
 ### Probes that were tried and rejected
 
@@ -113,7 +113,7 @@ evidence and behaves as churn.
 
 Where `6.8 Nonprofit/public/education planning` hit, in full:
 
-- `parseBudgetSheet` — `apps/web/src/app/api/templates/budget/route.ts`, `apps/web/src/app/api/templates/budget/target-spread.test.ts`, `apps/web/src/components/finance/BudgetUpload.tsx`, `apps/web/src/lib/finance.test.ts`, `apps/web/src/lib/finance.ts`
+- `parseBudgetSheet` — `apps/web/src/app/api/templates/budget/route.ts`, `apps/web/src/app/api/templates/budget/target-spread.test.ts`, `apps/web/src/components/finance/BudgetUpload.tsx`, `apps/web/src/lib/finance.test.ts`, `apps/web/src/lib/finance.ts`, `apps/web/src/lib/ingestion/tabular-import.test.ts`
 - `rollUpPortfolio` — `apps/web/src/app/(app)/reports/finance/page.tsx`, `apps/web/src/lib/finance.test.ts`, `apps/web/src/lib/finance.ts`
 
 ## 3. Forecast limitations

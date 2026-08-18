@@ -31,9 +31,44 @@ import {
   type ExecutionContext,
   type StepRun,
 } from "./execute"
+import { purgeClearance } from "./purge-gate"
+import { C7_COOLING_OFF_MS } from "./change-class"
+
+
 
 const OPERATOR = { principalId: "dana@tenure.example", at: "2026-08-01T00:00:00.000Z" }
 const SECOND = "ravi@tenure.example"
+
+/**
+ * GE-103-013. `advance` now refuses `PURGE_PENDING → PURGING` without a
+ * complete purge clearance, so the tests below that exercise the APPROVAL rule
+ * on that edge have to carry one — otherwise they would be asserting the
+ * approval refusal against a transition that is refused for a different reason.
+ * The clearance itself is proven in `purge-exit.test.ts`.
+ */
+const CLEARED = purgeClearance(
+  {
+    slug: "midtown-arts",
+    exportOutcome: { taken: true, completedAt: "2026-07-01T00:00:00.000Z", digest: "e3b0c442" },
+    contract: { endedAt: "2026-06-30T00:00:00.000Z", obligationsDischarged: true },
+    retention: [],
+    legalHold: { active: false },
+    tax: [],
+    audit: { evidenceRef: "s3://tenure-audit/purges/midtown", retainedUntil: "2036-01-01T00:00:00.000Z" },
+    coolingOff: {
+      requestedAt: new Date(Date.parse(OPERATOR.at) - C7_COOLING_OFF_MS - 1000).toISOString(),
+      requestedBy: OPERATOR.principalId,
+    },
+    approval: {
+      requestedBy: OPERATOR.principalId,
+      approvedBy: SECOND,
+      approverIsOperator: true,
+      typedConfirmation: "midtown-arts",
+      performedBy: SECOND,
+    },
+  },
+  OPERATOR.at,
+)
 
 const manifest = (over: Partial<TenantManifest> = {}): TenantManifest => ({
   manifestVersion: MANIFEST_VERSION,
@@ -108,7 +143,14 @@ describe("lifecycle", () => {
       ["PURGE_PENDING", "PURGING"],
     ] as const) {
       expect(() => advance(from, to, { actor: OPERATOR })).toThrow(/requires a recorded approver/)
-      expect(advance(from, to, { actor: OPERATOR, approvedBy: SECOND, approverIsOperator: true }).state).toBe(to)
+      expect(
+        advance(from, to, {
+          actor: OPERATOR,
+          approvedBy: SECOND,
+          approverIsOperator: true,
+          ...(to === "PURGING" ? { purgeClearance: CLEARED } : {}),
+        }).state,
+      ).toBe(to)
 
       // An approver nobody looked up is a free-text field. Before this check,
       // `approvedBy="x@y.z"` satisfied PURGE_PENDING → PURGING — one operator

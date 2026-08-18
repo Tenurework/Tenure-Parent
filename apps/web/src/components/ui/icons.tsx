@@ -48,6 +48,8 @@ export {
   SquaresFour as LayoutDashboard,
   GridFour as LayoutGrid,
   Lightbulb,
+  // The drawer toggle's open state. It drew its own hamburger before GE-143-007.
+  List,
   LinkSimple as Link2,
   ListChecks as ListTodo,
   // The two density modes on /settings — comfortable rows vs. tight rows.

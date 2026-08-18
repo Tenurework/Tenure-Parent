@@ -29,10 +29,10 @@ by_prefix:
   TTES: 34
   WRK: 88
 by_status:
-  BLOCKED_EXTERNAL: 31
-  FAIL: 1951
+  BLOCKED_EXTERNAL: 30
+  FAIL: 1914
   NOT_APPLICABLE: 1
-  PASS: 282
+  PASS: 320
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -502,7 +502,7 @@ requirements:
     prefix: CAT
     source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
     section: "CAT-050 — Major workspace catalog"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/connection-composer-execution-ledger.md"
@@ -529,7 +529,7 @@ requirements:
     prefix: CAT
     source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
     section: "CAT-050 — Major workspace catalog"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/connection-composer-execution-ledger.md"
@@ -538,7 +538,7 @@ requirements:
     prefix: CAT
     source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
     section: "CAT-060 — Horizontal enterprise catalog"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/connection-composer-execution-ledger.md"
@@ -547,7 +547,7 @@ requirements:
     prefix: CAT
     source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
     section: "CAT-060 — Horizontal enterprise catalog"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/connection-composer-execution-ledger.md"
@@ -556,7 +556,7 @@ requirements:
     prefix: CAT
     source_document: Tenure_Global_Deployer_Integration_Catalog_and_Tenant_Connection_Composer_Claude_Bible_v1.0.md
     section: "CAT-060 — Horizontal enterprise catalog"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/connection-composer-execution-ledger.md"
@@ -934,7 +934,7 @@ requirements:
     prefix: CFG
     source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
     section: "CFG-020 — Declarative schema and rule runtime"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
@@ -970,7 +970,7 @@ requirements:
     prefix: CFG
     source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
     section: "CFG-030 — Graph compiler and incremental evaluation"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
@@ -988,7 +988,7 @@ requirements:
     prefix: CFG
     source_document: Tenure_Declarative_Tenant_Configurator_and_Deployer_UX_Claude_Bible_v1.0.md
     section: "CFG-030 — Graph compiler and incremental evaluation"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/declarative-configurator-execution-ledger.md"
@@ -1573,7 +1573,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-000 — Authority, source documents, and baseline"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -1636,7 +1636,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-010 — Implementation Control Plane"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2077,7 +2077,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-060 — Migration factory"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2392,7 +2392,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-090 — E2E testing and UAT"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2446,7 +2446,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-100 — Cutover and go-live"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2455,7 +2455,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-100 — Cutover and go-live"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2482,7 +2482,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-100 — Cutover and go-live"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2500,7 +2500,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-100 — Cutover and go-live"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -3670,7 +3670,7 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-010: Tenure-owned landing zone"
-    status: BLOCKED_EXTERNAL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -3679,10 +3679,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-010: Tenure-owned landing zone"
-    status: FAIL
+    status: BLOCKED_EXTERNAL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: Separate production/nonproduction/security/log workloads and prove nonproduction roles cannot reach production resources.
   - id: "GE-010-007"
     prefix: GE
@@ -3778,7 +3778,7 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-012: Foundation IaC"
-    status: BLOCKED_EXTERNAL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -4570,28 +4570,28 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-052: Generality fixtures"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement corporate fixture: Company → Region → Business Unit → Department → Team; Analyst → Manager → Director → Executive."
   - id: "GE-052-003"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-052: Generality fixtures"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement corporate purchase workflow with amount thresholds, department/finance/procurement approvals, delegation, and self-approval denial."
   - id: "GE-052-004"
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-052: Generality fixtures"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Prove both fixtures use identical schemas, services, authorization, workflows, and deployment paths."
   - id: "GE-053-001"
     prefix: GE
@@ -4633,10 +4633,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-053: Authorization tests"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: Terminology changes do not change semantic permission behavior.
   - id: "GE-053-006"
     prefix: GE
@@ -6262,10 +6262,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-100: Tenant manifest"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Separate confirmed values, defaults, optional values, externally required values, secret references, and forbidden placeholders."
   - id: "GE-100-003"
     prefix: GE
@@ -6532,10 +6532,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-103: Tenant fleet, suspension, hibernation, purge, migration, export, and offboarding"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Implement `PURGED_ZERO_INCREMENTAL_COST` only after complete export/contract/retention/legal-hold/tax/audit/cooling-off checks and a separate protected destructive human approval."
   - id: "GE-103-014"
     prefix: GE
@@ -6552,8 +6552,8 @@ requirements:
     section: "GE-103: Tenant fleet, suspension, hibernation, purge, migration, export, and offboarding"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Retain only a minimal non-content Parent tombstone: tenant ID, lifecycle timestamps, purge-manifest digest, approvals, and evidence reference. It must contain no recoverable customer content."
   - id: "GE-103-016"
     prefix: GE
@@ -7731,8 +7731,8 @@ requirements:
     section: "GE-143A: Foundations and ownership"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Inventory every current UI stack, component library, CSS strategy, font, icon set, table/grid, chart library, editor, calendar, dialog, theme, breakpoint, and copied component; record duplication, accessibility debt, visual drift, and migration risk."
   - id: "GE-143-002"
     prefix: GE
@@ -7783,10 +7783,10 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-143A: Foundations and ownership"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/global-engine-execution-ledger.md"
     statement: "Establish one coherent outline icon family, sanitation rules for tenant/extension icons, and semantic icon-label requirements; remove emoji or mixed icon families from operational controls unless explicitly content-authored."
   - id: "GE-143-008"
     prefix: GE
@@ -7828,7 +7828,7 @@ requirements:
     prefix: GE
     source_document: Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md
     section: "GE-143B: Forest-green brand, light/dark ambience, and type"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -11167,7 +11167,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-040 — Secure ingestion"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11410,7 +11410,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-070 — Eligibility policy engine"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11419,7 +11419,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-070 — Eligibility policy engine"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11428,7 +11428,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-070 — Eligibility policy engine"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11437,7 +11437,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-070 — Eligibility policy engine"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11446,7 +11446,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-070 — Eligibility policy engine"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -11509,7 +11509,7 @@ requirements:
     prefix: IER
     source_document: Tenure_Global_Identity_Eligibility_Entitlement_Roster_and_Access_Continuity_Engine_Claude_Bible_v1.0(1).md
     section: "IER-070 — Eligibility policy engine"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/identity-eligibility-entitlement-execution-ledger.md"
@@ -14236,7 +14236,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "3. Capability Completeness contract"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -14245,7 +14245,7 @@ requirements:
     prefix: PAY
     source_document: Tenure_Global_Payments_Treasury_and_Stripe_Control_Plane_Claude_Bible_v1.0.md
     section: "3. Capability Completeness contract"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/payments-treasury-execution-ledger.md"
@@ -16533,8 +16533,8 @@ requirements:
     section: "4.3 Baseline artifact"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
     statement: Produce current data dictionary and entity/field/key/constraint/index/retention/owner matrix for both systems.
   - id: "SIMON-000-015"
     prefix: SIMON
@@ -16587,8 +16587,8 @@ requirements:
     section: "5. Phase 1 — Target convergence architecture and repository boundaries"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
     statement: "Define module boundaries and dependency direction; prohibit circular imports and direct cross-module table access."
   - id: "SIMON-010-006"
     prefix: SIMON
@@ -16614,8 +16614,8 @@ requirements:
     section: "5. Phase 1 — Target convergence architecture and repository boundaries"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
     statement: "Add architecture checks preventing imports from `tenant-config/tenants/simon-ose` into generic core packages."
   - id: "SIMON-010-009"
     prefix: SIMON
@@ -16623,8 +16623,8 @@ requirements:
     section: "5. Phase 1 — Target convergence architecture and repository boundaries"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
     statement: "Add static checks for forbidden tenant-name/domain/account/resource literals outside approved configuration, tests, migrations, and documentation."
   - id: "SIMON-010-010"
     prefix: SIMON
@@ -17460,8 +17460,8 @@ requirements:
     section: "14.3 Safe release sequence"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
     statement: "Create CI rules that fail if core code imports Simon configuration, if a Simon-only core module appears, or if tenant code forks re-emerge."
   - id: "SIMON-100-014"
     prefix: SIMON
@@ -18306,8 +18306,8 @@ requirements:
     section: "8. Core domain model and desired-state contract"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Make configuration import/export portable without exporting platform secrets, AWS credentials, other tenants, or internal exploit-sensitive policy details."
   - id: "STUDIO-040-009"
     prefix: STUDIO
@@ -18315,8 +18315,8 @@ requirements:
     section: "8. Core domain model and desired-state contract"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Implement tenant clone as a sanitized blueprint/manifest copy, never a production-data or credential copy."
   - id: "STUDIO-050-001"
     prefix: STUDIO
@@ -18414,8 +18414,8 @@ requirements:
     section: "10. Change classification, preview, approvals, and command contract"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Calculate blast radius: tenants, users, seats, workflows, modules, records, resources, regions, integrations, SLOs, downtime, and downstream releases."
   - id: "STUDIO-060-005"
     prefix: STUDIO
@@ -18450,8 +18450,8 @@ requirements:
     section: "10. Change classification, preview, approvals, and command contract"
     status: FAIL
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/system-studio-aws-control-plane-execution-ledger.md"
     statement: "Implement scheduled change windows, freeze periods, maintenance notifications, cancellation, supersession, and emergency change with after-action review."
   - id: "STUDIO-060-009"
     prefix: STUDIO
@@ -19726,7 +19726,7 @@ requirements:
     prefix: WRK
     source_document: Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md
     section: "WRK-020 — Connection authority and selectors"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
@@ -19807,7 +19807,7 @@ requirements:
     prefix: WRK
     source_document: Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md
     section: "WRK-030 — Missing-connection and launch UX"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/universal-work-graph-execution-ledger.md"
@@ -19861,7 +19861,7 @@ requirements:
     prefix: WRK
     source_document: Tenure_Universal_Work_Graph_and_Workspace_Connector_Cloud_Claude_Bible_v1.0.md
     section: "WRK-040 — OAuth, consent, and token security"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/universal-work-graph-execution-ledger.md"

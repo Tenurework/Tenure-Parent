@@ -1,6 +1,13 @@
 import fs from "node:fs"
 import path from "node:path"
 
+import { PROVIDER_API_VERSION, normalizeProviderApiVersion } from "./api-version"
+import {
+  evaluateCapabilityGates,
+  type CapabilityGateDecision,
+  type GateResult,
+} from "./capability-gates"
+
 /**
  * PAY-000-008 / PAY-010-004 — what Tenure has actually approved, as data.
  *
@@ -75,6 +82,40 @@ export interface CapabilityApproval {
   adr: string
 }
 
+/**
+ * PAY-010-003 — the provider API version a leaf's certification was reviewed
+ * under, and how far that review extends.
+ *
+ * The effective window above says WHEN a capability is declared. This says
+ * AGAINST WHAT. They are different facts and both of them can invalidate a
+ * certification on their own: a leaf whose window is open is still uncertified
+ * if the build is now speaking an API version nobody reviewed it against.
+ *
+ * `compatibleThrough: null` means the review covers `reviewedUnder` and nothing
+ * else — deliberately, and it is the default. The alternative reading, "null is
+ * open-ended", would make this field decorative: every future version would be
+ * inside every window and the check could never fire. Bible §16 calls an API
+ * upgrade intentional, so the truthful default is that a version nobody has
+ * reviewed the leaf under is a version the leaf is not certified for. Moving
+ * `PROVIDER_API_VERSION` therefore takes every leaf out of its window and back
+ * to `UNSUPPORTED` until somebody widens the review, which is the review task
+ * `version-watch.ts` raises (PAY-010-007) rather than a silent carry-forward.
+ *
+ * Versions are provider date versions (`YYYY-MM-DD`). They are compared as
+ * strings, which is exact rather than convenient: zero-padded fixed-width ISO
+ * dates order lexicographically in date order, so no comparator is needed and
+ * none is introduced — `platform-config`'s is the only one in the repository
+ * and this package must not import that one back (see `api-version.ts`).
+ * `normalizeProviderApiVersion` is still used, for its refusal: it is what
+ * makes "not a provider version" an error instead of a string that sorts.
+ */
+export interface ProviderApiCompatibility {
+  /** The exact provider API version the leaf's certification was reviewed under. */
+  reviewedUnder: string
+  /** The newest version the review extends to, INCLUSIVE. Null = only `reviewedUnder`. */
+  compatibleThrough: string | null
+}
+
 export interface PaymentCapability {
   /** Stable, provider-neutral id. Never a provider object name. */
   id: string
@@ -92,6 +133,16 @@ export interface PaymentCapability {
   effectiveFrom: string
   /** ISO date it stops being true, or null for open-ended. */
   effectiveTo: string | null
+  /**
+   * The provider API versions this leaf's certification was reviewed under.
+   *
+   * `null` ONLY for a leaf that makes no provider call at all — `program:
+   * "none"`. `assertRegistry` enforces that in both directions, so a
+   * provider-backed leaf cannot opt out of the check by omitting the field and
+   * a non-provider leaf cannot acquire a compatibility claim it has no API to
+   * be compatible with.
+   */
+  apiVersions: ProviderApiCompatibility | null
   /** ISO 3166-1 alpha-2 countries the leaf is declared for. */
   countries: readonly string[]
   /** ISO 4217 codes the leaf can settle in. */
@@ -196,6 +247,10 @@ function planned(
     approvedBy: null,
     effectiveFrom: "2026-01-01",
     effectiveTo: null,
+    // Reviewed under the pinned version and no other, because no other has been
+    // reviewed. `program: "none"` leaves override this to null through
+    // `overrides`; every provider-backed leaf keeps it.
+    apiVersions: { reviewedUnder: PROVIDER_API_VERSION, compatibleThrough: null },
     countries: CERTIFIABLE_COUNTRIES,
     currencies: CERTIFIABLE_CURRENCIES,
     legalEntityTypes: CERTIFIABLE_ENTITY_TYPES,
@@ -228,6 +283,7 @@ function unsupported(
     approvedBy: null,
     effectiveFrom: "2026-01-01",
     effectiveTo: null,
+    apiVersions: { reviewedUnder: PROVIDER_API_VERSION, compatibleThrough: null },
     countries: [],
     currencies: [],
     legalEntityTypes: [],
@@ -366,6 +422,10 @@ export const PAYMENT_CAPABILITIES: readonly PaymentCapability[] = [
     "none",
     "Internal organizational allocations and settlement instructions. No provider call: no external legal or bank-account boundary is crossed (Bible §0.10).",
     ["budgeting", "reimbursements", "approvals"],
+    // The one leaf with no provider API behind it, so there is no API version
+    // for it to be compatible with. Declaring one would be a claim about a call
+    // this leaf must never make.
+    { apiVersions: null },
   ),
   planned(
     "marketplace.supplier-and-payee-accounts",
@@ -422,6 +482,76 @@ export function adrExistsOnDisk(adr: string): boolean {
 
 export interface RegistryChecks {
   adrExists: (adr: string) => boolean
+}
+
+/* --------------------------------------------- the provider API-version check */
+
+/**
+ * Is `version` inside the reviewed window?
+ *
+ * Inclusive at both ends. `compatibleThrough: null` narrows the window to the
+ * single reviewed version — see `ProviderApiCompatibility` for why that, and
+ * not "open-ended", is the honest default.
+ */
+function withinApiWindow(window: ProviderApiCompatibility, version: string): boolean {
+  if (version < window.reviewedUnder) return false
+  if (window.compatibleThrough === null) return version === window.reviewedUnder
+  return version <= window.compatibleThrough
+}
+
+function describeApiWindow(window: ProviderApiCompatibility): string {
+  return window.compatibleThrough === null
+    ? `reviewed under ${window.reviewedUnder} only`
+    : `reviewed under ${window.reviewedUnder} through ${window.compatibleThrough}`
+}
+
+export type ApiCompatibilityVerdict =
+  | { compatible: true; code: "api-version-reviewed" | "api-version-not-applicable"; reason: string }
+  | { compatible: false; code: "api-version-not-reviewed"; reason: string }
+
+/**
+ * PAY-010-003 — is this leaf certified for the provider API version in use?
+ *
+ * Defaults to the pinned `PROVIDER_API_VERSION`, which is what production runs
+ * on; the parameter exists so a watch process can ask the same question about a
+ * CANDIDATE version without changing the pin (PAY-010-007).
+ *
+ * A leaf with no provider program is `compatible` with the code that says so,
+ * rather than a bare `true`: "no API is involved" and "the API version was
+ * reviewed" are different answers and a caller reporting them should be able to
+ * tell them apart.
+ */
+export function providerApiCompatibility(
+  id: string,
+  version: string = PROVIDER_API_VERSION,
+): ApiCompatibilityVerdict {
+  const cap = capability(id)
+  normalizeProviderApiVersion(version)
+
+  if (cap.apiVersions === null) {
+    return {
+      compatible: true,
+      code: "api-version-not-applicable",
+      reason: `"${cap.id}" makes no provider call (program "none"), so no API version applies.`,
+    }
+  }
+
+  if (withinApiWindow(cap.apiVersions, version)) {
+    return {
+      compatible: true,
+      code: "api-version-reviewed",
+      reason: `"${cap.id}" is ${describeApiWindow(cap.apiVersions)}, which covers ${version}.`,
+    }
+  }
+
+  return {
+    compatible: false,
+    code: "api-version-not-reviewed",
+    reason:
+      `"${cap.id}" is ${describeApiWindow(cap.apiVersions)}, and ${version} is outside that. ` +
+      `Nobody has reviewed this leaf against ${version}; carrying the certification forward ` +
+      `would be inferring availability rather than deciding it (Bible §16).`,
+  }
 }
 
 /**
@@ -487,7 +617,68 @@ export function assertRegistry(
       }
     }
 
+    // PAY-010-003. The API-version half of the declaration, checked the same way
+    // the date half is: the shape first, then the policy.
+    if (cap.apiVersions === null) {
+      if (cap.program !== "none") {
+        throw new PaymentCapabilityError(
+          "capability-api-version-missing",
+          cap.id,
+          `"${cap.id}" runs on provider program "${cap.program}" and declares no reviewed API ` +
+            `version. Only a leaf with no provider call at all (program "none") may omit it; ` +
+            `omitting it elsewhere is a certification with nothing behind it.`,
+        )
+      }
+    } else {
+      if (cap.program === "none") {
+        throw new PaymentCapabilityError(
+          "capability-api-version-on-non-provider-leaf",
+          cap.id,
+          `"${cap.id}" makes no provider call (program "none") and yet claims compatibility with ` +
+            `provider API version ${cap.apiVersions.reviewedUnder}. There is no call for that ` +
+            `claim to be about.`,
+        )
+      }
+      try {
+        normalizeProviderApiVersion(cap.apiVersions.reviewedUnder)
+        if (cap.apiVersions.compatibleThrough !== null) {
+          normalizeProviderApiVersion(cap.apiVersions.compatibleThrough)
+        }
+      } catch (error) {
+        throw new PaymentCapabilityError(
+          "capability-bad-api-version",
+          cap.id,
+          `"${cap.id}" declares an unreadable provider API version: ` +
+            `${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+      if (
+        cap.apiVersions.compatibleThrough !== null &&
+        cap.apiVersions.compatibleThrough <= cap.apiVersions.reviewedUnder
+      ) {
+        throw new PaymentCapabilityError(
+          "capability-inverted-api-window",
+          cap.id,
+          `compatibleThrough ${cap.apiVersions.compatibleThrough} is not after reviewedUnder ` +
+            `${cap.apiVersions.reviewedUnder}. An inclusive upper bound below the lower bound is ` +
+            `a window nothing is inside; drop it to null instead, which means the reviewed ` +
+            `version alone.`,
+        )
+      }
+    }
+
     if (!STATES_REQUIRING_APPROVAL.includes(cap.state)) continue
+
+    if (cap.apiVersions !== null && !withinApiWindow(cap.apiVersions, PROVIDER_API_VERSION)) {
+      throw new PaymentCapabilityError(
+        "capability-api-version-uncertified",
+        cap.id,
+        `"${cap.id}" claims ${cap.state}, and this build is pinned to provider API version ` +
+          `${PROVIDER_API_VERSION}, which is outside its reviewed window ` +
+          `(${describeApiWindow(cap.apiVersions)}). A certification reviewed against a different ` +
+          `API version is not a certification of the calls this build makes.`,
+      )
+    }
 
     if (cap.approvedBy === null) {
       throw new PaymentCapabilityError(
@@ -548,6 +739,12 @@ export function capabilityState(id: string, at: string = new Date().toISOString(
   }
   if (when < Date.parse(cap.effectiveFrom)) return "UNSUPPORTED"
   if (cap.effectiveTo !== null && when >= Date.parse(cap.effectiveTo)) return "UNSUPPORTED"
+  // PAY-010-003. The second window, and it invalidates a state exactly as the
+  // date window does: a leaf certified against a provider API version this
+  // build no longer speaks is as unavailable as one whose window has closed,
+  // and reporting the stored word would make an unreviewed certification read
+  // as current.
+  if (!providerApiCompatibility(cap.id).compatible) return "UNSUPPORTED"
   return cap.state
 }
 
@@ -578,8 +775,18 @@ export interface ModulePaymentCapability {
   moduleKey: string
   capabilityId: string
   state: CapabilityState
-  /** True only in a state that has passed the approval check above. */
+  /**
+   * PAY-010-002. True only when ALL FOUR gates pass — provider capability,
+   * Tenure certification, tenant entitlement and merchant activation.
+   *
+   * It used to mean "the state is a money-facing one", which is one of the
+   * four. A certified leaf on a tenant with no connected account and no
+   * observed provider account was reported transactable, and the surfaces that
+   * render this word have no other source to correct it from.
+   */
   transactable: boolean
+  /** All four verdicts, so a surface can say WHICH gate is unmet. */
+  gates: readonly GateResult[]
   summary: string
 }
 
@@ -606,11 +813,28 @@ export function capabilityAvailabilityForModules(
     for (const moduleKey of cap.servesModules) {
       if (!wanted.has(moduleKey)) continue
       const state = capabilityState(cap.id, at)
+      // PAY-010-002. Two of the four facts are knowable here and two are not,
+      // and they are passed as what they are. `entitledModules` IS the caller's
+      // module set — the tenant's own — so the entitlement gate is answered.
+      // The provider observation is `null`: this layer has read no provider
+      // account, and `null` produces UNDETERMINED rather than a guess in either
+      // direction. `merchantActivation` is `null` for the opposite reason —
+      // this layer knows there is no connected account for any tenant in this
+      // repository, which is a fact, so the gate FAILS rather than abstaining.
+      const decision: CapabilityGateDecision = evaluateCapabilityGates({
+        capabilityId: cap.id,
+        certification: { state, transactable: isTransactable(state) },
+        servesModules: cap.servesModules,
+        providerCapability: null,
+        entitledModules: moduleKeys,
+        merchantActivation: null,
+      })
       out.push({
         moduleKey,
         capabilityId: cap.id,
         state,
-        transactable: isTransactable(state),
+        transactable: decision.allow,
+        gates: decision.gates,
         summary: cap.summary,
       })
     }

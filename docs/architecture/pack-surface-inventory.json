@@ -536,6 +536,16 @@
       "experience": "tenant",
       "app": "apps/web",
       "kind": "api",
+      "url": "/api/connections/exceptions",
+      "methods": [
+        "GET"
+      ],
+      "source": "apps/web/src/app/api/connections/exceptions/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
       "url": "/api/connections/opportunity",
       "methods": [
         "POST"
@@ -581,6 +591,16 @@
         "POST"
       ],
       "source": "apps/web/src/app/api/jobs/outbox/route.ts"
+    },
+    {
+      "experience": "tenant",
+      "app": "apps/web",
+      "kind": "api",
+      "url": "/api/jobs/payments-version-watch",
+      "methods": [
+        "POST"
+      ],
+      "source": "apps/web/src/app/api/jobs/payments-version-watch/route.ts"
     },
     {
       "experience": "tenant",
@@ -1411,6 +1431,13 @@
       "private": true,
       "dependsOn": [],
       "source": "packages/finops/package.json"
+    },
+    {
+      "dir": "packages/generality-fixtures",
+      "name": "@tenure/generality-fixtures",
+      "private": true,
+      "dependsOn": [],
+      "source": "packages/generality-fixtures/package.json"
     },
     {
       "dir": "packages/identity",

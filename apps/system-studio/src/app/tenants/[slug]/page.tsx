@@ -2,7 +2,7 @@ import Link from "next/link"
 import { notFound, redirect } from "next/navigation"
 
 import { getTenantBinding } from "@tenure/blueprints"
-import { buildSystem, compatibilityFor, planPromotion } from "@tenure/platform-config"
+import { REGISTRY, buildSystem, compatibilityFor, planPromotion } from "@tenure/platform-config"
 import type { CellRecord } from "@tenure/provisioning"
 import { classify, getPlan, planFor, requirementsFor } from "@tenure/provisioning"
 
@@ -25,12 +25,15 @@ import { estateInventory } from "@/lib/aws/inventory"
 import type { AwsRead } from "@/lib/aws/read"
 import { retainedObservation, retainedReadingsForTenant } from "@/lib/aws/retained"
 import { INVENTORY_REFRESH_MS } from "@/lib/aws/tags"
-import { getTenant, registryConfigured } from "@/lib/registry"
+import { getTenant, registryConfigured, takenSlugs } from "@/lib/registry"
 import { DynamoConfigStore } from "@/lib/config-store"
 import { readLedger, type AuditRow } from "@/lib/audit-ledger"
 import { DeploymentPanel } from "@/components/DeploymentPanel"
 import { EvidencePanel } from "@/components/EvidencePanel"
+import { GovernancePanel } from "@/components/GovernancePanel"
+import { changeCalendar } from "@/lib/change/calendar"
 import { REFUSED_OPERATIONS } from "@/lib/command-handlers"
+import { purgeReadiness } from "@/lib/purge-readiness"
 import {
   Badge,
   ButtonLink,
@@ -48,6 +51,7 @@ import { AdvanceControls } from "./AdvanceControls"
 import styles from "./tenant.module.css"
 import { describeFootprint, footprintOf } from "./footprint"
 import { WEIGHT_WORD, permittedMoves, whatMovingDoes, type PermittedMove } from "./next-moves"
+import { tenantGovernance } from "./governance"
 import {
   answeredOf,
   leadAnswer,
@@ -311,6 +315,20 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
   const registryReadAt = new Date()
 
   const provisioning = planFor(tenant.manifest)
+
+  /**
+   * GE-103-013 — what would have to be true before this tenant could be purged,
+   * and how much of it the Parent can answer.
+   *
+   * Rendered on every tenant rather than only on one in `PURGE_PENDING`: the
+   * point of the panel is that four of the seven checks cannot be answered by
+   * anything this platform holds, and discovering that on the day somebody
+   * wants to destroy a tenant is discovering it too late.
+   */
+  const purge = purgeReadiness(
+    { slug: tenant.slug, state: tenant.state, history: tenant.history },
+    registryReadAt.toISOString(),
+  )
   /**
    * WRK-120-005 — what this tenant is holding, from facts the registry owns.
    *
@@ -610,6 +628,38 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
    */
   const commercialPlan = tenant.registry ? getPlan(tenant.registry.plan) : undefined
   const seatQuota = commercialPlan?.quotas.find((q) => q.dimension === "seats") ?? null
+
+  /*
+   * STUDIO-060-004 / STUDIO-060-008 / STUDIO-040-008 / STUDIO-040-009.
+   *
+   * Assembled in `./governance.ts` from readings this page already has, so the
+   * join is a function a spec can call rather than thirty lines inside a server
+   * component. Nothing new is fetched except the slug list, which the
+   * foreign-tenant check in the portable bundle needs and which no other
+   * reading on this page carries.
+   */
+  const allSlugs = await readingAsync(() => takenSlugs(), "the tenant registry", "dynamodb:Query")
+  const governanceCalendar = changeCalendar()
+  const governance = tenantGovernance({
+    slug: tenant.slug,
+    manifest: tenant.manifest,
+    state: tenant.state,
+    moves,
+    cells,
+    placedCellId: placement?.cellId ?? null,
+    tagged: taggedRead,
+    attributed: footprint === null ? null : footprint.services.flatMap((service) => service.arns),
+    seatLimit: commercialPlan ? (seatQuota?.limit ?? null) : undefined,
+    environment: placedCell?.environment ?? "unknown",
+    calendar: governanceCalendar,
+    definitions: REGISTRY.all().map((d) => ({ key: d.key, sensitivity: d.sensitivity })),
+    engineVersion: process.env.CELL_ENGINE_VERSION?.trim() || placedCell?.release || "unknown",
+    // An empty list when the registry could not be listed, and the panel says
+    // the calendar/leak checks ran against what could be seen — not that
+    // nothing else exists.
+    otherTenants: allSlugs.known ? allSlugs.value.filter((s) => s !== tenant.slug) : [],
+    now: registryReadAt,
+  })
 
   const advance = authorizeCommand("tenant.lifecycle.advance", {
     principalId,
@@ -1569,6 +1619,13 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           an empty list. */}
       {tenant.evidence.length > 0 && <EvidencePanel evidence={tenant.evidence} />}
 
+      {/* STUDIO-060-004 / STUDIO-060-008 / STUDIO-040-008 / STUDIO-040-009. Every
+          line comes from a `*Lines` function in `lib/change` and
+          `lib/portability`, so the sentences an operator reads are the ones
+          `change-governance-logic.spec.ts` and `portability-logic.spec.ts` read
+          without a browser. */}
+      <GovernancePanel governance={governance} calendar={governanceCalendar} />
+
       {/* ── 3. How it got here ─────────────────────────────────────────────── */}
       <Card
         id="history"
@@ -1918,6 +1975,45 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
                   ).refusedWithCliCommand ?? "—"}
                 </code>
               ),
+            },
+          ]}
+        />
+      </Card>
+
+      {/* GE-103-013. The seven pre-purge checks, and — more usefully — which of
+          them anything in this platform can answer. `purgeClearance` refuses to
+          read an absent fact as a pass, so four of these come back `unknown`
+          and each names the store that would have to exist. A console that
+          reported "clear" off four tables that do not exist is the failure this
+          panel is here to make impossible. */}
+      <Card
+        id="purge-readiness"
+        headline="Before this tenant could be purged"
+        headerAside={
+          <Badge tone={purge.clearance.cleared ? "ok" : "warn"} title={purge.headline}>
+            {purge.answerable} of {purge.rows.length} answerable
+          </Badge>
+        }
+        supportingText={statedAsOf(purge.headline, registryReadAt)}
+      >
+        <DataTable
+          caption="The seven checks that gate PURGE_PENDING to PURGING"
+          rows={purge.rows}
+          rowKey={(row) => row.check}
+          empty={
+            <EmptyState
+              headline="No pre-purge checks are declared"
+              description="Which would mean a tenant could be destroyed with nothing consulted first."
+            />
+          }
+          columns={[
+            { key: "check", header: "Check", cell: (row) => mono(row.check) },
+            { key: "verdict", header: "Verdict", cell: (row) => row.verdict },
+            { key: "detail", header: "What the gate says", cell: (row) => row.detail },
+            {
+              key: "needs",
+              header: "What would have to exist",
+              cell: (row) => row.needs ?? "— the registry can already answer this",
             },
           ]}
         />

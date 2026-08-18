@@ -108,7 +108,15 @@ test("the fixture flag is declared on exactly the bindings that are fixtures", (
   // Pinned by name, in both directions. Adding a real customer must not require
   // editing this file; adding a FIXTURE must, which is the point — an unmarked
   // fixture is one that reaches the console.
-  assert.deepEqual(fixtures, ["fixture-external-erp", "fixture-rtl", "midtown-arts"])
+  // `fixture-corporate` (GE-052-002) is the corporate generality fixture: the
+  // company/region/business-unit/department/team spine and the purchase chain
+  // that spends its money. Not a customer, and it must not reach the console.
+  assert.deepEqual(fixtures, [
+    "fixture-corporate",
+    "fixture-external-erp",
+    "fixture-rtl",
+    "midtown-arts",
+  ])
   assert.deepEqual(customers, ["rochester"])
 
   // And the two partition the whole list, so nothing can be in neither.

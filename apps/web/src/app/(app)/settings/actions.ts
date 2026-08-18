@@ -6,6 +6,7 @@ import { db } from "@/lib/db"
 import { getUserContext } from "@/lib/rbac"
 import { withTenantScope } from "@/lib/tenant-scope"
 import { fileRef, storageConfigured, uploadDocument } from "@/lib/s3"
+import { sanitizeTenantImage } from "@/lib/uploads/tenant-image"
 
 async function requireUserId() {
   const session = await auth()
@@ -72,18 +73,21 @@ export async function uploadProfileImage(formData: FormData) {
     if (!storageConfigured())
       throw new Error("File uploads are not configured — paste an image URL instead")
     const file = formData.get("file")
-    if (!(file instanceof File) || file.size === 0) throw new Error("Choose an image file")
-    if (!file.type.startsWith("image/")) throw new Error("That file is not an image")
-    if (file.size > 5 * 1024 * 1024) throw new Error("Images must be under 5 MB")
+    if (!(file instanceof File)) throw new Error("Choose an image file")
 
-    const ext = (file.name.split(".").pop() || "img").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5)
-    const key = `${scope.institutionId}/profile-images/${userId}/${Date.now()}.${ext}`
+    // GE-143-007, the same rule as the club logo: the format is decided by the
+    // bytes, not by `file.type` or by the file name. An avatar is served back
+    // inline with the content type recorded here.
     const bytes = Buffer.from(await file.arrayBuffer())
+    const verdict = sanitizeTenantImage({ bytes, declaredType: file.type || undefined })
+    if (verdict.refused) throw new Error(verdict.refused.explanation)
+
+    const key = `${scope.institutionId}/profile-images/${userId}/${Date.now()}.${verdict.accepted.extension}`
     await uploadDocument(
       fileRef({
         tenantId: scope.institutionId,
         objectKey: key,
-        mimeType: file.type,
+        mimeType: verdict.accepted.mimeType,
         body: bytes,
       }),
       bytes,

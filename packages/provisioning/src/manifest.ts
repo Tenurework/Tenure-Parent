@@ -26,6 +26,12 @@ import {
   type SystemOfRecordMap,
 } from "@tenure/module-runtime"
 
+import {
+  classifyManifestValues,
+  placeholderProblems,
+  type ValueClassification,
+} from "./manifest-values"
+
 /**
  * Version 2 adds the coexistence declaration.
  *
@@ -386,6 +392,19 @@ export function validateManifest(
     )
   }
 
+  // ── Forbidden placeholders ───────────────────────────────────────────────
+  //
+  // GE-100-002. Last, and unconditional: every other check above asks whether a
+  // value is the RIGHT one, and this asks whether it is a value at all. A
+  // manifest whose region, slug and admin address are all well-formed and all
+  // still say `<your-domain>` passes every rule above it, and provisioning
+  // turns each one into a real resource name.
+  //
+  // Delegated rather than inlined so `classifyManifestValues` and this refusal
+  // read the same shapes — a plan that renders a field as `confirmed` while the
+  // validator refuses it is two answers to one question.
+  problems.push(...placeholderProblems(manifest))
+
   return { valid: problems.length === 0, problems }
 }
 
@@ -430,6 +449,16 @@ export interface ProvisioningPlan {
   estimatedMonthlyCostCents: number
   costBasis: string
   warnings: readonly string[]
+  /**
+   * GE-100-002 — which of these values were decided, and which were not.
+   *
+   * On the plan rather than beside it, because the plan is the artifact
+   * somebody approves. Approving a plan whose region is a default nobody chose
+   * and whose secret has not been placed yet is a different act from approving
+   * one where every value is a decision, and until this field existed the two
+   * rendered identically.
+   */
+  values: ValueClassification
 }
 
 /**
@@ -550,10 +579,43 @@ export function planFor(manifest: TenantManifest): ProvisioningPlan {
     )
   }
 
+  // GE-100-002. The two kinds an approver has to be told about BEFORE
+  // approving, because both mean the plan is not yet a complete set of
+  // decisions: a default is a value nobody chose, and an externally required
+  // value is one that does not exist yet at all.
+  const values = classifyManifestValues(manifest)
+  const defaults = values.byKind.default
+  const externallyRequired = values.byKind["externally-required"]
+  if (defaults.length > 0) {
+    warnings.push(
+      `${defaults.length} value${defaults.length === 1 ? "" : "s"} on this manifest ` +
+        `${defaults.length === 1 ? "is a default" : "are defaults"}, not a decision: ` +
+        `${defaults.join(", ")}. Approving the plan approves the stand-in.`,
+    )
+  }
+  if (externallyRequired.length > 0) {
+    warnings.push(
+      `${externallyRequired.length} value${externallyRequired.length === 1 ? "" : "s"} must be supplied from outside ` +
+        `this engine before provisioning can read ${externallyRequired.length === 1 ? "it" : "them"}: ` +
+        `${externallyRequired.join(", ")}. Nothing here can produce ${externallyRequired.length === 1 ? "it" : "them"}, ` +
+        `and the step that needs one fails rather than proceeding with a blank.`,
+    )
+  }
+  if (values.unclassified.length > 0) {
+    warnings.push(
+      `${values.unclassified.length} manifest field${values.unclassified.length === 1 ? "" : "s"} ` +
+        `(${values.unclassified.join(", ")}) ${values.unclassified.length === 1 ? "has" : "have"} no ` +
+        `provenance spec, so this plan cannot say whether ${values.unclassified.length === 1 ? "it was" : "they were"} ` +
+        `decided or defaulted. Add ${values.unclassified.length === 1 ? "it" : "them"} to ` +
+        `MANIFEST_FIELD_SPECS rather than reading the silence as a decision.`,
+    )
+  }
+
   return {
     slug: manifest.slug,
     digest: digestOf(manifest),
     steps,
+    values,
     estimatedMonthlyCostCents,
     costBasis:
       manifest.isolation === "pooled"

@@ -21,6 +21,42 @@
  * what lets a job runner, an HTTP handler and a queue consumer all speak it.
  */
 
+/**
+ * JSON with object keys sorted, so two equal values always produce equal text.
+ *
+ * Lives here, in the one package with no dependencies, because three packages
+ * need the SAME answer to "what is the canonical text of this value" and each
+ * of them hashes it: `@tenure/configuration` for the resolution checksum and
+ * for set identity during a merge, `@tenure/releases` for a release digest, and
+ * `@tenure/audit` for the record hash that makes the audit chain a chain.
+ *
+ * It was defined in `@tenure/configuration/merge.ts` and imported from
+ * `@tenure/audit`, which closed a cycle — `audit → configuration → audit` —
+ * because `configuration/publication.ts` imports `findSecretValues` back out of
+ * audit. A cycle between two packages is not a style complaint: it means
+ * neither can be loaded, tested or reasoned about without the other, and it
+ * means the dependency direction the platform claims is not the one the code
+ * has. Moving the serializer down to the dependency-free package removes it
+ * without a second definition of "canonical", which is the outcome that
+ * actually mattered — a chain whose hash depends on JSON key order is not a
+ * chain, and two definitions of canonical is one too many.
+ *
+ * `@tenure/configuration` still exports it, so nothing that imported it from
+ * there had to change.
+ *
+ * `undefined` members are dropped rather than rendered, matching
+ * `JSON.stringify`, so a key that is absent and a key that is present and
+ * undefined hash the same — which is what a database read produces.
+ */
+export function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null"
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(",")}}`
+}
+
 export class ContractViolation extends Error {
   constructor(
     readonly contract: string,

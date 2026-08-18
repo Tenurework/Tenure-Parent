@@ -93,7 +93,8 @@ what "publish ownership and dependency diagrams" is asked to prevent.
 | --- | --- | --- |
 | `api-version` | Provider Gateway | `external-reference` |
 | `balance-transactions` | Payments Ledger Adapter | `external-reference` |
-| `capability-registry` | Payments Configuration Plane | — |
+| `capability-gates` | Payments Configuration Plane | `capability-registry` |
+| `capability-registry` | Payments Configuration Plane | `api-version`, `capability-gates` |
 | `charge-model` | Funds Flow Service | `capability-registry`, `funds-flow`, `responsibility` |
 | `eligibility` | Payments Configuration Plane | `capability-registry` |
 | `external-reference` | Provider Gateway | — |
@@ -105,6 +106,7 @@ what "publish ownership and dependency diagrams" is asked to prevent.
 | `prohibited-claims` | Payments Configuration Plane | — |
 | `refusal` | Payments Operations Center | — |
 | `responsibility` | Funds Flow Service | — |
+| `version-watch` | Payments Operations Center | `api-version`, `capability-registry`, `refusal` |
 | `webhook` | Provider Gateway | `external-reference` |
 
 ## 3. The context diagram
@@ -133,15 +135,25 @@ graph TD
   C11 --> C4
   C11 --> C12
   C4 --> C1
+  C1 --> C11
+  C12 --> C1
+  C12 --> C11
 ```
 
-Five edges, and the shape they make is worth stating plainly:
+Eight edges, and the shape they make is worth stating plainly:
 
-* **Everything points at 1.** The Configuration Plane holds the capability
-  registry, and both the Provider Gateway and the Funds Flow Service ask it what
-  Tenure has approved before deciding anything. Nothing points the other way,
-  which is the property that keeps availability one answer rather than a
-  negotiation between planes.
+* **Almost everything points at 1.** The Configuration Plane holds the
+  capability registry, and the Provider Gateway, the Funds Flow Service and the
+  Operations Centre all ask it what Tenure has approved before deciding
+  anything. Availability is one answer rather than a negotiation between planes.
+* **1 → 11 is the one arrow that points back, and it is narrow.** The registry
+  reads the pinned provider API version, and nothing else, because PAY-010-003
+  makes a leaf's certification a claim ABOUT a provider API version: a leaf
+  reviewed under a version this build does not run resolves to `UNSUPPORTED`
+  rather than keeping its stored state. The registry does not import the
+  gateway, the webhook verifier or any client — `api-version.ts` holds a
+  constant and two pure functions, which is why the edge does not make the
+  Configuration Plane depend on a provider call.
 * **11 → 4 and 11 → 12** are the gateway asking the funds-flow matrix who the
   merchant is, and the operations centre whether a movement may proceed at all.
   A port that decided either for itself would be the platform acquiring a
@@ -150,6 +162,12 @@ Five edges, and the shape they make is worth stating plainly:
   external reference. The arrow does not reverse: the gateway never reads the
   ledger, so an evidence record cannot be shaped by what has already been
   posted.
+* **12 → 1 and 12 → 11** are the provider version and feature watch
+  (PAY-010-007) reading what Tenure has certified and what the build is pinned
+  to, so it can raise a review task per leaf. Both arrows are reads. There is no
+  arrow out of the watch into anything it could change, which is the property
+  the requirement is actually about: a watcher that could write would adopt a
+  provider version at 3am with no approver in the loop.
 * **The seven contexts with no code have no edges.** They are drawn because
   Bible §4 names them and a diagram that omitted them would read as a system
   with five parts.

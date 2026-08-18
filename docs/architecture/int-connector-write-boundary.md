@@ -10,7 +10,7 @@ Nothing here is asserted. Ownership is read from `tools/ownership-map.mjs`, the
 map `tests/architecture/ownership.test.mjs` already enforces; the model list is
 read from `apps/web/prisma/schema.prisma`; the writes are read from the files themselves.
 
-**24 modules in the plane · 2 owning domain(s) · 52 models in the schema · 2 of them owned by the plane · 3 write(s) from inside the plane · 0 violation(s).**
+**28 modules in the plane · 2 owning domain(s) · 52 models in the schema · 2 of them owned by the plane · 3 write(s) from inside the plane · 0 violation(s).**
 
 ## 1. The plane, and the domain that owns each module
 
@@ -22,6 +22,7 @@ provider signature header off the request. Test files are excluded — see §6.
 |---|---|---|
 | `apps/web/src/app/api/ai/chat/route.ts` | `integrations` | integrations domain |
 | `apps/web/src/app/api/ai/draft/route.ts` | `integrations` | integrations domain |
+| `apps/web/src/app/api/connections/exceptions/route.ts` | `integrations` | integrations domain |
 | `apps/web/src/app/api/connections/opportunity/route.ts` | `integrations` | integrations domain |
 | `apps/web/src/app/api/payments/provider-events/route.ts` | `billing-metering` | authenticates a provider |
 | `apps/web/src/components/DraftAssist.tsx` | `integrations` | integrations domain |
@@ -32,7 +33,10 @@ provider signature header off the request. Test files are excluded — see §6.
 | `apps/web/src/lib/ai.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/connections/capability-resolution.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/connections/credential-broker.ts` | `integrations` | integrations domain |
+| `apps/web/src/lib/connections/exception-worklist.ts` | `integrations` | integrations domain |
+| `apps/web/src/lib/connections/integration-errors.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/connections/pending-intent.ts` | `integrations` | integrations domain |
+| `apps/web/src/lib/connections/prisma-dead-deliveries.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/connections/selector-consent.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/http/internal-headers.ts` | `integrations` | integrations domain |
 | `apps/web/src/lib/relay-tools.ts` | `integrations` | integrations domain |
@@ -107,4 +111,4 @@ what a plane module may READ is a tenant-data-access question enforced elsewhere
 
 - **No violation.** 3 write(s) issued from inside the integration plane, every one of them to a model the plane owns; 3 write(s) to a plane-owned model anywhere in the tree, every one of them from inside the plane; no raw SQL in the plane; every plane module owned by exactly one domain.
 - **0 write(s) to a plane-owned model from outside the plane.**
-- **Ownership is derived, not declared here.** 24 plane modules, 0 of them owned by no domain.
+- **Ownership is derived, not declared here.** 28 plane modules, 0 of them owned by no domain.

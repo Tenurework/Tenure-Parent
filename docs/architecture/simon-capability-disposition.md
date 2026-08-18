@@ -14,7 +14,7 @@ a judgement this evidence cannot make is `UNKNOWN` with the reason printed rathe
 wearing a label.
 
 
-Observed 2026-08-17.
+Observed 2026-08-18.
 
 ## The eight labels, and which of them this evidence can assign
 
@@ -34,8 +34,8 @@ Observed 2026-08-17.
 A disposition computed from path presence alone said `PARENT_CANONICAL` for a capability whose
 content diverges — which for an absorption is wrong in the one direction that matters, because
 it reads as "there is nothing to merge". Every path both trees carry and any capability probe
-matches is therefore digested on both sides: 254 shared paths, 95
-identical, **159 divergent**, 0 undetermined. Digest is
+matches is therefore digested on both sides: 254 shared paths, 92
+identical, **162 divergent**, 0 undetermined. Digest is
 sha256 over LF-normalised text, first 16 hex digits; a line ending is not a divergence, and a path neither side would yield is
 named rather than counted as agreement.
 
@@ -48,11 +48,11 @@ named rather than counted as agreement.
 | Frontend framework | 1 | 2 | 0 | 1 | 1 | `MERGE_REQUIRED` | every source path is present in the target tree, but 1 of 1 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/next.config.ts` |
 | Frontend routes (pages) | 37 | 58 | 0 | 37 | 24 | `MERGE_REQUIRED` | every source path is present in the target tree, but 24 of 37 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/src/app/(app)/admin/approvals/page.tsx` `apps/web/src/app/(app)/admin/audit/page.tsx` `apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx` `apps/web/src/app/(app)/admin/overrides/page.tsx` |
 | Frontend layouts | 3 | 4 | 0 | 3 | 2 | `MERGE_REQUIRED` | every source path is present in the target tree, but 2 of 3 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/src/app/(app)/layout.tsx` `apps/web/src/app/layout.tsx` |
-| Frontend components | 73 | 143 | 2 | 71 | 44 | `MERGE_REQUIRED` | 2 source path(s) for this capability are absent from the target tree, and 44 shared path(s) differ in content | `apps/web/src/components/brand/TenantBackdrop.tsx` `apps/web/src/components/brand/TenantSplash.tsx` `apps/web/src/components/CalendarFilters.tsx` `apps/web/src/components/CalendarSubscribe.tsx` `apps/web/src/components/CalendarTimeGrid.tsx` `apps/web/src/components/ClubCard.tsx` |
+| Frontend components | 73 | 146 | 2 | 71 | 46 | `MERGE_REQUIRED` | 2 source path(s) for this capability are absent from the target tree, and 46 shared path(s) differ in content | `apps/web/src/components/brand/TenantBackdrop.tsx` `apps/web/src/components/brand/TenantSplash.tsx` `apps/web/src/components/CalendarFilters.tsx` `apps/web/src/components/CalendarSubscribe.tsx` `apps/web/src/components/CalendarTimeGrid.tsx` `apps/web/src/components/ClubCard.tsx` |
 | Styles | 1 | 24 | 0 | 1 | 1 | `MERGE_REQUIRED` | every source path is present in the target tree, but 1 of 1 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/src/app/globals.css` |
 | Design tokens / theme config | 1 | 2 | 0 | 1 | 1 | `MERGE_REQUIRED` | every source path is present in the target tree, but 1 of 1 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/tailwind.config.ts` |
 | HTTP API handlers | 20 | 29 | 0 | 20 | 10 | `MERGE_REQUIRED` | every source path is present in the target tree, but 10 of 20 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/src/app/api/ai/chat/route.ts` `apps/web/src/app/api/ai/draft/route.ts` `apps/web/src/app/api/calendar/event/[id]/route.ts` `apps/web/src/app/api/calendar/ics/[token]/route.ts` |
-| Backend services / domain libraries | 30 | 64 | 0 | 30 | 22 | `MERGE_REQUIRED` | every source path is present in the target tree, but 22 of 30 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/src/lib/ai.ts` `apps/web/src/lib/approvals-sla.ts` `apps/web/src/lib/approvals.ts` `apps/web/src/lib/auth.ts` |
+| Backend services / domain libraries | 30 | 64 | 0 | 30 | 23 | `MERGE_REQUIRED` | every source path is present in the target tree, but 23 of 30 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/src/lib/ai.ts` `apps/web/src/lib/approvals-sla.ts` `apps/web/src/lib/approvals.ts` `apps/web/src/lib/auth.ts` |
 | Database engine (provisioned) | 2 | 2 | 0 | 2 | 2 | `MERGE_REQUIRED` | every source path is present in the target tree, but 2 of 2 shared path(s) differ in content, so the target does not hold the source implementation | `infrastructure/terraform/elasticache.tf` `infrastructure/terraform/rds.tf` |
 | Database schema | 1 | 1 | 0 | 1 | 1 | `MERGE_REQUIRED` | every source path is present in the target tree, but 1 of 1 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/prisma/schema.prisma` |
 | Database migrations | 2 | 15 | 0 | 2 | 1 | `MERGE_REQUIRED` | every source path is present in the target tree, but 1 of 2 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/prisma/migrations/migration_lock.toml` |
@@ -67,9 +67,9 @@ named rather than counted as agreement.
 | Outbound integrations (email) | 2 | 2 | 0 | 2 | 1 | `MERGE_REQUIRED` | every source path is present in the target tree, but 1 of 2 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/src/lib/notify.ts` |
 | Observability | 3 | 3 | 0 | 3 | 1 | `MERGE_REQUIRED` | every source path is present in the target tree, but 1 of 3 shared path(s) differ in content, so the target does not hold the source implementation | `infrastructure/terraform/cloudwatch.tf` |
 | Infrastructure as code | 20 | 36 | 0 | 20 | 10 | `MERGE_REQUIRED` | every source path is present in the target tree, but 10 of 20 shared path(s) differ in content, so the target does not hold the source implementation | `infrastructure/terraform/alb.tf` `infrastructure/terraform/cloudfront.tf` `infrastructure/terraform/cloudwatch.tf` `infrastructure/terraform/ecs.tf` |
-| Unit tests | 26 | 428 | 5 | 21 | 17 | `MERGE_REQUIRED` | 5 source path(s) for this capability are absent from the target tree, and 17 shared path(s) differ in content | `apps/web/src/app/api/documents/_lib/content.test.ts` `apps/web/src/app/api/documents/_lib/mammoth-sanitize.test.ts` `apps/web/src/app/api/documents/_lib/sanitize.test.ts` `apps/web/src/lib/schemas/creatable-card-types.test.ts` `apps/web/src/lib/tenant/brand.test.ts` `apps/web/src/lib/approvals-sla.test.ts` `apps/web/src/lib/approvals.test.ts` `apps/web/src/lib/calendar-permissions.test.ts` `apps/web/src/lib/calendar.test.ts` |
+| Unit tests | 26 | 467 | 5 | 21 | 17 | `MERGE_REQUIRED` | 5 source path(s) for this capability are absent from the target tree, and 17 shared path(s) differ in content | `apps/web/src/app/api/documents/_lib/content.test.ts` `apps/web/src/app/api/documents/_lib/mammoth-sanitize.test.ts` `apps/web/src/app/api/documents/_lib/sanitize.test.ts` `apps/web/src/lib/schemas/creatable-card-types.test.ts` `apps/web/src/lib/tenant/brand.test.ts` `apps/web/src/lib/approvals-sla.test.ts` `apps/web/src/lib/approvals.test.ts` `apps/web/src/lib/calendar-permissions.test.ts` `apps/web/src/lib/calendar.test.ts` |
 | End-to-end tests | 28 | 85 | 0 | 28 | 10 | `MERGE_REQUIRED` | every source path is present in the target tree, but 10 of 28 shared path(s) differ in content, so the target does not hold the source implementation | `apps/web/e2e/admin-console.spec.ts` `apps/web/e2e/app.spec.ts` `apps/web/e2e/calendar.spec.ts` `apps/web/e2e/handoff.spec.ts` |
-| CI / deployment workflows | 12 | 18 | 0 | 12 | 12 | `MERGE_REQUIRED` | every source path is present in the target tree, but 12 of 12 shared path(s) differ in content, so the target does not hold the source implementation | `.github/workflows/ci.yml` `.github/workflows/custom-domain.yml` `.github/workflows/db-recovery.yml` `.github/workflows/debug-logs.yml` |
+| CI / deployment workflows | 12 | 19 | 0 | 12 | 12 | `MERGE_REQUIRED` | every source path is present in the target tree, but 12 of 12 shared path(s) differ in content, so the target does not hold the source implementation | `.github/workflows/ci.yml` `.github/workflows/custom-domain.yml` `.github/workflows/db-recovery.yml` `.github/workflows/debug-logs.yml` |
 
 ## Package by package
 

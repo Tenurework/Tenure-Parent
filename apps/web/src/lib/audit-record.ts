@@ -13,8 +13,11 @@ import { stableStringify } from "@tenure/configuration"
 
 import { isPaymentMode, type PaymentMode } from "@tenure/contracts"
 
+import { buildEvidencePackage, classifyHighRiskAction } from "@tenure/payments"
+
 import { db, type TxClient } from "@/lib/db"
 import { currentEnvironment } from "@/lib/tenancy/context"
+import { scrubForAudit } from "@/lib/payments/financial-redaction"
 import type { UserContext } from "@/lib/rbac"
 
 /**
@@ -137,6 +140,15 @@ export const SEAT_METADATA_KEY = "_seat"
  * was involved.
  */
 export const MODE_METADATA_KEY = "_mode"
+/**
+ * PAY-200-005. Where the evidence package for a high-risk action lives.
+ *
+ * Inside `metadata`, which the hash chain covers, rather than in a table of its
+ * own: an evidence package stored beside the row it is evidence for, joined by
+ * an id, is a package that can be edited without breaking the row's link. In
+ * the blob it is chained, and `verifyChain` already refuses a rewritten one.
+ */
+export const EVIDENCE_METADATA_KEY = "_evidence"
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v)
@@ -481,10 +493,83 @@ export async function recordAuditEvent(
   const ambient = currentEnvironment()
   const mode: PaymentMode = isPaymentMode(input.mode) ? input.mode : (ambient ?? "test")
 
-  const metadata: Record<string, unknown> = { ...(input.metadata ?? {}) }
+  /* ─────────────────────────────────────────────────────────── PAY-200-005 --
+   * Redacted BEFORE anything is hashed, and financial identifiers are the class
+   * that was not being redacted.
+   *
+   * `redactMetadata` removes values under sensitive KEY NAMES, and
+   * `secret-values.ts` removes CREDENTIALS by their published prefixes. Neither
+   * sees a card number, an IBAN, a routing number or a provider account id
+   * pasted into a `reason` or carried in a `before`/`after` — and this table is
+   * append-only with `ON DELETE RESTRICT`, so a financial identifier that
+   * reaches it cannot be removed afterwards. It is replaced by a mask and a
+   * tenant-scoped token, so the row still says "the same account as the last
+   * one" without holding the account.
+   *
+   * Before `changeBlockFor` runs, deliberately: that function digests what it
+   * stores, and redacting afterwards would leave a digest that no longer
+   * matches the values beside it.
+   */
+  const reason = input.reason === undefined ? undefined : scrubForAudit(input.reason, input.institutionId)
+  const change = input.change
+    ? {
+        ...input.change,
+        before: scrubForAudit(input.change.before, input.institutionId),
+        after: scrubForAudit(input.change.after, input.institutionId),
+      }
+    : undefined
+
+  const metadata: Record<string, unknown> = scrubForAudit(
+    { ...(input.metadata ?? {}) },
+    input.institutionId,
+  )
   metadata[MODE_METADATA_KEY] = mode
   if (input.seat) metadata[SEAT_METADATA_KEY] = input.seat
-  if (input.change) metadata[CHANGE_METADATA_KEY] = changeBlockFor(input.change, input.sensitiveKeys)
+  if (change) metadata[CHANGE_METADATA_KEY] = changeBlockFor(change, input.sensitiveKeys)
+
+  /* ─────────────────────────────────────────────────────────── PAY-200-005 --
+   * The evidence package, for the actions that need one.
+   *
+   * Assembled here rather than at each call site because "every high-risk
+   * action" is a claim about a set, and a claim about a set has to be enforced
+   * where the set passes through one door. Every audit row in this application
+   * is written by this function, so an action classified high-risk gets a
+   * package whether or not its author thought about it — and a required field
+   * its author did not supply is NAMED in `missing` rather than absent, which
+   * is what makes the gap findable instead of invisible.
+   *
+   * The package is built from what the row already carries. It invents nothing:
+   * a field nobody supplied is `null`, and the reader is told which.
+   */
+  const riskClass = classifyHighRiskAction(input.action)
+  if (riskClass) {
+    const evidence = buildEvidencePackage({
+      action: input.action,
+      values: {
+        actor: input.actor.principalId,
+        tenant: input.institutionId,
+        legalEntity: metadata.legalEntityId ?? metadata.legalEntity,
+        seat: input.seat,
+        authority: input.actor.role ?? input.seat?.institutionRole ?? input.seat?.templateKey,
+        session: input.traceId,
+        command: input.action,
+        amountMinorUnits: metadata.amountMinorUnits ?? metadata.amountCents,
+        currency: metadata.currency,
+        affectedReferences: input.resourceId
+          ? [`${input.resourceType}:${input.resourceId}`]
+          : undefined,
+        beforeAfterDigest: (metadata[CHANGE_METADATA_KEY] as { digest?: string } | undefined)?.digest,
+        policyRevision: metadata.policyRevision,
+        configRevision: metadata.configRevision,
+        approvalDigest: metadata.approvalDigest ?? metadata.decisionDigest,
+        providerRequestRef: metadata.providerRequestRef,
+        providerEventRef: metadata.providerEventRef,
+        result: input.outcome,
+        reason,
+      },
+    })
+    if (evidence) metadata[EVIDENCE_METADATA_KEY] = evidence
+  }
 
   await ledger.appendChained(input.institutionId, (previous) => {
     // `previous` supplies both the position and the tamper check: the builder
@@ -504,7 +589,7 @@ export async function recordAuditEvent(
       resourceType: input.resourceType,
       resourceId: input.resourceId ?? undefined,
       outcome: input.outcome,
-      reason: input.reason,
+      reason,
       metadata,
       sensitiveKeys: input.sensitiveKeys,
       traceId: input.traceId,

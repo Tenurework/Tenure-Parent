@@ -1,0 +1,68 @@
+{
+  "id": "prevent-iam-escalation",
+  "title": "Nobody mints a long-lived credential, and nobody rewrites the deployment identities",
+  "attach_to": ["Root"],
+  "why": "The estate deploys through OIDC (GE-011): short-lived, repository-scoped, branch-scoped role assumption. An IAM user or access key created afterwards is a permanent key outside that design that nobody will rotate. Separately, the deployment roles are the boundary — a principal that can edit tenure-gha-* has every permission those roles will ever be given.",
+  "sourced_from": [
+    "infrastructure/oidc/roles.tf — the three deployment roles, all named tenure-gha-*",
+    "docs/decisions/KEY-RETIREMENT-CHECKLIST.md — the long-lived keys being retired",
+    "Tenure_Claude_Code_Unified_Global_Engine_Master_Prompt_v3.0.md — GE-010-005, 'unapproved IAM escalation'"
+  ],
+  "bootstrap_role_arn_pattern": "arn:aws:iam::*:role/tenure-oidc-bootstrap",
+  "limits": [
+    "iam:CreateRole is NOT denied. The engine's deploy role creates and passes its own task roles under a name prefix (infrastructure/oidc/roles.tf), and denying role creation outright would stop the estate deploying while stopping nobody from escalating — an escalation goes through a policy, not through a role that has none.",
+    "This does not stop a principal that already holds iam:PutRolePolicy on an UNPREFIXED role from widening it. That is bounded in the role policies themselves, which confine IAM writes to a name prefix; the two controls are deliberately different mechanisms."
+  ],
+  "policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DenyLongLivedCredentials",
+        "Effect": "Deny",
+        "Action": [
+          "iam:CreateUser",
+          "iam:CreateAccessKey",
+          "iam:CreateLoginProfile",
+          "iam:UpdateLoginProfile",
+          "iam:AttachUserPolicy",
+          "iam:PutUserPolicy"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DenyRemovingAPermissionsBoundary",
+        "Effect": "Deny",
+        "Action": [
+          "iam:DeleteRolePermissionsBoundary",
+          "iam:DeleteUserPermissionsBoundary"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DenyRewritingTheDeploymentIdentities",
+        "Effect": "Deny",
+        "Action": [
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:UpdateAssumeRolePolicy",
+          "iam:DeleteRole",
+          "iam:CreateOpenIDConnectProvider",
+          "iam:DeleteOpenIDConnectProvider",
+          "iam:UpdateOpenIDConnectProviderThumbprint",
+          "iam:AddClientIDToOpenIDConnectProvider"
+        ],
+        "Resource": [
+          "arn:aws:iam::*:role/tenure-gha-*",
+          "arn:aws:iam::*:oidc-provider/*"
+        ],
+        "Condition": {
+          "ArnNotLike": {
+            "aws:PrincipalArn": "arn:aws:iam::*:role/tenure-oidc-bootstrap"
+          }
+        }
+      }
+    ]
+  }
+}

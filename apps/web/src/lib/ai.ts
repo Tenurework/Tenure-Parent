@@ -5,6 +5,7 @@ import { borrowProviderCredential } from "@/lib/connections/credential-broker"
 import { serviceAvailableHere } from "@/lib/partition-services"
 import { verifyCitations, type ScoredDoc } from "@/lib/search"
 import { modelSourceFor } from "@/lib/relay/projection-policy"
+import { describeScrub, scrubForLog, scrubForModel } from "@/lib/payments/financial-redaction"
 import { citationRules } from "@/lib/relay/citation"
 import {
   fenceUntrusted,
@@ -174,12 +175,35 @@ export async function aiComplete(
     return null
   }
 
+  // ── PAY-180-004: the financial identifiers, on the same boundary ───────────
+  //
+  // The scanner above answers "is this a credential", and a credential is
+  // refused. A card number, an IBAN, a routing number or a provider account id
+  // is not a credential — it cannot act as anybody — but it is the customer's
+  // money, and it arrives in the ordinary course of this product: pasted into a
+  // reimbursement note, quoted in a receipt, retrieved and ranked like any other
+  // document body. Refusing every prompt that carries one would take the
+  // assistant away from the exact people asking about money, so it is REDACTED
+  // and a tenant-scoped token is left where it was. The model can still tell
+  // that two mentions are the same card; the card does not leave the account.
+  //
+  // The log line names counts and kinds, never a value.
+  const scrubbedSystem = scrubForModel(system)
+  const scrubbedUser = scrubForModel(user)
+  const scrubbed = [...scrubbedSystem.findings, ...scrubbedUser.findings]
+  if (scrubbed.length > 0) {
+    console.warn(
+      `[ai] redacted financial identifiers from the prompt before sending it: ` +
+        `${describeScrub(scrubbed)}.`,
+    )
+  }
+
   const maxTokens = options.maxTokens ?? 500
   const body = JSON.stringify({
     model,
     max_tokens: maxTokens,
-    system,
-    messages: [{ role: "user", content: user }],
+    system: scrubbedSystem.text,
+    messages: [{ role: "user", content: scrubbedUser.text }],
   })
 
   // WRK-040-004. The vendor key is BORROWED, never read. `use` hands the secret
@@ -242,7 +266,14 @@ export async function aiComplete(
           return null
         }
 
-        const text = data.content?.find((b) => b.type === "text")?.text ?? null
+        const raw = data.content?.find((b) => b.type === "text")?.text ?? null
+        // PAY-180-004, the return leg. The prompt was scrubbed, so the vendor
+        // was not shown one — but the model can reconstruct a plausible card
+        // number, and an answer that reads "we refunded 4111 1111 1111 1111" is
+        // a fabricated identifier being handed to a user as though it were the
+        // record. Scrubbed on the way out for the same reason it is scrubbed on
+        // the way in, and by the same rules.
+        const text = raw === null ? null : scrubForModel(raw).text
         // Awaited before the text is handed back, and not caught — see
         // `AiCompleteOptions.onUsage`.
         await options.onUsage({
@@ -259,7 +290,11 @@ export async function aiComplete(
       // before the string reaches CloudWatch.
       console.error(
         `[ai] Anthropic API ${res.status} (model=${model}, attempt=${attempt + 1}): ` +
-          safeLogText(detail.slice(0, 500)),
+          // Two scanners, two classes, both before the string reaches
+          // CloudWatch: `safeLogText` removes credentials, `scrubForLog`
+          // removes financial identifiers. A provider error body quotes the
+          // request that caused it, and that request carried a prompt.
+          scrubForLog(safeLogText(detail.slice(0, 500))).text,
       )
       // 429 (rate limit) and 529 (overloaded) are worth one retry; auth/model
       // errors (401/400/404) will just fail again, so stop immediately.
@@ -270,7 +305,7 @@ export async function aiComplete(
       // carry a token in a query string.
       console.error(
         `[ai] Anthropic API request failed (model=${model}, attempt=${attempt + 1}): ` +
-          safeLogText(err),
+          scrubForLog(safeLogText(err)).text,
       )
       if (attempt === 1) return null
       await new Promise((r) => setTimeout(r, 600))
