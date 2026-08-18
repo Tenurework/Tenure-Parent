@@ -90,7 +90,7 @@ The set `configurationModules()` computes, which is also the left-hand side of t
 | `apps/system-studio/src/app/tenants/new/quote.ts` | configuration-module | 362 lines · 11 exports |
 | `apps/system-studio/src/components/DeploymentPanel.tsx` | form-component | 100 lines · 1 exports |
 | `apps/system-studio/src/components/EvidencePanel.tsx` | form-component | 142 lines · 2 exports |
-| `apps/system-studio/src/components/GovernancePanel.tsx` | form-component | 111 lines · 1 exports |
+| `apps/system-studio/src/components/GovernancePanel.tsx` | form-component | 129 lines · 1 exports |
 | `apps/system-studio/src/components/TagCompliancePanel.tsx` | form-component | 124 lines · 1 exports |
 | `apps/system-studio/src/lib/config-sort-key.ts` | configuration-module | 20 lines · 3 exports |
 | `apps/system-studio/src/lib/config-store.ts` | configuration-module | 97 lines · 1 exports |

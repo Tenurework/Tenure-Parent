@@ -84,6 +84,54 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: node tools/verify-environments.mjs
+      # The absorption tests read the PILOT's tree at the commit their snapshots
+      # pin, and that commit is reachable only from `satvikOS/Tenure` — it is not
+      # an ancestor of this repository's main. `actions/checkout` clones at depth
+      # 1, so without this five tests fail here while passing on any machine that
+      # has run `git fetch live`:
+      #
+      #   apps/web/prisma/schema.prisma is not readable at 47c1128…
+      #
+      # The alternative was to let them degrade quietly in CI the way
+      # `simon-absorption-inventory.test.mjs` already does. That is worse: a test
+      # that cannot read its subject and says so in a diagnostic still reports
+      # green, and the whole point of these five is to catch a schema drifting
+      # from the tree it was absorbed from.
+      #
+      # The repository is public, so this needs no credential. The shas come out
+      # of the committed snapshots rather than being written here, so re-pinning a
+      # baseline cannot leave this step fetching the wrong commit. `--depth=1` per
+      # sha keeps it to the commits themselves and their trees, which is all the
+      # tests read.
+      - name: Fetch the pilot commits the absorption tests read
+        run: |
+          set -euo pipefail
+          git remote add live https://github.com/satvikOS/Tenure.git 2>/dev/null || true
+          shas=$(node -e '
+            const fs = require("fs")
+            const out = new Set()
+            for (const f of fs.readdirSync("docs/architecture")) {
+              if (!f.startsWith("simon-") || !f.endsWith(".json")) continue
+              const t = fs.readFileSync("docs/architecture/" + f, "utf8")
+              for (const m of t.matchAll(/"(?:pinned_commit|head_commit|source_commit|target_commit)":\s*"([0-9a-f]{40})"/g)) out.add(m[1])
+            }
+            process.stdout.write([...out].join(" "))
+          ')
+          echo "pinned commits: $shas"
+          for sha in $shas; do
+            if git cat-file -e "$sha^{commit}" 2>/dev/null; then
+              echo "  $sha already present"
+            elif git fetch --no-tags --depth=1 origin "$sha" 2>/dev/null; then
+              # The TARGET sha is one of this repository's own commits, and a
+              # depth-1 checkout does not have it either once main has moved on.
+              echo "  $sha fetched from origin"
+            elif git fetch --no-tags --depth=1 live "$sha" 2>/dev/null; then
+              echo "  $sha fetched from live"
+            else
+              echo "  $sha NOT fetchable from either remote — the test that reads it will say so"
+            fi
+          done
+
       - name: Platform tests
         run: npm run test:platform
 
