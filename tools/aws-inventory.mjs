@@ -38,6 +38,13 @@ const sanitize = (value) => {
 
 const denied = []
 const errors = []
+/**
+ * How many estate reads actually answered.
+ *
+ * Zero is the one count that makes every other number in this file a fiction —
+ * see the refusal above the writes at the bottom of this script.
+ */
+let answered = 0
 
 /** One read-only AWS CLI call. Records a denial and returns null rather than throwing. */
 function aws(service, operation, args = [], { global = false } = {}) {
@@ -45,6 +52,11 @@ function aws(service, operation, args = [], { global = false } = {}) {
   if (!global) argv.push('--region', REGION)
   try {
     const out = execFileSync('aws', argv, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    // Counted before the parse result is examined: an empty body from a call
+    // that returned cleanly is a real answer — "this account holds none" — and
+    // is exactly the case that must stay distinguishable from a call that never
+    // reached AWS at all.
+    answered += 1
     return out.trim() ? JSON.parse(out) : null
   } catch (err) {
     const message = String(err.stderr ?? err.message ?? err)
@@ -345,6 +357,39 @@ function writeSanitized(file, text) {
     process.exit(1)
   }
   fs.writeFileSync(file, masked)
+}
+
+/**
+ * Refuse to publish a run that read nothing.
+ *
+ * The failure policy at the top of this file is per-call: a denial is a fact
+ * worth writing down, so one refused API does not abort the run. It has no
+ * position on the case where *every* call fails, and on 2026-08-18 that case
+ * arrived. This script was run on a machine with no `aws` binary; all 31 calls
+ * threw `spawnSync aws ENOENT`, every list came back `[]`, and the artifacts
+ * were overwritten with a document that reads as a measurement of an empty
+ * estate — masked account `unknown`, `deniedCalls: 0`, no VPC, no RDS, no
+ * bucket. It was committed, and it silently emptied everything derived from it:
+ * `ge-landing-zone-model` lost all 41 of its placements' evidence, and the
+ * Studio's `/platform` console rendered the pilot as gone. Nothing had been
+ * measured at all.
+ *
+ * An empty list is a claim about AWS. This script may only make that claim if
+ * AWS answered at least once. When nothing answered there is no inventory to
+ * write — only a failed probe — and the last real measurement, whatever its
+ * date, is better evidence than a fresh document about nothing. So: write no
+ * file, exit non-zero, and let the run fail loudly. The same reasoning as
+ * `writeSanitized` below — a missing artifact is recoverable, a false one is
+ * believed.
+ */
+if (answered === 0) {
+  console.error(
+    `::error::No AWS call answered — ${errors.length} failed, ${denied.length} denied. ` +
+      'Refusing to overwrite the inventory with a document about nothing; the previous ' +
+      'artifacts are the last real measurement and are left as they are.',
+  )
+  for (const e of errors.slice(0, 5)) console.error(`::error::  ${e.call} — ${e.message}`)
+  process.exit(1)
 }
 
 fs.mkdirSync('docs/architecture', { recursive: true })

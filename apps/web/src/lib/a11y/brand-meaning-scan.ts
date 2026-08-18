@@ -176,15 +176,16 @@ export interface LinkOffence {
  *   · any element whose class list has an underline affordance — `underline`,
  *     `hover:underline` — and a resting brand text colour. The underline is what
  *     makes it link vocabulary rather than an icon or a chip, and the TAG is not
- *     the test: `members/page.tsx` painted a `<button>` in exactly the link
+ *     the test: `members/page.tsx` painted a `button` element in exactly the link
  *     vocabulary, and a reader deciding whether that word is clickable is
  *     reading its colour and its underline, not its element name. An anchor
  *     styled as a button (`border`, a height, `no-underline` and nothing else)
  *     is a CONTROL, and the accent is a primary control's declared role;
  *     `DocumentViewerOverlay`'s download anchor is that shape and is not
  *     reported.
- *   · any `[&_a]:text-[…]` rule, regardless of underline: every anchor inside
- *     authored content is a link by construction.
+ *   · any descendant-anchor rule painting a brand token — `[&_a]:text-[--primary]`
+ *     and its siblings across `BRAND_WRITABLE_PROPERTIES` — regardless of
+ *     underline: every anchor inside authored content is a link by construction.
  *
  * What is deliberately NOT reported, and why it is a scope decision rather than
  * an oversight: a HOVER tint. `hover:text-[--primary]` on a row title whose

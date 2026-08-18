@@ -59,6 +59,20 @@ function placeholderPattern() {
   return eval(match[1])
 }
 
+/** A synthetic inventory on disk, for the flags that take `--inventory`. */
+function writeInventory(inventory) {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "handoff-")), "inventory.json")
+  fs.writeFileSync(file, JSON.stringify(inventory))
+  return file
+}
+
+const inventoryWith = (certificates, cloudfront) => ({
+  region: "us-east-1",
+  generatedAt: "2026-08-03T00:00:00.000Z",
+  edge: { certificates, cloudfront },
+  identityProvider: { cognitoUserPools: [] },
+})
+
 test("the handoff package exists", () => {
   const markdown = read(DOCUMENT)
   assert.ok(markdown.length > 0, `${DOCUMENT} is missing. Run: node tools/simon-sso-handoff.mjs`)
@@ -77,12 +91,43 @@ test("no value it offers is a placeholder", () => {
   )
 })
 
-test("the detector reads real values out of the document", () => {
+test("the detector reads real values out of the document the generator writes", () => {
   // Asserted because the failure mode is silence: a matcher that found nothing
   // would report the document clean whatever it contained.
-  const values = offeredValues(read(DOCUMENT))
+  //
+  // It used to be asserted against the COMMITTED document — `offeredValues(...)
+  // .length > 0` — and that conflated two different things. "The matcher works"
+  // and "the estate has something deployed" come apart the moment nothing is
+  // deployed, which is a state `render()` has a whole prose branch for. The
+  // committed document now offers nothing because the inventory it is generated
+  // from is empty, so the old floor could only be satisfied by putting a value
+  // in a handoff package that no deployment backs — the exact failure the rest
+  // of this file exists to prevent. A guard whose only remedy is the defect it
+  // guards against is measuring the wrong thing.
+  //
+  // What has to be true is that the matcher can still read the table the
+  // generator writes. So render one, through the real `render()`, from an
+  // inventory that has a live origin. If a column is added, the backticks are
+  // dropped, or the heading is renamed, the matcher stops finding the value and
+  // this fails — which is the drift the floor was there to catch, now measured
+  // against the renderer rather than against today's AWS account.
+  const rendered = execFileSync("node", ["tools/simon-sso-handoff.mjs", "--render", "--inventory", writeInventory(
+    inventoryWith(
+      [{ domain: "live.tenurework.com", status: "ISSUED" }],
+      [{ domain: "d1.cloudfront.net", aliases: ["live.tenurework.com"], enabled: true }],
+    ),
+  )], { cwd: ROOT, encoding: "utf8" })
 
-  assert.ok(values.length > 0, "no offered values found — the table matcher is not reading the document")
+  assert.deepEqual(
+    offeredValues(rendered),
+    ["https://live.tenurework.com"],
+    "the table matcher is not reading the document the generator renders",
+  )
+
+  // And nothing the committed document does offer is too short to be a real
+  // endpoint. Vacuous only when the estate is empty, which is why the line
+  // above no longer depends on it.
+  const values = offeredValues(read(DOCUMENT))
   assert.ok(
     values.every((value) => value.length > 3),
     `an offered value is suspiciously short: ${values.join(", ")}`,
@@ -145,22 +190,13 @@ test("the document is current", () => {
  * mutations survived. These feed inventories where the rules matter.
  */
 function factsFrom(inventory) {
-  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "handoff-")), "inventory.json")
-  fs.writeFileSync(file, JSON.stringify(inventory))
   const output = execFileSync(
     "node",
-    ["tools/simon-sso-handoff.mjs", "--facts", "--inventory", file],
+    ["tools/simon-sso-handoff.mjs", "--facts", "--inventory", writeInventory(inventory)],
     { cwd: ROOT, encoding: "utf8" },
   )
   return JSON.parse(output.trim())
 }
-
-const inventoryWith = (certificates, cloudfront) => ({
-  region: "us-east-1",
-  generatedAt: "2026-08-03T00:00:00.000Z",
-  edge: { certificates, cloudfront },
-  identityProvider: { cognitoUserPools: [] },
-})
 
 test("an alias whose certificate failed is not a live origin", () => {
   // A name with a FAILED certificate does not serve traffic. Handing it over is

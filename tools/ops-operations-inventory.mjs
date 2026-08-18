@@ -182,6 +182,11 @@ export const VERDICTS = [
     "the same approval gate, exercised — a director who \"cannot lend procurement\" is a delegation refusal about authority, not about supply",
   ],
   [
+    "packages/generality-fixtures/src/corporate-purchase.ts",
+    "unrelated-word",
+    "a rung of SPEND AUTHORITY — `procurementGate` is \"the executive who signs what the company is committed to\" and `PENDING_PROCUREMENT` is that person's queue. The GE-052-003 fixture prices an amount and routes approvals; it carries no supplier, item, unit of measure, purchase-order line or receipt, and nothing exists downstream of `APPROVED`",
+  ],
+  [
     "packages/identity/src/handoff.ts",
     "unrelated-word",
     "`docs/architecture/aws-inventory.json`, the source a handoff field cites",

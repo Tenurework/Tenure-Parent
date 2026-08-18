@@ -124,16 +124,50 @@ test("every module mapping built for the rejection engine carries provides", () 
   )
 })
 
+/**
+ * The mapping this guard exists for, by path.
+ *
+ * Matched on the route suffix rather than the whole path so relocating the
+ * Studio app does not red the guard, while renaming or deleting the mapping —
+ * the two ways the scan could go quiet without the regex changing — does.
+ */
+const KNOWN_MAPPING = "/configuration/publication-modules.ts"
+
 test("the detector finds the mappings it is auditing", () => {
   // Silence is the failure mode: a regex that matched nothing would report
   // every caller compliant forever.
-  let found = 0
+  //
+  // This asserted `found >= 3` — a census of the three inline
+  // `MODULES.map((m) => ({ … }))` blocks in `configuration/actions.ts`, one
+  // each for review, publish and rollback. `2b29e2b` replaced all three with a
+  // single exported `publicationModules()`, for the reason this file argues at
+  // the top: three copies of one projection is how a field gets dropped from
+  // some of them, and that commit was fixing a second dropped field (`version`,
+  // CFG-030-005). The count fell 3 -> 1 because the duplication this guard
+  // warns about was removed.
+  //
+  // So the floor moves, and the measure changes with it. A count was the wrong
+  // proof of liveness: it can only be met by having MORE copies of the mapping,
+  // which rewards exactly the duplication the guard is here to catch, and any
+  // three unrelated literals would satisfy it. What must be true is that the
+  // scan still sees the real production mapping — a stronger claim than "three
+  // of something", and one that survives the next consolidation. `found >= 1`
+  // stays as the vacuity floor; the named mapping is what carries the weight.
+  const found = []
   for (const root of SEARCH_ROOTS) {
     for (const file of sourceFiles(path.join(ROOT, root))) {
-      found += moduleLikeLiterals(fs.readFileSync(file, "utf8")).length
+      const relative = path.relative(ROOT, file).split(path.sep).join("/")
+      for (const _ of moduleLikeLiterals(fs.readFileSync(file, "utf8"))) found.push(relative)
     }
   }
-  assert.ok(found >= 3, `expected the known ModuleLike mappings, found ${found}`)
+
+  assert.ok(found.length >= 1, `expected the known ModuleLike mappings, found ${found.length}`)
+  assert.ok(
+    found.some((file) => file.endsWith(KNOWN_MAPPING)),
+    `the scan no longer sees the Studio's publication mapping (\`*${KNOWN_MAPPING}\`), which is the ` +
+      `caller this guard was written for. Either it was renamed — say so here — or the detector has ` +
+      `stopped matching it and the first test now passes vacuously. It found:\n  ${found.join("\n  ") || "(nothing)"}`,
+  )
 })
 
 test("the scan takes the projection, not its wrapper and not a declaration", () => {

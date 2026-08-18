@@ -4758,7 +4758,7 @@
   },
   "target": {
     "label": "target",
-    "pinned_commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea",
+    "pinned_commit": "d4e2d4968f33603e419e5a163beeaad24c22a103",
     "schema_path": "apps/web/prisma/schema.prisma",
     "entities": [
       {
@@ -5469,7 +5469,7 @@
         "retention_fields": [],
         "mapped_to": null,
         "accessor": "institution",
-        "accessed_by_files": 32,
+        "accessed_by_files": 33,
         "owner_domains": [
           "billing-metering",
           "configuration",
@@ -5802,9 +5802,10 @@
         "retention_fields": [],
         "mapped_to": null,
         "accessor": "outboxEvent",
-        "accessed_by_files": 14,
+        "accessed_by_files": 15,
         "owner_domains": [
           "control-plane",
+          "integrations",
           "notifications",
           "organization",
           "workflow"

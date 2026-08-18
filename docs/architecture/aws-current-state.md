@@ -1,9 +1,9 @@
 # AWS current state
 
-**GE-001-004 / 005.** Generated 2026-08-18T02:03:02.559Z by `tools/aws-inventory.mjs`, run from
+**GE-001-004 / 005.** Generated 2026-07-31T23:40:04.289Z by `tools/aws-inventory.mjs`, run from
 `.github/workflows/aws-inventory.yml`. Read-only: describe/list/get-configuration calls only.
 
-Account `unknown` · region `us-east-1`
+Account `1549…97` · region `us-east-1`
 
 > The account id is masked. This repository is public and every artifact it produces is
 > world-readable and archived. No secret value, parameter value, environment variable or
@@ -14,16 +14,16 @@ Account `unknown` · region `us-east-1`
 
 | | |
 |---|---:|
-| vpcs | 0 |
+| vpcs | 2 |
 | natGateways | 0 |
-| loadBalancers | 0 |
-| cloudfrontDistributions | 0 |
-| ecsClusters | 0 |
-| rdsInstances | 0 |
-| s3Buckets | 0 |
+| loadBalancers | 2 |
+| cloudfrontDistributions | 2 |
+| ecsClusters | 2 |
+| rdsInstances | 1 |
+| s3Buckets | 3 |
 | cognitoUserPools | 0 |
-| secrets | 0 |
-| deniedCalls | 0 |
+| secrets | 6 |
+| deniedCalls | 3 |
 
 ## Organization
 
@@ -41,14 +41,16 @@ OIDC providers: **none**
 long-lived `ACCESSKEYID` / `SECRETACCESSKEY` pair, which cannot be scoped per workflow,
 does not expire, and is shared with a second repository. **GE-011.**
 
-IAM roles: 0. Deployment-shaped: `none`
+IAM roles: 14. Deployment-shaped: `AWSServiceRoleForECS`, `tenure-pilot-ecs-execution`, `tenure-pilot-ecs-task`, `tenure-studio-ecs-execution`, `tenure-studio-ecs-task`
 
 ## Network
 
 | VPC | CIDR | Default |
 |---|---|---|
+| (untagged) | `172.31.0.0/16` | yes |
+| tenure-pilot-vpc | `10.0.0.0/16` | no |
 
-Subnets 0 · security groups 0 · NAT gateways **0**
+Subnets 10 · security groups 8 · NAT gateways **0**
 
 No NAT gateway: tasks run in public subnets with public IPs and pull from ECR directly.
 That is a deliberate cost choice (~$32/month each) and a security trade-off to revisit
@@ -58,14 +60,18 @@ when isolation classes above pooled are offered.
 
 | Name | Type | Scheme |
 |---|---|---|
+| tenure-pilot-alb | application | internet-facing |
+| tenure-studio-alb | application | internet-facing |
 
 ## Edge
 
 | CloudFront | Aliases | Enabled | Comment |
 |---|---|---|---|
+| `d1n6mdis7bs02g.cloudfront.net` | platform.tenurework.com | yes | Tenure pilot — Next.js via ECS Fargate |
+| `d2kj4iy5i37kfd.cloudfront.net` | — | yes | Tenure System Studio — internal platform engine |
 
 Hosted zones: none
-Certificates: none
+Certificates: app.tenurework.com (FAILED), app.tenurework.com (FAILED), app.tenurework.com (FAILED), platform.tenurework.com (ISSUED)
 WAF web ACLs: **none**
 
 **No WAF.** Both distributions are directly exposed with no rate limiting or managed rule
@@ -73,8 +79,8 @@ set in front of them. **GE-150.**
 
 ## Compute
 
-ECS clusters: `none`
-ECR repositories: `none`
+ECS clusters: `tenure-studio`, `tenure-pilot`
+ECR repositories: `tenure-pilot-app`, `tenure-studio`
 Lambda functions: 0
 
 ## Identity provider
@@ -88,8 +94,9 @@ secret. Both are interim. **GE-041.**
 
 | RDS | Engine | Class | Multi-AZ | Encrypted | Backup days | Public | Del. protection |
 |---|---|---|---|---|---:|---|---|
+| tenure-pilot-db | postgres 16.3 | db.t3.micro | no | yes | **1** | no | yes |
 
-S3 buckets: 0 · DynamoDB tables: 0 · ElastiCache: 0
+S3 buckets: 3 · DynamoDB tables: 1 · ElastiCache: 1
 
 ## Keys and secrets
 
@@ -97,47 +104,29 @@ Customer-managed KMS aliases: `none`
 
 | Secret | Rotation | Last changed |
 |---|---|---|
+| `tenure-pilot/app` | **disabled** | 2026-07-12 |
+| `rds!db-ce7fc7cf-399d-451d-9de8-a669132dd0b3` | enabled | 2026-07-31 |
+| `tenure-pilot/job` | **disabled** | 2026-07-18 |
+| `events!connection/tenure-pilot-job/76407ff7-57c7-4268-bec2-4346d3d35591` | **disabled** | 2026-07-18 |
+| `tenure-pilot/dev-login` | **disabled** | 2026-07-30 |
+| `tenure-studio/app` | **disabled** | 2026-07-31 |
 
 ## Observability and backup
 
 Backup vaults: **none**
-Alarms: 0
+Alarms: 4
 
 | Log group | Retention |
 |---|---|
+| `/aws/ecs/containerinsights/tenure-pilot/performance` | 1 |
+| `/ecs/tenure-pilot` | 30 |
+| `/ecs/tenure-studio` | 30 |
 
 ## Access
 
-Other failures:
+Denied or unavailable — recorded rather than escalated. §3 of the prompt requires naming
+the exact API rather than asking for administrator access:
 
-- `organizations describe-organization` — spawnSync aws ENOENT
-- `organizations list-accounts` — spawnSync aws ENOENT
-- `organizations list-roots` — spawnSync aws ENOENT
-- `iam list-open-id-connect-providers` — spawnSync aws ENOENT
-- `iam list-roles` — spawnSync aws ENOENT
-- `ec2 describe-vpcs` — spawnSync aws ENOENT
-- `ec2 describe-subnets` — spawnSync aws ENOENT
-- `ec2 describe-security-groups` — spawnSync aws ENOENT
-- `ec2 describe-nat-gateways` — spawnSync aws ENOENT
-- `route53 list-hosted-zones` — spawnSync aws ENOENT
-- `acm list-certificates` — spawnSync aws ENOENT
-- `cloudfront list-distributions` — spawnSync aws ENOENT
-- `wafv2 list-web-acls` — spawnSync aws ENOENT
-- `elbv2 describe-load-balancers` — spawnSync aws ENOENT
-- `ecs list-clusters` — spawnSync aws ENOENT
-- `ecr describe-repositories` — spawnSync aws ENOENT
-- `lambda list-functions` — spawnSync aws ENOENT
-- `cognito-idp list-user-pools` — spawnSync aws ENOENT
-- `rds describe-db-instances` — spawnSync aws ENOENT
-- `dynamodb list-tables` — spawnSync aws ENOENT
-- `elasticache describe-cache-clusters` — spawnSync aws ENOENT
-- `s3api list-buckets` — spawnSync aws ENOENT
-- `sqs list-queues` — spawnSync aws ENOENT
-- `sns list-topics` — spawnSync aws ENOENT
-- `events list-event-buses` — spawnSync aws ENOENT
-- `kms list-aliases` — spawnSync aws ENOENT
-- `secretsmanager list-secrets` — spawnSync aws ENOENT
-- `logs describe-log-groups` — spawnSync aws ENOENT
-- `cloudwatch describe-alarms` — spawnSync aws ENOENT
-- `backup list-backup-vaults` — spawnSync aws ENOENT
-- `cloudformation list-stacks` — spawnSync aws ENOENT
+- `organizations describe-organization` — Organizations not in use
+- `organizations list-accounts` — Organizations not in use
+- `organizations list-roots` — Organizations not in use

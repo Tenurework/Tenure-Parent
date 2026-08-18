@@ -1269,11 +1269,11 @@
       "tags": []
     },
     "checked_out_branch": "main",
-    "head_commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea",
+    "head_commit": "d4e2d4968f33603e419e5a163beeaad24c22a103",
     "branches": [
       {
         "ref": "main",
-        "commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea"
+        "commit": "d4e2d4968f33603e419e5a163beeaad24c22a103"
       },
       {
         "ref": "wip/ier-killed-run-20260808",
@@ -1283,18 +1283,18 @@
     "remote_branches": [
       {
         "ref": "origin",
-        "commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea"
+        "commit": "d4e2d4968f33603e419e5a163beeaad24c22a103"
       },
       {
         "ref": "origin/main",
-        "commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea"
+        "commit": "d4e2d4968f33603e419e5a163beeaad24c22a103"
       }
     ],
     "local_tags": [],
     "history": {
-      "commits": 451,
-      "newest_commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea",
-      "newest_commit_date": "2026-08-17",
+      "commits": 453,
+      "newest_commit": "d4e2d4968f33603e419e5a163beeaad24c22a103",
+      "newest_commit_date": "2026-08-18",
       "oldest_commit": "abf30691f8299414de6b115f4d40c8084049a0f4",
       "oldest_commit_date": "2026-07-10",
       "contributors": [
@@ -1304,8 +1304,9 @@
         "verification"
       ]
     },
-    "tracked_files": 1671,
+    "tracked_files": 1780,
     "files": [
+      "&1",
       ".dockerignore",
       ".gitattributes",
       ".github/workflows/aws-inventory.yml",
@@ -1391,6 +1392,7 @@
       "apps/system-studio/e2e/aws-unknown-is-not-absent.spec.ts",
       "apps/system-studio/e2e/base-scale.spec.ts",
       "apps/system-studio/e2e/breadcrumbs.spec.ts",
+      "apps/system-studio/e2e/change-governance-logic.spec.ts",
       "apps/system-studio/e2e/commands-logic.spec.ts",
       "apps/system-studio/e2e/commands.spec.ts",
       "apps/system-studio/e2e/compute-page-logic.spec.ts",
@@ -1420,6 +1422,7 @@
       "apps/system-studio/e2e/operator-identity.ts",
       "apps/system-studio/e2e/operator-roles.spec.ts",
       "apps/system-studio/e2e/platform.spec.ts",
+      "apps/system-studio/e2e/portability-logic.spec.ts",
       "apps/system-studio/e2e/preferences-logic.spec.ts",
       "apps/system-studio/e2e/preferences.spec.ts",
       "apps/system-studio/e2e/pricing-logic.spec.ts",
@@ -1429,6 +1432,7 @@
       "apps/system-studio/e2e/security-surface.spec.ts",
       "apps/system-studio/e2e/signin.spec.ts",
       "apps/system-studio/e2e/states-logic.spec.ts",
+      "apps/system-studio/e2e/tenant-governance-logic.spec.ts",
       "apps/system-studio/e2e/tenant-page-logic.spec.ts",
       "apps/system-studio/e2e/tenant-surface.spec.ts",
       "apps/system-studio/e2e/topbar.spec.ts",
@@ -1527,8 +1531,12 @@
       "apps/system-studio/src/app/tenants/[slug]/configuration/actions.ts",
       "apps/system-studio/src/app/tenants/[slug]/configuration/change-cost.test.ts",
       "apps/system-studio/src/app/tenants/[slug]/configuration/change-cost.ts",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/consequences.test.ts",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/consequences.ts",
       "apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx",
+      "apps/system-studio/src/app/tenants/[slug]/configuration/publication-modules.ts",
       "apps/system-studio/src/app/tenants/[slug]/footprint.ts",
+      "apps/system-studio/src/app/tenants/[slug]/governance.ts",
       "apps/system-studio/src/app/tenants/[slug]/next-moves.ts",
       "apps/system-studio/src/app/tenants/[slug]/page.tsx",
       "apps/system-studio/src/app/tenants/[slug]/summary.ts",
@@ -1555,6 +1563,7 @@
       "apps/system-studio/src/components/CommandPalette.tsx",
       "apps/system-studio/src/components/DeploymentPanel.tsx",
       "apps/system-studio/src/components/EvidencePanel.tsx",
+      "apps/system-studio/src/components/GovernancePanel.tsx",
       "apps/system-studio/src/components/Launcher.tsx",
       "apps/system-studio/src/components/LiveRegion.tsx",
       "apps/system-studio/src/components/Nav.tsx",
@@ -1727,6 +1736,9 @@
       "apps/system-studio/src/lib/aws/waf.ts",
       "apps/system-studio/src/lib/cells.test.ts",
       "apps/system-studio/src/lib/cells.ts",
+      "apps/system-studio/src/lib/change/blast-radius.ts",
+      "apps/system-studio/src/lib/change/calendar.ts",
+      "apps/system-studio/src/lib/change/windows.ts",
       "apps/system-studio/src/lib/command-gate.ts",
       "apps/system-studio/src/lib/command-handlers.test.ts",
       "apps/system-studio/src/lib/command-handlers.ts",
@@ -1746,7 +1758,11 @@
       "apps/system-studio/src/lib/object-authority.ts",
       "apps/system-studio/src/lib/operators.ts",
       "apps/system-studio/src/lib/placement-wiring.test.ts",
+      "apps/system-studio/src/lib/portability/bundle.ts",
+      "apps/system-studio/src/lib/portability/clone.ts",
       "apps/system-studio/src/lib/preferences.ts",
+      "apps/system-studio/src/lib/purge-readiness.test.ts",
+      "apps/system-studio/src/lib/purge-readiness.ts",
       "apps/system-studio/src/lib/registry-record.ts",
       "apps/system-studio/src/lib/registry.ts",
       "apps/system-studio/src/lib/revisions.ts",
@@ -1920,12 +1936,15 @@
       "apps/web/src/app/api/calendar/ics/[token]/consent-route.test.ts",
       "apps/web/src/app/api/calendar/ics/[token]/route.ts",
       "apps/web/src/app/api/calendar/reschedule/route.ts",
+      "apps/web/src/app/api/connections/exceptions/route.ts",
       "apps/web/src/app/api/connections/opportunity/route.ts",
       "apps/web/src/app/api/documents/[id]/content/route.ts",
       "apps/web/src/app/api/documents/[id]/save/route.ts",
       "apps/web/src/app/api/documents/_lib/content.ts",
       "apps/web/src/app/api/health/route.ts",
       "apps/web/src/app/api/jobs/outbox/route.ts",
+      "apps/web/src/app/api/jobs/payments-version-watch/route.test.ts",
+      "apps/web/src/app/api/jobs/payments-version-watch/route.ts",
       "apps/web/src/app/api/jobs/reminders/job-request.test.ts",
       "apps/web/src/app/api/jobs/reminders/route.ts",
       "apps/web/src/app/api/jobs/slo/route.ts",
@@ -2069,11 +2088,15 @@
       "apps/web/src/components/ui/destructive-preview.ts",
       "apps/web/src/components/ui/gallery-catalog.test.ts",
       "apps/web/src/components/ui/gallery-catalog.ts",
+      "apps/web/src/components/ui/icon-family.test.ts",
+      "apps/web/src/components/ui/icon-family.ts",
       "apps/web/src/components/ui/icons.tsx",
       "apps/web/src/components/ui/owned-wrappers.test.tsx",
       "apps/web/src/components/ui/states.test.ts",
       "apps/web/src/components/ui/states.ts",
       "apps/web/src/instrumentation.ts",
+      "apps/web/src/lib/a11y/brand-meaning-scan.test.ts",
+      "apps/web/src/lib/a11y/brand-meaning-scan.ts",
       "apps/web/src/lib/a11y/brand-roles.test.ts",
       "apps/web/src/lib/a11y/brand-roles.ts",
       "apps/web/src/lib/a11y/contrast.test.ts",
@@ -2144,10 +2167,16 @@
       "apps/web/src/lib/config/server.ts",
       "apps/web/src/lib/connections/capability-resolution.test.ts",
       "apps/web/src/lib/connections/capability-resolution.ts",
+      "apps/web/src/lib/connections/certified-capability-state.test.ts",
       "apps/web/src/lib/connections/credential-broker.test.ts",
       "apps/web/src/lib/connections/credential-broker.ts",
+      "apps/web/src/lib/connections/exception-worklist.test.ts",
+      "apps/web/src/lib/connections/exception-worklist.ts",
+      "apps/web/src/lib/connections/integration-errors.test.ts",
+      "apps/web/src/lib/connections/integration-errors.ts",
       "apps/web/src/lib/connections/pending-intent.test.ts",
       "apps/web/src/lib/connections/pending-intent.ts",
+      "apps/web/src/lib/connections/prisma-dead-deliveries.ts",
       "apps/web/src/lib/connections/selector-consent.test.ts",
       "apps/web/src/lib/connections/selector-consent.ts",
       "apps/web/src/lib/db.ts",
@@ -2155,6 +2184,13 @@
       "apps/web/src/lib/dev-login.test.ts",
       "apps/web/src/lib/dev-login.ts",
       "apps/web/src/lib/directory.ts",
+      "apps/web/src/lib/eligibility/engine-purity.test.ts",
+      "apps/web/src/lib/eligibility/evaluate.test.ts",
+      "apps/web/src/lib/eligibility/evaluate.ts",
+      "apps/web/src/lib/eligibility/policy.test.ts",
+      "apps/web/src/lib/eligibility/policy.ts",
+      "apps/web/src/lib/eligibility/tenant-entry.test.ts",
+      "apps/web/src/lib/eligibility/tenant-entry.ts",
       "apps/web/src/lib/env.test.ts",
       "apps/web/src/lib/env.ts",
       "apps/web/src/lib/envelopes/envelopes.test.ts",
@@ -2180,6 +2216,8 @@
       "apps/web/src/lib/ingestion/__fixtures__/zip.ts",
       "apps/web/src/lib/ingestion/safe-workbook.test.ts",
       "apps/web/src/lib/ingestion/safe-workbook.ts",
+      "apps/web/src/lib/ingestion/tabular-import.test.ts",
+      "apps/web/src/lib/ingestion/tabular-import.ts",
       "apps/web/src/lib/ingestion/workbook-admission.test.ts",
       "apps/web/src/lib/ingestion/workbook-admission.ts",
       "apps/web/src/lib/ingestion/zip-container.test.ts",
@@ -2211,10 +2249,13 @@
       "apps/web/src/lib/outbox/prisma-ports.ts",
       "apps/web/src/lib/partition-services.test.ts",
       "apps/web/src/lib/partition-services.ts",
+      "apps/web/src/lib/payments/audit-evidence-wired.test.ts",
       "apps/web/src/lib/payments/authority-attacks.test.ts",
       "apps/web/src/lib/payments/delegation-expiry-wired.test.ts",
+      "apps/web/src/lib/payments/financial-redaction.ts",
       "apps/web/src/lib/payments/ledger-attribution.itest.ts",
       "apps/web/src/lib/payments/movement-gate.ts",
+      "apps/web/src/lib/payments/prompt-redaction.test.ts",
       "apps/web/src/lib/people/seat-memory-boundary.test.ts",
       "apps/web/src/lib/people/seat-memory-boundary.ts",
       "apps/web/src/lib/planning/spread.test.ts",
@@ -2235,6 +2276,7 @@
       "apps/web/src/lib/relay/citation-display.ts",
       "apps/web/src/lib/relay/citation.test.ts",
       "apps/web/src/lib/relay/citation.ts",
+      "apps/web/src/lib/relay/connection-class-authority.test.ts",
       "apps/web/src/lib/relay/connection-class.test.ts",
       "apps/web/src/lib/relay/connection-class.ts",
       "apps/web/src/lib/relay/payments-claim-review.ts",
@@ -2278,8 +2320,11 @@
       "apps/web/src/lib/tenant-switching.itest.ts",
       "apps/web/src/lib/time.test.ts",
       "apps/web/src/lib/time.ts",
+      "apps/web/src/lib/uploads/tenant-image.test.ts",
+      "apps/web/src/lib/uploads/tenant-image.ts",
       "apps/web/src/lib/workflows/approval-definition.test.ts",
       "apps/web/src/lib/workflows/approval-definition.ts",
+      "apps/web/src/lib/workflows/generality-parity.test.ts",
       "apps/web/src/middleware.ts",
       "apps/web/src/types/next-auth.d.ts",
       "apps/web/tailwind.config.ts",
@@ -2314,6 +2359,7 @@
       "docs/architecture/cat-requirement-bindings.md",
       "docs/architecture/cfg-configuration-truth.md",
       "docs/architecture/cfg-form-and-configuration-disposition.md",
+      "docs/architecture/cutover-command-authority.md",
       "docs/architecture/cutover-command-center.md",
       "docs/architecture/data-provenance.md",
       "docs/architecture/entry-points.md",
@@ -2327,6 +2373,7 @@
       "docs/architecture/int-connector-capability-matrix.md",
       "docs/architecture/int-connector-write-boundary.md",
       "docs/architecture/int-integration-inventory.md",
+      "docs/architecture/integration-catalog.md",
       "docs/architecture/ops-availability-and-limitations.md",
       "docs/architecture/ops-operations-code-inventory.md",
       "docs/architecture/ownership.md",
@@ -2342,8 +2389,11 @@
       "docs/architecture/simon-capability-disposition.md",
       "docs/architecture/simon-concept-collisions.md",
       "docs/architecture/simon-convergence-inventory.json",
+      "docs/architecture/simon-data-dictionary.json",
+      "docs/architecture/simon-data-dictionary.md",
       "docs/architecture/simon-hardcoded-assumptions.md",
       "docs/architecture/simon-import-risk-inventory.md",
+      "docs/architecture/simon-module-boundaries.md",
       "docs/architecture/simon-repository-inventory.md",
       "docs/architecture/simon-repository-maps.md",
       "docs/architecture/simon-stack-inventory.md",
@@ -2352,6 +2402,7 @@
       "docs/architecture/subsystem-paths.md",
       "docs/architecture/tenant-experience-architecture.md",
       "docs/architecture/tenant-scoped-schema-plan.md",
+      "docs/architecture/tes-ui-stack-inventory.md",
       "docs/architecture/ttes-experience-audit.md",
       "docs/architecture/ttes-governance-dashboard.md",
       "docs/architecture/ux-task-scorecard.md",
@@ -2416,6 +2467,13 @@
       "infrastructure/oidc/outputs.tf",
       "infrastructure/oidc/roles.tf",
       "infrastructure/oidc/variables.tf",
+      "infrastructure/organization/scp/prevent-iam-escalation.json",
+      "infrastructure/organization/scp/prevent-leaving-organization.json",
+      "infrastructure/organization/scp/prevent-public-resources.json",
+      "infrastructure/organization/scp/prevent-root-use.json",
+      "infrastructure/organization/scp/protect-security-services.json",
+      "infrastructure/organization/scp/region-restriction.json",
+      "infrastructure/organization/scp/require-evidence.json",
       "infrastructure/studio/acm.tf",
       "infrastructure/studio/cloudfront.tf",
       "infrastructure/studio/cognito.tf",
@@ -2510,6 +2568,8 @@
       "packages/configuration/src/merge.ts",
       "packages/configuration/src/publication.test.ts",
       "packages/configuration/src/publication.ts",
+      "packages/configuration/src/registry-graph.test.ts",
+      "packages/configuration/src/registry-graph.ts",
       "packages/configuration/src/rejections.test.ts",
       "packages/configuration/src/rejections.ts",
       "packages/configuration/src/resolve.ts",
@@ -2539,6 +2599,13 @@
       "packages/finops/src/settlement.test.ts",
       "packages/finops/src/settlement.ts",
       "packages/finops/src/split.ts",
+      "packages/generality-fixtures/package.json",
+      "packages/generality-fixtures/src/corporate-org.test.ts",
+      "packages/generality-fixtures/src/corporate-org.ts",
+      "packages/generality-fixtures/src/corporate-purchase.test.ts",
+      "packages/generality-fixtures/src/corporate-purchase.ts",
+      "packages/generality-fixtures/src/index.ts",
+      "packages/generality-fixtures/src/terminology-neutrality.test.ts",
       "packages/identity/package.json",
       "packages/identity/src/access-state.test.ts",
       "packages/identity/src/access-token.test.ts",
@@ -2631,6 +2698,9 @@
       "packages/payments/src/api-version.ts",
       "packages/payments/src/balance-transactions.test.ts",
       "packages/payments/src/balance-transactions.ts",
+      "packages/payments/src/capability-api-versions.test.ts",
+      "packages/payments/src/capability-gates.test.ts",
+      "packages/payments/src/capability-gates.ts",
       "packages/payments/src/capability-registry.test.ts",
       "packages/payments/src/capability-registry.ts",
       "packages/payments/src/capability-states.test.ts",
@@ -2640,9 +2710,13 @@
       "packages/payments/src/eligibility.ts",
       "packages/payments/src/external-reference.test.ts",
       "packages/payments/src/external-reference.ts",
+      "packages/payments/src/financial-identifiers.test.ts",
+      "packages/payments/src/financial-identifiers.ts",
       "packages/payments/src/funds-flow.test.ts",
       "packages/payments/src/funds-flow.ts",
       "packages/payments/src/gateway.ts",
+      "packages/payments/src/high-risk-actions.test.ts",
+      "packages/payments/src/high-risk-actions.ts",
       "packages/payments/src/index.ts",
       "packages/payments/src/liability.test.ts",
       "packages/payments/src/liability.ts",
@@ -2657,6 +2731,8 @@
       "packages/payments/src/refusal.ts",
       "packages/payments/src/responsibility.test.ts",
       "packages/payments/src/responsibility.ts",
+      "packages/payments/src/version-watch.test.ts",
+      "packages/payments/src/version-watch.ts",
       "packages/payments/src/webhook.test.ts",
       "packages/payments/src/webhook.ts",
       "packages/platform-config/package.json",
@@ -2701,9 +2777,12 @@
       "packages/provisioning/src/commercial.ts",
       "packages/provisioning/src/connection-cardinality.mjs",
       "packages/provisioning/src/connector-capability.ts",
+      "packages/provisioning/src/cutover-activation.mjs",
+      "packages/provisioning/src/cutover-command-roles.mjs",
       "packages/provisioning/src/cutover-freeze.mjs",
       "packages/provisioning/src/cutover-go-no-go.mjs",
       "packages/provisioning/src/cutover-horizons.mjs",
+      "packages/provisioning/src/cutover-plan-levels.mjs",
       "packages/provisioning/src/cutover-rollback.mjs",
       "packages/provisioning/src/cutover-runbook.mjs",
       "packages/provisioning/src/deployment-signature.test.ts",
@@ -2712,6 +2791,8 @@
       "packages/provisioning/src/identity-registry.ts",
       "packages/provisioning/src/index.ts",
       "packages/provisioning/src/lifecycle.ts",
+      "packages/provisioning/src/manifest-values.test.ts",
+      "packages/provisioning/src/manifest-values.ts",
       "packages/provisioning/src/manifest.ts",
       "packages/provisioning/src/placement-adapters.ts",
       "packages/provisioning/src/placement-override.ts",
@@ -2722,12 +2803,15 @@
       "packages/provisioning/src/pool-strategy.ts",
       "packages/provisioning/src/provider-packs.ts",
       "packages/provisioning/src/provisioning.test.ts",
+      "packages/provisioning/src/purge-exit.test.ts",
+      "packages/provisioning/src/purge-gate.ts",
       "packages/provisioning/src/residual-reconciliation.ts",
       "packages/provisioning/src/resource-selector.test.ts",
       "packages/provisioning/src/resource-selector.ts",
       "packages/provisioning/src/resource-tags.ts",
       "packages/provisioning/src/tenant-registry.test.ts",
       "packages/provisioning/src/tenant-registry.ts",
+      "packages/provisioning/src/tombstone.ts",
       "packages/provisioning/src/work-accelerators.ts",
       "packages/releases/package.json",
       "packages/releases/src/index.ts",
@@ -2751,6 +2835,7 @@
       "tests/architecture/brand-mark-is-one-mark.test.mjs",
       "tests/architecture/cache-does-not-cross-tenant-scopes.test.mjs",
       "tests/architecture/cat-cardinality-covers-the-bible.test.mjs",
+      "tests/architecture/cat-catalog-registry.test.mjs",
       "tests/architecture/cat-connection-counting.test.mjs",
       "tests/architecture/cat-integration-inventory.test.mjs",
       "tests/architecture/cat-requirement-bindings.test.mjs",
@@ -2763,8 +2848,12 @@
       "tests/architecture/experience-separation.test.mjs",
       "tests/architecture/ext-artifact-map.test.mjs",
       "tests/architecture/ext-baseline-truth.test.mjs",
+      "tests/architecture/ext-cutover-command-authority.test.mjs",
       "tests/architecture/ext-cutover-command-center.test.mjs",
+      "tests/architecture/ext-migration-order.test.mjs",
       "tests/architecture/ext-read-order-contract.test.mjs",
+      "tests/architecture/ext-readiness.test.mjs",
+      "tests/architecture/ext-verification-matrix.test.mjs",
       "tests/architecture/fin-finance-surface.test.mjs",
       "tests/architecture/fin-ledger-import-is-complete.test.mjs",
       "tests/architecture/fin-scope-disclosure.test.mjs",
@@ -2779,6 +2868,7 @@
       "tests/architecture/ier-navigation-is-not-enforcement.test.mjs",
       "tests/architecture/int-connector-capability-matrix.test.mjs",
       "tests/architecture/int-connector-write-boundary.test.mjs",
+      "tests/architecture/int-error-taxonomy-matches-the-bible.test.mjs",
       "tests/architecture/int-integration-inventory.test.mjs",
       "tests/architecture/int-requirements-are-imported.test.mjs",
       "tests/architecture/ledger-statuses.test.mjs",
@@ -2817,8 +2907,11 @@
       "tests/architecture/redirect-lives-outside-tenant-scope.test.mjs",
       "tests/architecture/resource-tags.test.mjs",
       "tests/architecture/shell-separation.test.mjs",
+      "tests/architecture/simon-data-dictionary.test.mjs",
+      "tests/architecture/simon-module-boundaries.test.mjs",
       "tests/architecture/status-assertions-are-exact.test.mjs",
       "tests/architecture/tenant-experience-architecture.test.mjs",
+      "tests/architecture/tes-ui-stack-inventory.test.mjs",
       "tests/architecture/tsconfig-includes-no-scratch-build.test.mjs",
       "tests/architecture/ttes-experience-audit.test.mjs",
       "tests/architecture/ttes-governance-dashboard.test.mjs",
@@ -2844,8 +2937,10 @@
       "tests/security/every-path-authorizes.test.mjs",
       "tests/security/financial-history-does-not-cascade.test.mjs",
       "tests/security/handoff-invents-nothing.test.mjs",
+      "tests/security/iac-plan-review.test.mjs",
       "tests/security/key-report.test.mjs",
       "tests/security/ledger-is-not-deleted.test.mjs",
+      "tests/security/no-automatic-identity-merge.test.mjs",
       "tests/security/no-binary-source.test.mjs",
       "tests/security/no-hardcoded-estate.test.mjs",
       "tests/security/no-host-derived-urls.test.mjs",
@@ -2861,6 +2956,7 @@
       "tests/security/provider-independence.test.mjs",
       "tests/security/provider-secrets-go-through-the-broker.test.mjs",
       "tests/security/repository-hygiene.test.mjs",
+      "tests/security/scp-guardrails.test.mjs",
       "tests/security/studio-auth-cognito.test.mjs",
       "tests/security/studio-domain.test.mjs",
       "tests/security/studio-task-role-is-narrow.test.mjs",
@@ -2869,12 +2965,14 @@
       "tests/simon-convergence-inventory.test.mjs",
       "tools/anl-analytics-inventory.mjs",
       "tools/aws-inventory.mjs",
+      "tools/cat-catalog-registry.mjs",
       "tools/cat-connection-counts.mjs",
       "tools/cat-integration-inventory.mjs",
       "tools/cat-requirement-bindings.mjs",
       "tools/cfg-configuration-truth.mjs",
       "tools/contract-schemas.mjs",
       "tools/create-registry-table.mjs",
+      "tools/cutover-command-authority.mjs",
       "tools/cutover-command-center.mjs",
       "tools/dev/reset-registry-table.mjs",
       "tools/dev/seed-studio-fleet.mjs",
@@ -2886,12 +2984,17 @@
       "tools/entry-point-inventory.mjs",
       "tools/ext-artifact-map.mjs",
       "tools/ext-baseline-truth.mjs",
+      "tools/ext-ledger-rows.mjs",
+      "tools/ext-migration-order.mjs",
       "tools/ext-read-order.mjs",
+      "tools/ext-readiness.mjs",
+      "tools/ext-verification-matrix.mjs",
       "tools/fin-finance-surface.mjs",
       "tools/fin-scope-disclosure.mjs",
       "tools/ge-phase-gate-children.mjs",
       "tools/hcm-capability-matrix.mjs",
       "tools/hcm-people-inventory.mjs",
+      "tools/iac-plan-review.mjs",
       "tools/import-requirements.mjs",
       "tools/int-connector-capability-matrix.mjs",
       "tools/int-connector-write-boundary.mjs",
@@ -2954,6 +3057,8 @@
       "tools/loop/wave-4.json",
       "tools/loop/wave-items.json",
       "tools/loop/wave-plan.json",
+      "tools/loop/wave3-fanout.mjs",
+      "tools/loop/wave3-repair.mjs",
       "tools/ops-availability-and-limits.mjs",
       "tools/ops-operations-inventory.mjs",
       "tools/ownership-map.mjs",
@@ -2966,11 +3071,15 @@
       "tools/reconcile-execution-checkboxes.mjs",
       "tools/repository-map.mjs",
       "tools/run-platform-tests.mjs",
+      "tools/scp-guardrails.mjs",
       "tools/simon-absorption-inventory.mjs",
       "tools/simon-convergence-inventory.mjs",
+      "tools/simon-data-dictionary.mjs",
+      "tools/simon-module-boundaries.mjs",
       "tools/simon-sso-handoff.mjs",
       "tools/superiority-claims.mjs",
       "tools/tenant-experience-architecture.mjs",
+      "tools/tes-ui-stack-inventory.mjs",
       "tools/ttes-experience-audit.mjs",
       "tools/ttes-governance-dashboard.mjs",
       "tools/verify-environments.mjs",
@@ -3218,6 +3327,16 @@
         "declared_dependencies": []
       },
       {
+        "manifest": "packages/generality-fixtures/package.json",
+        "directory": "packages/generality-fixtures",
+        "name": "@tenure/generality-fixtures",
+        "private": true,
+        "scripts": [],
+        "depends_on_workspaces": [],
+        "external_dependencies": 0,
+        "declared_dependencies": []
+      },
+      {
         "manifest": "packages/identity/package.json",
         "directory": "packages/identity",
         "name": "@tenure/identity",
@@ -3315,7 +3434,7 @@
     "areas": [
       {
         "area": "(repository root)",
-        "files": 37
+        "files": 38
       },
       {
         "area": ".github/workflows",
@@ -3331,11 +3450,11 @@
       },
       {
         "area": "apps/system-studio",
-        "files": 373
+        "files": 388
       },
       {
         "area": "apps/web",
-        "files": 530
+        "files": 559
       },
       {
         "area": "blueprints",
@@ -3359,7 +3478,7 @@
       },
       {
         "area": "docs/architecture",
-        "files": 63
+        "files": 69
       },
       {
         "area": "docs/contracts",
@@ -3394,6 +3513,10 @@
         "files": 5
       },
       {
+        "area": "infrastructure/organization",
+        "files": 7
+      },
+      {
         "area": "infrastructure/studio",
         "files": 12
       },
@@ -3419,7 +3542,7 @@
       },
       {
         "area": "packages/configuration",
-        "files": 32
+        "files": 34
       },
       {
         "area": "packages/contracts",
@@ -3428,6 +3551,10 @@
       {
         "area": "packages/finops",
         "files": 19
+      },
+      {
+        "area": "packages/generality-fixtures",
+        "files": 7
       },
       {
         "area": "packages/identity",
@@ -3447,7 +3574,7 @@
       },
       {
         "area": "packages/payments",
-        "files": 33
+        "files": 42
       },
       {
         "area": "packages/platform-config",
@@ -3455,7 +3582,7 @@
       },
       {
         "area": "packages/provisioning",
-        "files": 40
+        "files": 48
       },
       {
         "area": "packages/releases",
@@ -3471,15 +3598,15 @@
       },
       {
         "area": "tests/architecture",
-        "files": 88
+        "files": 97
       },
       {
         "area": "tests/security",
-        "files": 37
+        "files": 40
       },
       {
         "area": "tools",
-        "files": 50
+        "files": 61
       },
       {
         "area": "tools/dev",
@@ -3487,15 +3614,20 @@
       },
       {
         "area": "tools/loop",
-        "files": 56
+        "files": 58
       }
     ],
     "import_graph": {
-      "code_files": 1331,
-      "builtin_imports": 939,
-      "unresolved_relative_specifiers": 12,
-      "unresolved_alias_specifiers": 9,
+      "code_files": 1425,
+      "builtin_imports": 1033,
+      "unresolved_relative_specifiers": 3,
+      "unresolved_alias_specifiers": 0,
       "internal_edges": [
+        {
+          "from": "apps/system-studio/e2e",
+          "to": "apps/system-studio/src/app",
+          "imports": 2
+        },
         {
           "from": "apps/system-studio/e2e",
           "to": "apps/system-studio/src/components",
@@ -3509,7 +3641,7 @@
         {
           "from": "apps/system-studio/e2e",
           "to": "apps/system-studio/src/lib",
-          "imports": 33
+          "imports": 37
         },
         {
           "from": "apps/system-studio/e2e",
@@ -3519,7 +3651,7 @@
         {
           "from": "apps/system-studio/e2e",
           "to": "modules",
-          "imports": 1
+          "imports": 2
         },
         {
           "from": "apps/system-studio/e2e",
@@ -3539,17 +3671,17 @@
         {
           "from": "apps/system-studio/e2e",
           "to": "packages/platform-config/src",
-          "imports": 3
+          "imports": 5
         },
         {
           "from": "apps/system-studio/e2e",
           "to": "packages/provisioning/src",
-          "imports": 2
+          "imports": 5
         },
         {
           "from": "apps/system-studio/src/app",
           "to": "apps/system-studio/src/components",
-          "imports": 61
+          "imports": 62
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3559,7 +3691,7 @@
         {
           "from": "apps/system-studio/src/app",
           "to": "apps/system-studio/src/lib",
-          "imports": 277
+          "imports": 284
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3569,7 +3701,7 @@
         {
           "from": "apps/system-studio/src/app",
           "to": "modules",
-          "imports": 6
+          "imports": 9
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3579,7 +3711,7 @@
         {
           "from": "apps/system-studio/src/app",
           "to": "packages/configuration/src",
-          "imports": 4
+          "imports": 7
         },
         {
           "from": "apps/system-studio/src/app",
@@ -3599,17 +3731,22 @@
         {
           "from": "apps/system-studio/src/app",
           "to": "packages/platform-config/src",
-          "imports": 8
+          "imports": 9
         },
         {
           "from": "apps/system-studio/src/app",
           "to": "packages/provisioning/src",
-          "imports": 6
+          "imports": 8
+        },
+        {
+          "from": "apps/system-studio/src/components",
+          "to": "apps/system-studio/src/app",
+          "imports": 1
         },
         {
           "from": "apps/system-studio/src/components",
           "to": "apps/system-studio/src/lib",
-          "imports": 9
+          "imports": 14
         },
         {
           "from": "apps/system-studio/src/components",
@@ -3619,7 +3756,7 @@
         {
           "from": "apps/system-studio/src/lib",
           "to": "apps/system-studio/src/app",
-          "imports": 2
+          "imports": 3
         },
         {
           "from": "apps/system-studio/src/lib",
@@ -3644,7 +3781,7 @@
         {
           "from": "apps/system-studio/src/lib",
           "to": "packages/configuration/src",
-          "imports": 5
+          "imports": 6
         },
         {
           "from": "apps/system-studio/src/lib",
@@ -3674,7 +3811,7 @@
         {
           "from": "apps/system-studio/src/lib",
           "to": "packages/provisioning/src",
-          "imports": 28
+          "imports": 33
         },
         {
           "from": "apps/web/e2e",
@@ -3709,7 +3846,7 @@
         {
           "from": "apps/web/src/app",
           "to": "apps/web/src/lib",
-          "imports": 425
+          "imports": 434
         },
         {
           "from": "apps/web/src/app",
@@ -3729,7 +3866,7 @@
         {
           "from": "apps/web/src/app",
           "to": "packages/contracts/src",
-          "imports": 6
+          "imports": 7
         },
         {
           "from": "apps/web/src/app",
@@ -3749,7 +3886,7 @@
         {
           "from": "apps/web/src/app",
           "to": "packages/payments/src",
-          "imports": 2
+          "imports": 3
         },
         {
           "from": "apps/web/src/app",
@@ -3764,7 +3901,7 @@
         {
           "from": "apps/web/src/components",
           "to": "apps/web/src/lib",
-          "imports": 19
+          "imports": 20
         },
         {
           "from": "apps/web/src/components",
@@ -3794,12 +3931,12 @@
         {
           "from": "apps/web/src/lib",
           "to": "apps/web/src/components",
-          "imports": 2
+          "imports": 3
         },
         {
           "from": "apps/web/src/lib",
           "to": "blueprints",
-          "imports": 4
+          "imports": 5
         },
         {
           "from": "apps/web/src/lib",
@@ -3809,7 +3946,7 @@
         {
           "from": "apps/web/src/lib",
           "to": "packages/audit/src",
-          "imports": 6
+          "imports": 8
         },
         {
           "from": "apps/web/src/lib",
@@ -3834,7 +3971,7 @@
         {
           "from": "apps/web/src/lib",
           "to": "packages/identity/src",
-          "imports": 5
+          "imports": 6
         },
         {
           "from": "apps/web/src/lib",
@@ -3849,12 +3986,12 @@
         {
           "from": "apps/web/src/lib",
           "to": "packages/payments/src",
-          "imports": 3
+          "imports": 4
         },
         {
           "from": "apps/web/src/lib",
           "to": "packages/platform-config/src",
-          "imports": 22
+          "imports": 25
         },
         {
           "from": "apps/web/src/lib",
@@ -3869,7 +4006,7 @@
         {
           "from": "apps/web/src/lib",
           "to": "packages/workflow/src",
-          "imports": 1
+          "imports": 2
         },
         {
           "from": "blueprints",
@@ -3909,7 +4046,7 @@
         {
           "from": "tests/architecture",
           "to": "tools",
-          "imports": 40
+          "imports": 44
         },
         {
           "from": "tests/architecture",
@@ -3953,7 +4090,7 @@
         {
           "from": "apps/system-studio/e2e",
           "package": "@playwright/test",
-          "imports": 50,
+          "imports": 53,
           "declared": true
         },
         {
@@ -4063,6 +4200,12 @@
           "package": "@aws-sdk/lib-dynamodb",
           "imports": 2,
           "declared": true
+        },
+        {
+          "from": "apps/system-studio/src/lib",
+          "package": "@jest/globals",
+          "imports": 1,
+          "declared": false
         },
         {
           "from": "apps/system-studio/src/lib",
@@ -4301,7 +4444,7 @@
         {
           "from": "apps/web/src/lib",
           "package": "server-only",
-          "imports": 18,
+          "imports": 19,
           "declared": false
         },
         {
@@ -4313,7 +4456,7 @@
         {
           "from": "apps/web/src/lib",
           "package": "xlsx",
-          "imports": 4,
+          "imports": 5,
           "declared": true
         },
         {
@@ -4373,7 +4516,7 @@
         {
           "from": "packages/configuration/src",
           "package": "@tenure/contracts",
-          "imports": 3,
+          "imports": 4,
           "declared": false
         },
         {
@@ -4385,18 +4528,54 @@
         {
           "from": "packages/configuration/src",
           "package": "@tenure/modules",
-          "imports": 2,
+          "imports": 3,
+          "declared": false
+        },
+        {
+          "from": "packages/configuration/src",
+          "package": "@tenure/platform-config",
+          "imports": 1,
           "declared": false
         },
         {
           "from": "packages/configuration/src",
           "package": "zod",
-          "imports": 10,
+          "imports": 11,
           "declared": true
         },
         {
           "from": "packages/contracts/src",
           "package": "@jest/globals",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/generality-fixtures/src",
+          "package": "@tenure/authorization",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/generality-fixtures/src",
+          "package": "@tenure/blueprints",
+          "imports": 3,
+          "declared": false
+        },
+        {
+          "from": "packages/generality-fixtures/src",
+          "package": "@tenure/organization-model",
+          "imports": 2,
+          "declared": false
+        },
+        {
+          "from": "packages/generality-fixtures/src",
+          "package": "@tenure/platform-config",
+          "imports": 1,
+          "declared": false
+        },
+        {
+          "from": "packages/generality-fixtures/src",
+          "package": "@tenure/workflow",
           "imports": 1,
           "declared": false
         },
@@ -4493,7 +4672,7 @@
         {
           "from": "packages/provisioning/src",
           "package": "@jest/globals",
-          "imports": 2,
+          "imports": 4,
           "declared": false
         },
         {
@@ -4835,14 +5014,14 @@
       },
       {
         "capability": "Frontend components",
-        "matches": 146,
+        "matches": 147,
         "evidence": [
           "apps/system-studio/src/components/AccountMenu.tsx",
           "apps/system-studio/src/components/Breadcrumbs.tsx",
           "apps/system-studio/src/components/CommandPalette.tsx",
           "apps/system-studio/src/components/DeploymentPanel.tsx",
           "apps/system-studio/src/components/EvidencePanel.tsx",
-          "apps/system-studio/src/components/Launcher.tsx"
+          "apps/system-studio/src/components/GovernancePanel.tsx"
         ],
         "pattern": "/\\/src\\/components\\/.*\\.tsx$/"
       },
@@ -4870,7 +5049,7 @@
       },
       {
         "capability": "HTTP API handlers",
-        "matches": 29,
+        "matches": 31,
         "evidence": [
           "apps/system-studio/src/app/api/auth/[...nextauth]/route.ts",
           "apps/system-studio/src/app/api/aws/[surface]/route.ts",
@@ -4883,7 +5062,7 @@
       },
       {
         "capability": "Backend services / domain libraries",
-        "matches": 64,
+        "matches": 65,
         "evidence": [
           "apps/system-studio/src/lib/adopt.ts",
           "apps/system-studio/src/lib/audit-ledger.ts",
@@ -4926,14 +5105,14 @@
       },
       {
         "capability": "Events / scheduled jobs",
-        "matches": 6,
+        "matches": 7,
         "evidence": [
           "apps/system-studio/src/lib/aws/eventbridge.test.ts",
           "apps/system-studio/src/lib/aws/eventbridge.ts",
           "apps/web/src/app/api/jobs/outbox/route.ts",
+          "apps/web/src/app/api/jobs/payments-version-watch/route.ts",
           "apps/web/src/app/api/jobs/reminders/route.ts",
-          "apps/web/src/app/api/jobs/slo/route.ts",
-          "infrastructure/terraform/scheduler.tf"
+          "apps/web/src/app/api/jobs/slo/route.ts"
         ],
         "pattern": "/scheduler\\.tf$|\\/api\\/jobs\\/.*\\/route\\.ts$|eventbridge/i"
       },
@@ -5047,7 +5226,7 @@
       },
       {
         "capability": "Unit tests",
-        "matches": 467,
+        "matches": 508,
         "evidence": [
           "apps/system-studio/src/app/console-index/answer.test.ts",
           "apps/system-studio/src/app/platform/audit/entries.test.ts",
@@ -5060,7 +5239,7 @@
       },
       {
         "capability": "End-to-end tests",
-        "matches": 85,
+        "matches": 88,
         "evidence": [
           "apps/system-studio/e2e/adoption.spec.ts",
           "apps/system-studio/e2e/api-contract.spec.ts",
@@ -5085,7 +5264,7 @@
         "pattern": "/^\\.github\\/workflows\\/.*\\.ya?ml$/"
       }
     ],
-    "working_tree_dirty_paths": 169
+    "working_tree_dirty_paths": 11
   },
   "relationship": {
     "merge_base": "d20d40d7846fc434b539f80cae8e437b750055ed",

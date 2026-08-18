@@ -238,6 +238,16 @@ export const CLAIM_TERMS = [
   "ifrs",
   "accrual",
   "chart of accounts",
+  // The hyphenated spelling, listed separately for the same reason
+  // "double-entry" and "double entry" both are: this vocabulary is a list of
+  // literal substrings, so a term written the other way is a term the scanner
+  // does not see. The tree writes this one BOTH ways — `general-ledger.ts`
+  // says "chart of accounts" in its prose and "Chart-of-accounts code" on a
+  // field — and until this line existed the hyphenated spelling was uttered in
+  // three finance files and adjudicated in none. A claim vocabulary that
+  // misses a spelling absorbs new claims silently, which is the one thing this
+  // table exists to prevent.
+  "chart-of-accounts",
   "legal entity",
   "fiscal calendar",
   "drill-through",
@@ -308,6 +318,10 @@ export const CLAIM_VERDICTS = {
     verdict: "OVERSTATED",
     note: "A section header over five LedgerKind labels, a sign function and a disclosure string. A general ledger needs a ledger, a book, a chart of accounts and a period; none of the four exists. FIN-000-002.",
   },
+  "apps/web/src/lib/finance.ts|chart-of-accounts": {
+    verdict: "SCOPED",
+    note: "One field label — `/** Chart-of-accounts code. */` on `LedgerLineInput.account`, the shape `toPostedLines` reads and `ledgerTieOut` groups by. The codes are real and they are numbered the way accounts are numbered: `1000-cash-clearing`, `1400-recoverable-tax`, `2100-reimbursement-payable`, `6000-program-expense`, all four exported from `packages/payments/src/posting.ts`. What does not exist is the chart. `LedgerEntry.account` is a bare `String` with no relation and no constraint (`apps/web/prisma/schema.prisma`), `ChartOfAccounts` is ABSENT in §C, and nothing anywhere gives a code a name, a parent, a normal balance or a statement line — `packages/finops/src/general-ledger.ts` has to be HANDED that classification because no record holds it. So the term names a code drawn from four constants in a payments module, not membership of a chart this platform keeps. Same absence the `general ledger` verdict on this file calls OVERSTATED; SCOPED here because a field label naming what a string is, is a smaller claim than a section header naming a ledger. FIN-000-002.",
+  },
   "apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx|trial balance": {
     verdict: "SCOPED",
     note: "FIN-010-003. The page computes a real trial balance over every posted row — ledgerTieOut, apps/web/src/lib/finance.ts — and renders only its TIE-OUT: balanced or the residual, the account count, and the late-posting count. The per-account debit/credit grid is computed and not displayed. A reader of this page learns whether the books tie, not what is in them.",
@@ -348,6 +362,10 @@ export const CLAIM_VERDICTS = {
     verdict: "SCOPED",
     note: "financialStatements takes the chart classification as an ARGUMENT — account, group, normal balance, statement line — because Bible §24 forbids hard-coding accounting rules. No chart-of-accounts RECORD exists (ChartOfAccounts is ABSENT in §C; FIN-000-002 is blocked on it), so the caller supplies one every time and nothing persists it.",
   },
+  "packages/finops/src/general-ledger.ts|chart-of-accounts": {
+    verdict: "SCOPED",
+    note: "The same claim as this file's `chart of accounts` entry, in the other spelling: `/** Chart-of-accounts code this side hits. */` on `PostedLine.account`, and `financialStatements` documented as working from 'a stated chart-of-accounts classification'. Both spellings are adjudicated because the scanner matches literal substrings and a term written with hyphens is a term it would otherwise not see. Verdict unchanged — the classification is an ARGUMENT the caller supplies every time, per Bible §24, and an account with a balance and no classification is refused (`ACCOUNTS_NOT_CLASSIFIED`) rather than dropped. Nothing here persists a chart.",
+  },
   "packages/finops/src/general-ledger.ts|drill-through": {
     verdict: "SCOPED",
     note: "accountAnalysis carries journalId and lineId on every movement, so a balance leads to the rows that made it. Bible §3.3 asks for journal, subledger, business document and approval; the two middle links have no tables (FIN-000-003) and FIN-000-004's row says so.",
@@ -379,6 +397,10 @@ export const CLAIM_VERDICTS = {
   "packages/payments/src/funds-flow.ts|legal entity": {
     verdict: "SCOPED",
     note: "Quotes the Payments Bible on direct flow. Describes the intended arrangement, claims no model.",
+  },
+  "packages/payments/src/posting.ts|chart-of-accounts": {
+    verdict: "SCOPED",
+    note: "`/** Chart-of-accounts code. Stable; the journal is keyed on it. */` on `PostingLine.account`. The second sentence is TRUE and this is the file that earns it: the four codes are declared here as constants, `POSTING_TEMPLATES` names them per side, `buildJournal` refuses a journal that does not balance across them, and `apps/web/src/app/(app)/orgs/[slug]/finance/actions.ts` takes the account off the template rather than choosing one. The first sentence is the scoped half — the chart is four exported strings in a payments module, versioned by nothing, held by no table and configurable by no tenant, where Bible §12/§3.1 put the chart and its segment hierarchies in tenant configuration. A reader who takes the label at face value will expect a chart to exist; four constants is the whole of it. FIN-000-002.",
   },
   "packages/payments/src/posting.ts|legal entity": {
     verdict: "SCOPED",

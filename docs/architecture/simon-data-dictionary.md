@@ -58,7 +58,7 @@ No row of data is read. A schema is a shape; the source repository carries a liv
 | `Vendor` | 15 | `id` | — | `organizationId+isArchived` | `organizationId → Organization(id) onDelete:Cascade` | **NONE DECLARED** | `organization` |
 | `VerificationToken` | 3 | — | `identifier+token`<br>`token` | — | — | **NONE DECLARED** | **NO ACCESSOR** |
 
-### target — `ccbe45af1196221bc56e082bdf885b7f3c0a9fea`
+### target — `d4e2d4968f33603e419e5a163beeaad24c22a103`
 
 52 entities, 24 enumerations, 678 fields. 50 entities declare no retention field; 3 have no accessor in the tree.
 
@@ -97,7 +97,7 @@ No row of data is read. A schema is a shape; the source repository carries a liv
 | `NotificationPreference` | 6 | `id` | `userId+channel` | — | `userId → User(id) onDelete:Cascade` | **NONE DECLARED** | `notifications` |
 | `Organization` | 30 | `id` | `slug` | `institutionId+status` | `institutionId → Institution(id) onDelete:Cascade` | **NONE DECLARED** | `authorization`<br>`billing-metering`<br>`configuration`<br>`control-plane`<br>`erp-modules`<br>`identity`<br>`notifications`<br>`organization`<br>`reporting`<br>`search-memory`<br>`workflow` |
 | `OrganizationAdvisor` | 5 | `organizationId`<br>`personId` | — | `personId` | `organizationId → Organization(id) onDelete:Cascade`<br>`personId → DirectoryPerson(id) onDelete:Cascade` | **NONE DECLARED** | **UNOWNED PATHS** |
-| `OutboxEvent` | 21 | `id` | `eventId` | `institutionId+state`<br>`state+availableAt` | `institutionId → Institution(id) onDelete:Cascade` | **NONE DECLARED** | `control-plane`<br>`notifications`<br>`organization`<br>`workflow` |
+| `OutboxEvent` | 21 | `id` | `eventId` | `institutionId+state`<br>`state+availableAt` | `institutionId → Institution(id) onDelete:Cascade` | **NONE DECLARED** | `control-plane`<br>`integrations`<br>`notifications`<br>`organization`<br>`workflow` |
 | `Participant` | 10 | `id` | `conversationId+userId` | — | `conversationId → Conversation(id) onDelete:Cascade`<br>`userId → User(id) onDelete:Cascade` | **NONE DECLARED** | `notifications` |
 | `PaymentsFundsFlowConfig` | 18 | `id` | `organizationId+legalEntityId+capabilityId` | `institutionId+updatedAt` | `exceptionApprovalId → ApprovalRequest(id) onDelete:Restrict`<br>`organizationId → Organization(id) onDelete:Restrict` | **NONE DECLARED** | `control-plane`<br>`erp-modules` |
 | `ProviderBalanceTransaction` | 13 | `id` | `provider+mode+providerAccountId+externalId` | `institutionId+ingestedAt` | — | **NONE DECLARED** | `billing-metering`<br>`control-plane` |

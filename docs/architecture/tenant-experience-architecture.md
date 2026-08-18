@@ -228,10 +228,10 @@ tenant experience. Counts are files, not lines.
 | `erp-modules` | 39 | The domain modules a tenant runs: finance, resources, and the module catalog. |
 | `reporting` | 39 | Reading the estate back: reports, dashboards, the audit trail. |
 | `configuration` | 35 | Layered configuration, blueprints, module resolution, tenancy scoping. |
+| `authorization` | 33 | What someone may do: capabilities, policy decisions, delegation. |
 | `organization` | 33 | The org graph: institutions, organizations, roles, seats, the directory. |
 | `identity` | 28 | Who someone is: providers, sessions, the sign-in surface. |
-| `authorization` | 26 | What someone may do: capabilities, policy decisions, delegation. |
-| `files` | 17 | Documents and attachments: storage, retrieval, editing. |
+| `files` | 19 | Documents and attachments: storage, retrieval, editing. |
 | `workflow` | 17 | Approvals, their gates and their state machine. |
 | `billing-metering` | 11 | What a tenant consumes and what it is charged for. |
 | `control-plane` | 10 | Composing, provisioning and operating tenants. The engine, not any tenant. |

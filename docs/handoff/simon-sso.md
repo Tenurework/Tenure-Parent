@@ -9,22 +9,21 @@ infrastructure. **Nothing is a placeholder**: a field we cannot fill yet is list
 as blocked, with the reason, because a plausible-looking endpoint is configured,
 tested, and cannot be debugged — both sides believe they are correct.
 
-Deployment facts as of 2026-08-18T02:03:02.559Z.
+Deployment facts as of 2026-07-31T23:40:04.289Z.
 
-**0 of 10 fields are available.**
+**1 of 10 fields are available.**
 
 ## Ready to configure
 
-Nothing yet. Every field below is waiting on infrastructure that does not exist,
-and this document exists so the IT team knows what is coming rather than being
-handed values that do not work.
+| Field | Value | Source |
+|---|---|---|
+| Tenure service origin | `https://platform.tenurework.com` | CloudFront alias with an ISSUED certificate |
 
 ## Not available yet
 
 | Field | Blocked by |
 |---|---|
-| Tenure service origin | Nothing is deployed at a public origin with an issued certificate, so there is no URL to hand over. |
-| SCIM 2.0 base URL | Nothing is deployed at a public origin with an issued certificate, so there is no URL to hand over. |
+| SCIM 2.0 base URL | The SCIM route is not implemented. GE-043-005 built the protocol boundary it will use; the endpoint itself needs a bearer token and a connection registry, which arrive with the Cognito cutover. |
 | SP entity ID (Audience / Identifier) | The identity provider is not deployed, so none of its endpoints have been recorded. Create it (GE-041-003, blocked on the AWS Organization), then re-run this generator. |
 | Assertion Consumer Service (ACS / Reply URL) | The identity provider is not deployed, so none of its endpoints have been recorded. Create it (GE-041-003, blocked on the AWS Organization), then re-run this generator. |
 | Single Logout URL | The identity provider is not deployed, so none of its endpoints have been recorded. Create it (GE-041-003, blocked on the AWS Organization), then re-run this generator. |

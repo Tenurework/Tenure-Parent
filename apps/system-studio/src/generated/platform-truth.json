@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "ccbe45a",
+  "commit": "d4e2d49",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 267,
@@ -4375,28 +4375,64 @@
     }
   ],
   "estate": {
-    "generatedAt": "2026-08-18T02:03:02.559Z",
-    "account": "unknown",
+    "generatedAt": "2026-07-31T23:40:04.289Z",
+    "account": "1549…97",
     "region": "us-east-1",
     "summary": {
-      "vpcs": 0,
+      "vpcs": 2,
       "natGateways": 0,
-      "loadBalancers": 0,
-      "cloudfrontDistributions": 0,
-      "ecsClusters": 0,
-      "rdsInstances": 0,
-      "s3Buckets": 0,
+      "loadBalancers": 2,
+      "cloudfrontDistributions": 2,
+      "ecsClusters": 2,
+      "rdsInstances": 1,
+      "s3Buckets": 3,
       "cognitoUserPools": 0,
-      "secrets": 0,
-      "deniedCalls": 0
+      "secrets": 6,
+      "deniedCalls": 3
     },
     "organizationInUse": false,
     "oidcProviders": 0,
     "cognitoUserPools": 0,
     "backupVaults": 0,
-    "sqsQueues": [],
-    "alarms": [],
-    "deniedCalls": []
+    "sqsQueues": [
+      "tenure-pilot-default",
+      "tenure-pilot-default-dlq",
+      "tenure-pilot-email",
+      "tenure-pilot-email-dlq",
+      "tenure-pilot-notifications"
+    ],
+    "alarms": [
+      {
+        "name": "tenure-pilot-alb-5xx",
+        "state": "OK"
+      },
+      {
+        "name": "tenure-pilot-dlq-messages",
+        "state": "OK"
+      },
+      {
+        "name": "tenure-pilot-ecs-no-running-tasks",
+        "state": "OK"
+      },
+      {
+        "name": "tenure-pilot-rds-cpu-high",
+        "state": "OK"
+      }
+    ],
+    "deniedCalls": [
+      {
+        "call": "organizations describe-organization",
+        "reason": "Organizations not in use"
+      },
+      {
+        "call": "organizations list-accounts",
+        "reason": "Organizations not in use"
+      },
+      {
+        "call": "organizations list-roots",
+        "reason": "Organizations not in use"
+      }
+    ]
   },
   "suites": [
     {

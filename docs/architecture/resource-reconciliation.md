@@ -2,7 +2,7 @@
 
 **GE-001-005.** What the repository declares, against what the account actually holds.
 
-Generated 2026-08-18T02:03:02.559Z. Terraform ownership is read from the repository, because
+Generated 2026-07-31T23:40:04.289Z. Terraform ownership is read from the repository, because
 the AWS API cannot report which tool owns a resource.
 
 ## Terraform stacks in this repository
@@ -15,8 +15,6 @@ the AWS API cannot report which tool owns a resource.
 Two stacks, two state files, one account. The separation is the safety property: two
 repositories applying different code against one state file means whichever runs second
 sees the other's resources as undeclared and destroys them.
-
-> Found 3 Terraform directories: `oidc`, `studio`, `terraform`. More than the two above — reconcile.
 
 ## CloudFormation / CDK
 

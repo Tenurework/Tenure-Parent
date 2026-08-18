@@ -14,7 +14,7 @@ decided by comparing two lists. The third is a similarity metric proposing candi
 with.
 
 
-Observed 2026-08-18. 217 source modules and 748 target modules declare at least one export; 184 pairs at the same path export exactly the same names.
+Observed 2026-08-18. 217 source modules and 798 target modules declare at least one export; 184 pairs at the same path export exactly the same names.
 
 ## Same name, different shape — DECIDED
 

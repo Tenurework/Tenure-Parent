@@ -11,9 +11,9 @@
   "baseline": {
     "snapshot": "docs/architecture/simon-absorption-inventory.json",
     "source_commit": "47c1128cb55953b11bedc47927508bc5d622b159",
-    "target_commit": "ccbe45af1196221bc56e082bdf885b7f3c0a9fea",
+    "target_commit": "d4e2d4968f33603e419e5a163beeaad24c22a103",
     "source_files": 364,
-    "target_files": 1671,
+    "target_files": 1780,
     "note": "Both trees are read at the commits the baseline inventory pinned, not at whatever a ref resolves to now, so the two artifacts describe the same two trees by construction."
   },
   "assumptions": {
@@ -11992,10 +11992,10 @@
       ]
     },
     "target": {
-      "files_offered": 1671,
-      "files_scanned": 1487,
-      "files_skipped": 143,
-      "total_hits": 9310,
+      "files_offered": 1780,
+      "files_scanned": 1589,
+      "files_skipped": 149,
+      "total_hits": 9849,
       "groups": [
         {
           "file": ".github/workflows/aws-inventory.yml",
@@ -12315,7 +12315,7 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            39
+            47
           ],
           "tokens": [
             "us-east-1"
@@ -12327,16 +12327,17 @@
           "kind": "domain",
           "place": "deployment scripts",
           "in_path": false,
-          "hits": 9,
+          "hits": 10,
           "lines": [
             6,
-            25,
-            39,
-            47
+            33,
+            47,
+            55
           ],
           "tokens": [
             "cloudfront.net",
             "cognito-idp.us-east-1.amazonaws.com",
+            "d1n6mdis7bs02g.cloudfront.net",
             "d2kj4iy5i37kfd.cloudfront.net",
             "helm.tenurework.com",
             "sts.amazonaws.com",
@@ -12809,6 +12810,68 @@
           "tokens": [
             "OSE",
             "Simon"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/change-governance-logic.spec.ts",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 8,
+          "lines": [
+            66,
+            72,
+            73,
+            77,
+            158,
+            161,
+            168
+          ],
+          "tokens": [
+            "eu-west-1",
+            "us-east-1"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/change-governance-logic.spec.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 9,
+          "lines": [
+            52,
+            57,
+            72,
+            73,
+            175,
+            226,
+            411,
+            530,
+            545
+          ],
+          "tokens": [
+            "simon"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/change-governance-logic.spec.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            58,
+            212,
+            219,
+            428
+          ],
+          "tokens": [
+            "ACTIVE",
+            "CANCELLED",
+            "DRAFT"
           ]
         },
         {
@@ -13333,7 +13396,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            504
+            508
           ],
           "tokens": [
             "ORGANIZATION"
@@ -13351,6 +13414,97 @@
           ],
           "tokens": [
             "SIMON"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/portability-logic.spec.ts",
+          "probe": "aws-account-id",
+          "kind": "account",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            133,
+            195
+          ],
+          "tokens": [
+            "############"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/portability-logic.spec.ts",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            125,
+            146,
+            195
+          ],
+          "tokens": [
+            "arn:aws:iam:",
+            "arn:aws:s3:"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/portability-logic.spec.ts",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            39
+          ],
+          "tokens": [
+            "us-east-1"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/portability-logic.spec.ts",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            45,
+            73,
+            261,
+            266
+          ],
+          "tokens": [
+            "example.edu",
+            "simon.tenurework.com"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/portability-logic.spec.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 13,
+          "lines": [
+            33,
+            34,
+            35,
+            44,
+            45,
+            73,
+            172,
+            210,
+            261,
+            266,
+            310,
+            311,
+            312
+          ],
+          "tokens": [
+            "Simon",
+            "simon"
           ]
         },
         {
@@ -13583,6 +13737,114 @@
           "tokens": [
             "ACTIVE",
             "DRAFT"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/tenant-governance-logic.spec.ts",
+          "probe": "aws-account-id",
+          "kind": "account",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            137,
+            164,
+            196
+          ],
+          "tokens": [
+            "############"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/tenant-governance-logic.spec.ts",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            122,
+            136,
+            137,
+            196
+          ],
+          "tokens": [
+            "arn:aws:dynamodb:",
+            "arn:aws:s3:",
+            "arn:aws:sts:"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/tenant-governance-logic.spec.ts",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 6,
+          "lines": [
+            137,
+            151,
+            165,
+            170,
+            196
+          ],
+          "tokens": [
+            "us-east-1"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/tenant-governance-logic.spec.ts",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            157,
+            265
+          ],
+          "tokens": [
+            "example.edu"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/tenant-governance-logic.spec.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 10,
+          "lines": [
+            145,
+            146,
+            147,
+            157,
+            189,
+            192,
+            196,
+            220,
+            258,
+            265
+          ],
+          "tokens": [
+            "Simon",
+            "simon"
+          ]
+        },
+        {
+          "file": "apps/system-studio/e2e/tenant-governance-logic.spec.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            191,
+            192,
+            212
+          ],
+          "tokens": [
+            "ACTIVE"
           ]
         },
         {
@@ -14976,6 +15238,48 @@
           ]
         },
         {
+          "file": "apps/system-studio/src/app/tenants/[slug]/configuration/consequences.test.ts",
+          "probe": "aws-account-id",
+          "kind": "account",
+          "place": "route names",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            39
+          ],
+          "tokens": [
+            "############"
+          ]
+        },
+        {
+          "file": "apps/system-studio/src/app/tenants/[slug]/configuration/consequences.test.ts",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "route names",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            39
+          ],
+          "tokens": [
+            "arn:aws:kms:"
+          ]
+        },
+        {
+          "file": "apps/system-studio/src/app/tenants/[slug]/configuration/consequences.test.ts",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "route names",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            39
+          ],
+          "tokens": [
+            "us-east-1"
+          ]
+        },
+        {
           "file": "apps/system-studio/src/app/tenants/[slug]/page.tsx",
           "probe": "aws-region",
           "kind": "region",
@@ -14983,7 +15287,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            275
+            279
           ],
           "tokens": [
             "us-east-1"
@@ -14997,9 +15301,9 @@
           "in_path": false,
           "hits": 3,
           "lines": [
-            631,
-            1306,
-            1313
+            681,
+            1356,
+            1363
           ],
           "tokens": [
             "console.aws.amazon.com",
@@ -15725,7 +16029,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            4289
+            4380
           ],
           "tokens": [
             "us-east-1"
@@ -15751,9 +16055,10 @@
           "kind": "workflow",
           "place": "elsewhere",
           "in_path": false,
-          "hits": 1,
+          "hits": 2,
           "lines": [
-            1631
+            1631,
+            1890
           ],
           "tokens": [
             "escalation"
@@ -15776,41 +16081,41 @@
             1596,
             1617,
             1638,
-            2448,
-            3428,
-            3820,
-            3890,
-            3891,
-            3897,
-            3898,
-            3904,
-            3905,
+            2539,
+            3519,
             3911,
-            3912,
-            3918,
-            3919,
-            3925,
-            3926,
-            3932,
-            3933,
-            3939,
-            3940,
-            3946,
-            3947,
-            3953,
-            3954,
-            3960,
-            3961,
-            3967,
-            3968,
-            3974,
-            3975,
             3981,
             3982,
             3988,
             3989,
             3995,
-            3996
+            3996,
+            4002,
+            4003,
+            4009,
+            4010,
+            4016,
+            4017,
+            4023,
+            4024,
+            4030,
+            4031,
+            4037,
+            4038,
+            4044,
+            4045,
+            4051,
+            4052,
+            4058,
+            4059,
+            4065,
+            4066,
+            4072,
+            4073,
+            4079,
+            4080,
+            4086,
+            4087
           ],
           "tokens": [
             "OSE",
@@ -20428,6 +20733,36 @@
           ]
         },
         {
+          "file": "apps/system-studio/src/lib/change/blast-radius.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            156
+          ],
+          "tokens": [
+            "ACTIVE"
+          ]
+        },
+        {
+          "file": "apps/system-studio/src/lib/change/windows.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            390,
+            403,
+            452
+          ],
+          "tokens": [
+            "CANCELLED"
+          ]
+        },
+        {
           "file": "apps/system-studio/src/lib/command-handlers.test.ts",
           "probe": "tenant-token",
           "kind": "Simon / OSE",
@@ -20782,6 +21117,22 @@
           ],
           "tokens": [
             "simon"
+          ]
+        },
+        {
+          "file": "apps/system-studio/src/lib/purge-readiness.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            32,
+            70,
+            111
+          ],
+          "tokens": [
+            "ACTIVE"
           ]
         },
         {
@@ -27188,23 +27539,23 @@
           "in_path": false,
           "hits": 19,
           "lines": [
-            16,
-            24,
-            28,
-            38,
-            53,
+            17,
+            25,
+            29,
+            39,
             54,
-            56,
-            60,
-            63,
-            68,
-            76,
-            93,
-            116,
-            123,
-            156,
-            163,
-            173
+            55,
+            57,
+            61,
+            64,
+            69,
+            77,
+            94,
+            117,
+            124,
+            166,
+            173,
+            183
           ],
           "tokens": [
             "Club",
@@ -27220,8 +27571,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            16,
-            28
+            17,
+            29
           ],
           "tokens": [
             "OSE"
@@ -27235,9 +27586,9 @@
           "in_path": false,
           "hits": 5,
           "lines": [
-            21,
-            29,
-            38
+            22,
+            30,
+            39
           ],
           "tokens": [
             "ACTIVE",
@@ -27566,16 +27917,30 @@
           "in_path": false,
           "hits": 6,
           "lines": [
-            158,
             162,
-            168,
-            185,
-            191,
-            197
+            166,
+            172,
+            189,
+            195,
+            201
           ],
           "tokens": [
             "ApprovalDelegation",
             "approvalDelegation"
+          ]
+        },
+        {
+          "file": "apps/web/src/app/(app)/settings/actions.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "route names",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            78
+          ],
+          "tokens": [
+            "club"
           ]
         },
         {
@@ -27586,7 +27951,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            113
+            117
           ],
           "tokens": [
             "PRESIDENT"
@@ -27600,7 +27965,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            113
+            117
           ],
           "tokens": [
             "PRESIDENT"
@@ -27614,7 +27979,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            146
+            150
           ],
           "tokens": [
             "OSE"
@@ -27628,8 +27993,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            113,
-            133
+            117,
+            137
           ],
           "tokens": [
             "ACTIVE"
@@ -28152,6 +28517,20 @@
           ]
         },
         {
+          "file": "apps/web/src/app/api/connections/exceptions/route.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "route names",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            32
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
           "file": "apps/web/src/app/api/documents/[id]/content/route.ts",
           "probe": "workflow-state-member",
           "kind": "workflow",
@@ -28245,7 +28624,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            74
+            97
           ],
           "tokens": [
             "club"
@@ -28259,7 +28638,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            74
+            97
           ],
           "tokens": [
             "OSE"
@@ -28273,7 +28652,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            83
+            106
           ],
           "tokens": [
             "ACTIVE"
@@ -29205,8 +29584,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            90,
-            208
+            122,
+            274
           ],
           "tokens": [
             "club"
@@ -29533,6 +29912,34 @@
           ]
         },
         {
+          "file": "apps/web/src/components/ui/icon-family.test.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            126
+          ],
+          "tokens": [
+            "OSE"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/a11y/brand-meaning-scan.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            81
+          ],
+          "tokens": [
+            "APPROVED"
+          ]
+        },
+        {
           "file": "apps/web/src/lib/a11y/contrast.test.ts",
           "probe": "club-token",
           "kind": "club",
@@ -29714,7 +30121,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            85
+            86
           ],
           "tokens": [
             "us-east-1"
@@ -29728,10 +30135,10 @@
           "in_path": false,
           "hits": 4,
           "lines": [
-            153,
-            376,
-            387,
-            406
+            154,
+            411,
+            422,
+            441
           ],
           "tokens": [
             "club"
@@ -29745,9 +30152,9 @@
           "in_path": false,
           "hits": 3,
           "lines": [
-            28,
-            56,
-            208
+            29,
+            57,
+            232
           ],
           "tokens": [
             "api.anthropic.com"
@@ -29761,7 +30168,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            376
+            411
           ],
           "tokens": [
             "university"
@@ -30423,7 +30830,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            270
+            282
           ],
           "tokens": [
             "club"
@@ -30437,8 +30844,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            323,
-            336
+            335,
+            348
           ],
           "tokens": [
             "PRESIDENT"
@@ -30452,8 +30859,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            323,
-            336
+            335,
+            348
           ],
           "tokens": [
             "PRESIDENT"
@@ -30467,7 +30874,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            333
+            345
           ],
           "tokens": [
             "ACTIVE"
@@ -32098,6 +32505,42 @@
           ]
         },
         {
+          "file": "apps/web/src/lib/connections/exception-worklist.test.ts",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            3,
+            69
+          ],
+          "tokens": [
+            "SLA_MINUTES"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/connections/exception-worklist.ts",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 6,
+          "lines": [
+            56,
+            139,
+            212,
+            214,
+            215,
+            260
+          ],
+          "tokens": [
+            "Escalate",
+            "SLA_MINUTES",
+            "escalate"
+          ]
+        },
+        {
           "file": "apps/web/src/lib/connections/pending-intent.test.ts",
           "probe": "club-token",
           "kind": "club",
@@ -32256,6 +32699,235 @@
           ],
           "tokens": [
             "University"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/evaluate.test.ts",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            326
+          ],
+          "tokens": [
+            "escalates"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/evaluate.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 41,
+          "lines": [
+            14,
+            55,
+            100,
+            113,
+            114,
+            121,
+            122,
+            126,
+            132,
+            142,
+            144,
+            148,
+            149,
+            158,
+            171,
+            175,
+            178,
+            204,
+            205,
+            213,
+            232,
+            238,
+            241,
+            251,
+            266,
+            272,
+            281,
+            289,
+            294,
+            302,
+            310,
+            315,
+            321,
+            349,
+            355,
+            365,
+            377,
+            387
+          ],
+          "tokens": [
+            "ACTIVE",
+            "PENDING",
+            "REVOKED",
+            "SUSPENDED"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/evaluate.ts",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            312
+          ],
+          "tokens": [
+            "escalates"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/evaluate.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            42,
+            57
+          ],
+          "tokens": [
+            "SUSPENDED"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/policy.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 11,
+          "lines": [
+            21,
+            69,
+            118,
+            125,
+            176,
+            229,
+            271
+          ],
+          "tokens": [
+            "ACTIVE",
+            "PENDING",
+            "REVOKED",
+            "SUSPENDED"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/policy.ts",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            173
+          ],
+          "tokens": [
+            "escalate"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/policy.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            136,
+            137
+          ],
+          "tokens": [
+            "SUSPENDED"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/tenant-entry.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            21,
+            79
+          ],
+          "tokens": [
+            "clubs"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/tenant-entry.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 11,
+          "lines": [
+            47,
+            53,
+            60,
+            61,
+            62,
+            63,
+            79,
+            85,
+            90,
+            127
+          ],
+          "tokens": [
+            "ACTIVE",
+            "REVOKED",
+            "SUSPENDED"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/tenant-entry.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            64
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/tenant-entry.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 16,
+          "lines": [
+            38,
+            96,
+            98,
+            100,
+            103,
+            109,
+            134,
+            135,
+            136,
+            137
+          ],
+          "tokens": [
+            "ACTIVE",
+            "PENDING",
+            "REVOKED",
+            "SUSPENDED"
           ]
         },
         {
@@ -32740,6 +33412,20 @@
           ],
           "tokens": [
             "club"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/ingestion/tabular-import.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            211
+          ],
+          "tokens": [
+            "Club"
           ]
         },
         {
@@ -33769,6 +34455,20 @@
           ]
         },
         {
+          "file": "apps/web/src/lib/payments/audit-evidence-wired.test.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            98
+          ],
+          "tokens": [
+            "OSE"
+          ]
+        },
+        {
           "file": "apps/web/src/lib/payments/authority-attacks.test.ts",
           "probe": "club-token",
           "kind": "club",
@@ -33961,6 +34661,20 @@
           "tokens": [
             "ACTIVE",
             "ARCHIVED"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/payments/prompt-redaction.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            99
+          ],
+          "tokens": [
+            "club"
           ]
         },
         {
@@ -34863,6 +35577,21 @@
           ],
           "tokens": [
             "APPROVED"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/relay/connection-class-authority.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            62,
+            144
+          ],
+          "tokens": [
+            "DRAFT"
           ]
         },
         {
@@ -36091,6 +36820,37 @@
           ]
         },
         {
+          "file": "apps/web/src/lib/uploads/tenant-image.test.ts",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            63,
+            74
+          ],
+          "tokens": [
+            "www.w3.org"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/uploads/tenant-image.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            4,
+            34,
+            62
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
           "file": "apps/web/src/lib/workflows/approval-definition.test.ts",
           "probe": "club-token",
           "kind": "club",
@@ -36278,6 +37038,92 @@
             "PENDING_OSE",
             "PENDING_PRESIDENT",
             "REJECTED"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/workflows/generality-parity.test.ts",
+          "probe": "club-token",
+          "kind": "club",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            64,
+            65,
+            66,
+            79
+          ],
+          "tokens": [
+            "club"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/workflows/generality-parity.test.ts",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            40,
+            41,
+            273,
+            290
+          ],
+          "tokens": [
+            "escalation"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/workflows/generality-parity.test.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            57,
+            68
+          ],
+          "tokens": [
+            "simon"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/workflows/generality-parity.test.ts",
+          "probe": "university-token",
+          "kind": "University",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            55
+          ],
+          "tokens": [
+            "University"
+          ]
+        },
+        {
+          "file": "apps/web/src/lib/workflows/generality-parity.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 7,
+          "lines": [
+            178,
+            277,
+            280,
+            284,
+            300,
+            317,
+            325
+          ],
+          "tokens": [
+            "ACTIVE",
+            "APPROVED",
+            "DRAFT",
+            "PENDING_OSE"
           ]
         },
         {
@@ -36586,6 +37432,103 @@
           ],
           "tokens": [
             "us-east-1"
+          ]
+        },
+        {
+          "file": "infrastructure/organization/scp/prevent-iam-escalation.json",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            11,
+            57,
+            58,
+            62
+          ],
+          "tokens": [
+            "arn:aws:iam:"
+          ]
+        },
+        {
+          "file": "infrastructure/organization/scp/prevent-iam-escalation.json",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            2,
+            9,
+            13
+          ],
+          "tokens": [
+            "escalating",
+            "escalation"
+          ]
+        },
+        {
+          "file": "infrastructure/organization/scp/prevent-root-use.json",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            24
+          ],
+          "tokens": [
+            "arn:aws:iam:"
+          ]
+        },
+        {
+          "file": "infrastructure/organization/scp/protect-security-services.json",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            10,
+            39
+          ],
+          "tokens": [
+            "arn:aws:iam:"
+          ]
+        },
+        {
+          "file": "infrastructure/organization/scp/region-restriction.json",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            7,
+            10,
+            45
+          ],
+          "tokens": [
+            "us-east-1"
+          ]
+        },
+        {
+          "file": "infrastructure/organization/scp/require-evidence.json",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            11,
+            43,
+            44,
+            55
+          ],
+          "tokens": [
+            "arn:aws:logs:",
+            "arn:aws:s3:"
           ]
         },
         {
@@ -37063,6 +38006,20 @@
           ],
           "tokens": [
             "University"
+          ]
+        },
+        {
+          "file": "packages/audit/src/record.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            38
+          ],
+          "tokens": [
+            "simon"
           ]
         },
         {
@@ -38040,6 +38997,48 @@
           ]
         },
         {
+          "file": "packages/configuration/src/registry-graph.test.ts",
+          "probe": "aws-account-id",
+          "kind": "account",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            79
+          ],
+          "tokens": [
+            "############"
+          ]
+        },
+        {
+          "file": "packages/configuration/src/registry-graph.test.ts",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            79
+          ],
+          "tokens": [
+            "arn:aws:kms:"
+          ]
+        },
+        {
+          "file": "packages/configuration/src/registry-graph.test.ts",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            79
+          ],
+          "tokens": [
+            "us-east-1"
+          ]
+        },
+        {
           "file": "packages/configuration/src/rejections.test.ts",
           "probe": "aws-account-id",
           "kind": "account",
@@ -38266,6 +39265,145 @@
           ],
           "tokens": [
             "club"
+          ]
+        },
+        {
+          "file": "packages/generality-fixtures/src/corporate-purchase.test.ts",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            84
+          ],
+          "tokens": [
+            "escalates"
+          ]
+        },
+        {
+          "file": "packages/generality-fixtures/src/corporate-purchase.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 8,
+          "lines": [
+            92,
+            132,
+            146,
+            206,
+            308,
+            340,
+            395,
+            409
+          ],
+          "tokens": [
+            "APPROVED",
+            "CANCELLED",
+            "NEEDS_CHANGES",
+            "REVOKED"
+          ]
+        },
+        {
+          "file": "packages/generality-fixtures/src/corporate-purchase.ts",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            61,
+            164,
+            194
+          ],
+          "tokens": [
+            "escalates",
+            "escalation"
+          ]
+        },
+        {
+          "file": "packages/generality-fixtures/src/corporate-purchase.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 28,
+          "lines": [
+            168,
+            170,
+            172,
+            178,
+            180,
+            184,
+            185,
+            186,
+            187,
+            190,
+            191,
+            199,
+            212,
+            213,
+            214,
+            227,
+            232,
+            233,
+            234,
+            236,
+            237,
+            238,
+            239,
+            244,
+            245
+          ],
+          "tokens": [
+            "APPROVED",
+            "CANCELLED",
+            "DRAFT",
+            "NEEDS_CHANGES",
+            "REJECTED"
+          ]
+        },
+        {
+          "file": "packages/generality-fixtures/src/index.ts",
+          "probe": "university-token",
+          "kind": "University",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            4
+          ],
+          "tokens": [
+            "university"
+          ]
+        },
+        {
+          "file": "packages/generality-fixtures/src/terminology-neutrality.test.ts",
+          "probe": "university-token",
+          "kind": "University",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            156
+          ],
+          "tokens": [
+            "university"
+          ]
+        },
+        {
+          "file": "packages/generality-fixtures/src/terminology-neutrality.test.ts",
+          "probe": "workflow-state-member",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            85
+          ],
+          "tokens": [
+            "ACTIVE"
           ]
         },
         {
@@ -40012,6 +41150,22 @@
           ]
         },
         {
+          "file": "packages/payments/src/financial-identifiers.test.ts",
+          "probe": "aws-account-id",
+          "kind": "account",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            109,
+            111,
+            113
+          ],
+          "tokens": [
+            "############"
+          ]
+        },
+        {
           "file": "packages/payments/src/funds-flow.test.ts",
           "probe": "university-token",
           "kind": "University",
@@ -40040,6 +41194,21 @@
           ]
         },
         {
+          "file": "packages/payments/src/high-risk-actions.test.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            69,
+            156
+          ],
+          "tokens": [
+            "OSE"
+          ]
+        },
+        {
           "file": "packages/payments/src/index.ts",
           "probe": "sla-threshold",
           "kind": "workflow",
@@ -40047,7 +41216,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            137
+            162
           ],
           "tokens": [
             "escalation"
@@ -41035,6 +42204,44 @@
           ]
         },
         {
+          "file": "packages/provisioning/src/cutover-command-roles.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 27,
+          "lines": [
+            7,
+            25,
+            26,
+            88,
+            106,
+            108,
+            109,
+            110,
+            191,
+            194,
+            195,
+            217,
+            248,
+            364,
+            365,
+            366,
+            371,
+            372,
+            373,
+            379,
+            380,
+            390,
+            414
+          ],
+          "tokens": [
+            "escalated",
+            "escalates",
+            "escalation"
+          ]
+        },
+        {
           "file": "packages/provisioning/src/cutover-go-no-go.mjs",
           "probe": "sla-threshold",
           "kind": "workflow",
@@ -41046,6 +42253,22 @@
           ],
           "tokens": [
             "escalate",
+            "escalation"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/cutover-plan-levels.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            6,
+            13,
+            53
+          ],
+          "tokens": [
             "escalation"
           ]
         },
@@ -41323,26 +42546,89 @@
           "in_path": false,
           "hits": 16,
           "lines": [
-            17,
-            27,
-            51,
-            54,
-            55,
+            19,
+            29,
+            53,
             56,
             57,
-            67,
+            58,
+            59,
             69,
-            70,
-            76,
+            71,
+            72,
             78,
-            83,
-            89,
-            90,
-            109
+            80,
+            85,
+            91,
+            92,
+            111
           ],
           "tokens": [
             "ACTIVE",
             "DRAFT"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/manifest-values.test.ts",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            29
+          ],
+          "tokens": [
+            "us-east-1"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/manifest-values.test.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            166,
+            169,
+            170
+          ],
+          "tokens": [
+            "ose",
+            "simon"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/manifest-values.ts",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 4,
+          "lines": [
+            29,
+            191
+          ],
+          "tokens": [
+            "example.com",
+            "example.net",
+            "example.org"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/manifest-values.ts",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            170
+          ],
+          "tokens": [
+            "ose",
+            "simon"
           ]
         },
         {
@@ -41353,7 +42639,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            561
+            623
           ],
           "tokens": [
             "us-east-1"
@@ -41367,8 +42653,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            162,
-            170
+            168,
+            176
           ],
           "tokens": [
             "platform.tenurework.com"
@@ -41627,7 +42913,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            46
+            81
           ],
           "tokens": [
             "us-east-1"
@@ -41641,7 +42927,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            355
+            397
           ],
           "tokens": [
             "university"
@@ -41655,25 +42941,25 @@
           "in_path": false,
           "hits": 20,
           "lines": [
-            65,
-            76,
-            79,
-            93,
-            98,
             100,
-            143,
-            253,
-            254,
-            255,
-            268,
-            278,
-            279,
-            280,
-            287,
-            288,
-            294,
+            111,
+            114,
+            128,
+            133,
+            135,
+            185,
+            295,
             296,
-            297
+            297,
+            310,
+            320,
+            321,
+            322,
+            329,
+            330,
+            336,
+            338,
+            339
           ],
           "tokens": [
             "ACTIVE",
@@ -41841,6 +43127,20 @@
             "ARCHIVED",
             "DRAFT",
             "SUSPENDED"
+          ]
+        },
+        {
+          "file": "packages/provisioning/src/tombstone.ts",
+          "probe": "role-comparison",
+          "kind": "role",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            221
+          ],
+          "tokens": [
+            "role !== \"string\""
           ]
         },
         {
@@ -42045,6 +43345,29 @@
           ],
           "tokens": [
             "api.github.com"
+          ]
+        },
+        {
+          "file": "tests/architecture/ext-cutover-command-authority.test.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 11,
+          "lines": [
+            104,
+            134,
+            228,
+            234,
+            235,
+            238,
+            239,
+            244,
+            245,
+            248
+          ],
+          "tokens": [
+            "escalation"
           ]
         },
         {
@@ -42320,6 +43643,82 @@
           ]
         },
         {
+          "file": "tests/architecture/simon-data-dictionary.test.mjs",
+          "probe": "tenant-in-path",
+          "kind": "route name",
+          "place": "elsewhere",
+          "in_path": true,
+          "hits": 1,
+          "lines": [],
+          "tokens": [
+            "/simon-"
+          ]
+        },
+        {
+          "file": "tests/architecture/simon-data-dictionary.test.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 5,
+          "lines": [
+            6,
+            18,
+            21,
+            46,
+            152
+          ],
+          "tokens": [
+            "SIMON",
+            "simon"
+          ]
+        },
+        {
+          "file": "tests/architecture/simon-module-boundaries.test.mjs",
+          "probe": "tenant-in-path",
+          "kind": "route name",
+          "place": "elsewhere",
+          "in_path": true,
+          "hits": 1,
+          "lines": [],
+          "tokens": [
+            "/simon-"
+          ]
+        },
+        {
+          "file": "tests/architecture/simon-module-boundaries.test.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 20,
+          "lines": [
+            17,
+            20,
+            26,
+            30,
+            49,
+            86,
+            103,
+            112,
+            139,
+            148,
+            154,
+            155,
+            166,
+            170,
+            174,
+            179,
+            182
+          ],
+          "tokens": [
+            "SIMON",
+            "Simon",
+            "ose",
+            "simon"
+          ]
+        },
+        {
           "file": "tests/architecture/work-queue.test.mjs",
           "probe": "tenant-token",
           "kind": "Simon / OSE",
@@ -42549,6 +43948,72 @@
           ]
         },
         {
+          "file": "tests/security/iac-plan-review.test.mjs",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 9,
+          "lines": [
+            254,
+            263,
+            303,
+            322,
+            344,
+            353,
+            364,
+            420,
+            430
+          ],
+          "tokens": [
+            "arn:aws:iam:",
+            "arn:aws:s3:",
+            "arn:aws:sqs:"
+          ]
+        },
+        {
+          "file": "tests/security/iac-plan-review.test.mjs",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 14,
+          "lines": [
+            90,
+            98,
+            221,
+            412,
+            423,
+            430,
+            437,
+            440,
+            456,
+            563,
+            568,
+            574,
+            584,
+            638
+          ],
+          "tokens": [
+            "eu-west-1",
+            "us-east-1"
+          ]
+        },
+        {
+          "file": "tests/security/iac-plan-review.test.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            313
+          ],
+          "tokens": [
+            "escalation"
+          ]
+        },
+        {
           "file": "tests/security/no-hardcoded-estate.test.mjs",
           "probe": "aws-region",
           "kind": "region",
@@ -42727,6 +44192,63 @@
           ],
           "tokens": [
             "api.anthropic.com"
+          ]
+        },
+        {
+          "file": "tests/security/scp-guardrails.test.mjs",
+          "probe": "aws-account-id",
+          "kind": "account",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 6,
+          "lines": [
+            127,
+            128,
+            139,
+            140,
+            228,
+            229
+          ],
+          "tokens": [
+            "############"
+          ]
+        },
+        {
+          "file": "tests/security/scp-guardrails.test.mjs",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 10,
+          "lines": [
+            127,
+            128,
+            139,
+            140,
+            201,
+            202,
+            228,
+            229
+          ],
+          "tokens": [
+            "arn:aws:iam:",
+            "arn:aws:s3:"
+          ]
+        },
+        {
+          "file": "tests/security/scp-guardrails.test.mjs",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            164,
+            170
+          ],
+          "tokens": [
+            "eu-west-1",
+            "us-east-1"
           ]
         },
         {
@@ -43013,6 +44535,32 @@
           ]
         },
         {
+          "file": "tools/cutover-command-authority.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 10,
+          "lines": [
+            107,
+            112,
+            119,
+            121,
+            308,
+            310,
+            311,
+            469,
+            480,
+            490
+          ],
+          "tokens": [
+            "Escalates",
+            "Escalation",
+            "escalates",
+            "escalation"
+          ]
+        },
+        {
           "file": "tools/cutover-command-center.mjs",
           "probe": "sla-threshold",
           "kind": "workflow",
@@ -43155,6 +44703,38 @@
           ]
         },
         {
+          "file": "tools/ext-migration-order.mjs",
+          "probe": "approval-chain-symbol",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            231,
+            232,
+            238
+          ],
+          "tokens": [
+            "ApprovalDelegation",
+            "ApprovalStep",
+            "RoleTransfer"
+          ]
+        },
+        {
+          "file": "tools/ext-migration-order.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            212
+          ],
+          "tokens": [
+            "OSE"
+          ]
+        },
+        {
           "file": "tools/ext-read-order.mjs",
           "probe": "role-comparison",
           "kind": "role",
@@ -43183,6 +44763,20 @@
           ]
         },
         {
+          "file": "tools/ext-readiness.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            129
+          ],
+          "tokens": [
+            "SIMON"
+          ]
+        },
+        {
           "file": "tools/fin-finance-surface.mjs",
           "probe": "approval-chain-symbol",
           "kind": "workflow",
@@ -43205,9 +44799,9 @@
           "hits": 4,
           "lines": [
             214,
-            297,
-            588,
-            646
+            301,
+            592,
+            650
           ],
           "tokens": [
             "club",
@@ -43222,7 +44816,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            389
+            393
           ],
           "tokens": [
             "escalated"
@@ -43285,6 +44879,52 @@
             "DECLINED",
             "PENDING",
             "SHADOW"
+          ]
+        },
+        {
+          "file": "tools/iac-plan-review.mjs",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            128,
+            129,
+            130
+          ],
+          "tokens": [
+            "arn:aws:iam:"
+          ]
+        },
+        {
+          "file": "tools/iac-plan-review.mjs",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            58
+          ],
+          "tokens": [
+            "us-east-1",
+            "us-west-2"
+          ]
+        },
+        {
+          "file": "tools/iac-plan-review.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            126,
+            677
+          ],
+          "tokens": [
+            "escalation"
           ]
         },
         {
@@ -45388,6 +47028,64 @@
           ]
         },
         {
+          "file": "tools/loop/wave3-fanout.mjs",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            49
+          ],
+          "tokens": [
+            "github.com"
+          ]
+        },
+        {
+          "file": "tools/loop/wave3-fanout.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 3,
+          "lines": [
+            35,
+            194
+          ],
+          "tokens": [
+            "SIMON"
+          ]
+        },
+        {
+          "file": "tools/loop/wave3-repair.mjs",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            92
+          ],
+          "tokens": [
+            "github.com"
+          ]
+        },
+        {
+          "file": "tools/loop/wave3-repair.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            81,
+            82
+          ],
+          "tokens": [
+            "simon"
+          ]
+        },
+        {
           "file": "tools/ops-availability-and-limits.mjs",
           "probe": "club-token",
           "kind": "club",
@@ -45423,7 +47121,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            147
+            157
           ],
           "tokens": [
             "club"
@@ -45437,7 +47135,7 @@
           "in_path": false,
           "hits": 1,
           "lines": [
-            147
+            157
           ],
           "tokens": [
             "OSE"
@@ -45451,8 +47149,8 @@
           "in_path": false,
           "hits": 2,
           "lines": [
-            114,
-            129
+            127,
+            142
           ],
           "tokens": [
             "club",
@@ -45573,6 +47271,124 @@
             "SIMON",
             "ose",
             "simon"
+          ]
+        },
+        {
+          "file": "tools/scp-guardrails.mjs",
+          "probe": "aws-account-id",
+          "kind": "account",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            210
+          ],
+          "tokens": [
+            "############"
+          ]
+        },
+        {
+          "file": "tools/scp-guardrails.mjs",
+          "probe": "aws-arn-prefix",
+          "kind": "resource",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 16,
+          "lines": [
+            212,
+            213,
+            214,
+            215,
+            239,
+            248,
+            257,
+            267,
+            277,
+            287,
+            313,
+            359,
+            371,
+            380,
+            394,
+            404
+          ],
+          "tokens": [
+            "arn:aws:iam:",
+            "arn:aws:logs:",
+            "arn:aws:s3:",
+            "arn:aws:secretsmanager:"
+          ]
+        },
+        {
+          "file": "tools/scp-guardrails.mjs",
+          "probe": "aws-region",
+          "kind": "region",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 24,
+          "lines": [
+            227,
+            232,
+            257,
+            258,
+            268,
+            277,
+            278,
+            287,
+            288,
+            295,
+            300,
+            304,
+            305,
+            312,
+            329,
+            334,
+            339,
+            344,
+            349,
+            359,
+            387,
+            395,
+            404,
+            405
+          ],
+          "tokens": [
+            "eu-west-1",
+            "us-east-1"
+          ]
+        },
+        {
+          "file": "tools/scp-guardrails.mjs",
+          "probe": "domain-literal",
+          "kind": "domain",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 2,
+          "lines": [
+            306,
+            380
+          ],
+          "tokens": [
+            "platform.tenurework.com",
+            "token.actions.githubusercontent.com"
+          ]
+        },
+        {
+          "file": "tools/scp-guardrails.mjs",
+          "probe": "sla-threshold",
+          "kind": "workflow",
+          "place": "permission checks",
+          "in_path": false,
+          "hits": 5,
+          "lines": [
+            8,
+            71,
+            362,
+            367,
+            376
+          ],
+          "tokens": [
+            "escalation"
           ]
         },
         {
@@ -45923,6 +47739,121 @@
           ]
         },
         {
+          "file": "tools/simon-data-dictionary.mjs",
+          "probe": "tenant-in-path",
+          "kind": "route name",
+          "place": "elsewhere",
+          "in_path": true,
+          "hits": 1,
+          "lines": [],
+          "tokens": [
+            "/simon-"
+          ]
+        },
+        {
+          "file": "tools/simon-data-dictionary.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 15,
+          "lines": [
+            3,
+            6,
+            7,
+            10,
+            12,
+            43,
+            48,
+            49,
+            222,
+            284,
+            285,
+            372,
+            374,
+            376
+          ],
+          "tokens": [
+            "SIMON",
+            "Simon",
+            "simon"
+          ]
+        },
+        {
+          "file": "tools/simon-module-boundaries.mjs",
+          "probe": "tenant-in-path",
+          "kind": "route name",
+          "place": "elsewhere",
+          "in_path": true,
+          "hits": 1,
+          "lines": [],
+          "tokens": [
+            "/simon-"
+          ]
+        },
+        {
+          "file": "tools/simon-module-boundaries.mjs",
+          "probe": "tenant-token",
+          "kind": "Simon / OSE",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 38,
+          "lines": [
+            6,
+            7,
+            9,
+            14,
+            16,
+            17,
+            18,
+            19,
+            22,
+            52,
+            386,
+            388,
+            423,
+            448,
+            450,
+            452,
+            464,
+            505,
+            510,
+            511,
+            515,
+            516,
+            544,
+            582,
+            616,
+            619,
+            620,
+            626,
+            666,
+            682,
+            694
+          ],
+          "tokens": [
+            "OSE",
+            "SIMON",
+            "Simon",
+            "ose",
+            "simon"
+          ]
+        },
+        {
+          "file": "tools/simon-module-boundaries.mjs",
+          "probe": "university-token",
+          "kind": "University",
+          "place": "elsewhere",
+          "in_path": false,
+          "hits": 1,
+          "lines": [
+            363
+          ],
+          "tokens": [
+            "university"
+          ]
+        },
+        {
           "file": "tools/simon-sso-handoff.mjs",
           "probe": "tenant-in-path",
           "kind": "route name",
@@ -46115,48 +48046,48 @@
       "by_kind": [
         {
           "kind": "Simon / OSE",
-          "hits": 1447,
-          "files": 253
+          "hits": 1577,
+          "files": 271
         },
         {
           "kind": "University",
-          "hits": 208,
-          "files": 93
+          "hits": 212,
+          "files": 97
         },
         {
           "kind": "account",
-          "hits": 462,
-          "files": 107
+          "hits": 479,
+          "files": 114
         },
         {
           "kind": "club",
-          "hits": 1867,
-          "files": 308
+          "hits": 1881,
+          "files": 316
         },
         {
           "kind": "domain",
-          "hits": 818,
-          "files": 181
+          "hits": 835,
+          "files": 188
         },
         {
           "kind": "region",
-          "hits": 840,
-          "files": 193
+          "hits": 903,
+          "files": 204
         },
         {
           "kind": "resource",
-          "hits": 493,
-          "files": 91
+          "hits": 551,
+          "files": 103
         },
         {
           "kind": "role",
-          "hits": 636,
-          "files": 112
+          "hits": 637,
+          "files": 113
         },
         {
           "kind": "route name",
-          "hits": 5,
-          "files": 5
+          "hits": 9,
+          "files": 9
         },
         {
           "kind": "term",
@@ -46165,8 +48096,8 @@
         },
         {
           "kind": "workflow",
-          "hits": 2511,
-          "files": 361
+          "hits": 2742,
+          "files": 389
         }
       ],
       "by_place": [
@@ -46206,8 +48137,8 @@
         },
         {
           "place": "permission checks",
-          "hits": 473,
-          "files": 36,
+          "hits": 539,
+          "files": 38,
           "evidence": [
             "apps/system-studio/e2e/authorize-logic.spec.ts",
             "apps/system-studio/src/lib/authorize.ts",
@@ -46219,7 +48150,7 @@
         },
         {
           "place": "deployment scripts",
-          "hits": 165,
+          "hits": 166,
           "files": 34,
           "evidence": [
             ".github/workflows/aws-inventory.yml",
@@ -46232,8 +48163,8 @@
         },
         {
           "place": "route names",
-          "hits": 1370,
-          "files": 109,
+          "hits": 1375,
+          "files": 111,
           "evidence": [
             "apps/system-studio/src/app/console-index/answer.test.ts",
             "apps/system-studio/src/app/layout.tsx",
@@ -46245,15 +48176,15 @@
         },
         {
           "place": "elsewhere",
-          "hits": 7122,
-          "files": 594,
+          "hits": 7589,
+          "files": 647,
           "evidence": [
             "apps/system-studio/e2e/adoption.spec.ts",
             "apps/system-studio/e2e/api-contract.spec.ts",
             "apps/system-studio/e2e/auth-mode-logic.spec.ts",
             "apps/system-studio/e2e/aws-unknown-is-not-absent.spec.ts",
             "apps/system-studio/e2e/breadcrumbs.spec.ts",
-            "apps/system-studio/e2e/commands-logic.spec.ts"
+            "apps/system-studio/e2e/change-governance-logic.spec.ts"
           ]
         }
       ],
@@ -46622,6 +48553,17 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/system-studio/src/generated/platform-truth.json",
+          "hits": 55,
+          "kinds": [
+            "Simon / OSE",
+            "club",
+            "region",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/scripts/resources-data.mjs",
           "hits": 55,
           "kinds": [
@@ -46642,17 +48584,6 @@
             "workflow"
           ],
           "place": "permission checks"
-        },
-        {
-          "file": "apps/system-studio/src/generated/platform-truth.json",
-          "hits": 54,
-          "kinds": [
-            "Simon / OSE",
-            "club",
-            "region",
-            "workflow"
-          ],
-          "place": "elsewhere"
         },
         {
           "file": "apps/web/src/lib/workflows/approval-definition.test.ts",
@@ -46700,6 +48631,18 @@
           "place": "elsewhere"
         },
         {
+          "file": "tools/scp-guardrails.mjs",
+          "hits": 48,
+          "kinds": [
+            "account",
+            "domain",
+            "region",
+            "resource",
+            "workflow"
+          ],
+          "place": "permission checks"
+        },
+        {
           "file": "apps/web/e2e/app.spec.ts",
           "hits": 47,
           "kinds": [
@@ -46740,6 +48683,14 @@
           "place": "route names"
         },
         {
+          "file": "apps/web/src/lib/eligibility/evaluate.test.ts",
+          "hits": 42,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/messaging.ts",
           "hits": 41,
           "kinds": [
@@ -46747,6 +48698,16 @@
             "club",
             "role",
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tools/simon-module-boundaries.mjs",
+          "hits": 40,
+          "kinds": [
+            "Simon / OSE",
+            "University",
+            "route name"
           ],
           "place": "elsewhere"
         },
@@ -46941,6 +48902,14 @@
           "place": "permission checks"
         },
         {
+          "file": "packages/generality-fixtures/src/corporate-purchase.ts",
+          "hits": 31,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "tools/simon-absorption-inventory.mjs",
           "hits": 31,
           "kinds": [
@@ -47029,6 +48998,19 @@
           "hits": 29,
           "kinds": [
             "Simon / OSE",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/system-studio/e2e/tenant-governance-logic.spec.ts",
+          "hits": 28,
+          "kinds": [
+            "Simon / OSE",
+            "account",
+            "domain",
+            "region",
+            "resource",
             "workflow"
           ],
           "place": "elsewhere"
@@ -47136,6 +49118,14 @@
           "kinds": [
             "club",
             "role",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "packages/provisioning/src/cutover-command-roles.mjs",
+          "hits": 27,
+          "kinds": [
             "workflow"
           ],
           "place": "elsewhere"
@@ -47283,10 +49273,32 @@
           "place": "elsewhere"
         },
         {
+          "file": "tests/security/iac-plan-review.test.mjs",
+          "hits": 24,
+          "kinds": [
+            "region",
+            "resource",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/system-studio/e2e/health-page-logic.spec.ts",
           "hits": 23,
           "kinds": [
             "account",
+            "region",
+            "resource"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/system-studio/e2e/portability-logic.spec.ts",
+          "hits": 23,
+          "kinds": [
+            "Simon / OSE",
+            "account",
+            "domain",
             "region",
             "resource"
           ],
@@ -47443,6 +49455,16 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/system-studio/e2e/change-governance-logic.spec.ts",
+          "hits": 21,
+          "kinds": [
+            "Simon / OSE",
+            "region",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/authz/authority-is-not-a-title.test.ts",
           "hits": 21,
           "kinds": [
@@ -47483,6 +49505,15 @@
             "Simon / OSE",
             "University",
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tests/architecture/simon-module-boundaries.test.mjs",
+          "hits": 21,
+          "kinds": [
+            "Simon / OSE",
+            "route name"
           ],
           "place": "elsewhere"
         },
@@ -47669,6 +49700,17 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/lib/workflows/generality-parity.test.ts",
+          "hits": 18,
+          "kinds": [
+            "Simon / OSE",
+            "University",
+            "club",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "packages/configuration/src/configuration.test.ts",
           "hits": 18,
           "kinds": [
@@ -47693,6 +49735,16 @@
             "domain"
           ],
           "place": "elsewhere"
+        },
+        {
+          "file": "tests/security/scp-guardrails.test.mjs",
+          "hits": 18,
+          "kinds": [
+            "account",
+            "region",
+            "resource"
+          ],
+          "place": "permission checks"
         },
         {
           "file": "tools/loop/surveyed-PAY-1.json",
@@ -47762,6 +49814,15 @@
             "Simon / OSE",
             "club",
             "role"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/tenant-entry.ts",
+          "hits": 17,
+          "kinds": [
+            "club",
+            "workflow"
           ],
           "place": "elsewhere"
         },
@@ -47882,6 +49943,15 @@
           "hits": 16,
           "kinds": [
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tools/simon-data-dictionary.mjs",
+          "hits": 16,
+          "kinds": [
+            "Simon / OSE",
+            "route name"
           ],
           "place": "elsewhere"
         },
@@ -48283,6 +50353,15 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/lib/eligibility/tenant-entry.test.ts",
+          "hits": 13,
+          "kinds": [
+            "club",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/identity/live-membership.itest.ts",
           "hits": 13,
           "kinds": [
@@ -48352,6 +50431,15 @@
           "place": "deployment scripts"
         },
         {
+          "file": ".github/workflows/reachability.yml",
+          "hits": 12,
+          "kinds": [
+            "domain",
+            "region"
+          ],
+          "place": "deployment scripts"
+        },
+        {
           "file": "apps/system-studio/e2e/commands-logic.spec.ts",
           "hits": 12,
           "kinds": [
@@ -48407,6 +50495,17 @@
         },
         {
           "file": "apps/web/src/app/(app)/approvals/[id]/page.tsx",
+          "hits": 12,
+          "kinds": [
+            "Simon / OSE",
+            "club",
+            "role",
+            "workflow"
+          ],
+          "place": "route names"
+        },
+        {
+          "file": "apps/web/src/app/(app)/settings/actions.ts",
           "hits": 12,
           "kinds": [
             "Simon / OSE",
@@ -48492,15 +50591,6 @@
           "place": "deployment scripts"
         },
         {
-          "file": ".github/workflows/reachability.yml",
-          "hits": 11,
-          "kinds": [
-            "domain",
-            "region"
-          ],
-          "place": "deployment scripts"
-        },
-        {
           "file": "apps/system-studio/e2e/fleet-filter-logic.spec.ts",
           "hits": 11,
           "kinds": [
@@ -48529,16 +50619,6 @@
             "region"
           ],
           "place": "elsewhere"
-        },
-        {
-          "file": "apps/web/src/app/(app)/settings/actions.ts",
-          "hits": 11,
-          "kinds": [
-            "Simon / OSE",
-            "role",
-            "workflow"
-          ],
-          "place": "route names"
         },
         {
           "file": "apps/web/src/lib/analytics/metrics.ts",
@@ -48571,6 +50651,14 @@
           "kinds": [
             "Simon / OSE",
             "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/policy.test.ts",
+          "hits": 11,
+          "kinds": [
+            "workflow"
           ],
           "place": "elsewhere"
         },
@@ -48624,6 +50712,14 @@
           "kinds": [
             "Simon / OSE",
             "University",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tests/architecture/ext-cutover-command-authority.test.mjs",
+          "hits": 11,
+          "kinds": [
             "workflow"
           ],
           "place": "elsewhere"
@@ -48857,6 +50953,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "tools/cutover-command-authority.mjs",
+          "hits": 10,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "tools/loop/studio-ux.mjs",
           "hits": 10,
           "kinds": [
@@ -49076,6 +51180,14 @@
             "workflow"
           ],
           "place": "permission checks"
+        },
+        {
+          "file": "packages/generality-fixtures/src/corporate-purchase.test.ts",
+          "hits": 9,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
         },
         {
           "file": "packages/platform-config/src/model-policy.ts",
@@ -49350,6 +51462,15 @@
           "kinds": [
             "University",
             "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "infrastructure/organization/scp/prevent-iam-escalation.json",
+          "hits": 8,
+          "kinds": [
+            "resource",
+            "workflow"
           ],
           "place": "elsewhere"
         },
@@ -49656,6 +51777,16 @@
           "place": "elsewhere"
         },
         {
+          "file": "tools/iac-plan-review.mjs",
+          "hits": 7,
+          "kinds": [
+            "region",
+            "resource",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "tools/loop/surveyed-STUDIO-5.json",
           "hits": 7,
           "kinds": [
@@ -49883,6 +52014,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/lib/connections/exception-worklist.ts",
+          "hits": 6,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/org/projection.ts",
           "hits": 6,
           "kinds": [
@@ -50042,10 +52181,28 @@
           "place": "elsewhere"
         },
         {
+          "file": "packages/provisioning/src/manifest-values.ts",
+          "hits": 6,
+          "kinds": [
+            "Simon / OSE",
+            "domain"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "tests/architecture/anl-single-metric-definition.test.mjs",
           "hits": 6,
           "kinds": [
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tests/architecture/simon-data-dictionary.test.mjs",
+          "hits": 6,
+          "kinds": [
+            "Simon / OSE",
+            "route name"
           ],
           "place": "elsewhere"
         },
@@ -50296,6 +52453,15 @@
           "place": "elsewhere"
         },
         {
+          "file": "packages/provisioning/src/manifest-values.test.ts",
+          "hits": 5,
+          "kinds": [
+            "Simon / OSE",
+            "region"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "tests/architecture/forbidden-clients.test.mjs",
           "hits": 5,
           "kinds": [
@@ -50427,6 +52593,14 @@
           "hits": 4,
           "kinds": [
             "domain"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/system-studio/src/lib/purge-readiness.test.ts",
+          "hits": 4,
+          "kinds": [
+            "workflow"
           ],
           "place": "elsewhere"
         },
@@ -50602,6 +52776,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "infrastructure/organization/scp/require-evidence.json",
+          "hits": 4,
+          "kinds": [
+            "resource"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "infrastructure/studio/iam.tf",
           "hits": 4,
           "kinds": [
@@ -50761,6 +52943,15 @@
           "place": "elsewhere"
         },
         {
+          "file": "tools/ext-migration-order.mjs",
+          "hits": 4,
+          "kinds": [
+            "Simon / OSE",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "tools/loop/aws-bridge-integrate.mjs",
           "hits": 4,
           "kinds": [
@@ -50804,6 +52995,15 @@
           "kinds": [
             "domain",
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tools/loop/wave3-fanout.mjs",
+          "hits": 4,
+          "kinds": [
+            "Simon / OSE",
+            "domain"
           ],
           "place": "elsewhere"
         },
@@ -50854,6 +53054,16 @@
         },
         {
           "file": "apps/system-studio/src/app/platform/cost/cost-citation.test.tsx",
+          "hits": 3,
+          "kinds": [
+            "account",
+            "region",
+            "resource"
+          ],
+          "place": "route names"
+        },
+        {
+          "file": "apps/system-studio/src/app/tenants/[slug]/configuration/consequences.test.ts",
           "hits": 3,
           "kinds": [
             "account",
@@ -50930,6 +53140,14 @@
           "kinds": [
             "domain",
             "region"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/system-studio/src/lib/change/windows.ts",
+          "hits": 3,
+          "kinds": [
+            "workflow"
           ],
           "place": "elsewhere"
         },
@@ -51177,6 +53395,22 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/lib/eligibility/evaluate.ts",
+          "hits": 3,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/lib/eligibility/policy.ts",
+          "hits": 3,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/env.ts",
           "hits": 3,
           "kinds": [
@@ -51218,6 +53452,14 @@
           "place": "permission checks"
         },
         {
+          "file": "apps/web/src/lib/uploads/tenant-image.ts",
+          "hits": 3,
+          "kinds": [
+            "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "blueprints/corporate-divisions/blueprint.ts",
           "hits": 3,
           "kinds": [
@@ -51241,6 +53483,14 @@
             "domain"
           ],
           "place": "deployment scripts"
+        },
+        {
+          "file": "infrastructure/organization/scp/region-restriction.json",
+          "hits": 3,
+          "kinds": [
+            "region"
+          ],
+          "place": "elsewhere"
         },
         {
           "file": "infrastructure/terraform/edge-access.tf",
@@ -51299,6 +53549,16 @@
         },
         {
           "file": "packages/configuration/src/publication.test.ts",
+          "hits": 3,
+          "kinds": [
+            "account",
+            "region",
+            "resource"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "packages/configuration/src/registry-graph.test.ts",
           "hits": 3,
           "kinds": [
             "account",
@@ -51408,6 +53668,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "packages/payments/src/financial-identifiers.test.ts",
+          "hits": 3,
+          "kinds": [
+            "account"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "packages/payments/src/refusal.ts",
           "hits": 3,
           "kinds": [
@@ -51419,6 +53687,14 @@
         },
         {
           "file": "packages/provisioning/src/connector-capability.ts",
+          "hits": 3,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "packages/provisioning/src/cutover-plan-levels.mjs",
           "hits": 3,
           "kinds": [
             "workflow"
@@ -51515,6 +53791,15 @@
           "kinds": [
             "region",
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "tools/loop/wave3-repair.mjs",
+          "hits": 3,
+          "kinds": [
+            "Simon / OSE",
+            "domain"
           ],
           "place": "elsewhere"
         },
@@ -52017,6 +54302,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/lib/connections/exception-worklist.test.ts",
+          "hits": 2,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/delegation.ts",
           "hits": 2,
           "kinds": [
@@ -52058,10 +54351,34 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/lib/relay/connection-class-authority.test.ts",
+          "hits": 2,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/relay/connection-class.ts",
           "hits": 2,
           "kinds": [
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/lib/uploads/tenant-image.test.ts",
+          "hits": 2,
+          "kinds": [
+            "domain"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "infrastructure/organization/scp/protect-security-services.json",
+          "hits": 2,
+          "kinds": [
+            "resource"
           ],
           "place": "elsewhere"
         },
@@ -52115,6 +54432,15 @@
           "place": "elsewhere"
         },
         {
+          "file": "packages/generality-fixtures/src/terminology-neutrality.test.ts",
+          "hits": 2,
+          "kinds": [
+            "University",
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "packages/identity/src/enrolment.ts",
           "hits": 2,
           "kinds": [
@@ -52162,6 +54488,14 @@
           "hits": 2,
           "kinds": [
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "packages/payments/src/high-risk-actions.test.ts",
+          "hits": 2,
+          "kinds": [
+            "Simon / OSE"
           ],
           "place": "elsewhere"
         },
@@ -52622,6 +54956,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/system-studio/src/lib/change/blast-radius.ts",
+          "hits": 1,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/system-studio/src/lib/commands.ts",
           "hits": 1,
           "kinds": [
@@ -52774,6 +55116,14 @@
           "place": "route names"
         },
         {
+          "file": "apps/web/src/app/api/connections/exceptions/route.ts",
+          "hits": 1,
+          "kinds": [
+            "club"
+          ],
+          "place": "route names"
+        },
+        {
           "file": "apps/web/src/app/api/documents/[id]/content/route.ts",
           "hits": 1,
           "kinds": [
@@ -52910,6 +55260,22 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/components/ui/icon-family.test.ts",
+          "hits": 1,
+          "kinds": [
+            "Simon / OSE"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/lib/a11y/brand-meaning-scan.test.ts",
+          "hits": 1,
+          "kinds": [
+            "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/authz/seat-template.ts",
           "hits": 1,
           "kinds": [
@@ -52974,6 +55340,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "apps/web/src/lib/ingestion/tabular-import.test.ts",
+          "hits": 1,
+          "kinds": [
+            "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "apps/web/src/lib/metering/model-usage.itest.ts",
           "hits": 1,
           "kinds": [
@@ -52983,6 +55357,22 @@
         },
         {
           "file": "apps/web/src/lib/outbox/prisma-ports.ts",
+          "hits": 1,
+          "kinds": [
+            "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/lib/payments/audit-evidence-wired.test.ts",
+          "hits": 1,
+          "kinds": [
+            "Simon / OSE"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "apps/web/src/lib/payments/prompt-redaction.test.ts",
           "hits": 1,
           "kinds": [
             "club"
@@ -53030,6 +55420,14 @@
           "place": "deployment scripts"
         },
         {
+          "file": "infrastructure/organization/scp/prevent-root-use.json",
+          "hits": 1,
+          "kinds": [
+            "resource"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "infrastructure/studio/ecs.tf",
           "hits": 1,
           "kinds": [
@@ -53060,6 +55458,14 @@
             "domain"
           ],
           "place": "deployment scripts"
+        },
+        {
+          "file": "packages/audit/src/record.ts",
+          "hits": 1,
+          "kinds": [
+            "Simon / OSE"
+          ],
+          "place": "elsewhere"
         },
         {
           "file": "packages/audit/src/verify.ts",
@@ -53106,6 +55512,14 @@
           "hits": 1,
           "kinds": [
             "club"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "packages/generality-fixtures/src/index.ts",
+          "hits": 1,
+          "kinds": [
+            "University"
           ],
           "place": "elsewhere"
         },
@@ -53234,6 +55648,14 @@
           "hits": 1,
           "kinds": [
             "workflow"
+          ],
+          "place": "elsewhere"
+        },
+        {
+          "file": "packages/provisioning/src/tombstone.ts",
+          "hits": 1,
+          "kinds": [
+            "role"
           ],
           "place": "elsewhere"
         },
@@ -53374,6 +55796,14 @@
           "place": "elsewhere"
         },
         {
+          "file": "tools/ext-readiness.mjs",
+          "hits": 1,
+          "kinds": [
+            "Simon / OSE"
+          ],
+          "place": "elsewhere"
+        },
+        {
           "file": "tools/loop/aws-bridge-tabs.mjs",
           "hits": 1,
           "kinds": [
@@ -53498,7 +55928,7 @@
   },
   "concepts": {
     "source_modules": 217,
-    "target_modules": 748,
+    "target_modules": 798,
     "identical_modules": 184,
     "same_name_different_shape": [
       {
@@ -54699,8 +57129,8 @@
     "content_divergence": {
       "algorithm": "sha256 over LF-normalised text, first 16 hex digits",
       "shared": 254,
-      "divergent": 162,
-      "identical": 92,
+      "divergent": 166,
+      "identical": 88,
       "undetermined": [],
       "paths": [
         {
@@ -55024,7 +57454,7 @@
         {
           "path": "apps/web/src/app/(app)/approvals/[id]/page.tsx",
           "source_sha256": "d773aae7a8435504",
-          "target_sha256": "8528cc07231c13e8",
+          "target_sha256": "4cc16ccc7bab1f61",
           "identical": false
         },
         {
@@ -55042,8 +57472,8 @@
         {
           "path": "apps/web/src/app/(app)/calendar/[id]/page.tsx",
           "source_sha256": "90c1a7b6860f2af9",
-          "target_sha256": "90c1a7b6860f2af9",
-          "identical": true
+          "target_sha256": "82ac637017dd8cde",
+          "identical": false
         },
         {
           "path": "apps/web/src/app/(app)/calendar/new/page.tsx",
@@ -55060,7 +57490,7 @@
         {
           "path": "apps/web/src/app/(app)/dashboard/page.tsx",
           "source_sha256": "388c002d537f08b9",
-          "target_sha256": "0d4e726dd44ff8f8",
+          "target_sha256": "e773a56f5a552004",
           "identical": false
         },
         {
@@ -55078,8 +57508,8 @@
         {
           "path": "apps/web/src/app/(app)/messages/[id]/page.tsx",
           "source_sha256": "c209297a7e66bffb",
-          "target_sha256": "c209297a7e66bffb",
-          "identical": true
+          "target_sha256": "90a8dfd60240bb87",
+          "identical": false
         },
         {
           "path": "apps/web/src/app/(app)/messages/compose/page.tsx",
@@ -55102,7 +57532,7 @@
         {
           "path": "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/summary/page.tsx",
           "source_sha256": "1e9f487c7b5188a7",
-          "target_sha256": "9659375badc5fe02",
+          "target_sha256": "4ef9ae71129dbf0e",
           "identical": false
         },
         {
@@ -55138,7 +57568,7 @@
         {
           "path": "apps/web/src/app/(app)/orgs/[slug]/members/page.tsx",
           "source_sha256": "35e4e968e15946b1",
-          "target_sha256": "3a939056849ab406",
+          "target_sha256": "f37d5742046265f5",
           "identical": false
         },
         {
@@ -55378,7 +57808,7 @@
         {
           "path": "apps/web/src/components/ClubImageEditor.tsx",
           "source_sha256": "f4e17e60a2661c2f",
-          "target_sha256": "29a13a4d6a0eac0f",
+          "target_sha256": "33b8e16aabc0d9f2",
           "identical": false
         },
         {
@@ -55408,8 +57838,8 @@
         {
           "path": "apps/web/src/components/ProfileImageEditor.tsx",
           "source_sha256": "885bb87502bd43a9",
-          "target_sha256": "885bb87502bd43a9",
-          "identical": true
+          "target_sha256": "7a75ac4452625883",
+          "identical": false
         },
         {
           "path": "apps/web/src/components/QuickLinks.tsx",
@@ -55576,7 +58006,7 @@
         {
           "path": "apps/web/src/components/documents/DocContentView.tsx",
           "source_sha256": "581d2913564a2188",
-          "target_sha256": "3c6e2ffa54db5ac0",
+          "target_sha256": "feaf4f74ffcad2c9",
           "identical": false
         },
         {
@@ -55600,8 +58030,8 @@
         {
           "path": "apps/web/src/components/finance/BudgetUpload.tsx",
           "source_sha256": "fd82c7ed76e26a67",
-          "target_sha256": "fd82c7ed76e26a67",
-          "identical": true
+          "target_sha256": "3e042a85e91a12c4",
+          "identical": false
         },
         {
           "path": "apps/web/src/components/finance/FinanceDashboard.tsx",
@@ -55612,7 +58042,7 @@
         {
           "path": "apps/web/src/components/finance/LedgerDrawer.tsx",
           "source_sha256": "3d8a1c37eb877154",
-          "target_sha256": "2d600353e291c05c",
+          "target_sha256": "79de21cff70c5780",
           "identical": false
         },
         {
@@ -55768,7 +58198,7 @@
         {
           "path": "apps/web/src/components/ui/icons.tsx",
           "source_sha256": "d45ce8a4e9eef195",
-          "target_sha256": "1f40811693925815",
+          "target_sha256": "7785d0eea3f92503",
           "identical": false
         },
         {
@@ -55786,7 +58216,7 @@
         {
           "path": "apps/web/src/lib/ai.ts",
           "source_sha256": "370d549ec2b65007",
-          "target_sha256": "bd1ab96be5805c6f",
+          "target_sha256": "ad2d39f206fd8628",
           "identical": false
         },
         {
@@ -56256,7 +58686,7 @@
         "source_only": 0,
         "source_only_paths": [],
         "shared_paths": 37,
-        "divergent_paths": 24,
+        "divergent_paths": 26,
         "divergent_examples": [
           "apps/web/src/app/(app)/admin/approvals/page.tsx",
           "apps/web/src/app/(app)/admin/audit/page.tsx",
@@ -56265,7 +58695,7 @@
         ],
         "undetermined_paths": 0,
         "disposition": "MERGE_REQUIRED",
-        "why": "every source path is present in the target tree, but 24 of 37 shared path(s) differ in content, so the target does not hold the source implementation"
+        "why": "every source path is present in the target tree, but 26 of 37 shared path(s) differ in content, so the target does not hold the source implementation"
       },
       {
         "capability": "Frontend layouts",
@@ -56290,14 +58720,14 @@
         "pattern": "/\\/src\\/components\\/.*\\.tsx$/",
         "exclude": null,
         "source_matches": 73,
-        "target_matches": 146,
+        "target_matches": 147,
         "source_only": 2,
         "source_only_paths": [
           "apps/web/src/components/brand/TenantBackdrop.tsx",
           "apps/web/src/components/brand/TenantSplash.tsx"
         ],
         "shared_paths": 71,
-        "divergent_paths": 46,
+        "divergent_paths": 48,
         "divergent_examples": [
           "apps/web/src/components/CalendarFilters.tsx",
           "apps/web/src/components/CalendarSubscribe.tsx",
@@ -56306,7 +58736,7 @@
         ],
         "undetermined_paths": 0,
         "disposition": "MERGE_REQUIRED",
-        "why": "2 source path(s) for this capability are absent from the target tree, and 46 shared path(s) differ in content"
+        "why": "2 source path(s) for this capability are absent from the target tree, and 48 shared path(s) differ in content"
       },
       {
         "capability": "Styles",
@@ -56347,7 +58777,7 @@
         "pattern": "/\\/src\\/app\\/api\\/.*\\/route\\.ts$/",
         "exclude": null,
         "source_matches": 20,
-        "target_matches": 29,
+        "target_matches": 31,
         "source_only": 0,
         "source_only_paths": [],
         "shared_paths": 20,
@@ -56367,7 +58797,7 @@
         "pattern": "/\\/src\\/lib\\/[^/]+\\.ts$/",
         "exclude": "/\\.(test|itest|spec)\\.ts$/",
         "source_matches": 30,
-        "target_matches": 64,
+        "target_matches": 65,
         "source_only": 0,
         "source_only_paths": [],
         "shared_paths": 30,
@@ -56439,7 +58869,7 @@
         "pattern": "/scheduler\\.tf$|\\/api\\/jobs\\/.*\\/route\\.ts$|eventbridge/i",
         "exclude": null,
         "source_matches": 2,
-        "target_matches": 6,
+        "target_matches": 7,
         "source_only": 0,
         "source_only_paths": [],
         "shared_paths": 2,
@@ -56634,7 +59064,7 @@
         "pattern": "/\\.(test|itest)\\.(ts|tsx|mjs|js)$/",
         "exclude": null,
         "source_matches": 26,
-        "target_matches": 467,
+        "target_matches": 508,
         "source_only": 5,
         "source_only_paths": [
           "apps/web/src/app/api/documents/_lib/content.test.ts",
@@ -56660,7 +59090,7 @@
         "pattern": "/\\/e2e\\/.*\\.spec\\.ts$/",
         "exclude": null,
         "source_matches": 28,
-        "target_matches": 85,
+        "target_matches": 88,
         "source_only": 0,
         "source_only_paths": [],
         "shared_paths": 28,
@@ -56755,6 +59185,13 @@
         "package": "@tenure/finops",
         "source_manifest": null,
         "target_manifest": "packages/finops/package.json",
+        "disposition": "PARENT_CANONICAL",
+        "why": "a target-only workspace; the source has nothing to merge"
+      },
+      {
+        "package": "@tenure/generality-fixtures",
+        "source_manifest": null,
+        "target_manifest": "packages/generality-fixtures/package.json",
         "disposition": "PARENT_CANONICAL",
         "why": "a target-only workspace; the source has nothing to merge"
       },

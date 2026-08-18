@@ -16,14 +16,14 @@ instead. So no student, staff or applicant data can reach this file, and no valu
 identifier a probe could not have enumerated in advance.
 
 
-Observed 2026-08-18. Source `47c1128cb55953b11bedc47927508bc5d622b159`, target `ccbe45af1196221bc56e082bdf885b7f3c0a9fea`.
+Observed 2026-08-18. Source `47c1128cb55953b11bedc47927508bc5d622b159`, target `d4e2d4968f33603e419e5a163beeaad24c22a103`.
 
 ## What was scanned
 
 | Side | Files in tree | Scanned | Excluded | Hits |
 | --- | --- | --- | --- | --- |
 | source | 364 | 321 | 32 | 2873 |
-| target | 1671 | 1487 | 143 | 9310 |
+| target | 1780 | 1589 | 149 | 9849 |
 
 Excluded on purpose, with the reason:
 
@@ -38,17 +38,17 @@ Excluded on purpose, with the reason:
 
 | Assumption | Probes | Source hits | Source files | Target hits | Target files |
 | --- | --- | --- | --- | --- | --- |
-| Simon / OSE | `tenant-token` | 637 | 107 | 1447 | 253 |
-| University | `university-token` | 22 | 17 | 208 | 93 |
-| account | `aws-account-id` | 0 | 0 | 462 | 107 |
-| club | `club-token` `org-category-member` | 1018 | 126 | 1867 | 308 |
-| domain | `domain-literal` | 98 | 31 | 818 | 181 |
-| region | `aws-region` | 21 | 13 | 840 | 193 |
-| resource | `aws-arn-prefix` `resource-identifier` | 3 | 2 | 493 | 91 |
-| role | `role-comparison` `role-constant` `role-enum-member` | 357 | 56 | 636 | 112 |
-| route name | `tenant-in-path` | 0 | 0 | 5 | 5 |
+| Simon / OSE | `tenant-token` | 637 | 107 | 1577 | 271 |
+| University | `university-token` | 22 | 17 | 212 | 97 |
+| account | `aws-account-id` | 0 | 0 | 479 | 114 |
+| club | `club-token` `org-category-member` | 1018 | 126 | 1881 | 316 |
+| domain | `domain-literal` | 98 | 31 | 835 | 188 |
+| region | `aws-region` | 21 | 13 | 903 | 204 |
+| resource | `aws-arn-prefix` `resource-identifier` | 3 | 2 | 551 | 103 |
+| role | `role-comparison` `role-constant` `role-enum-member` | 357 | 56 | 637 | 113 |
+| route name | `tenant-in-path` | 0 | 0 | 9 | 9 |
 | term | `term-with-year` `term-season-enum` | 8 | 4 | 23 | 15 |
-| workflow | `workflow-shape` `approval-chain-symbol` `sla-threshold` `workflow-state-member` | 709 | 75 | 2511 | 361 |
+| workflow | `workflow-shape` `approval-chain-symbol` `sla-threshold` `workflow-state-member` | 709 | 75 | 2742 | 389 |
 
 ## The hiding places the requirement names, one row each
 
@@ -60,10 +60,10 @@ partition the hits exactly once and the column sums equal the totals above.
 | fixtures | 72 | 1 | 94 | 4 | `apps/web/scripts/seed-guard.mjs` `apps/web/scripts/seed-guard.test.mjs` `apps/web/scripts/seed.mjs` `tools/dev/seed-studio-fleet.mjs` |
 | CSS | 2 | 1 | 5 | 3 | `apps/system-studio/src/app/globals.css` `apps/system-studio/src/components/breadcrumbs.module.css` `apps/web/src/app/globals.css` |
 | reports | 64 | 5 | 81 | 8 | `apps/system-studio/src/lib/cost-report.ts` `apps/web/e2e/search-reports.spec.ts` `apps/web/scripts/duplicate-source-report.mjs` `apps/web/src/app/(app)/reports/finance/page.tsx` `apps/web/src/app/(app)/reports/page.tsx` `apps/web/src/app/api/reports/pulse/route.ts` |
-| permission checks | 219 | 8 | 473 | 36 | `apps/system-studio/e2e/authorize-logic.spec.ts` `apps/system-studio/src/lib/authorize.ts` `apps/system-studio/src/lib/aws/guardduty.test.ts` `apps/system-studio/src/lib/aws/guardduty.ts` `apps/web/src/lib/admin/guard.test.ts` `apps/web/src/lib/calendar-permissions.test.ts` |
-| deployment scripts | 77 | 19 | 165 | 34 | `.github/workflows/aws-inventory.yml` `.github/workflows/bootstrap-oidc.yml` `.github/workflows/ci.yml` `.github/workflows/custom-domain.yml` `.github/workflows/db-recovery.yml` `.github/workflows/debug-logs.yml` |
-| route names | 741 | 54 | 1370 | 109 | `apps/system-studio/src/app/console-index/answer.test.ts` `apps/system-studio/src/app/layout.tsx` `apps/system-studio/src/app/page.tsx` `apps/system-studio/src/app/platform/compute/compute-answer.test.ts` `apps/system-studio/src/app/platform/cost/cost-citation.test.tsx` `apps/system-studio/src/app/platform/cost/cost-decisions.test.ts` |
-| elsewhere | 1698 | 99 | 7122 | 594 | `apps/system-studio/e2e/adoption.spec.ts` `apps/system-studio/e2e/api-contract.spec.ts` `apps/system-studio/e2e/auth-mode-logic.spec.ts` `apps/system-studio/e2e/aws-unknown-is-not-absent.spec.ts` `apps/system-studio/e2e/breadcrumbs.spec.ts` `apps/system-studio/e2e/commands-logic.spec.ts` |
+| permission checks | 219 | 8 | 539 | 38 | `apps/system-studio/e2e/authorize-logic.spec.ts` `apps/system-studio/src/lib/authorize.ts` `apps/system-studio/src/lib/aws/guardduty.test.ts` `apps/system-studio/src/lib/aws/guardduty.ts` `apps/web/src/lib/admin/guard.test.ts` `apps/web/src/lib/calendar-permissions.test.ts` |
+| deployment scripts | 77 | 19 | 166 | 34 | `.github/workflows/aws-inventory.yml` `.github/workflows/bootstrap-oidc.yml` `.github/workflows/ci.yml` `.github/workflows/custom-domain.yml` `.github/workflows/db-recovery.yml` `.github/workflows/debug-logs.yml` |
+| route names | 741 | 54 | 1375 | 111 | `apps/system-studio/src/app/console-index/answer.test.ts` `apps/system-studio/src/app/layout.tsx` `apps/system-studio/src/app/page.tsx` `apps/system-studio/src/app/platform/compute/compute-answer.test.ts` `apps/system-studio/src/app/platform/cost/cost-citation.test.tsx` `apps/system-studio/src/app/platform/cost/cost-decisions.test.ts` |
+| elsewhere | 1698 | 99 | 7589 | 647 | `apps/system-studio/e2e/adoption.spec.ts` `apps/system-studio/e2e/api-contract.spec.ts` `apps/system-studio/e2e/auth-mode-logic.spec.ts` `apps/system-studio/e2e/aws-unknown-is-not-absent.spec.ts` `apps/system-studio/e2e/breadcrumbs.spec.ts` `apps/system-studio/e2e/change-governance-logic.spec.ts` |
 
 ## Every probe, its pattern, and how much of a match it may print
 
@@ -156,7 +156,7 @@ Every declaration the vocabulary came from:
 
 ## target — the twenty files carrying the most assumptions
 
-788 files carry at least one. The complete per-file, per-line list is in the snapshot.
+845 files carry at least one. The complete per-file, per-line list is in the snapshot.
 
 | File | Place | Hits | Assumptions |
 | --- | --- | --- | --- |

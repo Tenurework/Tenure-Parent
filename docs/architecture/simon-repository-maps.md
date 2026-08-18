@@ -34,18 +34,18 @@ checks the roll-ups add up to the file lists they came from.
 
 | Area | Tracked files |
 | --- | ---: |
-| `(repository root)` | 37 |
+| `(repository root)` | 38 |
 | `.github/workflows` | 19 |
 | `Tier1` | 13 |
 | `Tier1/extracted` | 11 |
-| `apps/system-studio` | 373 |
-| `apps/web` | 530 |
+| `apps/system-studio` | 388 |
+| `apps/web` | 559 |
 | `blueprints` | 5 |
 | `blueprints/corporate-divisions` | 1 |
 | `blueprints/nonprofit-program-operations` | 1 |
 | `blueprints/university-student-organizations` | 1 |
 | `docs` | 2 |
-| `docs/architecture` | 63 |
+| `docs/architecture` | 69 |
 | `docs/contracts` | 7 |
 | `docs/decisions` | 15 |
 | `docs/handoff` | 1 |
@@ -54,31 +54,33 @@ checks the roll-ups add up to the file lists they came from.
 | `docs/payments` | 2 |
 | `docs/runbooks` | 1 |
 | `infrastructure/oidc` | 5 |
+| `infrastructure/organization` | 7 |
 | `infrastructure/studio` | 12 |
 | `infrastructure/terraform` | 20 |
 | `modules` | 2 |
 | `packages` | 1 |
 | `packages/audit` | 7 |
 | `packages/authorization` | 24 |
-| `packages/configuration` | 32 |
+| `packages/configuration` | 34 |
 | `packages/contracts` | 3 |
 | `packages/finops` | 19 |
+| `packages/generality-fixtures` | 7 |
 | `packages/identity` | 59 |
 | `packages/metadata` | 5 |
 | `packages/module-runtime` | 8 |
 | `packages/organization-model` | 15 |
-| `packages/payments` | 33 |
+| `packages/payments` | 42 |
 | `packages/platform-config` | 30 |
-| `packages/provisioning` | 40 |
+| `packages/provisioning` | 48 |
 | `packages/releases` | 5 |
 | `packages/workflow` | 5 |
 | `tests` | 2 |
-| `tests/architecture` | 88 |
-| `tests/security` | 37 |
-| `tools` | 50 |
+| `tests/architecture` | 97 |
+| `tests/security` | 40 |
+| `tools` | 61 |
 | `tools/dev` | 4 |
-| `tools/loop` | 56 |
-| **total** | **1671** |
+| `tools/loop` | 58 |
+| **total** | **1780** |
 
 ## Workspace and package map
 
@@ -103,6 +105,7 @@ checks the roll-ups add up to the file lists they came from.
 | `packages/configuration/package.json` | `@tenure/configuration` | yes | 0 | `@tenure/audit` `@tenure/finops` | 1 |
 | `packages/contracts/package.json` | `@tenure/contracts` | yes | 0 | — | 0 |
 | `packages/finops/package.json` | `@tenure/finops` | yes | 0 | — | 0 |
+| `packages/generality-fixtures/package.json` | `@tenure/generality-fixtures` | yes | 0 | — | 0 |
 | `packages/identity/package.json` | `@tenure/identity` | yes | 0 | — | 0 |
 | `packages/metadata/package.json` | `@tenure/metadata` | yes | 0 | — | 0 |
 | `packages/module-runtime/package.json` | `@tenure/module-runtime` | yes | 0 | — | 0 |
@@ -162,85 +165,87 @@ digraph modules {
 }
 ```
 
-#### Target — 88 area edge(s) over 1331 source file(s), 939 builtin import(s), 12 unresolved relative, 9 unresolved alias
+#### Target — 90 area edge(s) over 1425 source file(s), 1033 builtin import(s), 3 unresolved relative, 0 unresolved alias
 
 ```
 digraph modules {
+  "apps/system-studio/e2e" -> "apps/system-studio/src/app" [label="2"]
   "apps/system-studio/e2e" -> "apps/system-studio/src/components" [label="4"]
   "apps/system-studio/e2e" -> "apps/system-studio/src/generated" [label="1"]
-  "apps/system-studio/e2e" -> "apps/system-studio/src/lib" [label="33"]
+  "apps/system-studio/e2e" -> "apps/system-studio/src/lib" [label="37"]
   "apps/system-studio/e2e" -> "apps/web/src/lib" [label="1"]
-  "apps/system-studio/e2e" -> "modules" [label="1"]
+  "apps/system-studio/e2e" -> "modules" [label="2"]
   "apps/system-studio/e2e" -> "packages/configuration/src" [label="4"]
   "apps/system-studio/e2e" -> "packages/contracts/src" [label="1"]
   "apps/system-studio/e2e" -> "packages/finops/src" [label="1"]
-  "apps/system-studio/e2e" -> "packages/platform-config/src" [label="3"]
-  "apps/system-studio/e2e" -> "packages/provisioning/src" [label="2"]
-  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="61"]
+  "apps/system-studio/e2e" -> "packages/platform-config/src" [label="5"]
+  "apps/system-studio/e2e" -> "packages/provisioning/src" [label="5"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/components" [label="62"]
   "apps/system-studio/src/app" -> "apps/system-studio/src/generated" [label="1"]
-  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="277"]
+  "apps/system-studio/src/app" -> "apps/system-studio/src/lib" [label="284"]
   "apps/system-studio/src/app" -> "blueprints" [label="8"]
-  "apps/system-studio/src/app" -> "modules" [label="6"]
+  "apps/system-studio/src/app" -> "modules" [label="9"]
   "apps/system-studio/src/app" -> "packages/audit/src" [label="3"]
-  "apps/system-studio/src/app" -> "packages/configuration/src" [label="4"]
+  "apps/system-studio/src/app" -> "packages/configuration/src" [label="7"]
   "apps/system-studio/src/app" -> "packages/finops/src" [label="7"]
   "apps/system-studio/src/app" -> "packages/module-runtime/src" [label="5"]
   "apps/system-studio/src/app" -> "packages/organization-model/src" [label="1"]
-  "apps/system-studio/src/app" -> "packages/platform-config/src" [label="8"]
-  "apps/system-studio/src/app" -> "packages/provisioning/src" [label="6"]
-  "apps/system-studio/src/components" -> "apps/system-studio/src/lib" [label="9"]
+  "apps/system-studio/src/app" -> "packages/platform-config/src" [label="9"]
+  "apps/system-studio/src/app" -> "packages/provisioning/src" [label="8"]
+  "apps/system-studio/src/components" -> "apps/system-studio/src/app" [label="1"]
+  "apps/system-studio/src/components" -> "apps/system-studio/src/lib" [label="14"]
   "apps/system-studio/src/components" -> "packages/provisioning/src" [label="4"]
-  "apps/system-studio/src/lib" -> "apps/system-studio/src/app" [label="2"]
+  "apps/system-studio/src/lib" -> "apps/system-studio/src/app" [label="3"]
   "apps/system-studio/src/lib" -> "apps/system-studio/src/components" [label="5"]
   "apps/system-studio/src/lib" -> "blueprints" [label="1"]
   "apps/system-studio/src/lib" -> "modules" [label="2"]
   "apps/system-studio/src/lib" -> "packages/audit/src" [label="2"]
-  "apps/system-studio/src/lib" -> "packages/configuration/src" [label="5"]
+  "apps/system-studio/src/lib" -> "packages/configuration/src" [label="6"]
   "apps/system-studio/src/lib" -> "packages/contracts/src" [label="2"]
   "apps/system-studio/src/lib" -> "packages/finops/src" [label="4"]
   "apps/system-studio/src/lib" -> "packages/module-runtime/src" [label="1"]
   "apps/system-studio/src/lib" -> "packages/organization-model/src" [label="1"]
   "apps/system-studio/src/lib" -> "packages/platform-config/src" [label="3"]
-  "apps/system-studio/src/lib" -> "packages/provisioning/src" [label="28"]
+  "apps/system-studio/src/lib" -> "packages/provisioning/src" [label="33"]
   "apps/web/e2e" -> "apps/web/e2e/support" [label="39"]
   "apps/web/e2e" -> "apps/web/src/components" [label="1"]
   "apps/web/scripts" -> "apps/web/src/lib" [label="1"]
   "apps/web/src" -> "apps/web/src/lib" [label="2"]
   "apps/web/src/app" -> "apps/web" [label="1"]
   "apps/web/src/app" -> "apps/web/src/components" [label="199"]
-  "apps/web/src/app" -> "apps/web/src/lib" [label="425"]
+  "apps/web/src/app" -> "apps/web/src/lib" [label="434"]
   "apps/web/src/app" -> "modules" [label="1"]
   "apps/web/src/app" -> "packages/authorization/src" [label="4"]
   "apps/web/src/app" -> "packages/configuration/src" [label="4"]
-  "apps/web/src/app" -> "packages/contracts/src" [label="6"]
+  "apps/web/src/app" -> "packages/contracts/src" [label="7"]
   "apps/web/src/app" -> "packages/finops/src" [label="3"]
   "apps/web/src/app" -> "packages/identity/src" [label="2"]
   "apps/web/src/app" -> "packages/module-runtime/src" [label="1"]
-  "apps/web/src/app" -> "packages/payments/src" [label="2"]
+  "apps/web/src/app" -> "packages/payments/src" [label="3"]
   "apps/web/src/app" -> "packages/platform-config/src" [label="24"]
   "apps/web/src/components" -> "apps/web/src/app" [label="7"]
-  "apps/web/src/components" -> "apps/web/src/lib" [label="19"]
+  "apps/web/src/components" -> "apps/web/src/lib" [label="20"]
   "apps/web/src/components" -> "packages/platform-config/src" [label="5"]
   "apps/web/src/lib" -> "apps/web" [label="1"]
   "apps/web/src/lib" -> "apps/web/scripts" [label="1"]
   "apps/web/src/lib" -> "apps/web/src" [label="1"]
   "apps/web/src/lib" -> "apps/web/src/app" [label="7"]
-  "apps/web/src/lib" -> "apps/web/src/components" [label="2"]
-  "apps/web/src/lib" -> "blueprints" [label="4"]
+  "apps/web/src/lib" -> "apps/web/src/components" [label="3"]
+  "apps/web/src/lib" -> "blueprints" [label="5"]
   "apps/web/src/lib" -> "modules" [label="4"]
-  "apps/web/src/lib" -> "packages/audit/src" [label="6"]
+  "apps/web/src/lib" -> "packages/audit/src" [label="8"]
   "apps/web/src/lib" -> "packages/authorization/src" [label="13"]
   "apps/web/src/lib" -> "packages/configuration/src" [label="3"]
   "apps/web/src/lib" -> "packages/contracts/src" [label="14"]
   "apps/web/src/lib" -> "packages/finops/src" [label="2"]
-  "apps/web/src/lib" -> "packages/identity/src" [label="5"]
+  "apps/web/src/lib" -> "packages/identity/src" [label="6"]
   "apps/web/src/lib" -> "packages/metadata/src" [label="2"]
   "apps/web/src/lib" -> "packages/organization-model/src" [label="1"]
-  "apps/web/src/lib" -> "packages/payments/src" [label="3"]
-  "apps/web/src/lib" -> "packages/platform-config/src" [label="22"]
+  "apps/web/src/lib" -> "packages/payments/src" [label="4"]
+  "apps/web/src/lib" -> "packages/platform-config/src" [label="25"]
   "apps/web/src/lib" -> "packages/provisioning/src" [label="1"]
   "apps/web/src/lib" -> "packages/releases/src" [label="1"]
-  "apps/web/src/lib" -> "packages/workflow/src" [label="1"]
+  "apps/web/src/lib" -> "packages/workflow/src" [label="2"]
   "blueprints" -> "blueprints/corporate-divisions" [label="1"]
   "blueprints" -> "blueprints/nonprofit-program-operations" [label="1"]
   "blueprints" -> "blueprints/university-student-organizations" [label="1"]
@@ -248,7 +253,7 @@ digraph modules {
   "blueprints/nonprofit-program-operations" -> "blueprints" [label="1"]
   "blueprints/university-student-organizations" -> "blueprints" [label="1"]
   "tests" -> "tools" [label="1"]
-  "tests/architecture" -> "tools" [label="40"]
+  "tests/architecture" -> "tools" [label="44"]
   "tests/architecture" -> "tools/loop" [label="1"]
   "tests/security" -> "tools" [label="10"]
   "tools" -> "apps/web/src/lib" [label="2"]
@@ -270,23 +275,30 @@ transitive dependency that hoisted it is removed.
 | `apps/web` | `@eslint/eslintrc` | 1 | **no** |
 | `apps/web/src/lib` | `server-only` | 10 | **no** |
 
-#### Target — 106 area/package pair(s), 41 undeclared
+#### Target — 113 area/package pair(s), 48 undeclared
 
 | Area | Package | Imports | Declared |
 | --- | --- | ---: | --- |
+| `apps/system-studio/src/lib` | `@jest/globals` | 1 | **no** |
 | `apps/web` | `@eslint/eslintrc` | 1 | **no** |
 | `apps/web/src/components` | `@jest/globals` | 1 | **no** |
 | `apps/web/src/lib` | `@jest/globals` | 14 | **no** |
-| `apps/web/src/lib` | `server-only` | 18 | **no** |
+| `apps/web/src/lib` | `server-only` | 19 | **no** |
 | `blueprints` | `@tenure/module-runtime` | 1 | **no** |
 | `blueprints` | `@tenure/organization-model` | 1 | **no** |
 | `modules` | `@tenure/contracts` | 1 | **no** |
 | `modules` | `@tenure/finops` | 1 | **no** |
 | `packages/audit/src` | `@tenure/contracts` | 1 | **no** |
 | `packages/authorization/src` | `@tenure/blueprints` | 1 | **no** |
-| `packages/configuration/src` | `@tenure/contracts` | 3 | **no** |
-| `packages/configuration/src` | `@tenure/modules` | 2 | **no** |
+| `packages/configuration/src` | `@tenure/contracts` | 4 | **no** |
+| `packages/configuration/src` | `@tenure/modules` | 3 | **no** |
+| `packages/configuration/src` | `@tenure/platform-config` | 1 | **no** |
 | `packages/contracts/src` | `@jest/globals` | 1 | **no** |
+| `packages/generality-fixtures/src` | `@tenure/authorization` | 1 | **no** |
+| `packages/generality-fixtures/src` | `@tenure/blueprints` | 3 | **no** |
+| `packages/generality-fixtures/src` | `@tenure/organization-model` | 2 | **no** |
+| `packages/generality-fixtures/src` | `@tenure/platform-config` | 1 | **no** |
+| `packages/generality-fixtures/src` | `@tenure/workflow` | 1 | **no** |
 | `packages/module-runtime/src` | `@jest/globals` | 1 | **no** |
 | `packages/module-runtime/src` | `@tenure/authorization` | 2 | **no** |
 | `packages/module-runtime/src` | `@tenure/contracts` | 1 | **no** |
@@ -302,7 +314,7 @@ transitive dependency that hoisted it is removed.
 | `packages/platform-config/src` | `@tenure/organization-model` | 1 | **no** |
 | `packages/platform-config/src` | `@tenure/payments` | 2 | **no** |
 | `packages/platform-config/src` | `zod` | 4 | **no** |
-| `packages/provisioning/src` | `@jest/globals` | 2 | **no** |
+| `packages/provisioning/src` | `@jest/globals` | 4 | **no** |
 | `packages/provisioning/src` | `@tenure/identity` | 1 | **no** |
 | `packages/releases/src` | `@tenure/configuration` | 1 | **no** |
 | `packages/releases/src` | `@tenure/contracts` | 1 | **no** |

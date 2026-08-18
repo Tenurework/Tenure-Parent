@@ -277,6 +277,20 @@ function main() {
   const fields = buildFields(facts)
   const rendered = render(fields, facts)
 
+  // `--render --inventory <path>` prints the document this inventory would
+  // produce and writes nothing. It exists so a guard can read a "Ready to
+  // configure" TABLE without the estate having to contain one: the real
+  // inventory is currently empty, so the document renders its no-values prose
+  // branch, and a guard that demanded a table there could only be satisfied by
+  // inventing a value — the one thing this document forbids. Pointed at an
+  // inventory with a live origin, this renders the table through the same
+  // `render()` the committed document comes from, so a change to the table's
+  // shape is visible to whoever is reading it.
+  if (process.argv.includes("--render")) {
+    process.stdout.write(rendered)
+    return
+  }
+
   const check = process.argv.includes("--check")
   const current = fs.existsSync(OUTPUT) ? fs.readFileSync(OUTPUT, "utf8") : null
 

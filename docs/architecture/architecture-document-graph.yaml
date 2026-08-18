@@ -81,8 +81,8 @@ documents:
     family: "aws-current-state"
     superseded_by: null
     supersedes: []
-    sha256: d640680d7701c8aacd3a1414bbe61178e5f7c60eda5a36e6528ce3b6eaf45539
-    bytes: 4641
+    sha256: "2cf33db62535a26b7368aeaf0bb08bdc0610884711bebb02406ab8d73d7c5561"
+    bytes: 4593
     aliases: []
     requirement_prefixes:
       - GE
@@ -141,8 +141,8 @@ documents:
     family: "fin-finance-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "09c5941b1acfa3e183ac5d94b52b8251e694d4027a73ead1355c8f1b38f76623"
-    bytes: 26484
+    sha256: df8c9471f0988a60595aa5bc3beb9b64356307cd8cce31063d2bf9232d8e9935
+    bytes: 29977
     aliases: []
     requirement_prefixes:
       - FIN
@@ -231,14 +231,14 @@ documents:
     family: "ops-operations-code-inventory"
     superseded_by: null
     supersedes: []
-    sha256: a24b140939705016c18600d970a73fd823732382976b1f80fc02b1b110a84605
-    bytes: 11125
+    sha256: "0a11daad1a6fc70bae8827f8be01ff26b986fde83a077f75cf12845ae9da9243"
+    bytes: 14378
     aliases: []
     requirement_prefixes:
       - GE
       - OPS
     states_requirements: 0
-    mentions_requirement_ids: 4
+    mentions_requirement_ids: 7
   - id: "pack-capability-taxonomy"
     title: Pack capability registry
     version: unversioned
@@ -522,8 +522,8 @@ documents:
     family: "bounded-contexts"
     superseded_by: null
     supersedes: []
-    sha256: "171d20119aaf43be8e5dd2e6d02daee9419d0099ddcd8cda0ceb3e2fe9879d3f"
-    bytes: 10721
+    sha256: "4074c19f915a50560d8af0c58d2abec728f89ebfcc8fa5ed51095148b68cdc4f"
+    bytes: 11378
     aliases: []
     requirement_prefixes:
       - PAY

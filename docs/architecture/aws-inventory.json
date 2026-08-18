@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-18T02:03:02.559Z",
-  "accountMasked": "unknown",
+  "generatedAt": "2026-07-31T23:40:04.289Z",
+  "accountMasked": "1549…97",
   "region": "us-east-1",
   "organization": {
     "inUse": false,
@@ -8,49 +8,208 @@
   },
   "iam": {
     "oidcProviders": [],
-    "roleCount": 0,
-    "deploymentRoles": []
+    "roleCount": 14,
+    "deploymentRoles": [
+      "AWSServiceRoleForECS",
+      "tenure-pilot-ecs-execution",
+      "tenure-pilot-ecs-task",
+      "tenure-studio-ecs-execution",
+      "tenure-studio-ecs-task"
+    ]
   },
   "network": {
-    "vpcs": [],
-    "subnets": 0,
-    "securityGroups": 0,
+    "vpcs": [
+      {
+        "cidr": "172.31.0.0/16",
+        "isDefault": true,
+        "name": null
+      },
+      {
+        "cidr": "10.0.0.0/16",
+        "isDefault": false,
+        "name": "tenure-pilot-vpc"
+      }
+    ],
+    "subnets": 10,
+    "securityGroups": 8,
     "natGateways": 0,
-    "loadBalancers": []
+    "loadBalancers": [
+      {
+        "name": "tenure-pilot-alb",
+        "type": "application",
+        "scheme": "internet-facing"
+      },
+      {
+        "name": "tenure-studio-alb",
+        "type": "application",
+        "scheme": "internet-facing"
+      }
+    ]
   },
   "edge": {
     "hostedZones": [],
-    "certificates": [],
-    "cloudfront": [],
+    "certificates": [
+      {
+        "domain": "app.tenurework.com",
+        "status": "FAILED"
+      },
+      {
+        "domain": "app.tenurework.com",
+        "status": "FAILED"
+      },
+      {
+        "domain": "app.tenurework.com",
+        "status": "FAILED"
+      },
+      {
+        "domain": "platform.tenurework.com",
+        "status": "ISSUED"
+      }
+    ],
+    "cloudfront": [
+      {
+        "domain": "d1n6mdis7bs02g.cloudfront.net",
+        "aliases": [
+          "platform.tenurework.com"
+        ],
+        "enabled": true,
+        "comment": "Tenure pilot — Next.js via ECS Fargate",
+        "originCount": 1
+      },
+      {
+        "domain": "d2kj4iy5i37kfd.cloudfront.net",
+        "aliases": [],
+        "enabled": true,
+        "comment": "Tenure System Studio — internal platform engine",
+        "originCount": 1
+      }
+    ],
     "wafWebAcls": []
   },
   "compute": {
-    "ecsClusters": [],
-    "ecrRepositories": [],
+    "ecsClusters": [
+      "tenure-studio",
+      "tenure-pilot"
+    ],
+    "ecrRepositories": [
+      "tenure-pilot-app",
+      "tenure-studio"
+    ],
     "lambdaFunctions": []
   },
   "identityProvider": {
     "cognitoUserPools": []
   },
   "data": {
-    "rds": [],
-    "dynamoTables": [],
-    "elasticache": [],
-    "s3Buckets": []
+    "rds": [
+      {
+        "identifier": "tenure-pilot-db",
+        "engine": "postgres 16.3",
+        "class": "db.t3.micro",
+        "multiAz": false,
+        "encrypted": true,
+        "backupRetentionDays": 1,
+        "publiclyAccessible": false,
+        "deletionProtection": true
+      }
+    ],
+    "dynamoTables": [
+      "tenure-terraform-locks"
+    ],
+    "elasticache": [
+      {
+        "id": "tenure-pilot-redis",
+        "engine": "redis",
+        "node": "cache.t3.micro"
+      }
+    ],
+    "s3Buckets": [
+      "tenure-pilot-documents-1549…97",
+      "tenure-pilot-exports-1549…97",
+      "tenure-tfstate-1549…97-us-east-1"
+    ]
   },
   "messaging": {
-    "sqsQueues": [],
+    "sqsQueues": [
+      "tenure-pilot-default",
+      "tenure-pilot-default-dlq",
+      "tenure-pilot-email",
+      "tenure-pilot-email-dlq",
+      "tenure-pilot-notifications"
+    ],
     "snsTopics": [],
-    "eventBuses": []
+    "eventBuses": [
+      "default"
+    ]
   },
   "keysAndSecrets": {
     "kmsAliases": [],
-    "secrets": []
+    "secrets": [
+      {
+        "name": "tenure-pilot/app",
+        "rotationEnabled": false,
+        "lastChanged": "2026-07-12"
+      },
+      {
+        "name": "rds!db-ce7fc7cf-399d-451d-9de8-a669132dd0b3",
+        "rotationEnabled": true,
+        "lastChanged": "2026-07-31"
+      },
+      {
+        "name": "tenure-pilot/job",
+        "rotationEnabled": false,
+        "lastChanged": "2026-07-18"
+      },
+      {
+        "name": "events!connection/tenure-pilot-job/76407ff7-57c7-4268-bec2-4346d3d35591",
+        "rotationEnabled": false,
+        "lastChanged": "2026-07-18"
+      },
+      {
+        "name": "tenure-pilot/dev-login",
+        "rotationEnabled": false,
+        "lastChanged": "2026-07-30"
+      },
+      {
+        "name": "tenure-studio/app",
+        "rotationEnabled": false,
+        "lastChanged": "2026-07-31"
+      }
+    ]
   },
   "observability": {
-    "logGroups": [],
-    "alarmsUnavailable": true,
-    "alarms": [],
+    "logGroups": [
+      {
+        "name": "/aws/ecs/containerinsights/tenure-pilot/performance",
+        "retentionDays": 1
+      },
+      {
+        "name": "/ecs/tenure-pilot",
+        "retentionDays": 30
+      },
+      {
+        "name": "/ecs/tenure-studio",
+        "retentionDays": 30
+      }
+    ],
+    "alarms": [
+      {
+        "name": "tenure-pilot-alb-5xx",
+        "state": "OK"
+      },
+      {
+        "name": "tenure-pilot-dlq-messages",
+        "state": "OK"
+      },
+      {
+        "name": "tenure-pilot-ecs-no-running-tasks",
+        "state": "OK"
+      },
+      {
+        "name": "tenure-pilot-rds-cpu-high",
+        "state": "OK"
+      }
+    ],
     "backupVaults": []
   },
   "iacOwnership": {
@@ -58,144 +217,32 @@
     "note": "Terraform ownership is not visible from the AWS API. It is read from the repository in resource-reconciliation.md."
   },
   "access": {
-    "denied": [],
-    "errors": [
+    "denied": [
       {
         "call": "organizations describe-organization",
-        "message": "spawnSync aws ENOENT"
+        "reason": "Organizations not in use"
       },
       {
         "call": "organizations list-accounts",
-        "message": "spawnSync aws ENOENT"
+        "reason": "Organizations not in use"
       },
       {
         "call": "organizations list-roots",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "iam list-open-id-connect-providers",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "iam list-roles",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "ec2 describe-vpcs",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "ec2 describe-subnets",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "ec2 describe-security-groups",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "ec2 describe-nat-gateways",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "route53 list-hosted-zones",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "acm list-certificates",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "cloudfront list-distributions",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "wafv2 list-web-acls",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "elbv2 describe-load-balancers",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "ecs list-clusters",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "ecr describe-repositories",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "lambda list-functions",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "cognito-idp list-user-pools",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "rds describe-db-instances",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "dynamodb list-tables",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "elasticache describe-cache-clusters",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "s3api list-buckets",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "sqs list-queues",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "sns list-topics",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "events list-event-buses",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "kms list-aliases",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "secretsmanager list-secrets",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "logs describe-log-groups",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "cloudwatch describe-alarms",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "backup list-backup-vaults",
-        "message": "spawnSync aws ENOENT"
-      },
-      {
-        "call": "cloudformation list-stacks",
-        "message": "spawnSync aws ENOENT"
+        "reason": "Organizations not in use"
       }
-    ]
+    ],
+    "errors": []
   },
   "summary": {
-    "vpcs": 0,
+    "vpcs": 2,
     "natGateways": 0,
-    "loadBalancers": 0,
-    "cloudfrontDistributions": 0,
-    "ecsClusters": 0,
-    "rdsInstances": 0,
-    "s3Buckets": 0,
+    "loadBalancers": 2,
+    "cloudfrontDistributions": 2,
+    "ecsClusters": 2,
+    "rdsInstances": 1,
+    "s3Buckets": 3,
     "cognitoUserPools": 0,
-    "secrets": 0,
-    "deniedCalls": 0
+    "secrets": 6,
+    "deniedCalls": 3
   }
 }
