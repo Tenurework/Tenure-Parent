@@ -111,24 +111,6 @@ jobs:
             exit 1
           fi
 
-      # TEMPORARY DIAGNOSTIC. Prints the SHAPE of the credential, never its value:
-      # how many characters arrived and which four it starts with. That is enough
-      # to separate the two things that produce an identical AWS error —
-      # a secret that did not arrive (length 0) from a key AWS no longer knows
-      # (length 20, starts AKIA, InvalidClientTokenId). Neither number is secret;
-      # every AWS key id in the world starts AKIA or ASIA and is 20 characters.
-      # Remove once the question is answered.
-      - name: Credential shape, not value
-        env:
-          KEY: ${{ secrets.ACCESSKEYID }}
-          SEC: ${{ secrets.SECRETACCESSKEY }}
-        run: |
-          echo "access key id : ${#KEY} chars, starts '${KEY:0:4}'"
-          echo "secret key    : ${#SEC} chars"
-          if [ "${#KEY}" -eq 0 ]; then
-            echo "::error::ACCESSKEYID did not arrive — the secret is unset or GitHub failed to inject it"
-          fi
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
