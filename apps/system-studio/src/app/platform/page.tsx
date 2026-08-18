@@ -267,9 +267,14 @@ export default async function PlatformPage() {
    * that grants everything this console asks for.
    */
   type DeniedCall = { call: string; reason: string }
-  const denied: DeniedCall[] = Array.isArray(estate.deniedCalls)
-    ? (estate.deniedCalls as DeniedCall[])
-    : []
+  // The cast sits on the VALUE, not on the binding, and that is deliberate:
+  // `states-logic.spec.ts` requires this page to read each half of
+  // `degradationOf` straight off `estate`, and it proves that by matching
+  // `const denied = …estate.` — a type annotation between the name and the `=`
+  // breaks the shape it is looking for. The guard is right to be that literal;
+  // its whole job is to catch a page that kept the call and stopped reading the
+  // inventory, which no type would show.
+  const denied = (Array.isArray(estate.deniedCalls) ? estate.deniedCalls : []) as DeniedCall[]
   const percent = ((programme.decided / programme.totalItems) * 100).toFixed(1)
   const percentValue = Number(percent)
   const untranscribed = programme.totalItems - ledger.total

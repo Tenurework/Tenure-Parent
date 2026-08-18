@@ -23,16 +23,34 @@ import { Badge, Card } from "@/components/md3"
 export function GovernancePanel({
   governance,
   calendar,
+  asOf,
 }: {
   governance: TenantGovernance
   calendar: CalendarSource
+  /**
+   * When these readings were true, as an ISO instant.
+   *
+   * Required, not optional. Every other card on the tenant route states it, and
+   * `tenant-surface.spec.ts` fails any panel whose supporting text does not —
+   * "a panel that does not say when it was true". These lines describe what a
+   * move would reach and what a copy would carry; both are answers about a
+   * moment, and a reader who cannot see which moment cannot tell a current
+   * answer from a stale one.
+   *
+   * Rendered as `As of <iso>.` — the trailing period is part of the format, not
+   * punctuation taste. `tenant-surface.spec.ts` matches
+   * `/As of \d{4}-\d{2}-\d{2}T[\d:.]+Z\./`, which is how it tells an instant
+   * from a word like "recently"; without the period the panel reads as dated to
+   * a human and undated to the guard.
+   */
+  asOf: string
 }) {
   return (
     <>
       <Card
         id="blast-radius"
         headline="What the next move reaches"
-        supportingText="Twelve axes. An axis that could not be read says so; it never reads as zero."
+        supportingText={`Twelve axes. An axis that could not be read says so; it never reads as zero. As of ${asOf}.`}
         headerAside={
           <Badge tone="neutral" title="The change calendar this installation is running under">
             {calendar.state}
@@ -68,7 +86,7 @@ export function GovernancePanel({
       <Card
         id="portability"
         headline="What leaves, and what a copy would not carry"
-        supportingText="The tenant's desired state as a portable bundle, and the clone that bundle would make."
+        supportingText={`The tenant's desired state as a portable bundle, and the clone that bundle would make. As of ${asOf}.`}
       >
         {governance.bundleRefusal !== null && (
           <ul>

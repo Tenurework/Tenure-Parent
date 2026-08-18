@@ -1624,7 +1624,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
           `lib/portability`, so the sentences an operator reads are the ones
           `change-governance-logic.spec.ts` and `portability-logic.spec.ts` read
           without a browser. */}
-      <GovernancePanel governance={governance} calendar={governanceCalendar} />
+      <GovernancePanel governance={governance} calendar={governanceCalendar} asOf={observedAt.toISOString()} />
 
       {/* ── 3. How it got here ─────────────────────────────────────────────── */}
       <Card
