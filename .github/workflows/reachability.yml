@@ -1,0 +1,37 @@
+name: Reachability probe
+
+# Is the console actually up?
+#
+# This exists because the machine the operator works from cannot reach
+# `*.cloudfront.net` at all — a network policy, not an outage. Every check from
+# there returns nothing, and a DNS query for an INVENTED CloudFront name comes
+# back identical to a real one, so local evidence cannot tell a live
+# distribution from a deleted one. A GitHub runner is on the open internet and
+# can.
+#
+# Read-only: it makes HTTP requests to public hostnames and touches no AWS API,
+# so it needs no credentials and cannot change anything.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    name: Curl the console from outside
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve and fetch
+        run: |
+          for host in helm.tenurework.com d2kj4iy5i37kfd.cloudfront.net tenurework.com; do
+            echo "=== $host"
+            getent hosts "$host" || echo "  (no address)"
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "https://$host/" || echo "000")
+            echo "  GET  https://$host/        -> $code"
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "https://$host/signin" || echo "000")
+            echo "  GET  https://$host/signin  -> $code"
+          done
+
+      - name: The certificate the console presents
+        run: |
+          echo | openssl s_client -connect helm.tenurework.com:443 -servername helm.tenurework.com 2>/dev/null \
+            | openssl x509 -noout -subject -issuer -dates 2>/dev/null || echo "  no TLS answer"
