@@ -11,6 +11,7 @@ jobs:
   ci:
     name: Lint · Type Check · Test · Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     permissions:
       # Explicit rather than inherited. This job needs nothing but the source.
@@ -173,6 +174,7 @@ jobs:
   migrations:
     name: Migrations · Drift + Apply + Isolation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -333,6 +335,7 @@ jobs:
   e2e:
     name: E2E · Playwright
     runs-on: ubuntu-latest
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -408,6 +411,22 @@ jobs:
       # mismatch is the failure mode otherwise.
       - name: Install Playwright browsers
         working-directory: apps/web
+        # Bounded, and the bound is the point. On 2026-08-18 this exact
+        # step hung from 16:09:36 to 22:08:55 — five hours fifty-nine minutes —
+        # and only died because GitHub's default 360-minute job timeout killed
+        # it. `--with-deps` shells out to apt-get, which waits forever on a
+        # dpkg lock or a debconf prompt rather than failing. The run concluded
+        # `cancelled`, which correctly skipped Deploy Studio, so the visible
+        # symptom was a mysterious skip six hours after a push.
+        #
+        # Two independent guards, because they fix different halves:
+        #   · noninteractive removes the prompt as a cause outright.
+        #   · the timeout bounds the lock case, which no env var can prevent.
+        # Ten minutes against an observed 37s is wide enough that a slow mirror
+        # is not a false red, and narrow enough that a stuck apt costs minutes.
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: npx playwright install --with-deps chromium
 
       - name: Build
@@ -469,6 +488,7 @@ jobs:
   studio-e2e:
     name: Studio · Playwright
     runs-on: ubuntu-latest
+    timeout-minutes: 35
 
     services:
       # DynamoDB Local, not a mock. The registry's access patterns — a
@@ -532,6 +552,22 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Install Playwright Chromium
+        # Bounded, and the bound is the point. On 2026-08-18 this exact
+        # step hung from 16:09:36 to 22:08:55 — five hours fifty-nine minutes —
+        # and only died because GitHub's default 360-minute job timeout killed
+        # it. `--with-deps` shells out to apt-get, which waits forever on a
+        # dpkg lock or a debconf prompt rather than failing. The run concluded
+        # `cancelled`, which correctly skipped Deploy Studio, so the visible
+        # symptom was a mysterious skip six hours after a push.
+        #
+        # Two independent guards, because they fix different halves:
+        #   · noninteractive removes the prompt as a cause outright.
+        #   · the timeout bounds the lock case, which no env var can prevent.
+        # Ten minutes against an observed 37s is wide enough that a slow mirror
+        # is not a false red, and narrow enough that a stuck apt costs minutes.
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: npx playwright install --with-deps chromium
 
       # No `aws` CLI here, deliberately. production-workflows-disarmed decides
@@ -606,6 +642,7 @@ jobs:
   container:
     name: Container · Build + Inspect
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -694,6 +731,7 @@ jobs:
   terraform:
     name: Terraform · Format + Validate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     # Every stack in the repository, on every push, with NO AWS credentials.
     #
