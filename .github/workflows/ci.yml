@@ -7,6 +7,24 @@ on:
     branches: [main]
   workflow_call: # Allow deploy.yml to call this as a dependency
 
+# One run per ref, and the newest one wins — except on main.
+#
+# Nothing superseded anything before this: pushing three times in five minutes
+# bought three full matrices, and the two doomed ones still held a runner for
+# the ~19 minutes Studio - Playwright takes. The group keys on the event as well
+# as the ref so a `workflow_call` from deploy.yml is never in the same bucket as
+# the `push` that triggered it, which would have the caller cancel its own dep.
+#
+# `cancel-in-progress` is deliberately FALSE on main and true everywhere else.
+# On a branch, an obsolete run is just cost. On main it is not: deploy-studio.yml
+# fires on `workflow_run: completed` and gates on `conclusion == 'success'`, so
+# cancelling a main CI mid-flight converts it to `cancelled` and the deploy for
+# that commit silently skips - which is the exact six-hour-mystery failure mode
+# this repository already paid for once.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   ci:
     name: Lint · Type Check · Test · Build
@@ -66,7 +84,7 @@ jobs:
       # forwards; without it npm swallows --ci and --passWithNoTests as its own
       # CLI flags and the step still exits 0, having run jest without them.
       - name: Test
-        run: npm run test --workspace apps/web -- --ci --passWithNoTests
+        run: npm run test --workspace apps/web -- --ci
 
       # Monorepo-level tests. These assert properties of the repository rather
       # than of the application — first among them that the production-operations
@@ -272,7 +290,18 @@ jobs:
           # The baseline migration IS the legacy schema. Applying it produces
           # exactly the shape the live pilot is in, needs no maintenance as
           # migrations accumulate, and cannot drift from what it is simulating.
-          psql "$LEGACY" -v ON_ERROR_STOP=1 -q -f prisma/migrations/*_baseline/migration.sql
+          # Resolved and counted rather than globbed straight into the argv.
+          # `-f a.sql b.sql` does not mean "two files" to psql - the second word
+          # is taken as the DATABASE NAME, so a second `*_baseline` directory
+          # would not fail here, it would connect somewhere else and apply half
+          # the fixture. There is exactly one baseline today and the schema only
+          # ever has one; this makes a second one say so.
+          BASELINES=(prisma/migrations/*_baseline/migration.sql)
+          if [ ${#BASELINES[@]} -ne 1 ] || [ ! -f "${BASELINES[0]}" ]; then
+            echo "::error::expected exactly one baseline migration, found ${#BASELINES[@]}: ${BASELINES[*]}"
+            exit 1
+          fi
+          psql "$LEGACY" -v ON_ERROR_STOP=1 -q -f "${BASELINES[0]}"
 
           # No migration ledger — that absence is what makes it "legacy", and
           # what db-bootstrap.mjs detects in order to baseline rather than
@@ -433,7 +462,14 @@ jobs:
         run: npm run build
 
       - name: Run e2e suite
-        run: npm run e2e
+        # Scoped to the project that can actually run here. `npm run e2e` runs
+        # BOTH projects, and the `visual` one fingerprints
+        # mcr.microsoft.com/playwright:v1.61.1-noble and self-skips everywhere
+        # else - so every green run has reported "4 skipped, 182 passed" since
+        # the visual step was withdrawn. A permanent yellow is a broken smoke
+        # alarm: it trains the reader to ignore the one signal that should never
+        # be routine. The 4 come back with their baselines, not before.
+        run: npm run e2e -- --project=chromium
 
       # ── The visual matrix — WITHDRAWN until its baselines exist ─────────────
       #
