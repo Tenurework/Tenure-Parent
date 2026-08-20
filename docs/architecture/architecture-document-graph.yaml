@@ -6,13 +6,13 @@
 # duplicate upload cannot double-count the requirements it states.
 
 generated_from: tools/document-graph.mjs
-document_count: 52
+document_count: 53
 alias_count: 6
 requirement_statements: 3850
 # Statements, not distinct requirements: two documents may both state one id,
 # and the registry is where each is resolved to a single owner.
 authorities: 21
-references: 31
+references: 32
 documents:
   - id: "anl-analytics-inventory"
     title: "Analytics inventory — every dashboard, report, chart and client-side metric"
@@ -422,6 +422,21 @@ documents:
       - PAY
     states_requirements: 0
     mentions_requirement_ids: 2
+  - id: "session-handoff"
+    title: Handoff — read this before you touch anything
+    version: unversioned
+    canonical_path: "docs/handoff/SESSION-HANDOFF.md"
+    role: reference
+    family: "SESSION-HANDOFF"
+    superseded_by: null
+    supersedes: []
+    sha256: "476e39d1728f5ef58403fdff975e90b5237b08b576f54b86a8022c062b0544e5"
+    bytes: 11964
+    aliases: []
+    requirement_prefixes:
+      - HCM
+    states_requirements: 0
+    mentions_requirement_ids: 1
   - id: "simon-sso"
     title: Simon SSO handoff package
     version: unversioned
