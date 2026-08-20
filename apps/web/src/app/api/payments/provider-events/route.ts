@@ -4,6 +4,7 @@ import {
   PROVIDER_MODES,
   checkEventApiVersion,
   dedupe,
+  observeProviderState,
   parseProviderEvent,
   verifySignature,
   type ProviderMode,
@@ -145,9 +146,34 @@ export async function POST(request: Request) {
 
   const verdict = dedupe({ ...stream, eventId, sequence }, seen)
 
+  // PAY-060-001 — what this event is EVIDENCE OF, in Tenure's own vocabulary.
+  //
+  // An observation, never a transition. `observeProviderState` does not know
+  // what state any order is in and cannot move one; applying it is a separate
+  // call that re-validates against the canonical table with the order's real
+  // current state, which is what keeps a replayed or misrouted event from
+  // walking an order forward. The acknowledgement says `applied: false` in as
+  // many words so that a caller reading this response cannot mistake the
+  // reading for a state change.
+  //
+  // An event type with no canonical reading comes back UNKNOWN_PROVIDER_STATE
+  // rather than being mapped to the nearest plausible state, and an
+  // account-scoped event comes back with no order state at all — three
+  // answers, because there are three cases.
+  //
+  // It is returned rather than persisted: `ProviderEventReceipt` has no column
+  // for it, and adding one is a schema change this change does not make.
+  const observation = observeProviderState(eventType)
+
   if (verdict === "duplicate") {
     // 200, deliberately. A non-2xx here asks the provider to send it again.
-    return Response.json({ received: true, verdict })
+    return Response.json({
+      received: true,
+      verdict,
+      observed: observation.observed,
+      reading: observation.reading,
+      applied: false,
+    })
   }
 
   await db.providerEventReceipt.create({
@@ -162,5 +188,11 @@ export async function POST(request: Request) {
     },
   })
 
-  return Response.json({ received: true, verdict })
+  return Response.json({
+    received: true,
+    verdict,
+    observed: observation.observed,
+    reading: observation.reading,
+    applied: false,
+  })
 }

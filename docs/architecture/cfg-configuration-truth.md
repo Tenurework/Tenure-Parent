@@ -75,7 +75,7 @@ The set `configurationModules()` computes, which is also the left-hand side of t
 |---|---|---|
 | `apps/system-studio/src/app/platform/audit/HoldControls.tsx` | form-component | 157 lines · 1 exports |
 | `apps/system-studio/src/app/tenants/AdoptForm.tsx` | form-component | 128 lines · 1 exports |
-| `apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx` | form-component | 279 lines · 1 exports |
+| `apps/system-studio/src/app/tenants/[slug]/AdvanceControls.tsx` | form-component | 303 lines · 1 exports |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/ConfigurationEditor.tsx` | form-component | 364 lines · 1 exports |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/RollbackControls.tsx` | form-component | 131 lines · 2 exports |
 | `apps/system-studio/src/app/tenants/[slug]/configuration/actions.ts` | configuration-module | 477 lines · 6 exports |

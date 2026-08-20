@@ -1,6 +1,6 @@
 {
   "generatedBy": "tools/platform-truth.mjs",
-  "commit": "d4e2d49",
+  "commit": "6d8e6f7",
   "ledger": {
     "source": "docs/implementation/global-engine-execution-ledger.md",
     "total": 267,
@@ -1924,7 +1924,7 @@
     ],
     "totalItems": 2265,
     "totalGates": 181,
-    "decided": 351,
+    "decided": 363,
     "phases": [
       {
         "phase": "ANL · ANL-000 — Foundation and truth",
@@ -2134,7 +2134,7 @@
         "source": "EXT",
         "items": 11,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "EXT · EXT-030 — Staffing and universal journal foundation",
@@ -2197,14 +2197,14 @@
         "source": "EXT",
         "items": 11,
         "gates": 1,
-        "done": 0
+        "done": 4
       },
       {
         "phase": "EXT · EXT-120 — Legacy retirement",
         "source": "EXT",
         "items": 11,
         "gates": 1,
-        "done": 0
+        "done": 1
       },
       {
         "phase": "EXT · EXT-130 — Implementation workbench and live UX",
@@ -3982,7 +3982,7 @@
         "source": "SIMON",
         "items": 7,
         "gates": 0,
-        "done": 4
+        "done": 7
       },
       {
         "phase": "SIMON · 4.2 Deployed and AWS inventory",
@@ -3996,7 +3996,7 @@
         "source": "SIMON",
         "items": 4,
         "gates": 1,
-        "done": 0
+        "done": 2
       },
       {
         "phase": "SIMON · 5. Phase 1 — Target convergence architecture and repository boundaries",
@@ -4442,7 +4442,7 @@
     },
     {
       "name": "application unit",
-      "files": 126,
+      "files": 146,
       "what": "apps/web"
     },
     {
@@ -4452,7 +4452,7 @@
     },
     {
       "name": "end to end",
-      "files": 88,
+      "files": 91,
       "what": "real browser"
     }
   ]

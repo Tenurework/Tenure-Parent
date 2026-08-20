@@ -65,6 +65,7 @@ function input(overrides: Partial<BlastInput> = {}): BlastInput {
       known: true,
       value: { cellId: "cell-use1-a", region: "us-east-1", release: "1.4.0", capacity: { tenants: 9 } },
     },
+    users: { known: true, value: { count: 1_842, stores: ["us-east-1_SIMON1"] } },
     seats: { known: true, value: 250 },
     resources: {
       known: true,
@@ -96,18 +97,38 @@ test.describe("the blast radius covers every axis the requirement names", () => 
     expect(blastRadiusProblems(blastRadius(input()))).toEqual([])
   })
 
-  test("eleven axes answer and only `users` says it could not look", () => {
+  test("all twelve axes answer when every reading behind them did", () => {
     const report = blastRadius(input())
-    expect(report.unreadable).toEqual(["users"])
-    expect(report.measured).toHaveLength(11)
+    expect(report.unreadable).toEqual([])
+    expect(report.measured).toHaveLength(12)
   })
 
-  test("`users` names the read that would answer it rather than reporting zero", () => {
+  test("`users` is the number the identity stores reported, and names them without naming people", () => {
     const reading = measure(blastRadius(input()), "users").reading
+    if (!reading.known) throw new Error("expected a reading")
+    expect(reading.value.count).toBe(1_842)
+    // The POOL, not the people. A blast radius that started listing users would
+    // be a user table in a control plane that deliberately has none.
+    expect(reading.value.items).toEqual(["us-east-1_SIMON1"])
+    expect(reading.value.itemsWithheld).toContain("holds no user record")
+  })
+
+  test("a users reading that could not be taken travels through as a refusal, not as zero", () => {
+    const reading = measure(
+      blastRadius(
+        input({
+          users: {
+            known: false,
+            because: "no user pool is attributed to this tenant",
+            fix: "Tag the tenant's user pool with tenure:tenant.",
+          },
+        }),
+      ),
+      "users",
+    ).reading
     expect(reading.known).toBe(false)
     if (reading.known) throw new Error("unreachable")
-    expect(reading.because).toContain("no user table")
-    expect(reading.fix).toContain("cell's operations API")
+    expect(reading.because).toContain("no user pool is attributed")
   })
 })
 
@@ -203,7 +224,7 @@ test.describe("an axis derived from a failed read fails with it", () => {
     const report = blastRadius(
       input({ cell: { known: false, because: "the cell registry is not configured", fix: "Set CELL_TABLE." } }),
     )
-    expect(report.unreadable).toEqual(["tenants", "users", "downstreamReleases"])
+    expect(report.unreadable).toEqual(["tenants", "downstreamReleases"])
   })
 })
 
@@ -232,7 +253,7 @@ test.describe("downtime is derived from the move, not from the class", () => {
 test("every line an operator reads names its axis", () => {
   const lines = blastRadiusLines(blastRadius(input()))
   expect(lines).toHaveLength(12)
-  expect(lines.find((l) => l.startsWith("users:"))).toContain("not measured")
+  expect(lines.find((l) => l.startsWith("users:"))).toContain("1842 people in the identity store")
   expect(lines.find((l) => l.startsWith("tenants:"))).toContain("9 tenants on cell cell-use1-a")
 })
 

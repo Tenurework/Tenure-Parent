@@ -11,6 +11,7 @@ import {
   type BlastInput,
   type BlastRadius,
 } from "../../../lib/change/blast-radius"
+import { tenantUsers, type PoolUserReading } from "../../../lib/change/tenant-users"
 import type { CalendarSource } from "../../../lib/change/calendar"
 import {
   notificationReadiness,
@@ -58,6 +59,15 @@ export interface GovernanceInput {
   tagged: AwsRead<readonly TaggedResource[]> | null
   /** The ARNs the page attributed to this tenant, or null when it attributed none. */
   attributed: readonly string[] | null
+  /**
+   * STUDIO-060-004. What `cognito-idp:DescribeUserPool` answered for each user
+   * pool among those ARNs, or `null` when the page made no such read.
+   *
+   * `null` and `[]` are different and the calculation treats them so: an empty
+   * array means the attribution named no user pool, and `null` means nothing
+   * was asked.
+   */
+  userPools: readonly { poolId: string; detail: AwsRead<{ estimatedUsers: number | null }> }[] | null
   /** The seat ceiling this tenant's plan sets: a number, `null` for unlimited, `undefined` when no plan is known. */
   seatLimit: number | null | undefined
   /** The environment this tenant runs in. */
@@ -194,6 +204,28 @@ function resourceReading(input: GovernanceInput): BlastInput["resources"] {
   }
 }
 
+/**
+ * The `users` axis, from the pools the page read.
+ *
+ * The bridge from `AwsRead<PoolDetail>` to a `Reading<number | null>` is here
+ * rather than in `lib/change/tenant-users` for the same reason `readingOf` is
+ * here: `AwsRead` is the shape at the AWS boundary and the calculation should
+ * not know about it. `readingOf` is reused rather than a second switch being
+ * written over the same seven states.
+ */
+function userReading(input: GovernanceInput): BlastInput["users"] {
+  const pools: PoolUserReading[] = (input.userPools ?? []).map(({ poolId, detail }) => {
+    const read = readingOf<{ estimatedUsers: number | null } | null>(detail, null)
+    return {
+      poolId,
+      users: read.known
+        ? { known: true as const, value: read.value?.estimatedUsers ?? null }
+        : read,
+    }
+  })
+  return tenantUsers(input.attributed, pools)
+}
+
 function seatReading(input: GovernanceInput): BlastInput["seats"] {
   if (input.seatLimit === undefined) {
     return {
@@ -209,6 +241,7 @@ export function tenantGovernance(input: GovernanceInput): TenantGovernance {
   const cell = cellReading(input)
   const resources = resourceReading(input)
   const seats = seatReading(input)
+  const users = userReading(input)
 
   const moves = input.moves.map((move): MoveGovernance => {
     const operation: ChangeOperation = {
@@ -230,6 +263,7 @@ export function tenantGovernance(input: GovernanceInput): TenantGovernance {
         modules: MODULES,
         chains: PROCESS_CHAINS,
         cell,
+        users,
         seats,
         resources,
         externalDomains: externalDomains(input.manifest.systemOfRecord),

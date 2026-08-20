@@ -1,9 +1,11 @@
-import type {
-  CompiledPolicy,
-  Comparison,
-  Condition,
-  SourceRole,
-  UnknownBehaviour,
+import {
+  NON_DECIDING_DERIVATIONS,
+  NON_DECIDING_SOURCE_ROLES,
+  type CompiledPolicy,
+  type Comparison,
+  type Condition,
+  type SourceRole,
+  type UnknownBehaviour,
 } from "./policy"
 
 /**
@@ -191,6 +193,12 @@ function resolveAttribute(
 
   for (const fact of request.facts) {
     if (fact.attribute !== attribute) continue
+    // IER-070-006, at evaluation time and unconditionally. The compiler already
+    // refuses a policy that accepts these roles; this is the second lock,
+    // because `CompiledPolicy` is an interface a caller could satisfy by hand
+    // and a catalog is an object that can be added to after compilation. An
+    // advisory assertion is not weighted down here — it is not read.
+    if (NON_DECIDING_SOURCE_ROLES.includes(fact.sourceRole)) continue
     // Source trust at EVALUATION time, not only at compile time (§12.2). A fact
     // from a role this policy does not accept is not a weak signal to be
     // weighted — it is not read.
@@ -233,6 +241,19 @@ function evaluateComparison(
   request: EvaluationRequest,
   revisions: SourceRevision[],
 ): LeafResult {
+  // IER-070-006. Not `onMissing`: a policy may choose to treat an absent fact
+  // as absent and carry on, and it must not be able to make that choice about
+  // an attribute that was never allowed to decide. "This question was never
+  // askable" is its own answer, and it fails closed under its own name.
+  const definition = compiled.catalog[comparison.attribute]
+  if (definition && NON_DECIDING_DERIVATIONS.includes(definition.derivation)) {
+    return {
+      kind: "ABORT",
+      behaviour: "INDETERMINATE",
+      code: `NOT_A_DECIDING_ATTRIBUTE:${comparison.attribute}`,
+    }
+  }
+
   const resolution = resolveAttribute(comparison.attribute, compiled, request)
   revisions.push(...resolution.revisions)
 

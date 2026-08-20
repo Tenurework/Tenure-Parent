@@ -16,6 +16,11 @@ import { formatCents } from "@/lib/finance";
 import { approvalSla, slaColor } from "@/lib/approvals-sla";
 import { documentLocalization } from "@/lib/tenancy/locale-cookie";
 import { effectiveApprovalContext } from "@/lib/delegation";
+import {
+  displayPurposeFor,
+  maskForDisplay,
+} from "@/lib/payments/masked-display";
+import { MaskedNote } from "@/components/payments/MaskedNote";
 import { standingDeclarationsFor } from "@/lib/approvals-world";
 import { mayBorrowAuthority } from "@/lib/authz/borrowed-authority";
 import Link from "next/link";
@@ -58,6 +63,26 @@ export default async function ApprovalDetailPage({
         institutionId: approval.institutionId,
       });
     if (!canView) notFound();
+
+    // PAY-200-003. Being able to open this request and being able to read the
+    // account number somebody typed into it are two permissions, and until this
+    // they were one. `displayPurposeFor` decides the second from the reader's
+    // relationship to the record; `maskForDisplay` renders every free-text field
+    // as far as that purpose earns and no further. `ctx`, not `effCtx`: borrowed
+    // approval authority lends the gates a delegator holds, not their reasons
+    // for looking at a bank account.
+    const displayPurpose = displayPurposeFor({
+      ctx,
+      org: {
+        id: approval.organizationId,
+        institutionId: approval.institutionId,
+      },
+      subjectUserId: approval.submittedById,
+    });
+    const maskedDescription = maskForDisplay(
+      approval.description,
+      displayPurpose,
+    );
 
     // Delegation-aware: a backup approver sees (and can use) the gates they hold
     // on someone's behalf, not just their own — except on their own request.
@@ -259,10 +284,17 @@ export default async function ApprovalDetailPage({
                 needs the {staffOfficeShort} director, not any staff seat.
               </p>
             )}
-            {approval.description && (
-              <p className="mt-4 text-sm text-text-1 whitespace-pre-wrap">
-                {approval.description}
-              </p>
+            {/*
+              PAY-200-003 — a card number, an IBAN or a routing number typed
+              into this note is shown only as far as the reader's PURPOSE earns,
+              and the line underneath says what was withheld. Rendering
+              `approval.description` directly, as this did, put the whole value
+              in front of every seat that can open the request.
+            */}
+            {maskedDescription.text && (
+              <div className="mt-4">
+                <MaskedNote display={maskedDescription} />
+              </div>
             )}
           </Card>
 
@@ -480,11 +512,12 @@ export default async function ApprovalDetailPage({
                         {s.toStatus.replace(/_/g, " ")}
                       </span>
                     </p>
-                    {s.reason && (
-                      <p className="text-sm text-text-2 mt-1 italic">
-                        “{s.reason}”
-                      </p>
-                    )}
+                    <MaskedNote
+                      display={maskForDisplay(s.reason, displayPurpose)}
+                      className="text-sm text-text-2 mt-1"
+                      italic
+                      quoted
+                    />
                     <p className="text-xs text-text-3 mt-1">
                       {s.occurredAt.toLocaleString("en-US", {
                         month: "short",

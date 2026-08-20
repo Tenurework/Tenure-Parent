@@ -32,7 +32,7 @@ unmet rather than approximated from source.
 | image assets in the whole repository | 3 |
 | declared OAuth redirect paths | 24 |
 | — served by a route file | 0 |
-| HTTP routes in both apps | 31 |
+| HTTP routes in both apps | 32 |
 | Relay tool registrations | 1 |
 | — bound to an external provider | 0 |
 | sync/index surfaces named in the tree | 22 |
@@ -141,6 +141,7 @@ with the route that would serve it.
 | `/api/export` | GET | `apps/system-studio/src/app/api/export/route.ts` |
 | `/api/admin/directory` | GET | `apps/web/src/app/api/admin/directory/route.ts` |
 | `/api/ai/chat` | POST | `apps/web/src/app/api/ai/chat/route.ts` |
+| `/api/ai/correction` | GET, POST | `apps/web/src/app/api/ai/correction/route.ts` |
 | `/api/ai/draft` | POST | `apps/web/src/app/api/ai/draft/route.ts` |
 | `/api/attachment/[id]/content` | GET | `apps/web/src/app/api/attachment/[id]/content/route.ts` |
 | `/api/attachment/[id]` | GET | `apps/web/src/app/api/attachment/[id]/route.ts` |
@@ -290,9 +291,9 @@ Names only — no value is read.
 | `OKTA_CLIENT_ID` | `apps/web/src/lib/auth.ts` |
 | `OKTA_GRANTED_SCOPES` | `apps/web/src/app/(app)/settings/page.tsx` |
 | `OKTA_ISSUER` | `apps/web/src/lib/auth.ts` |
-| `PAYMENTS_PROVIDER_MODE` | `apps/web/src/app/api/payments/provider-events/route.ts` |
-| `PAYMENTS_WEBHOOK_SECRET` | `apps/web/src/app/api/payments/provider-events/route.ts` |
-| `PAYMENTS_WEBHOOK_SECRET_PREVIOUS` | `apps/web/src/app/api/payments/provider-events/route.ts` |
+| `PAYMENTS_PROVIDER_MODE` | `apps/web/src/app/api/payments/provider-events/route.test.ts` |
+| `PAYMENTS_WEBHOOK_SECRET` | `apps/web/src/app/api/payments/provider-events/route.test.ts` |
+| `PAYMENTS_WEBHOOK_SECRET_PREVIOUS` | `apps/web/src/app/api/payments/provider-events/route.test.ts` |
 | `PAYMENT_MODE` | `apps/system-studio/src/app/tenants/actions.ts` |
 | `PER_WAVE` | `tools/loop/plan-waves.mjs` |
 | `PLATFORM_EXPORT_SECRET` | `apps/web/src/app/api/platform/export/[slug]/route.ts` |

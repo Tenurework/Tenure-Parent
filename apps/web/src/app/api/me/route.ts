@@ -4,9 +4,12 @@ import { db } from "@/lib/db"
 import { getUserContext } from "@/lib/rbac"
 import { actingInstitutions } from "@/lib/tenant-scope"
 import { modulesFor } from "@tenure/platform-config"
-import { navigationCapabilitiesFor } from "@/lib/authz/navigation-capabilities"
+import { navigationCapabilitiesFor, worldFor } from "@/lib/authz/navigation-capabilities"
+import { hiddenTargetReasons, visibleTargets } from "@/lib/eligibility/module-scope"
+import { navigationTargetAccess } from "@/lib/eligibility/navigation-targets"
 import { accessReportFor } from "@/lib/identity/access-report"
 import { tenantEntryEligibility } from "@/lib/eligibility/tenant-entry"
+import { explainDecision } from "@/lib/eligibility/explain"
 
 /**
  * Who is signed in, which tenant they are acting in, and what that tenant runs.
@@ -85,6 +88,36 @@ export async function GET() {
     new Date().toISOString(),
   )
 
+  /**
+   * IER-120-002 / IER-120-003 / IER-120-004 — the same two menu entries, run
+   * through all three of §2.1's gates instead of gate 3 alone.
+   *
+   * §17: "Tenant entry is only the first eligibility level." `capabilities`
+   * above asks `decide()` whether this principal may exercise a permission, and
+   * that is gate 3. It cannot say whether the TENANT is entitled to the module
+   * behind the entry, and it cannot say whether this person is in the
+   * population the module is for — so a menu built from it alone can render a
+   * link into a module nobody bought.
+   *
+   * `navigationTargets` is a HINT, exactly as `capabilities` is. §17's second
+   * clause — "servers independently enforce every action and data query" — is
+   * unaffected: `decideTargetAccess` takes no menu, so a client that calls a
+   * route for a target this payload hid gets the same refusal it would have
+   * got had the target been shown.
+   */
+  const navigationTargets = navigationTargetAccess({
+    subjectId: userId,
+    tenantId: tenants.active?.id ?? "",
+    tenantCapabilities: enabledModules,
+    entry: {
+      accessState: access.state,
+      emailVerifiedAt: me?.emailVerified ?? null,
+      tenantCapabilities: enabledModules,
+      now: new Date(),
+    },
+    world: worldFor(ctx, tenants.active?.id ?? "", enabledModules),
+  })
+
   return NextResponse.json(
     {
       user: {
@@ -109,20 +142,18 @@ export async function GET() {
        */
       access,
       /**
-       * Gate 2 (§2.1), decided by `tenure.tenant-entry.v1`.
+       * Gate 2 (§2.1), decided by `tenure.tenant-entry.v1` and explained at the
+       * END_USER layer (§12.3, IER-070-010).
        *
-       * `outcome` is one of the eight §2.2 eligibility outcomes, `reasonCodes`
-       * are safe codes rather than sentences containing anybody's data, and
-       * `policyDigest` is what makes the decision re-derivable — the same
-       * inputs under the same policy version produce the same answer.
+       * This route answers to the signed-in person, so it gets the end-user
+       * explanation and nothing else: a disposition, the sentence that goes
+       * with it, and the codes they can act on. The policy id, the version
+       * digest and the engine's internal reason codes are deliberately absent —
+       * they belong to the admin, auditor and operator layers, which are
+       * different projections reached by different callers, not this payload
+       * with a flag on it.
        */
-      eligibility: {
-        outcome: eligibility.outcome,
-        reasonCodes: eligibility.reasonCodes,
-        remediation: eligibility.remediation,
-        policyId: eligibility.receipt.policyId,
-        policyDigest: eligibility.receipt.policyDigest,
-      },
+      eligibility: explainDecision(eligibility, "END_USER"),
       institutions: tenants.options.map((institution) => ({
         ...institution,
         active: institution.id === tenants.active?.id,
@@ -147,6 +178,22 @@ export async function GET() {
        */
       moduleProblems: system.problems,
       capabilities: [...capabilities].sort(),
+      /**
+       * IER-120-004 — the menu entries this person may reach, and why the
+       * others are absent.
+       *
+       * Both halves are carried deliberately. A hidden link with no reason is
+       * the state that generates a support ticket: "Reports is missing" is
+       * answerable from `hidden` — the tenant is not entitled to budgeting,
+       * or this person's membership is suspended — without anybody reading
+       * three tables side by side. The codes are the same stable codes the
+       * server recorded when it refused, so the sentence a person is shown and
+       * the reason the server logged cannot drift apart.
+       */
+      navigationTargets: {
+        visible: visibleTargets(navigationTargets),
+        hidden: hiddenTargetReasons(navigationTargets),
+      },
     },
     {
       // Per-user, tenant-dependent, and changes the moment they switch. A

@@ -1,0 +1,3725 @@
+{
+  "schema": 1,
+  "generated_by": "tools/simon-mapping-matrices.mjs",
+  "closes": [
+    "SIMON-000-015"
+  ],
+  "baseline_snapshot": "docs/architecture/simon-absorption-inventory.json",
+  "states": [
+    "BOTH — same implementation",
+    "BOTH — differs",
+    "SOURCE ONLY",
+    "TARGET ONLY"
+  ],
+  "axes": [
+    {
+      "axis": "route",
+      "key": "routes",
+      "title": "Routes",
+      "what": "every app-router page, keyed on the URL it answers on"
+    },
+    {
+      "axis": "API",
+      "key": "apis",
+      "title": "APIs",
+      "what": "every route handler, keyed on HTTP method and URL"
+    },
+    {
+      "axis": "event",
+      "key": "events",
+      "title": "Events",
+      "what": "cron endpoints, workflow cron schedules, and deployed queues, topics and rules"
+    },
+    {
+      "axis": "workflow",
+      "key": "workflow_states",
+      "title": "Workflow states",
+      "what": "every member of every declared `*Status` enumeration"
+    },
+    {
+      "axis": "permission",
+      "key": "permissions",
+      "title": "Permissions",
+      "what": "every exported symbol that decides whether an actor may act"
+    },
+    {
+      "axis": "role",
+      "key": "roles",
+      "title": "Roles",
+      "what": "every member of every declared `*Role` / `*Scope` enumeration"
+    },
+    {
+      "axis": "report",
+      "key": "reports",
+      "title": "Reports",
+      "what": "every path that presents or produces a report"
+    },
+    {
+      "axis": "integration",
+      "key": "integrations",
+      "title": "Integrations",
+      "what": "every outbound system, keyed on the provider"
+    }
+  ],
+  "selectors": {
+    "workflow_enum": "/Status$/",
+    "role_enum": "/(?:Role|Scope)$/",
+    "permission_name": "/^(?:can|may|assert|require|guard|decide)[A-Z]|^is[A-Z][A-Za-z0-9]*(?:Role|Admin|Owner|Member|Allowed|Authorized)$|Authority(?:For)?$|^hasPermission$/",
+    "report_path": "/report/i",
+    "http_methods": [
+      "GET",
+      "HEAD",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "integrations": [
+      {
+        "provider": "Amazon SES (email)",
+        "match": "/@aws-sdk\\/client-ses|\\bSESv?2?Client\\b|\\bSendEmailCommand\\b/"
+      },
+      {
+        "provider": "Amazon S3 (object storage)",
+        "match": "/@aws-sdk\\/client-s3|\\bS3Client\\b/"
+      },
+      {
+        "provider": "Amazon SQS (queue)",
+        "match": "/@aws-sdk\\/client-sqs|\\bSQSClient\\b/"
+      },
+      {
+        "provider": "Amazon Cognito (identity)",
+        "match": "/@aws-sdk\\/client-cognito|\\bCognitoIdentityProviderClient\\b/"
+      },
+      {
+        "provider": "AWS Secrets Manager",
+        "match": "/@aws-sdk\\/client-secrets-manager|\\bSecretsManagerClient\\b/"
+      },
+      {
+        "provider": "Anthropic (AI)",
+        "match": "/@anthropic-ai\\/|\\bAnthropic\\(/"
+      },
+      {
+        "provider": "Amazon Bedrock (AI)",
+        "match": "/@aws-sdk\\/client-bedrock|\\bBedrockRuntimeClient\\b/"
+      },
+      {
+        "provider": "Stripe (payments)",
+        "match": "/['\"]stripe['\"]|\\bnew Stripe\\(/"
+      },
+      {
+        "provider": "Google Calendar / OAuth",
+        "match": "/googleapis|accounts\\.google\\.com|\\bGoogleProvider\\b/"
+      },
+      {
+        "provider": "Microsoft / Azure AD",
+        "match": "/@azure\\/|login\\.microsoftonline\\.com|\\bAzureADProvider\\b/"
+      },
+      {
+        "provider": "Slack",
+        "match": "/@slack\\/|hooks\\.slack\\.com/"
+      },
+      {
+        "provider": "Prisma (database client)",
+        "match": "/@prisma\\/client/"
+      },
+      {
+        "provider": "NextAuth (session)",
+        "match": "/\\bnext-auth\\b/"
+      }
+    ]
+  },
+  "source": {
+    "label": "source",
+    "pinned_commit": "47c1128cb55953b11bedc47927508bc5d622b159",
+    "files_read": 318,
+    "event_kinds": {
+      "cron endpoint": 1,
+      "workflow cron": 0,
+      "queue or rule": 6
+    },
+    "unknown": null
+  },
+  "target": {
+    "label": "target",
+    "pinned_commit": "d4e2d4968f33603e419e5a163beeaad24c22a103",
+    "files_read": 1568,
+    "event_kinds": {
+      "cron endpoint": 4,
+      "workflow cron": 0,
+      "queue or rule": 6
+    },
+    "unknown": null
+  },
+  "matrices": {
+    "routes": [
+      {
+        "axis": "route",
+        "identity": "system-studio /",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/audit",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/audit/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/compute",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/compute/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/cost",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/cost/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/data",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/data/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/diagnostics",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/diagnostics/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/estate",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/estate/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/health",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/health/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/identity",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/identity/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/messaging",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/messaging/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/network",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/network/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /platform/security",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/security/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /signin",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/signin/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /tenants",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/tenants/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /tenants/[slug]",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/tenants/[slug]/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /tenants/[slug]/configuration",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/tenants/[slug]/configuration/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "system-studio /tenants/new",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/tenants/new/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /admin",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/admin/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/admin/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /admin/approvals",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/admin/approvals/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/admin/approvals/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /admin/audit",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/admin/audit/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/admin/audit/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /admin/clubs",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/admin/clubs/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/admin/clubs/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /admin/clubs/[slug]",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/admin/clubs/[slug]/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /admin/overrides",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/admin/overrides/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/admin/overrides/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /admin/payments",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/(app)/admin/payments/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /admin/people",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/admin/people/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/admin/people/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /approvals",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/approvals/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/approvals/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /approvals/[id]",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/approvals/[id]/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/approvals/[id]/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /approvals/new",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/approvals/new/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/approvals/new/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /calendar",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/calendar/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/calendar/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /calendar/[id]",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/calendar/[id]/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/calendar/[id]/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /calendar/new",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/calendar/new/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/calendar/new/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /dashboard",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/dashboard/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/dashboard/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /feed",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/feed/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/feed/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /gallery",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/(app)/gallery/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /inbox",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/(app)/inbox/page.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /messages",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/messages/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/messages/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /messages/[id]",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/messages/[id]/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/messages/[id]/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /messages/compose",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/messages/compose/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/messages/compose/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /notifications",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/notifications/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/notifications/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /orgs",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/orgs/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/orgs/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /orgs/[slug]",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /orgs/[slug]/documents",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/documents/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/documents/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /orgs/[slug]/documents/[id]/summary",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/summary/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/summary/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /orgs/[slug]/documents/[id]/view",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/view/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/view/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /orgs/[slug]/finance",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/finance/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /orgs/[slug]/handoff",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/handoff/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /orgs/[slug]/impact",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/impact/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /orgs/[slug]/members",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/members/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/members/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /orgs/[slug]/memory",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/orgs/[slug]/memory/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /reports",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/reports/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/reports/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /reports/finance",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/reports/finance/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/reports/finance/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /resources",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/resources/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/resources/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /resources/[slug]",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/resources/[slug]/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/resources/[slug]/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /search",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/search/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/search/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /settings",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/settings/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/settings/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "route",
+        "identity": "web /signin",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/signin/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/signin/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      }
+    ],
+    "apis": [
+      {
+        "axis": "API",
+        "identity": "GET /api/admin/directory",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/admin/directory/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/admin/directory/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/attachment/[id]",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/attachment/[id]/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/attachment/[id]/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/attachment/[id]/content",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/attachment/[id]/content/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/attachment/[id]/content/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/auth/[...nextauth]",
+        "state": "BOTH — differs",
+        "why": "1 only here",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/auth/[...nextauth]/route.ts"
+        ],
+        "target_files": [
+          "apps/system-studio/src/app/api/auth/[...nextauth]/route.ts",
+          "apps/web/src/app/api/auth/[...nextauth]/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 2,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/aws/[surface]",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/api/aws/[surface]/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "system-studio"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/calendar/event/[id]",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/calendar/event/[id]/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/calendar/event/[id]/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/calendar/ics/[token]",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/calendar/ics/[token]/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/calendar/ics/[token]/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/connections/exceptions",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/connections/exceptions/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/documents/[id]/content",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/documents/[id]/content/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/documents/[id]/content/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/export",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/api/export/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "system-studio"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/health",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/health/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/health/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/me",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/me/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/notifications",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/notifications/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/notifications/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/org-image/[orgId]",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/org-image/[orgId]/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/org-image/[orgId]/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/platform/export/[slug]",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/platform/export/[slug]/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/profile-image/[userId]",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/profile-image/[userId]/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/profile-image/[userId]/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/reports/pulse",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/reports/pulse/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/reports/pulse/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/search",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/search/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/search/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "GET /api/templates/budget",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/templates/budget/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/templates/budget/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "PATCH /api/calendar/event/[id]",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/calendar/event/[id]/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/calendar/event/[id]/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/ai/chat",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/ai/chat/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/ai/chat/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/ai/draft",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/ai/draft/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/ai/draft/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/auth/[...nextauth]",
+        "state": "BOTH — differs",
+        "why": "1 only here",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/auth/[...nextauth]/route.ts"
+        ],
+        "target_files": [
+          "apps/system-studio/src/app/api/auth/[...nextauth]/route.ts",
+          "apps/web/src/app/api/auth/[...nextauth]/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 2,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/aws/[surface]",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/api/aws/[surface]/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "system-studio"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/calendar/reschedule",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/calendar/reschedule/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/calendar/reschedule/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/connections/opportunity",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/connections/opportunity/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/documents/[id]/save",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/documents/[id]/save/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/documents/[id]/save/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/jobs/outbox",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/jobs/outbox/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/jobs/payments-version-watch",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/jobs/payments-version-watch/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/jobs/reminders",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/jobs/reminders/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/jobs/reminders/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/jobs/slo",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/jobs/slo/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/notifications",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/notifications/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/notifications/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/payments/provider-events",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/payments/provider-events/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "web"
+      },
+      {
+        "axis": "API",
+        "identity": "POST /api/platform/reconcile",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/platform/reconcile/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/platform/reconcile/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "web"
+      }
+    ],
+    "events": [
+      {
+        "axis": "event",
+        "identity": "aws_cloudwatch_event_rule.deliverable_reminders",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "infrastructure/terraform/scheduler.tf"
+        ],
+        "target_files": [
+          "infrastructure/terraform/scheduler.tf"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "event",
+        "identity": "aws_sqs_queue.default",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "target_files": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "event",
+        "identity": "aws_sqs_queue.default_dlq",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "target_files": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "event",
+        "identity": "aws_sqs_queue.email",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "target_files": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "event",
+        "identity": "aws_sqs_queue.email_dlq",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "target_files": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "event",
+        "identity": "aws_sqs_queue.notifications",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "target_files": [
+          "infrastructure/terraform/sqs.tf"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "event",
+        "identity": "cron endpoint /api/jobs/outbox",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/jobs/outbox/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "event",
+        "identity": "cron endpoint /api/jobs/payments-version-watch",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/jobs/payments-version-watch/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "event",
+        "identity": "cron endpoint /api/jobs/reminders",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/jobs/reminders/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/jobs/reminders/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "event",
+        "identity": "cron endpoint /api/jobs/slo",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/app/api/jobs/slo/route.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      }
+    ],
+    "workflow_states": [
+      {
+        "axis": "workflow",
+        "identity": "ApprovalStatus.APPROVED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "ApprovalStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "ApprovalStatus.CANCELLED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "ApprovalStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "ApprovalStatus.DRAFT",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "ApprovalStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "ApprovalStatus.NEEDS_CHANGES",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "ApprovalStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "ApprovalStatus.PENDING_OSE",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "ApprovalStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "ApprovalStatus.PENDING_PRESIDENT",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "ApprovalStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "ApprovalStatus.REJECTED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "ApprovalStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "AssignmentStatus.ACTIVE",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "AssignmentStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "AssignmentStatus.ALUMNI",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "AssignmentStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "AssignmentStatus.SHADOW",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "AssignmentStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "CollabStatus.APPROVED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "CollabStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "CollabStatus.DECLINED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "CollabStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "CollabStatus.PENDING_OSE",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "CollabStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "EventStatus.APPROVED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "EventStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "EventStatus.CANCELLED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "EventStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "EventStatus.DRAFT",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "EventStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "EventStatus.PENDING_APPROVAL",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "EventStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "EventStatus.PUBLISHED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "EventStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "MembershipStatus.ACTIVE",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "declaration",
+        "source_files": [],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "MembershipStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "MembershipStatus.REVOKED",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "declaration",
+        "source_files": [],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "MembershipStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "MembershipStatus.SUSPENDED",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "declaration",
+        "source_files": [],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "MembershipStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "OrgStatus.ACTIVE",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "OrgStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "OrgStatus.ARCHIVED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "OrgStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "OrgStatus.PENDING",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "OrgStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "RoleTransferStatus.CANCELLED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "RoleTransferStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "RoleTransferStatus.COMPLETED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "RoleTransferStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "RoleTransferStatus.DECLINED",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "RoleTransferStatus"
+      },
+      {
+        "axis": "workflow",
+        "identity": "RoleTransferStatus.PENDING",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "RoleTransferStatus"
+      }
+    ],
+    "permissions": [
+      {
+        "axis": "permission",
+        "identity": "approvalAuthorityFor",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/approvals.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/approvals.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "assertEnv",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/env.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/env.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/env.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "assertLiabilityApproved",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/payments/src/index.ts",
+          "packages/payments/src/liability.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/payments/src/index.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "assertOneImportBoundary",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/eslint.config.mjs"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/eslint.config.mjs"
+      },
+      {
+        "axis": "permission",
+        "identity": "assertRegistry",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/payments/src/capability-registry.ts",
+          "packages/payments/src/index.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/payments/src/capability-registry.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "assertRestrictOnly",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/platform-config/src/flags.ts",
+          "packages/platform-config/src/index.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/platform-config/src/flags.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "assertRuleComplete",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/planning/spread.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/planning/spread.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "assertSecretReference",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/identity/src/index.ts",
+          "packages/identity/src/oidc-connection.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/identity/src/index.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canAdvance",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/provisioning/src/index.ts",
+          "packages/provisioning/src/lifecycle.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/provisioning/src/index.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canAdvanceCatalog",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/provisioning/src/catalogs.ts",
+          "packages/provisioning/src/index.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/provisioning/src/catalogs.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canContribute",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canEditEvent",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/calendar-write.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/calendar-write.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/calendar-write.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canListAllOrgs",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canManageFinance",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canManageOrg",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canManageResources",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canManageRoster",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canMoveAccount",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/lib/aws/organization-units.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/lib/aws/organization-units.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canPlace",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/tenants/new/placement.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/app/tenants/new/placement.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canPostToConversation",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/messaging.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/messaging.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/messaging.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canReachServing",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/lib/tenant-state.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/lib/tenant-state.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canReadConversation",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/messaging.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/messaging.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/messaging.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canSeeMemoryCard",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/memory.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/memory.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/memory.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canTransition",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/provisioning/src/index.ts",
+          "packages/provisioning/src/tenant-registry.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/provisioning/src/index.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canViewApproval",
+        "state": "SOURCE ONLY",
+        "why": "the pilot carries it and this repository does not",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/approvals.ts"
+        ],
+        "target_files": [],
+        "source_file_count": 1,
+        "target_file_count": 0,
+        "detail": "apps/web/src/lib/approvals.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canViewFinance",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "canViewOrg",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "carriesFinanceAuthority",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideAcrossInstitution",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/authz/seat-world.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/authz/seat-world.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideChargeModel",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/payments/src/charge-model.ts",
+          "packages/payments/src/index.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/payments/src/charge-model.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideCheck",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/authorization/src/decide.ts",
+          "packages/authorization/src/index.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/authorization/src/decide.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideCollab",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/feed/actions.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/feed/actions.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/app/(app)/feed/actions.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideConflictOutcome",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/calendar-conflict-policy.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/calendar-conflict-policy.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideFinanceAction",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideFlag",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/platform-config/src/flags.ts",
+          "packages/platform-config/src/index.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/platform-config/src/flags.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideFromSeats",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/authz/seat-world.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/authz/seat-world.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decidePurchase",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/generality-fixtures/src/corporate-purchase.ts",
+          "packages/generality-fixtures/src/index.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/generality-fixtures/src/corporate-purchase.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideScimCreate",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/identity/src/index.ts",
+          "packages/identity/src/scim.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/identity/src/index.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideScope",
+        "state": "BOTH — same implementation",
+        "why": "all 1 backing file(s) are byte-identical after line-ending normalisation",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/tenancy/scope-args.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/tenancy/scope-args.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/tenancy/scope-args.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "decideSeedAllowed",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/scripts/seed-guard.mjs"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/scripts/seed-guard.mjs"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardBrandingCss",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/a11y/brand-roles.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/a11y/brand-roles.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardDutyBadge",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/security/posture.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/app/platform/security/posture.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardDutyContributionFrom",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/lib/aws/findings.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/lib/aws/findings.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardDutyCoverage",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/lib/aws/guardduty.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/lib/aws/guardduty.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardDutyLines",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/lib/aws/guardduty.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/lib/aws/guardduty.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardDutyReadings",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/lib/aws/guardduty.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/lib/aws/guardduty.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardFromAnalyzer",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/identity/doors.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/app/platform/identity/doors.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardFromConsoleMfa",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/identity/doors.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/app/platform/identity/doors.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardFromKeys",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/identity/doors.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/app/platform/identity/doors.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardFromOperatorRoster",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/identity/doors.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/app/platform/identity/doors.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardFromPasswordPolicy",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/identity/doors.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/app/platform/identity/doors.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "guardFromSecrets",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/identity/doors.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/app/platform/identity/doors.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "isFinanceRole",
+        "state": "SOURCE ONLY",
+        "why": "the pilot carries it and this repository does not",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/rbac.ts"
+        ],
+        "target_files": [],
+        "source_file_count": 1,
+        "target_file_count": 0,
+        "detail": "apps/web/src/lib/rbac.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "mayAct",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/lib/operators.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/lib/operators.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "mayBorrowAuthority",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/authz/borrowed-authority.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/authz/borrowed-authority.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "mayClaimEmpty",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/data/answer.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/app/platform/data/answer.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "mayContain",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/organization-model/src/index.ts",
+          "packages/organization-model/src/topology.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/organization-model/src/index.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "mayDecide",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/authorization/src/controls.ts",
+          "packages/authorization/src/index.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/authorization/src/controls.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "mayRedelegate",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/organization-model/src/continuity.ts",
+          "packages/organization-model/src/index.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "packages/organization-model/src/continuity.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "mayRetryUnattended",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/connections/integration-errors.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/connections/integration-errors.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "mayView",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/lib/operators.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/lib/operators.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "parseObjectAuthority",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/lib/object-authority.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/system-studio/src/lib/object-authority.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "requireAdminContext",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/admin/guard.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/admin/guard.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/admin/guard.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "requireCapability",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/admin/guard.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/admin/guard.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/admin/guard.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "requireContext",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/tenancy/request-context.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/tenancy/request-context.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "requirePrecondition",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/envelopes/limits.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/envelopes/limits.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "requireService",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/partition-services.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/partition-services.ts"
+      },
+      {
+        "axis": "permission",
+        "identity": "requireTenantScope",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/lib/tenancy/context.ts"
+        ],
+        "target_files": [
+          "apps/web/src/lib/tenancy/context.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "apps/web/src/lib/tenancy/context.ts"
+      }
+    ],
+    "roles": [
+      {
+        "axis": "role",
+        "identity": "InstitutionRole.OSE_ADVISOR",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "InstitutionRole"
+      },
+      {
+        "axis": "role",
+        "identity": "InstitutionRole.OSE_DIRECTOR",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "InstitutionRole"
+      },
+      {
+        "axis": "role",
+        "identity": "InstitutionRole.OSE_STAFF",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "InstitutionRole"
+      },
+      {
+        "axis": "role",
+        "identity": "RoleScope.FUNCTIONAL",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "RoleScope"
+      },
+      {
+        "axis": "role",
+        "identity": "RoleScope.MEMBER",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "RoleScope"
+      },
+      {
+        "axis": "role",
+        "identity": "RoleScope.PRESIDENT",
+        "state": "BOTH — same implementation",
+        "why": "both trees declare it, in the same enumeration, with the same name",
+        "compare": "declaration",
+        "source_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "target_files": [
+          "apps/web/prisma/schema.prisma"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": "RoleScope"
+      }
+    ],
+    "reports": [
+      {
+        "axis": "report",
+        "identity": "Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "Tenure_Enterprise_Analytics_Reporting_and_Visualization_Cloud_Claude_Bible_v1.0.md"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "apps/system-studio/src/app/platform/cost/CostReportView.tsx",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/app/platform/cost/CostReportView.tsx"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "apps/system-studio/src/lib/cost-report.ts",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/src/lib/cost-report.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "apps/web/e2e/search-reports.spec.ts",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/e2e/search-reports.spec.ts"
+        ],
+        "target_files": [
+          "apps/web/e2e/search-reports.spec.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "apps/web/scripts/duplicate-source-report.mjs",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/scripts/duplicate-source-report.mjs"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "apps/web/src/app/(app)/reports/finance/page.tsx",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/reports/finance/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/reports/finance/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "apps/web/src/app/(app)/reports/page.tsx",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/(app)/reports/page.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/app/(app)/reports/page.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "apps/web/src/app/api/reports/pulse/route.ts",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/app/api/reports/pulse/route.ts"
+        ],
+        "target_files": [
+          "apps/web/src/app/api/reports/pulse/route.ts"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "apps/web/src/components/charts/panels/ReportsAnalytics.tsx",
+        "state": "BOTH — differs",
+        "why": "1 shared file(s) differ in content",
+        "compare": "files",
+        "source_files": [
+          "apps/web/src/components/charts/panels/ReportsAnalytics.tsx"
+        ],
+        "target_files": [
+          "apps/web/src/components/charts/panels/ReportsAnalytics.tsx"
+        ],
+        "source_file_count": 1,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "apps/web/src/lib/identity/access-report.ts",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/web/src/lib/identity/access-report.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "docs/implementation/analytics-reporting-execution-ledger.md",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "docs/implementation/analytics-reporting-execution-ledger.md"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "packages/finops/src/reporting.ts",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "packages/finops/src/reporting.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "tests/security/key-report.test.mjs",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "tests/security/key-report.test.mjs"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      },
+      {
+        "axis": "report",
+        "identity": "tools/loop/fin-record-to-report-mutation-run.mjs",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "tools/loop/fin-record-to-report-mutation-run.mjs"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 1,
+        "detail": null
+      }
+    ],
+    "integrations": [
+      {
+        "axis": "integration",
+        "identity": "AWS Secrets Manager",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/package.json",
+          "apps/system-studio/src/lib/aws/client.ts",
+          "docs/architecture/simon-absorption-inventory.json",
+          "package-lock.json"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 5,
+        "detail": "5 file(s)"
+      },
+      {
+        "axis": "integration",
+        "identity": "Amazon Cognito (identity)",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/package.json",
+          "apps/system-studio/src/lib/aws/capabilities.test.ts",
+          "apps/system-studio/src/lib/aws/client.ts",
+          "apps/system-studio/src/lib/aws/cognito.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 8,
+        "detail": "8 file(s)"
+      },
+      {
+        "axis": "integration",
+        "identity": "Amazon S3 (object storage)",
+        "state": "BOTH — differs",
+        "why": "4 shared file(s) differ in content, 11 only here",
+        "compare": "files",
+        "source_files": [
+          "apps/web/package.json",
+          "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/summary/page.tsx",
+          "apps/web/src/lib/s3.ts",
+          "package-lock.json"
+        ],
+        "target_files": [
+          "apps/system-studio/package.json",
+          "apps/system-studio/src/lib/aws/client.ts",
+          "apps/web/package.json",
+          "apps/web/src/app/(app)/orgs/[slug]/documents/[id]/summary/page.tsx"
+        ],
+        "source_file_count": 4,
+        "target_file_count": 15,
+        "detail": "4 file(s)"
+      },
+      {
+        "axis": "integration",
+        "identity": "Amazon SES (email)",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/package.json",
+          "apps/system-studio/src/lib/aws/capabilities.test.ts",
+          "apps/system-studio/src/lib/aws/client.ts",
+          "apps/system-studio/src/lib/aws/ses.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 7,
+        "detail": "7 file(s)"
+      },
+      {
+        "axis": "integration",
+        "identity": "Amazon SQS (queue)",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/package.json",
+          "apps/system-studio/src/lib/aws/client.ts",
+          "docs/architecture/simon-absorption-inventory.json",
+          "package-lock.json"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 6,
+        "detail": "6 file(s)"
+      },
+      {
+        "axis": "integration",
+        "identity": "Google Calendar / OAuth",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "docs/architecture/pack-surface-inventory.json",
+          "docs/architecture/simon-convergence-inventory.json",
+          "packages/provisioning/src/catalogs.ts",
+          "packages/provisioning/src/provider-packs.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 6,
+        "detail": "6 file(s)"
+      },
+      {
+        "axis": "integration",
+        "identity": "Microsoft / Azure AD",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "docs/architecture/pack-surface-inventory.json",
+          "packages/provisioning/src/provider-packs.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 2,
+        "detail": "2 file(s)"
+      },
+      {
+        "axis": "integration",
+        "identity": "NextAuth (session)",
+        "state": "BOTH — differs",
+        "why": "3 shared file(s) differ in content, 12 only here",
+        "compare": "files",
+        "source_files": [
+          "apps/web/package.json",
+          "apps/web/src/lib/auth.ts",
+          "apps/web/src/types/next-auth.d.ts",
+          "package-lock.json"
+        ],
+        "target_files": [
+          "apps/system-studio/e2e/api-contract.spec.ts",
+          "apps/system-studio/e2e/signin.spec.ts",
+          "apps/system-studio/package.json",
+          "apps/system-studio/src/app/signin/page.tsx"
+        ],
+        "source_file_count": 4,
+        "target_file_count": 16,
+        "detail": "4 file(s)"
+      },
+      {
+        "axis": "integration",
+        "identity": "Prisma (database client)",
+        "state": "BOTH — differs",
+        "why": "26 shared file(s) differ in content, 1 backing file(s) only in the pilot, 36 only here",
+        "compare": "files",
+        "source_files": [
+          "apps/web/package.json",
+          "apps/web/scripts/census.mjs",
+          "apps/web/scripts/ci-two-tenant-fixture.mjs",
+          "apps/web/scripts/seed.mjs"
+        ],
+        "target_files": [
+          "apps/system-studio/e2e/compute-page-logic.spec.ts",
+          "apps/system-studio/e2e/health-page-logic.spec.ts",
+          "apps/web/package.json",
+          "apps/web/scripts/census.mjs"
+        ],
+        "source_file_count": 32,
+        "target_file_count": 67,
+        "detail": "32 file(s)"
+      },
+      {
+        "axis": "integration",
+        "identity": "Stripe (payments)",
+        "state": "TARGET ONLY",
+        "why": "this repository carries it and the pilot does not",
+        "compare": "files",
+        "source_files": [],
+        "target_files": [
+          "apps/system-studio/e2e/portability-logic.spec.ts",
+          "apps/web/prisma/schema.prisma",
+          "apps/web/src/lib/payments/ledger-attribution.itest.ts",
+          "packages/contracts/src/contracts.test.ts"
+        ],
+        "source_file_count": 0,
+        "target_file_count": 14,
+        "detail": "14 file(s)"
+      }
+    ]
+  },
+  "totals": {
+    "routes": {
+      "BOTH — same implementation": 11,
+      "BOTH — differs": 26,
+      "SOURCE ONLY": 0,
+      "TARGET ONLY": 21,
+      "rows": 58
+    },
+    "apis": {
+      "BOTH — same implementation": 10,
+      "BOTH — differs": 13,
+      "SOURCE ONLY": 0,
+      "TARGET ONLY": 11,
+      "rows": 34
+    },
+    "events": {
+      "BOTH — same implementation": 6,
+      "BOTH — differs": 1,
+      "SOURCE ONLY": 0,
+      "TARGET ONLY": 3,
+      "rows": 10
+    },
+    "workflow_states": {
+      "BOTH — same implementation": 25,
+      "BOTH — differs": 0,
+      "SOURCE ONLY": 0,
+      "TARGET ONLY": 3,
+      "rows": 28
+    },
+    "permissions": {
+      "BOTH — same implementation": 3,
+      "BOTH — differs": 15,
+      "SOURCE ONLY": 2,
+      "TARGET ONLY": 48,
+      "rows": 68
+    },
+    "roles": {
+      "BOTH — same implementation": 6,
+      "BOTH — differs": 0,
+      "SOURCE ONLY": 0,
+      "TARGET ONLY": 0,
+      "rows": 6
+    },
+    "reports": {
+      "BOTH — same implementation": 0,
+      "BOTH — differs": 5,
+      "SOURCE ONLY": 0,
+      "TARGET ONLY": 9,
+      "rows": 14
+    },
+    "integrations": {
+      "BOTH — same implementation": 0,
+      "BOTH — differs": 3,
+      "SOURCE ONLY": 0,
+      "TARGET ONLY": 7,
+      "rows": 10
+    }
+  }
+}

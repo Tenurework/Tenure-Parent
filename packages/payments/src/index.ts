@@ -315,3 +315,60 @@ export {
   type EvidenceValues,
   type HighRiskClass,
 } from "./high-risk-actions"
+
+/**
+ * PAY-060-001 — the canonical payment order and attempt machines.
+ *
+ * Independent of the provider by construction: `observeProviderState` returns
+ * what an event is evidence OF and cannot move anything, and `advanceOrder`
+ * validates against Tenure's own table with the order's real current state.
+ */
+export {
+  ACCOUNT_SCOPED_EVENTS,
+  ATTEMPT_TRANSITIONS,
+  EVIDENCE_SOURCES,
+  NON_SETTLEMENT_EVIDENCE,
+  ORDER_TRANSITIONS,
+  PAYMENT_ATTEMPT_STATES,
+  PAYMENT_CONTROL_STATES,
+  PAYMENT_ORDER_STATES,
+  SETTLEMENT_STATES,
+  advanceAttempt,
+  advanceOrder,
+  canonicalProviderReadings,
+  isTerminalOrderState,
+  observeProviderState,
+  type AdvanceOrderInput,
+  type EvidenceSource,
+  type OrderTransition,
+  type PaymentAttemptState,
+  type PaymentControlState,
+  type PaymentOrderState,
+  type PaymentState,
+  type ProviderObservation,
+  type ProviderReading,
+  type TransitionRefusal,
+} from "./payment-order-state"
+
+/** PAY-090-001 — five outbound commands, five machines, and no generic verb. */
+export {
+  PAYOUT_COMMANDS,
+  PAYOUT_COMMAND_MACHINES,
+  isTerminalPayoutState,
+  statesOf as payoutCommandStates,
+  transitionPayoutCommand,
+  type PayoutCommand,
+  type PayoutCommandMachine,
+  type PayoutTransition,
+} from "./payout-commands"
+
+/** PAY-080-001 — which of Bible §10's four command types a request is. */
+export {
+  MOVEMENT_COMMAND_TYPES,
+  MovementCommandError,
+  assertProviderCallPermitted,
+  classifyMovementCommand,
+  type MovementCommandDecision,
+  type MovementCommandFacts,
+  type MovementCommandType,
+} from "./movement-commands"

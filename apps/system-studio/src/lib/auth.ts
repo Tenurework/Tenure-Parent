@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials"
 
 import { cognitoProviderConfig, studioAuthMode } from "./auth-config"
 import { authenticateOperator, roleOf } from "./operators"
+import { sessionWithAuthentication, stampAuthentication } from "./step-up"
 
 /**
  * Sign-in for the System Studio.
@@ -63,11 +64,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const userEmail = typeof user?.email === "string" ? user.email.trim().toLowerCase() : ""
       const tokenEmail = typeof token.email === "string" ? token.email.trim().toLowerCase() : ""
       token.email = userEmail || profileEmail || tokenEmail
-      return token
+      /*
+       * STUDIO-020-008. Stamped once, when `user` is present — which NextAuth
+       * does only on the callback that follows a real authentication. This
+       * callback also runs on every subsequent request to re-issue the JWT, and
+       * stamping there would make the claim mean "the last time this tab loaded
+       * a page", which never goes stale while a browser is open. That is the
+       * exact value the step-up window must not be measured against.
+       */
+      return stampAuthentication(token, user !== undefined, new Date())
     },
     async session({ session, token }) {
       if (session.user && typeof token.email === "string") session.user.email = token.email
-      return session
+      /*
+       * Carried onto the session so a server action can read it without
+       * decoding the JWT itself. The copy — including its refusal to write a
+       * null for a token minted before this shipped — is
+       * `sessionWithAuthentication`, which is a pure function a test can drive;
+       * what is left here is the argument NextAuth supplies.
+       */
+      return sessionWithAuthentication(session, token)
     },
   },
 })

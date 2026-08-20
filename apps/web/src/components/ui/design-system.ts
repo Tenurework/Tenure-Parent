@@ -33,7 +33,7 @@ import { ALL_THEMES, readThemes } from "@/lib/a11y/theme-tokens"
  * version it will be removed in. A deprecation nothing enforces is a comment.
  */
 
-export const DESIGN_SYSTEM_VERSION = "1.2.0"
+export const DESIGN_SYSTEM_VERSION = "1.3.0"
 
 export interface DesignSystemRelease {
   /** Semver. Minor for an added token, major for a removed or re-meant one. */
@@ -121,6 +121,31 @@ export const VERSIONS: readonly DesignSystemRelease[] = [
       "import next/font/google in the web source. Restoring the intended faces " +
       "means committing self-hosted woff2 files with @font-face declarations " +
       "(or next/font/local), not re-adding a build-time third-party fetch.",
+  },
+  {
+    version: "1.3.0",
+    date: "2026-08-20",
+    tokenHash: "6158b366623d77990f7790980b017baa",
+    notes:
+      "Three token values move, none is added or removed. GE-143-038: " +
+      "--motion-slow 240ms -> 220ms, bringing the whole standard scale inside " +
+      "the governed 120-220ms band; the only assertion on it before was " +
+      "'<= 400', a bound chosen to exclude a hang rather than to implement a " +
+      "contract, and src/lib/a11y/motion-contract.ts now holds the band. " +
+      "GE-143-020: compact --control-h 34px -> 36px and --control-h-lg 38px -> " +
+      "40px, putting every density value on the four-pixel grid every " +
+      "--space-* token sits on; at 34/38 a compact control could not align " +
+      "with a gutter beside it at any zoom, and nothing caught it because the " +
+      "only property under test was 'smaller than comfortable'. " +
+      "src/lib/a11y/density-contract.ts now audits the grid, the 24px WCAG 2.2 " +
+      "SC 2.5.8 minimum target, and the rule that a density block may declare " +
+      "the size tokens and nothing else.",
+    migration:
+      "No component migration. Nothing names these values directly — the " +
+      "heights are reached through h-control / h-control-lg / h-row and the " +
+      "duration through duration-slow. A compact control is 2px taller than it " +
+      "was and a full-height surface travels 20ms faster; if a layout was " +
+      "tuned against 34px, tune it against the token, not against the number.",
   },
 ]
 

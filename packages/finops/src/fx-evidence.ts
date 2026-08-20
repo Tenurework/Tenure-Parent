@@ -445,7 +445,7 @@ export function convertWithEvidence(input: ConversionInput): FxOutcome {
           ? null
           : { minorUnits: providerFeeMinorUnits, currency: settlementCurrency },
       recognition,
-      fxGainLossMinorUnits,
+      fxGainLossMinorUnits: 0,
       rounding: FX_ROUNDING,
       roundingResidualMicroMinorUnits,
       computedAt: at,

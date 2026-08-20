@@ -141,14 +141,14 @@ documents:
     family: "fin-finance-surface-inventory"
     superseded_by: null
     supersedes: []
-    sha256: df8c9471f0988a60595aa5bc3beb9b64356307cd8cce31063d2bf9232d8e9935
-    bytes: 29977
+    sha256: d467c851f39ea43098fe75201c814feef71370340ba542f0f6483ab95135cd54
+    bytes: 33461
     aliases: []
     requirement_prefixes:
       - FIN
       - PAY
     states_requirements: 0
-    mentions_requirement_ids: 6
+    mentions_requirement_ids: 7
   - id: "hcm-capability-matrix"
     title: "People Cloud — supported capability, jurisdiction and provider matrix"
     version: unversioned
@@ -187,8 +187,8 @@ documents:
     family: "int-connector-write-boundary"
     superseded_by: null
     supersedes: []
-    sha256: a0db266b526593423ee70e92130eeb67713760bf30b1dda217d361eb51c843f3
-    bytes: 7431
+    sha256: "843bc55a44ea747e8e26834b9fecf3243100d08fabe9a5c0168129910e6898cc"
+    bytes: 7781
     aliases: []
     requirement_prefixes: []
     states_requirements: 0
@@ -201,8 +201,8 @@ documents:
     family: "int-integration-inventory"
     superseded_by: null
     supersedes: []
-    sha256: "79ee81f7204fead3384ae8f7fcea64af9bfac38e400d44754fd398f11262c75c"
-    bytes: 20986
+    sha256: e6891702216ca0f99d9e3a799f9d85b4183613d57273a225ab3ca8c55a1e2674
+    bytes: 21097
     aliases: []
     requirement_prefixes:
       - INT
@@ -537,13 +537,13 @@ documents:
     family: "bounded-contexts"
     superseded_by: null
     supersedes: []
-    sha256: "4074c19f915a50560d8af0c58d2abec728f89ebfcc8fa5ed51095148b68cdc4f"
-    bytes: 11378
+    sha256: "3fc43c6311fff75865f0307223c276e3f850b245e820d2c99caa83d3be6dae52"
+    bytes: 12820
     aliases: []
     requirement_prefixes:
       - PAY
     states_requirements: 0
-    mentions_requirement_ids: 3
+    mentions_requirement_ids: 5
   - id: "payment-authority-and-regulatory-boundary"
     title: Payment authority and regulatory boundary
     version: unversioned

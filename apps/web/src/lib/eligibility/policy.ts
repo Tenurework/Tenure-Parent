@@ -60,6 +60,43 @@ export const ATTRIBUTE_TYPES = ["string", "boolean", "enum", "interval"] as cons
 export type AttributeType = (typeof ATTRIBUTE_TYPES)[number]
 
 /**
+ * IER-070-006 — how a value came to exist, which is the only thing that
+ * separates a fact from a guess once both are sitting in the same field.
+ *
+ * §12.2 "Prohibit LLM output as a condition", invariant 8. A prohibition you
+ * cannot detect is a comment, so the catalog is made to SAY how each attribute
+ * is produced and the compiler refuses the ones that were not derived by a rule
+ * anybody can re-run. It is required rather than optional-with-a-default
+ * precisely because the dangerous case is the attribute somebody forgot to
+ * label: an optional field means a model-inferred value slips in as a hard
+ * access condition by omission, which is the shape of this failure everywhere
+ * it has happened.
+ */
+export const DERIVATIONS = [
+  /** A source stated it. */
+  "SOURCE_ASSERTED",
+  /** Computed from asserted facts by a rule that produces the same answer every time. */
+  "DETERMINISTIC_DERIVED",
+  /** Produced by a model. Evidence for a human to read; never the condition itself. */
+  "MODEL_INFERRED",
+] as const
+export type Derivation = (typeof DERIVATIONS)[number]
+
+/** Derivations that may never be a condition on access (IER-070-006). */
+export const NON_DECIDING_DERIVATIONS: readonly Derivation[] = ["MODEL_INFERRED"]
+
+/**
+ * Source roles that may never be the final word on access (IER-070-006).
+ *
+ * §8's `ADVISORY_ONLY` exists so a probabilistic or third-party signal can be
+ * carried, shown and reasoned about without deciding anything; `UNTRUSTED` is
+ * how a quarantined source stays nameable. A policy that accepted either would
+ * be reading exactly the signal §12.2 forbids as a condition, under a different
+ * field name.
+ */
+export const NON_DECIDING_SOURCE_ROLES: readonly SourceRole[] = ["ADVISORY_ONLY", "UNTRUSTED"]
+
+/**
  * One attribute this platform is allowed to decide with (§7).
  *
  * `acceptedSourceRoles` and `maxAgeMs` live on the CATALOG rather than only on
@@ -78,6 +115,11 @@ export interface AttributeDefinition {
   acceptedSourceRoles: readonly SourceRole[]
   /** Maximum age of an assertion, in milliseconds, before it is stale. */
   maxAgeMs: number
+  /**
+   * IER-070-006 — how this attribute is produced. Required: an attribute whose
+   * derivation nobody stated is an attribute nobody can vouch for.
+   */
+  derivation: Derivation
   /**
    * §7.2 / invariant 7 — a protected attribute is forbidden as an ordinary
    * access factor. A policy may still read one, but only by naming it in
@@ -277,6 +319,21 @@ function checkComparison(
     return
   }
 
+  // IER-070-006. Checked here, at the point a condition READS the attribute,
+  // rather than over the catalog as a whole: a model-inferred attribute may
+  // exist, be stored and be shown to a reviewer. What it may not do is decide.
+  if (!DERIVATIONS.includes(definition.derivation)) {
+    problems.push({
+      path,
+      message: `the catalog does not say how "${comparison.attribute}" is produced; derivation must be one of ${DERIVATIONS.join(", ")}`,
+    })
+  } else if (NON_DECIDING_DERIVATIONS.includes(definition.derivation)) {
+    problems.push({
+      path,
+      message: `"${comparison.attribute}" is ${definition.derivation}: a value produced by a model is evidence a human may read, never a condition on access (§12.2, invariant 8)`,
+    })
+  }
+
   if (definition.protectedAttribute && !policy.justifiedProtectedAttributes?.[comparison.attribute]) {
     problems.push({
       path,
@@ -422,6 +479,19 @@ export function compilePolicy(policy: EligibilityPolicy, catalog: AttributeCatal
       problems.push({
         path: `attributes[${index}].acceptedSourceRoles`,
         message: `the catalog does not accept ${widened.join(", ")} for "${requirement.attribute}"; a policy may narrow source trust, never widen it`,
+      })
+    }
+    // IER-070-006 — an advisory or quarantined assertion is a signal, not a
+    // decision. A policy that accepted one would be letting a probabilistic
+    // feed grant access through the source-role field instead of the
+    // derivation field, which is the same prohibition with the label moved.
+    const nonDeciding = requirement.acceptedSourceRoles.filter((role) =>
+      NON_DECIDING_SOURCE_ROLES.includes(role),
+    )
+    if (nonDeciding.length > 0) {
+      problems.push({
+        path: `attributes[${index}].acceptedSourceRoles`,
+        message: `${nonDeciding.join(", ")} may be read and shown but may not decide access for "${requirement.attribute}" (§12.2, IER-070-006)`,
       })
     }
     if (requirement.maxAgeMs > definition.maxAgeMs) {

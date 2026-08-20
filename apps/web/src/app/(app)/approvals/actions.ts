@@ -17,6 +17,7 @@ import { standingDeclarationsFor } from "@/lib/approvals-world";
 import {
   REIMBURSEMENT_TEMPLATE,
   buildJournal,
+  classifyMovementCommand,
   classifyRequest,
   postingFor,
 } from "@tenure/payments";
@@ -731,6 +732,38 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
           currency: line.currency,
         });
 
+        // ── PAY-080-001 — WHICH of Bible §10's four this command is ──────────
+        //
+        // A second, different question from the one above. `classifyRequest`
+        // says whether the request may proceed; this says what it IS — a memo
+        // allocation that posts nothing, a balanced journal inside one legal
+        // entity, a due-to/due-from across two, or money leaving the platform.
+        // Before this, all four reached the same `db.ledgerEntry.create`.
+        //
+        // It runs BEFORE the refusal is thrown so that a refused movement's
+        // audit row carries the type as well as the verdict: "we refused a
+        // payout" and "we refused an EXTERNAL_PROVIDER_MOVEMENT whose Bible §11
+        // verb is SETTLEMENT_PAYOUT" are different amounts of evidence.
+        //
+        // `postsJournal: true` is a fact about this path, not a default: what
+        // follows a clearance here is `buildJournal` and two `LedgerEntry`
+        // rows. A `kind: "memo"` request is therefore refused as unclassifiable
+        // rather than posted, because a memo allocation is defined by making no
+        // accounting posting.
+        const command = classifyMovementCommand({
+          kind: paymentIntent?.kind ?? "ledger-allocation",
+          sourceLegalEntityId: approval.institutionId,
+          destinationLegalEntityId:
+            paymentIntent?.destinationLegalEntityId ?? approval.institutionId,
+          beneficiary: paymentIntent?.beneficiary
+            ? {
+                external: paymentIntent.beneficiary.external === true,
+                name: paymentIntent.beneficiary.name ?? "unnamed",
+              }
+            : null,
+          postsJournal: true,
+        });
+
         if (movement.verdict !== "ALLOWED") {
           // A refused money movement is precisely the row an attacker would
           // want unchained, so it goes through the builder: hash chain, release
@@ -749,6 +782,10 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
               verdict: movement.verdict,
               code: movement.code,
               escalateTo: movement.escalateTo,
+              // PAY-080-001. What was refused, not only that something was.
+              commandType: command.commandType,
+              commandCode: command.code,
+              payoutCommand: command.payoutCommand,
             },
           });
           throw new Error(
@@ -756,6 +793,25 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
               ? `This request cannot be posted: ${movement.reason}`
               : `This request needs ${movement.escalateTo} to decide it first: ${movement.reason}`,
           );
+        }
+
+        // An ALLOWED movement whose §10 type nobody could determine does not
+        // post. "We could not classify it" is not "it is internal", and the
+        // journal below is written under a command type that is recorded with
+        // it — so an unclassified posting is a row nobody can later explain.
+        if (!command.decided) {
+          await recordAuditEvent({
+            institutionId: approval.institutionId,
+            organizationId: approval.organizationId ?? undefined,
+            actor: { principalId: userId },
+            action: "Payments.COMMAND_UNCLASSIFIED",
+            resourceType: "ApprovalRequest",
+            resourceId: approval.id,
+            outcome: "DENY",
+            reason: `${command.code}: ${command.reason}`,
+            metadata: { commandCode: command.code },
+          });
+          throw new Error(`This request cannot be posted: ${command.reason}`);
         }
 
         // ── PAY-190-002 and PAY-200-004 — the currency, then the ceilings ────
@@ -819,6 +875,12 @@ export async function actOnApproval(approvalId: string, formData: FormData) {
           limitsVerdict: gate.limits.verdict,
           limitsCode: gate.limits.code,
           limitsNotApplicable: gate.limits.notApplicable.join(","),
+          // PAY-080-001. The §10 command type this journal was posted as, on
+          // the decision step, so the row can be read back as one of four acts
+          // rather than as "a ledger entry".
+          commandType: command.commandType,
+          commandCode: command.code,
+          requiresIntercompanyPolicy: command.requiresIntercompanyPolicy,
         };
 
         // ── PAY-130-002 — a balanced journal, from an effective-dated template

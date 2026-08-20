@@ -30,9 +30,9 @@ by_prefix:
   WRK: 88
 by_status:
   BLOCKED_EXTERNAL: 30
-  FAIL: 1914
+  FAIL: 1902
   NOT_APPLICABLE: 1
-  PASS: 320
+  PASS: 332
 unimported: 0
 # Requirements no execution document mentions. Not queued, not counted, not
 # failing — invisible, which reads exactly like done. This number is the
@@ -1672,7 +1672,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-020 — Environment landscape and promotion"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -1681,7 +1681,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-020 — Environment landscape and promotion"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2563,7 +2563,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-110 — Hypercare and service transition"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2572,7 +2572,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-110 — Hypercare and service transition"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2581,7 +2581,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-110 — Hypercare and service transition"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2608,7 +2608,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-110 — Hypercare and service transition"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -2617,7 +2617,7 @@ requirements:
     prefix: EXT
     source_document: docs/architecture/Tenure_Global_ERP_Implementation_Extension_v1.0.md
     section: "EXT-120 — Legacy retirement"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/global-engine-execution-ledger.md"
@@ -16441,7 +16441,7 @@ requirements:
     prefix: SIMON
     source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
     section: "4.1 Repository inventory"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
@@ -16450,7 +16450,7 @@ requirements:
     prefix: SIMON
     source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
     section: "4.1 Repository inventory"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
@@ -16459,7 +16459,7 @@ requirements:
     prefix: SIMON
     source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
     section: "4.1 Repository inventory"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
@@ -16531,7 +16531,7 @@ requirements:
     prefix: SIMON
     source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
     section: "4.3 Baseline artifact"
-    status: FAIL
+    status: PASS
     imported: true
     reason: decided in the execution ledger
     ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
@@ -16540,10 +16540,10 @@ requirements:
     prefix: SIMON
     source_document: docs/implementation/Tenure_Simon_OSE_Tenant_Absorption_and_Global_Update_Inheritance_Claude_Bible_v1.0.md
     section: "4.3 Baseline artifact"
-    status: FAIL
+    status: PASS
     imported: true
-    reason: "imported into the execution system, not yet decided"
-    ledger: null
+    reason: decided in the execution ledger
+    ledger: "docs/implementation/simon-ose-absorption-execution-ledger.md"
     statement: Produce route/API/event/workflow/permission/role/report/integration mapping matrices.
   - id: "SIMON-010-001"
     prefix: SIMON

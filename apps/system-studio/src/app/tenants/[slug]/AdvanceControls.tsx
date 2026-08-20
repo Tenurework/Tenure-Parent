@@ -3,7 +3,12 @@
 import { useActionState, useMemo, useState } from "react"
 
 import { advanceState, type AdvanceResult } from "../actions"
-import { ConflictState, HighRiskConfirmation, type HighRisk } from "@/components/states"
+import {
+  ConflictState,
+  HighRiskConfirmation,
+  POLICY_REVISION_FIELD,
+  type HighRisk,
+} from "@/components/states"
 
 /**
  * The buttons that move a tenant.
@@ -38,6 +43,7 @@ export function AdvanceControls({
   moves,
   expectedVersion,
   expectedDigest,
+  policyRevision,
 }: {
   slug: string
   moves: Array<{
@@ -64,6 +70,17 @@ export function AdvanceControls({
   expectedVersion: number
   /** The manifest digest this page rendered. Compared server-side. */
   expectedDigest: string
+  /**
+   * STUDIO-020-008. The operator policy revision this page was rendered under.
+   *
+   * Computed on the server from the grant table itself and passed in, never
+   * imported here: this is a client component, and importing `POLICY_REVISION`
+   * would put the whole `OPERATOR_GRANTS` table into the browser bundle. The
+   * gate refuses a submission whose revision is no longer the one in force, so
+   * a permission changed while this page sat open is re-decided rather than
+   * inherited.
+   */
+  policyRevision: string
 }) {
   const [result, action, pending] = useActionState<AdvanceResult | null, FormData>(
     advanceState,
@@ -186,6 +203,13 @@ export function AdvanceControls({
           <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
           <input type="hidden" name="expectedVersion" value={String(expectedVersion)} />
           <input type="hidden" name="expectedDigest" value={expectedDigest} />
+          {/*
+            STUDIO-020-008. The fourth: which operator policy was in force when
+            this page rendered. `stepUpVerdict` refuses the submission when it is
+            no longer the current one — an operator whose permission was revoked
+            between the render and the click does not get to use the render.
+          */}
+          <input type="hidden" name={POLICY_REVISION_FIELD} value={policyRevision} />
 
           {/*
             GE-022-006. The five things Bible §26.6 requires before a high-risk
