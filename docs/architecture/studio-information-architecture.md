@@ -53,7 +53,7 @@ as of it.
 | 1 | **The content is a centred column.** `main { inline-size: min(100%, 1280px); margin-inline: auto }`. On a 1920px operator monitor that is 320px of empty page on each side, permanently. `.masthead` and `.tabs` pad themselves to match with `padding-inline: max(var(--space-5), calc((100vw - 1280px) / 2 + var(--space-5)))`, so the whole console is pinned to that column. | `globals.css`, rules `main`, `.masthead`, `.tabs` |
 | 2 | **The top bar holds four things.** A text `Tenure` wordmark, the words "System Studio", the preferences menu, an "Internal" badge. No sign-out, no account, no search, no breadcrumb, no environment or account indicator. | `src/app/layout.tsx:37-42` |
 | 3 | **There is no way to sign out.** `signOut` is exported from `src/lib/auth.ts:49` and has **zero callers** anywhere under `src/`. An operator ends a session by clearing a cookie. | `grep -rn "signOut" apps/system-studio/src` → one hit, the export itself |
-| 4 | **The navigation has one level.** `GROUPS` is 8 groups and 14 entries rendered as a horizontal wrapping strip. A group is a label above a list; there is nothing below an entry. | `src/components/Nav.tsx:87-209`; `grep -c '^        href: "'` → 14, `grep -c '^    domain: "'` → 8 |
+| 4 | **The navigation has one level.** `GROUPS` is 8 groups and 14 entries rendered as a horizontal wrapping strip. A group is a label above a list; there is nothing below an entry. | `src/components/Nav.tsx:87-209`; `grep -c '^        href: "' src/components/Nav.tsx` → 14, `grep -c '^    domain: "'` → 8 |
 | 5 | **The command palette is invisible.** `components/CommandPalette.tsx` returns `null` until Ctrl/Cmd-K is pressed (`if (!open) return null`, line 149) and nothing on any screen mentions it. The string "Ctrl" appears once in the whole UI — inside a code comment. | `src/components/CommandPalette.tsx:149`, `:103` |
 | 6 | **The mark is a word in a pill.** The masthead renders `<span className="mark">Tenure</span>` with a 10px square pseudo-element beside it. `components/brand/TenureLogo.tsx` has held the real rosette and a `TenureStudioWordmark` since before this run, and `grep -rn TenureLogo` returned hits in that file only — nothing rendered it. A design lane is landing `components/md3/Logo.tsx` over the same `PETAL` geometry while this is being written; §5 points the shell at it rather than at a third mark. | `grep -rn "TenureLogo"`; `git status --porcelain` |
 | 7 | **18 routes are served, not 17.** `find src/app -name page.tsx` → 18. The 17 in `tests/architecture/authorizing-routes-are-dynamic.test.mjs`'s comment predates `/platform/diagnostics`. | `href-probe`, §11 |
@@ -611,7 +611,7 @@ the same change as the account menu, not after it.
 |---|---|---|
 | The navigation and the routes still agree | `node --test tests/architecture/shell-separation.test.mjs` | 13 pass, 0 fail |
 | 18 routes are served | `find apps/system-studio/src/app -name page.tsx \| wc -l` | 18 |
-| 8 groups, 14 entries | `grep -c '^    domain: "' src/components/Nav.tsx`; `grep -c '^        href: "'` | 8; 14 |
+| 8 groups, 14 entries | `grep -c '^    domain: "' src/components/Nav.tsx`; `grep -c '^        href: "' src/components/Nav.tsx` | 8; 14 |
 | 6 register rows | `grep -c 'route: "' src/app/platform/diagnostics/register.ts` | 6 (2 quarantined, 4 unlinked) |
 | `signOut` has no caller | `grep -rn "signOut" apps/system-studio/src` | 1 hit — the export in `lib/auth.ts` |
 | The logo is unused | `grep -rn "TenureLogo" apps/system-studio/src apps/system-studio/e2e` | 3 hits, all inside `TenureLogo.tsx` |

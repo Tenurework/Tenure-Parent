@@ -56,9 +56,9 @@ export const STATIC_DESTINATIONS: readonly Destination[] = [
   { id: "health", title: "Health", href: "/platform/health", group: "Section", keywords: ["alarms", "cloudwatch", "coverage", "logs"] },
   { id: "cost", title: "Cost", href: "/platform/cost", group: "Section", keywords: ["finops", "budget", "spend", "allocation"] },
   { id: "audit", title: "Audit", href: "/platform/audit", group: "Section", keywords: ["evidence", "ledger", "chain", "retention", "hold"] },
-  // Kept, and deliberately last of the sections: it is the engine's own build
-  // report and is quarantined, so it should be findable and should not be what
-  // an operator lands on first.
+  // The rail's other quarantined destination. Both are last on purpose: they
+  // should be findable and should not be what an operator lands on first.
+  { id: "diagnostics", title: "Diagnostics", href: "/platform/diagnostics", group: "Section", keywords: ["quarantine", "register", "unlinked", "panels"] },
   { id: "platform", title: "Platform", href: "/platform", group: "Section", keywords: ["engine", "ledger", "build report"] },
   // Universal create. Bible §26.3.1 lists it beside command search for a
   // reason: the most common reason to open a launcher is to make something.
